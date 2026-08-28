@@ -91,6 +91,9 @@ export const taskScheduleValidationService = {
       where: {
         archivedAt: null,
         scheduleQuarantine: null,
+        owner: {
+          email: { endsWith: "@nmkr.io", mode: "insensitive" },
+        },
         OR: [{ metadata: { not: null } }, { nextRunAt: { not: null } }],
         ...(cursor?.cursorId ? { id: { gt: cursor.cursorId } } : {}),
       },

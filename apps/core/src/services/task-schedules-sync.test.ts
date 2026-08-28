@@ -13,6 +13,12 @@ const mockTaskScheduleQuarantineUpsert = vi.fn();
 const publishTaskEventDataMock = vi.fn();
 const lockCalendarScopeMock = vi.fn();
 const lockTaskRowsMock = vi.fn();
+const isNmkrEmailMock = vi.fn();
+
+vi.mock("@sokosumi/utils", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/utils")>()),
+  isNmkrEmail: isNmkrEmailMock,
+}));
 
 vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: publishTaskEventDataMock,
@@ -70,6 +76,7 @@ describe("taskSchedulesSyncService", () => {
     mockTaskScheduleQuarantineUpsert.mockResolvedValue({ id: "quarantine-1" });
     lockCalendarScopeMock.mockResolvedValue(true);
     lockTaskRowsMock.mockResolvedValue(true);
+    isNmkrEmailMock.mockReturnValue(true);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-10T12:00:00.000Z"));
   });
@@ -207,7 +214,6 @@ describe("taskSchedulesSyncService", () => {
     mockFindMany
       .mockResolvedValueOnce([{ id: "template-1" }])
       .mockResolvedValueOnce([]);
-
     mockTransaction.mockImplementation(async (callback) =>
       callback({
         task: {
@@ -216,15 +222,12 @@ describe("taskSchedulesSyncService", () => {
           update: mockTaskUpdate,
           updateMany: mockTaskUpdateMany,
         },
-        taskLink: {
-          create: mockTaskLinkCreate,
-        },
-        taskEvent: {
-          create: mockTaskEventCreate,
-        },
+        taskLink: { create: mockTaskLinkCreate },
+        taskEvent: { create: mockTaskEventCreate },
+        taskScheduleOccurrence: { create: mockTaskScheduleOccurrenceCreate },
+        taskScheduleQuarantine: { upsert: mockTaskScheduleQuarantineUpsert },
       }),
     );
-
     mockFindFirst.mockResolvedValue({
       id: "template-1",
       ownerId: "user-1",
@@ -244,7 +247,6 @@ describe("taskSchedulesSyncService", () => {
       }),
       nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
     });
-
     mockTaskCreate.mockResolvedValue({ id: "clone-1" });
     mockTaskUpdateMany.mockResolvedValue({ count: 1 });
     mockTaskUpdate.mockResolvedValue({ id: "template-1" });
@@ -257,6 +259,62 @@ describe("taskSchedulesSyncService", () => {
 
     expect(result.cloned).toBe(1);
     expect(mockTaskCreate).toHaveBeenCalled();
+  });
+
+  it("does not create calendar history for a non-NMKR schedule", async () => {
+    isNmkrEmailMock.mockReturnValue(false);
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-1" }])
+      .mockResolvedValueOnce([]);
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+          updateMany: mockTaskUpdateMany,
+        },
+        taskLink: { create: mockTaskLinkCreate },
+        taskEvent: { create: mockTaskEventCreate },
+        taskScheduleOccurrence: { create: mockTaskScheduleOccurrenceCreate },
+        taskScheduleQuarantine: { upsert: mockTaskScheduleQuarantineUpsert },
+      }),
+    );
+    mockFindFirst.mockResolvedValue({
+      id: "template-1",
+      ownerId: "user-1",
+      owner: { email: "external@example.com" },
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: null,
+      assigneeId: null,
+      name: "Template",
+      description: "Run me",
+      metadata: JSON.stringify({
+        version: 1,
+        mode: "recurring",
+        scheduledAt: "2026-06-01T09:00:00.000Z",
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "never",
+      }),
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+    });
+    mockTaskCreate.mockResolvedValue({ id: "clone-1" });
+    mockTaskUpdateMany.mockResolvedValue({ count: 1 });
+
+    await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(mockTaskScheduleOccurrenceCreate).not.toHaveBeenCalled();
+    expect(mockTaskScheduleQuarantineUpsert).not.toHaveBeenCalled();
   });
 
   it("processes version 2 recurring metadata without downgrading it", async () => {

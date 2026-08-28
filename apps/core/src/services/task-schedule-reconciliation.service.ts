@@ -28,6 +28,7 @@ const RECONCILIATION_LINK_SELECT = {
     select: {
       workspaceId: true,
       projectId: true,
+      owner: { select: { email: true } },
     },
   },
   toTask: {
@@ -351,7 +352,18 @@ async function processBoundedBatch(
       select: { lastSyncedAt: true, cursorId: true },
     });
     const links = await tx.taskLink.findMany({
-      where: cursorRangeWhere(cursor, highWater),
+      where: {
+        AND: [
+          cursorRangeWhere(cursor, highWater),
+          {
+            fromTask: {
+              owner: {
+                email: { endsWith: "@nmkr.io", mode: "insensitive" },
+              },
+            },
+          },
+        ],
+      },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: RECONCILIATION_BATCH_SIZE,
       select: RECONCILIATION_LINK_SELECT,
@@ -403,6 +415,11 @@ async function processFinalBatch(): Promise<BatchResult> {
       where: {
         type: TaskLinkType.SCHEDULE,
         toTask: { releasedScheduleOccurrence: { is: null } },
+        fromTask: {
+          owner: {
+            email: { endsWith: "@nmkr.io", mode: "insensitive" },
+          },
+        },
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: RECONCILIATION_BATCH_SIZE,

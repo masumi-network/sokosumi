@@ -43,8 +43,10 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM "task" AS t
+    JOIN "user" AS owner ON owner.id = t."ownerId"
     WHERE t."projectId" = OLD.id
       AND t."archivedAt" IS NULL
+      AND lower(owner.email) ~ '^[^@]+@nmkr\.io$'
       AND (
         t."nextRunAt" IS NOT NULL
         OR t.metadata IS NOT NULL
@@ -54,13 +56,17 @@ BEGIN
     FROM "task" AS t
     JOIN "task_schedule_quarantine" AS quarantine
       ON quarantine."taskId" = t.id
+    JOIN "user" AS owner ON owner.id = t."ownerId"
     WHERE t."projectId" = OLD.id
+      AND lower(owner.email) ~ '^[^@]+@nmkr\.io$'
   ) OR EXISTS (
     SELECT 1
     FROM "task_link" AS link
     JOIN "task" AS source_task ON source_task.id = link."fromTaskId"
     JOIN "task" AS target_task ON target_task.id = link."toTaskId"
+    JOIN "user" AS owner ON owner.id = source_task."ownerId"
     WHERE link.type = 'SCHEDULE'
+      AND lower(owner.email) ~ '^[^@]+@nmkr\.io$'
       AND (
         source_task."projectId" = OLD.id
         OR target_task."projectId" = OLD.id

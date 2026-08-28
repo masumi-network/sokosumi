@@ -11,6 +11,8 @@ import {
 } from "@sokosumi/database";
 import {
   hasReachedTaskScheduleReleaseTarget,
+  isNmkrEmail,
+  parseTaskScheduleMetadata,
   type TaskScheduleMetadata,
 } from "@sokosumi/utils";
 
@@ -250,6 +252,7 @@ async function cloneRecurringOccurrence(
   }>,
   metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
   scheduledAt: Date,
+  recordCalendarHistory: boolean,
 ): Promise<string> {
   const clone = await tx.task.create({
     data: getCloneTaskData(template),
@@ -264,6 +267,10 @@ async function cloneRecurringOccurrence(
     },
     select: { id: true },
   });
+
+  if (!recordCalendarHistory) {
+    return clone.id;
+  }
 
   const source = {
     sourceWorkspaceId: template.workspaceId,
@@ -353,6 +360,7 @@ async function processDueTask(
           description: true,
           metadata: true,
           nextRunAt: true,
+          owner: { select: { email: true } },
         },
       });
 
@@ -361,60 +369,83 @@ async function processDueTask(
       }
 
       const claimedNextRunAt = candidate.nextRunAt;
-      const scopeLocked = await lockCalendarScope(tx, candidate.workspaceId, [
-        candidate.projectId,
-      ]);
-      if (!scopeLocked || !(await lockTaskRows(tx, [candidate.id]))) {
-        return { outcome: "skipped", publishEvents: [] };
-      }
+      const calendarBetaEnabled = isNmkrEmail(candidate.owner?.email);
+      let template = candidate;
+      let scheduleMetadata: TaskScheduleMetadata;
 
-      const template = await tx.task.findFirst({
-        where: {
-          ...queuedTemplateClaimWhere(candidate.id, claimedNextRunAt),
-          pendingVendorGrantId: null,
-          scheduleQuarantine: null,
-          nextRunAt: { lte: new Date() },
-        },
-        select: {
-          id: true,
-          ownerId: true,
-          organizationId: true,
-          workspaceId: true,
-          projectId: true,
-          assigneeId: true,
-          name: true,
-          description: true,
-          metadata: true,
-          nextRunAt: true,
-        },
-      });
-      if (!template?.nextRunAt) {
-        return { outcome: "skipped", publishEvents: [] };
-      }
-      if (
-        template.workspaceId !== candidate.workspaceId ||
-        template.projectId !== candidate.projectId
-      ) {
-        return { outcome: "skipped", publishEvents: [] };
-      }
+      if (calendarBetaEnabled) {
+        const scopeLocked = await lockCalendarScope(tx, candidate.workspaceId, [
+          candidate.projectId,
+        ]);
+        if (!scopeLocked || !(await lockTaskRows(tx, [candidate.id]))) {
+          return { outcome: "skipped", publishEvents: [] };
+        }
 
-      const validation = validatePersistedTaskSchedule({
-        ...template,
-        status: TaskStatus.QUEUED,
-      });
-      if (!validation.valid) {
-        await quarantineTaskSchedule(
-          tx,
-          { ...template, status: TaskStatus.QUEUED },
-          validation.reason,
-          validation.details,
+        const currentTemplate = await tx.task.findFirst({
+          where: {
+            ...queuedTemplateClaimWhere(candidate.id, claimedNextRunAt),
+            pendingVendorGrantId: null,
+            scheduleQuarantine: null,
+            nextRunAt: { lte: new Date() },
+          },
+          select: {
+            id: true,
+            ownerId: true,
+            organizationId: true,
+            workspaceId: true,
+            projectId: true,
+            assigneeId: true,
+            name: true,
+            description: true,
+            metadata: true,
+            nextRunAt: true,
+            owner: { select: { email: true } },
+          },
+        });
+        if (!currentTemplate?.nextRunAt) {
+          return { outcome: "skipped", publishEvents: [] };
+        }
+        if (
+          currentTemplate.workspaceId !== candidate.workspaceId ||
+          currentTemplate.projectId !== candidate.projectId
+        ) {
+          return { outcome: "skipped", publishEvents: [] };
+        }
+
+        const validation = validatePersistedTaskSchedule({
+          ...currentTemplate,
+          status: TaskStatus.QUEUED,
+        });
+        if (!validation.valid) {
+          await quarantineTaskSchedule(
+            tx,
+            { ...currentTemplate, status: TaskStatus.QUEUED },
+            validation.reason,
+            validation.details,
+          );
+          return { outcome: "skipped", publishEvents: [] };
+        }
+        template = currentTemplate;
+        scheduleMetadata = validation.metadata;
+      } else {
+        const legacyScheduleMetadata = parseTaskScheduleMetadata(
+          template.metadata,
         );
-        return {
-          outcome: "skipped",
-          publishEvents: [],
-        };
+        if (!legacyScheduleMetadata) {
+          const cleared = await clearTemplateSchedule(
+            tx,
+            template.id,
+            claimedNextRunAt,
+          );
+          return {
+            outcome: "skipped",
+            publishEvents: cleared
+              ? [{ userId: template.ownerId, taskId: template.id }]
+              : [],
+          };
+        }
+        scheduleMetadata = legacyScheduleMetadata;
       }
-      const scheduleMetadata = validation.metadata;
 
       if (scheduleMetadata.mode === "once") {
         const promoted = await promoteOneTimeTask(
@@ -462,6 +493,7 @@ async function processDueTask(
           template,
           metadata,
           nextRunAt,
+          calendarBetaEnabled,
         );
         clonedTaskIds.push(cloneId);
         clonesCreated += 1;
