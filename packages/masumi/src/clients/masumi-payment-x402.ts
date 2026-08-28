@@ -441,8 +441,9 @@ export function createX402PaymentMethods(
      * Non-`eip155:` rows are dropped: those are the Cardano rail's credits on
      * the same shared ledger and must never make an EVM pair look payable. A
      * non-numeric amount contributes nothing to its unit's sum, so a unit
-     * whose only row is unparsable reads as zero and its pair is delisted —
-     * fail closed, since a malformed amount is not evidence of funding.
+     * whose only row is unparsable reads as zero and its pair is delisted.
+     * That is the fail-closed direction: a malformed amount is not evidence
+     * of funding.
      */
     async getX402KeySpendCaps(
       options: PaymentClientRequestOptions = {},
