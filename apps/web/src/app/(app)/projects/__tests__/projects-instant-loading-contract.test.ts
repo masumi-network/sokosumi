@@ -4,8 +4,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+  PROJECTS_BROWSE_LAYOUT_CLASS,
+  PROJECTS_ITEM_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
-  PROJECTS_LIST_ROW_LAYOUT_CLASS,
 } from "@/app/projects/constants";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -87,7 +88,7 @@ describe("projects list CLS layout pairing", () => {
     expect(PROJECTS_LIST_CARD_MIN_H_CLASS).toBe("min-h-[320px]");
   });
 
-  it("skeleton and live ProjectListItem use PROJECTS_LIST_ROW_LAYOUT_CLASS", () => {
+  it("skeleton and live ProjectListItem use PROJECTS_ITEM_LAYOUT_CLASS", () => {
     const loading = stripComments(
       readApp("projects/components/projects-loading-view.tsx"),
     );
@@ -95,13 +96,28 @@ describe("projects list CLS layout pairing", () => {
       readApp("projects/components/project-list-item.tsx"),
     );
 
-    expect(loading).toMatch(/PROJECTS_LIST_ROW_LAYOUT_CLASS/);
-    expect(item).toMatch(/PROJECTS_LIST_ROW_LAYOUT_CLASS/);
-    expect(PROJECTS_LIST_ROW_LAYOUT_CLASS).toContain(
-      "[contain-intrinsic-size:auto_72px]",
+    expect(loading).toMatch(/PROJECTS_ITEM_LAYOUT_CLASS/);
+    expect(item).toMatch(/PROJECTS_ITEM_LAYOUT_CLASS/);
+    expect(PROJECTS_ITEM_LAYOUT_CLASS).toContain(
+      "[contain-intrinsic-size:auto_120px]",
     );
-    expect(PROJECTS_LIST_ROW_LAYOUT_CLASS).toContain(
-      "[content-visibility:auto]",
+    expect(PROJECTS_ITEM_LAYOUT_CLASS).toContain(
+      "md:[contain-intrinsic-size:auto_72px]",
     );
+    expect(PROJECTS_ITEM_LAYOUT_CLASS).toContain("[content-visibility:auto]");
+  });
+
+  it("skeleton and live browse share PROJECTS_BROWSE_LAYOUT_CLASS", () => {
+    const loading = stripComments(
+      readApp("projects/components/projects-loading-view.tsx"),
+    );
+    const view = stripComments(
+      readApp("projects/components/projects-view.tsx"),
+    );
+
+    expect(loading).toMatch(/PROJECTS_BROWSE_LAYOUT_CLASS/);
+    expect(view).toMatch(/PROJECTS_BROWSE_LAYOUT_CLASS/);
+    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("grid-cols-2");
+    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:grid-cols-1");
   });
 });

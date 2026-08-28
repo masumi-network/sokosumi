@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PROJECTS_BROWSE_LAYOUT_CLASS,
+  PROJECTS_ITEM_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
   UNASSIGNED_PROJECT_QUERY,
@@ -18,6 +20,11 @@ describe("projects list CLS layout constants", () => {
     expect(PROJECTS_LIST_ROW_LAYOUT_CLASS).toBe(
       "[content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     );
+    expect(PROJECTS_ITEM_LAYOUT_CLASS).toBe(
+      "[content-visibility:auto] [contain-intrinsic-size:auto_120px] md:[contain-intrinsic-size:auto_72px]",
+    );
+    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("grid-cols-2");
+    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:grid-cols-1");
   });
 });
 

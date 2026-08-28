@@ -49,19 +49,6 @@ export default async function ProjectsPage({
           loadMore: t("list.loadMore"),
           loading: t("list.loading"),
           loadMoreError: t("Detail.errors.loadMore"),
-          rowActions: {
-            moreActions: t("Detail.actions.moreActions"),
-            viewDetails: t("Detail.actions.viewDetails"),
-            edit: t("Detail.actions.edit"),
-            delete: t("Detail.actions.delete"),
-          },
-          deleteDialog: {
-            title: t("Detail.deleteDialog.title"),
-            description: t("Detail.deleteDialog.description"),
-            confirm: t("Detail.deleteDialog.confirm"),
-            cancel: t("Detail.deleteDialog.cancel"),
-            error: t("Detail.errors.delete"),
-          },
           counts: {
             tasks: t("list.stats.tasks"),
             jobs: t("list.stats.jobs"),

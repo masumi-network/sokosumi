@@ -32,7 +32,7 @@ export function ProjectDetailHeader({
     <div className="space-y-4">
       <Link
         href="/projects"
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+        className="text-muted-foreground hover:text-foreground hidden items-center gap-1.5 text-sm transition-colors md:inline-flex"
       >
         <ArrowLeft className="size-4" aria-hidden />
         <span>{backLabel}</span>

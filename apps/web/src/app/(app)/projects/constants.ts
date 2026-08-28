@@ -13,10 +13,25 @@ export const PROJECTS_PAGE_LIMIT = 20;
 export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 
 /**
- * Row geometry shared by live `ProjectListItem` and Instant skeleton rows.
+ * Primary browse layout: mobile card grid, desktop stacked list chrome.
+ * Shared by live `ProjectsView` and Instant skeleton.
+ */
+export const PROJECTS_BROWSE_LAYOUT_CLASS =
+  "grid grid-cols-2 gap-3 md:grid-cols-1 md:gap-0 md:divide-y md:divide-border/50 md:overflow-hidden md:rounded-xl md:border md:border-border/50 md:bg-muted/30 md:px-2";
+
+/**
+ * Row geometry shared with Drive list surfaces (72px intrinsic).
+ * Prefer `PROJECTS_ITEM_LAYOUT_CLASS` for Projects browse items.
  */
 export const PROJECTS_LIST_ROW_LAYOUT_CLASS =
   "[content-visibility:auto] [contain-intrinsic-size:auto_72px]";
+
+/**
+ * Item geometry for Projects browse (taller cards on mobile, list rows from md).
+ * Shared by live `ProjectListItem` and Instant skeleton items.
+ */
+export const PROJECTS_ITEM_LAYOUT_CLASS =
+  "[content-visibility:auto] [contain-intrinsic-size:auto_120px] md:[contain-intrinsic-size:auto_72px]";
 
 /**
  * Query param value for GET /jobs and GET /tasks when listing resources

@@ -1,27 +1,11 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { ProjectListItem } from "@/app/projects/components/project-list-item";
+import { PROJECTS_ITEM_LAYOUT_CLASS } from "@/app/projects/constants";
 import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 
-vi.mock("@/lib/actions/project/action", () => ({
-  deleteProject: vi.fn(),
-}));
-
 const labels = {
-  actions: {
-    moreActions: "More",
-    viewDetails: "View details",
-    edit: "Edit",
-    delete: "Delete",
-  },
-  deleteDialog: {
-    title: "Delete project",
-    description: "This will delete the project.",
-    confirm: "Delete",
-    cancel: "Cancel",
-    error: "Failed",
-  },
   counts: {
     tasks: "Tasks",
     jobs: "Jobs",
@@ -53,14 +37,38 @@ const project = {
 
 describe("ProjectListItem", () => {
   it("links the title row to the project detail page", () => {
-    render(
-      <ProjectListItem project={project} labels={labels} onDeleted={vi.fn()} />,
-    );
+    render(<ProjectListItem project={project} labels={labels} />);
 
     expect(screen.getByRole("link", { name: /Autumn Launch/ })).toHaveAttribute(
       "href",
       "/projects/project-1",
     );
+  });
+
+  it("does not expose overflow row actions on the browse surface", () => {
+    render(<ProjectListItem project={project} labels={labels} />);
+
+    expect(
+      screen.queryByRole("button", { name: /more/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /edit|delete|view/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders as a bordered card on mobile and a list row from md up", () => {
+    const { container } = render(
+      <ProjectListItem project={project} labels={labels} />,
+    );
+
+    const article = container.querySelector("article");
+    expect(article?.className).toContain("border");
+    expect(article?.className).toContain("rounded-lg");
+    expect(article?.className).toContain("md:border-0");
+    for (const token of PROJECTS_ITEM_LAYOUT_CLASS.split(/\s+/)) {
+      expect(article?.className).toContain(token);
+    }
   });
 
   it("strips markdown from briefing subtitle to plain text", () => {
@@ -70,13 +78,7 @@ describe("ProjectListItem", () => {
         "Campaign briefing — Begin Wallet **Working title:** Your crypto journey begins here **Status:** Draft",
     };
 
-    render(
-      <ProjectListItem
-        project={projectWithMarkdown}
-        labels={labels}
-        onDeleted={vi.fn()}
-      />,
-    );
+    render(<ProjectListItem project={projectWithMarkdown} labels={labels} />);
 
     const briefingElement = screen.getByText(
       /Campaign briefing — Begin Wallet/,
@@ -98,11 +100,7 @@ describe("ProjectListItem", () => {
     };
 
     render(
-      <ProjectListItem
-        project={projectWithoutBriefing}
-        labels={labels}
-        onDeleted={vi.fn()}
-      />,
+      <ProjectListItem project={projectWithoutBriefing} labels={labels} />,
     );
 
     expect(screen.getByText("—")).toBeInTheDocument();

@@ -8,7 +8,10 @@ import { toast } from "sonner";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { loadMoreProjects } from "@/app/projects/actions";
-import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
+import {
+  PROJECTS_BROWSE_LAYOUT_CLASS,
+  PROJECTS_LIST_CARD_MIN_H_CLASS,
+} from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
 import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
@@ -31,19 +34,6 @@ export interface ProjectsViewLabels {
   loadMore: string;
   loading: string;
   loadMoreError: string;
-  rowActions: {
-    moreActions: string;
-    viewDetails: string;
-    edit: string;
-    delete: string;
-  };
-  deleteDialog: {
-    title: string;
-    description: string;
-    confirm: string;
-    cancel: string;
-    error: string;
-  };
   counts: {
     tasks: string;
     jobs: string;
@@ -83,8 +73,6 @@ export function ProjectsView({
   const hasLoadedProjects = items.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
   const rowLabels = {
-    actions: labels.rowActions,
-    deleteDialog: labels.deleteDialog,
     counts: labels.counts,
   };
 
@@ -102,10 +90,6 @@ export function ProjectsView({
     });
   }
 
-  function handleProjectDeleted(projectId: string) {
-    setItems((prev) => prev.filter((project) => project.id !== projectId));
-  }
-
   return (
     <CreateProjectModalProvider
       key={createProjectModalResetKey}
@@ -120,21 +104,19 @@ export function ProjectsView({
 
         {hasLoadedProjects ? (
           <div
+            data-testid="projects-browse"
             className={cn(
-              "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+              PROJECTS_BROWSE_LAYOUT_CLASS,
               PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
-            <div className="divide-border/50 divide-y px-2">
-              {items.map((project) => (
-                <ProjectListItem
-                  key={project.id}
-                  project={project}
-                  labels={rowLabels}
-                  onDeleted={handleProjectDeleted}
-                />
-              ))}
-            </div>
+            {items.map((project) => (
+              <ProjectListItem
+                key={project.id}
+                project={project}
+                labels={rowLabels}
+              />
+            ))}
           </div>
         ) : showEmptyState ? (
           <ProjectsEmptyState labels={labels.empty} />

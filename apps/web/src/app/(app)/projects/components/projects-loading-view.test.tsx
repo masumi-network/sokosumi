@@ -6,8 +6,8 @@ import {
   ProjectsPageSkeleton,
 } from "@/app/projects/components/projects-loading-view";
 import {
+  PROJECTS_ITEM_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
-  PROJECTS_LIST_ROW_LAYOUT_CLASS,
 } from "@/app/projects/constants";
 
 describe("ProjectsPageSkeleton", () => {
@@ -17,7 +17,7 @@ describe("ProjectsPageSkeleton", () => {
     expect(container.firstElementChild?.className).toContain("w-full");
     expect(container.firstElementChild?.className).toContain("px-2");
     expect(screen.getByTestId("projects-loading")).toBeTruthy();
-    expect(screen.getByTestId("projects-loading-list")).toBeTruthy();
+    expect(screen.getByTestId("projects-loading-browse")).toBeTruthy();
     expect(container.textContent?.trim()).toBe("");
   });
 
@@ -46,24 +46,25 @@ describe("ProjectsLoadingView", () => {
     expect(container.firstElementChild?.className).toContain("md:pb-0");
   });
 
-  it("reserves list chrome and stable row size to limit Instant swap CLS", () => {
+  it("reserves browse chrome and stable item size to limit Instant swap CLS", () => {
     const { container } = render(<ProjectsLoadingView />);
 
-    const list = screen.getByTestId("projects-loading-list");
-    expect(list.className).toContain("divide-y");
+    const browse = screen.getByTestId("projects-loading-browse");
+    expect(browse.className).toContain("grid");
+    expect(browse.className).toContain("grid-cols-2");
+    expect(browse.className).toContain("md:grid-cols-1");
+    expect(browse.className).toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
 
-    const rows = list.querySelectorAll("article");
-    expect(rows.length).toBe(4);
+    const items = browse.querySelectorAll("article");
+    expect(items.length).toBe(4);
 
-    for (const row of rows) {
-      for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
-        expect(row.className).toContain(token);
+    for (const item of items) {
+      expect(item.className).toContain("border");
+      expect(item.className).toContain("md:border-0");
+      for (const token of PROJECTS_ITEM_LAYOUT_CLASS.split(/\s+/)) {
+        expect(item.className).toContain(token);
       }
     }
-
-    // List card min-height tracks empty-state / live list chrome.
-    const listCard = list.parentElement;
-    expect(listCard?.className).toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
 
     // Outer shell matches ProjectsView flex column + FAB clearance.
     expect(container.firstElementChild?.className).toContain("flex");
