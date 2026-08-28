@@ -132,6 +132,16 @@ vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
   ),
 }));
 
+vi.mock("@/components/ui/image-viewer", () => ({
+  ImageViewer: ({ open, alt }: { open: boolean; alt: string }) =>
+    open ? <div role="dialog" aria-label={alt} /> : null,
+}));
+
+vi.mock("@/components/ui/document-viewer", () => ({
+  DocumentViewer: ({ open, fileName }: { open: boolean; fileName: string }) =>
+    open ? <div role="dialog" aria-label={fileName} /> : null,
+}));
+
 import DrivePage from "@/app/drive/page";
 
 function createDriveQueryClient() {
@@ -766,5 +776,114 @@ describe("DrivePage files view mode", () => {
     expect(
       screen.queryByTestId("files-view-mode-switch"),
     ).not.toBeInTheDocument();
+  });
+
+  it("hides task/project path under the filename in grid", async () => {
+    const user = userEvent.setup();
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [
+        {
+          kind: "task-output",
+          name: "result.png",
+          fileUrl: "https://example.com/result.png",
+          size: 42,
+          activityAt: "2026-08-28T10:00:00.000Z",
+          taskFileId: "tf_1",
+          taskId: "task_1",
+          taskName: "Launch prep",
+          projectId: "proj_1",
+          projectName: "Alpha",
+        },
+      ],
+      nextCursor: null,
+    });
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByText("result.png")).toBeVisible();
+    });
+    expect(screen.getByText("Launch prep · Alpha")).toBeVisible();
+
+    await user.click(screen.getByRole("radio", { name: "viewGrid" }));
+
+    expect(screen.getByTestId("files-layout-grid")).toBeVisible();
+    expect(screen.getByText("result.png")).toBeVisible();
+    expect(screen.queryByText("Launch prep · Alpha")).not.toBeInTheDocument();
+  });
+
+  it("navigates into a folder when the card is clicked", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([
+      {
+        type: "folder" as const,
+        name: "Reports",
+        path: "Reports",
+      },
+    ]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+    });
+
+    pushMock.mockClear();
+    await user.click(screen.getByRole("button", { name: "Reports" }));
+
+    expect(pushMock).toHaveBeenCalled();
+    expect(String(pushMock.mock.calls[0]?.[0])).toContain("folder=");
+  });
+
+  it("opens a file preview when the card is clicked", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([
+      {
+        type: "file" as const,
+        name: "photo.png",
+        pathname: "photo.png",
+        fileUrl: "https://example.com/photo.png",
+        size: 100,
+        uploadedAt: "2026-08-28T09:00:00.000Z",
+      },
+    ]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "photo.png" })).toBeVisible();
+    });
+
+    await user.click(screen.getByRole("button", { name: "photo.png" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "photo.png" })).toBeVisible();
+    });
+  });
+
+  it("does not activate the card when the overflow menu is clicked", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([
+      {
+        type: "folder" as const,
+        name: "Reports",
+        path: "Reports",
+      },
+    ]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+    });
+
+    pushMock.mockClear();
+    await user.click(screen.getByRole("button", { name: "moreActions" }));
+
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

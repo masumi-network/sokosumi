@@ -20,12 +20,13 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import {
+  DriveFilePreview,
+  DriveItemCard,
+} from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
 import {
-  driveItemActionsClass,
-  driveItemArticleClass,
-  driveItemBodyClass,
   driveItemIconWellClass,
   driveItemMetaDesktopClass,
   driveItemMetaMobileClass,
@@ -34,7 +35,6 @@ import {
 } from "@/app/drive/components/drive-view-layout";
 import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
-import { DocumentViewer } from "@/components/ui/document-viewer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +42,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
-import { ImageViewer } from "@/components/ui/image-viewer";
 import { Input } from "@/components/ui/input";
 import type { DriveItem, DriveRecentsItem } from "@/lib/clients/generated/core";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
@@ -82,67 +81,6 @@ interface DriveRecentsPanelProps {
   onItemsChanged: () => void;
 }
 
-function RecentsFilePreview({
-  name,
-  fileUrl,
-}: {
-  name: string;
-  fileUrl: string;
-}) {
-  const { isImage, documentKind } = classifyFilePreview(fileUrl, name);
-  const isPreviewable = isImage || documentKind !== null;
-  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
-  const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
-
-  if (!isPreviewable) {
-    return (
-      <span
-        className="text-foreground line-clamp-1 text-sm font-medium"
-        title={name}
-      >
-        {name}
-      </span>
-    );
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          if (isImage) {
-            setIsImageViewerOpen(true);
-          } else if (documentKind) {
-            setIsDocumentViewerOpen(true);
-          }
-        }}
-        className="text-foreground hover:text-foreground/80 line-clamp-1 text-left text-sm font-medium underline-offset-2 hover:underline"
-        title={name}
-      >
-        {name}
-      </button>
-      {isImage ? (
-        <ImageViewer
-          open={isImageViewerOpen}
-          onOpenChange={setIsImageViewerOpen}
-          src={fileUrl}
-          alt={name}
-          downloadFilename={name}
-        />
-      ) : null}
-      {documentKind ? (
-        <DocumentViewer
-          open={isDocumentViewerOpen}
-          onOpenChange={setIsDocumentViewerOpen}
-          url={fileUrl}
-          fileName={name}
-          kind={documentKind}
-        />
-      ) : null}
-    </>
-  );
-}
-
 function toDriveFileItem(
   item: DriveRecentsItem & { kind: "drive-file" },
 ): DriveItem {
@@ -154,6 +92,19 @@ function toDriveFileItem(
     size: item.size,
     uploadedAt: item.activityAt,
   };
+}
+
+function formatActivityAt(
+  formatter: ReturnType<typeof useFormatter>,
+  activityAt: string | Date,
+): string {
+  return formatter.dateTime(new Date(activityAt), {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function DriveRecentsPanel({
@@ -379,82 +330,176 @@ export function DriveRecentsPanel({
                   const driveItem = toDriveFileItem(item);
                   const isEditing = editingPathname === item.pathname;
                   const extension = getExtensionFromUrl(item.name);
+                  const { isImage, documentKind } = classifyFilePreview(
+                    item.fileUrl,
+                    item.name,
+                  );
+                  const activityLabel = formatActivityAt(
+                    formatter,
+                    item.activityAt,
+                  );
+
+                  const driveFileActions = isEditing ? null : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          aria-label={t("moreActions")}
+                        >
+                          <MoreHorizontal className="size-4" aria-hidden />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            handleDownload(
+                              appendDownloadParam(item.fileUrl),
+                              item.name,
+                            );
+                          }}
+                        >
+                          <Download className="size-4" aria-hidden />
+                          {t("downloadAction")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            setEditingPathname(item.pathname);
+                            setEditingName(item.name);
+                          }}
+                        >
+                          <Edit3 className="size-4" aria-hidden />
+                          {t("renameAction")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            onOpenMoveDialog(driveItem);
+                          }}
+                        >
+                          <Folder className="size-4" aria-hidden />
+                          {t("moveAction")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            onOpenDeleteDialog(driveItem);
+                          }}
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                          {t("deleteAction")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
 
                   return (
                     <li key={item.pathname}>
-                      <article className={driveItemArticleClass(viewMode)}>
-                        <div className={driveItemBodyClass(viewMode)}>
-                          <div className={driveItemIconWellClass(viewMode)}>
-                            <FileTypeIcon extension={extension || "file"} />
-                          </div>
-                          {isEditing ? (
-                            <Input
-                              value={editingName}
-                              onChange={(event) =>
-                                setEditingName(event.target.value)
-                              }
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  void handleRenameConfirm(
-                                    driveItem,
-                                    editingName,
-                                  );
-                                } else if (event.key === "Escape") {
-                                  setEditingPathname(null);
-                                  setEditingName("");
+                      <DriveFilePreview
+                        name={item.name}
+                        fileUrl={item.fileUrl}
+                        isImage={isImage}
+                        documentKind={documentKind}
+                      >
+                        {({ activate, nameEl, viewers }) => (
+                          <DriveItemCard
+                            viewMode={viewMode}
+                            activateLabel={item.name}
+                            onActivate={isEditing ? undefined : activate}
+                            actions={driveFileActions}
+                          >
+                            <div className={driveItemIconWellClass(viewMode)}>
+                              <FileTypeIcon extension={extension || "file"} />
+                            </div>
+                            {isEditing ? (
+                              <Input
+                                value={editingName}
+                                onChange={(event) =>
+                                  setEditingName(event.target.value)
                                 }
-                              }}
-                              className="h-8 flex-1"
-                              autoFocus
-                            />
-                          ) : (
-                            <>
-                              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                <RecentsFilePreview
-                                  name={item.name}
-                                  fileUrl={item.fileUrl}
-                                />
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    void handleRenameConfirm(
+                                      driveItem,
+                                      editingName,
+                                    );
+                                  } else if (event.key === "Escape") {
+                                    setEditingPathname(null);
+                                    setEditingName("");
+                                  }
+                                }}
+                                className="h-8 flex-1"
+                                autoFocus
+                              />
+                            ) : (
+                              <>
+                                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                  {nameEl}
+                                  <div
+                                    className={driveItemMetaMobileClass(
+                                      viewMode,
+                                    )}
+                                  >
+                                    <span>{formatBytes(item.size)}</span>
+                                    <span>{activityLabel}</span>
+                                  </div>
+                                </div>
                                 <div
-                                  className={driveItemMetaMobileClass(viewMode)}
+                                  className={driveItemMetaDesktopClass(
+                                    viewMode,
+                                  )}
                                 >
                                   <span>{formatBytes(item.size)}</span>
-                                  <span>
-                                    {formatter.dateTime(
-                                      new Date(item.activityAt),
-                                      {
-                                        year: "numeric",
-                                        month: "short",
-                                        day: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      },
-                                    )}
-                                  </span>
+                                  <span>{activityLabel}</span>
                                 </div>
-                              </div>
-                              <div
-                                className={driveItemMetaDesktopClass(viewMode)}
-                              >
-                                <span>{formatBytes(item.size)}</span>
-                                <span>
-                                  {formatter.dateTime(
-                                    new Date(item.activityAt),
-                                    {
-                                      year: "numeric",
-                                      month: "short",
-                                      day: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    },
-                                  )}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        {!isEditing ? (
-                          <div className={driveItemActionsClass(viewMode)}>
+                                {viewers}
+                              </>
+                            )}
+                          </DriveItemCard>
+                        )}
+                      </DriveFilePreview>
+                    </li>
+                  );
+                }
+
+                const extension = getExtensionFromUrl(item.name);
+                const { isImage, documentKind } = classifyFilePreview(
+                  item.fileUrl,
+                  item.name,
+                );
+                const searchContext = [
+                  item.taskName,
+                  item.projectName ??
+                    (item.projectId === null ? t("noProject") : null),
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                const activityLabel = formatActivityAt(
+                  formatter,
+                  item.activityAt,
+                );
+                const sizeLabel =
+                  item.size != null ? formatBytes(item.size) : "—";
+
+                return (
+                  <li key={item.taskFileId}>
+                    <DriveFilePreview
+                      name={item.name}
+                      fileUrl={item.fileUrl}
+                      isImage={isImage}
+                      documentKind={documentKind}
+                    >
+                      {({ activate, nameEl, viewers }) => (
+                        <DriveItemCard
+                          viewMode={viewMode}
+                          activateLabel={item.name}
+                          onActivate={activate}
+                          actions={
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
@@ -485,135 +530,39 @@ export function DriveRecentsPanel({
                                 <DropdownMenuItem
                                   onSelect={(event) => {
                                     event.preventDefault();
-                                    setEditingPathname(item.pathname);
-                                    setEditingName(item.name);
+                                    onOpenCopyDialog(item);
                                   }}
                                 >
-                                  <Edit3 className="size-4" aria-hidden />
-                                  {t("renameAction")}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onSelect={(event) => {
-                                    event.preventDefault();
-                                    onOpenMoveDialog(driveItem);
-                                  }}
-                                >
-                                  <Folder className="size-4" aria-hidden />
-                                  {t("moveAction")}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  onSelect={(event) => {
-                                    event.preventDefault();
-                                    onOpenDeleteDialog(driveItem);
-                                  }}
-                                >
-                                  <Trash2 className="size-4" aria-hidden />
-                                  {t("deleteAction")}
+                                  <Copy className="size-4" aria-hidden />
+                                  {t("copyToFilesAction")}
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
+                          }
+                        >
+                          <div className={driveItemIconWellClass(viewMode)}>
+                            <FileTypeIcon extension={extension || "file"} />
                           </div>
-                        ) : null}
-                      </article>
-                    </li>
-                  );
-                }
-
-                const extension = getExtensionFromUrl(item.name);
-                const searchContext = [
-                  item.taskName,
-                  item.projectName ??
-                    (item.projectId === null ? t("noProject") : null),
-                ]
-                  .filter(Boolean)
-                  .join(" · ");
-
-                return (
-                  <li key={item.taskFileId}>
-                    <article className={driveItemArticleClass(viewMode)}>
-                      <div className={driveItemBodyClass(viewMode)}>
-                        <div className={driveItemIconWellClass(viewMode)}>
-                          <FileTypeIcon extension={extension || "file"} />
-                        </div>
-                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <RecentsFilePreview
-                            name={item.name}
-                            fileUrl={item.fileUrl}
-                          />
-                          {searchContext ? (
-                            <p className="text-muted-foreground/70 line-clamp-1 text-xs">
-                              {searchContext}
-                            </p>
-                          ) : null}
-                          <div className={driveItemMetaMobileClass(viewMode)}>
-                            <span>
-                              {item.size != null ? formatBytes(item.size) : "—"}
-                            </span>
-                            <span>
-                              {formatter.dateTime(new Date(item.activityAt), {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            {nameEl}
+                            {searchContext && viewMode !== "grid" ? (
+                              <p className="text-muted-foreground/70 line-clamp-1 text-xs">
+                                {searchContext}
+                              </p>
+                            ) : null}
+                            <div className={driveItemMetaMobileClass(viewMode)}>
+                              <span>{sizeLabel}</span>
+                              <span>{activityLabel}</span>
+                            </div>
                           </div>
-                        </div>
-                        <div className={driveItemMetaDesktopClass(viewMode)}>
-                          <span>
-                            {item.size != null ? formatBytes(item.size) : "—"}
-                          </span>
-                          <span>
-                            {formatter.dateTime(new Date(item.activityAt), {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                      <div className={driveItemActionsClass(viewMode)}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="size-8"
-                              aria-label={t("moreActions")}
-                            >
-                              <MoreHorizontal className="size-4" aria-hidden />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onSelect={() => {
-                                handleDownload(
-                                  appendDownloadParam(item.fileUrl),
-                                  item.name,
-                                );
-                              }}
-                            >
-                              <Download className="size-4" aria-hidden />
-                              {t("downloadAction")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={(event) => {
-                                event.preventDefault();
-                                onOpenCopyDialog(item);
-                              }}
-                            >
-                              <Copy className="size-4" aria-hidden />
-                              {t("copyToFilesAction")}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </article>
+                          <div className={driveItemMetaDesktopClass(viewMode)}>
+                            <span>{sizeLabel}</span>
+                            <span>{activityLabel}</span>
+                          </div>
+                          {viewers}
+                        </DriveItemCard>
+                      )}
+                    </DriveFilePreview>
                   </li>
                 );
               })}
