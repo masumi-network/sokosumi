@@ -829,6 +829,8 @@ describe("DrivePage files view mode", () => {
       expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
     });
 
+    expect(screen.queryByText("folder")).not.toBeInTheDocument();
+
     pushMock.mockClear();
     await user.click(screen.getByRole("button", { name: "Reports" }));
 

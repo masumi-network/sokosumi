@@ -1977,17 +1977,10 @@ function DrivePageWorkspace({
                         autoFocus
                       />
                     ) : (
-                      <>
-                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <DriveItemName name={item.name} />
-                          <div className={driveItemMetaMobileClass(layoutMode)}>
-                            <span>{t("folder")}</span>
-                          </div>
-                        </div>
-                        <div className={driveItemMetaDesktopClass(layoutMode)}>
-                          {t("folder")}
-                        </div>
-                      </>
+                      <DriveItemName
+                        name={item.name}
+                        className="min-w-0 flex-1"
+                      />
                     )}
                   </DriveItemCard>
                 );
