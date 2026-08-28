@@ -62,8 +62,7 @@ describe("ProjectListItem", () => {
 
     const link = screen.getByRole("link", { name: /Autumn Launch/ });
     expect(link.className).toContain("border");
-    expect(link.className).toContain("rounded-none");
-    expect(link.className).toContain("md:rounded-lg");
+    expect(link.className).toContain("rounded-lg");
     expect(link.className).toContain("md:border-0");
     expect(link.className).toContain("p-3");
 

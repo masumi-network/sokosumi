@@ -6,14 +6,11 @@ import type {
 export const PROJECTS_PAGE_LIMIT = 20;
 
 /**
- * Projects index + Instant shell. Cancel authenticated-app-frame main `p-4` on
- * mobile (`-mx-4`) and keep a net `px-2` gutter (Drive/list rhythm).
- * `w-[calc(100%+2rem)]` is required with `-mx-4` under main `overflow-x-hidden`
- * — bare `w-full` only cancels the left edge (chat landing uses the same calc).
- * Desktop restores the main margin and keeps a light `md:px-2`.
+ * Projects index + Instant shell. Same as Drive list pages: keep app-main
+ * `p-4` and add page `px-2` (do not `-mx-4` here). Detail cancels the shell
+ * separately for edge-to-edge chrome.
  */
-export const PROJECTS_PAGE_SHELL_CLASS =
-  "w-[calc(100%+2rem)] -mx-4 px-2 md:mx-0 md:w-full md:px-2";
+export const PROJECTS_PAGE_SHELL_CLASS = "w-full px-2";
 
 /**
  * Project detail outer shell. Cancel main `p-4` on mobile so the top block can
