@@ -66,6 +66,7 @@ function room(
     organizationId?: string | null;
     kind?: "channel" | "direct";
     myAccess?: "member" | "guest";
+    discoverability?: ChatRoom["discoverability"];
   } = {},
 ): ChatRoom {
   return {
@@ -80,7 +81,7 @@ function room(
     slug: "general",
     topic: null,
     directKey: null,
-    discoverability: "public",
+    discoverability: overrides.discoverability ?? "public",
     createdByUserId: USER_ID,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -281,6 +282,52 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(props.messagesPromise).toBeInstanceOf(Promise);
     expect(props.rosterPromise).toBeInstanceOf(Promise);
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(null);
+  });
+
+  it("renders matched channel progressive shell when another org is active", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_B,
+      name: "Org B",
+      slug: "org-b",
+    });
+    getRoomMock.mockResolvedValue(
+      room({
+        organizationId: null,
+        kind: "channel",
+        discoverability: "matched",
+        myAccess: "member",
+      }),
+    );
+
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(loadRoomMessagesMock).toHaveBeenCalledWith(ROOM_ID);
+    expect(loadRoomShellRosterMock).toHaveBeenCalledWith(ORG_B);
+    expect(roomsClientProps(element).selectedRoomId).toBe(ROOM_ID);
+  });
+
+  it("renders matched channel progressive shell in personal workspace", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    getRoomMock.mockResolvedValue(
+      room({
+        organizationId: null,
+        kind: "channel",
+        discoverability: "matched",
+        myAccess: "member",
+      }),
+    );
+
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(loadRoomMessagesMock).toHaveBeenCalledWith(ROOM_ID);
+    expect(loadRoomShellRosterMock).toHaveBeenCalledWith(null);
+    expect(roomsClientProps(element).selectedRoomId).toBe(ROOM_ID);
   });
 
   it("propagates membersLoadFailed through rosterPromise without blocking shell", async () => {

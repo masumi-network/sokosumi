@@ -4,10 +4,22 @@
 
 ALTER TABLE "chat_room" DROP CONSTRAINT "chat_room_channel_org_check";
 
+-- Org channels keep an organization and must not be matched. Matched channels
+-- are org-less only (discoverability='matched', slug required).
 ALTER TABLE "chat_room" ADD CONSTRAINT "chat_room_channel_org_check"
   CHECK (
     ("kind" = 'direct')
-    OR ("kind" = 'channel')
+    OR (
+      "kind" = 'channel'
+      AND "organizationId" IS NOT NULL
+      AND "discoverability" IS DISTINCT FROM 'matched'
+    )
+    OR (
+      "kind" = 'channel'
+      AND "organizationId" IS NULL
+      AND "discoverability" = 'matched'
+      AND "slug" IS NOT NULL
+    )
   );
 
 ALTER TABLE "chat_room" DROP CONSTRAINT "chat_room_direct_key_check";
