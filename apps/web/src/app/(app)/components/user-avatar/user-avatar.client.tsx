@@ -169,14 +169,11 @@ export default function UserAvatarClient({
               <DropdownMenuItem
                 className="flex cursor-pointer items-center gap-2"
                 onClick={(e: React.MouseEvent) =>
-                  handleClick(
-                    e,
-                    `/organizations/${activeOrganizationMember.organization.slug}`,
-                  )
+                  handleClick(e, "/organization")
                 }
               >
                 <Building2 className="text-muted-foreground" />
-                {t("organizations")}
+                {t("organization")}
               </DropdownMenuItem>
             ) : null}
             {canViewBilling ? (
