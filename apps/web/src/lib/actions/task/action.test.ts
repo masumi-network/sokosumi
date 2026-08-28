@@ -640,7 +640,7 @@ describe("task link actions", () => {
         kind: "calendar_client_upgrade_required",
       }),
     );
-    const { createTaskAndLink } = await import("../action");
+    const { createTaskAndLink } = await import("./action");
 
     const result = await createTaskAndLink({
       taskId: "task-1",
@@ -929,7 +929,7 @@ describe("setTaskStatusFromDrag", () => {
         kind: "calendar_client_upgrade_required",
       }),
     );
-    const { setTaskStatusFromDrag } = await import("../action");
+    const { setTaskStatusFromDrag } = await import("./action");
 
     const result = await setTaskStatusFromDrag({
       taskId: "task-1",
@@ -1010,7 +1010,7 @@ describe("createTask schedule", () => {
       }),
     );
 
-    const { createTask } = await import("../action");
+    const { createTask } = await import("./action");
     const result = await createTask({
       description: "Scheduled task",
       assigneeId: null,
