@@ -391,7 +391,7 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 
 ### Runtime versions
 
-- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.23.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 12.0.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
 
 ### Database (Cloud agent Neon branch)
 
