@@ -25,6 +25,11 @@
       "skillPath": "skills/brainstorming/SKILL.md",
       "computedHash": "b58d55b64742ecd37923985ec7bdfbe678ffbcb9895562abd28c0a32dcacd7fb"
     },
+    "branch-bugbot-gate": {
+      "source": ".",
+      "sourceType": "local",
+      "computedHash": "d7c970d9dddd5a42550b4a4da2b165381802c8fde39d4ffff7736fbc8d28d848"
+    },
     "cavecrew": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
