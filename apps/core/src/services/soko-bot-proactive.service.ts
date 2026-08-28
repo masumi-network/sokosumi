@@ -192,11 +192,12 @@ export async function findAttentionItems(bot: {
       archivedAt: null,
       status: { in: ["RUNNING", "INPUT_REQUIRED", "FAILED"] },
       updatedAt: { gte: new Date(bot.now.getTime() - ATTENTION_MAX_AGE_MS) },
-      ...(bot.followWholeBoard
-        ? {}
-        : {
-            OR: [{ assigneeId: bot.coworkerId }, { id: { in: delegatedIds } }],
-          }),
+      // Nudges stay on work this bot owns or delegated, whatever
+      // `followWholeBoard` says. Following the board is for awareness — it
+      // lets the bot answer when a comment names it. Sweeping every stuck or
+      // failed Task in the workspace made it chase a week of other people's
+      // abandoned work and, now that it can act rather than draft, restart it.
+      OR: [{ assigneeId: bot.coworkerId }, { id: { in: delegatedIds } }],
     },
     select: {
       id: true,

@@ -194,6 +194,39 @@ describe("InProcessSokoBotRuntime", () => {
     ]);
   });
 
+  it("fails a tool call that outlives the turn instead of hanging", async () => {
+    // A Composio request or slow query used to keep the loop alive past the
+    // turn budget until Vercel killed the invocation, leaving the turn on
+    // "Thinking…" until the fifteen-minute watchdog.
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Cancel those tasks",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    const tools = generateTextMock.mock.calls[0][0].tools;
+    executeToolMock.mockImplementation(() => new Promise(() => {}));
+
+    vi.useFakeTimers();
+    try {
+      const settled = tools.create_task
+        .execute({ name: "x" }, { toolCallId: "call_1" })
+        .then(
+          () => "resolved",
+          (error: Error) => error.message,
+        );
+      await vi.advanceTimersByTimeAsync(95_000);
+
+      await expect(settled).resolves.toMatch(/timed out/i);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("pins inference to the version's region", async () => {
     await new InProcessSokoBotRuntime().createSession({
       sessionId: null,

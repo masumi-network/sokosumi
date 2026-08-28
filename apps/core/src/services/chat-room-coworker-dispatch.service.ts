@@ -16,6 +16,15 @@ import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
 export const ROOM_COWORKER_TOTAL_MS = 240_000;
+
+/**
+ * Accepting a Soko Bot turn — classify, build the context packet, insert the
+ * row — happens before any turn exists to look at. When that stalled, the
+ * invocation was killed with the placeholder still spinning and nothing in the
+ * admin overview to explain it, because there was no turn. Bounded so the
+ * owner gets a failed reply instead of a "Thinking…" that never ends.
+ */
+const SOKO_BOT_ACCEPT_TIMEOUT_MS = 60_000;
 /** AI SDK stall budget after content has started; content chunks reset this. */
 export const ROOM_COWORKER_CHUNK_MS = 90_000;
 
@@ -1049,7 +1058,7 @@ async function runSokoBotMentionDispatch(params: {
         });
 
   try {
-    const result = await sokoBotControlPlane.startTurn({
+    const accepted = sokoBotControlPlane.startTurn({
       userId: bot.userId,
       workspaceId,
       clientTurnId: `chat:${mentionId}`,
@@ -1062,6 +1071,19 @@ async function runSokoBotMentionDispatch(params: {
         responseMessageId: placeholderId,
         requestedByUserId: isOwner ? null : userId,
       },
+    });
+    let acceptTimer: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      accepted,
+      new Promise<never>((_resolve, reject) => {
+        acceptTimer = setTimeout(
+          () =>
+            reject(new Error("Soko Bot took too long to accept the message")),
+          SOKO_BOT_ACCEPT_TIMEOUT_MS,
+        );
+      }),
+    ]).finally(() => {
+      if (acceptTimer) clearTimeout(acceptTimer);
     });
     if (
       result.reconciliationLeaseToken &&
