@@ -237,6 +237,34 @@ describe("GET /workspaces/{id}/calendar", () => {
     });
   });
 
+  it("filters occurrences by owner and coworker", async () => {
+    const assigneeId = "22222222-2222-7222-8222-222222222222";
+    const response = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&scope=owned&assigneeId=${assigneeId}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          seriesTask: {
+            ownerId: "user_123",
+            assigneeId,
+          },
+        }),
+      }),
+    );
+    expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        seriesTask: {
+          ownerId: "user_123",
+          assigneeId,
+        },
+      }),
+    });
+  });
+
   it("allows a member to read an organization workspace calendar", async () => {
     workspaceFindUniqueMock.mockResolvedValue({
       userId: null,

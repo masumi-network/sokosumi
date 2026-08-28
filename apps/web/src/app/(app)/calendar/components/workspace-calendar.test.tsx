@@ -13,7 +13,8 @@ import {
   WorkspaceCalendar,
 } from "./workspace-calendar";
 
-const { getWorkspaceCalendarMock } = vi.hoisted(() => ({
+const { filterDropdownMenuMock, getWorkspaceCalendarMock } = vi.hoisted(() => ({
+  filterDropdownMenuMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
 }));
 
@@ -32,6 +33,13 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getWorkspaceCalendar: getWorkspaceCalendarMock,
+  },
+}));
+
+vi.mock("@/components/common/filter-dropdown-menu", () => ({
+  FilterDropdownMenu: (props: unknown) => {
+    filterDropdownMenuMock(props);
+    return <div data-testid="calendar-filters" />;
   },
 }));
 
@@ -125,7 +133,7 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
-  it("renders source and accuracy labels with task navigation", () => {
+  it("renders agenda source details without the approximate-time label", () => {
     render(
       <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18">
         <WorkspaceCalendar
@@ -137,40 +145,81 @@ describe("WorkspaceCalendar", () => {
     );
 
     expect(screen.getAllByTestId("calendar-agenda")).toHaveLength(2);
-    expect(screen.getAllByText("Release planning")).toHaveLength(3);
-    expect(screen.getAllByTestId("calendar-source-marker")).toHaveLength(4);
+    expect(screen.getAllByText("Release planning")).toHaveLength(2);
+    expect(screen.getAllByTestId("calendar-source-marker")).toHaveLength(2);
     expect(screen.getAllByText("accuracy.inferred")).toHaveLength(2);
-    expect(screen.getAllByText("accuracy.approximate")).toHaveLength(2);
+    expect(screen.queryByText("accuracy.approximate")).not.toBeInTheDocument();
     expect(
       screen.getAllByRole("link", { name: /Prepare release notes/ })[0],
     ).toBeInTheDocument();
   });
 
-  it("toggles individual catalog sources through the URL", async () => {
-    const user = userEvent.setup();
+  it("uses the task-style scope filter", async () => {
     const onUrlUpdate = vi.fn();
 
     render(
       <NuqsTestingAdapter onUrlUpdate={onUrlUpdate}>
         <WorkspaceCalendar
+          activeOrganizationId="org-1"
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
           items={ITEMS}
           initialDate="2026-08-18"
-          sources={SOURCES}
         />
       </NuqsTestingAdapter>,
     );
 
-    await user.click(screen.getByRole("button", { name: /Release planning/ }));
+    const props = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
+      sections: Array<{
+        id: string;
+        onChange: (value: string | null) => void;
+      }>;
+    };
+    expect(props.sections.map((section) => section.id)).toEqual([
+      "scope",
+      "coworker",
+    ]);
 
-    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
+    props.sections.find((section) => section.id === "scope")?.onChange("owned");
+    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
+
     const updates = onUrlUpdate.mock.calls.map(([event]) =>
       event.searchParams.toString(),
     );
-    expect(updates.join("&")).toContain("source=workspace%3Aworkspace-1");
-    expect(screen.getByText("empty.title")).toBeInTheDocument();
+    expect(updates).toContain("scope=owned");
   });
 
-  it("persists view, date, source, status, and coworker filters in the URL", async () => {
+  it("preserves the selected scope when filtering by coworker", async () => {
+    const onUrlUpdate = vi.fn();
+
+    render(
+      <NuqsTestingAdapter searchParams="?scope=owned" onUrlUpdate={onUrlUpdate}>
+        <WorkspaceCalendar
+          activeOrganizationId="org-1"
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          items={ITEMS}
+          initialDate="2026-08-18"
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    const props = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
+      sections: Array<{
+        id: string;
+        onChange: (value: string | null) => void;
+      }>;
+    };
+    props.sections
+      .find((section) => section.id === "coworker")
+      ?.onChange("coworker-1");
+
+    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
+    const updates = onUrlUpdate.mock.calls.map(([event]) =>
+      event.searchParams.toString(),
+    );
+    expect(updates).toContain("scope=owned&assigneeId=coworker-1");
+  });
+
+  it("persists view and date in the URL", async () => {
     const user = userEvent.setup();
     const onUrlUpdate = vi.fn();
 
@@ -179,22 +228,12 @@ describe("WorkspaceCalendar", () => {
         searchParams="?view=month&date=2026-08-18"
         onUrlUpdate={onUrlUpdate}
       >
-        <WorkspaceCalendar
-          items={ITEMS}
-          initialDate="2026-08-18"
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          sources={SOURCES}
-        />
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
       </NuqsTestingAdapter>,
     );
 
     await user.click(screen.getByRole("button", { name: "view.week" }));
     await user.click(screen.getByRole("button", { name: "next" }));
-    await user.click(screen.getByRole("button", { name: /Release planning/ }));
-    await user.click(screen.getByLabelText("status.label"));
-    await user.click(screen.getByRole("option", { name: "status.QUEUED" }));
-    await user.click(screen.getByLabelText("coworker.label"));
-    await user.click(screen.getByRole("option", { name: "Ada" }));
 
     await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
     const updates = onUrlUpdate.mock.calls.map(([event]) =>
@@ -203,9 +242,6 @@ describe("WorkspaceCalendar", () => {
     const updatedQuery = updates.join("&");
     expect(updatedQuery).toContain("view=week");
     expect(updatedQuery).toContain("date=2026-");
-    expect(updatedQuery).toContain("source=workspace%3Aworkspace-1");
-    expect(updatedQuery).toContain("status=QUEUED");
-    expect(updatedQuery).toContain("coworker=coworker-1");
   });
 
   it("falls back to the month view when a week is requested on mobile", () => {
@@ -265,17 +301,15 @@ describe("WorkspaceCalendar", () => {
       to: new Date("2026-09-01T00:00:00.000Z"),
       cursor: "cursor-2",
       limit: 100,
+      scope: "workspace",
+      assigneeId: undefined,
     });
   });
 
   it("shows an empty state after filters exclude all calendar items", () => {
     render(
-      <NuqsTestingAdapter searchParams="?source=workspace%3Aworkspace-1">
-        <WorkspaceCalendar
-          items={ITEMS}
-          initialDate="2026-08-18"
-          sources={SOURCES}
-        />
+      <NuqsTestingAdapter searchParams="?assigneeId=coworker-2">
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
       </NuqsTestingAdapter>,
     );
 
