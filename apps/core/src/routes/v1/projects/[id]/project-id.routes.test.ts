@@ -24,6 +24,8 @@ const {
   projectFindFirstMock,
   projectUpdateManyMock,
   projectDeleteManyMock,
+  transactionMock,
+  queryRawMock,
   jobFindFirstMock,
   jobUpdateMock,
   jobUpdateManyMock,
@@ -35,6 +37,8 @@ const {
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
+  transactionMock: vi.fn(),
+  queryRawMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
   jobUpdateMock: vi.fn(),
   jobUpdateManyMock: vi.fn(),
@@ -53,6 +57,8 @@ vi.mock("@/lib/project-files-blob", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: transactionMock,
+    $queryRaw: queryRawMock,
     project: {
       findFirst: projectFindFirstMock,
       updateMany: projectUpdateManyMock,
@@ -414,11 +420,19 @@ describe("PATCH /projects/{id}", () => {
 describe("DELETE /projects/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    transactionMock.mockImplementation(async (callback) =>
+      callback({
+        $queryRaw: queryRawMock,
+        project: { deleteMany: projectDeleteManyMock },
+      }),
+    );
   });
 
   it("distinguishes a missing Project from a guarded Project", async () => {
     projectDeleteManyMock.mockResolvedValue({ count: 0 });
-    projectFindFirstMock.mockResolvedValue(null);
+    queryRawMock
+      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
+      .mockResolvedValueOnce([]);
     const app = createApp();
     mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
@@ -427,7 +441,9 @@ describe("DELETE /projects/{id}", () => {
     expect(res.status).toBe(404);
     expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
 
-    projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
+    queryRawMock
+      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
+      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
     const guardedResponse = await app.request(
       `http://localhost/${PROJECT_ID}`,
       { method: "DELETE" },
@@ -441,6 +457,9 @@ describe("DELETE /projects/{id}", () => {
 
   it("returns deleted payload", async () => {
     projectDeleteManyMock.mockResolvedValue({ count: 1 });
+    queryRawMock
+      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
+      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
     const app = createApp();
     mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
@@ -449,6 +468,8 @@ describe("DELETE /projects/{id}", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { deleted: boolean } };
     expect(body.data.deleted).toBe(true);
+    expect(queryRawMock).toHaveBeenCalledTimes(2);
+    expect(transactionMock).toHaveBeenCalledOnce();
     expect(deleteProjectBlobsMock).toHaveBeenCalledWith(PROJECT_ID);
   });
 

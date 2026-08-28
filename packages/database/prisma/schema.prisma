@@ -1712,6 +1712,7 @@ model Task {
 
   scheduleOccurrences        TaskScheduleOccurrence[] @relation("ScheduleOccurrenceSeries")
   releasedScheduleOccurrence TaskScheduleOccurrence?  @relation("ScheduleOccurrenceReleasedTask")
+  scheduleQuarantine         TaskScheduleQuarantine?
 
   @@index([organizationId])
   @@index([workspaceId])
@@ -1837,6 +1838,31 @@ model TaskScheduleOccurrence {
   @@map("task_schedule_occurrence")
 }
 
+enum TaskScheduleQuarantineReason {
+  INVALID_METADATA
+  INVALID_TIMEZONE
+  INVALID_STATUS
+  NEXT_RUN_MISMATCH
+}
+
+model TaskScheduleQuarantine {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  taskId String @unique
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  reason            TaskScheduleQuarantineReason
+  details           String
+  capturedMetadata  String?
+  capturedNextRunAt DateTime?
+  capturedStatus    TaskStatus
+
+  @@index([createdAt, id])
+  @@map("task_schedule_quarantine")
+}
+
 enum ProjectCloseOperationState {
   CLOSING
   CLOSE_FAILED
@@ -1941,6 +1967,7 @@ model TaskLink {
 
   @@index([fromTaskId])
   @@index([toTaskId])
+  @@index([type, createdAt, id])
   @@map("task_link")
 }
 

@@ -5825,7 +5825,9 @@
         "outOfCredits": "{coworkerName} ran out of credits for {taskName}",
         "completed": "{coworkerName} completed {taskName}",
         "failed": "{coworkerName} failed to complete {taskName}",
-        "canceled": "{taskName} was canceled"
+        "canceled": "{taskName} was canceled",
+        "scheduleRepaired": "The schedule for {taskName} was repaired",
+        "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review"
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",

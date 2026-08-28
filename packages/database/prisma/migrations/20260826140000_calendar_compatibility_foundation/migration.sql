@@ -215,7 +215,7 @@ BEGIN
     JOIN "task" AS target_task ON target_task.id = link."toTaskId"
     JOIN "user" AS owner ON owner.id = source_task."ownerId"
     WHERE link.type = 'SCHEDULE'
-      AND lower(owner.email) ~ '^[^@]+@nmkr\.io$'
+    AND lower(owner.email) ~ '^[^@]+@nmkr\.io$'
       AND (
         source_task."projectId" = OLD.id
         OR target_task."projectId" = OLD.id

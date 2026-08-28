@@ -15,13 +15,27 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { prismaTransactionMock, requireTaskOwnershipMock } = vi.hoisted(() => ({
+const {
+  prismaTransactionMock,
+  requireTaskOwnershipMock,
+  lockCalendarScopeMock,
+  lockTaskRowsMock,
+  quarantineFindUniqueMock,
+} = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
+  lockCalendarScopeMock: vi.fn(),
+  lockTaskRowsMock: vi.fn(),
+  quarantineFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: requireTaskOwnershipMock,
+}));
+
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: lockCalendarScopeMock,
+  lockTaskRows: lockTaskRowsMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -66,7 +80,17 @@ describe("DELETE /tasks/{id}/schedule", () => {
       id: "tsk_123",
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
+      projectId: null,
     });
+    lockCalendarScopeMock.mockResolvedValue(true);
+    lockTaskRowsMock.mockResolvedValue(true);
+    quarantineFindUniqueMock.mockResolvedValue(null);
+    prismaTransactionMock.mockImplementation(async (callback) =>
+      callback({
+        taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
+        task: { update: vi.fn() },
+      }),
+    );
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
@@ -84,5 +108,21 @@ describe("DELETE /tasks/{id}/schedule", () => {
     expect(response.status).toBe(403);
     expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("requires audited operator removal for a quarantined schedule", async () => {
+    quarantineFindUniqueMock.mockResolvedValue({ id: "quarantine-1" });
+    const app = createApp();
+
+    const response = await app.request("http://localhost/tsk_123/schedule", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(409);
+    expect(lockCalendarScopeMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      WORKSPACE_ID,
+      [null],
+    );
   });
 });

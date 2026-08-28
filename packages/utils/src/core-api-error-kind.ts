@@ -25,6 +25,9 @@ export const CORE_API_ERROR_KINDS = {
   LAST_WORKSPACE: "last_workspace",
   PERSONAL_WORKSPACE_MISSING: "personal_workspace_missing",
   PROJECT_HAS_CALENDAR_HISTORY: "project_has_calendar_history",
+  IDEMPOTENCY_CONFLICT: "idempotency_conflict",
+  SCHEDULE_QUARANTINED: "schedule_quarantined",
+  SCHEDULE_QUARANTINE_CONFLICT: "schedule_quarantine_conflict",
   WORKSPACE_HAS_DEPENDENTS: "workspace_has_dependents",
   CHANNEL_SLUG_TAKEN: "channel_slug_taken",
 } as const;

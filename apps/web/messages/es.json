@@ -5825,7 +5825,9 @@
         "outOfCredits": "{coworkerName} se quedó sin créditos para {taskName}",
         "completed": "{coworkerName} completó {taskName}",
         "failed": "{coworkerName} no pudo completar {taskName}",
-        "canceled": "{taskName} fue cancelado"
+        "canceled": "{taskName} fue cancelado",
+        "scheduleRepaired": "Se reparó la programación de {taskName}",
+        "scheduleRemovedByOperator": "Se eliminó la programación de {taskName} después de revisarla"
       },
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",

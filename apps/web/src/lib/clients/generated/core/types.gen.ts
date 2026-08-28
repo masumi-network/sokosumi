@@ -1026,6 +1026,71 @@ export type ReviewedTaskPaymentClaimActionBody = {
     reason: string;
 };
 
+export type AdminTaskScheduleQuarantineActionResult = {
+    taskId: string;
+    eventId: string;
+    action: 'repaired' | 'removed';
+    replayed: boolean;
+};
+
+export type RepairTaskScheduleQuarantineBody = {
+    /**
+     * Idempotency identity for this operator action
+     */
+    operationId: string;
+    /**
+     * Operator reason retained in the Task audit event
+     */
+    reason: string;
+    schedule: TaskScheduleInput;
+};
+
+export type TaskScheduleInput = {
+    mode: 'once';
+    /**
+     * When the one-time schedule should run
+     */
+    runAt: Date;
+} | {
+    mode: 'recurring';
+    /**
+     * Cron expression for recurring runs
+     */
+    expr: string;
+    /**
+     * IANA timezone for the cron expression
+     */
+    timezone?: string;
+    endsMode?: 'never' | 'on' | 'after';
+    /**
+     * End date when endsMode is on
+     */
+    endsOn?: Date;
+    /**
+     * Remaining occurrences when endsMode is after
+     */
+    occurrences?: number;
+    /**
+     * When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps
+     */
+    intervalDays?: number;
+    /**
+     * First run instant for intervalDays schedules (required when intervalDays > 1)
+     */
+    anchorAt?: Date;
+};
+
+export type RemoveTaskScheduleQuarantineBody = {
+    /**
+     * Idempotency identity for this operator action
+     */
+    operationId: string;
+    /**
+     * Operator reason retained in the Task audit event
+     */
+    reason: string;
+};
+
 export type AdminTaskX402Payment = {
     id: string;
     createdAt: Date;
@@ -4889,41 +4954,6 @@ export type PutTaskScheduleRequest = {
     anchorAt?: Date;
 };
 
-export type TaskScheduleInput = {
-    mode: 'once';
-    /**
-     * When the one-time schedule should run
-     */
-    runAt: Date;
-} | {
-    mode: 'recurring';
-    /**
-     * Cron expression for recurring runs
-     */
-    expr: string;
-    /**
-     * IANA timezone for the cron expression
-     */
-    timezone?: string;
-    endsMode?: 'never' | 'on' | 'after';
-    /**
-     * End date when endsMode is on
-     */
-    endsOn?: Date;
-    /**
-     * Remaining occurrences when endsMode is after
-     */
-    occurrences?: number;
-    /**
-     * When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps
-     */
-    intervalDays?: number;
-    /**
-     * First run instant for intervalDays schedules (required when intervalDays > 1)
-     */
-    anchorAt?: Date;
-};
-
 export type TaskWorkspace = {
     /**
      * Task title
@@ -7961,6 +7991,220 @@ export type RetryAdminTaskPaymentClaimResponses = {
 };
 
 export type RetryAdminTaskPaymentClaimResponse = RetryAdminTaskPaymentClaimResponses[keyof RetryAdminTaskPaymentClaimResponses];
+
+export type RepairAdminTaskScheduleQuarantineData = {
+    body: RepairTaskScheduleQuarantineBody;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/admin/task-schedule-quarantines/{taskId}/repair';
+};
+
+export type RepairAdminTaskScheduleQuarantineErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RepairAdminTaskScheduleQuarantineError = RepairAdminTaskScheduleQuarantineErrors[keyof RepairAdminTaskScheduleQuarantineErrors];
+
+export type RepairAdminTaskScheduleQuarantineResponses = {
+    /**
+     * Task schedule quarantine repaired
+     */
+    200: {
+        data: AdminTaskScheduleQuarantineActionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RepairAdminTaskScheduleQuarantineResponse = RepairAdminTaskScheduleQuarantineResponses[keyof RepairAdminTaskScheduleQuarantineResponses];
+
+export type RemoveAdminTaskScheduleQuarantineData = {
+    body: RemoveTaskScheduleQuarantineBody;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/admin/task-schedule-quarantines/{taskId}/remove';
+};
+
+export type RemoveAdminTaskScheduleQuarantineErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveAdminTaskScheduleQuarantineError = RemoveAdminTaskScheduleQuarantineErrors[keyof RemoveAdminTaskScheduleQuarantineErrors];
+
+export type RemoveAdminTaskScheduleQuarantineResponses = {
+    /**
+     * Quarantined Task schedule removed
+     */
+    200: {
+        data: AdminTaskScheduleQuarantineActionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RemoveAdminTaskScheduleQuarantineResponse = RemoveAdminTaskScheduleQuarantineResponses[keyof RemoveAdminTaskScheduleQuarantineResponses];
 
 export type ListAdminTaskX402PaymentsData = {
     body?: never;
@@ -34282,6 +34526,20 @@ export type DeleteTasksByIdScheduleErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type DeleteTasksByIdScheduleError = DeleteTasksByIdScheduleErrors[keyof DeleteTasksByIdScheduleErrors];
@@ -34358,6 +34616,20 @@ export type PutTasksByIdScheduleErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
