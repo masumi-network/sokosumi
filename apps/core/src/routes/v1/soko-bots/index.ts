@@ -1,6 +1,7 @@
 import { ComposioError } from "@composio/core";
 import { createRoute, z } from "@hono/zod-openapi";
 import { composeSystemPrompt, SOKO_BOT_SKILLS } from "@sokosumi/soko-bot";
+import { isNmkrEmail } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
 import { getEnv } from "@/config/env";
@@ -22,7 +23,11 @@ import {
 import { created, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
+import {
+  hasAdminRole,
+  isUserAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
@@ -128,8 +133,21 @@ const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
   cursor: z.string().uuid().optional(),
 });
 
-app.use("*", async (_c, next) => {
+app.use("*", async (c, next) => {
   if (!getEnv().SOKO_BOT_ENABLED) throw notFound("Soko Bot is not enabled");
+  // Beta gate, matching the web route's 404 and the calendar routes' rule.
+  // It lives on the router rather than per handler so a new endpoint cannot
+  // be added outside it; the UI gate alone would leave the API open.
+  const auth = c.var.authContext;
+  if (isUserAuthContext(auth)) {
+    const user = await prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: { email: true },
+    });
+    if (!isNmkrEmail(user?.email)) {
+      throw notFound("Soko Bot is not enabled");
+    }
+  }
   await next();
 });
 
