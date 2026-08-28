@@ -135,7 +135,7 @@ describe("publishNotificationEvent", () => {
         },
       },
     });
-    // ADR-0020: the service worker renders text, so Core ships no display part.
+    // ADR-0023: the service worker renders text, so Core ships no display part.
     //
     // The part must be absent, not empty. Ably defines `notification` as
     // title, body, icon, sound and collapseKey, so a `notification` holding

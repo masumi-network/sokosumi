@@ -31,7 +31,7 @@ export interface CreateNotificationResult {
 /**
  * Whether this notification also goes out as a closed-app OS banner.
  *
- * Push rides the notification publish over Ably (ADR-0019), gated on explicit
+ * Push rides the notification publish over Ably (ADR-0022), gated on explicit
  * user consent. This slice pushes chat only; widening the kinds is a change to
  * this gate alone (SOK-877). Non-chat kinds skip the user read entirely, so the
  * bulk job and task paths keep their current query count. Chat pays one read
