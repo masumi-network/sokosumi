@@ -269,8 +269,8 @@ pnpm approve-builds @sentry/profiling-node
 
 Core’s [`vercel.json`](./vercel.json) sets:
 
-- `installCommand` to `node ../../scripts/ci/vercel-pnpm-install.mjs "@sokosumi/core..."` so Corepack activates the root `packageManager` pin, then only Core and its workspace deps (including `@sokosumi/database`) are installed — not the web app or unrelated packages
-- `buildCommand` to `pnpm vercel-build`, which:
+- `installCommand` / `buildCommand` through `scripts/ci/vercel-with-pnpm.mjs` so Corepack activates the root `packageManager` pin (and wins over Vercel's broken pnpm 12 tools stub), then only Core and its workspace deps (including `@sokosumi/database`) are installed — not the web app or unrelated packages
+- `buildCommand` ultimately runs `pnpm vercel-build`, which:
 
 1. Runs `pnpm run build` (`tsup`; workspace packages emit `dist` via their `prepare` scripts during install)
 2. On success, runs `prisma migrate deploy` using `DATABASE_URL_UNPOOLED` (from the Vercel Neon integration) or `DATABASE_URL`

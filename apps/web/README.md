@@ -95,7 +95,7 @@ pnpm test
 
 ### Deployment (Vercel)
 
-[`vercel.json`](./vercel.json) sets `installCommand` to `node ../../scripts/ci/vercel-pnpm-install.mjs "web..."` so Corepack activates the root `packageManager` pin, then only the web app and its workspace deps (`@sokosumi/chat`, `@sokosumi/email`, `@sokosumi/masumi`, `@sokosumi/net`, `@sokosumi/utils`) are installed. `@sokosumi/database` is not a dependency and is not built on web deploys — no Neon/`DATABASE_URL*` vars are required.
+[`vercel.json`](./vercel.json) sets `installCommand` / `buildCommand` through `scripts/ci/vercel-with-pnpm.mjs` so Corepack activates the root `packageManager` pin (and wins over Vercel's broken pnpm 12 tools stub). Install stays filtered to the web app and its workspace deps (`@sokosumi/chat`, `@sokosumi/email`, `@sokosumi/masumi`, `@sokosumi/net`, `@sokosumi/utils`). `@sokosumi/database` is not a dependency and is not built on web deploys — no Neon/`DATABASE_URL*` vars are required.
 
 `buildCommand` runs [`scripts/vercel-build.mjs`](./scripts/vercel-build.mjs), which invokes `turbo run build --filter=web` (Vercel's global `turbo`; the filtered install does not include root `turbo`). Vercel Remote Cache is enabled automatically. Production (`VERCEL_ENV=production`) always uses `--force`. Preview may restore when inputs match. Unique deploy env (`VERCEL_URL`, related-project URLs) and Next Skew Protection often produce a miss; use the deployment Run Summary to confirm. Do not put `turbo` in the web `build` script (recursive turbo).
 

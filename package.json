@@ -95,7 +95,7 @@
     "cloud-agent-db:seed-auth": "node scripts/cloud-agent-db/seed-auth-fixtures.mjs",
     "cloud-agent-db:test": "node --test scripts/cloud-agent-db/__tests__/cloud-agent-db.test.mjs",
     "local-env:test": "node --test scripts/local-env/bootstrap.test.mjs scripts/local-env/portless-dev.test.mjs",
-    "ci:test": "node --test scripts/ci/__tests__/turbo-remote-cache.test.mjs scripts/ci/vercel-deploy.test.mjs scripts/ci/vercel-pnpm-install.test.mjs",
+    "ci:test": "node --test scripts/ci/__tests__/turbo-remote-cache.test.mjs scripts/ci/vercel-deploy.test.mjs scripts/ci/vercel-with-pnpm.test.mjs",
     "perf:report": "lighthouse https://sokosumi-app-preprod.vercel.app/ --only-categories=performance --output=html --output=json --output-path=./.cursor/sokosumi-perf --chrome-flags='--headless --no-sandbox --disable-gpu'",
     "perf:report:auth": "node scripts/perf-report-authenticated.mjs",
     "prepare": "husky"

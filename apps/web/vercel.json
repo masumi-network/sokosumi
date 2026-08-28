@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "node ../../scripts/ci/vercel-pnpm-install.mjs \"web...\"",
-  "buildCommand": "node ./scripts/vercel-build.mjs",
+  "installCommand": "node ../../scripts/ci/vercel-with-pnpm.mjs pnpm install --filter web...",
+  "buildCommand": "node ../../scripts/ci/vercel-with-pnpm.mjs node ./scripts/vercel-build.mjs",
   "git": {
     "deploymentEnabled": false
   },

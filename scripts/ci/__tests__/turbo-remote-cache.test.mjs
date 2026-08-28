@@ -142,12 +142,18 @@ describe("GitHub OIDC remote cache wiring", () => {
 describe("Vercel web turbo build command", () => {
   it("points web buildCommand at the vercel-build wrapper", async () => {
     const web = JSON.parse(await readRepoFile("apps", "web", "vercel.json"));
-    assert.equal(web.buildCommand, "node ./scripts/vercel-build.mjs");
+    assert.equal(
+      web.buildCommand,
+      "node ../../scripts/ci/vercel-with-pnpm.mjs node ./scripts/vercel-build.mjs",
+    );
   });
 
   it("leaves Core vercel-build as tsup plus migrate", async () => {
     const core = JSON.parse(await readRepoFile("apps", "core", "vercel.json"));
-    assert.equal(core.buildCommand, "pnpm vercel-build");
+    assert.equal(
+      core.buildCommand,
+      "node ../../scripts/ci/vercel-with-pnpm.mjs pnpm vercel-build",
+    );
   });
 
   it("runs turbo --filter=web and forces production only", async () => {
