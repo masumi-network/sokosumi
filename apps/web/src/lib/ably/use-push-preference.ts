@@ -20,8 +20,6 @@ import {
   getMyPreferencesQueryOptions,
 } from "@/queries/preferences";
 
-export type PushDisableScope = "thisDevice" | "allDevices";
-
 /**
  * Loads the activation module on the click that needs it. That module pulls in
  * the Ably SDK, and the account page must not carry the SDK for every reader
@@ -66,9 +64,22 @@ async function readPushSubscription(): Promise<boolean> {
   return hasWebPushSubscription();
 }
 
+/**
+ * Push consent has two independent axes, and one switch could not say which
+ * one the reader meant. The account axis is `pushOptIn`, stored on the user and
+ * read by Core's publish gate: off silences every browser at once. The device
+ * axis is this browser's own Web Push subscription: off silences only here and
+ * leaves the reader's other devices alone.
+ *
+ * Splitting them also reaches a state one switch could not. A browser holding
+ * no subscription used to read as off, so the disable dialog never opened and
+ * account-wide consent could not be withdrawn from it at all.
+ */
 interface PushPreference {
-  /** True only when this browser is subscribed and the account is opted in. */
-  enabled: boolean;
+  /** Account-wide consent. Off means no browser receives a push. */
+  isAccountEnabled: boolean;
+  /** Whether this browser holds a live push subscription. */
+  isDeviceEnabled: boolean;
   isSupported: boolean;
   /**
    * Whether the browser blocks notifications for this site. Enabling can only
@@ -77,17 +88,22 @@ interface PushPreference {
    */
   isBlocked: boolean;
   /**
-   * Whether the switch may be enabled. False while the session or the account
-   * opt-in is still loading, or the browser cannot push. Deliberately ignores
-   * a save in flight: disabling the switch mid-save would drop focus when the
-   * disable dialog closes.
+   * Whether the account row may be toggled. False while the session or the
+   * account opt-in is still loading, or the browser cannot push. Deliberately
+   * ignores a save in flight, so the row keeps focus across a save.
    */
-  canToggle: boolean;
-  /** Whether a change may start now. `canToggle` minus a save in flight. */
+  canToggleAccount: boolean;
+  /**
+   * Whether the device row may be toggled. Adds account consent to
+   * `canToggleAccount`: subscribing a browser the account gate then silences
+   * would spend a permission prompt on nothing.
+   */
+  canToggleDevice: boolean;
+  /** Whether a change may start now. The toggle checks minus a save in flight. */
   canSubmit: boolean;
   /** Rejects on failure so the view can surface its own error toast. */
-  enable: () => Promise<void>;
-  disable: (scope: PushDisableScope) => Promise<void>;
+  setAccountEnabled: (next: boolean) => Promise<void>;
+  setDeviceEnabled: (next: boolean) => Promise<void>;
 }
 
 export function usePushPreference(userId: string | undefined): PushPreference {
@@ -146,28 +162,20 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   });
 
   /**
-   * Move this browser into `nextSubscribed`, optimistically, and roll back if
-   * the work throws. Hands the session user id to the callback so neither
-   * branch needs a cast.
+   * Runs one save against the session user and holds the saving flag for its
+   * duration. Hands the session user id to the callback so callers need no
+   * cast. Withdrawing account consent uses this directly: it touches no
+   * browser subscription, so there is nothing to roll back.
    */
-  const changePushSubscription = useCallback(
-    async (
-      nextSubscribed: boolean,
-      work: (sessionUserId: string) => Promise<void>,
-    ) => {
+  const runSave = useCallback(
+    async (work: (sessionUserId: string) => Promise<void>) => {
       if (!userId) {
         throw new Error("Cannot change the push preference without a session");
       }
 
-      setHasPushSubscription(nextSubscribed);
       setIsSaving(true);
       try {
         await work(userId);
-      } catch (error) {
-        // Re-read rather than assume the old value: the work may have failed
-        // halfway, after the subscription already changed.
-        setHasPushSubscription(await readPushSubscription());
-        throw error;
       } finally {
         setIsSaving(false);
       }
@@ -175,54 +183,97 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     [userId],
   );
 
-  const enable = useCallback(
-    () =>
-      changePushSubscription(true, async (sessionUserId) => {
-        // Ask for the OS permission before anything else awaits, so the prompt
-        // opens inside the click that asked for it. Ably requests it too
-        // (`ably/build/push.js:194`), but only after `loadPushActivation`
-        // fetches its chunk, and Ably documents the prompt as valid only "in
-        // response to direct user interaction". `activate()` then finds the
-        // permission already granted and opens no second prompt.
-        const granted = await requestBrowserNotificationPermission();
-        setPermission(granted);
-        if (granted !== "granted") {
-          throw new Error("The browser refused the notification permission");
+  /**
+   * Move this browser into `nextSubscribed`, optimistically, and roll back if
+   * the work throws.
+   */
+  const changePushSubscription = useCallback(
+    (nextSubscribed: boolean, work: (sessionUserId: string) => Promise<void>) =>
+      runSave(async (sessionUserId) => {
+        setHasPushSubscription(nextSubscribed);
+        try {
+          await work(sessionUserId);
+        } catch (error) {
+          // Re-read rather than assume the old value: the work may have failed
+          // halfway, after the subscription already changed.
+          setHasPushSubscription(await readPushSubscription());
+          throw error;
         }
+      }),
+    [runSave],
+  );
 
+  /**
+   * Turns this browser into a push device. Either row can be the first thing a
+   * reader touches, so both subscribe through here.
+   */
+  const subscribeThisBrowser = useCallback(async (sessionUserId: string) => {
+    // Ask for the OS permission before anything else awaits, so the prompt
+    // opens inside the click that asked for it. Ably requests it too
+    // (`ably/build/push.js:194`), but only after `loadPushActivation`
+    // fetches its chunk, and Ably documents the prompt as valid only "in
+    // response to direct user interaction". `activate()` then finds the
+    // permission already granted and opens no second prompt.
+    const granted = await requestBrowserNotificationPermission();
+    setPermission(granted);
+    if (granted !== "granted") {
+      throw new Error("The browser refused the notification permission");
+    }
+
+    const { activatePush } = await loadPushActivation();
+    await activatePush(sessionUserId);
+  }, []);
+
+  const setAccountEnabled = useCallback(
+    (next: boolean) => {
+      if (!next) {
+        // Consent only. Registrations stay, so the reader's other browsers do
+        // not have to activate again when consent comes back (ADR-0019), and
+        // this row stays reachable from a browser that never subscribed.
+        return runSave(() => recordAccountOptIn(false));
+      }
+
+      // Turning consent on also subscribes this browser, so the common case is
+      // still one gesture. The device row then only ever touches this browser.
+      return changePushSubscription(true, async (sessionUserId) => {
         // Register the device first. If the Core write then fails, the device
         // is known to Ably but Core sends nothing, so the reader gets silence
         // rather than banners they never consented to.
-        const { activatePush } = await loadPushActivation();
-        await activatePush(sessionUserId);
+        await subscribeThisBrowser(sessionUserId);
         await recordAccountOptIn(true);
-      }),
-    [changePushSubscription, recordAccountOptIn],
+      });
+    },
+    [changePushSubscription, recordAccountOptIn, runSave, subscribeThisBrowser],
   );
 
-  const disable = useCallback(
-    (scope: PushDisableScope) =>
-      changePushSubscription(false, async (sessionUserId) => {
-        const { deactivatePush } = await loadPushActivation();
-        if (scope === "allDevices") {
-          // Withdraw consent first: if the deregistration then fails, Core has
-          // already stopped sending to every browser.
-          await recordAccountOptIn(false);
+  const setDeviceEnabled = useCallback(
+    (next: boolean) =>
+      changePushSubscription(next, async (sessionUserId) => {
+        if (next) {
+          await subscribeThisBrowser(sessionUserId);
+          return;
         }
+
+        const { deactivatePush } = await loadPushActivation();
         await deactivatePush(sessionUserId);
       }),
-    [changePushSubscription, recordAccountOptIn],
+    [changePushSubscription, subscribeThisBrowser],
   );
 
-  const canToggle = isSupported && Boolean(userId) && accountOptIn !== null;
+  const canToggleAccount =
+    isSupported && Boolean(userId) && accountOptIn !== null;
 
   return {
-    enabled: hasPushSubscription && accountOptIn === true,
+    isAccountEnabled: accountOptIn === true,
+    // The browser's own state, reported even while account consent is off, so
+    // the reader can see which of their devices would wake up when it returns.
+    isDeviceEnabled: hasPushSubscription,
     isSupported,
     isBlocked: isSupported && permission === "denied",
-    canToggle,
-    canSubmit: canToggle && !isSaving,
-    enable,
-    disable,
+    canToggleAccount,
+    canToggleDevice: canToggleAccount && accountOptIn === true,
+    canSubmit: canToggleAccount && !isSaving,
+    setAccountEnabled,
+    setDeviceEnabled,
   };
 }

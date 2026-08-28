@@ -46,6 +46,11 @@ function setAccountOptIn(pushOptIn: boolean): void {
   getMyPreferencesMock.mockResolvedValue({ data: { pushOptIn } });
 }
 
+/** The DTO the write returns seeds the cache, so it drives the account row. */
+function setAccountWriteResult(pushOptIn: boolean): void {
+  patchMyPreferencesMock.mockResolvedValue({ data: { pushOptIn } });
+}
+
 /** Stand in for this browser holding, or not holding, a Web Push subscription. */
 function setDeviceSubscribed(subscribed: boolean): void {
   getSubscriptionMock.mockResolvedValue(subscribed ? { endpoint: "e" } : null);
@@ -71,7 +76,7 @@ describe("usePushPreference", () => {
     setDeviceSubscribed(false);
     activatePushMock.mockResolvedValue(undefined);
     deactivatePushMock.mockResolvedValue(undefined);
-    patchMyPreferencesMock.mockResolvedValue({ data: { pushOptIn: true } });
+    setAccountWriteResult(true);
     setAccountOptIn(false);
   });
 
@@ -79,10 +84,10 @@ describe("usePushPreference", () => {
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
     });
-    await waitFor(() => expect(result.current.canToggle).toBe(true));
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
 
     await act(async () => {
-      await result.current.enable();
+      await result.current.setAccountEnabled(true);
     });
 
     expect(activatePushMock).toHaveBeenCalledWith("user_1");
@@ -90,18 +95,21 @@ describe("usePushPreference", () => {
     expect(activatePushMock.mock.invocationCallOrder[0]).toBeLessThan(
       patchMyPreferencesMock.mock.invocationCallOrder[0] as number,
     );
-    expect(result.current.enabled).toBe(true);
+    expect(result.current.isAccountEnabled).toBe(true);
+    // Turning consent on subscribes this browser too, so the common case
+    // stays one gesture.
+    expect(result.current.isDeviceEnabled).toBe(true);
   });
 
   it("opens the permission prompt before anything awaits", async () => {
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
     });
-    await waitFor(() => expect(result.current.canToggle).toBe(true));
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
 
     let pending!: Promise<void>;
     act(() => {
-      pending = result.current.enable();
+      pending = result.current.setAccountEnabled(true);
     });
 
     // Asserted without awaiting: the prompt has to open in the click that
@@ -121,36 +129,57 @@ describe("usePushPreference", () => {
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
     });
-    await waitFor(() => expect(result.current.canToggle).toBe(true));
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
 
     await act(async () => {
-      await expect(result.current.enable()).rejects.toThrow();
+      await expect(result.current.setAccountEnabled(true)).rejects.toThrow();
     });
 
     expect(activatePushMock).not.toHaveBeenCalled();
     expect(patchMyPreferencesMock).not.toHaveBeenCalled();
-    expect(result.current.enabled).toBe(false);
+    expect(result.current.isDeviceEnabled).toBe(false);
     expect(result.current.isBlocked).toBe(true);
   });
 
-  it("withdraws the account consent before deregistering, for all devices", async () => {
+  it("withdraws consent without deregistering this browser", async () => {
     setDeviceSubscribed(true);
     setAccountOptIn(true);
+    setAccountWriteResult(false);
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
     });
-    await waitFor(() => expect(result.current.enabled).toBe(true));
+    await waitFor(() => expect(result.current.isDeviceEnabled).toBe(true));
 
     await act(async () => {
-      await result.current.disable("allDevices");
+      await result.current.setAccountEnabled(false);
     });
 
     expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: false });
-    // Consent goes first, so a failed deregistration still leaves silence.
-    expect(patchMyPreferencesMock.mock.invocationCallOrder[0]).toBeLessThan(
-      deactivatePushMock.mock.invocationCallOrder[0] as number,
-    );
-    expect(result.current.enabled).toBe(false);
+    expect(result.current.isAccountEnabled).toBe(false);
+    // Registrations stay, so consent can come back without every browser
+    // activating again (ADR-0019).
+    expect(deactivatePushMock).not.toHaveBeenCalled();
+    expect(result.current.isDeviceEnabled).toBe(true);
+  });
+
+  it("withdraws consent from a browser that never subscribed", async () => {
+    // The state one switch could not reach: the row read as off, so the
+    // disable path never opened, and consent stood on every other device.
+    setDeviceSubscribed(false);
+    setAccountOptIn(true);
+    setAccountWriteResult(false);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+    expect(result.current.isDeviceEnabled).toBe(false);
+
+    await act(async () => {
+      await result.current.setAccountEnabled(false);
+    });
+
+    expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: false });
+    expect(result.current.isAccountEnabled).toBe(false);
   });
 
   it("leaves the account opted in when only this device is turned off", async () => {
@@ -159,33 +188,34 @@ describe("usePushPreference", () => {
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
     });
-    await waitFor(() => expect(result.current.enabled).toBe(true));
+    await waitFor(() => expect(result.current.isDeviceEnabled).toBe(true));
 
     await act(async () => {
-      await result.current.disable("thisDevice");
+      await result.current.setDeviceEnabled(false);
     });
 
     expect(deactivatePushMock).toHaveBeenCalledWith("user_1");
     expect(patchMyPreferencesMock).not.toHaveBeenCalled();
-    expect(result.current.enabled).toBe(false);
+    expect(result.current.isDeviceEnabled).toBe(false);
+    expect(result.current.isAccountEnabled).toBe(true);
   });
 
-  it("keeps push off in Core when deregistering the device fails", async () => {
-    setDeviceSubscribed(true);
+  it("subscribes only this browser when the device row goes on", async () => {
+    setDeviceSubscribed(false);
     setAccountOptIn(true);
-    deactivatePushMock.mockRejectedValue(new Error("already deactivated"));
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
     });
-    await waitFor(() => expect(result.current.enabled).toBe(true));
+    await waitFor(() => expect(result.current.canToggleDevice).toBe(true));
 
     await act(async () => {
-      await expect(result.current.disable("allDevices")).rejects.toThrow(
-        "already deactivated",
-      );
+      await result.current.setDeviceEnabled(true);
     });
 
-    expect(patchMyPreferencesMock).toHaveBeenCalledWith({ pushOptIn: false });
+    expect(activatePushMock).toHaveBeenCalledWith("user_1");
+    // Consent already stands, so the device row never writes to Core.
+    expect(patchMyPreferencesMock).not.toHaveBeenCalled();
+    expect(result.current.isDeviceEnabled).toBe(true);
   });
 
   it("reverts the switch and records nothing when activation fails", async () => {
@@ -193,19 +223,19 @@ describe("usePushPreference", () => {
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
     });
-    await waitFor(() => expect(result.current.canToggle).toBe(true));
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
 
     await act(async () => {
-      await expect(result.current.enable()).rejects.toThrow(
+      await expect(result.current.setAccountEnabled(true)).rejects.toThrow(
         "permission denied",
       );
     });
 
     expect(patchMyPreferencesMock).not.toHaveBeenCalled();
-    expect(result.current.enabled).toBe(false);
+    expect(result.current.isDeviceEnabled).toBe(false);
   });
 
-  it("shows the switch off when the account opted out on another device", async () => {
+  it("locks the device row while the account is opted out", async () => {
     setDeviceSubscribed(true);
     setAccountOptIn(false);
 
@@ -213,11 +243,14 @@ describe("usePushPreference", () => {
       wrapper,
     });
 
-    await waitFor(() => expect(result.current.canToggle).toBe(true));
-    expect(result.current.enabled).toBe(false);
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+    expect(result.current.isAccountEnabled).toBe(false);
+    // Reported honestly: this browser would wake up if consent came back.
+    expect(result.current.isDeviceEnabled).toBe(true);
+    expect(result.current.canToggleDevice).toBe(false);
   });
 
-  it("shows the switch off when the reader revoked the OS permission", async () => {
+  it("shows the device row off when the reader revoked the OS permission", async () => {
     setDeviceSubscribed(true);
     setAccountOptIn(true);
     setNotificationPermission("denied");
@@ -226,8 +259,8 @@ describe("usePushPreference", () => {
       wrapper,
     });
 
-    await waitFor(() => expect(result.current.canToggle).toBe(true));
-    expect(result.current.enabled).toBe(false);
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+    expect(result.current.isDeviceEnabled).toBe(false);
   });
 
   it("reports the block when the browser denies notifications", async () => {
@@ -237,7 +270,7 @@ describe("usePushPreference", () => {
     });
 
     await waitFor(() => expect(result.current.isBlocked).toBe(true));
-    expect(result.current.enabled).toBe(false);
+    expect(result.current.isDeviceEnabled).toBe(false);
   });
 
   it("reports no block while notifications are allowed", async () => {
@@ -245,7 +278,7 @@ describe("usePushPreference", () => {
       wrapper,
     });
 
-    await waitFor(() => expect(result.current.canToggle).toBe(true));
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
     expect(result.current.isBlocked).toBe(false);
   });
 
@@ -256,10 +289,11 @@ describe("usePushPreference", () => {
     });
 
     await waitFor(() => expect(result.current.isSupported).toBe(true));
-    expect(result.current.canToggle).toBe(false);
+    expect(result.current.canToggleAccount).toBe(false);
+    expect(result.current.canToggleDevice).toBe(false);
   });
 
-  it("shows the switch off when the browser lost its push subscription", async () => {
+  it("shows the device row off when the browser lost its subscription", async () => {
     setAccountOptIn(true);
     setDeviceSubscribed(false);
 
@@ -267,8 +301,9 @@ describe("usePushPreference", () => {
       wrapper,
     });
 
-    await waitFor(() => expect(result.current.canToggle).toBe(true));
-    expect(result.current.enabled).toBe(false);
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+    expect(result.current.isDeviceEnabled).toBe(false);
+    expect(result.current.isAccountEnabled).toBe(true);
   });
 
   it("re-reads the subscription after a half-failed disable", async () => {
@@ -282,15 +317,15 @@ describe("usePushPreference", () => {
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
     });
-    await waitFor(() => expect(result.current.enabled).toBe(true));
+    await waitFor(() => expect(result.current.isDeviceEnabled).toBe(true));
 
     await act(async () => {
-      await expect(result.current.disable("thisDevice")).rejects.toThrow(
+      await expect(result.current.setDeviceEnabled(false)).rejects.toThrow(
         "deactivate failed",
       );
     });
 
-    expect(result.current.enabled).toBe(false);
+    expect(result.current.isDeviceEnabled).toBe(false);
   });
 
   it("cannot be toggled while the session is still loading", async () => {
@@ -299,10 +334,10 @@ describe("usePushPreference", () => {
     });
 
     await waitFor(() => expect(result.current.isSupported).toBe(true));
-    expect(result.current.canToggle).toBe(false);
+    expect(result.current.canToggleAccount).toBe(false);
 
     await act(async () => {
-      await expect(result.current.enable()).rejects.toThrow(
+      await expect(result.current.setAccountEnabled(true)).rejects.toThrow(
         "Cannot change the push preference without a session",
       );
     });

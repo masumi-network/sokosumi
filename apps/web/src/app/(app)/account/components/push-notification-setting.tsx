@@ -1,87 +1,76 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId } from "react";
 import { toast } from "sonner";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
-import type { PushDisableScope } from "@/lib/ably/use-push-preference";
 import { usePushPreference } from "@/lib/ably/use-push-preference";
 import { useSession } from "@/lib/auth/auth.client";
 
 /**
- * The push row of the notification card. It sits apart from the email rows
- * because it changes for different reasons: those write through Better Auth,
- * this one drives Ably and the Core preferences endpoint.
+ * The push rows of the notification card. They sit apart from the email rows
+ * because they change for different reasons: those write through Better Auth,
+ * these drive Ably and the Core preferences endpoint.
+ *
+ * Two rows, not one. Account-wide consent and this browser's subscription are
+ * independent, and a single switch could not say which one the reader meant.
+ * The account row also stays reachable from a browser that holds no
+ * subscription, which is the state one switch could never turn off.
  */
 export function PushNotificationSetting() {
   const t = useTranslations("App.Account.Notifications");
   const tCenter = useTranslations("Components.NotificationCenter");
   const { data: session } = useSession();
   const push = usePushPreference(session?.user.id);
-  const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false);
-  const descriptionId = useId();
+  const accountDescriptionId = useId();
+  const deviceDescriptionId = useId();
 
   // A blocked browser fails every enable, so name the block instead of leaving
   // the reader with the generic failure toast. The wording is the one the
   // notification centre already uses for the same state.
-  let description = t("pushDescription");
+  let accountDescription = t("pushDescription");
   if (!push.isSupported) {
-    description = t("pushUnsupported");
+    accountDescription = t("pushUnsupported");
   } else if (push.isBlocked) {
-    description = tCenter("browserPermissionDeniedDescription");
+    accountDescription = tCenter("browserPermissionDeniedDescription");
   }
 
-  // Turning push off is account-wide unless the reader says otherwise, so the
-  // switch asks instead of guessing which of their browsers to silence.
-  const handleToggle = (nextValue: boolean) => {
-    // The switch stays enabled while a save runs, so that closing the disable
-    // dialog can hand focus back to it. `canSubmit` is what stops a second
-    // click landing on top of the first.
+  // The reader gets one wording for every failure, so log the real reason: a
+  // browser that refuses a push subscription looks the same on screen as a Core
+  // write that failed.
+  const reportFailure = (error: unknown) => {
+    console.error("Failed to update push notifications", error);
+    return t("pushError");
+  };
+
+  // The switches stay enabled while a save runs, so focus survives it.
+  // `canSubmit` is what stops a second click landing on top of the first.
+  const handleAccountToggle = (nextValue: boolean) => {
     if (!push.canSubmit) {
       return;
     }
 
-    if (!nextValue) {
-      setIsDisableDialogOpen(true);
-      return;
-    }
-
-    toast.promise(push.enable(), {
+    toast.promise(push.setAccountEnabled(nextValue), {
       loading: t("loading"),
-      success: () => t("pushEnabledSuccess"),
-      // The reader gets one wording for every failure, so log the real reason:
-      // a browser that refuses a push subscription looks the same on screen as
-      // a Core write that failed.
-      error: (error) => {
-        console.error("Failed to enable push notifications", error);
-        return t("pushError");
-      },
+      success: () =>
+        nextValue
+          ? t("pushEnabledSuccess")
+          : t("pushDisabledEverywhereSuccess"),
+      error: reportFailure,
     });
   };
 
-  const handleDisable = (scope: PushDisableScope) => {
-    setIsDisableDialogOpen(false);
-    toast.promise(push.disable(scope), {
+  const handleDeviceToggle = (nextValue: boolean) => {
+    if (!push.canSubmit) {
+      return;
+    }
+
+    toast.promise(push.setDeviceEnabled(nextValue), {
       loading: t("loading"),
       success: () =>
-        scope === "allDevices"
-          ? t("pushDisabledEverywhereSuccess")
-          : t("pushDisabledSuccess"),
-      error: (error) => {
-        console.error("Failed to disable push notifications", error);
-        return t("pushError");
-      },
+        nextValue ? t("pushDeviceEnabledSuccess") : t("pushDisabledSuccess"),
+      error: reportFailure,
     });
   };
 
@@ -92,54 +81,42 @@ export function PushNotificationSetting() {
           <p className="text-sm leading-5 font-medium">{t("pushTitle")}</p>
           <p
             className="text-muted-foreground text-sm leading-6"
-            id={descriptionId}
+            id={accountDescriptionId}
           >
-            {description}
+            {accountDescription}
           </p>
         </div>
         <Switch
-          checked={push.enabled}
-          onCheckedChange={handleToggle}
-          disabled={!push.canToggle}
-          aria-describedby={descriptionId}
+          checked={push.isAccountEnabled}
+          onCheckedChange={handleAccountToggle}
+          disabled={!push.canToggleAccount}
+          aria-describedby={accountDescriptionId}
           aria-label={t("pushAriaLabel")}
         />
       </div>
 
-      <AlertDialog
-        open={isDisableDialogOpen}
-        onOpenChange={setIsDisableDialogOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("pushDisableDialogTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("pushDisableDialogDescription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              {t("pushDisableDialogCancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(event) => {
-                event.preventDefault();
-                handleDisable("thisDevice");
-              }}
-            >
-              {t("pushDisableDialogThisDevice")}
-            </AlertDialogAction>
-            <AlertDialogAction
-              onClick={(event) => {
-                event.preventDefault();
-                handleDisable("allDevices");
-              }}
-            >
-              {t("pushDisableDialogAllDevices")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm leading-5 font-medium">
+            {t("pushDeviceTitle")}
+          </p>
+          <p
+            className="text-muted-foreground text-sm leading-6"
+            id={deviceDescriptionId}
+          >
+            {push.isAccountEnabled
+              ? t("pushDeviceDescription")
+              : t("pushDeviceInactiveDescription")}
+          </p>
+        </div>
+        <Switch
+          checked={push.isDeviceEnabled}
+          onCheckedChange={handleDeviceToggle}
+          disabled={!push.canToggleDevice}
+          aria-describedby={deviceDescriptionId}
+          aria-label={t("pushDeviceAriaLabel")}
+        />
+      </div>
     </>
   );
 }
