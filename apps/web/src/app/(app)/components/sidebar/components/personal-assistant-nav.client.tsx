@@ -91,7 +91,7 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
  * set apart from "New" by a divider (rendered in the sidebar composition). Its
  * live orb carries its identity, and the label becomes the assistant's chosen
  * name once it has one. Hidden entirely while the Hermes beta gate excludes
- * the user (see `isHermesBetaAccessEmail`).
+ * the user (see `isBetaAccessEmail`).
  */
 export default function PersonalAssistantNav({
   enabled,

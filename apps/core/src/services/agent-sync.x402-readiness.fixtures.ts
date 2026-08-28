@@ -1,6 +1,6 @@
 import type {
   X402AvailableNetwork,
-  X402Budget,
+  X402KeySpendCaps,
   X402Wallet,
 } from "@sokosumi/masumi";
 
@@ -23,21 +23,28 @@ export function availableNetwork(
   };
 }
 
-export function budget(overrides: Partial<X402Budget> = {}): X402Budget {
+/**
+ * The calling key's spend cap. Defaults to an UNCAPPED key, because that is
+ * the shape most readiness cases are about: the cap is one gate among four,
+ * and only the cap-specific tests should have to state it.
+ */
+export function keySpendCaps(
+  overrides: Partial<X402KeySpendCaps> = {},
+): X402KeySpendCaps {
   return {
-    id: "x402budget_1",
-    apiKeyId: "apikey_1",
-    evmWalletId: "wallet_1",
-    evmWalletAddress: "0x52E29e0d2Aa49bfBfC548C0A9F2196F4aa51f3ea",
-    caip2Network: "eip155:84532",
-    asset: USDC_BASE_SEPOLIA,
-    remainingAmount: "1000000",
-    spentAmount: "0",
-    createdById: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    usageLimited: false,
+    creditsByUnit: new Map<string, bigint>(),
+    grandfatheredUncapped: false,
     ...overrides,
   };
+}
+
+/** A usage-limited key holding `amount` for the default Base Sepolia pair. */
+export function cappedWith(amount: bigint): X402KeySpendCaps {
+  return keySpendCaps({
+    usageLimited: true,
+    creditsByUnit: new Map([[`eip155:84532:${USDC_BASE_SEPOLIA}`, amount]]),
+  });
 }
 
 export function purchasingWallet(
@@ -86,15 +93,16 @@ export function fundedWalletBalances(
   ];
 }
 
+export const PURCHASING_WALLET_ADDRESS =
+  purchasingWallet().address.toLowerCase();
+
 export const READY_SOURCE = {
   caip2Network: "eip155:84532",
   asset: USDC_BASE_SEPOLIA,
-  evmWalletId: "wallet_1",
-  evmWalletAddress: budget().evmWalletAddress.toLowerCase(),
+  evmWalletId: purchasingWallet().id,
+  evmWalletAddress: PURCHASING_WALLET_ADDRESS,
   decimals: 6,
 };
-
-export const ADMIN_WALLET_ADDRESS = purchasingWallet().address.toLowerCase();
 
 export const BASE_MAINNET_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
 
@@ -110,40 +118,30 @@ export function mainnetNetwork(
   });
 }
 
-export function mainnetBudget(overrides: Partial<X402Budget> = {}): X402Budget {
-  return budget({
-    id: "x402budget_mainnet",
-    evmWalletId: "wallet_mainnet",
-    caip2Network: "eip155:8453",
-    asset: BASE_MAINNET_USDC,
-    ...overrides,
-  });
-}
-
-export function walletStateForBudget(
-  budgetRow: X402Budget,
-  networks: readonly X402AvailableNetwork[],
+/**
+ * A funded Purchasing wallet on `network`, ready to back that chain's pair.
+ * Balances mirror the node's published scale so the compose's scale check
+ * passes; a test that wants it to fail overrides the wallet or the network.
+ */
+export function fundedWalletStateFor(
+  network: X402AvailableNetwork,
+  overrides: Partial<X402Wallet> = {},
 ) {
-  const network = networks.find(
-    (candidate) =>
-      candidate.caip2Id.toLowerCase() === budgetRow.caip2Network.toLowerCase(),
-  );
   return {
     wallet: purchasingWallet({
-      id: budgetRow.evmWalletId,
-      networkId: network?.id ?? "x402net_unknown",
-      caip2Network: budgetRow.caip2Network,
-      address: budgetRow.evmWalletAddress,
+      networkId: network.id,
+      caip2Network: network.caip2Id,
+      ...overrides,
     }),
     balances: [
       {
-        caip2Network: budgetRow.caip2Network,
-        displayName: network?.displayName ?? "Unknown",
+        caip2Network: network.caip2Id,
+        displayName: network.displayName,
         native: { symbol: "ETH", decimals: 18, amount: "1" },
         asset: {
-          asset: budgetRow.asset,
+          asset: network.defaultAsset ?? USDC_BASE_SEPOLIA,
           symbol: "USDC",
-          decimals: network?.defaultAssetDecimals ?? 6,
+          decimals: network.defaultAssetDecimals ?? 6,
           amount: "1000000",
         },
         error: null,

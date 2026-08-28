@@ -283,6 +283,7 @@
       "new": "New",
       "notifications": "Notifications",
       "projects": "Projects",
+      "calendar": "Schedules",
       "oauth-clients": "OAuth Clients",
       "api-keys": "API Keys",
       "coworkers": "Coworkers",
@@ -771,6 +772,11 @@
         "description": "Log in or register to hire agents and start the jobs.",
         "login": "Login",
         "register": "Register"
+      },
+      "CalendarClientUpgradeModal": {
+        "title": "Update required",
+        "description": "Sokosumi has been updated to protect scheduled work. Reload before making more Calendar changes.",
+        "reload": "Reload Sokosumi"
       },
       "LogoutModal": {
         "title": "Do you really want to log out?",
@@ -1297,6 +1303,66 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "save": "Save",
+    "Calendar": {
+      "Metadata": {
+        "title": "Schedules",
+        "description": "Browse scheduled task releases in your workspace."
+      },
+      "previous": "Previous period",
+      "next": "Next period",
+      "view": {
+        "month": "Month",
+        "week": "Week",
+        "agenda": "Agenda"
+      },
+      "source": {
+        "label": "Source",
+        "all": "All sources",
+        "WORKSPACE": "Workspace",
+        "PROJECT": "Project",
+        "LEGACY_UNKNOWN": "Legacy source"
+      },
+      "accuracy": {
+        "inferred": "Inferred source",
+        "unknown": "Unknown source",
+        "approximate": "Approximate time"
+      },
+      "status": {
+        "label": "Task status",
+        "all": "All statuses",
+        "DRAFT": "Draft",
+        "QUEUED": "Queued",
+        "READY": "Ready",
+        "GRANT_PENDING": "Grant pending",
+        "INPUT_REQUIRED": "Input required",
+        "APPROVAL_REQUIRED": "Approval required",
+        "AUTHENTICATION_REQUIRED": "Authentication required",
+        "OUT_OF_CREDITS": "Paused: credits needed",
+        "CREDITS_TOPPED_UP": "Credits topped up",
+        "RUNNING": "Running",
+        "AWAITING_EXTERNAL": "Awaiting external",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "CANCELED": "Canceled"
+      },
+      "coworker": {
+        "label": "Coworker",
+        "all": "All coworkers"
+      },
+      "empty": {
+        "title": "No scheduled releases match these filters."
+      },
+      "pagination": {
+        "loadMore": "Load more events",
+        "loading": "Loading events...",
+        "error": "Unable to load more events."
+      },
+      "error": {
+        "title": "Unable to load the calendar",
+        "description": "Please try again in a moment.",
+        "retry": "Try again"
+      }
+    },
     "History": {
       "Metadata": {
         "title": "History",
@@ -2900,6 +2966,7 @@
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
           "projects": "Projects",
+          "calendar": "Schedules",
           "hermes": "Personal Assistant",
           "hermesNew": "New",
           "hermesUnread": "{count} unread",
@@ -3314,6 +3381,72 @@
           "grantError": "Failed to grant free credits"
         }
       },
+      "MatchedChannels": {
+        "title": "Matched channels",
+        "description": "Create org-less matched channels, manage the roster, and snapshot organization Members onto a channel.",
+        "backToAdmin": "Back to admin",
+        "listError": "Failed to load matched channels",
+        "List": {
+          "title": "Channels",
+          "description": "Live matched channels with roster-only visibility.",
+          "loading": "Loading channels…",
+          "empty": "No matched channels yet."
+        },
+        "Create": {
+          "title": "Create matched channel",
+          "description": "Creates a live org-less channel. You are not added as a room member.",
+          "slug": "Handle",
+          "slugPlaceholder": "partners",
+          "slugHelp": "Unique among channels. You cannot change it after creating.",
+          "slugRequired": "Enter a channel slug",
+          "name": "Name",
+          "namePlaceholder": "e.g. Partners",
+          "nameHelp": "Shown in the list. It starts from the handle; you can change it here.",
+          "submit": "Create channel",
+          "submitting": "Creating…",
+          "success": "Matched channel created",
+          "error": "Failed to create matched channel",
+          "slugTaken": "This channel slug is already taken."
+        },
+        "Detail": {
+          "back": "Back to matched channels",
+          "slugLabel": "{slug}",
+          "userRequired": "Select a user to add",
+          "organizationRequired": "Select an organization to snapshot",
+          "addUserSuccess": "User added to roster",
+          "alreadyMember": "User is already on this channel",
+          "addUserError": "Failed to add user",
+          "addOrganizationSuccess": "Added {added} of {totalMembers} members ({alreadyMember} already on roster)",
+          "addOrganizationError": "Failed to snapshot organization members",
+          "Roster": {
+            "title": "Roster",
+            "description": "Users with member access on this matched channel.",
+            "empty": "No participants yet.",
+            "name": "Name",
+            "email": "Email",
+            "actions": "Actions",
+            "remove": "Remove",
+            "removing": "Removing…",
+            "removeSuccess": "Removed {name} from the roster",
+            "removeError": "Failed to remove participant"
+          },
+          "AddUser": {
+            "title": "Add user",
+            "description": "Search an existing platform user. No email invite is sent; membership is created immediately.",
+            "user": "User",
+            "submit": "Add user",
+            "submitting": "Adding…"
+          },
+          "AddOrganization": {
+            "title": "Add organization",
+            "description": "Snapshot all current Members of an organization onto this channel (max 200 Members per request). Future joins are not synced.",
+            "organization": "Organization",
+            "helper": "Organizations you belong to appear first in search results.",
+            "submit": "Add organization members",
+            "submitting": "Adding…"
+          }
+        }
+      },
       "Overview": {
         "title": "Admin",
         "description": "Internal tools for accounts, billing, catalog, and operations.",
@@ -3347,6 +3480,10 @@
           "tasks": {
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
+          },
+          "matchedChannels": {
+            "title": "Matched channels",
+            "description": "Create org-less matched channels and manage their roster."
           },
           "x402Payments": {
             "title": "x402 payments",
@@ -5752,7 +5889,9 @@
         "outOfCredits": "{coworkerName} ran out of credits for {taskName}",
         "completed": "{coworkerName} completed {taskName}",
         "failed": "{coworkerName} failed to complete {taskName}",
-        "canceled": "{taskName} was canceled"
+        "canceled": "{taskName} was canceled",
+        "scheduleRepaired": "The schedule for {taskName} was repaired",
+        "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review"
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",

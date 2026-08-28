@@ -48,6 +48,7 @@ import {
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
+import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -541,6 +542,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           expectedStatus: task.status,
           eventStatus,
         });
+
+        if (
+          task.status === TaskStatus.QUEUED &&
+          eventStatus !== TaskStatus.QUEUED
+        ) {
+          await removeTaskSchedulePlannedOccurrences(tx, taskId);
+        }
 
         if (eventStatus === TaskStatus.CANCELED) {
           cascadedChildren = await cascadeCancelNonTerminalScheduleRuns({

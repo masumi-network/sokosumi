@@ -148,6 +148,17 @@ export const unprocessableEntity = (
 };
 
 /**
+ * 426 Upgrade Required
+ * The client must reload or upgrade before retrying this operation.
+ */
+export const upgradeRequired = (
+  message: string = "Upgrade Required",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(426, message, metadata);
+};
+
+/**
  * 429 Too Many Requests
  * The user has sent too many requests in a given amount of time
  */
@@ -239,6 +250,7 @@ export function getErrorName(status: ContentfulStatusCode): string {
     409: "Conflict",
     413: "PayloadTooLarge",
     422: "UnprocessableEntity",
+    426: "UpgradeRequired",
     429: "TooManyRequests",
     500: "InternalServerError",
     502: "BadGateway",

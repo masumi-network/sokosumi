@@ -3,6 +3,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { withUnauthorizedCoreRedirect } from "@/lib/auth/handle-unauthorized-core-error";
 import { createClient } from "@/lib/clients/generated/core/client";
+import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { createCoreClient } from "./core.shared";
 
@@ -19,7 +20,7 @@ export {
 } from "./core.shared";
 
 export function buildAuthHeaders(requestHeaders: Headers): HeadersInit {
-  const authHeaders: HeadersInit = {};
+  const authHeaders: Record<string, string> = {};
   const cookie = requestHeaders.get("cookie");
 
   if (cookie) {
@@ -32,7 +33,10 @@ export function buildAuthHeaders(requestHeaders: Headers): HeadersInit {
 async function createCoreGeneratedClient() {
   return createClient({
     baseUrl: getServerCoreApiBaseUrl(),
-    headers: buildAuthHeaders(await headers()),
+    headers: {
+      ...buildAuthHeaders(await headers()),
+      ...buildCalendarClientVersionHeaders(),
+    },
   });
 }
 

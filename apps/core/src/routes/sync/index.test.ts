@@ -16,6 +16,9 @@ const {
   syncX402BuySideReadinessMock,
   expireStaleGuestInvitationsMock,
   purgeExpiredTaskX402PaymentHeadersMock,
+  syncDueTaskSchedulesMock,
+  reconcileScheduleHistoryMock,
+  validateActiveSchedulesMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
@@ -31,6 +34,9 @@ const {
   syncX402BuySideReadinessMock: vi.fn(),
   expireStaleGuestInvitationsMock: vi.fn(),
   purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
+  syncDueTaskSchedulesMock: vi.fn(),
+  reconcileScheduleHistoryMock: vi.fn(),
+  validateActiveSchedulesMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -110,6 +116,24 @@ vi.mock("@/services/task-x402-payment.purge", () => ({
   },
 }));
 
+vi.mock("@/services/task-schedules-sync", () => ({
+  taskSchedulesSyncService: {
+    syncDueSchedules: syncDueTaskSchedulesMock,
+  },
+}));
+
+vi.mock("@/services/task-schedule-reconciliation.service", () => ({
+  taskScheduleReconciliationService: {
+    reconcileScheduleHistory: reconcileScheduleHistoryMock,
+  },
+}));
+
+vi.mock("@/services/task-schedule-validation.service", () => ({
+  taskScheduleValidationService: {
+    validateActiveSchedules: validateActiveSchedulesMock,
+  },
+}));
+
 vi.mock("@vercel/functions", () => ({
   waitUntil: (promise: Promise<unknown>) => {
     void promise;
@@ -183,6 +207,24 @@ describe("sync routes", () => {
     });
     syncStripeCustomersMock.mockResolvedValue(undefined);
     expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 0 });
+    syncDueTaskSchedulesMock.mockResolvedValue({
+      promoted: 0,
+      cloned: 0,
+      durationMs: 0,
+    });
+    reconcileScheduleHistoryMock.mockResolvedValue({
+      scanned: 0,
+      created: 0,
+      finalMissing: 0,
+      initialComplete: true,
+      replayComplete: true,
+      finalComplete: true,
+    });
+    validateActiveSchedulesMock.mockResolvedValue({
+      scanned: 0,
+      quarantined: 0,
+      passComplete: true,
+    });
   });
 
   it("returns 401 for missing cron auth", async () => {
@@ -305,6 +347,40 @@ describe("sync routes", () => {
 
     expect(response.status).toBe(409);
     expect(syncHermesInboxMock).not.toHaveBeenCalled();
+  });
+
+  it("runs due schedules, validation, and reconciliation within one deadline", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/task-schedules", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncDueTaskSchedulesMock).toHaveBeenCalledTimes(1);
+    expect(syncDueTaskSchedulesMock).toHaveBeenCalledWith({
+      abortSignal: expect.any(AbortSignal),
+      deadlineMs: expect.any(Number),
+      shouldContinue: expect.any(Function),
+    });
+    expect(validateActiveSchedulesMock).toHaveBeenCalledTimes(1);
+    expect(validateActiveSchedulesMock).toHaveBeenCalledWith({
+      shouldContinue: expect.any(Function),
+    });
+    expect(reconcileScheduleHistoryMock).toHaveBeenCalledTimes(1);
+    expect(reconcileScheduleHistoryMock).toHaveBeenCalledWith({
+      shouldContinue: expect.any(Function),
+    });
+    expect(syncDueTaskSchedulesMock.mock.invocationCallOrder[0]).toBeLessThan(
+      validateActiveSchedulesMock.mock.invocationCallOrder[0],
+    );
+    expect(
+      validateActiveSchedulesMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(reconcileScheduleHistoryMock.mock.invocationCallOrder[0]);
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
   it("returns 200 and starts registry sync exactly once in background", async () => {

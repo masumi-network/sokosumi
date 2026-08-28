@@ -812,6 +812,247 @@ export const StripeSubscriptionStatusSchema = {
     description: 'Stripe subscription lifecycle status'
 } as const;
 
+export const AdminMatchedChannelOptionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            example: 'Matched Channel'
+        },
+        slug: {
+            type: 'string',
+            example: 'matched-channel'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
+    ]
+} as const;
+
+export const AdminCreateMatchedChannelBodySchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 80,
+            description: 'Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug.',
+            example: 'Partners'
+        },
+        slug: {
+            type: 'string',
+            description: 'Required Channel slug (max 80 after sanitize). Unique among org-less matched channels.',
+            example: 'partners'
+        },
+        topic: {
+            type: 'string',
+            maxLength: 200,
+            example: 'Partner coordination'
+        }
+    },
+    required: [
+        'slug'
+    ]
+} as const;
+
+export const AdminMatchedChannelDetailSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            example: 'Matched Channel'
+        },
+        slug: {
+            type: 'string',
+            example: 'matched-channel'
+        },
+        topic: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Partner coordination'
+        },
+        participants: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminMatchedChannelParticipantInfo'
+            }
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'topic',
+        'participants'
+    ]
+} as const;
+
+export const AdminMatchedChannelParticipantInfoSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ada Lovelace'
+        },
+        email: {
+            type: 'string',
+            example: 'ada@example.com'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'member'
+            ],
+            example: 'member'
+        }
+    },
+    required: [
+        'userId',
+        'name',
+        'email',
+        'access'
+    ]
+} as const;
+
+export const AdminAddMatchedChannelFromOrganizationResultSchema = {
+    type: 'object',
+    properties: {
+        added: {
+            type: 'integer',
+            minimum: 0,
+            example: 3
+        },
+        alreadyMember: {
+            type: 'integer',
+            minimum: 0,
+            example: 1
+        },
+        totalMembers: {
+            type: 'integer',
+            minimum: 0,
+            example: 4
+        }
+    },
+    required: [
+        'added',
+        'alreadyMember',
+        'totalMembers'
+    ]
+} as const;
+
+export const AdminAddMatchedChannelFromOrganizationBodySchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Organization whose Members are snapshotted onto the roster',
+            example: 'org_123'
+        },
+        organizationSlug: {
+            type: 'string',
+            minLength: 1,
+            description: 'Organization slug alternative to organizationId',
+            example: 'acme-corp'
+        }
+    }
+} as const;
+
+export const AdminMatchedChannelParticipantSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'member'
+            ],
+            example: 'member'
+        },
+        outcome: {
+            type: 'string',
+            enum: [
+                'joined',
+                'already_member'
+            ],
+            example: 'joined'
+        }
+    },
+    required: [
+        'userId',
+        'roomId',
+        'access',
+        'outcome'
+    ]
+} as const;
+
+export const AdminAddMatchedChannelParticipantBodySchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Existing platform user to add as a member',
+            example: 'user_123'
+        }
+    },
+    required: [
+        'userId'
+    ]
+} as const;
+
+export const AdminRemoveMatchedChannelParticipantSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        outcome: {
+            type: 'string',
+            enum: [
+                'removed'
+            ],
+            example: 'removed'
+        }
+    },
+    required: [
+        'userId',
+        'roomId',
+        'outcome'
+    ]
+} as const;
+
 export const AdminOrganizationOverviewItemSchema = {
     type: 'object',
     properties: {
@@ -1976,6 +2217,13 @@ export const TaskSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'Next scheduled run time for queued tasks'
         },
+        scheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Revision used for optimistic schedule mutations',
+            example: 0
+        },
         credits: {
             type: 'number',
             example: 5
@@ -2478,6 +2726,45 @@ export const TaskEventSchema = {
                 }
             ],
             example: 'RUNNING'
+        },
+        scheduleKind: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'CREATED',
+                'UPDATED',
+                'REMOVED',
+                'SOURCE_CHANGED',
+                'OCCURRENCE_RESCHEDULED',
+                'OCCURRENCE_SKIPPED',
+                'OCCURRENCE_RESTORED',
+                'RELEASED',
+                null
+            ],
+            description: 'Schedule activity represented by this event',
+            example: 'OCCURRENCE_SKIPPED'
+        },
+        schedulePayload: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {},
+            description: 'Schedule activity details for audit and notifications',
+            example: {
+                occurrenceKey: 'occurrence-key'
+            }
+        },
+        scheduleOperationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Idempotency identity for the schedule mutation',
+            example: '123e4567-e89b-42d3-a456-426614174000'
         }
     },
     required: [
@@ -3417,6 +3704,171 @@ export const ReviewedTaskPaymentClaimActionBodySchema = {
         }
     },
     required: [
+        'reason'
+    ]
+} as const;
+
+export const AdminTaskScheduleQuarantineActionResultSchema = {
+    type: 'object',
+    properties: {
+        taskId: {
+            type: 'string'
+        },
+        eventId: {
+            type: 'string'
+        },
+        action: {
+            type: 'string',
+            enum: [
+                'repaired',
+                'removed'
+            ]
+        },
+        replayed: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'taskId',
+        'eventId',
+        'action',
+        'replayed'
+    ]
+} as const;
+
+export const RepairTaskScheduleQuarantineBodySchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Idempotency identity for this operator action',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            description: 'Operator reason retained in the Task audit event',
+            example: 'Corrected an invalid imported timezone'
+        },
+        schedule: {
+            $ref: '#/components/schemas/TaskScheduleInput'
+        }
+    },
+    required: [
+        'operationId',
+        'reason',
+        'schedule'
+    ]
+} as const;
+
+export const TaskScheduleInputSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'once'
+                    ]
+                },
+                runAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-06-24T09:00:00.000Z',
+                    description: 'When the one-time schedule should run'
+                }
+            },
+            required: [
+                'mode',
+                'runAt'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'recurring'
+                    ]
+                },
+                expr: {
+                    type: 'string',
+                    minLength: 1,
+                    description: 'Cron expression for recurring runs',
+                    example: '0 9 * * *'
+                },
+                timezone: {
+                    type: 'string',
+                    default: 'UTC',
+                    description: 'IANA timezone for the cron expression',
+                    example: 'America/New_York'
+                },
+                endsMode: {
+                    type: 'string',
+                    enum: [
+                        'never',
+                        'on',
+                        'after'
+                    ],
+                    default: 'never',
+                    example: 'never'
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-12-31T23:59:59.000Z',
+                    description: 'End date when endsMode is on'
+                },
+                occurrences: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'Remaining occurrences when endsMode is after',
+                    example: 10
+                },
+                intervalDays: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps',
+                    example: 2
+                },
+                anchorAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-06-24T09:00:00.000Z',
+                    description: 'First run instant for intervalDays schedules (required when intervalDays > 1)'
+                }
+            },
+            required: [
+                'mode',
+                'expr'
+            ]
+        }
+    ]
+} as const;
+
+export const RemoveTaskScheduleQuarantineBodySchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Idempotency identity for this operator action',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            description: 'Operator reason retained in the Task audit event',
+            example: 'Corrected an invalid imported timezone'
+        }
+    },
+    required: [
+        'operationId',
         'reason'
     ]
 } as const;
@@ -5392,7 +5844,7 @@ export const ChatRoomSchema = {
                 'string',
                 'null'
             ],
-            description: 'Organization that owns the room. Null for Personal Directs (human 1:1 from an External channel, and coworker 1:1 created with no active organization).',
+            description: 'Organization that owns the room. Null for Personal Directs and for org-less matched channels (`discoverability=matched`).',
             example: 'org_123'
         },
         organizationName: {
@@ -5447,9 +5899,10 @@ export const ChatRoomSchema = {
                 'public',
                 'private',
                 'external',
+                'matched',
                 null
             ],
-            description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), or `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests). Null for direct rooms.',
+            description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests), or `"matched"` (org-less, roster-only). Null for direct rooms.',
             example: 'public'
         },
         createdByUserId: {
@@ -5896,7 +6349,7 @@ export const DiscoverableChannelDiscoverabilitySchema = {
         'private',
         'external'
     ],
-    description: '`"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.',
+    description: '`"public"` and `"external"` for every org member; `"private"` only for organization owners and admins. Never `"matched"`.',
     example: 'public'
 } as const;
 
@@ -6588,7 +7041,7 @@ export const UpdateChatRoomRequestSchema = {
             example: 'Launch planning with design and AI research partners'
         },
         discoverability: {
-            $ref: '#/components/schemas/ChatRoomDiscoverability'
+            $ref: '#/components/schemas/OrgChannelDiscoverability'
         },
         memberUserIds: {
             type: 'array',
@@ -6617,7 +7070,7 @@ export const UpdateChatRoomRequestSchema = {
     }
 } as const;
 
-export const ChatRoomDiscoverabilitySchema = {
+export const OrgChannelDiscoverabilitySchema = {
     type: 'string',
     enum: [
         'public',
@@ -12772,6 +13225,33 @@ export const ProjectSchema = {
             type: 'boolean',
             example: false
         },
+        projectRevision: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Revision used for optimistic Project mutations',
+            example: 0
+        },
+        closingAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            default: null,
+            example: null,
+            description: 'Exclusive release cutoff while the Project is closing'
+        },
+        closedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            default: null,
+            example: null,
+            description: 'When the Project reached its terminal closed state'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -15206,6 +15686,13 @@ export const TaskListItemSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'Next scheduled run time for queued tasks'
         },
+        scheduleRevision: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Revision used for optimistic schedule mutations',
+            example: 0
+        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
@@ -15382,7 +15869,41 @@ export const TaskLinkDeletedSchema = {
 } as const;
 
 export const PutTaskScheduleRequestSchema = {
-    oneOf: [
+    anyOf: [
+        {
+            type: 'object',
+            properties: {
+                operationId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'Idempotency identity for this series edit',
+                    example: '123e4567-e89b-42d3-a456-426614174000'
+                },
+                expectedScheduleRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Schedule revision observed by the caller',
+                    example: 3
+                },
+                discardFutureExceptions: {
+                    type: 'boolean',
+                    enum: [
+                        true
+                    ],
+                    description: 'Confirms that future occurrence exceptions may be canceled',
+                    example: true
+                },
+                schedule: {
+                    $ref: '#/components/schemas/TaskScheduleInput'
+                }
+            },
+            required: [
+                'operationId',
+                'expectedScheduleRevision',
+                'discardFutureExceptions',
+                'schedule'
+            ]
+        },
         {
             type: 'object',
             properties: {
@@ -16509,6 +17030,185 @@ export const DesignMdOwnerInfoSchema = {
                 'type'
             ]
         }
+    ]
+} as const;
+
+export const WorkspaceCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Stable Calendar item identity. Version 1 projections are display-only.',
+            example: 'v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z'
+        },
+        taskId: {
+            type: 'string',
+            example: 'tsk_123'
+        },
+        taskName: {
+            type: 'string',
+            example: 'Prepare release notes'
+        },
+        taskStatus: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'QUEUED',
+                'READY',
+                'GRANT_PENDING',
+                'INPUT_REQUIRED',
+                'APPROVAL_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCELED'
+            ],
+            example: 'QUEUED'
+        },
+        taskAssigneeId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'coworker_123'
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Effective time at which the item appears in the Calendar'
+        },
+        originalScheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Original scheduled time captured by the occurrence ledger, when known'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'PLANNED',
+                'SKIPPED',
+                'CANCELED',
+                'RELEASED'
+            ],
+            example: 'PLANNED'
+        },
+        sourceId: {
+            type: 'string',
+            description: 'Canonical Calendar source identity',
+            example: 'project:22222222-2222-7222-8222-222222222222'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Workspace captured as the Calendar source'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'WORKSPACE',
+                'PROJECT',
+                'LEGACY_UNKNOWN'
+            ],
+            example: 'WORKSPACE'
+        },
+        sourceProjectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project captured as the Calendar source, when applicable'
+        },
+        sourceAccuracy: {
+            type: 'string',
+            enum: [
+                'EXACT',
+                'INFERRED',
+                'UNKNOWN'
+            ],
+            example: 'EXACT'
+        },
+        timeAccuracy: {
+            type: 'string',
+            enum: [
+                'EXACT',
+                'APPROXIMATE'
+            ],
+            example: 'EXACT'
+        }
+    },
+    required: [
+        'id',
+        'taskId',
+        'taskName',
+        'taskStatus',
+        'taskAssigneeId',
+        'scheduledAt',
+        'originalScheduledAt',
+        'state',
+        'sourceId',
+        'sourceWorkspaceId',
+        'sourceType',
+        'sourceProjectId',
+        'sourceAccuracy',
+        'timeAccuracy'
+    ]
+} as const;
+
+export const WorkspaceCalendarSourceSchema = {
+    type: 'object',
+    properties: {
+        sourceId: {
+            type: 'string',
+            example: 'project:22222222-2222-7222-8222-222222222222'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'WORKSPACE',
+                'PROJECT',
+                'LEGACY_UNKNOWN'
+            ],
+            example: 'PROJECT'
+        },
+        displayName: {
+            type: 'string',
+            example: 'Q1 research'
+        },
+        logoUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: null
+        },
+        paletteToken: {
+            type: 'string',
+            enum: [
+                'blue',
+                'violet',
+                'amber'
+            ],
+            description: 'Bounded visual marker for Calendar source displays',
+            example: 'violet'
+        }
+    },
+    required: [
+        'sourceId',
+        'sourceType',
+        'displayName',
+        'logoUrl',
+        'paletteToken'
     ]
 } as const;
 

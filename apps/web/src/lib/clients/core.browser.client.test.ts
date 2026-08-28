@@ -51,6 +51,7 @@ describe("core.browser.client", () => {
     expect(createClientMock).toHaveBeenCalledWith({
       baseUrl: "https://api.sokosumi.com/v1",
       credentials: "include",
+      headers: { "x-sokosumi-web-build-version": "1" },
     });
     expect(getAgentsByIdInputSchemaMock).toHaveBeenCalledWith({
       client: mockClient,

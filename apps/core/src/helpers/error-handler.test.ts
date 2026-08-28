@@ -1,11 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import { EnterpriseContractActivationError } from "@sokosumi/database/helpers";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { handleEnterpriseContractLifecycleError } from "./enterprise-contract-route";
-import { conflict, serviceUnavailable } from "./error";
+import { conflict, serviceUnavailable, upgradeRequired } from "./error";
 import { errorHandler } from "./error-handler";
 
 const { captureExceptionMock, captureExternalServiceErrorMock } = vi.hoisted(
@@ -78,6 +79,30 @@ describe("errorHandler", () => {
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
     expect(body.message).toBe("Service is under maintenance");
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the stable Calendar client-upgrade envelope", async () => {
+    const app = createApp();
+    app.get("/", () => {
+      throw upgradeRequired("Reload required", {
+        kind: CORE_API_ERROR_KINDS.CALENDAR_CLIENT_UPGRADE_REQUIRED,
+      });
+    });
+
+    const response = await app.request("http://localhost/");
+    const body = (await response.json()) as {
+      error: string;
+      kind: string;
+      message: string;
+    };
+
+    expect(response.status).toBe(426);
+    expect(body).toMatchObject({
+      error: "UpgradeRequired",
+      kind: "calendar_client_upgrade_required",
+      message: "Reload required",
+    });
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 

@@ -266,6 +266,7 @@
       "new": "Neu",
       "notifications": "Benachrichtigungen",
       "projects": "Projekte",
+      "calendar": "Zeitpläne",
       "invoices": "Rechnungen",
       "oauth-clients": "OAuth-Clients",
       "api-keys": "API-Schlüssel",
@@ -755,6 +756,11 @@
         "description": "Melde dich an oder registriere dich, um Agents zu beauftragen und Jobs zu starten.",
         "login": "Anmelden",
         "register": "Registrieren"
+      },
+      "CalendarClientUpgradeModal": {
+        "title": "Aktualisierung erforderlich",
+        "description": "Sokosumi wurde aktualisiert, um geplante Tasks zu schützen. Lade die Seite neu, bevor du weitere Kalenderänderungen vornimmst.",
+        "reload": "Sokosumi neu laden"
       },
       "LogoutModal": {
         "title": "Möchtest du dich wirklich abmelden?",
@@ -1297,6 +1303,66 @@
     "delete": "Löschen",
     "cancel": "Abbrechen",
     "save": "Speichern",
+    "Calendar": {
+      "Metadata": {
+        "title": "Zeitpläne",
+        "description": "Geplante Aufgabenfreigaben im Workspace durchsuchen."
+      },
+      "previous": "Vorheriger Zeitraum",
+      "next": "Nächster Zeitraum",
+      "view": {
+        "month": "Monat",
+        "week": "Woche",
+        "agenda": "Agenda"
+      },
+      "source": {
+        "label": "Quelle",
+        "all": "Alle Quellen",
+        "WORKSPACE": "Workspace",
+        "PROJECT": "Projekt",
+        "LEGACY_UNKNOWN": "Legacy-Quelle"
+      },
+      "accuracy": {
+        "inferred": "Abgeleitete Quelle",
+        "unknown": "Unbekannte Quelle",
+        "approximate": "Ungefähre Zeit"
+      },
+      "status": {
+        "label": "Aufgabenstatus",
+        "all": "Alle Status",
+        "DRAFT": "Entwurf",
+        "QUEUED": "In Warteschlange",
+        "READY": "Bereit",
+        "GRANT_PENDING": "Freigabe ausstehend",
+        "INPUT_REQUIRED": "Eingabe erforderlich",
+        "APPROVAL_REQUIRED": "Genehmigung erforderlich",
+        "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
+        "OUT_OF_CREDITS": "Pausiert: Credits erforderlich",
+        "CREDITS_TOPPED_UP": "Credits aufgeladen",
+        "RUNNING": "Läuft",
+        "AWAITING_EXTERNAL": "Wartet auf Externes",
+        "COMPLETED": "Abgeschlossen",
+        "FAILED": "Fehlgeschlagen",
+        "CANCELED": "Abgebrochen"
+      },
+      "coworker": {
+        "label": "Coworker",
+        "all": "Alle Coworker"
+      },
+      "empty": {
+        "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
+      },
+      "pagination": {
+        "loadMore": "Weitere Ereignisse laden",
+        "loading": "Ereignisse werden geladen...",
+        "error": "Weitere Ereignisse konnten nicht geladen werden."
+      },
+      "error": {
+        "title": "Kalender konnte nicht geladen werden",
+        "description": "Bitte versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      }
+    },
     "History": {
       "Metadata": {
         "title": "Verlauf",
@@ -2900,6 +2966,7 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "projects": "Projekte",
+          "calendar": "Zeitpläne",
           "hermes": "Persönlicher Assistent",
           "hermesNew": "Neu",
           "hermesUnread": "{count} ungelesen",
@@ -3165,6 +3232,10 @@
           "tasks": {
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
+          },
+          "matchedChannels": {
+            "title": "Matched Channels",
+            "description": "Organisationslose Matched Channels erstellen und deren Roster verwalten."
           },
           "x402Payments": {
             "title": "x402-Zahlungen",
@@ -3643,6 +3714,72 @@
           "submitting": "Credits werden gewährt…",
           "grantSuccess": "Kostenlose Credits gewährt",
           "grantError": "Kostenlose Credits konnten nicht gewährt werden"
+        }
+      },
+      "MatchedChannels": {
+        "title": "Matched Channels",
+        "description": "Erstelle organisationslose Matched Channels, verwalte das Roster und übernimm aktuelle Organisationsmitglieder per Snapshot.",
+        "backToAdmin": "Zurück zur Administration",
+        "listError": "Matched Channels konnten nicht geladen werden",
+        "List": {
+          "title": "Channels",
+          "description": "Live-Matched-Channels mit Sichtbarkeit nur über das Roster.",
+          "loading": "Channels werden geladen…",
+          "empty": "Noch keine Matched Channels."
+        },
+        "Create": {
+          "title": "Matched Channel erstellen",
+          "description": "Erstellt einen live organisationslosen Channel. Du wirst nicht als Raummitglied hinzugefügt.",
+          "slug": "Handle",
+          "slugPlaceholder": "partners",
+          "slugHelp": "Eindeutig unter Channels. Nach dem Erstellen nicht mehr änderbar.",
+          "slugRequired": "Channel-Slug eingeben",
+          "name": "Name",
+          "namePlaceholder": "z. B. Partners",
+          "nameHelp": "Wird in der Liste angezeigt. Startet vom Handle; hier kannst du ihn ändern.",
+          "submit": "Channel erstellen",
+          "submitting": "Wird erstellt…",
+          "success": "Matched Channel erstellt",
+          "error": "Matched Channel konnte nicht erstellt werden",
+          "slugTaken": "Dieser Channel-Slug ist bereits vergeben."
+        },
+        "Detail": {
+          "back": "Zurück zu Matched Channels",
+          "slugLabel": "{slug}",
+          "userRequired": "Benutzer auswählen, der hinzugefügt werden soll",
+          "organizationRequired": "Organisation für den Snapshot auswählen",
+          "addUserSuccess": "Benutzer zum Roster hinzugefügt",
+          "alreadyMember": "Benutzer ist bereits in diesem Channel",
+          "addUserError": "Benutzer konnte nicht hinzugefügt werden",
+          "addOrganizationSuccess": "{added} von {totalMembers} Mitgliedern hinzugefügt ({alreadyMember} bereits im Roster)",
+          "addOrganizationError": "Organisationsmitglieder konnten nicht übernommen werden",
+          "Roster": {
+            "title": "Roster",
+            "description": "Benutzer mit Mitgliederzugang in diesem Matched Channel.",
+            "empty": "Noch keine Teilnehmer.",
+            "name": "Name",
+            "email": "E-Mail",
+            "actions": "Aktionen",
+            "remove": "Entfernen",
+            "removing": "Wird entfernt…",
+            "removeSuccess": "{name} vom Roster entfernt",
+            "removeError": "Teilnehmer konnte nicht entfernt werden"
+          },
+          "AddUser": {
+            "title": "Benutzer hinzufügen",
+            "description": "Suche einen bestehenden Plattformnutzer. Es wird keine E-Mail-Einladung gesendet; die Mitgliedschaft wird sofort erstellt.",
+            "user": "Benutzer",
+            "submit": "Benutzer hinzufügen",
+            "submitting": "Wird hinzugefügt…"
+          },
+          "AddOrganization": {
+            "title": "Organisation hinzufügen",
+            "description": "Übernimmt alle aktuellen Mitglieder einer Organisation in diesen Channel (max. 200 Mitglieder pro Anfrage). Spätere Beitritte werden nicht synchronisiert.",
+            "organization": "Organisation",
+            "helper": "Organisationen, denen du angehörst, erscheinen zuerst in den Suchergebnissen.",
+            "submit": "Organisationsmitglieder hinzufügen",
+            "submitting": "Wird hinzugefügt…"
+          }
         }
       },
       "Agents": {
@@ -5752,7 +5889,9 @@
         "outOfCredits": "{coworkerName} hat keine Credits mehr für {taskName}",
         "completed": "{coworkerName} hat {taskName} abgeschlossen",
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
-        "canceled": "{taskName} wurde abgebrochen"
+        "canceled": "{taskName} wurde abgebrochen",
+        "scheduleRepaired": "Der Zeitplan für {taskName} wurde repariert",
+        "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
