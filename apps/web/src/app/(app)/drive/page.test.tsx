@@ -768,21 +768,34 @@ describe("DrivePage files view mode", () => {
     });
   });
 
-  it("hides the layout switch on the Tasks special folder", async () => {
+  it("shows the layout switch on the Tasks special folder and respects grid", async () => {
+    const user = userEvent.setup();
     searchParams = new URLSearchParams("view=tasks");
     fetchDriveTasksPageMock.mockResolvedValue({
-      items: [],
+      items: [
+        {
+          type: "project" as const,
+          id: "proj_1",
+          name: "Alpha",
+          latestFileUpdatedAt: "2026-08-28T10:00:00.000Z",
+        },
+      ],
       nextCursor: null,
     });
 
     renderDrive();
 
     await waitFor(() => {
-      expect(screen.getByText("tasksEmptyTitle")).toBeVisible();
+      expect(screen.getByText("Alpha")).toBeVisible();
     });
-    expect(
-      screen.queryByTestId("files-view-mode-switch"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("files-view-mode-switch")).toBeVisible();
+    expect(screen.getByTestId("files-layout-list")).toBeVisible();
+
+    await user.click(screen.getByRole("radio", { name: "viewGrid" }));
+
+    expect(screen.getByTestId("files-layout-grid")).toBeVisible();
+    expect(screen.queryByTestId("files-layout-list")).not.toBeInTheDocument();
+    expect(screen.getByText("Alpha")).toBeVisible();
   });
 
   it("hides task/project path under the filename in grid", async () => {

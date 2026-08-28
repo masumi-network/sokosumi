@@ -28,6 +28,7 @@ import {
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
 import {
+  DRIVE_FILE_TYPE_ICON_CLASS,
   driveItemIconWellClass,
   driveItemMetaDesktopClass,
   driveItemMetaMobileClass,
@@ -416,7 +417,9 @@ export function DriveRecentsPanel({
                             actions={driveFileActions}
                           >
                             <div className={driveItemIconWellClass(viewMode)}>
-                              <FileTypeIcon extension={extension || "file"} />
+                              <div className={DRIVE_FILE_TYPE_ICON_CLASS}>
+                                <FileTypeIcon extension={extension || "file"} />
+                              </div>
                             </div>
                             {isEditing ? (
                               <Input
@@ -543,7 +546,9 @@ export function DriveRecentsPanel({
                           }
                         >
                           <div className={driveItemIconWellClass(viewMode)}>
-                            <FileTypeIcon extension={extension || "file"} />
+                            <div className={DRIVE_FILE_TYPE_ICON_CLASS}>
+                              <FileTypeIcon extension={extension || "file"} />
+                            </div>
                           </div>
                           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                             {nameEl}
