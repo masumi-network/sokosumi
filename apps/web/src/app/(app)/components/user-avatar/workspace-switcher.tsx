@@ -26,9 +26,21 @@ export function getTaskDetailBasePath(pathname: string): string | null {
   return "/tasks";
 }
 
+export function getOrganizationSettingsPath(pathname: string): string | null {
+  if (
+    pathname === "/organization" ||
+    /^\/organizations(?:\/.*)?$/.test(pathname)
+  ) {
+    return "/organization";
+  }
+
+  return null;
+}
+
 interface SwitchOrganizationWorkspaceOptions {
   shouldRedirectAgentJobsBasePath?: boolean;
   shouldRedirectTaskDetailPath?: boolean;
+  shouldRedirectOrganizationSettingsPath?: boolean;
   successMessage?: string;
   router?: AppRouterInstance;
   pathname?: string;
@@ -83,6 +95,25 @@ export async function switchOrganizationWorkspace(
     }
   }
 
+  const shouldRedirectOrganizationSettingsPath =
+    options?.shouldRedirectOrganizationSettingsPath ?? true;
+  if (
+    shouldRedirectOrganizationSettingsPath &&
+    options?.router &&
+    options?.pathname
+  ) {
+    const organizationSettingsPath = getOrganizationSettingsPath(
+      options.pathname,
+    );
+    if (organizationSettingsPath) {
+      runRouterTransition(() => {
+        options.router?.replace(organizationSettingsPath);
+        options.router?.refresh();
+      }, options.startTransition);
+      return;
+    }
+  }
+
   if (options?.router) {
     runRouterTransition(() => {
       options.router?.refresh();
@@ -101,6 +132,7 @@ export function useWorkspaceSwitcher() {
     options?: {
       shouldRedirectAgentJobsBasePath?: boolean;
       shouldRedirectTaskDetailPath?: boolean;
+      shouldRedirectOrganizationSettingsPath?: boolean;
       successMessage?: string;
     },
   ): Promise<void> => {
