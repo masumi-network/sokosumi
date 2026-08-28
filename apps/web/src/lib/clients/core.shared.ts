@@ -91,6 +91,7 @@ import type {
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
+  addAdminExternalChannelGuest as coreAddAdminExternalChannelGuest,
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   aggregateAdminTaskX402PaymentsByAgent as coreAggregateAdminTaskX402PaymentsByAgent,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
@@ -98,6 +99,7 @@ import {
   claimCoupon as coreClaimCoupon,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
+  createAdminOrgExternalChannel as coreCreateAdminOrgExternalChannel,
   createAdminVendor as coreCreateAdminVendor,
   createCoworkerWorkspaceAccess as coreCreateCoworkerWorkspaceAccess,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
@@ -133,6 +135,7 @@ import {
   getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
+  getAdminOrgExternalChannel as coreGetAdminOrgExternalChannel,
   getAdminTask as coreGetAdminTask,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
@@ -232,6 +235,7 @@ import {
   listAdminInvoices as coreListAdminInvoices,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
+  listAdminOrgExternalChannels as coreListAdminOrgExternalChannels,
   listAdminTasks as coreListAdminTasks,
   listAdminTaskX402Payments as coreListAdminTaskX402Payments,
   listAdminUsers as coreListAdminUsers,
@@ -1710,6 +1714,67 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to list organization members",
+    );
+  }
+
+  async function listAdminOrgExternalChannels(slug: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListAdminOrgExternalChannels({
+          client,
+          path: { slug },
+          cache: "no-store",
+        }),
+      "Failed to list external channels",
+    );
+  }
+
+  async function createAdminOrgExternalChannel(
+    slug: string,
+    body: { name?: string; slug: string; topic?: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreCreateAdminOrgExternalChannel({
+          client,
+          path: { slug },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create external channel",
+    );
+  }
+
+  async function getAdminOrgExternalChannel(slug: string, roomId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminOrgExternalChannel({
+          client,
+          path: { slug, roomId },
+          cache: "no-store",
+        }),
+      "Failed to fetch external channel",
+    );
+  }
+
+  async function addAdminExternalChannelGuest(
+    slug: string,
+    roomId: string,
+    body: { userId: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreAddAdminExternalChannelGuest({
+          client,
+          path: { slug, roomId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to add external channel guest",
     );
   }
 
@@ -4535,6 +4600,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     getAdminOrganizationBySlug,
     listAdminOrganizations,
     listAdminOrganizationMembers,
+    listAdminOrgExternalChannels,
+    createAdminOrgExternalChannel,
+    getAdminOrgExternalChannel,
+    addAdminExternalChannelGuest,
     addAdminOrganizationMember,
     removeAdminOrganizationMember,
     updateAdminOrganizationMemberRole,

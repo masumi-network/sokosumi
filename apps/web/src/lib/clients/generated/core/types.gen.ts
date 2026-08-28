@@ -279,6 +279,52 @@ export type AdminOrganizationOverviewDetail = {
     totalCredits: number | null;
 };
 
+export type AdminExternalChannelOption = {
+    id: string;
+    name: string;
+    slug: string;
+};
+
+export type AdminCreateExternalChannelBody = {
+    /**
+     * Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug.
+     */
+    name?: string;
+    /**
+     * Required Channel slug (max 80 after sanitize). Unique among Channels in the host organization.
+     */
+    slug: string;
+    topic?: string;
+};
+
+export type AdminExternalChannelDetail = {
+    id: string;
+    name: string;
+    slug: string;
+    topic: string | null;
+    guests: Array<AdminExternalChannelGuestInfo>;
+};
+
+export type AdminExternalChannelGuestInfo = {
+    userId: string;
+    name: string;
+    email: string;
+};
+
+export type AdminExternalChannelGuest = {
+    userId: string;
+    roomId: string;
+    access: 'guest';
+    outcome: 'joined' | 'already_guest';
+};
+
+export type AdminAddExternalChannelGuestBody = {
+    /**
+     * Existing platform user to add as a guest
+     */
+    userId: string;
+};
+
 export type AdminOrganizationMemberOverviewItem = {
     id: string;
     organizationId: string;
@@ -5798,6 +5844,352 @@ export type GetAdminOrganizationBySlugResponses = {
 };
 
 export type GetAdminOrganizationBySlugResponse = GetAdminOrganizationBySlugResponses[keyof GetAdminOrganizationBySlugResponses];
+
+export type ListAdminOrgExternalChannelsData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/external-channels';
+};
+
+export type ListAdminOrgExternalChannelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminOrgExternalChannelsError = ListAdminOrgExternalChannelsErrors[keyof ListAdminOrgExternalChannelsErrors];
+
+export type ListAdminOrgExternalChannelsResponses = {
+    /**
+     * External channels for the host organization
+     */
+    200: {
+        data: Array<AdminExternalChannelOption>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminOrgExternalChannelsResponse = ListAdminOrgExternalChannelsResponses[keyof ListAdminOrgExternalChannelsResponses];
+
+export type CreateAdminOrgExternalChannelData = {
+    body?: AdminCreateExternalChannelBody;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/external-channels';
+};
+
+export type CreateAdminOrgExternalChannelErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminOrgExternalChannelError = CreateAdminOrgExternalChannelErrors[keyof CreateAdminOrgExternalChannelErrors];
+
+export type CreateAdminOrgExternalChannelResponses = {
+    /**
+     * Created External channel
+     */
+    201: {
+        data: AdminExternalChannelOption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminOrgExternalChannelResponse = CreateAdminOrgExternalChannelResponses[keyof CreateAdminOrgExternalChannelResponses];
+
+export type GetAdminOrgExternalChannelData = {
+    body?: never;
+    path: {
+        slug: string;
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/external-channels/{roomId}';
+};
+
+export type GetAdminOrgExternalChannelErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminOrgExternalChannelError = GetAdminOrgExternalChannelErrors[keyof GetAdminOrgExternalChannelErrors];
+
+export type GetAdminOrgExternalChannelResponses = {
+    /**
+     * External channel detail
+     */
+    200: {
+        data: AdminExternalChannelDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminOrgExternalChannelResponse = GetAdminOrgExternalChannelResponses[keyof GetAdminOrgExternalChannelResponses];
+
+export type AddAdminExternalChannelGuestData = {
+    body?: AdminAddExternalChannelGuestBody;
+    path: {
+        slug: string;
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/external-channels/{roomId}/guests';
+};
+
+export type AddAdminExternalChannelGuestErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddAdminExternalChannelGuestError = AddAdminExternalChannelGuestErrors[keyof AddAdminExternalChannelGuestErrors];
+
+export type AddAdminExternalChannelGuestResponses = {
+    /**
+     * Guest membership ensured
+     */
+    200: {
+        data: AdminExternalChannelGuest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddAdminExternalChannelGuestResponse = AddAdminExternalChannelGuestResponses[keyof AddAdminExternalChannelGuestResponses];
 
 export type ListAdminOrganizationMembersData = {
     body?: never;
@@ -17796,20 +18188,6 @@ export type GetDriveRecentsErrors = {
      * Forbidden
      */
     403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
         error: string;
         message: string;
         kind?: string;

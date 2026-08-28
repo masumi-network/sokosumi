@@ -1107,6 +1107,168 @@ export const AdminOrganizationOverviewDetailSchema = {
     ]
 } as const;
 
+export const AdminExternalChannelOptionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            example: 'External Channel'
+        },
+        slug: {
+            type: 'string',
+            example: 'external-channel'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
+    ]
+} as const;
+
+export const AdminCreateExternalChannelBodySchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 80,
+            description: 'Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug.',
+            example: 'Partners'
+        },
+        slug: {
+            type: 'string',
+            description: 'Required Channel slug (max 80 after sanitize). Unique among Channels in the host organization.',
+            example: 'partners'
+        },
+        topic: {
+            type: 'string',
+            maxLength: 200,
+            example: 'Partner coordination'
+        }
+    },
+    required: [
+        'slug'
+    ]
+} as const;
+
+export const AdminExternalChannelDetailSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            example: 'External Channel'
+        },
+        slug: {
+            type: 'string',
+            example: 'external-channel'
+        },
+        topic: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Partner coordination'
+        },
+        guests: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminExternalChannelGuestInfo'
+            }
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'topic',
+        'guests'
+    ]
+} as const;
+
+export const AdminExternalChannelGuestInfoSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Guest User'
+        },
+        email: {
+            type: 'string',
+            example: 'guest@example.com'
+        }
+    },
+    required: [
+        'userId',
+        'name',
+        'email'
+    ]
+} as const;
+
+export const AdminExternalChannelGuestSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'guest'
+            ],
+            example: 'guest'
+        },
+        outcome: {
+            type: 'string',
+            enum: [
+                'joined',
+                'already_guest'
+            ],
+            example: 'joined'
+        }
+    },
+    required: [
+        'userId',
+        'roomId',
+        'access',
+        'outcome'
+    ]
+} as const;
+
+export const AdminAddExternalChannelGuestBodySchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Existing platform user to add as a guest',
+            example: 'user_123'
+        }
+    },
+    required: [
+        'userId'
+    ]
+} as const;
+
 export const AdminOrganizationMemberOverviewItemSchema = {
     type: 'object',
     properties: {

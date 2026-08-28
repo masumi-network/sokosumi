@@ -3166,6 +3166,10 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
+          "externalChannels": {
+            "title": "Externe Channels",
+            "description": "External Channels für beliebige Host-Organisationen erstellen und bestehende Nutzer als Gäste hinzufügen."
+          },
           "x402Payments": {
             "title": "x402-Zahlungen",
             "description": "Direktzahlungen prüfen und zurückgehaltene oder strittige x402-Abbuchungen bearbeiten."
@@ -3645,6 +3649,56 @@
           "submitting": "Credits werden gewährt…",
           "grantSuccess": "Kostenlose Credits gewährt",
           "grantError": "Kostenlose Credits konnten nicht gewährt werden"
+        }
+      },
+      "ExternalChannels": {
+        "title": "Externe Channels",
+        "description": "Wähle eine Host-Organisation, erstelle einen Live-External-Channel und füge bestehende Plattformnutzer als Gäste hinzu. Mitglieder der Host-Organisation können keine Gäste sein.",
+        "backToAdmin": "Zurück zur Administration",
+        "hostOrganization": "Host-Organisation",
+        "hostOrgHelper": "Organisationen, denen du angehörst, erscheinen zuerst in den Suchergebnissen.",
+        "hostOrgRequired": "Host-Organisation auswählen",
+        "listError": "Externe Channels konnten nicht geladen werden",
+        "List": {
+          "title": "Channels",
+          "description": "Live-External-Channels von {org}.",
+          "loading": "Channels werden geladen…",
+          "empty": "Noch keine External Channels für diese Organisation."
+        },
+        "Create": {
+          "title": "External Channel erstellen",
+          "description": "Erstellt einen Live-External-Channel auf dem ausgewählten Host. Du wirst nicht als Raummitglied hinzugefügt.",
+          "name": "Name",
+          "namePlaceholder": "Optional; wird aus dem Slug abgeleitet, wenn leer",
+          "slug": "Slug",
+          "slugPlaceholder": "partners",
+          "slugRequired": "Channel-Slug eingeben",
+          "submit": "Channel erstellen",
+          "submitting": "Wird erstellt…",
+          "success": "External Channel erstellt",
+          "error": "External Channel konnte nicht erstellt werden"
+        },
+        "Detail": {
+          "back": "Zurück zu External Channels",
+          "hostLabel": "Host {org} · {slug}",
+          "guestRequired": "Benutzer auswählen, der als Gast hinzugefügt werden soll",
+          "addGuestSuccess": "Gast hinzugefügt",
+          "alreadyGuest": "Benutzer ist bereits Gast in diesem Channel",
+          "addGuestError": "Gast konnte nicht hinzugefügt werden. Mitglieder der Host-Organisation können keine Gäste sein.",
+          "Guests": {
+            "title": "Gäste",
+            "description": "Benutzer mit Gastzugang in diesem External Channel.",
+            "empty": "Noch keine Gäste.",
+            "name": "Name",
+            "email": "E-Mail"
+          },
+          "AddGuest": {
+            "title": "Gast hinzufügen",
+            "description": "Suche einen bestehenden Plattformnutzer. Es wird keine E-Mail-Einladung gesendet; die Mitgliedschaft wird sofort erstellt.",
+            "user": "Benutzer",
+            "submit": "Gast hinzufügen",
+            "submitting": "Wird hinzugefügt…"
+          }
         }
       },
       "Agents": {

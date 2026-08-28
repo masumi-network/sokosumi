@@ -3170,6 +3170,10 @@
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
           },
+          "externalChannels": {
+            "title": "Canales externos",
+            "description": "Crea canales externos para cualquier organización anfitriona y añade usuarios existentes como invitados."
+          },
           "x402Payments": {
             "title": "Pagos x402",
             "description": "Revisa pagos directos y resuelve cargos x402 retenidos o disputados."
@@ -3713,6 +3717,56 @@
           "submitting": "Otorgando créditos…",
           "grantSuccess": "Créditos gratuitos otorgados",
           "grantError": "No se pudieron otorgar los créditos gratuitos"
+        }
+      },
+      "ExternalChannels": {
+        "title": "Canales externos",
+        "description": "Elige una organización anfitriona, crea un canal externo en vivo y añade usuarios existentes de la plataforma como invitados. Los miembros de la organización anfitriona no pueden ser invitados.",
+        "backToAdmin": "Volver al administrador",
+        "hostOrganization": "Organización anfitriona",
+        "hostOrgHelper": "Las organizaciones a las que perteneces aparecen primero en los resultados de búsqueda.",
+        "hostOrgRequired": "Selecciona una organización anfitriona",
+        "listError": "No se pudieron cargar los canales externos",
+        "List": {
+          "title": "Canales",
+          "description": "Canales externos en vivo de {org}.",
+          "loading": "Cargando canales…",
+          "empty": "Aún no hay canales externos para esta organización."
+        },
+        "Create": {
+          "title": "Crear canal externo",
+          "description": "Crea un canal externo en vivo en la organización anfitriona seleccionada. No se te añade como miembro de la sala.",
+          "name": "Nombre",
+          "namePlaceholder": "Opcional; se deriva del slug si está vacío",
+          "slug": "Slug",
+          "slugPlaceholder": "partners",
+          "slugRequired": "Introduce un slug de canal",
+          "submit": "Crear canal",
+          "submitting": "Creando…",
+          "success": "Canal externo creado",
+          "error": "No se pudo crear el canal externo"
+        },
+        "Detail": {
+          "back": "Volver a canales externos",
+          "hostLabel": "Anfitrión {org} · {slug}",
+          "guestRequired": "Selecciona un usuario para añadir como invitado",
+          "addGuestSuccess": "Invitado añadido",
+          "alreadyGuest": "El usuario ya es invitado en este canal",
+          "addGuestError": "No se pudo añadir el invitado. Los miembros de la organización anfitriona no pueden ser invitados.",
+          "Guests": {
+            "title": "Invitados",
+            "description": "Usuarios con acceso de invitado en este canal externo.",
+            "empty": "Aún no hay invitados.",
+            "name": "Nombre",
+            "email": "Correo"
+          },
+          "AddGuest": {
+            "title": "Añadir invitado",
+            "description": "Busca un usuario existente de la plataforma. No se envía invitación por correo; la membresía se crea de inmediato.",
+            "user": "Usuario",
+            "submit": "Añadir invitado",
+            "submitting": "Añadiendo…"
+          }
         }
       },
       "Vendors": {
