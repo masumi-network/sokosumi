@@ -61,6 +61,7 @@ import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 
 const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
@@ -460,6 +461,14 @@ export class SokoBotRuntimeService {
     const env = getEnv();
     if (!env.SOKO_BOT_ENABLED) {
       throw new SokoBotRuntimeAuthorizationError("Soko Bot is not enabled");
+    }
+    // Re-checked on every tool call, so a turn already running when an
+    // administrator threw the switch stops at its next action instead of
+    // finishing its work.
+    if ((await getSokoBotAvailability()).disabled) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Soko Bot is temporarily disabled by an administrator",
+      );
     }
     const turn = await prisma.sokoBotTurn.findUnique({
       where: { id: input.turnId },

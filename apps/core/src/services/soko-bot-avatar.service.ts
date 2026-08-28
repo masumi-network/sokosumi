@@ -7,6 +7,7 @@ import { put } from "@vercel/blob";
 import { getEnv } from "@/config/env";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 
 /**
  * Mascot avatar pool for Soko Bots. Images follow the "IP as logo" recipe
@@ -308,6 +309,12 @@ export async function stockAvatarPool(): Promise<{
   generated: number;
 }> {
   if (!getEnv().FAL_KEY) return { available: 0, generated: 0 };
+  // "Disable Soko Bot" has to mean no paid model calls of any kind. Avatar
+  // generation is the one that has nothing to do with turns, so the turn gate
+  // never sees it.
+  if ((await getSokoBotAvailability()).disabled) {
+    return { available: 0, generated: 0 };
+  }
   const available = await prisma.sokoBotAvatar.count({
     where: { claimedBySokoBotId: null },
   });

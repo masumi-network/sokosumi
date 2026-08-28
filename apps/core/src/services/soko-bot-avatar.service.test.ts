@@ -11,6 +11,13 @@ const { avatarCountMock, avatarFindManyMock, getEnvMock, putMock } = vi.hoisted(
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));
+vi.mock("@/services/soko-bot-availability.service", () => ({
+  getSokoBotAvailability: async () => ({
+    disabled: false,
+    disabledAt: null,
+    disabledReason: null,
+  }),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotAvatar: {
