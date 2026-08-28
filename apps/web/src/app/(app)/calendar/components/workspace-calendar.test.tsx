@@ -258,7 +258,7 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
-  it("removes blue event blocks and the all-day row from the week view", () => {
+  it("uses month event cards without the all-day row in the week view", () => {
     const { container } = render(
       <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18">
         <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
@@ -271,7 +271,7 @@ describe("WorkspaceCalendar", () => {
     );
     expect(
       container.querySelector(".fc-timegrid-event [role='link']"),
-    ).not.toHaveClass("bg-primary/10");
+    ).toHaveClass("bg-primary/10");
     expect(screen.queryByText("all-day")).not.toBeInTheDocument();
   });
 
