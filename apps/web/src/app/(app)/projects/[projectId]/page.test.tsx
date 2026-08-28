@@ -130,10 +130,12 @@ describe("ProjectDetailPage", () => {
     const { container } = render(html);
     expect(container.firstChild).toHaveClass(
       "w-full",
-      "px-4",
+      "-mx-4",
       "py-6",
+      "md:mx-0",
       "md:px-6",
     );
+    expect(container.firstChild).not.toHaveClass("px-4");
     expect(container.querySelector(".max-w-4xl")).toBeNull();
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
@@ -149,9 +151,12 @@ describe("ProjectDetailPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
     expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
-    expect(
-      screen.getByText("App.Projects.Detail.modules.title"),
-    ).toBeInTheDocument();
+    const workspaceHeading = screen.getByText(
+      "App.Projects.Detail.modules.title",
+    );
+    expect(workspaceHeading).toBeInTheDocument();
+    expect(workspaceHeading.closest("section")?.className).toContain("px-2");
+    expect(workspaceHeading.closest("section")?.className).toContain("md:px-0");
     expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
       7,
     );

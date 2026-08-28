@@ -15,7 +15,10 @@ describe("ProjectsPageSkeleton", () => {
     const { container } = render(<ProjectsPageSkeleton />);
 
     expect(container.firstElementChild?.className).toContain("w-full");
+    expect(container.firstElementChild?.className).toContain("-mx-4");
     expect(container.firstElementChild?.className).toContain("px-2");
+    expect(container.firstElementChild?.className).toContain("md:mx-0");
+    expect(container.firstElementChild?.className).toContain("md:px-2");
     expect(screen.getByTestId("projects-loading")).toBeTruthy();
     expect(screen.getByTestId("projects-loading-browse")).toBeTruthy();
     expect(container.textContent?.trim()).toBe("");

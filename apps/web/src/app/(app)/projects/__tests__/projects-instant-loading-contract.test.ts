@@ -7,6 +7,7 @@ import {
   PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_ITEM_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_PAGE_SHELL_CLASS,
 } from "@/app/projects/constants";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -119,5 +120,17 @@ describe("projects list CLS layout pairing", () => {
     expect(view).toMatch(/PROJECTS_BROWSE_LAYOUT_CLASS/);
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("grid-cols-2");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:grid-cols-1");
+  });
+
+  it("page and Instant shell share PROJECTS_PAGE_SHELL_CLASS", () => {
+    const page = stripComments(readApp("projects/(root)/page.tsx"));
+    const loading = stripComments(
+      readApp("projects/components/projects-loading-view.tsx"),
+    );
+
+    expect(page).toMatch(/PROJECTS_PAGE_SHELL_CLASS/);
+    expect(loading).toMatch(/PROJECTS_PAGE_SHELL_CLASS/);
+    expect(PROJECTS_PAGE_SHELL_CLASS).toContain("-mx-4");
+    expect(PROJECTS_PAGE_SHELL_CLASS).toContain("px-2");
   });
 });

@@ -1,7 +1,10 @@
 import { getTranslations } from "next-intl/server";
 
 import { ProjectsView } from "@/app/projects/components/projects-view";
-import { PROJECTS_PAGE_LIMIT } from "@/app/projects/constants";
+import {
+  PROJECTS_PAGE_LIMIT,
+  PROJECTS_PAGE_SHELL_CLASS,
+} from "@/app/projects/constants";
 import { projectService } from "@/lib/services/project.service";
 
 interface ProjectsPageProps {
@@ -30,7 +33,7 @@ export default async function ProjectsPage({
   const initialCreateProjectOpen = create === "true";
 
   return (
-    <div className="w-full px-2">
+    <div className={PROJECTS_PAGE_SHELL_CLASS}>
       <ProjectsView
         key={projectsPage.projects
           .map((project) => `${project.id}:${project.updatedAt}`)

@@ -3,6 +3,7 @@ import {
   PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_ITEM_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_PAGE_SHELL_CLASS,
 } from "@/app/projects/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,7 @@ import { cn } from "@/lib/utils";
  */
 export function ProjectsPageSkeleton() {
   return (
-    <div className="w-full px-2">
+    <div className={PROJECTS_PAGE_SHELL_CLASS}>
       <ProjectsLoadingView />
     </div>
   );

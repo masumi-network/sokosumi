@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   PROJECTS_BROWSE_LAYOUT_CLASS,
+  PROJECTS_DETAIL_SHELL_CLASS,
+  PROJECTS_DETAIL_TOP_CLASS,
+  PROJECTS_DETAIL_WORKSPACE_CLASS,
   PROJECTS_ITEM_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
+  PROJECTS_PAGE_SHELL_CLASS,
   UNASSIGNED_PROJECT_QUERY,
   unassignedWorkspaceJobsQuery,
   unassignedWorkspaceTasksQuery,
@@ -25,6 +29,32 @@ describe("projects list CLS layout constants", () => {
     );
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("grid-cols-2");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:grid-cols-1");
+  });
+});
+
+describe("projects mobile padding shells", () => {
+  it("index shell cancels main p-4 and keeps net px-2", () => {
+    const tokens = PROJECTS_PAGE_SHELL_CLASS.split(/\s+/);
+    expect(tokens).toContain("-mx-4");
+    expect(tokens).toContain("px-2");
+    expect(tokens).toContain("md:mx-0");
+    expect(tokens).toContain("md:px-2");
+    expect(tokens).not.toContain("px-4");
+  });
+
+  it("detail shell cancels main p-4; workspace keeps index px-2", () => {
+    const shell = PROJECTS_DETAIL_SHELL_CLASS.split(/\s+/);
+    const workspace = PROJECTS_DETAIL_WORKSPACE_CLASS.split(/\s+/);
+
+    expect(shell).toContain("-mx-4");
+    expect(shell).toContain("md:mx-0");
+    expect(shell).toContain("md:px-6");
+    expect(shell).not.toContain("px-4");
+    expect(shell).not.toContain("px-2");
+
+    expect(PROJECTS_DETAIL_TOP_CLASS).toBe("w-full");
+    expect(workspace).toContain("px-2");
+    expect(workspace).toContain("md:px-0");
   });
 });
 
