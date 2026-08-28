@@ -1,7 +1,7 @@
 "use client";
 
 import type { MouseEvent, PointerEvent, ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { createContext, use, useState } from "react";
 
 import {
   driveItemActionsClass,
@@ -13,6 +13,8 @@ import { DocumentViewer } from "@/components/ui/document-viewer";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
+
+const DriveItemNameA11yContext = createContext(false);
 
 function stopCardActivation(event: MouseEvent | PointerEvent) {
   event.stopPropagation();
@@ -34,34 +36,36 @@ export function DriveItemCard({
   children,
 }: DriveItemCardProps): ReactElement {
   return (
-    <article className={driveItemArticleClass(viewMode)}>
-      {onActivate ? (
-        <button
-          type="button"
-          className="absolute inset-0 z-0 cursor-pointer rounded-[inherit]"
-          aria-label={activateLabel}
-          onClick={onActivate}
-        />
-      ) : null}
-      <div
-        className={cn(
-          driveItemBodyClass(viewMode),
-          "relative z-[1]",
-          onActivate ? "pointer-events-none" : undefined,
-        )}
-      >
-        {children}
-      </div>
-      {actions ? (
+    <DriveItemNameA11yContext value={!!onActivate}>
+      <article className={driveItemArticleClass(viewMode)}>
+        {onActivate ? (
+          <button
+            type="button"
+            className="absolute inset-0 z-0 cursor-pointer rounded-[inherit]"
+            aria-label={activateLabel}
+            onClick={onActivate}
+          />
+        ) : null}
         <div
-          className={cn(driveItemActionsClass(viewMode), "relative z-[1]")}
-          onClick={stopCardActivation}
-          onPointerDown={stopCardActivation}
+          className={cn(
+            driveItemBodyClass(viewMode),
+            "relative z-[1]",
+            onActivate ? "pointer-events-none" : undefined,
+          )}
         >
-          {actions}
+          {children}
         </div>
-      ) : null}
-    </article>
+        {actions ? (
+          <div
+            className={cn(driveItemActionsClass(viewMode), "relative z-[1]")}
+            onClick={stopCardActivation}
+            onPointerDown={stopCardActivation}
+          >
+            {actions}
+          </div>
+        ) : null}
+      </article>
+    </DriveItemNameA11yContext>
   );
 }
 
@@ -72,8 +76,14 @@ export function DriveItemName({
   name: string;
   className?: string;
 }): ReactElement {
+  const hideNameFromAt = use(DriveItemNameA11yContext);
+
   return (
-    <span className={cn(driveItemNameClass(), className)} title={name}>
+    <span
+      className={cn(driveItemNameClass(), className)}
+      title={name}
+      aria-hidden={hideNameFromAt || undefined}
+    >
       {name}
     </span>
   );

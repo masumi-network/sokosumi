@@ -142,7 +142,12 @@ vi.mock("@/components/ui/document-viewer", () => ({
     open ? <div role="dialog" aria-label={fileName} /> : null,
 }));
 
-import DrivePage from "@/app/drive/page";
+import { DrivePageClient } from "@/app/drive/drive-page-client";
+import {
+  type FilesViewMode,
+  parseFilesViewModeCookieHeader,
+  resolveFilesViewModeFromClientCookie,
+} from "@/lib/ui-preferences/files-view-mode";
 
 function createDriveQueryClient() {
   return new QueryClient({
@@ -157,18 +162,18 @@ function createDriveQueryClient() {
 
 let queryClient = createDriveQueryClient();
 
-function driveTree() {
+function driveTree(defaultFilesViewMode: FilesViewMode = "list") {
   return (
     <NuqsTestingAdapter searchParams={searchParams} hasMemory>
       <QueryClientProvider client={queryClient}>
-        <DrivePage />
+        <DrivePageClient defaultFilesViewMode={defaultFilesViewMode} />
       </QueryClientProvider>
     </NuqsTestingAdapter>
   );
 }
 
-function renderDrive() {
-  return render(driveTree());
+function renderDrive(defaultFilesViewMode?: FilesViewMode) {
+  return render(driveTree(defaultFilesViewMode));
 }
 
 function reportsFolder() {
@@ -707,7 +712,9 @@ describe("DrivePage files view mode", () => {
 
     unmount();
     queryClient = createDriveQueryClient();
-    renderDrive();
+    const remountMode =
+      parseFilesViewModeCookieHeader(document.cookie) ?? "list";
+    renderDrive(remountMode);
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-grid")).toBeVisible();
@@ -731,7 +738,7 @@ describe("DrivePage files view mode", () => {
         }),
     );
 
-    renderDrive();
+    renderDrive(resolveFilesViewModeFromClientCookie(document.cookie));
 
     await waitFor(() => {
       expect(screen.getByTestId("files-layout-skeleton-grid")).toBeVisible();
