@@ -76,10 +76,10 @@ vi.mock("next/link", () => ({
 import MenuItems from "@/app/components/sidebar/components/menu-items";
 import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 
-function renderMenu(hasAssignedSeat = true) {
+function renderMenu(hasAssignedSeat = true, calendarMenuEnabled = false) {
   return render(
     <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
-      <MenuItems />
+      <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
     </OrganizationSeatProvider>,
   );
 }
@@ -144,5 +144,22 @@ describe("MenuItems search action", () => {
       screen.getByRole("link", { name: /taskManager/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /projects/i })).toBeInTheDocument();
+  });
+
+  it("shows Calendar only to NMKR users", () => {
+    const { rerender } = renderMenu();
+
+    expect(screen.queryByRole("link", { name: /calendar/i })).toBeNull();
+
+    rerender(
+      <OrganizationSeatProvider hasAssignedSeat>
+        <MenuItems calendarMenuEnabled />
+      </OrganizationSeatProvider>,
+    );
+
+    expect(screen.getByRole("link", { name: /calendar/i })).toHaveAttribute(
+      "href",
+      "/calendar",
+    );
   });
 });

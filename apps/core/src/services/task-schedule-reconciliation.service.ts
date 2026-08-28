@@ -145,6 +145,7 @@ async function reconcileLink(
       seriesTaskId: link.fromTaskId,
       releasedTaskId: link.toTaskId,
       legacyLinkId: link.id,
+      scheduleVersion: 1,
       effectiveScheduledAt: link.createdAt,
       state: TaskScheduleOccurrenceState.RELEASED,
       ...getLegacySource(link),

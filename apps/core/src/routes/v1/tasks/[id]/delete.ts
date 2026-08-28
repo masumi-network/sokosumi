@@ -10,6 +10,7 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { cascadeArchiveScheduleParentChildren, mapTask } from "@/helpers/task";
+import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -72,6 +73,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (updateResult.count === 0) {
         throw conflict("Task was modified concurrently; retry archive");
       }
+
+      await removeTaskSchedulePlannedOccurrences(tx, id);
 
       await cascadeArchiveScheduleParentChildren({
         tx,

@@ -5,7 +5,7 @@ import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { HERMES_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationProductLocked } from "@/lib/auth/is-organization-product-locked";
-import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
+import { isBetaAccessEmail } from "@/lib/beta-access";
 
 import FullscreenEffect from "./components/fullscreen-effect";
 
@@ -19,7 +19,7 @@ export default async function HermesLayout({ children }: HermesLayoutProps) {
   // Hermes beta gate: outside the whitelisted email domains the whole route
   // does not exist — same 404 a made-up path would get, so nothing leaks.
   const session = await getSession();
-  if (!isHermesBetaAccessEmail(session?.user.email)) {
+  if (!isBetaAccessEmail(session?.user.email)) {
     notFound();
   }
   if (await isOrganizationProductLocked()) {

@@ -19,6 +19,11 @@ import {
   isSchedulableTaskStatus,
   validateScheduleInput,
 } from "@/helpers/task-schedule";
+import {
+  removeTaskSchedulePlannedOccurrences,
+  replaceTaskSchedulePlannedOccurrences,
+  TaskScheduleOccurrenceLimitError,
+} from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { TaskScheduleInput } from "@/schemas/task-schedule.schema";
@@ -316,6 +321,20 @@ export async function repairTaskScheduleQuarantine(
         });
       }
 
+      try {
+        await replaceTaskSchedulePlannedOccurrences(tx, {
+          id: input.taskId,
+          workspaceId: lockedQuarantine.task.workspaceId,
+          projectId: lockedQuarantine.task.projectId,
+          schedule: metadata,
+          nextRunAt,
+        });
+      } catch (error) {
+        if (error instanceof TaskScheduleOccurrenceLimitError) {
+          return err({ kind: "not_repairable", reason: error.message });
+        }
+        throw error;
+      }
       await tx.task.update({
         where: { id: input.taskId },
         data: {
@@ -407,6 +426,7 @@ export async function removeTaskScheduleQuarantine(
           status: TaskStatus.DRAFT,
         },
       });
+      await removeTaskSchedulePlannedOccurrences(tx, input.taskId);
       const deleted = await tx.taskScheduleQuarantine.deleteMany({
         where: { id: lockedQuarantine.id, taskId: input.taskId },
       });

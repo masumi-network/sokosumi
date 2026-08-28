@@ -23,6 +23,7 @@ const {
   prismaTransactionMock,
   requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworkerMock,
+  refreshTaskSchedulePlannedOccurrencesMock,
   resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
@@ -37,6 +38,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requireMutableTaskOwnershipMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
+  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
@@ -57,6 +59,16 @@ vi.mock("@/helpers/organization", () => ({
 
 vi.mock("@/helpers/task", () => ({
   mapTask: mapTaskMock,
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  refreshTaskSchedulePlannedOccurrences:
+    refreshTaskSchedulePlannedOccurrencesMock,
+}));
+
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: vi.fn().mockResolvedValue(true),
+  lockTaskRows: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
@@ -304,6 +316,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     jobFindFirstMock.mockResolvedValue(null);
     jobUpdateManyMock.mockResolvedValue({ count: 0 });
     requireTaskAssignableCoworkerMock.mockResolvedValue(undefined);
+    refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
     taskFindUniqueOrThrowMock.mockResolvedValue(createTaskRecord());
     taskLinkFindFirstMock.mockResolvedValue(null);
     taskUpdateMock.mockResolvedValue(createTaskRecord());
@@ -399,6 +412,14 @@ describe("PUT /tasks/{id}/workspace", () => {
       "cow_123",
       "11111111-1111-4111-8111-111111111111",
       expect.any(Object),
+    );
+    expect(refreshTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        id: "tsk_123",
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        projectId: null,
+      }),
     );
     expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith({
       where: { id: "tsk_123" },

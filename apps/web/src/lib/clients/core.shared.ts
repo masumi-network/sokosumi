@@ -35,6 +35,7 @@ import type {
   GetShareByTokenError,
   GetTasksData,
   GetTasksSummaryData,
+  GetWorkspacesCalendarData,
   HermesApproveConfirmationRequest,
   HermesFinalizeIntegrationRequest,
   HermesInitiateIntegrationRequest,
@@ -231,6 +232,8 @@ import {
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
   getUsersByIdWorkspaceAccess as coreGetUsersByIdWorkspaceAccess,
   getWorkspacesById as coreGetWorkspacesById,
+  getWorkspacesCalendar as coreGetWorkspacesCalendar,
+  getWorkspacesCalendarSources as coreGetWorkspacesCalendarSources,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminAgents as coreListAdminAgents,
   listAdminInvoices as coreListAdminInvoices,
@@ -3536,6 +3539,33 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getWorkspaceCalendar(
+    query: GetWorkspacesCalendarData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesCalendar({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch workspace calendar",
+    );
+  }
+
+  async function getWorkspaceCalendarSources() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesCalendarSources({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch workspace calendar sources",
+    );
+  }
+
   /**
    * Stores a DESIGN.md for one-off, ad hoc use — content generated for a
    * single task's branding, never attached to the caller's user or
@@ -4721,6 +4751,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
+    getWorkspaceCalendar,
+    getWorkspaceCalendarSources,
     getWorkspaceOrganizationId,
     setMyDesignMd,
     setMyPreferredOrganization,

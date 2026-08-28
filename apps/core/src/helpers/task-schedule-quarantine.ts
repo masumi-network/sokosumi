@@ -4,8 +4,21 @@ import {
   type TaskStatus,
 } from "@sokosumi/database";
 
+import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
+
+interface TaskScheduleQuarantineClient {
+  taskScheduleQuarantine: Pick<
+    Prisma.TransactionClient["taskScheduleQuarantine"],
+    "upsert"
+  >;
+  taskScheduleOccurrence: Pick<
+    Prisma.TransactionClient["taskScheduleOccurrence"],
+    "deleteMany"
+  >;
+}
+
 export async function quarantineTaskSchedule(
-  tx: Prisma.TransactionClient,
+  tx: TaskScheduleQuarantineClient,
   task: {
     id: string;
     metadata: string | null;
@@ -31,4 +44,5 @@ export async function quarantineTaskSchedule(
     },
     update: snapshot,
   });
+  await removeTaskSchedulePlannedOccurrences(tx, task.id);
 }

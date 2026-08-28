@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
+import { isBetaAccessEmail } from "@/lib/beta-access";
 
-describe("isHermesBetaAccessEmail", () => {
+describe("isBetaAccessEmail", () => {
   it.each(["a@nmkr.io", "A@NMKR.IO", "patrick@nmkr.io"])(
     "allows nmkr.io email %s",
     (email) => {
-      expect(isHermesBetaAccessEmail(email)).toBe(true);
+      expect(isBetaAccessEmail(email)).toBe(true);
     },
   );
 
@@ -18,11 +18,11 @@ describe("isHermesBetaAccessEmail", () => {
     ["not an email", "not-an-email"],
     ["empty string", ""],
   ])("denies %s", (_label, email) => {
-    expect(isHermesBetaAccessEmail(email)).toBe(false);
+    expect(isBetaAccessEmail(email)).toBe(false);
   });
 
   it("denies null and undefined", () => {
-    expect(isHermesBetaAccessEmail(null)).toBe(false);
-    expect(isHermesBetaAccessEmail(undefined)).toBe(false);
+    expect(isBetaAccessEmail(null)).toBe(false);
+    expect(isBetaAccessEmail(undefined)).toBe(false);
   });
 });

@@ -34,6 +34,7 @@ const {
   requireTaskCommentAccessMock,
   requireTaskCollaborationMock,
   requireTaskCancelAccessMock,
+  removeTaskSchedulePlannedOccurrencesMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
@@ -61,6 +62,7 @@ const {
   requireTaskCommentAccessMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
   requireTaskCancelAccessMock: vi.fn(),
+  removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
@@ -72,6 +74,11 @@ vi.mock("@/helpers/access-control", () => ({
 
 vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  removeTaskSchedulePlannedOccurrences:
+    removeTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/helpers/task-credits", async (importOriginal) => {
@@ -3333,6 +3340,59 @@ describe("POST /{id}/events", () => {
       }),
     );
     expect(tx.taskLink?.findMany).toHaveBeenCalled();
+    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      tx,
+      TASK_ID,
+    );
+  });
+
+  it("clears schedule fields when a queued task becomes ready", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.QUEUED }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.READY,
+            userId: USER_ID,
+            coworkerId: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const response = await createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    }).request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: TaskStatus.READY }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.task.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: TASK_ID, status: TaskStatus.QUEUED },
+        data: {
+          status: TaskStatus.READY,
+          metadata: null,
+          nextRunAt: null,
+        },
+      }),
+    );
+    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      tx,
+      TASK_ID,
+    );
   });
 
   it("cascades cancel to non-terminal SCHEDULE runs", async () => {

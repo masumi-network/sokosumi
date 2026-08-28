@@ -1815,6 +1815,10 @@ model TaskScheduleOccurrence {
   effectiveScheduledAt DateTime
   legacyLinkId         String?   @unique
 
+  /// Distinguishes indexed v1 plans from epoch-backed v2 rows and legacy
+  /// released ledger records. Database checks enforce the valid field branch.
+  scheduleVersion Int @default(2)
+
   state TaskScheduleOccurrenceState
 
   sourceWorkspaceId String                 @db.Uuid

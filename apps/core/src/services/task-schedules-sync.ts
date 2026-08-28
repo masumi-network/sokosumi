@@ -21,6 +21,11 @@ import {
   computeScheduleNextRun,
   isDueRunPastScheduleEnd,
 } from "@/helpers/task-schedule";
+import {
+  removeTaskSchedulePlannedOccurrences,
+  replaceTaskSchedulePlannedOccurrences,
+  TaskScheduleOccurrenceLimitError,
+} from "@/helpers/task-schedule-occurrence-index";
 import { quarantineTaskSchedule } from "@/helpers/task-schedule-quarantine";
 import { validatePersistedTaskSchedule } from "@/helpers/task-schedule-validation";
 import { publishTaskEventData } from "@/lib/ably/publish";
@@ -145,6 +150,10 @@ async function clearTemplateSchedule(
     },
   });
 
+  if (updateResult.count === 1) {
+    await removeTaskSchedulePlannedOccurrences(tx, templateId);
+  }
+
   return updateResult.count === 1;
 }
 
@@ -165,6 +174,8 @@ async function promoteOneTimeTask(
   if (updateResult.count !== 1) {
     return false;
   }
+
+  await removeTaskSchedulePlannedOccurrences(tx, templateId);
 
   await tx.taskEvent.create({
     data: {
@@ -280,6 +291,17 @@ async function cloneRecurringOccurrence(
     sourceProjectId: template.projectId,
   };
 
+  if (metadata.version === 2) {
+    await tx.taskScheduleOccurrence.deleteMany({
+      where: {
+        seriesTaskId: template.id,
+        epochId: metadata.epochId,
+        originalScheduledAt: scheduledAt,
+        state: TaskScheduleOccurrenceState.PLANNED,
+      },
+    });
+  }
+
   await tx.taskScheduleOccurrence.create({
     data:
       metadata.version === 1
@@ -287,6 +309,7 @@ async function cloneRecurringOccurrence(
             seriesTaskId: template.id,
             releasedTaskId: clone.id,
             legacyLinkId: link.id,
+            scheduleVersion: 1,
             effectiveScheduledAt: scheduledAt,
             state: TaskScheduleOccurrenceState.RELEASED,
             ...source,
@@ -299,6 +322,7 @@ async function cloneRecurringOccurrence(
             seriesTaskId: template.id,
             releasedTaskId: clone.id,
             epochId: metadata.epochId,
+            scheduleVersion: 2,
             originalScheduledAt: scheduledAt,
             effectiveScheduledAt: scheduledAt,
             state: TaskScheduleOccurrenceState.RELEASED,
@@ -565,6 +589,24 @@ async function processDueTask(
         },
       });
       assertTemplateClaimHeld(updateResult.count === 1, clonesCreated);
+      try {
+        await replaceTaskSchedulePlannedOccurrences(
+          tx,
+          {
+            id: template.id,
+            workspaceId: template.workspaceId,
+            projectId: template.projectId,
+            schedule: metadata,
+            nextRunAt,
+          },
+          now,
+        );
+      } catch (error) {
+        if (!(error instanceof TaskScheduleOccurrenceLimitError)) {
+          throw error;
+        }
+        await removeTaskSchedulePlannedOccurrences(tx, template.id);
+      }
 
       return {
         outcome: "cloned",

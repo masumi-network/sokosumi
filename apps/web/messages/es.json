@@ -266,6 +266,7 @@
       "new": "Nuevo",
       "notifications": "Notificaciones",
       "projects": "Proyectos",
+      "calendar": "Programaciones",
       "invoices": "Facturas",
       "oauth-clients": "Clientes OAuth",
       "api-keys": "Claves API",
@@ -1302,6 +1303,66 @@
     "delete": "Eliminar",
     "cancel": "Cancelar",
     "save": "Guardar",
+    "Calendar": {
+      "Metadata": {
+        "title": "Programaciones",
+        "description": "Consulta las ejecuciones programadas de tareas en tu espacio de trabajo."
+      },
+      "previous": "Periodo anterior",
+      "next": "Periodo siguiente",
+      "view": {
+        "month": "Mes",
+        "week": "Semana",
+        "agenda": "Agenda"
+      },
+      "source": {
+        "label": "Origen",
+        "all": "Todos los orígenes",
+        "WORKSPACE": "Espacio de trabajo",
+        "PROJECT": "Proyecto",
+        "LEGACY_UNKNOWN": "Origen heredado"
+      },
+      "accuracy": {
+        "inferred": "Origen inferido",
+        "unknown": "Origen desconocido",
+        "approximate": "Hora aproximada"
+      },
+      "status": {
+        "label": "Estado de la tarea",
+        "all": "Todos los estados",
+        "DRAFT": "Borrador",
+        "QUEUED": "En cola",
+        "READY": "Listo",
+        "GRANT_PENDING": "Aprobación pendiente",
+        "INPUT_REQUIRED": "Entrada requerida",
+        "APPROVAL_REQUIRED": "Aprobación requerida",
+        "AUTHENTICATION_REQUIRED": "Autenticación requerida",
+        "OUT_OF_CREDITS": "Pausada: se necesitan créditos",
+        "CREDITS_TOPPED_UP": "Créditos recargados",
+        "RUNNING": "En ejecución",
+        "AWAITING_EXTERNAL": "Esperando externo",
+        "COMPLETED": "Completado",
+        "FAILED": "Fallido",
+        "CANCELED": "Cancelado"
+      },
+      "coworker": {
+        "label": "Coworker",
+        "all": "Todos los coworkers"
+      },
+      "empty": {
+        "title": "Ninguna ejecución programada coincide con estos filtros."
+      },
+      "pagination": {
+        "loadMore": "Cargar más eventos",
+        "loading": "Cargando eventos...",
+        "error": "No se pudieron cargar más eventos."
+      },
+      "error": {
+        "title": "No se pudo cargar el calendario",
+        "description": "Vuelve a intentarlo en un momento.",
+        "retry": "Intentar de nuevo"
+      }
+    },
     "History": {
       "Metadata": {
         "title": "Historial",
@@ -2905,6 +2966,7 @@
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
           "projects": "Proyectos",
+          "calendar": "Programaciones",
           "hermes": "Asistente personal",
           "hermesNew": "Nuevo",
           "hermesUnread": "{count} sin leer",

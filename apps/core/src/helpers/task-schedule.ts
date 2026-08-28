@@ -291,6 +291,135 @@ export function computeScheduleNextRun(
   });
 }
 
+export interface TaskScheduleOccurrenceProjection {
+  id: string;
+  scheduledAt: Date;
+  originalScheduledAt: Date;
+}
+
+function getProjectedRecurringMetadata(
+  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
+  scheduledAt: Date,
+): Extract<TaskScheduleMetadata, { mode: "recurring" }> {
+  if (metadata.version === 2) {
+    return {
+      ...metadata,
+      epochReleaseCount: metadata.epochReleaseCount + 1,
+      lastProcessedSourceAt: scheduledAt.toISOString(),
+    };
+  }
+
+  if (metadata.endsMode === "after" && metadata.occurrences != null) {
+    return {
+      ...metadata,
+      lastRunAt: scheduledAt.toISOString(),
+      occurrences: metadata.occurrences - 1,
+    };
+  }
+
+  return {
+    ...metadata,
+    lastRunAt: scheduledAt.toISOString(),
+  };
+}
+
+function getOccurrenceProjection(
+  taskId: string,
+  metadata: TaskScheduleMetadata,
+  scheduledAt: Date,
+): TaskScheduleOccurrenceProjection {
+  const originalScheduledAt =
+    metadata.version === 2 && metadata.mode === "once"
+      ? new Date(metadata.sourceRunAt)
+      : new Date(scheduledAt);
+  const id =
+    metadata.version === 1
+      ? `v1:${taskId}:${metadata.scheduledAt}:${originalScheduledAt.toISOString()}`
+      : `v2:${metadata.epochId}:${originalScheduledAt.toISOString()}`;
+
+  return {
+    id,
+    scheduledAt: new Date(scheduledAt),
+    originalScheduledAt,
+  };
+}
+
+export function* iterateTaskScheduleOccurrences(
+  taskId: string,
+  metadata: TaskScheduleMetadata,
+  nextRunAt: Date,
+  from: Date,
+  to: Date,
+  maxOccurrences = Number.POSITIVE_INFINITY,
+): Generator<TaskScheduleOccurrenceProjection> {
+  if (metadata.mode === "once") {
+    if (nextRunAt >= from && nextRunAt < to) {
+      yield getOccurrenceProjection(taskId, metadata, nextRunAt);
+    }
+    return;
+  }
+
+  // The scheduler must consume overdue finite recurrences before their
+  // remaining release count can be projected accurately.
+  if (nextRunAt < from && metadata.endsMode === "after") {
+    return;
+  }
+
+  let occurrenceCount = 0;
+  let projectedMetadata = metadata;
+  let projectedNextRunAt: Date | null =
+    nextRunAt < from
+      ? computeScheduleNextRun(projectedMetadata, from)
+      : new Date(nextRunAt);
+
+  while (projectedNextRunAt && projectedNextRunAt < to) {
+    if (isDueRunPastScheduleEnd(projectedMetadata, projectedNextRunAt)) {
+      break;
+    }
+
+    if (projectedNextRunAt >= from) {
+      yield getOccurrenceProjection(
+        taskId,
+        projectedMetadata,
+        projectedNextRunAt,
+      );
+      occurrenceCount += 1;
+      if (occurrenceCount === maxOccurrences) {
+        return;
+      }
+    }
+
+    projectedMetadata = getProjectedRecurringMetadata(
+      projectedMetadata,
+      projectedNextRunAt,
+    );
+    projectedNextRunAt = computeScheduleNextRun(
+      projectedMetadata,
+      projectedNextRunAt,
+    );
+  }
+}
+
+export function projectTaskScheduleOccurrences(
+  taskId: string,
+  metadata: TaskScheduleMetadata,
+  nextRunAt: Date,
+  from: Date,
+  to: Date,
+  maxOccurrences = Number.POSITIVE_INFINITY,
+): TaskScheduleOccurrenceProjection[] {
+  return Array.from(
+    iterateTaskScheduleOccurrences(
+      taskId,
+      metadata,
+      nextRunAt,
+      from,
+      to,
+      maxOccurrences,
+    ),
+  );
+}
+
 export function validateScheduleInput(input: TaskScheduleInput): void {
   if (input.mode === "once") {
     const runAt = new Date(input.runAt);

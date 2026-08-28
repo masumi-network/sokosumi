@@ -24,6 +24,7 @@ const {
   projectFindFirstMock,
   projectUpdateManyMock,
   projectDeleteManyMock,
+  taskScheduleOccurrenceFindFirstMock,
   transactionMock,
   queryRawMock,
   jobFindFirstMock,
@@ -37,6 +38,7 @@ const {
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
+  taskScheduleOccurrenceFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
   queryRawMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
@@ -68,6 +70,9 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: jobFindFirstMock,
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
+    },
+    taskScheduleOccurrence: {
+      findFirst: taskScheduleOccurrenceFindFirstMock,
     },
   },
 }));
@@ -424,6 +429,9 @@ describe("DELETE /projects/{id}", () => {
       callback({
         $queryRaw: queryRawMock,
         project: { deleteMany: projectDeleteManyMock },
+        taskScheduleOccurrence: {
+          findFirst: taskScheduleOccurrenceFindFirstMock,
+        },
       }),
     );
   });
@@ -471,6 +479,25 @@ describe("DELETE /projects/{id}", () => {
     expect(queryRawMock).toHaveBeenCalledTimes(2);
     expect(transactionMock).toHaveBeenCalledOnce();
     expect(deleteProjectBlobsMock).toHaveBeenCalledWith(PROJECT_ID);
+  });
+
+  it("returns calendar-history conflict before deleting a project with occurrences", async () => {
+    taskScheduleOccurrenceFindFirstMock.mockResolvedValue({ id: "occ_123" });
+    queryRawMock
+      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
+      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
+    const app = createApp();
+    mountDeleteProject(app);
+
+    const response = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "DELETE",
+    });
+    const body = (await response.json()) as { kind?: string };
+
+    expect(response.status).toBe(409);
+    expect(body.kind).toBe("project_has_calendar_history");
+    expect(projectDeleteManyMock).not.toHaveBeenCalled();
+    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

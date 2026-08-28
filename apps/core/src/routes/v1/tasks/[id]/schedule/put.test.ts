@@ -23,6 +23,7 @@ const {
   lockCalendarScopeMock,
   lockTaskRowsMock,
   quarantineFindUniqueMock,
+  replaceTaskSchedulePlannedOccurrencesMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   taskUpdateMock: vi.fn(),
@@ -31,6 +32,7 @@ const {
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
   quarantineFindUniqueMock: vi.fn(),
+  replaceTaskSchedulePlannedOccurrencesMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -50,6 +52,12 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  TaskScheduleOccurrenceLimitError: class TaskScheduleOccurrenceLimitError extends Error {},
+  replaceTaskSchedulePlannedOccurrences:
+    replaceTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -160,6 +168,7 @@ describe("PUT /tasks/{id}/schedule", () => {
       callback({
         task: { update: taskUpdateMock },
         taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
+        taskScheduleOccurrence: { deleteMany: vi.fn(), createMany: vi.fn() },
       }),
     );
     taskUpdateMock.mockImplementation(async ({ data }) =>
@@ -274,6 +283,32 @@ describe("PUT /tasks/{id}/schedule", () => {
 
     expect(response.status).toBe(409);
     expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("materializes the rolling planned occurrence index with the saved schedule", async () => {
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        id: TASK_ID,
+        workspaceId: WORKSPACE_ID,
+        projectId: null,
+        nextRunAt: expect.any(Date),
+        schedule: expect.objectContaining({ version: 1, mode: "once" }),
+      }),
+    );
   });
 
   it("does not overwrite a quarantined schedule", async () => {
