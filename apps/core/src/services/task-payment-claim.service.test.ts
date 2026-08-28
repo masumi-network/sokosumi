@@ -180,13 +180,42 @@ describe("task payment claims", () => {
     expect(update.where).toEqual({ id: "claim-1" });
     const refund = update.data.refundTransaction.create;
     expect(refund.amount).toBe(500n);
+    expect(refund.user.connect.id).toBe("user-1");
     expect(refund.organization.connect.id).toBe("organization-1");
     expect(refund.sourceCreditBucket.create).toMatchObject({
       amount: 500n,
       referenceId: "task-payment:claim-1",
       referenceType: CreditBucketReferenceType.REFUND,
       expiresAt: null,
+      userId: null,
+      organizationId: "organization-1",
     });
+    expect(refund.sourceCreditBucket.create.user).toBeUndefined();
+  });
+
+  it("stamps a personal claim refund bucket with the actor", async () => {
+    refundClaimUpdateManyMock.mockResolvedValue({ count: 1 });
+    claimFindUniqueMock.mockResolvedValue({
+      id: "claim-1",
+      status: TaskPaymentClaimStatus.REFUNDED,
+      transaction: {
+        amount: -500n,
+        userId: "user-1",
+        organizationId: null,
+      },
+    });
+    claimUpdateMock.mockResolvedValue(undefined);
+
+    expect(
+      await refundFailedTaskPaymentClaim("claim-1", "node rejected request"),
+    ).toBe(true);
+
+    const refund =
+      claimUpdateMock.mock.calls[0]?.[0].data.refundTransaction.create;
+    expect(refund.user.connect.id).toBe("user-1");
+    expect(refund.organization).toBeUndefined();
+    expect(refund.sourceCreditBucket.create.userId).toBe("user-1");
+    expect(refund.sourceCreditBucket.create.organizationId).toBeNull();
   });
 
   it("does not refund an already-refunded claim twice", async () => {

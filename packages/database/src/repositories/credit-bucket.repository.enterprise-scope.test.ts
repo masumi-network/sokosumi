@@ -102,15 +102,18 @@ describe("creditBucketRepository.getBalance (consumable enterprise)", () => {
     await creditBucketRepository.getBalance("user-unassigned", "org-1", tx);
 
     const sqlText = JSON.stringify(queryArgs);
+    assert.ok(sqlText.includes("FALSE"));
     assert.ok(
-      sqlText.includes(CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD),
+      !sqlText.includes(CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD),
     );
     assert.ok(!sqlText.includes(CreditBucketReferenceType.ENTERPRISE_PERIOD));
     assert.ok(!sqlText.includes(CreditBucketReferenceType.ENTERPRISE_TOP_UP));
     assert.ok(!sqlText.includes('"referenceType" IS NULL'));
+    assert.ok(!sqlText.includes("member:"));
+    assert.ok(!sqlText.includes("LIKE"));
 
     const values = extractNestedSqlValues(queryArgs);
     assert.ok(values.includes("org-1"));
-    assert.ok(values.includes("user-unassigned"));
+    assert.ok(!values.includes("user-unassigned"));
   });
 });
