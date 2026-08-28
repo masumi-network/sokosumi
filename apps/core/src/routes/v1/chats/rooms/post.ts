@@ -5,7 +5,6 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
-import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import {
   isDirectKeyUniqueConstraintError,
   isSlugUniqueConstraintError,
@@ -106,12 +105,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(authContext);
 
     if (body.kind === "direct") {
-      if ((body.coworkerIds ?? []).length > 0) {
-        await requireAssignedOrganizationSeat(
-          userContext.userId,
-          userContext.organizationId,
-        );
-      }
       const direct = await createOrGetDirectRoom({
         // Both kinds respect activeOrganization when present.
         // Coworker 1:1 may be personal (null) with no active org.

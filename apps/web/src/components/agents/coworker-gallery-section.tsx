@@ -208,7 +208,6 @@ function VendorDashboard({
   isFirst: boolean;
 }) {
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
-  const tSeat = useTranslations("App.Channels");
   const [activeId, setActiveId] = useState(members[0]?.id);
   const [showAllOffers, setShowAllOffers] = useState(false);
   const active = members.find((member) => member.id === activeId) ?? members[0];
@@ -337,32 +336,26 @@ function VendorDashboard({
               </div>
             </div>
             <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+              {coworkerCanChat(active) ? (
+                <StartChatButton
+                  coworkerId={active.id}
+                  coworkerName={active.name}
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                />
+              ) : null}
               {hasAssignedSeat ? (
-                <>
-                  {coworkerCanChat(active) ? (
-                    <StartChatButton
-                      coworkerId={active.id}
-                      coworkerName={active.name}
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                    />
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="lg"
-                    className="w-full sm:w-auto"
-                    onClick={() => onStartTask(active.id)}
-                  >
-                    {labels.startForCoworker(active.name)}
-                    <ArrowRight aria-hidden className="size-4" />
-                  </Button>
-                </>
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  {tSeat("Seat.coworkerDirectDisabled")}
-                </p>
-              )}
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  className="w-full sm:w-auto"
+                  onClick={() => onStartTask(active.id)}
+                >
+                  {labels.startForCoworker(active.name)}
+                  <ArrowRight aria-hidden className="size-4" />
+                </Button>
+              ) : null}
             </div>
           </div>
 

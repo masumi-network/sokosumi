@@ -4,7 +4,6 @@ import { Loader2, MessageCircle, X } from "lucide-react";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -203,8 +202,6 @@ export function RoomRosterPanel({
   onClose,
   labels,
 }: RoomRosterPanelProps) {
-  const hasAssignedSeat = useHasAssignedOrganizationSeat();
-
   return (
     <aside
       className="bg-background absolute inset-0 z-30 flex min-h-0 w-full shrink-0 flex-col lg:static lg:z-auto lg:w-80 lg:border-l"
@@ -239,7 +236,6 @@ export function RoomRosterPanel({
                 profile: participant,
                 currentUserId,
                 canOpenHumanDirect,
-                hasAssignedSeat,
                 onOpenDirect,
               })}
               isOpening={openingDirectKey === participantDirectKey(participant)}

@@ -277,7 +277,7 @@ describe("CreateDirectDialog", () => {
     expect(createDirectRoomActionMock).not.toHaveBeenCalled();
   });
 
-  it("hides AI coworkers when the viewer has no assigned seat", async () => {
+  it("still lists AI coworkers when the viewer has no assigned seat", async () => {
     loadChatComposeRosterActionMock.mockResolvedValue({
       ok: true,
       value: {
@@ -300,7 +300,7 @@ describe("CreateDirectDialog", () => {
     await user.click(screen.getByRole("button", { name: "Draft.title" }));
     await screen.findByRole("heading", { name: "Draft.title" });
 
-    expect(screen.queryByRole("button", { name: /Hermes/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Hermes/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Francis/ })).toBeTruthy();
   });
 });

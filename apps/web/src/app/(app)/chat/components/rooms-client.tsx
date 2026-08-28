@@ -117,7 +117,7 @@ import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
+
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
@@ -164,13 +164,11 @@ import {
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
   messageDayKey,
-  omitCoworkerMentionRecords,
   type PendingRoomQuote,
   pendingQuoteFromMessage,
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
   shouldConsumePendingCoworkerStream,
-  shouldDisableCoworkerThreadComposer,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
@@ -526,7 +524,6 @@ export function RoomsClient({
 }: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
-  const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const organizationId = activeOrganization?.id ?? null;
   const getSidebarRooms = useCallback(
     () => getMembershipVisibleRooms(organizationId),
@@ -895,7 +892,6 @@ export function RoomsClient({
   async function handleOpenDirectMessage(
     profile: ChatParticipantHoverProfile,
   ): Promise<void> {
-    if (profile.kind === "coworker" && !hasAssignedSeat) return;
     if (openingDirectKey) return;
     setOpeningDirectKey(participantDirectKey(profile));
     try {
@@ -1315,7 +1311,6 @@ export function RoomsClient({
     }
     if (
       !shouldConsumePendingCoworkerStream({
-        hasAssignedSeat,
         isCoworkerStreamRoom,
         hasPendingMessage: true,
       })
@@ -1323,12 +1318,7 @@ export function RoomsClient({
       return;
     }
     consumePendingStreamMessage(pending);
-  }, [
-    hasAssignedSeat,
-    consumePendingStreamMessage,
-    isCoworkerStreamRoom,
-    selectedRoomId,
-  ]);
+  }, [consumePendingStreamMessage, isCoworkerStreamRoom, selectedRoomId]);
 
   // Re-open thread panel when a thread stream is active/resumed so overlays
   // stay visible after remount or if the panel was closed mid-stream.
@@ -1465,9 +1455,8 @@ export function RoomsClient({
         buildRoomAllMentionRecord(t("MentionAll.label")),
       ] as const);
     }
-    const records = Object.fromEntries(entries);
-    return hasAssignedSeat ? records : omitCoworkerMentionRecords(records);
-  }, [hasAssignedSeat, currentUserId, selectedRoom, t]);
+    return Object.fromEntries(entries);
+  }, [currentUserId, selectedRoom, t]);
 
   function partitionMentionIds(selectedKeys: string[]): {
     mentionedCoworkerIds: string[];
@@ -2934,7 +2923,6 @@ export function RoomsClient({
                       }
                       onRetryOutbound={handleRetryOutbound}
                       onRetryMention={
-                        hasAssignedSeat &&
                         isCurrentUserMentionerOfFailedShell({
                           shell: message,
                           currentUserId,
@@ -3056,52 +3044,44 @@ export function RoomsClient({
           }
           listContent={openRoomListBody}
           composer={
-            isCoworkerStreamRoom && !hasAssignedSeat ? (
-              <p className="text-muted-foreground px-1 py-3 text-sm">
-                {t("Seat.coworkerDirectDisabled")}
-              </p>
-            ) : (
-              <RoomSessionComposer
-                key={selectedRoom.id}
-                ref={roomComposerRef}
-                roomId={selectedRoom.id}
-                draftKey={composeDraftKey.room(selectedRoom.id)}
-                mentions={mentionRecords}
-                usersById={usersById}
-                usersBySlug={usersBySlug}
-                coworkersById={coworkersById}
-                coworkersBySlug={coworkersBySlug}
-                channels={channelOptions}
-                channelLinks={channelLinks}
-                placeholder={
-                  isDirectRoom
-                    ? t("directComposerPlaceholder", {
-                        member: selectedRoomDisplayName,
-                      })
-                    : t("composerPlaceholderWithChannel", {
-                        channel: selectedRoomDisplayName,
-                      })
-                }
-                isSending={isCoworkerStreaming}
-                showMentionShortcut={shouldShowRoomMentionShortcut(
-                  selectedRoom,
-                )}
-                allowAttachments={!isCoworkerStreamRoom}
-                pendingQuote={pendingQuote}
-                onClearPendingQuote={() => setPendingQuote(null)}
-                onRestorePendingQuote={setPendingQuote}
-                onChromeResize={scrollToBottomIfPinned}
-                // Autofocus only after history settles. Send stays enabled so
-                // optimistic posts work during progressive open (merge into list).
-                focusOnMount={!messagesPending}
-                onBeforeSend={handleChannelBeforeSend}
-                onSend={handleChannelSend}
-                currentUserId={currentUserId}
-                canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirectMessage={handleOpenDirectMessage}
-                openingDirectParticipantKey={openingDirectKey}
-              />
-            )
+            <RoomSessionComposer
+              key={selectedRoom.id}
+              ref={roomComposerRef}
+              roomId={selectedRoom.id}
+              draftKey={composeDraftKey.room(selectedRoom.id)}
+              mentions={mentionRecords}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
+              channels={channelOptions}
+              channelLinks={channelLinks}
+              placeholder={
+                isDirectRoom
+                  ? t("directComposerPlaceholder", {
+                      member: selectedRoomDisplayName,
+                    })
+                  : t("composerPlaceholderWithChannel", {
+                      channel: selectedRoomDisplayName,
+                    })
+              }
+              isSending={isCoworkerStreaming}
+              showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
+              allowAttachments={!isCoworkerStreamRoom}
+              pendingQuote={pendingQuote}
+              onClearPendingQuote={() => setPendingQuote(null)}
+              onRestorePendingQuote={setPendingQuote}
+              onChromeResize={scrollToBottomIfPinned}
+              // Autofocus only after history settles. Send stays enabled so
+              // optimistic posts work during progressive open (merge into list).
+              focusOnMount={!messagesPending}
+              onBeforeSend={handleChannelBeforeSend}
+              onSend={handleChannelSend}
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirectMessage={handleOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectKey}
+            />
           }
           mainEnd={
             threadParentMessage ? (
@@ -3130,9 +3110,7 @@ export function RoomsClient({
                   isCoworkerStreaming && threadStreamOverlayMessages.length > 0
                 }
                 onRetryOutbound={handleRetryOutbound}
-                onRetryMention={
-                  hasAssignedSeat ? handleRetryMention : undefined
-                }
+                onRetryMention={handleRetryMention}
                 onRemoveOutbound={handleRemoveOutbound}
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
@@ -3159,18 +3137,6 @@ export function RoomsClient({
                 )}
                 allowAttachments={!isCoworkerStreamRoom}
                 roomId={selectedRoom.id}
-                composerDisabledMessage={
-                  shouldDisableCoworkerThreadComposer({
-                    hasAssignedSeat,
-                    isCoworkerStreamRoom,
-                    isThreadLoading,
-                    threadMessages: threadParentMessage
-                      ? [threadParentMessage, ...displayThreadMessages]
-                      : [],
-                  })
-                    ? t("Seat.coworkerDirectDisabled")
-                    : undefined
-                }
               />
             ) : threadListOpen ? (
               <ThreadListPanel

@@ -153,24 +153,6 @@ describe("ChatParticipantHoverCard", () => {
     expect(screen.getByRole("button", { name: "Message" })).toBeInTheDocument();
   });
 
-  it("hides Message for a coworker without an assigned Seat", () => {
-    render(
-      <OrganizationSeatProvider hasAssignedSeat={false}>
-        <ChatParticipantHoverCard
-          profile={coworkerProfile}
-          currentUserId="user-1"
-          onOpenDirect={vi.fn()}
-        >
-          <span>Hannah</span>
-        </ChatParticipantHoverCard>
-      </OrganizationSeatProvider>,
-    );
-
-    expect(
-      screen.queryByRole("button", { name: "Message" }),
-    ).not.toBeInTheDocument();
-  });
-
   it("calls onOpenDirect with the participant", async () => {
     const user = userEvent.setup();
     const onOpenDirect = vi.fn();

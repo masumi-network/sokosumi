@@ -21,7 +21,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { getInitials } from "@/lib/utils/text";
 import {
   CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
@@ -38,7 +37,6 @@ import {
 
 export function CreateDirectDialog() {
   const t = useTranslations("App.Channels");
-  const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const rosterScrollRef = useRef<HTMLDivElement | null>(null);
   const inFlightRef = useRef(false);
@@ -53,10 +51,10 @@ export function CreateDirectDialog() {
     () =>
       buildDirectDraftTargets(
         roster.members,
-        hasAssignedSeat ? roster.coworkers : [],
+        roster.coworkers,
         roster.currentUserId,
       ),
-    [hasAssignedSeat, roster.coworkers, roster.currentUserId, roster.members],
+    [roster.coworkers, roster.currentUserId, roster.members],
   );
   const selectedTargets = useMemo(() => {
     const byKey = new Map(targets.map((target) => [target.key, target]));
@@ -241,20 +239,12 @@ export function CreateDirectDialog() {
             onClick={(event) => event.stopPropagation()}
             placeholder={
               selectedTargets.length === 0
-                ? t(
-                    hasAssignedSeat
-                      ? "Draft.searchPlaceholder"
-                      : "Draft.searchPlaceholderHumansOnly",
-                  )
+                ? t("Draft.searchPlaceholder")
                 : hasSelectedHumans
                   ? t("Draft.searchPlaceholderMore")
                   : t("Draft.searchPlaceholderReplace")
             }
-            aria-label={t(
-              hasAssignedSeat
-                ? "Draft.searchPlaceholder"
-                : "Draft.searchPlaceholderHumansOnly",
-            )}
+            aria-label={t("Draft.searchPlaceholder")}
             className="h-7 min-w-32 flex-1 border-0 bg-transparent px-0 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
             autoComplete="off"
             spellCheck={false}

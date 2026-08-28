@@ -256,35 +256,7 @@ export function hasPendingCoworkerMention(
   );
 }
 
-interface CoworkerThreadComposerMessage {
-  sender: { type: string };
-  mentions?: unknown[];
-}
-
-interface CoworkerThreadComposerDisableInput {
-  hasAssignedSeat: boolean;
-  isCoworkerStreamRoom: boolean;
-  isThreadLoading?: boolean;
-  threadMessages: CoworkerThreadComposerMessage[];
-}
-
-export function shouldDisableCoworkerThreadComposer(
-  input: CoworkerThreadComposerDisableInput,
-): boolean {
-  if (input.hasAssignedSeat) {
-    return false;
-  }
-  if (input.isCoworkerStreamRoom || input.isThreadLoading) {
-    return true;
-  }
-  return input.threadMessages.some(
-    (message) =>
-      message.sender.type === "coworker" || (message.mentions?.length ?? 0) > 0,
-  );
-}
-
 interface PendingCoworkerStreamInput {
-  hasAssignedSeat: boolean;
   isCoworkerStreamRoom: boolean;
   hasPendingMessage: boolean;
 }
@@ -292,11 +264,7 @@ interface PendingCoworkerStreamInput {
 export function shouldConsumePendingCoworkerStream(
   input: PendingCoworkerStreamInput,
 ): boolean {
-  return (
-    input.hasAssignedSeat &&
-    input.isCoworkerStreamRoom &&
-    input.hasPendingMessage
-  );
+  return input.isCoworkerStreamRoom && input.hasPendingMessage;
 }
 
 export function appendMessage(

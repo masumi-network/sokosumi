@@ -329,7 +329,7 @@ describe("LandingCoworkerPicker", () => {
     expect(openCoworkerRoom).toHaveBeenCalledWith("hannah");
   });
 
-  it("hides Start chat when the viewer has no assigned seat", () => {
+  it("keeps Start chat when the viewer has no assigned seat", () => {
     render(
       <OrganizationSeatProvider hasAssignedSeat={false}>
         <LandingCoworkerPicker
@@ -340,10 +340,9 @@ describe("LandingCoworkerPicker", () => {
     );
 
     expect(
-      screen.queryByRole("button", {
+      screen.getByRole("button", {
         name: 'cta.button:{"name":"Elena"}',
       }),
-    ).toBeNull();
-    expect(screen.getByText("Seat.coworkerDirectDisabled")).toBeTruthy();
+    ).toBeTruthy();
   });
 });

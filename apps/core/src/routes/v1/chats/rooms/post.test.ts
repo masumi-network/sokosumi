@@ -45,10 +45,6 @@ const {
   prismaTransactionMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/organization-assigned-seat", () => ({
-  requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
-}));
-
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,

@@ -1,5 +1,7 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostOrchestratorMeUsage from "./post";
@@ -310,6 +312,34 @@ describe("POST /orchestrators/me/usage", () => {
     });
 
     expect(response.status).toBe(400);
+    expect(usageCreate).not.toHaveBeenCalled();
+    expect(prepareConsumptionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when the member has no assigned organization seat", async () => {
+    vi.mocked(requireAssignedOrganizationSeat).mockRejectedValueOnce(
+      new HTTPException(403, {
+        message:
+          "An assigned seat is required to start coworker-paid work in this organization",
+        cause: { kind: CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED },
+      }),
+    );
+    const { usageCreate } = mockTxWithOrchestrator();
+
+    const app = createApp("orchestrator", {
+      context: { organizationId: "org_123", userId: TARGET_USER_ID },
+    });
+    const response = await app.request("/me/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: TARGET_USER_ID,
+        idempotencyKey: "usage_unseated",
+        credits: 2.5,
+      }),
+    });
+
+    expect(response.status).toBe(403);
     expect(usageCreate).not.toHaveBeenCalled();
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
   });

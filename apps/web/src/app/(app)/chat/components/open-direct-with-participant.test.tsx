@@ -122,28 +122,15 @@ describe("canShowOpenDirect", () => {
     ).toBe(false);
   });
 
-  it("shows a coworker when human directs are unavailable and a Seat is assigned", () => {
+  it("shows a coworker when human directs are unavailable", () => {
     expect(
       canShowOpenDirect({
         profile: coworkerProfile,
         currentUserId: "user-1",
         canOpenHumanDirect: false,
-        hasAssignedSeat: true,
         onOpenDirect,
       }),
     ).toBe(true);
-  });
-
-  it("hides a coworker when the member has no assigned Seat", () => {
-    expect(
-      canShowOpenDirect({
-        profile: coworkerProfile,
-        currentUserId: "user-1",
-        canOpenHumanDirect: true,
-        hasAssignedSeat: false,
-        onOpenDirect,
-      }),
-    ).toBe(false);
   });
 
   it("hides without an open callback", () => {

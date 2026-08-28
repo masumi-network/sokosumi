@@ -9,7 +9,6 @@ import { emitChatMentionNotifications } from "@/helpers/chat-mention-notificatio
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -278,14 +277,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 slug: coworker.slug,
               })),
             });
-
-        if (skipCoworkerMentions || mentionedCoworkerIds.length > 0) {
-          await requireAssignedOrganizationSeat(
-            userContext.userId,
-            room.organizationId,
-            tx,
-          );
-        }
 
         const mentionedUserIds = resolveMentionedUserIds({
           content: body.content,

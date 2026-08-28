@@ -149,10 +149,10 @@ describe("ThreadPanel empty vs loading", () => {
   it("replaces the reply composer with the assigned-seat message when disabled", () => {
     renderPanel({
       isLoading: false,
-      composerDisabledMessage: "Seat.coworkerDirectDisabled",
+      composerDisabledMessage: "Composer disabled",
     });
 
     expect(screen.queryByTestId("thread-composer")).toBeNull();
-    expect(screen.getByText("Seat.coworkerDirectDisabled")).toBeTruthy();
+    expect(screen.getByText("Composer disabled")).toBeTruthy();
   });
 });

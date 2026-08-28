@@ -4,7 +4,6 @@ import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
-import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
 import { useOpenCoworkerRoom } from "./use-open-coworker-room";
@@ -34,18 +33,8 @@ export function StartChatButton({
   variant = "primary",
 }: StartChatButtonProps) {
   const t = useTranslations("App.Chat.Landing");
-  const tSeat = useTranslations("App.Channels");
-  const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const { isPending, openCoworkerRoom, openingId } = useOpenCoworkerRoom();
   const isBusy = isPending || openingId === coworkerId;
-
-  if (!hasAssignedSeat) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        {tSeat("Seat.coworkerDirectDisabled")}
-      </p>
-    );
-  }
 
   return (
     <Button

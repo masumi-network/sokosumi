@@ -99,7 +99,7 @@ _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup p
 ### Billing
 
 **Seat**:
-A purchased place on a **paid** Organization (Stripe self-serve or enterprise) that can be assigned to one Member. Assignment is who may spend the organization credit pool, create or comment on Tasks, assign a Coworker to a Task, and originate coworker chat turns (@mention, coworker 1:1 send). It is not a private credit grant. Purchased count is the cap on assigned Seats: if it drops, the newest seated members lose the Seat immediately and the oldest stay. On **free**, every member is seated; there is nothing to assign. Unseated members on a paid org may use human chat and may read existing Tasks; they must not start coworker work.
+A purchased place on a **paid** Organization (Stripe self-serve or enterprise) that can be assigned to one Member. Assignment is who may spend the organization credit pool, create or comment on Tasks, and assign a Coworker to a Task. It is not a private credit grant and not a chat permission. Purchased count is the cap on assigned Seats: if it drops, the newest seated members lose the Seat immediately and the oldest stay. On **free**, every member is seated; there is nothing to assign. Unseated members on a paid org may use human chat, talk to coworkers, and read existing Tasks. A Task created while seated stays org work: schedule fire continues; the next debit fails closed. Coworkers must check whether they can bill (usage / Task writes fail closed without a Seat).
 _Avoid_: License, slot (unless a UI label), workstation, treating a Seat as a personal credit balance, treating Task assignee as a human, unpaid seat flags, unlimited-on-free as an admin control
 
 **Organization credit pool**:

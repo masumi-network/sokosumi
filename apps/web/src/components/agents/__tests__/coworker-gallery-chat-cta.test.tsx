@@ -34,12 +34,7 @@ vi.mock("next-intl", () => ({
         if (key === "cta.error") return "Could not open the chat.";
         return key;
       },
-      "App.Channels": (key) => {
-        if (key === "Seat.coworkerDirectDisabled") {
-          return "An assigned seat is required to message AI coworkers.";
-        }
-        return key;
-      },
+      "App.Channels": (key) => key,
     };
     return maps[namespace] ?? ((key: string) => key);
   },
@@ -161,7 +156,7 @@ describe("CoworkerGallerySection chat CTA", () => {
     expect(openCoworkerRoomMock).toHaveBeenCalledWith("cow-elena");
   });
 
-  it("hides chat and Start New Task when the viewer has no assigned seat", () => {
+  it("keeps Chat and hides Start New Task when the viewer has no assigned seat", () => {
     render(
       <OrganizationSeatProvider hasAssignedSeat={false}>
         <CoworkerGallerySection coworkers={[makeCoworker()]} />
@@ -169,13 +164,10 @@ describe("CoworkerGallerySection chat CTA", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: "Chat with Elena" }),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Chat with Elena" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Start New Task for Elena/ }),
     ).toBeNull();
-    expect(
-      screen.getByText("An assigned seat is required to message AI coworkers."),
-    ).toBeTruthy();
   });
 });

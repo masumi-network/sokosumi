@@ -5102,12 +5102,8 @@
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
-      "Seat": {
-        "coworkerDirectDisabled": "Se requiere un asiento asignado para escribir a compañeros de IA."
-      },
       "Draft": {
         "searchPlaceholder": "Search people or AI coworkers",
-        "searchPlaceholderHumansOnly": "Buscar personas",
         "searchPlaceholderMore": "Añadir más personas",
         "searchPlaceholderReplace": "Reemplazar destinatario",
         "noResults": "No matches",

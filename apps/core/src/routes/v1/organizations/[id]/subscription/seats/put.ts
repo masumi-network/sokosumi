@@ -189,17 +189,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     await increaseStripeSubscriptionSeats(target.stripeSubscriptionId, seats);
 
-    await prisma.$transaction(async (tx) => {
-      await tx.subscription.update({
-        where: { id: target.subscriptionId },
-        data: { seats },
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.subscription.update({
+          where: { id: target.subscriptionId },
+          data: { seats },
+        });
+        await unassignSeatsOverPurchasedCapacity(
+          target.organizationId,
+          seats,
+          tx,
+        );
       });
-      await unassignSeatsOverPurchasedCapacity(
-        target.organizationId,
-        seats,
-        tx,
-      );
-    });
+    } catch (error) {
+      await prisma.$transaction(async (tx) => {
+        await unassignSeatsOverPurchasedCapacity(
+          target.organizationId,
+          seats,
+          tx,
+        );
+      });
+      throw error;
+    }
 
     return ok(c, organizationSubscriptionSeatsSchema.parse({ seats }));
   });

@@ -645,6 +645,31 @@ export async function handleInvoicePaidEvent(
         continue;
       }
 
+      if (
+        organizationId &&
+        grant.referenceType ===
+          CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD &&
+        grant.bucketUserId === null
+      ) {
+        const leftoverMemberInvoiceBucket = await tx.creditBucket.findFirst({
+          where: {
+            organizationId,
+            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+            referenceId: {
+              startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+              endsWith: escapeStringForLike(`:${invoiceId}:subscription`),
+            },
+          },
+          select: { id: true },
+        });
+        if (leftoverMemberInvoiceBucket) {
+          console.log(
+            `✅ Leftover member invoice ${invoiceId} subscription grants already exist; skipping org-owned grant`,
+          );
+          continue;
+        }
+      }
+
       const cents = convertCreditsToCents(grant.credits);
       await tx.transaction.create({
         data: {
