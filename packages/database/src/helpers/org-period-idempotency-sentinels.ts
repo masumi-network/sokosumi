@@ -17,6 +17,15 @@ import {
 export const SENTINEL_FACE_CENTS = 1n;
 export const SENTINEL_REFERENCE_NOTE = "SOK-905 idempotency sentinel";
 
+/** Cap concurrent sentinel create transactions (unique races still safe). */
+export const SENTINEL_CREATE_CONCURRENCY = 8;
+
+/** Prisma `in` chunk size for fingerprint existence lookups. */
+export const FINGERPRINT_EXISTS_CHUNK_SIZE = 500;
+
+/** Cap ids per `deleteMany` to keep statements bounded. */
+export const TOMBSTONE_DELETE_CHUNK_SIZE = 1000;
+
 export type SentinelKind = "invoice_subscription" | "local_free_subscription";
 
 export type OrgPeriodIdempotencyReferenceId = string;
@@ -292,16 +301,74 @@ export async function orgPeriodFingerprintExists(
   prisma: PrismaClient | Prisma.TransactionClient,
   referenceId: OrgPeriodIdempotencyReferenceId,
 ): Promise<boolean> {
-  const existing = await prisma.creditBucket.findUnique({
-    where: {
-      referenceId_referenceType: {
-        referenceId,
+  const existing = await listExistingOrgPeriodFingerprints(prisma, [
+    referenceId,
+  ]);
+  return existing.has(referenceId);
+}
+
+export async function listExistingOrgPeriodFingerprints(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  referenceIds: readonly OrgPeriodIdempotencyReferenceId[],
+): Promise<Set<OrgPeriodIdempotencyReferenceId>> {
+  const existing = new Set<OrgPeriodIdempotencyReferenceId>();
+  if (referenceIds.length === 0) {
+    return existing;
+  }
+
+  const uniqueIds = [...new Set(referenceIds)];
+  for (
+    let offset = 0;
+    offset < uniqueIds.length;
+    offset += FINGERPRINT_EXISTS_CHUNK_SIZE
+  ) {
+    const chunk = uniqueIds.slice(
+      offset,
+      offset + FINGERPRINT_EXISTS_CHUNK_SIZE,
+    );
+    const rows = await prisma.creditBucket.findMany({
+      where: {
         referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+        referenceId: { in: chunk },
       },
-    },
-    select: { id: true },
-  });
-  return existing !== null;
+      select: { referenceId: true },
+    });
+    for (const row of rows) {
+      if (row.referenceId) {
+        existing.add(row.referenceId);
+      }
+    }
+  }
+
+  return existing;
+}
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(Math.max(concurrency, 1), items.length);
+
+  async function worker(): Promise<void> {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= items.length) {
+        return;
+      }
+      results[index] = await mapper(items[index] as T, index);
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
 }
 
 export async function ensureOrgPeriodIdempotencySentinel(
@@ -392,6 +459,7 @@ export async function backfillOrgPeriodIdempotencySentinels(
   let alreadyPresent = 0;
   let skippedNoActor = 0;
 
+  const specsWithActor: OrgPeriodSentinelSpec[] = [];
   for (const [index, spec] of specs.entries()) {
     const step = `${index + 1}/${specs.length}`;
     let actorUserId = spec.actorUserId;
@@ -409,39 +477,61 @@ export async function backfillOrgPeriodIdempotencySentinels(
       );
       continue;
     }
+    specsWithActor.push({ ...spec, actorUserId });
+  }
 
-    if (params.dryRun) {
-      const exists = await orgPeriodFingerprintExists(prisma, spec.referenceId);
-      if (exists) {
-        alreadyPresent += 1;
-        debug?.(
-          `backfill [${step}] dry-run alreadyPresent referenceId=${spec.referenceId}`,
-        );
-      } else {
-        created += 1;
-        debug?.(
-          `backfill [${step}] dry-run wouldCreate referenceId=${spec.referenceId} kind=${spec.kind} organizationId=${spec.organizationId} actorUserId=${actorUserId}`,
-        );
-      }
+  const existingFingerprints = await listExistingOrgPeriodFingerprints(
+    prisma,
+    specsWithActor.map((spec) => spec.referenceId),
+  );
+  debug?.(
+    `backfill: existingFingerprints=${existingFingerprints.size} of ${specsWithActor.length} candidate(s)`,
+  );
+
+  const toCreate: OrgPeriodSentinelSpec[] = [];
+  for (const spec of specsWithActor) {
+    if (existingFingerprints.has(spec.referenceId)) {
+      alreadyPresent += 1;
+      debug?.(`backfill alreadyPresent referenceId=${spec.referenceId}`);
       continue;
     }
+    toCreate.push(spec);
+  }
 
-    const outcome = await prisma.$transaction((tx) =>
-      ensureOrgPeriodIdempotencySentinel(tx, {
-        ...spec,
-        actorUserId,
-      }),
+  if (params.dryRun) {
+    created = toCreate.length;
+    for (const spec of toCreate) {
+      debug?.(
+        `backfill dry-run wouldCreate referenceId=${spec.referenceId} kind=${spec.kind} organizationId=${spec.organizationId} actorUserId=${spec.actorUserId}`,
+      );
+    }
+  } else {
+    const outcomes = await mapWithConcurrency(
+      toCreate,
+      SENTINEL_CREATE_CONCURRENCY,
+      async (spec, index) => {
+        const step = `${index + 1}/${toCreate.length}`;
+        const outcome = await prisma.$transaction((tx) =>
+          ensureOrgPeriodIdempotencySentinel(tx, spec),
+        );
+        if (outcome === "created") {
+          debug?.(
+            `backfill [${step}] created referenceId=${spec.referenceId} kind=${spec.kind} organizationId=${spec.organizationId} actorUserId=${spec.actorUserId}`,
+          );
+        } else {
+          debug?.(
+            `backfill [${step}] alreadyPresent (race) referenceId=${spec.referenceId}`,
+          );
+        }
+        return outcome;
+      },
     );
-    if (outcome === "created") {
-      created += 1;
-      debug?.(
-        `backfill [${step}] created referenceId=${spec.referenceId} kind=${spec.kind} organizationId=${spec.organizationId} actorUserId=${actorUserId}`,
-      );
-    } else {
-      alreadyPresent += 1;
-      debug?.(
-        `backfill [${step}] alreadyPresent referenceId=${spec.referenceId}`,
-      );
+    for (const outcome of outcomes) {
+      if (outcome === "created") {
+        created += 1;
+      } else {
+        alreadyPresent += 1;
+      }
     }
   }
 
@@ -470,10 +560,14 @@ export async function assertSentinelsCoverLeftoverMemberPeriods(
       organizationId: params.organizationId,
     });
 
+  const existingFingerprints = await listExistingOrgPeriodFingerprints(
+    prisma,
+    specs.map((spec) => spec.referenceId),
+  );
+
   const uncoveredReferenceIds: string[] = [];
   for (const spec of specs) {
-    const covered = await orgPeriodFingerprintExists(prisma, spec.referenceId);
-    if (!covered) {
+    if (!existingFingerprints.has(spec.referenceId)) {
       uncoveredReferenceIds.push(spec.referenceId);
       debug?.(
         `coverage: uncovered organizationId=${spec.organizationId} referenceId=${spec.referenceId} kind=${spec.kind}`,
@@ -518,11 +612,16 @@ export async function deleteCoveredMemberPeriodTombstones(
         : ""),
   );
 
-  let deleted = 0;
   let skippedRemainingPositive = 0;
   let skippedUncovered = 0;
   let skippedUnparseable = 0;
-  const deleteIds: string[] = [];
+
+  const rem0Parseable: Array<{
+    id: string;
+    organizationId: string;
+    orgReferenceId: OrgPeriodIdempotencyReferenceId;
+    referenceId: string;
+  }> = [];
 
   for (const leftover of leftovers) {
     if (leftover.remaining > 0n) {
@@ -545,30 +644,56 @@ export async function deleteCoveredMemberPeriodTombstones(
       continue;
     }
 
-    if (
-      !(await orgPeriodFingerprintExists(prisma, parsed.value.orgReferenceId))
-    ) {
+    rem0Parseable.push({
+      id: leftover.id,
+      organizationId: leftover.organizationId,
+      orgReferenceId: parsed.value.orgReferenceId,
+      referenceId: leftover.referenceId,
+    });
+  }
+
+  const existingFingerprints = await listExistingOrgPeriodFingerprints(
+    prisma,
+    rem0Parseable.map((row) => row.orgReferenceId),
+  );
+  debug?.(
+    `delete: fingerprint lookup rem0Parseable=${rem0Parseable.length} existing=${existingFingerprints.size}`,
+  );
+
+  const deleteIds: string[] = [];
+  for (const row of rem0Parseable) {
+    if (!existingFingerprints.has(row.orgReferenceId)) {
       skippedUncovered += 1;
       debug?.(
-        `delete: skip uncovered id=${leftover.id} organizationId=${leftover.organizationId} referenceId=${leftover.referenceId} fingerprint=${parsed.value.orgReferenceId}`,
+        `delete: skip uncovered id=${row.id} organizationId=${row.organizationId} referenceId=${row.referenceId} fingerprint=${row.orgReferenceId}`,
       );
       continue;
     }
-
-    deleteIds.push(leftover.id);
+    deleteIds.push(row.id);
     debug?.(
-      `delete: ${params.dryRun ? "wouldDelete" : "queued"} id=${leftover.id} organizationId=${leftover.organizationId} referenceId=${leftover.referenceId} fingerprint=${parsed.value.orgReferenceId}`,
+      `delete: ${params.dryRun ? "wouldDelete" : "queued"} id=${row.id} organizationId=${row.organizationId} referenceId=${row.referenceId} fingerprint=${row.orgReferenceId}`,
     );
   }
 
+  let deleted = 0;
   if (!params.dryRun && deleteIds.length > 0) {
-    const result = await prisma.creditBucket.deleteMany({
-      where: { id: { in: deleteIds } },
-    });
-    deleted = result.count;
-    debug?.(
-      `delete: deleteMany count=${deleted} requested=${deleteIds.length}`,
-    );
+    for (
+      let offset = 0;
+      offset < deleteIds.length;
+      offset += TOMBSTONE_DELETE_CHUNK_SIZE
+    ) {
+      const chunk = deleteIds.slice(
+        offset,
+        offset + TOMBSTONE_DELETE_CHUNK_SIZE,
+      );
+      const result = await prisma.creditBucket.deleteMany({
+        where: { id: { in: chunk } },
+      });
+      deleted += result.count;
+      debug?.(
+        `delete: deleteMany count=${result.count} requested=${chunk.length} offset=${offset}`,
+      );
+    }
   } else {
     deleted = params.dryRun ? deleteIds.length : 0;
   }

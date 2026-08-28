@@ -254,6 +254,7 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
       },
     ]);
     const findUniqueMock = vi.fn().mockResolvedValue(null);
+    const findManyMock = vi.fn().mockResolvedValue([]);
     const createTransactionMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -269,7 +270,7 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
           transaction: { create: createTransactionMock },
         }),
       ),
-      creditBucket: { findUnique: findUniqueMock },
+      creditBucket: { findUnique: findUniqueMock, findMany: findManyMock },
       member: { findFirst: vi.fn() },
     };
 
@@ -308,15 +309,9 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
           remaining: 0n,
         },
       ]),
-      $transaction: vi.fn(async (callback: (tx: unknown) => unknown) =>
-        callback({
-          creditBucket: {
-            findUnique: vi.fn().mockResolvedValue({ id: "live" }),
-          },
-          transaction: { create: vi.fn() },
-        }),
-      ),
+      $transaction: vi.fn(),
       creditBucket: {
+        findMany: vi.fn().mockResolvedValue([{ referenceId }]),
         findUnique: vi.fn().mockResolvedValue({ id: "live" }),
       },
       member: { findFirst: vi.fn() },
@@ -330,7 +325,7 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
     assert.equal(result.created, 0);
     assert.equal(result.alreadyPresent, 1);
     assert.equal(result.distinctFingerprints, 1);
-    void referenceId;
+    assert.equal(prisma.$transaction.mock.calls.length, 0);
   });
 
   it("dryRun counts would-create without writing", async () => {
@@ -349,6 +344,7 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
       ]),
       $transaction: vi.fn(),
       creditBucket: {
+        findMany: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn().mockResolvedValue(null),
       },
       member: { findFirst: vi.fn() },
@@ -381,6 +377,7 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
       ]),
       $transaction: vi.fn(),
       creditBucket: {
+        findMany: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn().mockResolvedValue(null),
       },
       member: { findFirst: vi.fn() },
@@ -419,6 +416,7 @@ describe("assertSentinelsCoverLeftoverMemberPeriods", () => {
         },
       ]),
       creditBucket: {
+        findMany: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn().mockResolvedValue(null),
       },
     };
@@ -441,6 +439,11 @@ describe("assertSentinelsCoverLeftoverMemberPeriods", () => {
   });
 
   it("passes when every leftover fingerprint exists", async () => {
+    const referenceId = buildOrganizationInvoiceCreditReferenceId(
+      "org-1",
+      "in_ok",
+      "subscription",
+    );
     const prisma = {
       $queryRaw: vi.fn().mockResolvedValue([
         {
@@ -454,6 +457,7 @@ describe("assertSentinelsCoverLeftoverMemberPeriods", () => {
         },
       ]),
       creditBucket: {
+        findMany: vi.fn().mockResolvedValue([{ referenceId }]),
         findUnique: vi.fn().mockResolvedValue({ id: "sentinel" }),
       },
     };
@@ -478,6 +482,7 @@ describe("assertSentinelsCoverLeftoverMemberPeriods", () => {
         },
       ]),
       creditBucket: {
+        findMany: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn(),
       },
     };
@@ -503,20 +508,9 @@ describe("deleteCoveredMemberPeriodTombstones", () => {
       "subscription",
     );
     const deleteManyMock = vi.fn().mockResolvedValue({ count: 1 });
-    const findUniqueMock = vi.fn().mockImplementation(
-      ({
-        where,
-      }: {
-        where: {
-          referenceId_referenceType: { referenceId: string };
-        };
-      }) =>
-        Promise.resolve(
-          where.referenceId_referenceType.referenceId === coveredInvoice
-            ? { id: "sentinel" }
-            : null,
-        ),
-    );
+    const findManyMock = vi
+      .fn()
+      .mockResolvedValue([{ referenceId: coveredInvoice }]);
 
     const prisma = {
       $queryRaw: vi.fn().mockResolvedValue([
@@ -558,7 +552,7 @@ describe("deleteCoveredMemberPeriodTombstones", () => {
         },
       ]),
       creditBucket: {
-        findUnique: findUniqueMock,
+        findMany: findManyMock,
         deleteMany: deleteManyMock,
       },
     };
@@ -577,6 +571,11 @@ describe("deleteCoveredMemberPeriodTombstones", () => {
 
   it("dryRun reports would-delete without deleting", async () => {
     const deleteManyMock = vi.fn();
+    const coveredInvoice = buildOrganizationInvoiceCreditReferenceId(
+      "org-1",
+      "in_covered",
+      "subscription",
+    );
     const prisma = {
       $queryRaw: vi.fn().mockResolvedValue([
         {
@@ -590,7 +589,7 @@ describe("deleteCoveredMemberPeriodTombstones", () => {
         },
       ]),
       creditBucket: {
-        findUnique: vi.fn().mockResolvedValue({ id: "sentinel" }),
+        findMany: vi.fn().mockResolvedValue([{ referenceId: coveredInvoice }]),
         deleteMany: deleteManyMock,
       },
     };
@@ -605,18 +604,18 @@ describe("deleteCoveredMemberPeriodTombstones", () => {
 });
 
 describe("orgPeriodFingerprintExists", () => {
-  it("checks exact referenceId_referenceType unique key", async () => {
-    const findUniqueMock = vi.fn().mockResolvedValue({ id: "x" });
+  it("checks exact referenceId via batched period lookup", async () => {
+    const findManyMock = vi
+      .fn()
+      .mockResolvedValue([{ referenceId: "org:org-1:in_1:subscription" }]);
     const exists = await orgPeriodFingerprintExists(
-      { creditBucket: { findUnique: findUniqueMock } } as never,
+      { creditBucket: { findMany: findManyMock } } as never,
       "org:org-1:in_1:subscription",
     );
     assert.equal(exists, true);
-    assert.deepEqual(findUniqueMock.mock.calls[0]?.[0].where, {
-      referenceId_referenceType: {
-        referenceId: "org:org-1:in_1:subscription",
-        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      },
+    assert.deepEqual(findManyMock.mock.calls[0]?.[0].where, {
+      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+      referenceId: { in: ["org:org-1:in_1:subscription"] },
     });
   });
 });
