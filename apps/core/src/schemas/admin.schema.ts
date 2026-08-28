@@ -178,12 +178,9 @@ export const adminOrganizationMemberOverviewItemSchema = z
       email: z.string().openapi({ example: "jane@example.com" }),
     }),
     lastSeenAt: dateTimeSchema.nullable(),
-    credits: z.number().openapi({
-      description: "Available credits for this member in the organization",
-      example: 42.5,
-    }),
     subscriptionPlan: z.string().nullable().openapi({
-      description: "Member subscription plan in organization context",
+      description:
+        "Organization subscription plan, repeated on each member row",
       example: "starter",
     }),
     subscriptionStatus: stripeSubscriptionStatusNullableSchema,
@@ -258,9 +255,8 @@ export const adminOrganizationOverviewDetailSchema = z
       paidPlan: z.string().nullable(),
       isEnterpriseContract: z.boolean(),
     }),
-    totalCredits: z.number().nullable().openapi({
-      description:
-        "Enterprise pool remaining credits; null for self-serve organizations where credits are per member",
+    totalCredits: z.number().openapi({
+      description: "Organization pool remaining credits for both billing modes",
       example: 1200,
     }),
   })

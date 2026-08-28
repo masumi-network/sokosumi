@@ -97,10 +97,6 @@ export function getAccountNavItems({
     !activeOrganizationId ||
     activeOrganizationMember?.role === MemberRole.OWNER ||
     activeOrganizationMember?.role === MemberRole.ADMIN;
-  const activeOrganizationPath = activeOrganizationMember
-    ? `/organizations/${activeOrganizationMember.organization.slug}`
-    : null;
-
   const items: AccountNavItem[] = [
     {
       key: "account",
@@ -110,11 +106,11 @@ export function getAccountNavItems({
     },
   ];
 
-  if (activeOrganizationPath) {
+  if (activeOrganizationMember) {
     items.push({
-      key: "organizations",
-      href: activeOrganizationPath,
-      translationKey: "organizationsHeading",
+      key: "organization",
+      href: "/organization",
+      translationKey: "organization",
       Icon: Building2,
     });
   }

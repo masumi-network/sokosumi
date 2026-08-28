@@ -377,6 +377,45 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
   });
 });
 
+describe("creditBucketRepository.sumOrganizationOwnedCreditBalances", () => {
+  it("returns remaining cents from the raw query", async () => {
+    const tx = {
+      $queryRaw: async () => [{ totalCents: 200n, remainingCents: 90n }],
+    } as unknown as Prisma.TransactionClient;
+
+    const balances =
+      await creditBucketRepository.sumOrganizationOwnedCreditBalances(
+        "org-1",
+        tx,
+      );
+
+    assert.deepEqual(balances, { totalCents: 200n, remainingCents: 90n });
+  });
+
+  it("scopes to org-owned non-enterprise buckets without an actor userId", async () => {
+    let queryArgs: unknown[] = [];
+    const tx = {
+      $queryRaw: async (...rawArgs: unknown[]) => {
+        queryArgs = rawArgs;
+        return [{ totalCents: 0n, remainingCents: 0n }];
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await creditBucketRepository.sumOrganizationOwnedCreditBalances(
+      "org-1",
+      tx,
+    );
+
+    const sqlText = JSON.stringify(queryArgs);
+    assert.ok(sqlText.includes("org-1"));
+    assert.ok(sqlText.includes(CreditBucketReferenceType.ENTERPRISE_PERIOD));
+    assert.ok(sqlText.includes(CreditBucketReferenceType.ENTERPRISE_TOP_UP));
+    assert.ok(sqlText.includes("userId"));
+    assert.ok(!sqlText.includes("user-1"));
+    assert.ok(!sqlText.includes("user_owner"));
+  });
+});
+
 describe("creditBucketRepository.listAvailableBucketsWithBalances", () => {
   it("returns FIFO-ordered rows with total and remaining cents", async () => {
     const expiresSoon = new Date("2026-06-01T00:00:00.000Z");

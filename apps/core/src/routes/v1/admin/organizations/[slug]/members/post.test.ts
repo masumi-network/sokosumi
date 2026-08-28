@@ -16,7 +16,8 @@ const {
   getMembersWithUserAndLastSeenMock,
   ensurePersonalWorkspaceForOrganizationMembershipMock,
   upgradeGuestChatRoomMembershipsToMemberMock,
-  buildCreditsPayloadMock,
+  resolveActiveSubscriptionByReferenceIdMock,
+  getLatestSubscriptionByReferenceIdMock,
   transactionMock,
   authContextState,
 } = vi.hoisted(() => ({
@@ -35,7 +36,8 @@ const {
   getMembersWithUserAndLastSeenMock: vi.fn(),
   ensurePersonalWorkspaceForOrganizationMembershipMock: vi.fn(),
   upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
-  buildCreditsPayloadMock: vi.fn(),
+  resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
+  getLatestSubscriptionByReferenceIdMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
 
@@ -46,12 +48,21 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/helpers/admin-organization-overview.js", () => ({
-  getAdminOrganizationBySlug: (...args: unknown[]) =>
-    getAdminOrganizationBySlugMock(...args),
-}));
+vi.mock("@/helpers/admin-organization-overview.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/helpers/admin-organization-overview.js")
+    >();
+  return {
+    ...actual,
+    getAdminOrganizationBySlug: (...args: unknown[]) =>
+      getAdminOrganizationBySlugMock(...args),
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", () => ({
+  creditBucketRepository: {},
+  organizationRepository: {},
   userRepository: {
     getUserById: (...args: unknown[]) => getUserByIdMock(...args),
   },
@@ -61,6 +72,12 @@ vi.mock("@sokosumi/database/repositories", () => ({
     createMember: (...args: unknown[]) => createMemberMock(...args),
     getMembersWithUserAndLastSeen: (...args: unknown[]) =>
       getMembersWithUserAndLastSeenMock(...args),
+  },
+  subscriptionRepository: {
+    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
+      resolveActiveSubscriptionByReferenceIdMock(...args),
+    getLatestSubscriptionByReferenceId: (...args: unknown[]) =>
+      getLatestSubscriptionByReferenceIdMock(...args),
   },
 }));
 
@@ -72,10 +89,6 @@ vi.mock("@/helpers/org-membership-personal-workspace", () => ({
 vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
   upgradeGuestChatRoomMembershipsToMember: (...args: unknown[]) =>
     upgradeGuestChatRoomMembershipsToMemberMock(...args),
-}));
-
-vi.mock("@/helpers/subscription.js", () => ({
-  buildCreditsPayload: (...args: unknown[]) => buildCreditsPayloadMock(...args),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -151,9 +164,11 @@ describe("POST /admin/organizations/{slug}/members", () => {
     );
     upgradeGuestChatRoomMembershipsToMemberMock.mockResolvedValue(0);
     getMembersWithUserAndLastSeenMock.mockResolvedValue([MEMBER]);
-    buildCreditsPayloadMock.mockResolvedValue({
-      credits: { total: 0, subscription: null },
+    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+      plan: "starter",
+      status: "active",
     });
+    getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
   });
 
   it("creates a personal workspace in the same transaction as membership", async () => {
@@ -178,5 +193,15 @@ describe("POST /admin/organizations/{slug}/members", () => {
 
     expect(response.status).toBe(500);
     expect(createMemberMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the member with org subscription and no credits field", async () => {
+    const response = await post();
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data).not.toHaveProperty("credits");
+    expect(body.data.subscriptionPlan).toBe("starter");
+    expect(body.data.subscriptionStatus).toBe("active");
   });
 });

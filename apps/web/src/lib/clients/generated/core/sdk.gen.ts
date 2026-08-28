@@ -149,7 +149,7 @@ export const addAdminExternalChannelGuest = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Paginated organization members with credits and subscription details (admin only).
+ * Paginated organization members with subscription details (admin only).
  */
 export const listAdminOrganizationMembers = <ThrowOnError extends boolean = false>(options: Options<ListAdminOrganizationMembersData, ThrowOnError>): RequestResult<ListAdminOrganizationMembersResponses, ListAdminOrganizationMembersErrors, ThrowOnError> => (options.client ?? client).get<ListAdminOrganizationMembersResponses, ListAdminOrganizationMembersErrors, ThrowOnError>({
     responseTransformer: listAdminOrganizationMembersResponseTransformer,
