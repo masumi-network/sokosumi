@@ -54,7 +54,8 @@ export function DriveItemCard({
       </div>
       {actions ? (
         <div
-          className={cn(driveItemActionsClass(viewMode), "relative z-[1]")}
+          // z-index only — `relative` would override grid `absolute` via twMerge
+          className={cn(driveItemActionsClass(viewMode), "z-[1]")}
           onClick={stopCardActivation}
           onPointerDown={stopCardActivation}
         >
