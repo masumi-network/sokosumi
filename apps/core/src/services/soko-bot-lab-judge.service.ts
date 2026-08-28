@@ -6,13 +6,15 @@ import {
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
 } from "@sokosumi/soko-bot";
-import { generateText, Output } from "ai";
+import { generateText, type LanguageModel, Output } from "ai";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 const JUDGE_TIMEOUT_MS = 90_000;
 const VALUE_LIMIT = 2_000;
+/** Production used 800; gpt-5.5 reasoning ate the cap (SOKOSUMI-CORE-3D). */
+export const SOKO_BOT_JUDGE_MAX_OUTPUT_TOKENS = 800;
 
 export class SokoBotLabJudgeError extends Error {}
 
@@ -79,20 +81,32 @@ async function loadTranscript(turnId: string, userId?: string) {
   };
 }
 
+export async function generateSokoBotJudgeVerdict(options: {
+  model: LanguageModel;
+  payload: unknown;
+  abortSignal?: AbortSignal;
+}): Promise<SokoBotJudgeVerdict> {
+  const result = await generateText({
+    model: options.model,
+    output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
+    maxOutputTokens: SOKO_BOT_JUDGE_MAX_OUTPUT_TOKENS,
+    abortSignal: options.abortSignal,
+    instructions: SOKO_BOT_JUDGE_RUBRIC,
+    prompt: JSON.stringify(options.payload),
+  });
+  return sokoBotJudgeVerdictSchema.parse(result.output);
+}
+
 async function askJudge(payload: unknown): Promise<SokoBotJudgeVerdict> {
   // Structured output occasionally comes back empty; one retry is cheap.
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const result = await generateText({
+      return await generateSokoBotJudgeVerdict({
         model: sokoBotJudgeModel(),
-        output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
-        maxOutputTokens: 800,
+        payload,
         abortSignal: AbortSignal.timeout(JUDGE_TIMEOUT_MS),
-        instructions: SOKO_BOT_JUDGE_RUBRIC,
-        prompt: JSON.stringify(payload),
       });
-      return sokoBotJudgeVerdictSchema.parse(result.output);
     } catch (error) {
       lastError = error;
     }
