@@ -188,12 +188,17 @@ describe("refundRefusedTaskX402Payment", () => {
         refundTransaction: {
           create: {
             amount: bigint;
+            organization?: { connect: { id: string } };
+            user: { connect: { id: string } };
             sourceCreditBucket: {
               create: {
                 amount: bigint;
+                expiresAt: Date | null;
+                organizationId?: string | null;
                 referenceId: string;
                 referenceType: CreditBucketReferenceType;
-                expiresAt: Date | null;
+                user?: { connect: { id: string } };
+                userId?: string | null;
               };
             };
           };
@@ -201,11 +206,17 @@ describe("refundRefusedTaskX402Payment", () => {
       };
     };
     expect(updateArg.data.refundTransaction.create.amount).toBe(500n);
+    expect(updateArg.data.refundTransaction.create.user.connect.id).toBe(
+      USER_ID,
+    );
     const bucket =
       updateArg.data.refundTransaction.create.sourceCreditBucket.create;
     expect(bucket.referenceId).toBe(`task-x402-payment:${PAYMENT_ID}`);
     expect(bucket.referenceType).toBe(CreditBucketReferenceType.REFUND);
     expect(bucket.expiresAt).toBeNull();
+    expect(bucket.userId).toBe(USER_ID);
+    expect(bucket.organizationId).toBeNull();
+    expect(bucket.user).toBeUndefined();
     // Labelled at the mint, in the same update: an automated node-refusal
     // refund is never an operator quality signal.
     expect(refundKindWritten()).toBe("NODE_REFUSAL");
@@ -348,9 +359,40 @@ describe("refundVerifiedTaskX402Payment", () => {
     });
     expect(paymentUpdateMock).toHaveBeenCalledTimes(1);
     const updateArg = paymentUpdateMock.mock.calls[0]?.[0] as {
-      data: { refundTransaction: { create: { amount: bigint } } };
+      data: {
+        refundTransaction: {
+          create: {
+            amount: bigint;
+            organization?: { connect: { id: string } };
+            user: { connect: { id: string } };
+            sourceCreditBucket: {
+              create: {
+                organizationId?: string | null;
+                user?: { connect: { id: string } };
+                userId?: string | null;
+              };
+            };
+          };
+        };
+      };
     };
     expect(updateArg.data.refundTransaction.create.amount).toBe(500n);
+    expect(updateArg.data.refundTransaction.create.user.connect.id).toBe(
+      USER_ID,
+    );
+    expect(
+      updateArg.data.refundTransaction.create.organization?.connect.id,
+    ).toBe(ORGANIZATION_ID);
+    expect(
+      updateArg.data.refundTransaction.create.sourceCreditBucket.create.userId,
+    ).toBeNull();
+    expect(
+      updateArg.data.refundTransaction.create.sourceCreditBucket.create.user,
+    ).toBeUndefined();
+    expect(
+      updateArg.data.refundTransaction.create.sourceCreditBucket.create
+        .organizationId,
+    ).toBe(ORGANIZATION_ID);
     // The row records WHICH lever refunded it. The aggregate's headline quality
     // signal counts this kind, so a resolve-produced REFUNDED row must never be
     // mistaken for one of these.
@@ -590,12 +632,17 @@ describe("resolvePendingTaskX402Payment", () => {
         refundTransaction: {
           create: {
             amount: bigint;
+            organization?: { connect: { id: string } };
+            user: { connect: { id: string } };
             sourceCreditBucket: {
               create: {
                 amount: bigint;
+                expiresAt: Date | null;
+                organizationId?: string | null;
                 referenceId: string;
                 referenceType: CreditBucketReferenceType;
-                expiresAt: Date | null;
+                user?: { connect: { id: string } };
+                userId?: string | null;
               };
             };
           };
@@ -603,11 +650,20 @@ describe("resolvePendingTaskX402Payment", () => {
       };
     };
     expect(updateArg.data.refundTransaction.create.amount).toBe(500n);
+    expect(updateArg.data.refundTransaction.create.user.connect.id).toBe(
+      USER_ID,
+    );
+    expect(
+      updateArg.data.refundTransaction.create.organization?.connect.id,
+    ).toBe(ORGANIZATION_ID);
     const bucket =
       updateArg.data.refundTransaction.create.sourceCreditBucket.create;
     expect(bucket.referenceId).toBe(`task-x402-payment:${PAYMENT_ID}`);
     expect(bucket.referenceType).toBe(CreditBucketReferenceType.REFUND);
     expect(bucket.expiresAt).toBeNull();
+    expect(bucket.userId).toBeNull();
+    expect(bucket.user).toBeUndefined();
+    expect(bucket.organizationId).toBe(ORGANIZATION_ID);
     // A resolve is NOT a goodwill refund: it clears a wedged PENDING charge and
     // says nothing about the agent's output quality. Labelling it at the mint is
     // what keeps it out of the aggregate's headline signal and its ranking.

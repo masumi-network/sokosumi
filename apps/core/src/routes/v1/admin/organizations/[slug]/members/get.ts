@@ -27,7 +27,7 @@ const route = createRoute({
   path: "/{slug}/members",
   operationId: "listAdminOrganizationMembers",
   description:
-    "Paginated organization members with credits and subscription details (admin only).",
+    "Paginated organization members with subscription details (admin only).",
   tags: ["Admin"],
   request: {
     params: adminOrganizationSlugParamSchema,

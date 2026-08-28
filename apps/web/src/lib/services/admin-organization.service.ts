@@ -39,7 +39,6 @@ export interface AdminOrganizationMemberOverviewItem {
     email: string;
   };
   lastSeenAt: Date | null;
-  credits: number;
   subscriptionPlan: string | null;
   subscriptionStatus: string | null;
 }
@@ -82,7 +81,7 @@ export interface AdminOrganizationOverviewDetail {
     paidPlan: string | null;
     isEnterpriseContract: boolean;
   };
-  totalCredits: number | null;
+  totalCredits: number;
 }
 
 export interface AdminOrganizationMemberOverviewPage {
@@ -190,7 +189,6 @@ export const adminOrganizationService = {
         createdAt: member.createdAt,
         user: member.user,
         lastSeenAt: member.lastSeenAt,
-        credits: member.credits,
         subscriptionPlan: member.subscriptionPlan,
         subscriptionStatus: member.subscriptionStatus,
       })),

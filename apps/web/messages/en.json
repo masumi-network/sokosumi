@@ -146,7 +146,7 @@
       "creditsExpiresInDays": "Credits renew in {days, plural, =1 {1 day} other {# days}}",
       "creditsExpiresToday": "Credits renew today",
       "creditsExpired": "Credits expired",
-      "organizations": "Organizations"
+      "organization": "Organization"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
@@ -3492,8 +3492,7 @@
           },
           "credits": {
             "title": "Total credits",
-            "description": "Combined available credits for this organization.",
-            "perMember": "Credits are listed per member below."
+            "description": "Combined available credits for this organization."
           },
           "members": {
             "title": "Members",
@@ -3503,7 +3502,6 @@
             "loadError": "Failed to load members.",
             "user": "User",
             "role": "Role",
-            "credits": "Credits",
             "subscription": "Subscription",
             "seat": "Seat",
             "seatAssigned": "Assigned",
@@ -5530,7 +5528,12 @@
       "filterAll": "All",
       "filterCoworkerLabel": "Agent",
       "filterProjectLabel": "Project",
-      "filterTaskLabel": "Task"
+      "filterTaskLabel": "Task",
+      "recentsTab": "Recents",
+      "recentsEmptyTitle": "No recent files",
+      "recentsEmptyDescription": "Files you upload or receive from tasks will appear here",
+      "loadRecentsError": "Failed to load recent files",
+      "loadMoreRecentsError": "Failed to load more recent files"
     }
   },
   "Share": {
