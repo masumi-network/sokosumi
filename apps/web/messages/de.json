@@ -266,6 +266,7 @@
       "new": "Neu",
       "notifications": "Benachrichtigungen",
       "projects": "Projekte",
+      "calendar": "Zeitpläne",
       "invoices": "Rechnungen",
       "oauth-clients": "OAuth-Clients",
       "api-keys": "API-Schlüssel",
@@ -1304,11 +1305,9 @@
     "save": "Speichern",
     "Calendar": {
       "Metadata": {
-        "title": "Kalender",
+        "title": "Zeitpläne",
         "description": "Geplante Aufgabenfreigaben im Workspace durchsuchen."
       },
-      "title": "Kalender",
-      "description": "Geplante Aufgabenfreigaben in diesem Workspace.",
       "previous": "Vorheriger Zeitraum",
       "next": "Nächster Zeitraum",
       "view": {
@@ -2967,7 +2966,7 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "projects": "Projekte",
-          "calendar": "Kalender",
+          "calendar": "Zeitpläne",
           "hermes": "Persönlicher Assistent",
           "hermesNew": "Neu",
           "hermesUnread": "{count} ungelesen",

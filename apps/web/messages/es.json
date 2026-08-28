@@ -266,6 +266,7 @@
       "new": "Nuevo",
       "notifications": "Notificaciones",
       "projects": "Proyectos",
+      "calendar": "Programaciones",
       "invoices": "Facturas",
       "oauth-clients": "Clientes OAuth",
       "api-keys": "Claves API",
@@ -1304,11 +1305,9 @@
     "save": "Guardar",
     "Calendar": {
       "Metadata": {
-        "title": "Calendario",
+        "title": "Programaciones",
         "description": "Consulta las ejecuciones programadas de tareas en tu espacio de trabajo."
       },
-      "title": "Calendario",
-      "description": "Ejecuciones programadas de tareas en este espacio de trabajo.",
       "previous": "Periodo anterior",
       "next": "Periodo siguiente",
       "view": {
@@ -2967,7 +2966,7 @@
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
           "projects": "Proyectos",
-          "calendar": "Calendario",
+          "calendar": "Programaciones",
           "hermes": "Asistente personal",
           "hermesNew": "Nuevo",
           "hermesUnread": "{count} sin leer",

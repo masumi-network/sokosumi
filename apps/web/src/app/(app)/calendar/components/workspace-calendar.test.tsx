@@ -85,6 +85,16 @@ const SOURCES: WorkspaceCalendarSource[] = [
 ];
 
 describe("WorkspaceCalendar", () => {
+  it("does not render a page heading", () => {
+    render(
+      <NuqsTestingAdapter>
+        <WorkspaceCalendar items={ITEMS} initialDate="2040-01-18" />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
+  });
+
   it("uses the server-provided date when the URL has no date", () => {
     render(
       <NuqsTestingAdapter>

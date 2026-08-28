@@ -283,6 +283,7 @@
       "new": "New",
       "notifications": "Notifications",
       "projects": "Projects",
+      "calendar": "Schedules",
       "oauth-clients": "OAuth Clients",
       "api-keys": "API Keys",
       "coworkers": "Coworkers",
@@ -1304,11 +1305,9 @@
     "save": "Save",
     "Calendar": {
       "Metadata": {
-        "title": "Calendar",
+        "title": "Schedules",
         "description": "Browse scheduled task releases in your workspace."
       },
-      "title": "Calendar",
-      "description": "Scheduled task releases across this workspace.",
       "previous": "Previous period",
       "next": "Next period",
       "view": {
@@ -2967,7 +2966,7 @@
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
           "projects": "Projects",
-          "calendar": "Calendar",
+          "calendar": "Schedules",
           "hermes": "Personal Assistant",
           "hermesNew": "New",
           "hermesUnread": "{count} unread",

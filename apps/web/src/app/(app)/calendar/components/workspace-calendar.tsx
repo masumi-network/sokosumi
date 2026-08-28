@@ -353,37 +353,27 @@ export function WorkspaceCalendar({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 pb-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {t("title")}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {t("description")}
-          </p>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            aria-label={t("previous")}
-            size="icon"
-            variant="outline"
-            onClick={() => handleNavigate(-1)}
-          >
-            <ChevronLeft aria-hidden />
-          </Button>
-          <span className="min-w-40 text-center text-sm font-medium">
-            {getRangeLabel(formatDate, date, state.view)}
-          </span>
-          <Button
-            aria-label={t("next")}
-            disabled={!canNavigateForward}
-            size="icon"
-            variant="outline"
-            onClick={() => handleNavigate(1)}
-          >
-            <ChevronRight aria-hidden />
-          </Button>
-        </div>
+      <div className="flex items-center gap-1">
+        <Button
+          aria-label={t("previous")}
+          size="icon"
+          variant="outline"
+          onClick={() => handleNavigate(-1)}
+        >
+          <ChevronLeft aria-hidden />
+        </Button>
+        <span className="min-w-40 text-center text-sm font-medium">
+          {getRangeLabel(formatDate, date, state.view)}
+        </span>
+        <Button
+          aria-label={t("next")}
+          disabled={!canNavigateForward}
+          size="icon"
+          variant="outline"
+          onClick={() => handleNavigate(1)}
+        >
+          <ChevronRight aria-hidden />
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
