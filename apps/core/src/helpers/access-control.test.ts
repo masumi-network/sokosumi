@@ -1571,6 +1571,77 @@ describe("requireTaskAssignableCoworker", () => {
     });
   });
 
+  it("queries the Soko Bot through its coworker relation", async () => {
+    // SokoBot has no `coworkerId` column — the FK lives on Coworker. Passing
+    // `{ coworkerId }` here threw a Prisma validation error at run time and
+    // broke every create_task and assign_task the assistant attempted.
+    const sokoBotFindFirst = vi.fn().mockResolvedValue(null);
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "cow_123",
+          slug: "soko-bot",
+          baseURL: null,
+        }),
+      },
+      sokoBot: { findFirst: sokoBotFindFirst },
+    } as unknown as Prisma.TransactionClient;
+
+    await requireTaskAssignableCoworker("cow_123", workspaceId, tx, {
+      kind: "user",
+      userId: "user_1",
+    });
+
+    expect(sokoBotFindFirst).toHaveBeenCalledWith({
+      where: { coworker: { id: "cow_123" }, archivedAt: null },
+      select: { id: true, userId: true },
+    });
+  });
+
+  it("lets the owner assign work to their own Soko Bot", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "cow_123",
+          slug: "soko-bot",
+          baseURL: null,
+        }),
+      },
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({ id: "bot_1", userId: "user_1" }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      requireTaskAssignableCoworker("cow_123", workspaceId, tx, {
+        kind: "user",
+        userId: "user_1",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("refuses a teammate assigning work to someone else's Soko Bot", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "cow_123",
+          slug: "soko-bot",
+          baseURL: null,
+        }),
+      },
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({ id: "bot_1", userId: "owner" }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      requireTaskAssignableCoworker("cow_123", workspaceId, tx, {
+        kind: "user",
+        userId: "teammate",
+      }),
+    ).rejects.toThrow("Only the owner can assign work to this Soko Bot");
+  });
+
   it("rejects when no usable coworker matches (PENDING/DENIED/REVOKED/wrong workspace/archived/no tasks)", async () => {
     const tx = {
       coworker: {

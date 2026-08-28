@@ -428,8 +428,10 @@ export async function requireTaskAssignableCoworker(
   }
 
   if (!assigner) return;
+  // The FK lives on Coworker (`Coworker.sokoBotId`); SokoBot has no
+  // `coworkerId` column, so this must traverse the relation.
   const sokoBot = await tx.sokoBot.findFirst({
-    where: { coworkerId, archivedAt: null },
+    where: { coworker: { id: coworkerId }, archivedAt: null },
     select: { id: true, userId: true },
   });
   if (!sokoBot) return;
