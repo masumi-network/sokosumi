@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NotificationBrowserPermissionPrimer } from "./notification-browser-permission-primer";
 
@@ -20,11 +20,28 @@ function setNotificationPermission(permission: NotificationPermission): void {
   );
 }
 
+/** What `isPushSupported` reads. Absent in happy-dom, so both are stubbed. */
+function setPushSupported(supported: boolean): void {
+  if (supported) {
+    vi.stubGlobal("PushManager", function PushManager() {});
+  } else {
+    Reflect.deleteProperty(globalThis, "PushManager");
+  }
+  Object.defineProperty(window.navigator, "serviceWorker", {
+    configurable: true,
+    value: supported ? {} : undefined,
+  });
+}
+
 /** Translations are mocked to the key, so the link text is the key. */
 const settingsLink = () =>
   screen.getByRole("link", { name: "browserPermissionOpenSettings" });
 
 describe("NotificationBrowserPermissionPrimer", () => {
+  beforeEach(() => {
+    setPushSupported(true);
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
@@ -72,6 +89,26 @@ describe("NotificationBrowserPermissionPrimer", () => {
       screen.getByText("browserPermissionDeniedDescription"),
     ).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  /**
+   * The settings switch cannot help here: it would record account consent that
+   * reaches the reader's other devices and leave this browser silent. The
+   * permission still buys the banners this app renders while a tab is open, so
+   * the card keeps asking for it rather than pointing at a page that says no.
+   */
+  it("asks for the permission itself when this browser cannot push", async () => {
+    setPushSupported(false);
+    setNotificationPermission("default");
+    requestPermissionMock.mockResolvedValue("granted");
+    render(<NotificationBrowserPermissionPrimer />);
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "browserPermissionEnable" }),
+    );
+
+    expect(requestPermissionMock).toHaveBeenCalled();
   });
 
   it("stays out of the way once notifications are allowed", () => {

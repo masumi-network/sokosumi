@@ -11,8 +11,10 @@ import { cn } from "@/lib/utils";
 import {
   type BrowserNotificationPermission,
   getBrowserNotificationPermission,
+  requestBrowserNotificationPermission,
   subscribeBrowserNotificationPermission,
 } from "@/lib/utils/browser-notification";
+import { isPushSupported } from "@/lib/utils/notification-service-worker";
 
 /**
  * Where the reader turns push on. The card hands them here rather than asking
@@ -20,12 +22,6 @@ import {
  * is open, and the reader who clicked "enable notifications" would still hear
  * nothing once they closed the app. The account page runs the whole gesture,
  * permission included.
- *
- * The trade is one hop for the reader, and nothing at all for a browser that
- * supports the Notification API but not push: the account page cannot
- * subscribe there, so it never asks for the permission that would have given
- * them in-app banners. SOK-876 folds permission, activation, and opt-in into
- * this card and closes that.
  */
 const PUSH_SETTINGS_HREF = "/account#notification-preferences";
 
@@ -44,9 +40,14 @@ export function NotificationBrowserPermissionPrimer({
   const t = useTranslations("Components.NotificationCenter");
   const [permission, setPermission] =
     useState<BrowserNotificationPermission | null>(null);
+  const [canPushHere, setCanPushHere] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
 
   useMountEffect(() => {
+    // Both reads need `window`, and they land together, so the `permission`
+    // gate below covers the render before either has an answer.
     setPermission(getBrowserNotificationPermission());
+    setCanPushHere(isPushSupported());
     return subscribeBrowserNotificationPermission(setPermission);
   });
 
@@ -64,49 +65,89 @@ export function NotificationBrowserPermissionPrimer({
     className,
   );
 
-  // The account page cannot lift a block either, so this state gets no link:
-  // only the browser's own settings can, and the copy says so.
-  if (permission === "denied") {
-    return (
-      <div className={cardClassName}>
-        <div className="flex min-w-0 items-start gap-2">
-          <BellRing className="text-primary mt-0.5 size-4 shrink-0" />
-          <div className="min-w-0 space-y-1">
-            <p className="text-sm leading-snug font-medium">
-              {t("browserPermissionDeniedTitle")}
-            </p>
-            <p className="text-muted-foreground text-xs leading-relaxed">
-              {t("browserPermissionDeniedDescription")}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
+  const card = (
+    title: string,
+    description: string,
+    action: React.ReactNode,
+  ) => (
     <div className={cardClassName}>
       <div className="flex min-w-0 items-start gap-2">
         <BellRing className="text-primary mt-0.5 size-4 shrink-0" />
         <div className="min-w-0 space-y-1">
-          <p className="text-sm leading-snug font-medium">
-            {t("browserPermissionTitle")}
-          </p>
+          <p className="text-sm leading-snug font-medium">{title}</p>
           <p className="text-muted-foreground text-xs leading-relaxed">
-            {t("browserPermissionDescription")}
+            {description}
           </p>
         </div>
       </div>
+      {action}
+    </div>
+  );
+
+  // The account page cannot lift a block either, so this state gets no link
+  // to it: only the browser's own settings can, and the copy says so.
+  if (permission === "denied") {
+    return card(
+      t("browserPermissionDeniedTitle"),
+      t("browserPermissionDeniedDescription"),
+      null,
+    );
+  }
+
+  const handleEnable = () => {
+    if (isRequesting) {
+      return;
+    }
+
+    setIsRequesting(true);
+    void requestBrowserNotificationPermission()
+      .then(setPermission)
+      .finally(() => {
+        setIsRequesting(false);
+      });
+  };
+
+  // No push here, so the settings page has nothing to offer this reader: its
+  // switch would record account consent that reaches their other devices and
+  // leave this browser silent. The permission is the one thing that still
+  // works here, and it buys the banners this app renders while a tab is open.
+  if (!canPushHere) {
+    return card(
+      t("browserPermissionInAppTitle"),
+      t("browserPermissionInAppDescription"),
       <Button
-        asChild
+        type="button"
         size="sm"
         variant="outline"
         className="shrink-0 self-start sm:self-center"
+        onPointerDown={(event) => {
+          // Keep the dropdown open while the OS permission dialog runs.
+          if (variant === "menu") {
+            event.preventDefault();
+          }
+        }}
+        onClick={handleEnable}
+        disabled={isRequesting}
       >
-        <Link href={PUSH_SETTINGS_HREF} onClick={onNavigate}>
-          {t("browserPermissionOpenSettings")}
-        </Link>
-      </Button>
-    </div>
+        {isRequesting
+          ? t("browserPermissionRequesting")
+          : t("browserPermissionEnable")}
+      </Button>,
+    );
+  }
+
+  return card(
+    t("browserPermissionTitle"),
+    t("browserPermissionDescription"),
+    <Button
+      asChild
+      size="sm"
+      variant="outline"
+      className="shrink-0 self-start sm:self-center"
+    >
+      <Link href={PUSH_SETTINGS_HREF} onClick={onNavigate}>
+        {t("browserPermissionOpenSettings")}
+      </Link>
+    </Button>,
   );
 }

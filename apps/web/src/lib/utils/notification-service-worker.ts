@@ -89,6 +89,21 @@ export function isServiceWorkerSupported(): boolean {
   return typeof navigator !== "undefined" && "serviceWorker" in navigator;
 }
 
+/**
+ * Whether this browser could become a push device: the push API, a service
+ * worker to receive through, and a Notification API to render with. False on
+ * an iOS Safari tab outside the installed web app, and on a desktop browser
+ * old enough to predate Web Push.
+ */
+export function isPushSupported(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    "PushManager" in window &&
+    isServiceWorkerSupported() &&
+    getBrowserNotificationPermission() !== "unsupported"
+  );
+}
+
 async function register(): Promise<ServiceWorkerRegistration | null> {
   try {
     const registration = await navigator.serviceWorker.register(

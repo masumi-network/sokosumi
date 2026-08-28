@@ -13,7 +13,7 @@ import {
 } from "@/lib/utils/browser-notification";
 import {
   hasWebPushSubscription,
-  isServiceWorkerSupported,
+  isPushSupported,
 } from "@/lib/utils/notification-service-worker";
 import {
   getMyPreferencesQueryKey,
@@ -28,15 +28,6 @@ import {
  */
 function loadPushActivation() {
   return import("./push-activation.client");
-}
-
-function isPushSupported(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    "PushManager" in window &&
-    isServiceWorkerSupported() &&
-    getBrowserNotificationPermission() !== "unsupported"
-  );
 }
 
 /**
