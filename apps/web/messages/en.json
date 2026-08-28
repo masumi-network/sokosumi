@@ -146,7 +146,7 @@
       "creditsExpiresInDays": "Credits renew in {days, plural, =1 {1 day} other {# days}}",
       "creditsExpiresToday": "Credits renew today",
       "creditsExpired": "Credits expired",
-      "organizations": "Organizations"
+      "organization": "Organization"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
