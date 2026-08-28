@@ -58,19 +58,6 @@ export function getOrganizationMemberSubscriptionReferencePrefix(
   return `${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}${userId}:`;
 }
 
-/**
- * Returns the organization member subscription reference prefix with LIKE wildcards escaped.
- * Use when filtering by referenceId with Prisma's startsWith (where clauses).
- * For building or comparing full reference IDs, use getOrganizationMemberSubscriptionReferencePrefix instead.
- */
-export function getOrganizationMemberSubscriptionReferencePrefixForStartsWith(
-  userId: string,
-): string {
-  return escapeStringForLike(
-    getOrganizationMemberSubscriptionReferencePrefix(userId),
-  );
-}
-
 export function buildOrganizationMemberSubscriptionReferenceId(
   userId: string,
   referenceSuffix: string,

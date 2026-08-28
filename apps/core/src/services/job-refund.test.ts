@@ -33,11 +33,15 @@ describe("refundJob", () => {
           create: {
             amount: bigint;
             organization?: { connect: { id: string } };
+            user: { connect: { id: string } };
             sourceCreditBucket: {
               create: {
                 expiresAt: Date | null;
+                organizationId?: string | null;
                 referenceId: string;
                 referenceType: CreditBucketReferenceType;
+                user?: { connect: { id: string } };
+                userId?: string | null;
               };
             };
           };
@@ -48,6 +52,9 @@ describe("refundJob", () => {
 
     expect(updateCall.where.id).toBe("job-1");
     expect(updateCall.data.refundedTransaction.create.amount).toBe(500n);
+    expect(updateCall.data.refundedTransaction.create.user.connect.id).toBe(
+      "user-1",
+    );
     expect(
       updateCall.data.refundedTransaction.create.sourceCreditBucket.create
         .referenceId,
@@ -59,10 +66,76 @@ describe("refundJob", () => {
     expect(
       updateCall.data.refundedTransaction.create.organization?.connect.id,
     ).toBe("org-1");
+    expect(
+      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
+        .userId,
+    ).toBeNull();
+    expect(
+      updateCall.data.refundedTransaction.create.sourceCreditBucket.create.user,
+    ).toBeUndefined();
+    expect(
+      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
+        .organizationId,
+    ).toBe("org-1");
 
     expect(
       updateCall.data.refundedTransaction.create.sourceCreditBucket.create
         .expiresAt,
+    ).toBeNull();
+  });
+
+  it("stamps a personal refund bucket with the actor", async () => {
+    const updateCalls: unknown[] = [];
+    const tx = {
+      job: {
+        findUnique: async () => ({
+          refundedTransaction: null,
+          transaction: {
+            amount: -500n,
+            organizationId: null,
+            userId: "user-1",
+          },
+        }),
+        update: async (args: unknown) => {
+          updateCalls.push(args);
+          return {};
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await refundJob("job-1", tx);
+
+    const updateCall = updateCalls[0] as {
+      data: {
+        refundedTransaction: {
+          create: {
+            organization?: { connect: { id: string } };
+            user: { connect: { id: string } };
+            sourceCreditBucket: {
+              create: {
+                organizationId?: string | null;
+                user?: { connect: { id: string } };
+                userId?: string | null;
+              };
+            };
+          };
+        };
+      };
+    };
+
+    expect(updateCall.data.refundedTransaction.create.user.connect.id).toBe(
+      "user-1",
+    );
+    expect(
+      updateCall.data.refundedTransaction.create.organization,
+    ).toBeUndefined();
+    expect(
+      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
+        .userId,
+    ).toBe("user-1");
+    expect(
+      updateCall.data.refundedTransaction.create.sourceCreditBucket.create
+        .organizationId,
     ).toBeNull();
   });
 
