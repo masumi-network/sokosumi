@@ -1780,8 +1780,10 @@ model SokoBot {
 
   /// Timezone for the morning briefing and "today" in ingest packets.
   ingestTimezone String    @default("Europe/Berlin")
-  /// Follow every open Task on the workspace board, not only its own.
-  followWholeBoard Boolean @default(false)
+  /// Follow every open Task on the workspace board, not only its own. On by
+  /// default: an assistant that only watches what it created misses most of
+  /// what its owner is actually working on.
+  followWholeBoard Boolean @default(true)
   /// Kill switch for everything the bot starts on its own (rhythms, ingest, nudges).
   proactivePaused Boolean @default(false)
   /// Max self-started turns per local day; beyond it the syncs skip the bot.
