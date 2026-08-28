@@ -1,4 +1,4 @@
-import { SOKO_BOT_BETA_OWNER_FILTER } from "@/helpers/soko-bot-beta";
+import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import {
   SokoBotBusyError,
@@ -147,12 +147,11 @@ export class SokoBotTaskboardSyncService {
     };
     const since = new Date(Date.now() - WATCH_WINDOW_MS);
     const bots = await prisma.sokoBot.findMany({
-      where: {
+      where: withBetaBotOwner({
         archivedAt: null,
-        ...SOKO_BOT_BETA_OWNER_FILTER,
         adminPausedAt: null,
         coworker: { isNot: null },
-      },
+      }),
       select: {
         id: true,
         name: true,
@@ -234,7 +233,6 @@ export class SokoBotTaskboardSyncService {
       where: {
         workspaceId: bot.workspaceId,
         archivedAt: null,
-        ...SOKO_BOT_BETA_OWNER_FILTER,
         OR: [
           { assigneeId: bot.coworkerId, status: { notIn: [...TERMINAL] } },
           { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },

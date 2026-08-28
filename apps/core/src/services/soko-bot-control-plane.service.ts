@@ -1645,16 +1645,22 @@ export class SokoBotControlPlane {
         "@/services/soko-bot-proactive.service"
       );
       const gate = await proactiveGate(bot.id);
-      if (!gate.ok) {
+      // Only the allowance: a pause means "stop what you start on your own",
+      // which a teammate asking a question is not.
+      if (!gate.ok && gate.reason === "daily-limit") {
         throw new SokoBotBusyError(
           "This Soko Bot has reached its owner's daily limit",
         );
       }
     }
+    // ADMIN_RETRY replays the original message verbatim — the same untrusted
+    // mail or schedule text — so it must not restore what that text was
+    // denied the first time.
     const selfStarted =
       input.source === "SCHEDULE" ||
       input.source === "INGEST" ||
-      input.source === "EVENT";
+      input.source === "EVENT" ||
+      input.source === "ADMIN_RETRY";
     const routeCapabilities = SOKO_BOT_ROUTE_CAPABILITIES[
       classification.classification.route
     ].filter(

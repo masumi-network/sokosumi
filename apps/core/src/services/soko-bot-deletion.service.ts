@@ -61,6 +61,15 @@ async function eraseOwnedRecords(
 export async function deleteSokoBot(
   sokoBotId: string,
 ): Promise<SokoBotDeletionResult> {
+  // Confirm the bot is really being deleted before touching anything remote.
+  // Revoking first meant a bot that then failed to delete kept polling
+  // credentials that had already been withdrawn.
+  const live = await prisma.sokoBot.findFirst({
+    where: { id: sokoBotId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!live) throw notFound("Soko Bot not found");
+
   // Revoke before the rows go: deleting the local pointer first would leave the
   // account registered with the provider and remove the owner's only way to
   // disconnect it. Outside the transaction because it is a remote call.

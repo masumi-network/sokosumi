@@ -107,6 +107,8 @@ describe("deleteSokoBot", () => {
       counts[key] = 0;
     }
     revokeIntegrationsMock.mockResolvedValue({ revoked: 0, failed: [] });
+    // Deletion confirms the bot is live before it revokes anything remote.
+    botFindFirstMock.mockResolvedValue({ id: BOT_ID });
     txBotFindFirstMock.mockResolvedValue({
       id: BOT_ID,
       coworker: { id: COWORKER_ID },
@@ -200,7 +202,19 @@ describe("deleteSokoBot", () => {
     );
   });
 
+  it("revokes nothing when the bot is not there to delete", async () => {
+    // Revoking first stranded a surviving bot with credentials already
+    // withdrawn at the provider — worse than the orphan it was fixing.
+    botFindFirstMock.mockResolvedValue(null);
+    txBotFindFirstMock.mockResolvedValue(null);
+
+    await expect(deleteSokoBot(BOT_ID)).rejects.toThrow();
+
+    expect(revokeIntegrationsMock).not.toHaveBeenCalled();
+  });
+
   it("refuses a bot that is already a tombstone", async () => {
+    botFindFirstMock.mockResolvedValue(null);
     txBotFindFirstMock.mockResolvedValue(null);
 
     await expect(deleteSokoBot(BOT_ID)).rejects.toThrow();

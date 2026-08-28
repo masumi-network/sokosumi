@@ -7,7 +7,6 @@ import {
 } from "@sokosumi/soko-bot";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
-import { SOKO_BOT_BETA_OWNER_FILTER } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import {
   activeIntegrationsForBot,
@@ -60,6 +59,7 @@ export async function proactiveGate(
   const bot = await prisma.sokoBot.findUniqueOrThrow({
     where: { id: sokoBotId },
     select: {
+      userId: true,
       proactivePaused: true,
       proactiveDailyLimit: true,
       ingestTimezone: true,
@@ -68,10 +68,22 @@ export async function proactiveGate(
   const usedToday = await prisma.sokoBotTurn.count({
     where: {
       sokoBotId,
-      source: { in: ["SCHEDULE", "EVENT", "INGEST"] },
       createdAt: { gte: localDayStart(now, bot.ingestTimezone) },
       // Behaviour-lab turns are ours, not the owner's budget.
       clientTurnId: { not: { startsWith: "lab:" } },
+      OR: [
+        { source: { in: ["SCHEDULE", "EVENT", "INGEST"] } },
+        // A teammate's mention spends the owner's credits as surely as a turn
+        // the bot starts itself, and chat imposes no limit of its own. Without
+        // this the teammate check compares against a counter its own turns
+        // never increment.
+        {
+          AND: [
+            { requestedByUserId: { not: null } },
+            { requestedByUserId: { not: bot.userId } },
+          ],
+        },
+      ],
     },
   });
   const limit = bot.proactiveDailyLimit;
@@ -178,7 +190,6 @@ export async function findAttentionItems(bot: {
     where: {
       workspaceId: bot.workspaceId,
       archivedAt: null,
-      ...SOKO_BOT_BETA_OWNER_FILTER,
       status: { in: ["RUNNING", "INPUT_REQUIRED", "FAILED"] },
       updatedAt: { gte: new Date(bot.now.getTime() - ATTENTION_MAX_AGE_MS) },
       ...(bot.followWholeBoard
@@ -370,7 +381,6 @@ export async function buildSystemBeatMessage(input: {
     where: {
       workspaceId: bot.workspaceId,
       archivedAt: null,
-      ...SOKO_BOT_BETA_OWNER_FILTER,
       status: { notIn: ["COMPLETED", "CANCELED"] },
       ...(bot.followWholeBoard || !bot.coworkerId
         ? {}

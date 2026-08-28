@@ -7,9 +7,31 @@ import type { Prisma } from "@sokosumi/database";
  * Without it a bot created before the beta closed would keep ingesting mail,
  * firing schedules and spending its owner's credits invisibly.
  *
- * Kept as a Prisma filter rather than a per-bot call so a sync cannot forget
- * it after selecting: the bots simply are not returned.
+ * A function returning `SokoBotWhereInput` rather than an object to spread:
+ * spreading into an object literal skips excess-property checking, so the same
+ * filter went into three `task.findMany` calls unnoticed and Prisma threw at
+ * run time on a `user` relation Task does not have. Passing this to any other
+ * model's query is now a type error.
  */
-export const SOKO_BOT_BETA_OWNER_FILTER = {
-  user: { is: { emailVerified: true, email: { endsWith: "@nmkr.io" } } },
-} as const satisfies Prisma.SokoBotWhereInput;
+export function withBetaBotOwner(
+  where: Prisma.SokoBotWhereInput,
+): Prisma.SokoBotWhereInput {
+  return {
+    ...where,
+    user: {
+      is: {
+        emailVerified: true,
+        // `isNmkrEmail` compares case-insensitively, so the cron filter must
+        // too — otherwise A@NMKR.io reads the API but never runs.
+        email: { endsWith: "@nmkr.io", mode: "insensitive" },
+      },
+    },
+  };
+}
+
+/** The same rule for a query rooted elsewhere that filters through `sokoBot`. */
+export function betaBotRelationFilter(
+  where: Prisma.SokoBotWhereInput = {},
+): Prisma.SokoBotWhereInput {
+  return withBetaBotOwner(where);
+}
