@@ -31,6 +31,12 @@ export const ALLOWED_DUPLICATE_MIGRATION_PREFIX_FOLDERS = {
     "20260826140000_calendar_compatibility_foundation",
     "20260826140000_soko_bot_runtime_event",
   ],
+  // Same story a day later: both branches picked the round hour. Ours is
+  // already applied on the preview databases, so it keeps its name too.
+  "20260828120000": [
+    "20260828120000_org_less_matched_channels",
+    "20260828120000_soko_bot_follow_board_default",
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export interface DuplicateMigrationPrefixViolation {
