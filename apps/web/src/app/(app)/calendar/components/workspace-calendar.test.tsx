@@ -113,6 +113,18 @@ describe("WorkspaceCalendar", () => {
     expect(screen.getByText("January 2040")).toBeInTheDocument();
   });
 
+  it("uses semantic theme tokens for FullCalendar", () => {
+    render(
+      <NuqsTestingAdapter>
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(screen.getAllByTestId("calendar-month")[0]).toHaveClass(
+      "workspace-calendar-theme",
+    );
+  });
+
   it("disables forward navigation beyond the supplied calendar horizon", () => {
     render(
       <NuqsTestingAdapter>

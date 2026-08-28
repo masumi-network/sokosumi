@@ -210,7 +210,10 @@ function CalendarView({
   }[view];
 
   return (
-    <div className="overflow-x-auto" data-testid={`calendar-${view}`}>
+    <div
+      className="workspace-calendar-theme overflow-x-auto"
+      data-testid={`calendar-${view}`}
+    >
       <FullCalendar
         key={`${getCalendarDayKey(date)}-${view}`}
         plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
