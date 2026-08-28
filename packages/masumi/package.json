@@ -66,7 +66,8 @@
     "fetch:specs": "node scripts/fetch-specs.mjs",
     "generate:payment": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.registry.config.ts",
-    "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
+    "generate:api": "pnpm run generate:registry && pnpm run generate:payment",
+    "check:specs": "CHECK=1 node scripts/fetch-specs.mjs"
   },
   "dependencies": {
     "@sokosumi/net": "workspace:*",
