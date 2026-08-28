@@ -196,16 +196,18 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     [userId],
   );
 
-  /**
-   * Move this browser into `nextSubscribed`, optimistically, and roll back if
-   * the work throws.
-   */
+  /** Puts the device row back in step with the browser after a failed write. */
   const resyncSubscription = useCallback(async () => {
     // Re-read rather than assume the old value: the work may have failed
     // halfway, after the subscription already changed.
     setHasPushSubscription(await readPushSubscription());
   }, []);
 
+  /**
+   * Move this browser into `nextSubscribed`, optimistically, and roll back if
+   * the work throws. The device row uses this: its own click is the thing
+   * being painted, so it may move before the work lands.
+   */
   const changePushSubscription = useCallback(
     <T>(nextSubscribed: boolean, work: (sessionUserId: string) => Promise<T>) =>
       runSave(async (sessionUserId) => {

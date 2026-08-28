@@ -162,6 +162,30 @@ describe("usePushPreference", () => {
   });
 
   /**
+   * A half-failed activation: Ably reported success, the browser holds no
+   * subscription. Assuming the value the write asked for would leave the row
+   * claiming a device that gets nothing.
+   */
+  it("re-reads this browser when the account write fails after it", async () => {
+    setDeviceSubscribed(false);
+    patchMyPreferencesMock.mockRejectedValue(new Error("core said no"));
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+
+    await act(async () => {
+      await expect(result.current.setAccountEnabled(true)).rejects.toThrow(
+        "core said no",
+      );
+    });
+
+    expect(activatePushMock).toHaveBeenCalledWith("user_1");
+    expect(result.current.isDeviceEnabled).toBe(false);
+    expect(result.current.isAccountEnabled).toBe(false);
+  });
+
+  /**
    * The reader clicked the account row, so the prompt answers for this browser
    * and nothing else. Losing their consent write with it would leave the phone
    * in their pocket silent because a laptop said no.
@@ -285,7 +309,7 @@ describe("usePushPreference", () => {
     expect(result.current.isDeviceEnabled).toBe(true);
   });
 
-  it("reverts the switch and records nothing when activation fails", async () => {
+  it("records nothing when activation fails", async () => {
     activatePushMock.mockRejectedValue(new Error("permission denied"));
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
