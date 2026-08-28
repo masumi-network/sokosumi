@@ -146,7 +146,7 @@
       "creditsExpiresInDays": "Los créditos se renuevan en {days, plural, =1 {1 día} other {# días}}",
       "creditsExpiresToday": "Los créditos se renuevan hoy",
       "creditsExpired": "Créditos vencidos",
-      "organizations": "Organizaciones"
+      "organization": "Organización"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
@@ -5530,7 +5530,12 @@
       "filterAll": "Todos",
       "filterCoworkerLabel": "Agente",
       "filterProjectLabel": "Proyecto",
-      "filterTaskLabel": "Tarea"
+      "filterTaskLabel": "Tarea",
+      "recentsTab": "Recientes",
+      "recentsEmptyTitle": "No hay archivos recientes",
+      "recentsEmptyDescription": "Los archivos que subas o recibas de tareas aparecerán aquí",
+      "loadRecentsError": "No se pudieron cargar los archivos recientes",
+      "loadMoreRecentsError": "No se pudieron cargar más archivos recientes"
     }
   },
   "Share": {

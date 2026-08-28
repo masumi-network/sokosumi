@@ -77,9 +77,6 @@ export function AccountPopoverDrill({
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
   const tUserAvatar = useTranslations("Components.UserAvatar");
   const tConsent = useTranslations("CookieConsent");
-  const tOrganizationSwitcher = useTranslations(
-    "Components.OrganizationSwitcher",
-  );
   const tDeveloper = useTranslations("App.Developer.tabs");
 
   // Settings → drill unmounts the focused trigger; keep keyboard focus inside
@@ -94,16 +91,8 @@ export function AccountPopoverDrill({
   });
 
   function getAccountItemLabel(translationKey: string): string {
-    if (translationKey === "organizationsHeading") {
-      return tOrganizationSwitcher("organizationsHeading");
-    }
-
     return tUserAvatar(
-      translationKey as
-        | "account"
-        | "billing"
-        | "connections"
-        | "organizationsHeading",
+      translationKey as "account" | "billing" | "connections" | "organization",
     );
   }
 
