@@ -821,7 +821,7 @@ export function mapChatRoom(
 function mapChatRoomDiscoverability(
   kind: string,
   discoverability: string | null,
-): "public" | "private" | "external" | null {
+): "public" | "private" | "external" | "matched" | null {
   if (kind === "direct") {
     return null;
   }
@@ -830,6 +830,9 @@ function mapChatRoomDiscoverability(
   }
   if (discoverability === "external") {
     return "external";
+  }
+  if (discoverability === "matched") {
+    return "matched";
   }
   return "private";
 }

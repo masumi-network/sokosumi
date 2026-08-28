@@ -1,0 +1,97 @@
+import { createRoute } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+
+import { conflict } from "@/helpers/error";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isSlugUniqueConstraintError } from "@/helpers/prisma";
+import { created } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireAdminAuthContext } from "@/middleware/auth";
+import {
+  requireSanitizedChannelSlug,
+  resolveChannelName,
+} from "@/routes/v1/chats/rooms/helpers";
+import {
+  adminCreateMatchedChannelBodySchema,
+  adminMatchedChannelOptionSchema,
+} from "@/schemas/admin.schema";
+import { CHAT_ROOM_ACCESS } from "@/schemas/chat-room.schema";
+
+const route = createRoute({
+  method: "post",
+  path: "/",
+  operationId: "createAdminMatchedChannel",
+  description:
+    "Create a live org-less matched channel (admin only). Forces `kind=channel`, `organizationId=null`, and `discoverability=matched`. Seeds the creating admin as a member so they can open the room.",
+  tags: ["Admin"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: adminCreateMatchedChannelBodySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: jsonSuccessResponse(
+      adminMatchedChannelOptionSchema,
+      "Created matched channel",
+    ),
+    400: jsonErrorResponse("Bad Request"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    409: jsonErrorResponse("Conflict"),
+  },
+});
+
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const admin = requireAdminAuthContext(c.var.authContext);
+    const body = c.req.valid("json");
+
+    const slug = requireSanitizedChannelSlug(body.slug);
+    const name = resolveChannelName(body.name, slug);
+
+    try {
+      const room = await prisma.chatRoom.create({
+        data: {
+          organizationId: null,
+          createdByUserId: admin.userId,
+          kind: "channel",
+          discoverability: "matched",
+          name,
+          slug,
+          topic: body.topic?.trim() || null,
+          userMembers: {
+            create: {
+              userId: admin.userId,
+              access: CHAT_ROOM_ACCESS.MEMBER,
+            },
+          },
+          readStates: {
+            create: { userId: admin.userId },
+          },
+        },
+        select: { id: true, name: true, slug: true },
+      });
+
+      return created(
+        c,
+        adminMatchedChannelOptionSchema.parse({
+          id: room.id,
+          name: room.name,
+          slug: room.slug ?? slug,
+        }),
+      );
+    } catch (error) {
+      if (isSlugUniqueConstraintError(error)) {
+        throw conflict("This Channel slug is taken.", {
+          kind: CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN,
+        });
+      }
+      throw error;
+    }
+  });
+}

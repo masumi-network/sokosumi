@@ -381,6 +381,120 @@ export const adminExternalChannelGuestSchema = z
   })
   .openapi("AdminExternalChannelGuest");
 
+export const adminMatchedChannelOptionSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    name: z.string().openapi({ example: "Matched Channel" }),
+    slug: z.string().openapi({ example: "matched-channel" }),
+  })
+  .openapi("AdminMatchedChannelOption");
+
+export const adminMatchedChannelOptionListSchema = z.array(
+  adminMatchedChannelOptionSchema,
+);
+
+export const adminCreateMatchedChannelBodySchema = z
+  .object({
+    name: z.string().trim().max(80).optional().openapi({
+      description:
+        "Channel display name (max 80). If omitted or blank, Core derives title-case words from the slug.",
+      example: "Partners",
+    }),
+    slug: z.string().openapi({
+      description:
+        "Required Channel slug (max 80 after sanitize). Unique among org-less matched channels.",
+      example: "partners",
+    }),
+    topic: z.string().trim().max(200).optional().openapi({
+      example: "Partner coordination",
+    }),
+  })
+  .openapi("AdminCreateMatchedChannelBody");
+
+export const adminMatchedChannelRoomParamsSchema = z.object({
+  roomId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "roomId", in: "path" },
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+});
+
+export const adminMatchedChannelParticipantInfoSchema = z
+  .object({
+    userId: z.string().openapi({ example: "user_123" }),
+    name: z.string().openapi({ example: "Ada Lovelace" }),
+    email: z.string().openapi({ example: "ada@example.com" }),
+    access: z.literal("member").openapi({ example: "member" }),
+  })
+  .openapi("AdminMatchedChannelParticipantInfo");
+
+export const adminMatchedChannelDetailSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    name: z.string().openapi({ example: "Matched Channel" }),
+    slug: z.string().openapi({ example: "matched-channel" }),
+    topic: z.string().nullable().openapi({ example: "Partner coordination" }),
+    participants: z.array(adminMatchedChannelParticipantInfoSchema),
+  })
+  .openapi("AdminMatchedChannelDetail");
+
+export const adminAddMatchedChannelParticipantBodySchema = z
+  .object({
+    userId: z.string().min(1).openapi({
+      description: "Existing platform user to add as a member",
+      example: "user_123",
+    }),
+  })
+  .openapi("AdminAddMatchedChannelParticipantBody");
+
+export const adminMatchedChannelParticipantSchema = z
+  .object({
+    userId: z.string().openapi({ example: "user_123" }),
+    roomId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    access: z.literal("member").openapi({ example: "member" }),
+    outcome: z.enum(["joined", "already_member"]).openapi({
+      example: "joined",
+    }),
+  })
+  .openapi("AdminMatchedChannelParticipant");
+
+export const adminAddMatchedChannelFromOrganizationBodySchema = z
+  .object({
+    organizationId: z.string().min(1).optional().openapi({
+      description: "Organization whose Members are snapshotted onto the roster",
+      example: "org_123",
+    }),
+    organizationSlug: z.string().min(1).optional().openapi({
+      description: "Organization slug alternative to organizationId",
+      example: "acme-corp",
+    }),
+  })
+  .refine(
+    (data) =>
+      (data.organizationId != null && data.organizationSlug == null) ||
+      (data.organizationId == null && data.organizationSlug != null),
+    {
+      message: "Provide exactly one of organizationId or organizationSlug",
+    },
+  )
+  .openapi("AdminAddMatchedChannelFromOrganizationBody");
+
+export const adminAddMatchedChannelFromOrganizationResultSchema = z
+  .object({
+    added: z.number().int().nonnegative().openapi({ example: 3 }),
+    alreadyMember: z.number().int().nonnegative().openapi({ example: 1 }),
+    totalMembers: z.number().int().nonnegative().openapi({ example: 4 }),
+  })
+  .openapi("AdminAddMatchedChannelFromOrganizationResult");
+
 /**
  * Same rationale as the user overview cap: keep admin list pages bounded.
  */
