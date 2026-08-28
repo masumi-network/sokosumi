@@ -1,11 +1,49 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { DriveItemCard } from "@/app/drive/components/drive-item-card";
+import {
+  DriveItemCard,
+  DriveItemName,
+} from "@/app/drive/components/drive-item-card";
 import {
   driveItemActionsClass,
   driveItemBodyClass,
 } from "@/app/drive/components/drive-view-layout";
+
+describe("DriveItemCard name accessibility", () => {
+  it("hides the visible name from AT when the card has an activate control", () => {
+    render(
+      <DriveItemCard
+        viewMode="grid"
+        activateLabel="report.pdf"
+        onActivate={() => undefined}
+      >
+        <DriveItemName name="report.pdf" />
+      </DriveItemCard>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "report.pdf" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "report.pdf" })).toHaveLength(
+      1,
+    );
+
+    const visibleName = screen.getByText("report.pdf");
+    expect(visibleName).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("keeps the visible name accessible when the card is not activatable", () => {
+    render(
+      <DriveItemCard viewMode="list">
+        <DriveItemName name="report.pdf" />
+      </DriveItemCard>,
+    );
+
+    const visibleName = screen.getByText("report.pdf");
+    expect(visibleName).not.toHaveAttribute("aria-hidden", "true");
+  });
+});
 
 describe("DriveItemCard actions positioning", () => {
   it("keeps grid overflow actions in document flow", () => {
