@@ -3689,7 +3689,12 @@
             "description": "Benutzer mit Mitgliederzugang in diesem Matched Channel.",
             "empty": "Noch keine Teilnehmer.",
             "name": "Name",
-            "email": "E-Mail"
+            "email": "E-Mail",
+            "actions": "Aktionen",
+            "remove": "Entfernen",
+            "removing": "Wird entfernt…",
+            "removeSuccess": "{name} vom Roster entfernt",
+            "removeError": "Teilnehmer konnte nicht entfernt werden"
           },
           "AddUser": {
             "title": "Benutzer hinzufügen",

@@ -7,6 +7,7 @@ import type {
   AdminMatchedChannelDetail,
   AdminMatchedChannelOption,
   AdminMatchedChannelParticipant,
+  AdminRemoveMatchedChannelParticipant,
 } from "@/lib/clients/generated/core";
 
 export type {
@@ -15,6 +16,7 @@ export type {
   AdminMatchedChannelDetail,
   AdminMatchedChannelOption,
   AdminMatchedChannelParticipant,
+  AdminRemoveMatchedChannelParticipant,
 };
 
 export const adminMatchedChannelsService = {
@@ -68,6 +70,20 @@ export const adminMatchedChannelsService = {
       throw new Error(
         "Matched channel from-organization add did not return data",
       );
+    }
+    return data;
+  },
+
+  async removeParticipant(
+    roomId: string,
+    userId: string,
+  ): Promise<AdminRemoveMatchedChannelParticipant> {
+    const { data } = await coreClient.removeAdminMatchedChannelParticipant(
+      roomId,
+      userId,
+    );
+    if (!data) {
+      throw new Error("Matched channel participant remove did not return data");
     }
     return data;
   },

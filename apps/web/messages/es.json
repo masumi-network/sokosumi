@@ -3757,7 +3757,12 @@
             "description": "Usuarios con acceso de miembro en este canal emparejado.",
             "empty": "Aún no hay participantes.",
             "name": "Nombre",
-            "email": "Correo"
+            "email": "Correo",
+            "actions": "Acciones",
+            "remove": "Quitar",
+            "removing": "Quitando…",
+            "removeSuccess": "Se quitó a {name} de la lista",
+            "removeError": "No se pudo quitar al participante"
           },
           "AddUser": {
             "title": "Añadir usuario",

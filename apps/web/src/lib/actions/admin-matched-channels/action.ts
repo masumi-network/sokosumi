@@ -20,6 +20,7 @@ import {
   type AdminMatchedChannelDetail,
   type AdminMatchedChannelOption,
   type AdminMatchedChannelParticipant,
+  type AdminRemoveMatchedChannelParticipant,
   adminMatchedChannelsService,
 } from "@/lib/services/admin-matched-channels.service";
 import {
@@ -240,3 +241,39 @@ export const addAdminMatchedChannelParticipantsFromOrganizationAction =
       return toActionResult(err(toAdminActionError(error)));
     }
   });
+
+const removeParticipantSchema = z.object({
+  roomId: roomIdSchema,
+  userId: z.string().min(1),
+});
+
+interface RemoveParticipantParameters extends AuthenticatedRequest {
+  input: unknown;
+}
+
+export const removeAdminMatchedChannelParticipantAction = withSession<
+  RemoveParticipantParameters,
+  ActionResultDto<AdminRemoveMatchedChannelParticipant, ActionError>
+>(async ({ input, session }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = removeParticipantSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid participant remove input",
+        }),
+      );
+    }
+
+    const removed = await adminMatchedChannelsService.removeParticipant(
+      parsed.data.roomId,
+      parsed.data.userId,
+    );
+    revalidateMatchedChannelRoutes(parsed.data.roomId);
+    return toActionResult(ok(removed));
+  } catch (error) {
+    return toActionResult(err(toAdminActionError(error)));
+  }
+});

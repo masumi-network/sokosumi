@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ensureMatchedChannelParticipant } from "./chat-room-matched-membership";
+import {
+  ensureMatchedChannelParticipant,
+  removeMatchedChannelParticipant,
+} from "./chat-room-matched-membership";
 
 const {
   userFindUniqueMock,
   roomFindUniqueMock,
   roomUserMemberFindUniqueMock,
   roomUserMemberCreateMock,
+  roomUserMemberDeleteManyMock,
   readStateCreateManyMock,
+  readStateDeleteManyMock,
   queryRawMock,
   recordChannelMembershipStatusMock,
 } = vi.hoisted(() => ({
@@ -15,7 +20,9 @@ const {
   roomFindUniqueMock: vi.fn(),
   roomUserMemberFindUniqueMock: vi.fn(),
   roomUserMemberCreateMock: vi.fn(),
+  roomUserMemberDeleteManyMock: vi.fn(),
   readStateCreateManyMock: vi.fn(),
+  readStateDeleteManyMock: vi.fn(),
   queryRawMock: vi.fn(),
   recordChannelMembershipStatusMock: vi.fn(),
 }));
@@ -46,8 +53,12 @@ function tx() {
     chatRoomUserMember: {
       findUnique: roomUserMemberFindUniqueMock,
       create: roomUserMemberCreateMock,
+      deleteMany: roomUserMemberDeleteManyMock,
     },
-    chatRoomReadState: { createMany: readStateCreateManyMock },
+    chatRoomReadState: {
+      createMany: readStateCreateManyMock,
+      deleteMany: readStateDeleteManyMock,
+    },
     $queryRaw: queryRawMock,
   };
 }
@@ -143,5 +154,63 @@ describe("ensureMatchedChannelParticipant", () => {
         roomId: ROOM_ID,
       }),
     ).rejects.toMatchObject({ message: "User not found" });
+  });
+});
+
+describe("removeMatchedChannelParticipant", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+    roomFindUniqueMock.mockResolvedValue(matchedRoom());
+    roomUserMemberFindUniqueMock.mockResolvedValue({
+      access: "member",
+      user: { id: USER_ID, name: "Ada" },
+    });
+    roomUserMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 1 });
+    recordChannelMembershipStatusMock.mockResolvedValue([{ id: "msg_left" }]);
+  });
+
+  it("deletes membership, read state, and records left status", async () => {
+    const { result, statusMessages } = await removeMatchedChannelParticipant(
+      tx() as never,
+      { userId: USER_ID, roomId: ROOM_ID },
+    );
+
+    expect(result).toEqual({
+      userId: USER_ID,
+      roomId: ROOM_ID,
+      roomName: "Matched",
+      outcome: "removed",
+    });
+    expect(statusMessages).toEqual([{ id: "msg_left" }]);
+    expect(roomUserMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, userId: USER_ID },
+    });
+    expect(readStateDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, userId: USER_ID },
+    });
+    expect(recordChannelMembershipStatusMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        changes: [
+          expect.objectContaining({
+            action: "left",
+            subject: { type: "user", id: USER_ID, name: "Ada" },
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("404s when the member is not on the roster", async () => {
+    roomUserMemberFindUniqueMock.mockResolvedValue(null);
+
+    await expect(
+      removeMatchedChannelParticipant(tx() as never, {
+        userId: USER_ID,
+        roomId: ROOM_ID,
+      }),
+    ).rejects.toMatchObject({ message: "Room member not found" });
   });
 });

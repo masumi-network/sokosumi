@@ -335,6 +335,23 @@ export const adminMatchedChannelRoomParamsSchema = z.object({
     }),
 });
 
+export const adminMatchedChannelParticipantParamsSchema = z.object({
+  roomId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "roomId", in: "path" },
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+  userId: z
+    .string()
+    .min(1)
+    .openapi({
+      param: { name: "userId", in: "path" },
+      example: "user_123",
+    }),
+});
+
 export const adminMatchedChannelParticipantInfoSchema = z
   .object({
     userId: z.string().openapi({ example: "user_123" }),
@@ -377,6 +394,16 @@ export const adminMatchedChannelParticipantSchema = z
     }),
   })
   .openapi("AdminMatchedChannelParticipant");
+
+export const adminRemoveMatchedChannelParticipantSchema = z
+  .object({
+    userId: z.string().openapi({ example: "user_123" }),
+    roomId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    outcome: z.literal("removed").openapi({ example: "removed" }),
+  })
+  .openapi("AdminRemoveMatchedChannelParticipant");
 
 export const adminAddMatchedChannelFromOrganizationBodySchema = z
   .object({

@@ -160,3 +160,110 @@ export async function ensureMatchedChannelParticipant(
     statusMessages,
   };
 }
+
+export interface RemoveMatchedChannelParticipantResult {
+  userId: string;
+  roomId: string;
+  roomName: string;
+  outcome: "removed";
+}
+
+interface RemoveMatchedChannelParticipantArgs {
+  userId: string;
+  roomId: string;
+}
+
+/**
+ * Remove a member from a live org-less matched channel. Allows emptying the
+ * roster (unlike self-leave). Caller publishes status + revoke after commit.
+ */
+export async function removeMatchedChannelParticipant(
+  tx: Prisma.TransactionClient,
+  args: RemoveMatchedChannelParticipantArgs,
+): Promise<{
+  result: RemoveMatchedChannelParticipantResult;
+  statusMessages: Awaited<ReturnType<typeof recordChannelMembershipStatus>>;
+}> {
+  await tx.$queryRaw`
+    SELECT "id" FROM "chat_room"
+    WHERE "id" = ${args.roomId}::uuid
+    FOR UPDATE
+  `;
+
+  const room = await tx.chatRoom.findUnique({
+    where: { id: args.roomId },
+    select: {
+      id: true,
+      name: true,
+      kind: true,
+      discoverability: true,
+      archivedAt: true,
+      organizationId: true,
+    },
+  });
+
+  if (
+    !room ||
+    room.archivedAt !== null ||
+    room.kind !== "channel" ||
+    room.discoverability !== "matched" ||
+    room.organizationId !== null
+  ) {
+    throw badRequest("Room is not a live matched channel.");
+  }
+
+  const membership = await tx.chatRoomUserMember.findUnique({
+    where: {
+      roomId_userId: {
+        roomId: room.id,
+        userId: args.userId,
+      },
+    },
+    select: {
+      access: true,
+      user: { select: { id: true, name: true } },
+    },
+  });
+
+  if (!membership) {
+    throw notFound("Room member not found");
+  }
+
+  if (membership.access !== CHAT_ROOM_ACCESS.MEMBER) {
+    throw badRequest("Only matched channel members can be removed this way.");
+  }
+
+  const subjectName = membership.user.name?.trim() || membership.user.id;
+
+  const statusMessages = await recordChannelMembershipStatus(tx, {
+    roomId: room.id,
+    roomKind: room.kind,
+    changes: [
+      {
+        action: "left",
+        subject: {
+          type: "user",
+          id: membership.user.id,
+          name: subjectName,
+        },
+      },
+    ],
+  });
+
+  await tx.chatRoomUserMember.deleteMany({
+    where: { roomId: room.id, userId: membership.user.id },
+  });
+  await tx.chatRoomReadState.deleteMany({
+    where: { roomId: room.id, userId: membership.user.id },
+  });
+
+  return {
+    result: {
+      userId: membership.user.id,
+      roomId: room.id,
+      roomName: room.name,
+      outcome: "removed",
+    },
+    statusMessages,
+  };
+}

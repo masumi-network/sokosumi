@@ -1026,6 +1026,33 @@ export const AdminAddMatchedChannelParticipantBodySchema = {
     ]
 } as const;
 
+export const AdminRemoveMatchedChannelParticipantSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        outcome: {
+            type: 'string',
+            enum: [
+                'removed'
+            ],
+            example: 'removed'
+        }
+    },
+    required: [
+        'userId',
+        'roomId',
+        'outcome'
+    ]
+} as const;
+
 export const AdminOrganizationOverviewItemSchema = {
     type: 'object',
     properties: {

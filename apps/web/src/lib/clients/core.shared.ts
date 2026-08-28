@@ -348,6 +348,7 @@ import {
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
   putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
   refundAdminTaskX402Payment as coreRefundAdminTaskX402Payment,
+  removeAdminMatchedChannelParticipant as coreRemoveAdminMatchedChannelParticipant,
   removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
   resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
@@ -1791,6 +1792,22 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to add matched channel participants from organization",
+    );
+  }
+
+  async function removeAdminMatchedChannelParticipant(
+    roomId: string,
+    userId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRemoveAdminMatchedChannelParticipant({
+          client,
+          path: { roomId, userId },
+          cache: "no-store",
+        }),
+      "Failed to remove matched channel participant",
     );
   }
 
@@ -4621,6 +4638,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getAdminMatchedChannel,
     addAdminMatchedChannelParticipant,
     addAdminMatchedChannelParticipantsFromOrganization,
+    removeAdminMatchedChannelParticipant,
     addAdminOrganizationMember,
     removeAdminOrganizationMember,
     updateAdminOrganizationMemberRole,

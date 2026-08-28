@@ -280,6 +280,12 @@ export type AdminAddMatchedChannelParticipantBody = {
     userId: string;
 };
 
+export type AdminRemoveMatchedChannelParticipant = {
+    userId: string;
+    roomId: string;
+    outcome: 'removed';
+};
+
 export type AdminOrganizationOverviewItem = {
     id: string;
     name: string;
@@ -6101,6 +6107,93 @@ export type AddAdminMatchedChannelParticipantResponses = {
 };
 
 export type AddAdminMatchedChannelParticipantResponse = AddAdminMatchedChannelParticipantResponses[keyof AddAdminMatchedChannelParticipantResponses];
+
+export type RemoveAdminMatchedChannelParticipantData = {
+    body?: never;
+    path: {
+        roomId: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}/participants/{userId}';
+};
+
+export type RemoveAdminMatchedChannelParticipantErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveAdminMatchedChannelParticipantError = RemoveAdminMatchedChannelParticipantErrors[keyof RemoveAdminMatchedChannelParticipantErrors];
+
+export type RemoveAdminMatchedChannelParticipantResponses = {
+    /**
+     * Member removed
+     */
+    200: {
+        data: AdminRemoveMatchedChannelParticipant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RemoveAdminMatchedChannelParticipantResponse = RemoveAdminMatchedChannelParticipantResponses[keyof RemoveAdminMatchedChannelParticipantResponses];
 
 export type ListAdminOrganizationsData = {
     body?: never;

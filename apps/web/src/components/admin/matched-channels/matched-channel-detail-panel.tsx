@@ -23,6 +23,7 @@ import {
 import {
   addAdminMatchedChannelParticipantAction,
   addAdminMatchedChannelParticipantsFromOrganizationAction,
+  removeAdminMatchedChannelParticipantAction,
 } from "@/lib/actions/admin-matched-channels/action";
 import {
   searchOrganizationsClient,
@@ -54,6 +55,7 @@ export function MatchedChannelDetailPanel({
     useState<AdminOrganizationOption | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [isAddingOrg, setIsAddingOrg] = useState(false);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
   const userLabels = buildComboboxLabels(tUser);
   const orgLabels = buildComboboxLabels(tOrg);
@@ -134,6 +136,26 @@ export function MatchedChannelDetailPanel({
     }
   }
 
+  async function handleRemoveUser(userId: string, name: string) {
+    setRemovingUserId(userId);
+    try {
+      const result = await removeAdminMatchedChannelParticipantAction({
+        input: {
+          roomId: channel.id,
+          userId,
+        },
+      });
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("Roster.removeError"));
+        return;
+      }
+      toast.success(t("Roster.removeSuccess", { name }));
+      router.refresh();
+    } finally {
+      setRemovingUserId(null);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -168,6 +190,9 @@ export function MatchedChannelDetailPanel({
               <TableRow>
                 <TableHead>{t("Roster.name")}</TableHead>
                 <TableHead>{t("Roster.email")}</TableHead>
+                <TableHead className="w-[1%] text-right">
+                  <span className="sr-only">{t("Roster.actions")}</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -176,6 +201,24 @@ export function MatchedChannelDetailPanel({
                   <TableCell>{participant.name}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {participant.email}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={removingUserId === participant.userId}
+                      onClick={() =>
+                        void handleRemoveUser(
+                          participant.userId,
+                          participant.name,
+                        )
+                      }
+                    >
+                      {removingUserId === participant.userId
+                        ? t("Roster.removing")
+                        : t("Roster.remove")}
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
