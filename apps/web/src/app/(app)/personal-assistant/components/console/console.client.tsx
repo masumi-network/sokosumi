@@ -17,6 +17,8 @@ import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
 import Markdown from "@/components/markdown";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
 import type {
   SokoBotAvatar,
@@ -217,6 +219,21 @@ export function SokoBotConsole({
               </p>
             </div>
             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
+              <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+                <Switch
+                  id="soko-bot-advanced"
+                  checked={isAdvanced}
+                  onCheckedChange={(checked) =>
+                    setView(checked ? "advanced" : null)
+                  }
+                />
+                <Label
+                  htmlFor="soko-bot-advanced"
+                  className="cursor-pointer text-sm whitespace-nowrap"
+                >
+                  {t("Console.views.advanced")}
+                </Label>
+              </div>
               {adminHref ? (
                 <Button
                   variant="outline"
@@ -242,27 +259,6 @@ export function SokoBotConsole({
               </Button>
             </div>
           </header>
-
-          <nav aria-label={t("Console.viewsNav")} className="border-b">
-            <ul className="-mb-px flex gap-4 text-sm">
-              {(["status", "advanced"] as const).map((key) => (
-                <li key={key}>
-                  <button
-                    type="button"
-                    onClick={() => setView(key === "status" ? null : key)}
-                    aria-current={view === key ? "page" : undefined}
-                    className={
-                      view === key
-                        ? "border-foreground text-foreground -mb-px block border-b-2 px-1 py-2 font-medium whitespace-nowrap"
-                        : "text-muted-foreground hover:text-foreground -mb-px block border-b-2 border-transparent px-1 py-2 whitespace-nowrap transition-colors"
-                    }
-                  >
-                    {t(`Console.views.${key}`)}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
 
           <div
             className={

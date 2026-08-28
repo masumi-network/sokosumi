@@ -6490,9 +6490,7 @@
         "showMore": "Show {count} more",
         "skillsTitle": "Skills",
         "skillsDescription": "What your assistant knows how to do. Add more from skills.sh.",
-        "viewsNav": "Assistant views",
         "views": {
-          "status": "Status",
           "advanced": "Advanced"
         }
       },
