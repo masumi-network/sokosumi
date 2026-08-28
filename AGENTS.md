@@ -334,6 +334,10 @@ Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](./apps
 
 Main engineering flow. See [`.agents/skills/ask-matt/`](.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
 
+### Branch Bugbot gate
+
+Optional standalone skill: [`branch-bugbot-gate`](./skills/branch-bugbot-gate/). Run on demand after a PR exists for local verify, CI green, and Bugbot (fix High; Medium for human review).
+
 ### Caveman
 
 When the caveman skill is present, follow it for all replies. Off: "stop caveman" / "normal mode". See [`.agents/skills/caveman/`](.agents/skills/caveman/).
