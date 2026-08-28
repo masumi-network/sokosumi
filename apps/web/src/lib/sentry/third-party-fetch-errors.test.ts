@@ -419,6 +419,42 @@ describe("beforeSendClientEvent", () => {
     ).toBeNull();
   });
 
+  it("drops production React Flight stream closures (minified error #412)", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "Error",
+                value:
+                  "Minified React error #412; visit https://react.dev/errors/412 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("does not drop unrelated minified React errors", () => {
+    const event = {
+      type: undefined,
+      exception: {
+        values: [
+          {
+            type: "Error",
+            value:
+              "Minified React error #418; visit https://react.dev/errors/418 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+          },
+        ],
+      },
+    };
+    expect(beforeSendClientEvent(event, {})).toBe(event);
+  });
+
   it("drops React DevTools hook.js extension failures", () => {
     expect(
       beforeSendClientEvent(
