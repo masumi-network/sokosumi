@@ -15,6 +15,7 @@ import { toCoreApiActionError } from "@/lib/clients/core.client";
 import type {
   AdminSokoBotDetail,
   AdminSokoBotList,
+  SokoBotDeletionResult,
   SokoBotVersionDetail,
 } from "@/lib/clients/generated/core";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
@@ -140,6 +141,35 @@ export const performAdminSokoBotAction = withSession<
     revalidatePath(ADMIN_SOKO_BOTS_ROUTE);
     revalidatePath(`${ADMIN_SOKO_BOTS_ROUTE}/${parsed.data.sokoBotId}`);
     return toActionResult(ok(detail));
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
+interface DeleteBotParams extends AuthenticatedRequest {
+  input: unknown;
+}
+
+const deleteBotSchema = z.object({ sokoBotId: z.string().uuid() });
+
+export const deleteAdminSokoBotAction = withSession<
+  DeleteBotParams,
+  ActionResultDto<SokoBotDeletionResult, ActionError>
+>(async ({ session, input }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = deleteBotSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid Soko Bot id",
+        }),
+      );
+    }
+    const result = await adminSokoBotService.deleteBot(parsed.data.sokoBotId);
+    revalidatePath(ADMIN_SOKO_BOTS_ROUTE);
+    return toActionResult(ok(result));
   } catch (error) {
     return toActionResult(err(mapError(error)));
   }

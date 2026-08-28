@@ -13,6 +13,7 @@ const {
   startTurnMock,
   transactionMock,
   turnFindUniqueMock,
+  proactiveGateMock,
 } = vi.hoisted(() => ({
   computeNextRunMock: vi.fn(),
   dueScheduleFindFirstMock: vi.fn(),
@@ -26,9 +27,15 @@ const {
   startTurnMock: vi.fn(),
   transactionMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
+  proactiveGateMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/services/soko-bot-proactive.service", () => ({
+  proactiveGate: proactiveGateMock,
+  buildSystemBeatMessage: vi.fn(),
+  stampNudges: vi.fn(),
+}));
 vi.mock("@/helpers/cron", () => ({
   computeNextRunWithMinimumInterval: computeNextRunMock,
 }));
@@ -125,6 +132,7 @@ describe("SokoBotSchedulesSyncService", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
+    proactiveGateMock.mockResolvedValue({ ok: true, usedToday: 0, limit: 20 });
     runFindFirstMock.mockResolvedValue(null);
     dueScheduleFindFirstMock.mockResolvedValue(dueSchedule);
     computeNextRunMock.mockReturnValue(new Date("2026-08-17T13:00:00.000Z"));

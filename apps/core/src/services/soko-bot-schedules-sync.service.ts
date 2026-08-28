@@ -6,6 +6,7 @@ import {
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
+import { betaBotRelationFilter } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@/services/soko-bot-control-plane.service";
 import {
   buildSystemBeatMessage,
+  proactiveGate,
   stampNudges,
 } from "@/services/soko-bot-proactive.service";
 
@@ -149,7 +151,10 @@ export class SokoBotSchedulesSyncService {
     const pending = await prisma.sokoBotScheduleRun.findFirst({
       where: {
         schedule: {
-          sokoBot: { archivedAt: null, status: { not: "PAUSED" } },
+          sokoBot: betaBotRelationFilter({
+            archivedAt: null,
+            status: { not: "PAUSED" },
+          }),
         },
         OR: [
           {
@@ -208,7 +213,7 @@ export class SokoBotSchedulesSyncService {
       where: {
         enabled: true,
         nextRunAt: { lte: new Date() },
-        sokoBot: {
+        sokoBot: betaBotRelationFilter({
           archivedAt: null,
           status: { not: "PAUSED" },
           // Every schedule is something the bot runs unattended, including the
@@ -216,7 +221,7 @@ export class SokoBotSchedulesSyncService {
           // approval. Gating only the built-in rhythms left the owner's pause
           // and the platform kill switch bypassable by the bot's own follow-ups.
           proactivePaused: false,
-        },
+        }),
       },
       orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
     });
@@ -447,6 +452,20 @@ export class SokoBotSchedulesSyncService {
               data: { prompt: message },
             });
           }
+        }
+        // A schedule the bot wrote for itself is still a turn it starts, and
+        // it may create ten of them at a one-minute cadence. The owner's daily
+        // limit is the ceiling on all of it.
+        const gate = await proactiveGate(schedule.sokoBotId);
+        if (!gate.ok) {
+          // Busy rather than a bare "deferred": that leaves the run CLAIMED
+          // with its attempt already spent and no lease released, so it is
+          // re-claimed every five minutes forever and, because claiming is
+          // recoverable-first within one batch, starves due schedules across
+          // the platform. The busy path releases the lease and backs off.
+          throw new SokoBotBusyError(
+            "Soko Bot has reached its owner's daily limit",
+          );
         }
         const started = await sokoBotControlPlane.startTurn({
           userId: schedule.userId,

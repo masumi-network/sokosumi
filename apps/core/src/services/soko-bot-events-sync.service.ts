@@ -1,9 +1,11 @@
 import { getEnv } from "@/config/env";
+import { betaBotRelationFilter } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
 const BATCH_SIZE = 500;
 const WATCH_WINDOW_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -106,11 +108,11 @@ export class SokoBotEventsSyncService {
         // Unattended work the bot starts itself honours the owner's pause,
         // not just the administrator's.
         turn: {
-          sokoBot: {
+          sokoBot: betaBotRelationFilter({
             archivedAt: null,
             adminPausedAt: null,
             proactivePaused: false,
-          },
+          }),
         },
       },
       // Newest first: the delegations most likely to change are recent ones,
@@ -205,6 +207,12 @@ export class SokoBotEventsSyncService {
         await this.markSeen(work.baselines);
       }
       if (work.changes.length === 0) continue;
+      // EVENT turns are self-started and bill the owner, so they answer to the
+      // owner's pause and daily cap like every other turn the bot begins. A
+      // bot that comments on its own Task produces an event that would
+      // otherwise wake it again, every minute, without a ceiling.
+      const gate = await proactiveGate(work.sokoBotId);
+      if (!gate.ok) continue;
       // Collapse one entity's multiple delegations into one change line.
       const unique = new Map<string, Change>();
       for (const change of work.changes) unique.set(change.entityId, change);

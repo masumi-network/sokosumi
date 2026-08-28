@@ -1248,6 +1248,57 @@ export const SokoBotVersionWriteSchema = {
     ]
 } as const;
 
+export const SokoBotDeletionResultSchema = {
+    type: 'object',
+    properties: {
+        outcome: {
+            type: 'string',
+            enum: [
+                'deleted',
+                'tombstoned'
+            ]
+        },
+        unrevokedIntegrations: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        retained: {
+            type: 'object',
+            properties: {
+                tasks: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                taskEvents: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                billingRecords: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                chatMessages: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'tasks',
+                'taskEvents',
+                'billingRecords',
+                'chatMessages'
+            ]
+        }
+    },
+    required: [
+        'outcome',
+        'unrevokedIntegrations',
+        'retained'
+    ]
+} as const;
+
 export const AdminSokoBotDetailSchema = {
     allOf: [
         {
@@ -16490,6 +16541,57 @@ export const SokoBotDailyStatsSchema = {
                 'paused'
             ]
         },
+        checks: {
+            type: 'object',
+            properties: {
+                lastSelfStartedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                items: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            key: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: 'string'
+                            },
+                            lastRunAt: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            nextRunAt: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            late: {
+                                type: 'boolean'
+                            }
+                        },
+                        required: [
+                            'key',
+                            'name',
+                            'lastRunAt',
+                            'nextRunAt',
+                            'late'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'lastSelfStartedAt',
+                'items'
+            ]
+        },
         totals: {
             type: 'object',
             properties: {
@@ -16555,6 +16657,7 @@ export const SokoBotDailyStatsSchema = {
     required: [
         'days',
         'proactive',
+        'checks',
         'totals',
         'daily'
     ]

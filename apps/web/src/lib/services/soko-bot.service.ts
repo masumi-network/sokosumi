@@ -74,6 +74,17 @@ export const sokoBotService = {
     return response.data;
   },
 
+  /**
+   * Irreversible. The bot's history, memory, schedules and integrations are
+   * erased and the owner can create a brand-new bot straight after. Returns
+   * whether the row itself went away or had to stay as a tombstone because
+   * Tasks, billing or chat still reference it.
+   */
+  async deletePermanently() {
+    const response = await coreClient.deleteMySokoBotPermanently();
+    return response.data;
+  },
+
   async listVersions(): Promise<SokoBotVersion[]> {
     const response = await coreClient.listSokoBotVersions();
     return response.data;
@@ -204,9 +215,10 @@ export const sokoBotService = {
 
   /** Bot + recent turns as the JSON-safe chat projection; `null` without a bot. */
   async getChatState(): Promise<SokoBotChatState | null> {
-    const bot = await this.getMine();
+    // Both reads are independent; running them in series added a whole Core
+    // round-trip to every assistant page load.
+    const [bot, turns] = await Promise.all([this.getMine(), this.listTurns()]);
     if (!bot) return null;
-    const turns = await this.listTurns();
     return toSokoBotChatState(bot, turns);
   },
 

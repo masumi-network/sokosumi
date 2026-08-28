@@ -3934,6 +3934,22 @@
             "memory": "Memoria",
             "audit": "Auditoría",
             "legacy": "Heredado"
+          },
+          "viewsNav": "Vistas del bot",
+          "views": {
+            "status": "Estado",
+            "advanced": "Avanzado"
+          },
+          "danger": {
+            "title": "Eliminar este Soko Bot",
+            "description": "Elimina {name} de forma permanente, junto con su historial, memoria, programaciones y cuentas conectadas. Las tareas que creó y los registros de facturación se conservan.",
+            "unnamedBot": "este asistente",
+            "confirmLabel": "Escribe el correo del propietario ({email}) para confirmar",
+            "delete": "Eliminar Soko Bot",
+            "deleting": "Eliminando…",
+            "deleted": "Soko Bot eliminado.",
+            "tombstoned": "Soko Bot eliminado. {tasks} tareas y {messages} mensajes de chat lo mantienen registrado.",
+            "error": "No se pudo eliminar este Soko Bot."
           }
         },
         "Actions": {
@@ -6289,7 +6305,16 @@
         "archiveCancel": "Conservar",
         "archiveConfirm": "Archivar",
         "archived": "Soko Bot archivado.",
-        "archiveError": "No se pudo archivar el Soko Bot."
+        "archiveError": "No se pudo archivar el Soko Bot.",
+        "delete": "Eliminar",
+        "deleting": "Eliminando…",
+        "deleteConfirm": "Eliminar para siempre",
+        "deleteCancel": "Cancelar",
+        "deleteConfirmTitle": "¿Eliminar tu Soko Bot?",
+        "deleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran. Las tareas que creó permanecen en tu tablero. Puedes crear un asistente nuevo enseguida.",
+        "deleteConfirmLabel": "Escribe {name} para confirmar",
+        "deleteError": "No se pudo eliminar tu Soko Bot.",
+        "deleted": "Soko Bot eliminado."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -6466,7 +6491,21 @@
         "activityEmpty": "Aún no hay turnos. Abre el chat y pide algo.",
         "showMore": "Mostrar {count} más",
         "skillsTitle": "Skills",
-        "skillsDescription": "Lo que sabe hacer tu asistente. Añade más desde skills.sh."
+        "skillsDescription": "Lo que sabe hacer tu asistente. Añade más desde skills.sh.",
+        "views": {
+          "advanced": "Avanzado"
+        },
+        "Automation": {
+          "title": "Comprobaciones automáticas",
+          "description": "Cuándo miró por última vez el asistente y qué toca a continuación.",
+          "never": "nunca",
+          "empty": "Aún no hay comprobaciones automáticas configuradas.",
+          "lastSelfStarted": "Actuó por su cuenta por última vez {when}.",
+          "lateWarning": "{count, plural, one {# comprobación está atrasada} other {# comprobaciones están atrasadas}} — puede que la automatización no esté funcionando.",
+          "ran": "se ejecutó {when}",
+          "due": "toca {when}",
+          "overdue": "atrasada desde {when}"
+        }
       },
       "Avatar": {
         "title": "Imagen",
@@ -6534,7 +6573,12 @@
       "moreTitle": "Más tipos de Soko Bots",
       "teamTitle": "Equipo",
       "teamDescription": "Todas las personas de este espacio y los Soko Bots que crearon.",
-      "teamDescriptionPersonal": "Este es tu espacio personal. Únete a una organización o crea una para ver compañeros aquí."
+      "teamDescriptionPersonal": "Este es tu espacio personal. Únete a una organización o crea una para ver compañeros aquí.",
+      "heroTitle": "¡Llegan los Soko Bots!",
+      "heroBody": "Un Soko Bot es tu propio asistente dentro de Sokosumi. Trabaja en tu tablero con tus Coworkers, lee el correo y el calendario que conectes, empieza el trabajo que merece la pena y te lo cuenta en el chat. Cada persona del espacio crea el suyo.",
+      "heroCta": "Crea tu Soko Bot",
+      "heroCtaHint": "Un minuto: elige un nombre y una cara.",
+      "teamCount": "{humans, plural, one {# humano} other {# humanos}}, {bots, plural, =0 {aún sin Soko Bots} one {# Soko Bot} other {# Soko Bots}}"
     },
     "Calendar": {
       "Metadata": {

@@ -3,6 +3,7 @@ import type {
   SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 
+import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import {
   SokoBotBusyError,
@@ -176,10 +177,10 @@ export class SokoBotIngestSyncService {
       failed: 0,
     };
     const bots = await prisma.sokoBot.findMany({
-      where: {
+      where: withBetaBotOwner({
         archivedAt: null,
         integrations: { some: { status: "ACTIVE" } },
-      },
+      }),
       select: {
         id: true,
         userId: true,

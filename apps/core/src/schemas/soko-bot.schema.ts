@@ -869,6 +869,22 @@ export const sokoBotDailyStatsSchema = z
       limit: z.number().int(),
       paused: z.boolean(),
     }),
+    /**
+     * Whether the automation is actually running. Without this an owner cannot
+     * tell a bot that decided to stay quiet from one whose crons stopped.
+     */
+    checks: z.object({
+      lastSelfStartedAt: z.string().nullable(),
+      items: z.array(
+        z.object({
+          key: z.string(),
+          name: z.string(),
+          lastRunAt: z.string().nullable(),
+          nextRunAt: z.string().nullable(),
+          late: z.boolean(),
+        }),
+      ),
+    }),
     totals: z.object(sokoBotDayStatsFields),
     daily: z.array(z.object({ date: z.string(), ...sokoBotDayStatsFields })),
   })
@@ -931,3 +947,23 @@ export const introduceSokoBotResponseSchema = z
 export const claimSokoBotAvatarRequestSchema = z
   .object({ avatarId: z.string().uuid() })
   .openapi("ClaimSokoBotAvatarRequest");
+
+export const sokoBotDeletionResultSchema = z
+  .object({
+    /**
+     * `deleted` when the row was removed outright; `tombstoned` when Tasks,
+     * task events, billing usage or chat messages still reference the bot, so
+     * an emptied row stays behind to keep those records resolvable.
+     */
+    outcome: z.enum(["deleted", "tombstoned"]),
+    /** Providers whose account could not be revoked; the owner must clear
+     * those with the provider themselves. */
+    unrevokedIntegrations: z.array(z.string()),
+    retained: z.object({
+      tasks: z.number().int().nonnegative(),
+      taskEvents: z.number().int().nonnegative(),
+      billingRecords: z.number().int().nonnegative(),
+      chatMessages: z.number().int().nonnegative(),
+    }),
+  })
+  .openapi("SokoBotDeletionResult");

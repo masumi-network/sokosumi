@@ -1361,16 +1361,11 @@ export class SokoBotRuntimeService {
     toolCallId: string,
     approved = false,
   ) {
-    const parsedInput = taskCreateInputSchema.parse(rawInput);
-    // Self-started turns (mail ingest, rhythms) may draft work but never
-    // start it: the owner promotes drafts.
-    const selfStarted =
-      authorized.turn.source === "INGEST" ||
-      authorized.turn.source === "SCHEDULE";
-    const input =
-      selfStarted && parsedInput.status === "READY"
-        ? { ...parsedInput, status: "DRAFT" as const }
-        : parsedInput;
+    // Self-started turns may start work, not only draft it: an assistant that
+    // spots a meeting to prepare for and leaves a DRAFT has not helped. The
+    // brakes are the owner's daily cap and pause, plus the version prompt's
+    // instruction to weigh cost and ask first when the work looks expensive.
+    const input = taskCreateInputSchema.parse(rawInput);
     return serializableTransaction(async (tx) => {
       const workspace = await this.requireMutationAuthority(
         tx,

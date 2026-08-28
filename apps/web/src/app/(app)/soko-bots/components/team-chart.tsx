@@ -89,7 +89,7 @@ async function BotNode({ member }: { member: Member }) {
     </>
   );
   return (
-    <div className="bg-background rounded-lg border">
+    <div className="bg-card-background rounded-lg border">
       {member.isYou ? (
         <Link
           href={SOKO_BOT_ROUTE}
@@ -120,10 +120,10 @@ async function BotNode({ member }: { member: Member }) {
 async function PersonNode({ member }: { member: Member }) {
   const t = await getTranslations("App.SokoBots");
   return (
-    <li className="flex w-full flex-col sm:w-64">
+    <li className="flex w-full flex-col">
       <div
         className={cn(
-          "bg-background flex items-center gap-3 rounded-lg border px-3 py-3 text-sm",
+          "bg-card-background flex items-center gap-3 rounded-lg border px-3 py-3 text-sm",
           member.isYou && "border-primary/50",
         )}
       >
@@ -169,7 +169,7 @@ export async function TeamChart({ team }: { team: SokoBotTeam }) {
   );
   return (
     <div className="space-y-0">
-      <div className="bg-background inline-flex items-center gap-3 rounded-lg border px-4 py-3 text-sm">
+      <div className="bg-card-background inline-flex items-center gap-3 rounded-lg border px-4 py-3 text-sm">
         {team.workspace.logo ? (
           <img
             src={team.workspace.logo}
@@ -196,7 +196,7 @@ export async function TeamChart({ team }: { team: SokoBotTeam }) {
         </span>
       </div>
       <div aria-hidden className="bg-border ml-8 h-6 w-px" />
-      <ul className="flex flex-wrap items-start gap-x-6 gap-y-8">
+      <ul className="grid grid-cols-1 items-start gap-x-6 gap-y-10 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {members.map((member) => (
           <PersonNode key={member.userId} member={member} />
         ))}

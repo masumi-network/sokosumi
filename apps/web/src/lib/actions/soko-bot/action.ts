@@ -18,6 +18,7 @@ import {
   type InstallSokoBotSkillResponse,
   type SokoBot,
   SokoBotAvatar,
+  type SokoBotDeletionResult,
   type SokoBotLabRun,
   type SokoBotLabTaskEvent,
   type SokoBotLabVerdict,
@@ -110,6 +111,19 @@ export const archiveSokoBotAction = withSession<
     await sokoBotService.archive();
     revalidate();
     return toActionResult(ok());
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const deleteSokoBotAction = withSession<
+  AuthenticatedRequest,
+  ActionResultDto<SokoBotDeletionResult, ActionError>
+>(async () => {
+  try {
+    const result = await sokoBotService.deletePermanently();
+    revalidate();
+    return toActionResult(ok(result));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }

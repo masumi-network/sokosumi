@@ -968,12 +968,13 @@ export class SokoBotControlPlane {
     const defaultVersionId = await getDefaultSokoBotVersionId();
 
     const created = await prisma.$transaction(async (tx) => {
-      const existing = await tx.sokoBot.findUnique({
+      // Only a live row: a deleted bot is a tombstone kept for provenance and
+      // must never be reactivated into the owner's new assistant.
+      const existing = await tx.sokoBot.findFirst({
         where: {
-          userId_workspaceId: {
-            userId: input.userId,
-            workspaceId: input.workspaceId,
-          },
+          userId: input.userId,
+          workspaceId: input.workspaceId,
+          deletedAt: null,
         },
       });
       if (existing) {
@@ -1629,13 +1630,47 @@ export class SokoBotControlPlane {
     const version = await resolveSokoBotVersion(
       input.versionId ?? bot.versionId,
     );
+    // A turn with no owner message is composed from untrusted material — mail
+    // subjects, calendar titles, task comments — and the classifier reads that
+    // composed text. Hiring is the one tool that spends real money on a
+    // marketplace, and it executes without approval, so an attacker who can
+    // put the word "hire" in the owner's inbox must not be able to route a
+    // scheduled turn onto it. Autonomy covers starting work the owner already
+    // pays for; buying more is still theirs to ask for.
+    // A teammate mentioning the bot spends the OWNER's credits, and nothing in
+    // chat limits how often they may do it. Their turns draw on the owner's
+    // daily allowance so the bill has a ceiling its owner set.
+    if (requestedByTeammate) {
+      const { proactiveGate } = await import(
+        "@/services/soko-bot-proactive.service"
+      );
+      const gate = await proactiveGate(bot.id);
+      // Only the allowance: a pause means "stop what you start on your own",
+      // which a teammate asking a question is not.
+      if (!gate.ok && gate.reason === "daily-limit") {
+        throw new SokoBotBusyError(
+          "This Soko Bot has reached its owner's daily limit",
+        );
+      }
+    }
+    // ADMIN_RETRY replays the original message verbatim — the same untrusted
+    // mail or schedule text — so it must not restore what that text was
+    // denied the first time.
+    const selfStarted =
+      input.source === "SCHEDULE" ||
+      input.source === "INGEST" ||
+      input.source === "EVENT" ||
+      input.source === "ADMIN_RETRY";
+    const routeCapabilities = SOKO_BOT_ROUTE_CAPABILITIES[
+      classification.classification.route
+    ].filter(
+      (capability) => !(selfStarted && capability === "hire_agent"),
+    ) as readonly SokoBotCapability[];
     const capabilities = applyVersionCapabilities(
       version,
       (requestedByTeammate
         ? [...SOKO_BOT_TEAMMATE_CAPABILITIES]
-        : [
-            ...SOKO_BOT_ROUTE_CAPABILITIES[classification.classification.route],
-          ]) as readonly SokoBotCapability[],
+        : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
     const leaseToken = randomUUID();
@@ -2447,8 +2482,11 @@ export class SokoBotControlPlane {
       )
         ? term
         : null;
+    // Tombstones are emptied rows kept only so Tasks and billing still resolve;
+    // they are not bots and never appear in the fleet.
     const where: Prisma.SokoBotWhereInput = term
       ? {
+          deletedAt: null,
           OR: [
             ...(idTerm ? [{ id: idTerm }] : []),
             { name: { contains: term, mode: "insensitive" } },
@@ -2456,7 +2494,7 @@ export class SokoBotControlPlane {
             { user: { email: { contains: term, mode: "insensitive" } } },
           ],
         }
-      : {};
+      : { deletedAt: null };
     const [items, total] = await prisma.$transaction([
       prisma.sokoBot.findMany({
         where,
@@ -2480,8 +2518,8 @@ export class SokoBotControlPlane {
   }
 
   async getForAdmin(sokoBotId: string) {
-    const bot = await prisma.sokoBot.findUnique({
-      where: { id: sokoBotId },
+    const bot = await prisma.sokoBot.findFirst({
+      where: { id: sokoBotId, deletedAt: null },
       include: {
         user: { select: { id: true, name: true, email: true } },
         turns: {

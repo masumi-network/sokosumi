@@ -3934,6 +3934,22 @@
             "memory": "Gedächtnis",
             "audit": "Audit",
             "legacy": "Legacy"
+          },
+          "viewsNav": "Bot-Ansichten",
+          "views": {
+            "status": "Status",
+            "advanced": "Erweitert"
+          },
+          "danger": {
+            "title": "Diesen Soko Bot löschen",
+            "description": "Löscht {name} endgültig, samt Verlauf, Gedächtnis, Zeitplänen und verbundenen Konten. Erstellte Aufgaben und Abrechnungsdaten bleiben erhalten.",
+            "unnamedBot": "dieser Assistent",
+            "confirmLabel": "Zur Bestätigung die E-Mail-Adresse des Besitzers eingeben ({email})",
+            "delete": "Soko Bot löschen",
+            "deleting": "Wird gelöscht…",
+            "deleted": "Soko Bot gelöscht.",
+            "tombstoned": "Soko Bot gelöscht. {tasks} Aufgaben und {messages} Chat-Nachrichten bleiben nachvollziehbar.",
+            "error": "Dieser Soko Bot konnte nicht gelöscht werden."
           }
         },
         "Actions": {
@@ -6289,7 +6305,16 @@
         "archiveCancel": "Behalten",
         "archiveConfirm": "Archivieren",
         "archived": "Soko Bot archiviert.",
-        "archiveError": "Der Soko Bot konnte nicht archiviert werden."
+        "archiveError": "Der Soko Bot konnte nicht archiviert werden.",
+        "delete": "Löschen",
+        "deleting": "Wird gelöscht…",
+        "deleteConfirm": "Endgültig löschen",
+        "deleteCancel": "Abbrechen",
+        "deleteConfirmTitle": "Soko Bot löschen?",
+        "deleteConfirmDescription": "Das lässt sich nicht rückgängig machen. Verlauf, Gedächtnis, Zeitpläne und verbundene Konten werden gelöscht. Erstellte Aufgaben bleiben auf deinem Board. Du kannst sofort einen neuen Assistenten anlegen.",
+        "deleteConfirmLabel": "Zur Bestätigung {name} eingeben",
+        "deleteError": "Dein Soko Bot konnte nicht gelöscht werden.",
+        "deleted": "Soko Bot gelöscht."
       },
       "Chat": {
         "defaultName": "Soko Bot",
@@ -6466,7 +6491,21 @@
         "activityEmpty": "Noch keine Durchläufe. Öffne den Chat und bitte um etwas.",
         "showMore": "{count} weitere anzeigen",
         "skillsTitle": "Skills",
-        "skillsDescription": "Was dein Assistent kann. Mehr gibt es auf skills.sh."
+        "skillsDescription": "Was dein Assistent kann. Mehr gibt es auf skills.sh.",
+        "views": {
+          "advanced": "Erweitert"
+        },
+        "Automation": {
+          "title": "Automatische Prüfungen",
+          "description": "Wann der Assistent zuletzt nachgesehen hat und was als Nächstes ansteht.",
+          "never": "nie",
+          "empty": "Es sind noch keine automatischen Prüfungen eingerichtet.",
+          "lastSelfStarted": "Zuletzt {when} von sich aus aktiv geworden.",
+          "lateWarning": "{count, plural, one {# Prüfung ist überfällig} other {# Prüfungen sind überfällig}} — die Automatik läuft möglicherweise nicht.",
+          "ran": "lief {when}",
+          "due": "fällig {when}",
+          "overdue": "überfällig seit {when}"
+        }
       },
       "Avatar": {
         "title": "Bild",
@@ -6534,7 +6573,12 @@
       "moreTitle": "Weitere Arten von Soko Bots",
       "teamTitle": "Team",
       "teamDescription": "Alle in diesem Workspace und ihre Soko Bots.",
-      "teamDescriptionPersonal": "Das ist dein persönlicher Workspace. Tritt einer Organisation bei oder erstelle eine, um Teammitglieder zu sehen."
+      "teamDescriptionPersonal": "Das ist dein persönlicher Workspace. Tritt einer Organisation bei oder erstelle eine, um Teammitglieder zu sehen.",
+      "heroTitle": "Da sind die Soko Bots!",
+      "heroBody": "Ein Soko Bot ist dein eigener Assistent in Sokosumi. Er arbeitet mit deinen Coworkern am Taskboard, liest die Mails und Kalender, die du verbindest, startet die Arbeit, die sich lohnt, und erzählt dir im Chat davon. Jede Person im Workspace baut sich einen eigenen.",
+      "heroCta": "Soko Bot erstellen",
+      "heroCtaHint": "Dauert eine Minute: Name und Gesicht aussuchen.",
+      "teamCount": "{humans, plural, one {# Mensch} other {# Menschen}}, {bots, plural, =0 {noch keine Soko Bots} one {# Soko Bot} other {# Soko Bots}}"
     },
     "Calendar": {
       "Metadata": {

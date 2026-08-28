@@ -48,6 +48,7 @@ import {
   simulateSokoBotTaskEventRequestSchema,
   sokoBotAvatarSchema,
   sokoBotDailyStatsSchema,
+  sokoBotDeletionResultSchema,
   sokoBotInstalledSkillSchema,
   sokoBotIntegrationCatalogEntrySchema,
   sokoBotIntegrationsSchema,
@@ -91,6 +92,7 @@ import {
   SokoBotValidationError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import { deleteSokoBotForUser } from "@/services/soko-bot-deletion.service";
 import {
   connectSokoBotIntegration,
   disconnectSokoBotIntegration,
@@ -138,15 +140,22 @@ app.use("*", async (c, next) => {
   // Beta gate, matching the web route's 404 and the calendar routes' rule.
   // It lives on the router rather than per handler so a new endpoint cannot
   // be added outside it; the UI gate alone would leave the API open.
+  // Fail closed: every handler here requires a user actor today, and an
+  // endpoint added later for a coworker key must not slip past the beta by
+  // simply not being a user.
   const auth = c.var.authContext;
-  if (isUserAuthContext(auth)) {
-    const user = await prisma.user.findUnique({
-      where: { id: auth.userId },
-      select: { email: true },
-    });
-    if (!isNmkrEmail(user?.email)) {
-      throw notFound("Soko Bot is not enabled");
-    }
+  if (!isUserAuthContext(auth)) {
+    throw notFound("Soko Bot is not enabled");
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: auth.userId },
+    select: { email: true, emailVerified: true },
+  });
+  // Signup neither requires verification nor withholds the session, so the
+  // domain alone proves nothing: anyone can register `someone@nmkr.io`
+  // without holding that mailbox. Verification is what the whitelist rests on.
+  if (!user?.emailVerified || !isNmkrEmail(user.email)) {
+    throw notFound("Soko Bot is not enabled");
   }
   await next();
 });
@@ -281,6 +290,30 @@ app.openapi(archiveMeRoute, async (c) => {
   const workspace = requireWorkspaceContext(c.var.workspaceContext);
   await sokoBotControlPlane.archive(auth.userId, workspace.workspaceId);
   return ok(c, { archived: true as const });
+});
+
+const deleteMeRoute = createRoute({
+  method: "delete",
+  path: "/me/permanent",
+  operationId: "deleteMySokoBotPermanently",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotDeletionResultSchema,
+      "Soko Bot deleted; the owner may create a new one immediately",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
+  },
+});
+
+app.openapi(deleteMeRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const result = await deleteSokoBotForUser(auth.userId, workspace.workspaceId);
+  return ok(c, result);
 });
 
 const startTurnRoute = createRoute({

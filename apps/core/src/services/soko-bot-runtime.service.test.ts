@@ -414,7 +414,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("carries the turn's version and source into the action context", async () => {
     // Dropping these silently made every turn resolve the default version and
-    // disabled the DRAFT-only rule for self-started work.
+    // meant self-started turns could not be told apart from owner turns.
     turnFindUniqueMock.mockResolvedValue({
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,

@@ -4,9 +4,23 @@ import { proactiveGate } from "@/services/soko-bot-proactive.service";
 const DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
+export interface SokoBotAutomationCheck {
+  /** `standup`, `weekly-wrap`, `mail`, or `schedule` for an owner's own. */
+  key: string;
+  name: string;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  /** Due time passed with nothing run: the automation itself has stopped. */
+  late: boolean;
+}
+
 export interface SokoBotDailyStats {
   days: number;
   proactive: { usedToday: number; limit: number; paused: boolean };
+  checks: {
+    lastSelfStartedAt: string | null;
+    items: SokoBotAutomationCheck[];
+  };
   totals: SokoBotDayStats;
   daily: (SokoBotDayStats & { date: string })[];
 }
@@ -102,7 +116,74 @@ export async function getSokoBotDailyStats(input: {
       limit: gate.limit,
       paused: paused.proactivePaused || gate.reason === "global-pause",
     },
+    checks: await automationChecks(bot.id),
     totals,
     daily,
+  };
+}
+
+/**
+ * A check is late when its due time passed and nothing ran. That is the only
+ * signal an owner has that the automation itself stopped — on an environment
+ * without crons, every check reads late rather than silently doing nothing.
+ */
+const CHECK_GRACE_MS = 10 * 60 * 1_000;
+
+async function automationChecks(
+  sokoBotId: string,
+): Promise<SokoBotDailyStats["checks"]> {
+  const now = Date.now();
+  const [schedules, integrations, lastSelfStarted] = await Promise.all([
+    prisma.sokoBotSchedule.findMany({
+      where: { sokoBotId, enabled: true },
+      orderBy: { nextRunAt: "asc" },
+      select: {
+        name: true,
+        systemKey: true,
+        lastRunAt: true,
+        nextRunAt: true,
+      },
+    }),
+    prisma.sokoBotIntegration.findMany({
+      where: { sokoBotId, status: "ACTIVE" },
+      select: { provider: true, cursor: true },
+    }),
+    prisma.sokoBotTurn.findFirst({
+      where: { sokoBotId, source: { in: ["SCHEDULE", "EVENT", "INGEST"] } },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    }),
+  ]);
+
+  const items: SokoBotAutomationCheck[] = schedules.map((schedule) => ({
+    key: schedule.systemKey ?? "schedule",
+    name: schedule.name,
+    lastRunAt: schedule.lastRunAt?.toISOString() ?? null,
+    nextRunAt: schedule.nextRunAt.toISOString(),
+    late: schedule.nextRunAt.getTime() < now - CHECK_GRACE_MS,
+  }));
+
+  for (const integration of integrations) {
+    const cursor =
+      integration.cursor && typeof integration.cursor === "object"
+        ? (integration.cursor as Record<string, unknown>)
+        : {};
+    const lastIngestAt =
+      typeof cursor.lastIngestAt === "string" ? cursor.lastIngestAt : null;
+    items.push({
+      key: "mail",
+      name: integration.provider,
+      lastRunAt: lastIngestAt,
+      nextRunAt: null,
+      // Mail is pulled hourly by the ingest cron; a longer gap means it stopped.
+      late: lastIngestAt
+        ? new Date(lastIngestAt).getTime() < now - 2 * 60 * 60 * 1_000
+        : false,
+    });
+  }
+
+  return {
+    lastSelfStartedAt: lastSelfStarted?.createdAt.toISOString() ?? null,
+    items,
   };
 }

@@ -288,6 +288,17 @@ export type SokoBotVersionWrite = {
     capabilities?: Array<string>;
 };
 
+export type SokoBotDeletionResult = {
+    outcome: 'deleted' | 'tombstoned';
+    unrevokedIntegrations: Array<string>;
+    retained: {
+        tasks: number;
+        taskEvents: number;
+        billingRecords: number;
+        chatMessages: number;
+    };
+};
+
 export type AdminSokoBotDetail = SokoBot & {
     schedules: Array<AdminSokoBotSchedule>;
     adminPausedAt: Date | null;
@@ -4840,6 +4851,16 @@ export type SokoBotDailyStats = {
         limit: number;
         paused: boolean;
     };
+    checks: {
+        lastSelfStartedAt: string | null;
+        items: Array<{
+            key: string;
+            name: string;
+            lastRunAt: string | null;
+            nextRunAt: string | null;
+            late: boolean;
+        }>;
+    };
     totals: {
         messages: number;
         background: number;
@@ -6181,6 +6202,7 @@ export type GetAdminSokoBotQualityData = {
     path?: never;
     query?: {
         versionId?: string;
+        sokoBotId?: string;
     };
     url: '/admin/soko-bots/quality';
 };
@@ -6612,6 +6634,164 @@ export type UpdateAdminSokoBotVersionResponses = {
 
 export type UpdateAdminSokoBotVersionResponse = UpdateAdminSokoBotVersionResponses[keyof UpdateAdminSokoBotVersionResponses];
 
+export type DeleteAdminSokoBotData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}';
+};
+
+export type DeleteAdminSokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminSokoBotError = DeleteAdminSokoBotErrors[keyof DeleteAdminSokoBotErrors];
+
+export type DeleteAdminSokoBotResponses = {
+    /**
+     * Soko Bot deleted
+     */
+    200: {
+        data: SokoBotDeletionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteAdminSokoBotResponse = DeleteAdminSokoBotResponses[keyof DeleteAdminSokoBotResponses];
+
+export type GetAdminSokoBotData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}';
+};
+
+export type GetAdminSokoBotErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotError = GetAdminSokoBotErrors[keyof GetAdminSokoBotErrors];
+
+export type GetAdminSokoBotResponses = {
+    /**
+     * Soko Bot diagnostics
+     */
+    200: {
+        data: AdminSokoBotDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotResponse = GetAdminSokoBotResponses[keyof GetAdminSokoBotResponses];
+
 export type PromoteAdminSokoBotVersionData = {
     body?: never;
     path: {
@@ -6685,78 +6865,6 @@ export type PromoteAdminSokoBotVersionResponses = {
 };
 
 export type PromoteAdminSokoBotVersionResponse = PromoteAdminSokoBotVersionResponses[keyof PromoteAdminSokoBotVersionResponses];
-
-export type GetAdminSokoBotData = {
-    body?: never;
-    path: {
-        sokoBotId: string;
-    };
-    query?: never;
-    url: '/admin/soko-bots/{sokoBotId}';
-};
-
-export type GetAdminSokoBotErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetAdminSokoBotError = GetAdminSokoBotErrors[keyof GetAdminSokoBotErrors];
-
-export type GetAdminSokoBotResponses = {
-    /**
-     * Soko Bot diagnostics
-     */
-    200: {
-        data: AdminSokoBotDetail;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetAdminSokoBotResponse = GetAdminSokoBotResponses[keyof GetAdminSokoBotResponses];
 
 export type PerformAdminSokoBotActionData = {
     body?: AdminSokoBotActionRequest;
@@ -30672,6 +30780,90 @@ export type CreateMySokoBotResponses = {
 };
 
 export type CreateMySokoBotResponse = CreateMySokoBotResponses[keyof CreateMySokoBotResponses];
+
+export type DeleteMySokoBotPermanentlyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/permanent';
+};
+
+export type DeleteMySokoBotPermanentlyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteMySokoBotPermanentlyError = DeleteMySokoBotPermanentlyErrors[keyof DeleteMySokoBotPermanentlyErrors];
+
+export type DeleteMySokoBotPermanentlyResponses = {
+    /**
+     * Soko Bot deleted; the owner may create a new one immediately
+     */
+    200: {
+        data: SokoBotDeletionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteMySokoBotPermanentlyResponse = DeleteMySokoBotPermanentlyResponses[keyof DeleteMySokoBotPermanentlyResponses];
 
 export type ListMySokoBotTurnsData = {
     body?: never;
