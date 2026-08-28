@@ -23,9 +23,16 @@ import { toast } from "sonner";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
 import {
-  PROJECTS_LIST_CARD_MIN_H_CLASS,
-  PROJECTS_LIST_ROW_LAYOUT_CLASS,
-} from "@/app/projects/constants";
+  driveItemActionsClass,
+  driveItemArticleClass,
+  driveItemBodyClass,
+  driveItemIconWellClass,
+  driveItemMetaDesktopClass,
+  driveItemMetaMobileClass,
+  driveItemsPanelClass,
+  driveRecentsDayItemsClass,
+} from "@/app/drive/components/drive-view-layout";
+import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
 import { DocumentViewer } from "@/components/ui/document-viewer";
 import {
@@ -38,6 +45,7 @@ import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { Input } from "@/components/ui/input";
 import type { DriveItem, DriveRecentsItem } from "@/lib/clients/generated/core";
+import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
@@ -66,6 +74,7 @@ interface DriveRecentsPanelProps {
   activeOrganizationId: string | null;
   searchQuery: string;
   reloadToken?: number;
+  viewMode?: FilesViewMode;
   onOpenMoveDialog: (item: DriveItem) => void;
   onOpenDeleteDialog: (item: DriveItem) => void;
   onRenameFile: (item: DriveItem, newName: string) => Promise<void>;
@@ -152,6 +161,7 @@ export function DriveRecentsPanel({
   activeOrganizationId,
   searchQuery,
   reloadToken = 0,
+  viewMode = "list",
   onOpenMoveDialog,
   onOpenDeleteDialog,
   onRenameFile,
@@ -325,7 +335,7 @@ export function DriveRecentsPanel({
   }
 
   if (loading) {
-    return <DriveListSkeleton />;
+    return <DriveListSkeleton viewMode={viewMode} />;
   }
 
   if (items.length === 0) {
@@ -352,18 +362,18 @@ export function DriveRecentsPanel({
 
   return (
     <div
-      className={cn(
-        "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
-        PROJECTS_LIST_CARD_MIN_H_CLASS,
-      )}
+      className={driveItemsPanelClass(viewMode)}
+      data-testid={
+        viewMode === "grid" ? "files-layout-grid" : "files-layout-list"
+      }
     >
-      <div className="px-2 py-2">
+      <div className={cn(viewMode === "grid" ? "py-1" : "px-2 py-2")}>
         {dayGroups.map((group) => (
           <section key={group.key} className="mb-4">
             <div className="text-muted-foreground px-2 pb-2 text-xs font-medium capitalize">
               {group.key}
             </div>
-            <ul className="space-y-0 divide-y divide-border/50">
+            <ul className={driveRecentsDayItemsClass(viewMode)}>
               {group.items.map((item) => {
                 if (item.kind === "drive-file") {
                   const driveItem = toDriveFileItem(item);
@@ -372,14 +382,9 @@ export function DriveRecentsPanel({
 
                   return (
                     <li key={item.pathname}>
-                      <article
-                        className={cn(
-                          "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                          PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                        )}
-                      >
-                        <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                          <div className="flex size-8 shrink-0 items-center justify-center">
+                      <article className={driveItemArticleClass(viewMode)}>
+                        <div className={driveItemBodyClass(viewMode)}>
+                          <div className={driveItemIconWellClass(viewMode)}>
                             <FileTypeIcon extension={extension || "file"} />
                           </div>
                           {isEditing ? (
@@ -410,7 +415,9 @@ export function DriveRecentsPanel({
                                   name={item.name}
                                   fileUrl={item.fileUrl}
                                 />
-                                <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                                <div
+                                  className={driveItemMetaMobileClass(viewMode)}
+                                >
                                   <span>{formatBytes(item.size)}</span>
                                   <span>
                                     {formatter.dateTime(
@@ -426,7 +433,9 @@ export function DriveRecentsPanel({
                                   </span>
                                 </div>
                               </div>
-                              <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                              <div
+                                className={driveItemMetaDesktopClass(viewMode)}
+                              >
                                 <span>{formatBytes(item.size)}</span>
                                 <span>
                                   {formatter.dateTime(
@@ -445,7 +454,7 @@ export function DriveRecentsPanel({
                           )}
                         </div>
                         {!isEditing ? (
-                          <div className="shrink-0 pl-2">
+                          <div className={driveItemActionsClass(viewMode)}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button
@@ -522,14 +531,9 @@ export function DriveRecentsPanel({
 
                 return (
                   <li key={item.taskFileId}>
-                    <article
-                      className={cn(
-                        "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                        PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                      )}
-                    >
-                      <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                        <div className="flex size-8 shrink-0 items-center justify-center">
+                    <article className={driveItemArticleClass(viewMode)}>
+                      <div className={driveItemBodyClass(viewMode)}>
+                        <div className={driveItemIconWellClass(viewMode)}>
                           <FileTypeIcon extension={extension || "file"} />
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -542,7 +546,7 @@ export function DriveRecentsPanel({
                               {searchContext}
                             </p>
                           ) : null}
-                          <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                          <div className={driveItemMetaMobileClass(viewMode)}>
                             <span>
                               {item.size != null ? formatBytes(item.size) : "—"}
                             </span>
@@ -557,7 +561,7 @@ export function DriveRecentsPanel({
                             </span>
                           </div>
                         </div>
-                        <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                        <div className={driveItemMetaDesktopClass(viewMode)}>
                           <span>
                             {item.size != null ? formatBytes(item.size) : "—"}
                           </span>
@@ -572,7 +576,7 @@ export function DriveRecentsPanel({
                           </span>
                         </div>
                       </div>
-                      <div className="shrink-0 pl-2">
+                      <div className={driveItemActionsClass(viewMode)}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button

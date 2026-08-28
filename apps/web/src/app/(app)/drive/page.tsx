@@ -37,13 +37,21 @@ import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
+  driveItemActionsClass,
+  driveItemArticleClass,
+  driveItemBodyClass,
+  driveItemIconWellClass,
+  driveItemMetaDesktopClass,
+  driveItemMetaMobileClass,
+  driveItemsListClass,
+  driveItemsPanelClass,
+} from "@/app/drive/components/drive-view-layout";
+import { DriveViewModeSwitch } from "@/app/drive/components/drive-view-mode-switch";
+import {
   type DrivePrimaryView,
   DriveViewTabs,
 } from "@/app/drive/components/drive-view-tabs";
-import {
-  PROJECTS_LIST_CARD_MIN_H_CLASS,
-  PROJECTS_LIST_ROW_LAYOUT_CLASS,
-} from "@/app/projects/constants";
+import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,6 +102,12 @@ import {
   postDriveFolders,
   postDriveTasksCopy,
 } from "@/lib/clients/generated/core";
+import {
+  DEFAULT_FILES_VIEW_MODE,
+  type FilesViewMode,
+  resolveFilesViewModeFromClientCookie,
+  serializeFilesViewModeCookie,
+} from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import {
   driveStoreForActiveWorkspace,
@@ -319,9 +333,13 @@ export default function DrivePage(): ReactElement {
   }, [activeOrganizationId, router, searchParams]);
 
   if (activeOrganizationId === undefined) {
+    const skeletonMode =
+      typeof document === "undefined"
+        ? DEFAULT_FILES_VIEW_MODE
+        : resolveFilesViewModeFromClientCookie(document.cookie);
     return (
       <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
-        <DriveListSkeleton />
+        <DriveListSkeleton viewMode={skeletonMode} />
       </div>
     );
   }
@@ -348,6 +366,11 @@ function DrivePageWorkspace({
   const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [filesViewMode, setFilesViewMode] = useState<FilesViewMode>(() =>
+    typeof document === "undefined"
+      ? DEFAULT_FILES_VIEW_MODE
+      : resolveFilesViewModeFromClientCookie(document.cookie),
+  );
   const [editingItemPath, setEditingItemPath] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
   const [organizationName, setOrganizationName] = useState<string | null>(null);
@@ -435,6 +458,7 @@ function DrivePageWorkspace({
   const isRecentsView = !isTasksView && !isBrowseView;
   const primaryView: DrivePrimaryView =
     isBrowseView || isTasksView ? "browse" : "recents";
+  const layoutMode: FilesViewMode = isTasksView ? "list" : filesViewMode;
   const projectIdParam = searchParams.get("projectId");
   const taskIdParam = searchParams.get("taskId");
   const assigneeIdParam = searchParams.get("assigneeId");
@@ -1357,6 +1381,22 @@ function DrivePageWorkspace({
     loadMore: t("loadMore"),
   };
 
+  function handleFilesViewModeChange(next: FilesViewMode) {
+    setFilesViewMode(next);
+    document.cookie = serializeFilesViewModeCookie(next);
+  }
+
+  const filesViewModeSwitch = !isTasksView ? (
+    <DriveViewModeSwitch
+      value={filesViewMode}
+      onChange={handleFilesViewModeChange}
+      labels={{
+        list: t("viewList"),
+        grid: t("viewGrid"),
+      }}
+    />
+  ) : null;
+
   return (
     <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
@@ -1452,6 +1492,7 @@ function DrivePageWorkspace({
               </div>
             </div>
           )}
+          {filesViewModeSwitch}
         </div>
 
         {!isTasksView && isBrowseView ? (
@@ -1603,6 +1644,7 @@ function DrivePageWorkspace({
           activeOrganizationId={activeOrganizationId}
           searchQuery={debouncedSearchQuery}
           reloadToken={recentsReloadToken}
+          viewMode={filesViewMode}
           onOpenMoveDialog={openMoveDialog}
           onOpenDeleteDialog={openDeleteDialog}
           onRenameFile={handleRename}
@@ -1623,7 +1665,7 @@ function DrivePageWorkspace({
           }}
         />
       ) : loading ? (
-        <DriveListSkeleton />
+        <DriveListSkeleton viewMode={layoutMode} />
       ) : emptyState ? (
         <div
           className={cn(
@@ -1654,24 +1696,21 @@ function DrivePageWorkspace({
         </div>
       ) : hasItems ? (
         <div
-          className={cn(
-            "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
-            PROJECTS_LIST_CARD_MIN_H_CLASS,
-          )}
+          className={driveItemsPanelClass(layoutMode)}
+          data-testid={
+            layoutMode === "grid" ? "files-layout-grid" : "files-layout-list"
+          }
         >
-          <div className="divide-border/50 divide-y px-2">
+          <div className={driveItemsListClass(layoutMode)}>
             {exploreItems.map((item) => {
               if (item.kind === "tasks-root") {
                 return (
                   <article
                     key="tasks-root"
-                    className={cn(
-                      "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                    )}
+                    className={driveItemArticleClass(layoutMode)}
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                      <div className="flex size-8 shrink-0 items-center justify-center">
+                    <div className={driveItemBodyClass(layoutMode)}>
+                      <div className={driveItemIconWellClass(layoutMode)}>
                         <Folders className="text-primary size-5" />
                       </div>
                       <button
@@ -1691,13 +1730,10 @@ function DrivePageWorkspace({
                 return (
                   <article
                     key={`project-${item.id}`}
-                    className={cn(
-                      "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                    )}
+                    className={driveItemArticleClass(layoutMode)}
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                      <div className="flex size-8 shrink-0 items-center justify-center">
+                    <div className={driveItemBodyClass(layoutMode)}>
+                      <div className={driveItemIconWellClass(layoutMode)}>
                         <Folder className="text-muted-foreground size-5" />
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -1709,7 +1745,7 @@ function DrivePageWorkspace({
                         >
                           {item.name}
                         </button>
-                        <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                        <div className={driveItemMetaMobileClass(layoutMode)}>
                           <span>
                             {formatter.dateTime(
                               new Date(item.latestFileUpdatedAt),
@@ -1724,7 +1760,7 @@ function DrivePageWorkspace({
                           </span>
                         </div>
                       </div>
-                      <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                      <div className={driveItemMetaDesktopClass(layoutMode)}>
                         <span>
                           {formatter.dateTime(
                             new Date(item.latestFileUpdatedAt),
@@ -1750,13 +1786,10 @@ function DrivePageWorkspace({
                 return (
                   <article
                     key="no-project"
-                    className={cn(
-                      "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                    )}
+                    className={driveItemArticleClass(layoutMode)}
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                      <div className="flex size-8 shrink-0 items-center justify-center">
+                    <div className={driveItemBodyClass(layoutMode)}>
+                      <div className={driveItemIconWellClass(layoutMode)}>
                         <Folder className="text-muted-foreground size-5" />
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -1768,7 +1801,7 @@ function DrivePageWorkspace({
                         >
                           {t("noProject")}
                         </button>
-                        <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                        <div className={driveItemMetaMobileClass(layoutMode)}>
                           <span>
                             {formatter.dateTime(
                               new Date(item.latestFileUpdatedAt),
@@ -1783,7 +1816,7 @@ function DrivePageWorkspace({
                           </span>
                         </div>
                       </div>
-                      <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                      <div className={driveItemMetaDesktopClass(layoutMode)}>
                         <span>
                           {formatter.dateTime(
                             new Date(item.latestFileUpdatedAt),
@@ -1806,13 +1839,10 @@ function DrivePageWorkspace({
                 return (
                   <article
                     key={`task-${item.id}`}
-                    className={cn(
-                      "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                    )}
+                    className={driveItemArticleClass(layoutMode)}
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                      <div className="flex size-8 shrink-0 items-center justify-center">
+                    <div className={driveItemBodyClass(layoutMode)}>
+                      <div className={driveItemIconWellClass(layoutMode)}>
                         <Folder className="text-muted-foreground size-5" />
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -1824,7 +1854,7 @@ function DrivePageWorkspace({
                         >
                           {item.name}
                         </button>
-                        <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                        <div className={driveItemMetaMobileClass(layoutMode)}>
                           <span>
                             {formatter.dateTime(
                               new Date(item.latestFileUpdatedAt),
@@ -1839,7 +1869,7 @@ function DrivePageWorkspace({
                           </span>
                         </div>
                       </div>
-                      <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                      <div className={driveItemMetaDesktopClass(layoutMode)}>
                         <span>
                           {formatter.dateTime(
                             new Date(item.latestFileUpdatedAt),
@@ -1879,13 +1909,10 @@ function DrivePageWorkspace({
                 return (
                   <article
                     key={`task-file-${item.id}`}
-                    className={cn(
-                      "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                      PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                    )}
+                    className={driveItemArticleClass(layoutMode)}
                   >
-                    <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                      <div className="flex size-8 shrink-0 items-center justify-center">
+                    <div className={driveItemBodyClass(layoutMode)}>
+                      <div className={driveItemIconWellClass(layoutMode)}>
                         <FileTypeIcon extension={extension || "file"} />
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -1901,7 +1928,7 @@ function DrivePageWorkspace({
                             {searchContext}
                           </p>
                         ) : null}
-                        <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                        <div className={driveItemMetaMobileClass(layoutMode)}>
                           <span>
                             {item.size ? formatBytes(item.size) : "—"}
                           </span>
@@ -1916,7 +1943,7 @@ function DrivePageWorkspace({
                           </span>
                         </div>
                       </div>
-                      <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                      <div className={driveItemMetaDesktopClass(layoutMode)}>
                         <span>{item.size ? formatBytes(item.size) : "—"}</span>
                         <span>
                           {formatter.dateTime(new Date(item.updatedAt), {
@@ -1929,7 +1956,7 @@ function DrivePageWorkspace({
                         </span>
                       </div>
                     </div>
-                    <div className="shrink-0 pl-2">
+                    <div className={driveItemActionsClass(layoutMode)}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -1988,13 +2015,10 @@ function DrivePageWorkspace({
               return (
                 <article
                   key={itemKey}
-                  className={cn(
-                    "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
-                    PROJECTS_LIST_ROW_LAYOUT_CLASS,
-                  )}
+                  className={driveItemArticleClass(layoutMode)}
                 >
-                  <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-                    <div className="flex size-8 shrink-0 items-center justify-center">
+                  <div className={driveItemBodyClass(layoutMode)}>
+                    <div className={driveItemIconWellClass(layoutMode)}>
                       {item.type === "folder" ? (
                         <Folder className="text-muted-foreground size-5" />
                       ) : (
@@ -2037,7 +2061,7 @@ function DrivePageWorkspace({
                               documentKind={documentKind}
                             />
                           )}
-                          <div className="text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden">
+                          <div className={driveItemMetaMobileClass(layoutMode)}>
                             {item.type === "file" ? (
                               <>
                                 <span>
@@ -2062,7 +2086,9 @@ function DrivePageWorkspace({
                           </div>
                         </div>
                         {item.type === "file" && (
-                          <div className="text-muted-foreground/70 hidden shrink-0 items-center gap-3 text-xs md:flex">
+                          <div
+                            className={driveItemMetaDesktopClass(layoutMode)}
+                          >
                             <span>
                               {item.size ? formatBytes(item.size) : "—"}
                             </span>
@@ -2078,7 +2104,9 @@ function DrivePageWorkspace({
                           </div>
                         )}
                         {item.type === "folder" && (
-                          <div className="text-muted-foreground/70 hidden shrink-0 text-xs md:block">
+                          <div
+                            className={driveItemMetaDesktopClass(layoutMode)}
+                          >
                             {t("folder")}
                           </div>
                         )}
@@ -2086,7 +2114,7 @@ function DrivePageWorkspace({
                     )}
                   </div>
 
-                  <div className="shrink-0 pl-2">
+                  <div className={driveItemActionsClass(layoutMode)}>
                     {isEditing ? (
                       <div className="flex items-center gap-1">
                         <Button

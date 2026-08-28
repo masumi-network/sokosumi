@@ -581,3 +581,183 @@ describe("DrivePage recents view", () => {
     });
   });
 });
+
+describe("DrivePage files view mode", () => {
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams();
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    listDriveItemsMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+    document.cookie = "files_view_mode=; path=/; max-age=0";
+
+    fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [
+        {
+          kind: "drive-file",
+          name: "notes.txt",
+          fileUrl: "https://example.com/notes.txt",
+          pathname: "notes.txt",
+          size: 12,
+          activityAt: "2026-08-28T10:00:00.000Z",
+        },
+      ],
+      nextCursor: null,
+    });
+    listDriveItemsMock.mockResolvedValue([
+      {
+        type: "file" as const,
+        name: "report.pdf",
+        pathname: "report.pdf",
+        fileUrl: "https://example.com/report.pdf",
+        size: 100,
+        uploadedAt: "2026-08-28T09:00:00.000Z",
+      },
+    ]);
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: {
+        data: [{ id: "org_a", name: "Org A" }],
+      },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("defaults to list layout on Recents and Browse", async () => {
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-layout-list")).toBeVisible();
+    });
+    expect(screen.getByRole("radio", { name: "viewList" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.queryByTestId("files-layout-grid")).not.toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Org A" }));
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+    expect(screen.getByTestId("files-layout-list")).toBeVisible();
+    expect(screen.queryByTestId("files-layout-grid")).not.toBeInTheDocument();
+  });
+
+  it("switches Recents and Browse to grid without refetching", async () => {
+    const user = userEvent.setup();
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-layout-list")).toBeVisible();
+    });
+
+    const recentsCalls = fetchDriveRecentsPageMock.mock.calls.length;
+    await user.click(screen.getByRole("radio", { name: "viewGrid" }));
+
+    expect(screen.getByTestId("files-layout-grid")).toBeVisible();
+    expect(screen.queryByTestId("files-layout-list")).not.toBeInTheDocument();
+    expect(fetchDriveRecentsPageMock.mock.calls.length).toBe(recentsCalls);
+
+    await user.click(screen.getByRole("tab", { name: "Org A" }));
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+    const browseCalls = listDriveItemsMock.mock.calls.length;
+    expect(screen.getByTestId("files-layout-grid")).toBeVisible();
+    expect(listDriveItemsMock.mock.calls.length).toBe(browseCalls);
+  });
+
+  it("restores the grid preference after remount", async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-layout-list")).toBeVisible();
+    });
+
+    await user.click(screen.getByRole("radio", { name: "viewGrid" }));
+    expect(screen.getByTestId("files-layout-grid")).toBeVisible();
+
+    unmount();
+    queryClient = createDriveQueryClient();
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-layout-grid")).toBeVisible();
+    });
+    expect(screen.getByRole("radio", { name: "viewGrid" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
+  it("shows a grid skeleton while Recents is loading when grid is saved", async () => {
+    document.cookie = "files_view_mode=grid; path=/";
+    let resolveRecents!: (value: {
+      items: unknown[];
+      nextCursor: string | null;
+    }) => void;
+    fetchDriveRecentsPageMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRecents = resolve;
+        }),
+    );
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-layout-skeleton-grid")).toBeVisible();
+    });
+    expect(
+      screen.queryByTestId("files-layout-skeleton-list"),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveRecents({
+        items: [
+          {
+            kind: "drive-file",
+            name: "notes.txt",
+            fileUrl: "https://example.com/notes.txt",
+            pathname: "notes.txt",
+            size: 12,
+            activityAt: "2026-08-28T10:00:00.000Z",
+          },
+        ],
+        nextCursor: null,
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-layout-grid")).toBeVisible();
+    });
+  });
+
+  it("hides the layout switch on the Tasks special folder", async () => {
+    searchParams = new URLSearchParams("view=tasks");
+    fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByText("tasksEmptyTitle")).toBeVisible();
+    });
+    expect(
+      screen.queryByTestId("files-view-mode-switch"),
+    ).not.toBeInTheDocument();
+  });
+});

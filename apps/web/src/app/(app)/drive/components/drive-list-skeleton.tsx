@@ -1,31 +1,59 @@
 import type { ReactElement } from "react";
 
 import {
-  PROJECTS_LIST_CARD_MIN_H_CLASS,
-  PROJECTS_LIST_ROW_LAYOUT_CLASS,
-} from "@/app/projects/constants";
+  driveItemArticleClass,
+  driveItemBodyClass,
+  driveItemIconWellClass,
+  driveItemsListClass,
+  driveItemsPanelClass,
+} from "@/app/drive/components/drive-view-layout";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 
-export function DriveListSkeleton(): ReactElement {
+interface DriveListSkeletonProps {
+  viewMode?: FilesViewMode;
+}
+
+export function DriveListSkeleton({
+  viewMode = "list",
+}: DriveListSkeletonProps): ReactElement {
+  if (viewMode === "grid") {
+    return (
+      <div
+        className={driveItemsPanelClass("grid")}
+        data-testid="files-layout-skeleton-grid"
+      >
+        <div className={driveItemsListClass("grid")}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <article
+              key={i}
+              className={cn(driveItemArticleClass("grid"), "min-h-24")}
+            >
+              <div className={driveItemBodyClass("grid")}>
+                <div className={driveItemIconWellClass("grid")}>
+                  <Skeleton className="size-4" />
+                </div>
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={cn(
-        "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
-        PROJECTS_LIST_CARD_MIN_H_CLASS,
-      )}
+      className={driveItemsPanelClass("list")}
+      data-testid="files-layout-skeleton-list"
     >
-      <div className="divide-border/50 divide-y px-2">
+      <div className={driveItemsListClass("list")}>
         {Array.from({ length: 4 }).map((_, i) => (
-          <article
-            key={i}
-            className={cn(
-              "-mx-2 flex items-center gap-1 rounded-lg px-2",
-              PROJECTS_LIST_ROW_LAYOUT_CLASS,
-            )}
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-4 py-3 px-2">
-              <div className="flex size-8 shrink-0 items-center justify-center">
+          <article key={i} className={driveItemArticleClass("list")}>
+            <div className={driveItemBodyClass("list")}>
+              <div className={driveItemIconWellClass("list")}>
                 <Skeleton className="size-4" />
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
