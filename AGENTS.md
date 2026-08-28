@@ -336,7 +336,7 @@ Main engineering flow. See [`.agents/skills/ask-matt/`](.agents/skills/ask-matt/
 
 ### Branch Bugbot gate
 
-Optional standalone skill: [`branch-bugbot-gate`](./skills/branch-bugbot-gate/). Run on demand after a PR exists for local verify, CI green, and Bugbot (fix High; Medium for human review). Not wired into `/implement` or poteto finish yet.
+Optional standalone skill: [`branch-bugbot-gate`](./skills/branch-bugbot-gate/). Run on demand after a PR exists for local verify, CI green, and Bugbot (fix High; Medium for human review).
 
 ### Caveman
 

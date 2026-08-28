@@ -13,4 +13,4 @@ Standalone PR finish gate: local verify → CI green → Bugbot 0 High → mediu
 - Install: `npx skills add . --skill branch-bugbot-gate` → `.agents/skills/branch-bugbot-gate/`.
 - Load `.agents/skills/branch-bugbot-gate/` when present; otherwise `skills/branch-bugbot-gate/`.
 - `disable-model-invocation: true` — run only when the user explicitly asks for this gate.
-- Mentioned in root `AGENTS.md`; not hooked into `/implement` or poteto finish yet.
+- Mentioned in root `AGENTS.md`.

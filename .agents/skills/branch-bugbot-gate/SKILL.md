@@ -4,8 +4,7 @@ description: >-
   On-demand PR quality gate: local verification exit 0, CI green, and Bugbot
   with zero High findings. Post Medium findings for human merge review (Linear
   if SOK-XXX known, else PR comment). Use when the user asks for
-  branch-bugbot-gate / Bugbot gate on a PR. Not wired into /implement or poteto
-  finish yet.
+  branch-bugbot-gate / Bugbot gate on a PR.
 disable-model-invocation: true
 ---
 
@@ -30,7 +29,7 @@ flowchart LR
 
 **On demand only** — when the user asks for `branch-bugbot-gate`, Bugbot gate, or CI+Bugbot on a PR. A PR should already exist (or open a draft as part of this gate).
 
-Not wired into `/implement`, poteto Opening a PR, or Cursor finish-menu buttons yet. Do **not** run as a substitute for `/code-review`.
+Do **not** run as a substitute for `/code-review`.
 
 ## Prerequisites
 

@@ -28,7 +28,8 @@
     "branch-bugbot-gate": {
       "source": ".",
       "sourceType": "local",
-      "computedHash": "fa192881aa130685361c81d3a3df3c53529bc401f62fd8f6499404fbce0b0fcb"
+      "skillPath": "skills/branch-bugbot-gate/SKILL.md",
+      "computedHash": "fb38caa6dda7a1fa9df0cf664f3016f541373566e866e802f2385dc3e2405c80"
     },
     "cavecrew": {
       "source": "juliusbrussee/caveman",
