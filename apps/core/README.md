@@ -269,7 +269,7 @@ pnpm approve-builds @sentry/profiling-node
 
 Core’s [`vercel.json`](./vercel.json) sets:
 
-- `installCommand` to `pnpm install --filter @sokosumi/core...` so only Core and its workspace deps (including `@sokosumi/database`) are installed — not the web app or unrelated packages
+- `installCommand` to `node ../../scripts/ci/vercel-pnpm-install.mjs "@sokosumi/core..."` so Corepack activates the root `packageManager` pin, then only Core and its workspace deps (including `@sokosumi/database`) are installed — not the web app or unrelated packages
 - `buildCommand` to `pnpm vercel-build`, which:
 
 1. Runs `pnpm run build` (`tsup`; workspace packages emit `dist` via their `prepare` scripts during install)
