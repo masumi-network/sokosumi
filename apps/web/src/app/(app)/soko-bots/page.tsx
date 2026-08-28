@@ -7,14 +7,14 @@ import { isBetaAccessEmail } from "@/lib/beta-access";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
+import { SokoBotsHero } from "./components/soko-bots-hero";
 import { TeamChart } from "./components/team-chart";
-import { YourSokoBots } from "./components/your-soko-bots";
 
 export const metadata: Metadata = { title: "Soko Bots" };
 
 /**
- * Your own Soko Bots first (create or open), then the team chart: every
- * person in the workspace and the Soko Bot they built.
+ * What a Soko Bot is and the one action that matters, then the workspace:
+ * every person and the Soko Bot they built.
  */
 export default async function SokoBotsPage() {
   const session = await getSessionOrRedirect();
@@ -23,29 +23,22 @@ export default async function SokoBotsPage() {
   if (!isBetaAccessEmail(session.user.email)) {
     notFound();
   }
-  const [t, team] = await Promise.all([
+  const [t, team, avatars] = await Promise.all([
     getTranslations("App.SokoBots"),
     sokoBotService.getTeam().catch((error) => {
       if (error instanceof CoreApiRequestError) return null;
       throw error;
     }),
+    sokoBotService.listAvatars(5, []).catch(() => []),
   ]);
   const me = team?.members.find((member) => member.isYou) ?? null;
 
   return (
-    <div className="w-full space-y-8 px-4 py-4 lg:px-6">
-      <div className="space-y-1">
-        <h1 className="text-foreground text-2xl font-light md:text-3xl">
-          {t("title")}
-        </h1>
-        <p className="text-muted-foreground max-w-2xl text-sm">
-          {t("description")}
-        </p>
-      </div>
+    <div className="w-full space-y-10 px-4 py-4 lg:px-6">
+      <SokoBotsHero me={me} avatars={avatars} />
       {team ? (
-        <>
-          <YourSokoBots me={me} />
-          <section className="space-y-3">
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-2 border-b pb-3">
             <div>
               <h2 className="text-foreground text-lg font-medium">
                 {t("teamTitle")}
@@ -56,9 +49,12 @@ export default async function SokoBotsPage() {
                   : t("teamDescriptionPersonal")}
               </p>
             </div>
-            <TeamChart team={team} />
-          </section>
-        </>
+            <p className="text-muted-foreground text-xs tabular-nums">
+              {t("peopleCount", { count: team.members.length })}
+            </p>
+          </div>
+          <TeamChart team={team} />
+        </section>
       ) : (
         <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
       )}

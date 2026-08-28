@@ -16534,6 +16534,57 @@ export const SokoBotDailyStatsSchema = {
                 'paused'
             ]
         },
+        checks: {
+            type: 'object',
+            properties: {
+                lastSelfStartedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                items: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            key: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: 'string'
+                            },
+                            lastRunAt: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            nextRunAt: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            },
+                            late: {
+                                type: 'boolean'
+                            }
+                        },
+                        required: [
+                            'key',
+                            'name',
+                            'lastRunAt',
+                            'nextRunAt',
+                            'late'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'lastSelfStartedAt',
+                'items'
+            ]
+        },
         totals: {
             type: 'object',
             properties: {
@@ -16599,6 +16650,7 @@ export const SokoBotDailyStatsSchema = {
     required: [
         'days',
         'proactive',
+        'checks',
         'totals',
         'daily'
     ]

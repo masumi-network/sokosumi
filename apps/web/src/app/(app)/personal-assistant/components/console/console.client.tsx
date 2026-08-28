@@ -52,6 +52,7 @@ import { ScheduleRowActions } from "../schedule-row-actions.client";
 import { SkillsSection } from "../skills-section.client";
 
 import { ActivityList } from "./activity-list.client";
+import { AutomationChecks } from "./automation-checks";
 import { DailyStats } from "./daily-stats";
 
 function Section({
@@ -278,6 +279,14 @@ export function SokoBotConsole({
                   })}
                 >
                   <DailyStats stats={stats} />
+                </Section>
+              ) : null}
+              {stats ? (
+                <Section
+                  title={t("Console.Automation.title")}
+                  description={t("Console.Automation.description")}
+                >
+                  <AutomationChecks checks={stats.checks} />
                 </Section>
               ) : null}
               <Section

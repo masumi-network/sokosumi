@@ -869,6 +869,22 @@ export const sokoBotDailyStatsSchema = z
       limit: z.number().int(),
       paused: z.boolean(),
     }),
+    /**
+     * Whether the automation is actually running. Without this an owner cannot
+     * tell a bot that decided to stay quiet from one whose crons stopped.
+     */
+    checks: z.object({
+      lastSelfStartedAt: z.string().nullable(),
+      items: z.array(
+        z.object({
+          key: z.string(),
+          name: z.string(),
+          lastRunAt: z.string().nullable(),
+          nextRunAt: z.string().nullable(),
+          late: z.boolean(),
+        }),
+      ),
+    }),
     totals: z.object(sokoBotDayStatsFields),
     daily: z.array(z.object({ date: z.string(), ...sokoBotDayStatsFields })),
   })

@@ -6492,6 +6492,17 @@
         "skillsDescription": "What your assistant knows how to do. Add more from skills.sh.",
         "views": {
           "advanced": "Advanced"
+        },
+        "Automation": {
+          "title": "Automated checks",
+          "description": "When the assistant last looked, and what is due next.",
+          "never": "never",
+          "empty": "No automated checks are set up yet.",
+          "lastSelfStarted": "Last acted on its own {when}.",
+          "lateWarning": "{count, plural, one {# check is overdue} other {# checks are overdue}} — the automation may not be running.",
+          "ran": "ran {when}",
+          "due": "due {when}",
+          "overdue": "overdue since {when}"
         }
       },
       "Avatar": {
@@ -6560,7 +6571,12 @@
       "moreTitle": "More kinds of Soko Bots",
       "teamTitle": "Team",
       "teamDescription": "Everyone in this workspace and the Soko Bots they built.",
-      "teamDescriptionPersonal": "This is your personal workspace. Join or create an organization to see teammates here."
+      "teamDescriptionPersonal": "This is your personal workspace. Join or create an organization to see teammates here.",
+      "heroEyebrow": "New",
+      "heroTitle": "Introducing Soko Bots!",
+      "heroBody": "A Soko Bot is your own assistant inside Sokosumi. It works your Taskboard with your Coworkers, reads the mail and calendar you connect, starts the work that's worth doing, and tells you about it in chat. Everyone in the workspace builds their own.",
+      "heroCta": "Create your Soko Bot",
+      "heroCtaHint": "Takes a minute: pick a name and a face."
     },
     "Calendar": {
       "Metadata": {

@@ -4850,6 +4850,16 @@ export type SokoBotDailyStats = {
         limit: number;
         paused: boolean;
     };
+    checks: {
+        lastSelfStartedAt: string | null;
+        items: Array<{
+            key: string;
+            name: string;
+            lastRunAt: string | null;
+            nextRunAt: string | null;
+            late: boolean;
+        }>;
+    };
     totals: {
         messages: number;
         background: number;

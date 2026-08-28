@@ -120,7 +120,7 @@ async function BotNode({ member }: { member: Member }) {
 async function PersonNode({ member }: { member: Member }) {
   const t = await getTranslations("App.SokoBots");
   return (
-    <li className="flex w-full flex-col sm:w-64">
+    <li className="flex w-full flex-col">
       <div
         className={cn(
           "bg-background flex items-center gap-3 rounded-lg border px-3 py-3 text-sm",
@@ -196,7 +196,7 @@ export async function TeamChart({ team }: { team: SokoBotTeam }) {
         </span>
       </div>
       <div aria-hidden className="bg-border ml-8 h-6 w-px" />
-      <ul className="flex flex-wrap items-start gap-x-6 gap-y-8">
+      <ul className="grid grid-cols-1 items-start gap-x-6 gap-y-10 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {members.map((member) => (
           <PersonNode key={member.userId} member={member} />
         ))}

@@ -6492,6 +6492,17 @@
         "skillsDescription": "Was dein Assistent kann. Mehr gibt es auf skills.sh.",
         "views": {
           "advanced": "Erweitert"
+        },
+        "Automation": {
+          "title": "Automatische Prüfungen",
+          "description": "Wann der Assistent zuletzt nachgesehen hat und was als Nächstes ansteht.",
+          "never": "nie",
+          "empty": "Es sind noch keine automatischen Prüfungen eingerichtet.",
+          "lastSelfStarted": "Zuletzt {when} von sich aus aktiv geworden.",
+          "lateWarning": "{count, plural, one {# Prüfung ist überfällig} other {# Prüfungen sind überfällig}} — die Automatik läuft möglicherweise nicht.",
+          "ran": "lief {when}",
+          "due": "fällig {when}",
+          "overdue": "überfällig seit {when}"
         }
       },
       "Avatar": {
@@ -6560,7 +6571,12 @@
       "moreTitle": "Weitere Arten von Soko Bots",
       "teamTitle": "Team",
       "teamDescription": "Alle in diesem Workspace und ihre Soko Bots.",
-      "teamDescriptionPersonal": "Das ist dein persönlicher Workspace. Tritt einer Organisation bei oder erstelle eine, um Teammitglieder zu sehen."
+      "teamDescriptionPersonal": "Das ist dein persönlicher Workspace. Tritt einer Organisation bei oder erstelle eine, um Teammitglieder zu sehen.",
+      "heroEyebrow": "Neu",
+      "heroTitle": "Da sind die Soko Bots!",
+      "heroBody": "Ein Soko Bot ist dein eigener Assistent in Sokosumi. Er arbeitet mit deinen Coworkern am Taskboard, liest die Mails und Kalender, die du verbindest, startet die Arbeit, die sich lohnt, und erzählt dir im Chat davon. Jede Person im Workspace baut sich einen eigenen.",
+      "heroCta": "Soko Bot erstellen",
+      "heroCtaHint": "Dauert eine Minute: Name und Gesicht aussuchen."
     },
     "Calendar": {
       "Metadata": {
