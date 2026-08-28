@@ -10,7 +10,6 @@ export {
 } from "./masumi-payment.client.js";
 export type {
   X402AvailableNetwork,
-  X402Budget,
   X402KeySpendCaps,
   X402PayFailure,
   X402PayInput,
