@@ -183,10 +183,12 @@ describe("OrganizationSubscriptionSection", () => {
     );
     expect(subscriptionFreePlanRowMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        creditsText: 'includedCreditsPerSeat:{"credits":250}',
         plan: expect.objectContaining({ name: "free" }),
       }),
     );
+    expect(
+      subscriptionFreePlanRowMock.mock.calls.at(-1)?.[0],
+    ).not.toHaveProperty("creditsText");
     expect(subscriptionEnterprisePlanCardMock).toHaveBeenCalledTimes(1);
   });
 

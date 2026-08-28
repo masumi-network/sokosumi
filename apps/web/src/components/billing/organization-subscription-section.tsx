@@ -281,14 +281,7 @@ export function OrganizationSubscriptionSection({
               ) : null}
             </div>
 
-            {freePlan ? (
-              <SubscriptionFreePlanRow
-                creditsText={t("includedCreditsPerSeat", {
-                  credits: freePlan.credits,
-                })}
-                plan={freePlan}
-              />
-            ) : null}
+            {freePlan ? <SubscriptionFreePlanRow plan={freePlan} /> : null}
           </>
         )}
       </div>
