@@ -48,6 +48,21 @@ export async function activatePush(userId: string): Promise<void> {
 }
 
 /**
+ * The browser's own request, held while the stand-in answers for it, and how
+ * many activations are holding it.
+ *
+ * Both live at module scope because two activations can overlap: a reader can
+ * work the account switch and the device switch inside one page. Saving the
+ * previous value per call, the second call would save the first call's
+ * stand-in as if it were the browser's own, and the last release would install
+ * that stand-in for good. The page could then never prompt again, so a reader
+ * who had not answered yet would silently never get push.
+ */
+let nativeRequestPermission: typeof Notification.requestPermission | null =
+  null;
+let permissionStubDepth = 0;
+
+/**
  * Stops `ably@2.28.0` asking for the notification permission a second time,
  * and returns the call that puts the browser's own request back.
  *
@@ -71,12 +86,27 @@ function answerPermissionFromStoredValue(): () => void {
     return () => {};
   }
 
-  const request = Notification.requestPermission;
-  Notification.requestPermission = () =>
-    Promise.resolve(Notification.permission);
+  if (permissionStubDepth === 0) {
+    nativeRequestPermission = Notification.requestPermission;
+    Notification.requestPermission = () =>
+      Promise.resolve(Notification.permission);
+  }
+  permissionStubDepth += 1;
 
+  // Idempotent, so a caller that releases twice cannot end another caller's
+  // hold and leave Ably free to prompt in the middle of it.
+  let released = false;
   return () => {
-    Notification.requestPermission = request;
+    if (released) {
+      return;
+    }
+
+    released = true;
+    permissionStubDepth -= 1;
+    if (permissionStubDepth === 0 && nativeRequestPermission) {
+      Notification.requestPermission = nativeRequestPermission;
+      nativeRequestPermission = null;
+    }
   };
 }
 

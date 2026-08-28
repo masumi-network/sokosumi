@@ -203,6 +203,36 @@ describe("activatePush", () => {
     expect(Notification.requestPermission).toBe(browserRequestPermission);
   });
 
+  /**
+   * A reader can work the account switch and the device switch inside one
+   * page, so two activations can overlap. Saving the previous value per call
+   * would have the second call save the first call's stand-in as if it were
+   * the browser's own, and the last release would install that stand-in for
+   * good: the page could then never prompt again.
+   */
+  it("restores the browser's own request after overlapping activations", async () => {
+    const resolvers: Array<() => void> = [];
+    activateMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+
+    const first = activatePush("user_1");
+    const second = activatePush("user_1");
+    expect(resolvers).toHaveLength(2);
+
+    resolvers[0]();
+    await first;
+    // The second activation is still running, so Ably must still not prompt.
+    expect(Notification.requestPermission).not.toBe(browserRequestPermission);
+
+    resolvers[1]();
+    await second;
+    expect(Notification.requestPermission).toBe(browserRequestPermission);
+  });
+
   it("restores the browser's permission request when activation fails", async () => {
     let duringActivation: unknown;
     activateMock.mockImplementation(async () => {
