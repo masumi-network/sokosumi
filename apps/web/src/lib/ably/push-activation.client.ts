@@ -55,7 +55,7 @@ export async function activatePush(userId: string): Promise<void> {
  * and fails the activation on anything but `granted` (`build/push.js:194`).
  * WebKit answers `denied` to a request that does not run inside the user
  * gesture, and Ably's `activate()` awaits `getDevice()` and
- * `ensureInitialized()` before it ever reaches that line (`build/ably.js:3238`),
+ * `ensureInitialized()` before it ever reaches that line (`build/ably.js:3239`),
  * so on an installed iOS web app the gesture is always gone by then. The
  * reader saw `User denied permission to send notifications` while the stored
  * permission read `granted`.

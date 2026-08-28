@@ -81,7 +81,8 @@ export interface PushPreference {
   isBlocked: boolean;
   /**
    * Whether the account row may be toggled. False while the session or the
-   * account opt-in is still loading. Deliberately ignores a save in flight, so
+   * account opt-in is unknown, which covers a read still in flight and one that
+   * failed past its retries. Deliberately ignores a save in flight, so
    * the row keeps focus across a save, and deliberately ignores whether this
    * browser can push: the account axis is a Core write, and a reader whose
    * browser cannot subscribe still owns the switch that silences or wakes
