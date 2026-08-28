@@ -38,25 +38,24 @@ export const PROJECTS_DETAIL_WORKSPACE_CLASS = "mt-6 space-y-3 px-4 md:px-0";
 export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 
 /**
- * Primary browse layout: mobile card grid, desktop stacked list chrome.
+ * Primary browse outer chrome: divided list at all breakpoints (Tasks/Drive rhythm).
+ * Square corners on mobile; `md:rounded-xl` + border on desktop.
  * Shared by live `ProjectsView` and Instant skeleton.
  */
 export const PROJECTS_BROWSE_LAYOUT_CLASS =
-  "grid grid-cols-2 gap-3 md:grid-cols-1 md:gap-0 md:divide-y md:divide-border/50 md:overflow-hidden md:rounded-xl md:border md:border-border/50 md:bg-muted/30 md:px-2";
+  "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
 /**
- * Row geometry shared with Drive list surfaces (72px intrinsic).
- * Prefer `PROJECTS_ITEM_LAYOUT_CLASS` for Projects browse items.
+ * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
+ */
+export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border/50 divide-y px-2";
+
+/**
+ * Row geometry shared by live `ProjectListItem`, Instant skeleton, and Drive lists
+ * (72px intrinsic).
  */
 export const PROJECTS_LIST_ROW_LAYOUT_CLASS =
   "[content-visibility:auto] [contain-intrinsic-size:auto_72px]";
-
-/**
- * Item geometry for Projects browse (taller cards on mobile, list rows from md).
- * Shared by live `ProjectListItem` and Instant skeleton items.
- */
-export const PROJECTS_ITEM_LAYOUT_CLASS =
-  "[content-visibility:auto] [contain-intrinsic-size:auto_148px] md:[contain-intrinsic-size:auto_72px]";
 
 /**
  * Query param value for GET /jobs and GET /tasks when listing resources

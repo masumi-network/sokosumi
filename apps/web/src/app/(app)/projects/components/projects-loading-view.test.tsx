@@ -6,8 +6,10 @@ import {
   ProjectsPageSkeleton,
 } from "@/app/projects/components/projects-loading-view";
 import {
-  PROJECTS_ITEM_LAYOUT_CLASS,
+  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_LIST_ROW_LAYOUT_CLASS,
 } from "@/app/projects/constants";
 
 describe("ProjectsPageSkeleton", () => {
@@ -51,19 +53,34 @@ describe("ProjectsLoadingView", () => {
     const { container } = render(<ProjectsLoadingView />);
 
     const browse = screen.getByTestId("projects-loading-browse");
-    expect(browse.className).toContain("grid");
-    expect(browse.className).toContain("grid-cols-2");
-    expect(browse.className).toContain("md:grid-cols-1");
+    for (const token of PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/)) {
+      expect(browse.className).toContain(token);
+    }
     expect(browse.className).toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
+    expect(browse.className).not.toContain("grid-cols-2");
+    expect(browse.className).toContain("rounded-none");
+    expect(browse.className).toContain("md:rounded-xl");
+
+    const divide = browse.firstElementChild;
+    for (const token of PROJECTS_BROWSE_DIVIDE_CLASS.split(/\s+/)) {
+      expect(divide?.className).toContain(token);
+    }
 
     const items = browse.querySelectorAll("article");
     expect(items.length).toBe(4);
 
     for (const item of items) {
-      const card = item.firstElementChild;
-      expect(card?.className).toContain("border");
-      expect(card?.className).toContain("md:border-0");
-      for (const token of PROJECTS_ITEM_LAYOUT_CLASS.split(/\s+/)) {
+      const row = item.firstElementChild;
+      expect(row?.className).toContain("flex-row");
+      expect(row?.className).toContain("items-center");
+      expect(row?.className).toContain("gap-4");
+      expect(row?.className).toContain("rounded-none");
+      expect(row?.className).not.toContain("border-border/50");
+      expect(row?.className).not.toContain("bg-background/60");
+      expect(row?.className.split(/\s+/)).not.toContain("border");
+      // Avatar + name + briefing + two count pills; no overflow actions column.
+      expect(item.querySelectorAll('[data-slot="skeleton"]').length).toBe(5);
+      for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
         expect(item.className).toContain(token);
       }
     }

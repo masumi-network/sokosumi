@@ -1,8 +1,9 @@
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
+  PROJECTS_BROWSE_DIVIDE_CLASS,
   PROJECTS_BROWSE_LAYOUT_CLASS,
-  PROJECTS_ITEM_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_LIST_ROW_LAYOUT_CLASS,
   PROJECTS_PAGE_SHELL_CLASS,
 } from "@/app/projects/constants";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,27 +44,24 @@ export function ProjectsLoadingView() {
           PROJECTS_LIST_CARD_MIN_H_CLASS,
         )}
       >
-        {Array.from({ length: 4 }, (_, index) => (
-          <ProjectListItemSkeleton key={index} />
-        ))}
+        <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+          {Array.from({ length: 4 }, (_, index) => (
+            <ProjectListItemSkeleton key={index} />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
 /**
- * Match `ProjectListItem` geometry (content-visibility + intrinsic size)
+ * Match `ProjectListItem` row geometry (content-visibility + 72px intrinsic)
  * so Instant swap does not thrash layout metrics.
  */
 function ProjectListItemSkeleton() {
   return (
-    <article className={PROJECTS_ITEM_LAYOUT_CLASS}>
-      <div
-        className={cn(
-          "border-border/50 bg-background/60 flex min-w-0 flex-col gap-2 rounded-lg border p-3",
-          "md:-mx-2 md:flex-row md:items-center md:gap-4 md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:py-3",
-        )}
-      >
+    <article className={PROJECTS_LIST_ROW_LAYOUT_CLASS}>
+      <div className="-mx-2 flex min-w-0 flex-row items-center gap-4 rounded-none px-2 py-3 md:rounded-lg">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Skeleton className="size-8 shrink-0 rounded-lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">

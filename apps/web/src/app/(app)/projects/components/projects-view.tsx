@@ -9,6 +9,7 @@ import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { loadMoreProjects } from "@/app/projects/actions";
 import {
+  PROJECTS_BROWSE_DIVIDE_CLASS,
   PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
@@ -107,13 +108,15 @@ export function ProjectsView({
               PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
-            {items.map((project) => (
-              <ProjectListItem
-                key={project.id}
-                project={project}
-                labels={{ counts: labels.counts }}
-              />
-            ))}
+            <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+              {items.map((project) => (
+                <ProjectListItem
+                  key={project.id}
+                  project={project}
+                  labels={{ counts: labels.counts }}
+                />
+              ))}
+            </div>
           </div>
         ) : showEmptyState ? (
           <ProjectsEmptyState labels={labels.empty} />

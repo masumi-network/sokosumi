@@ -1,7 +1,7 @@
 import { Briefcase, ListTodo, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
-import { PROJECTS_ITEM_LAYOUT_CLASS } from "@/app/projects/constants";
+import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
 import { previewProjectBriefing } from "@/app/projects/project-briefing";
 import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
@@ -22,12 +22,12 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
   const briefing = previewProjectBriefing(project.briefing);
 
   return (
-    <article className={PROJECTS_ITEM_LAYOUT_CLASS}>
+    <article className={PROJECTS_LIST_ROW_LAYOUT_CLASS}>
       <Link
         href={`/projects/${project.id}`}
         className={cn(
-          "border-border/50 bg-background/60 flex min-w-0 flex-col gap-2 rounded-lg border p-3 transition-colors active:scale-[0.995]",
-          "md:hover:bg-muted/50 md:-mx-2 md:flex-row md:items-center md:gap-4 md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:py-3",
+          "-mx-2 flex min-w-0 flex-row items-center gap-4 rounded-none px-2 py-3 transition-colors",
+          "hover:bg-muted/50 active:scale-[0.995] md:rounded-lg",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
