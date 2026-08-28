@@ -12,13 +12,5 @@ Standalone PR finish gate: local verify → CI green → Bugbot 0 High → mediu
 - Canonical files: `skills/branch-bugbot-gate/`.
 - Install: `npx skills add . --skill branch-bugbot-gate` → `.agents/skills/branch-bugbot-gate/`.
 - Load `.agents/skills/branch-bugbot-gate/` when present; otherwise `skills/branch-bugbot-gate/`.
-- `disable-model-invocation: true` — run when `/implement`, poteto Opening a PR / Feature / Bug fix finish, or an explicit user ask names this gate.
-- Do not attach to Cursor finish-menu button actions.
-
-## Callers
-
-| Flow | Hook |
-|------|------|
-| Ask Matt `/implement` | After `/code-review` + commits; ensure PR exists, then this skill |
-| Poteto Opening a PR (and Feature / Bug fix / Refactoring that ends with it) | After PR URL exists; before claiming phase done |
-| Manual | `/branch-bugbot-gate` or “run Bugbot gate on this PR” |
+- `disable-model-invocation: true` — run only when the user explicitly asks for this gate.
+- Mentioned in root `AGENTS.md`; not hooked into `/implement` or poteto finish yet.

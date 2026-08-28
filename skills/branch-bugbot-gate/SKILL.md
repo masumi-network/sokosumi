@@ -1,11 +1,11 @@
 ---
 name: branch-bugbot-gate
 description: >-
-  After implementation opens a PR: require local verification exit 0, CI green,
-  and Bugbot with zero High findings. Post Medium findings for human merge
-  review (Linear if SOK-XXX known, else PR comment). Use when finishing
-  /implement, poteto Opening a PR / Feature / Bug fix, or the user asks for
-  branch-bugbot-gate / Bugbot gate on a PR.
+  On-demand PR quality gate: local verification exit 0, CI green, and Bugbot
+  with zero High findings. Post Medium findings for human merge review (Linear
+  if SOK-XXX known, else PR comment). Use when the user asks for
+  branch-bugbot-gate / Bugbot gate on a PR. Not wired into /implement or poteto
+  finish yet.
 disable-model-invocation: true
 ---
 
@@ -28,15 +28,9 @@ flowchart LR
 
 ## When to run
 
-**Blocking** after code is on a branch and a PR exists (or you open one as part of this gate):
+**On demand only** — when the user asks for `branch-bugbot-gate`, Bugbot gate, or CI+Bugbot on a PR. A PR should already exist (or open a draft as part of this gate).
 
-| Entry | When |
-|-------|------|
-| `/implement` (Ask Matt) | After `/code-review` and commit; before claiming the ticket done |
-| Poteto **Opening a PR** / Feature / Bug fix / Refactoring | After the PR URL exists; before treating the phase as finished |
-| Explicit | User says `branch-bugbot-gate`, Bugbot gate, or CI+Bugbot on this PR |
-
-Do **not** wire this to Cursor finish-menu buttons. Do **not** run as a substitute for `/code-review`.
+Not wired into `/implement`, poteto Opening a PR, or Cursor finish-menu buttons yet. Do **not** run as a substitute for `/code-review`.
 
 ## Prerequisites
 

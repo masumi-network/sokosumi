@@ -336,7 +336,7 @@ Main engineering flow. See [`.agents/skills/ask-matt/`](.agents/skills/ask-matt/
 
 ### Branch Bugbot gate
 
-After `/implement` or poteto **Opening a PR** / Feature / Bug fix / Refactoring finishes with a PR URL, run [`branch-bugbot-gate`](./skills/branch-bugbot-gate/) before claiming the PR ready for human review. Requires local allowlisted verification exit 0, **CI green**, and **Bugbot zero High**. Medium findings are posted for a human merge pass (Linear when `SOK-XXX` is known, else a PR comment). Standalone; not the old Team Sapphire squad. Do not attach to Cursor finish-menu buttons.
+Optional standalone skill: [`branch-bugbot-gate`](./skills/branch-bugbot-gate/). Run on demand after a PR exists for local verify, CI green, and Bugbot (fix High; Medium for human review). Not wired into `/implement` or poteto finish yet.
 
 ### Caveman
 
@@ -344,7 +344,7 @@ When the caveman skill is present, follow it for all replies. Off: "stop caveman
 
 ### Linear issue implementation
 
-Inside that flow, ship a Linear issue that already has `## Requirement` with `/to-spec` then `/implement`. Draft PR; run `/branch-bugbot-gate` (CI green + Bugbot 0 High); a human merges. Bugs and refactors without a Requirement skip `/to-spec`.
+Inside that flow, ship a Linear issue that already has `## Requirement` with `/to-spec` then `/implement`. Draft PR; a human merges. Bugs and refactors without a Requirement skip `/to-spec`.
 
 Do **not** invent or file Linear issues during implement work. Filing a new requirement is a separate, explicit ask via [`.agents/skills/linear-requirement/`](./.agents/skills/linear-requirement/) (`disable-model-invocation`).
 

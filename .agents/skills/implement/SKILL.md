@@ -13,5 +13,3 @@ Run typechecking regularly, single test files regularly, and the full test suite
 Once done, use /code-review to review the work.
 
 Commit your work to the current branch.
-
-Then finish with **`/branch-bugbot-gate`** (load `.agents/skills/branch-bugbot-gate/` or `skills/branch-bugbot-gate/`): open or reuse a **draft** PR if needed, require local verification exit 0, **CI green**, and **Bugbot with zero High**. Post Medium findings for human merge review (Linear when `SOK-XXX` is known, else PR comment). Do not claim the ticket done until that gate returns `ok: true`.
