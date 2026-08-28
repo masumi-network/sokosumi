@@ -38,6 +38,7 @@ function keyStatus(overrides: Record<string, unknown> = {}) {
   return {
     id: "apikey_own",
     canAdmin: true,
+    canPay: true,
     usageLimited: false,
     RemainingUsageCredits: [] as { unit: string; amount: string }[],
     ...overrides,
@@ -429,7 +430,9 @@ describe("getX402PurchasingWallets", () => {
     // any an admin assigned to it. Gating on canAdmin here would delist every
     // chain for exactly the keys Soko is meant to run as.
     const wallets = [purchasingWallet()];
-    getApiKeyStatusMock.mockResolvedValue(statusResponse({ canAdmin: false }));
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({ canAdmin: false, canPay: true }),
+    );
     getX402WalletsMock.mockResolvedValue({
       data: { status: "success", data: { Wallets: wallets } },
       error: undefined,
@@ -440,6 +443,55 @@ describe("getX402PurchasingWallets", () => {
 
     expect(result.isOk() && result.value).toEqual(wallets);
     expect(getX402WalletsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists nothing for a read-only key, which could never sign", async () => {
+    // The node reads and pays at DIFFERENT permission tiers: GET /x402/wallets
+    // is read-authenticated, POST /x402/pay is pay-authenticated. Listing a
+    // read-only key's wallets would compose ready pairs whose every charge
+    // 401s, and the pay path reads a 401 as ambiguous, so the record is held
+    // instead of refunded. Never ask the node for that listing at all.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({ canAdmin: false, canPay: false }),
+    );
+
+    const result = await createClient().getX402PurchasingWallets();
+
+    expect(result.isOk() && result.value).toEqual([]);
+    expect(getX402WalletsMock).not.toHaveBeenCalled();
+  });
+
+  it("lists wallets for an admin key that carries no explicit pay flag", async () => {
+    // The node's own hasPermission returns true for any admin key before it
+    // looks at the required flags, so admin IS pay. Gating on canPay alone
+    // would delist every chain for an admin key.
+    const wallets = [purchasingWallet()];
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({ canAdmin: true, canPay: false }),
+    );
+    getX402WalletsMock.mockResolvedValue({
+      data: { status: "success", data: { Wallets: wallets } },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const result = await createClient().getX402PurchasingWallets();
+
+    expect(result.isOk() && result.value).toEqual(wallets);
+  });
+
+  it("lists nothing when the node reports neither permission flag", async () => {
+    // Version skew: absent flags must not read as permitted.
+    getApiKeyStatusMock.mockResolvedValue({
+      data: { status: "success", data: { id: "apikey_own" } },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const result = await createClient().getX402PurchasingWallets();
+
+    expect(result.isOk() && result.value).toEqual([]);
+    expect(getX402WalletsMock).not.toHaveBeenCalled();
   });
 
   it("fails closed when the wallet response is malformed", async () => {

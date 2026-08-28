@@ -331,9 +331,13 @@ Cardano-parallel Preprod/Mainnet split (ticket 003):
   wallet the Soko key can reach on it, the Soko API key's `ChainIdLimit`
   covering the target `eip155:*` ids, and, when the key is `usageLimited`,
   credits for unit `<caip2Network>:<asset>` granted with
-  `PATCH /api/v1/api-key`. Admin permission is **no longer required**: the
-  node applies one wallet scope to both `/x402/wallets` and `/x402/pay`, so a
-  scoped non-admin key is a first-class signer. A `usageLimited` key holding
+  `PATCH /api/v1/api-key`. Admin permission is **no longer required**, but
+  **pay permission is**: the node applies one owner scope to both
+  `/x402/wallets` and `/x402/pay`, so a scoped non-admin key is a first-class
+  signer, yet the listing is read-authenticated while the charge is
+  pay-authenticated. A key with only `canRead` reads the listing and 401s on
+  every charge, so Soko requires `canPay` (admin also qualifies) before it
+  lists any wallet. A `usageLimited` key holding
   no `eip155:` credit row at all is grandfathered uncapped by the node and
   stays payable, so an operator who expected a cap there has not set one.
   Funding stays a manual verification.

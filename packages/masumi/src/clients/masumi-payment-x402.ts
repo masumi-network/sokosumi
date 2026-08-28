@@ -554,21 +554,31 @@ export function createX402PaymentMethods(
     /**
      * Purchasing wallets the calling key can sign from.
      *
-     * The node scopes `GET /x402/wallets` server-side, and it applies the
-     * SAME scope to `POST /x402/pay`, so a wallet this listing returns is a
-     * wallet the key can sign with. An admin key reaches every wallet, and so
-     * does a non-admin key with wallet scoping off: an absent scope list means
-     * unrestricted, the node's Cardano-parity default
+     * WHICH wallets: the node scopes `GET /x402/wallets` server-side and
+     * applies the SAME owner scope to `POST /x402/pay`. An admin key reaches
+     * every wallet, and so does a non-admin key with wallet scoping off: an
+     * absent scope list means unrestricted, the node's Cardano-parity default
      * (`buildOwnerScopeWhere`). Only a key with wallet scoping ON is narrowed,
      * to the wallets it created plus any an admin assigned to it via
-     * `ApiKeyX402WalletScope` (masumi ADR 0016).
-     * There is deliberately no `canAdmin` gate here any more. The old gate
-     * existed because a non-admin key had no legitimate uncapped path, and
-     * budgets were the only grant; with budgets gone, a scoped non-admin key
-     * is a first-class signer and gating it here would delist every chain for
-     * exactly the keys Soko is meant to run as.
+     * `ApiKeyX402WalletScope` (masumi ADR 0016). There is deliberately no
+     * `canAdmin` gate on that: the old one existed because a non-admin key had
+     * no legitimate uncapped path and budgets were the only grant, and with
+     * budgets gone a scoped non-admin key is a first-class signer.
      *
-     * Spend is capped separately and key-globally by
+     * WHETHER it may pay: the owner scope matches on both endpoints, the
+     * PERMISSION TIER does not. `GET /x402/wallets` is read-authenticated and
+     * `POST /x402/pay` is pay-authenticated (`payment-core/src/auth.ts`), and
+     * read is satisfied by `canRead || canPay`. So a read-only key lists
+     * wallets it can never sign with, and readiness composed off that listing
+     * would publish pairs whose every charge 401s, a status the pay path
+     * classifies as AMBIGUOUS, so the record is held for the reconciler rather
+     * than refunded. Gate on the tier the node itself applies: `hasPermission`
+     * returns true for any admin key (`payment-core/src/permissions.ts`), so
+     * admin counts as pay. Strict equality keeps a version-skewed status
+     * fail-closed, and an empty listing composes zero ready pairs rather than
+     * leaving a stale, unpayable set in the cache.
+     *
+     * HOW MUCH: capped separately and key-globally by
      * {@link getX402KeySpendCaps}. This listing answers "which wallet can
      * sign", never "how much may it spend".
      */
@@ -576,6 +586,15 @@ export function createX402PaymentMethods(
       options: PaymentClientRequestOptions = {},
     ): Promise<Result<X402Wallet[], string>> {
       try {
+        const statusResult = await resolveApiKeyStatus(options);
+        if (statusResult.isErr()) {
+          return err(statusResult.error);
+        }
+        const status = statusResult.value;
+        if (status?.canPay !== true && status?.canAdmin !== true) {
+          return ok([]);
+        }
+
         const response = await getX402Wallets({
           client: client(),
           query: { take: X402_WALLET_PAGE_SIZE, type: "Purchasing" },

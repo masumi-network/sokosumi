@@ -200,12 +200,19 @@ them is gone too. What replaces them:
 - A `usageLimited` key holding no `eip155:` credit row at all is grandfathered
   uncapped by the node and really can pay, so it stays listed and the sync
   warns that the intended cap is not in force.
-- Admin permission is no longer part of readiness. The node applies one wallet
-  scope to both `GET /x402/wallets` and `POST /x402/pay`, so a wallet the
-  listing returns is a wallet the key can sign with. Because the cap is
-  key-global, nothing binds a chain to one wallet: the sync ranks the funded
-  candidates and records the most-funded, tie-broken on wallet id so the
-  cached set stays stable across syncs.
+- Admin permission is no longer the gate; PAY permission is. The node applies
+  one owner scope to both `GET /x402/wallets` and `POST /x402/pay`, so a
+  wallet the listing returns is a wallet the key is scoped to. The permission
+  TIER differs though: the listing is read-authenticated and the charge is
+  pay-authenticated (`packages/payment-core/src/auth.ts`), and read is
+  satisfied by `canRead` alone. So readiness still asks the key for
+  `canPay === true || canAdmin === true` before it lists anything, and a
+  read-only key composes zero pairs instead of a full set whose every charge
+  401s. Admin qualifies because the node's `hasPermission` returns true for
+  any admin key; it is no longer required. Because the cap is key-global,
+  nothing binds a chain to one wallet: the sync ranks the funded candidates
+  and records the most-funded, tie-broken on wallet id so the cached set stays
+  stable across syncs.
 
 Two corrections to how the proposed draft described this (both verified
 2026-08-11):
