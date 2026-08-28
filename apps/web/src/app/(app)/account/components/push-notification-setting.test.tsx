@@ -3,12 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { PushPreference } from "@/lib/ably/use-push-preference";
+
 import { PushNotificationSetting } from "./push-notification-setting";
 
-const pushPreference = {
+/** Typed by the hook's own contract, so the fixture cannot drift from it. */
+const pushPreference: PushPreference = {
   isAccountEnabled: false,
   isDeviceEnabled: false,
-  isSupported: true as boolean | null,
+  isSupported: true,
   isBlocked: false,
   canToggleAccount: true,
   canToggleDevice: true,
@@ -33,7 +36,7 @@ vi.mock("sonner", () => ({
   toast: { promise: vi.fn() },
 }));
 
-function renderWith(overrides: Partial<typeof pushPreference>) {
+function renderWith(overrides: Partial<PushPreference>) {
   Object.assign(pushPreference, {
     isAccountEnabled: false,
     isDeviceEnabled: false,
@@ -133,7 +136,9 @@ describe("PushNotificationSetting", () => {
     expect(accountSwitch()).toBeEnabled();
     await userEvent.click(accountSwitch());
 
-    expect(pushPreference.setAccountEnabled).toHaveBeenCalledWith(false);
+    expect(vi.mocked(pushPreference.setAccountEnabled)).toHaveBeenCalledWith(
+      false,
+    );
   });
 
   it("turns off only this browser from the device row", async () => {
@@ -141,8 +146,10 @@ describe("PushNotificationSetting", () => {
 
     await userEvent.click(deviceSwitch());
 
-    expect(pushPreference.setDeviceEnabled).toHaveBeenCalledWith(false);
-    expect(pushPreference.setAccountEnabled).not.toHaveBeenCalled();
+    expect(vi.mocked(pushPreference.setDeviceEnabled)).toHaveBeenCalledWith(
+      false,
+    );
+    expect(vi.mocked(pushPreference.setAccountEnabled)).not.toHaveBeenCalled();
   });
 
   /**

@@ -75,7 +75,7 @@ async function readPushSubscription(): Promise<boolean> {
  * no subscription used to read as off, so the disable dialog never opened and
  * account-wide consent could not be withdrawn from it at all.
  */
-interface PushPreference {
+export interface PushPreference {
   /** Account-wide consent. Off means no browser receives a push. */
   isAccountEnabled: boolean;
   /** Whether this browser holds a live push subscription. */
@@ -153,18 +153,27 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     // mid-flight, so it checks before it lands. Same shape as
     // `lazy-ably-provider.tsx`.
     let cancelled = false;
+    const refreshSubscription = () => {
+      void readPushSubscription().then((subscribed) => {
+        if (!cancelled) {
+          setHasPushSubscription(subscribed);
+        }
+      });
+    };
 
     setIsSupported(isPushSupported());
-    void readPushSubscription().then((subscribed) => {
-      if (!cancelled) {
-        setHasPushSubscription(subscribed);
-      }
-    });
+    refreshSubscription();
     setPermission(getBrowserNotificationPermission());
 
     // Re-read the permission when the reader changes it in browser settings,
-    // so the blocked message clears without a reload.
-    const unsubscribe = subscribeBrowserNotificationPermission(setPermission);
+    // so the blocked message clears without a reload. The subscription is read
+    // again with it: revoking the permission takes the subscription with it,
+    // and a device row still reading as on would sit there checked beside its
+    // own "not available in this browser".
+    const unsubscribe = subscribeBrowserNotificationPermission((next) => {
+      setPermission(next);
+      refreshSubscription();
+    });
     return () => {
       cancelled = true;
       unsubscribe();

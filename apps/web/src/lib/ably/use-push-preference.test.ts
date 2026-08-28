@@ -346,6 +346,28 @@ describe("usePushPreference", () => {
     expect(result.current.isDeviceEnabled).toBe(false);
   });
 
+  /**
+   * The reader revokes the permission in browser settings while the card is
+   * open. Reading only the permission back left the row checked and disabled
+   * beside its own "not available in this browser".
+   */
+  it("drops the device row when the reader revokes the permission live", async () => {
+    setDeviceSubscribed(true);
+    setAccountOptIn(true);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isDeviceEnabled).toBe(true));
+
+    setNotificationPermission("denied");
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await waitFor(() => expect(result.current.isDeviceEnabled).toBe(false));
+    expect(result.current.isBlocked).toBe(true);
+  });
+
   it("reports the block when the browser denies notifications", async () => {
     setNotificationPermission("denied");
     const { result } = renderHook(() => usePushPreference("user_1"), {

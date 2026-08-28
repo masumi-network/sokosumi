@@ -4664,7 +4664,7 @@
         "pushDeviceInactiveDescription": "Las notificaciones push están desactivadas en tu cuenta, así que este navegador permanece en silencio.",
         "pushDeviceAriaLabel": "Activar/desactivar las notificaciones push en este dispositivo",
         "pushDeviceEnabledSuccess": "Notificaciones push activadas en este dispositivo",
-        "pushDisabledSuccess": "Notificaciones push desactivadas en este dispositivo",
+        "pushDeviceDisabledSuccess": "Notificaciones push desactivadas en este dispositivo",
         "pushError": "No se pudieron actualizar las notificaciones push",
         "loading": "Guardando configuración...",
         "error": "No se pudo actualizar la configuración de notificaciones"

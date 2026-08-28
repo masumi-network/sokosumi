@@ -4664,7 +4664,7 @@
         "pushDeviceInactiveDescription": "Push-Benachrichtigungen sind für dein Konto aus. Dieser Browser bleibt still.",
         "pushDeviceAriaLabel": "Push-Benachrichtigungen auf diesem Gerät umschalten",
         "pushDeviceEnabledSuccess": "Push-Benachrichtigungen auf diesem Gerät aktiviert",
-        "pushDisabledSuccess": "Push-Benachrichtigungen auf diesem Gerät deaktiviert",
+        "pushDeviceDisabledSuccess": "Push-Benachrichtigungen auf diesem Gerät deaktiviert",
         "pushError": "Push-Benachrichtigungen konnten nicht aktualisiert werden",
         "loading": "Einstellung wird gespeichert...",
         "error": "Benachrichtigungseinstellung konnte nicht aktualisiert werden"

@@ -4695,7 +4695,7 @@
         "pushDeviceInactiveDescription": "Push notifications are off for your account, so this browser stays silent.",
         "pushDeviceAriaLabel": "Toggle push notifications on this device",
         "pushDeviceEnabledSuccess": "Push notifications enabled on this device",
-        "pushDisabledSuccess": "Push notifications disabled on this device",
+        "pushDeviceDisabledSuccess": "Push notifications disabled on this device",
         "pushError": "Failed to update push notifications",
         "loading": "Saving preference...",
         "error": "Failed to update notification preference"

@@ -93,7 +93,8 @@ export function PushNotificationSetting() {
   const handleDeviceToggle = toggleHandler(
     push.canToggleDevice,
     push.setDeviceEnabled,
-    (next) => (next ? t("pushDeviceEnabledSuccess") : t("pushDisabledSuccess")),
+    (next) =>
+      next ? t("pushDeviceEnabledSuccess") : t("pushDeviceDisabledSuccess"),
   );
 
   return (
