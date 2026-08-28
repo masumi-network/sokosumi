@@ -95,7 +95,7 @@ async function main(): Promise<void> {
       });
       if (coverage.isErr()) {
         console.error(
-          `Coverage assert failed: unparseable=${coverage.error.unparseable} uncovered=${coverage.error.uncoveredReferenceIds.length}`,
+          `Coverage assert failed: uncovered=${coverage.error.uncoveredReferenceIds.length} unparseable=${coverage.error.unparseable}`,
         );
         for (const referenceId of coverage.error.uncoveredReferenceIds.slice(
           0,
@@ -106,9 +106,24 @@ async function main(): Promise<void> {
         process.exitCode = 1;
       } else {
         console.log(
-          "Coverage assert passed for leftover member period fingerprints.",
+          "Coverage assert passed for parseable leftover member period fingerprints.",
         );
+        if (coverage.value.unparseable > 0) {
+          console.warn(
+            `Warning: ${coverage.value.unparseable} leftover member: period row(s) are unparseable and were not fingerprinted. They stay in place (delete skips them). Triage with --verbose.`,
+          );
+          for (const referenceId of coverage.value.unparseableReferenceIds.slice(
+            0,
+            20,
+          )) {
+            console.warn(`  unparseable ${referenceId}`);
+          }
+        }
       }
+    } else if (result.unparseable > 0) {
+      console.warn(
+        `Warning: ${result.unparseable} leftover member: period row(s) are unparseable and will not get sentinels.`,
+      );
     }
   } finally {
     await prisma.$disconnect();

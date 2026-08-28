@@ -51,6 +51,12 @@ export interface TombstoneDeleteResult {
 export interface SentinelCoverageFailure {
   uncoveredReferenceIds: string[];
   unparseable: number;
+  unparseableReferenceIds: string[];
+}
+
+export interface SentinelCoverageOk {
+  unparseable: number;
+  unparseableReferenceIds: string[];
 }
 
 export type SentinelDebugLog = (message: string) => void;
@@ -219,6 +225,7 @@ export async function collectOrgPeriodSentinelSpecs(
   specs: OrgPeriodSentinelSpec[];
   scannedLeftovers: number;
   unparseable: number;
+  unparseableReferenceIds: string[];
 }> {
   const debug = params.debug;
   const leftovers = await listLeftoverMemberPeriodRows(
@@ -233,7 +240,7 @@ export async function collectOrgPeriodSentinelSpecs(
   );
 
   const byReferenceId = new Map<string, OrgPeriodSentinelSpec>();
-  let unparseable = 0;
+  const unparseableReferenceIds: string[] = [];
 
   for (const leftover of leftovers) {
     const parsed = parseMemberPeriodReferenceId(
@@ -241,7 +248,7 @@ export async function collectOrgPeriodSentinelSpecs(
       leftover.organizationId,
     );
     if (parsed.isErr()) {
-      unparseable += 1;
+      unparseableReferenceIds.push(leftover.referenceId);
       debug?.(
         `collect: unparseable leftover id=${leftover.id} organizationId=${leftover.organizationId} referenceId=${leftover.referenceId} remaining=${leftover.remaining.toString()}`,
       );
@@ -270,13 +277,14 @@ export async function collectOrgPeriodSentinelSpecs(
   }
 
   debug?.(
-    `collect: distinctFingerprints=${byReferenceId.size} unparseable=${unparseable}`,
+    `collect: distinctFingerprints=${byReferenceId.size} unparseable=${unparseableReferenceIds.length}`,
   );
 
   return {
     scannedLeftovers: leftovers.length,
     specs: [...byReferenceId.values()],
-    unparseable,
+    unparseable: unparseableReferenceIds.length,
+    unparseableReferenceIds,
   };
 }
 
@@ -454,12 +462,13 @@ export async function backfillOrgPeriodIdempotencySentinels(
 export async function assertSentinelsCoverLeftoverMemberPeriods(
   prisma: PrismaClient | Prisma.TransactionClient,
   params: { debug?: SentinelDebugLog; organizationId?: string } = {},
-): Promise<Result<void, SentinelCoverageFailure>> {
+): Promise<Result<SentinelCoverageOk, SentinelCoverageFailure>> {
   const debug = params.debug;
-  const { specs, unparseable } = await collectOrgPeriodSentinelSpecs(prisma, {
-    debug,
-    organizationId: params.organizationId,
-  });
+  const { specs, unparseable, unparseableReferenceIds } =
+    await collectOrgPeriodSentinelSpecs(prisma, {
+      debug,
+      organizationId: params.organizationId,
+    });
 
   const uncoveredReferenceIds: string[] = [];
   for (const spec of specs) {
@@ -476,15 +485,21 @@ export async function assertSentinelsCoverLeftoverMemberPeriods(
     }
   }
 
-  if (unparseable > 0 || uncoveredReferenceIds.length > 0) {
+  if (uncoveredReferenceIds.length > 0) {
     debug?.(
-      `coverage: failed unparseable=${unparseable} uncovered=${uncoveredReferenceIds.length}`,
+      `coverage: failed uncovered=${uncoveredReferenceIds.length} unparseable=${unparseable}`,
     );
-    return err({ uncoveredReferenceIds, unparseable });
+    return err({
+      uncoveredReferenceIds,
+      unparseable,
+      unparseableReferenceIds,
+    });
   }
 
-  debug?.(`coverage: passed distinctFingerprints=${specs.length}`);
-  return ok(undefined);
+  debug?.(
+    `coverage: passed distinctFingerprints=${specs.length} unparseable=${unparseable}`,
+  );
+  return ok({ unparseable, unparseableReferenceIds });
 }
 
 export async function deleteCoveredMemberPeriodTombstones(

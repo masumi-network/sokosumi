@@ -463,6 +463,36 @@ describe("assertSentinelsCoverLeftoverMemberPeriods", () => {
     );
     assert.equal(result.isOk(), true);
   });
+
+  it("passes when leftovers are only unparseable (no uncovered fingerprints)", async () => {
+    const prisma = {
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
+          id: "b-1",
+          referenceId: "member:user-1:weird-shape",
+          organizationId: "org-1",
+          userId: "user-1",
+          expiresAt: null,
+          activatesAt: null,
+          remaining: 0n,
+        },
+      ]),
+      creditBucket: {
+        findUnique: vi.fn(),
+      },
+    };
+
+    const result = await assertSentinelsCoverLeftoverMemberPeriods(
+      prisma as never,
+    );
+    assert.equal(result.isOk(), true);
+    if (result.isOk()) {
+      assert.equal(result.value.unparseable, 1);
+      assert.deepEqual(result.value.unparseableReferenceIds, [
+        "member:user-1:weird-shape",
+      ]);
+    }
+  });
 });
 
 describe("deleteCoveredMemberPeriodTombstones", () => {
