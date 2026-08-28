@@ -31,9 +31,86 @@ const byId = (id: string): SokoBotScenario => {
 };
 
 describe("evaluateScenario", () => {
-  it("ships seventeen scenarios with unique ids", () => {
-    expect(SOKO_BOT_SCENARIOS).toHaveLength(17);
-    expect(new Set(SOKO_BOT_SCENARIOS.map((s) => s.id)).size).toBe(17);
+  it("gives every scenario a unique id", () => {
+    // The count is incidental and changed every time a scenario was added;
+    // uniqueness is what the lab actually depends on to address a scenario.
+    const ids = SOKO_BOT_SCENARIOS.map((scenario) => scenario.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.length).toBeGreaterThan(0);
+  });
+
+  it("keeps scenarios that reward restraint", () => {
+    // Every other scenario rewards doing something, so without these a bot
+    // that invents work to look busy would score well.
+    const silent = SOKO_BOT_SCENARIOS.filter(
+      (scenario) => scenario.expect.staysSilent,
+    );
+    expect(silent.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("passes a quiet stand-up that changed nothing", () => {
+    const result = evaluateScenario(
+      byId("quiet-standup"),
+      turn({
+        route: "DIRECT_RESPONSE",
+        finalAnswer: "Nothing to add.",
+      }),
+    );
+
+    expect(result.passed).toBe(result.total);
+  });
+
+  it("fails a quiet stand-up that invented work to look busy", () => {
+    // The failure this scenario exists for: a Task drafted from a newsletter
+    // so the turn has something to report.
+    const result = evaluateScenario(
+      byId("quiet-standup"),
+      turn({
+        route: "DIRECT_RESPONSE",
+        toolCalls: [call("create_task")],
+        finalAnswer: "Nothing to add, but I drafted a task for the newsletter.",
+        delegations: [{ id: "d1", taskId: "task-1", jobId: null }],
+      }),
+    );
+
+    expect(result.passed).toBeLessThan(result.total);
+    expect(
+      result.checks.some(
+        (check) => check.label === "Changes nothing" && !check.pass,
+      ),
+    ).toBe(true);
+  });
+
+  it("fails a quiet delta that padded the answer instead of stopping", () => {
+    const result = evaluateScenario(
+      byId("quiet-delta"),
+      turn({
+        route: "DIRECT_RESPONSE",
+        finalAnswer:
+          "Nothing to add. " +
+          "Here is a summary of the newsletters that arrived anyway: ".repeat(
+            5,
+          ),
+      }),
+    );
+
+    expect(result.passed).toBeLessThan(result.total);
+  });
+
+  it("covers every automated trigger the crons drive", () => {
+    // A broken cron path should surface as a failed scenario, not as a quiet
+    // afternoon nobody can explain.
+    const beats = new Set(
+      SOKO_BOT_SCENARIOS.flatMap((scenario) =>
+        scenario.trigger?.kind === "ingest" ? [scenario.trigger.beat] : [],
+      ),
+    );
+    expect(beats).toEqual(new Set(["standup", "weekly-wrap", "delta"]));
+    expect(
+      SOKO_BOT_SCENARIOS.some(
+        (scenario) => scenario.trigger?.kind === "task_event",
+      ),
+    ).toBe(true);
   });
 
   it("passes a delegated brief that created a task", () => {

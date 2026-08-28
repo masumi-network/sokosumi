@@ -147,9 +147,11 @@ async function startScenario(
         coworker: { select: { id: true } },
       },
     });
+    const beat = scenario.trigger.beat;
     const message =
-      scenario.trigger.beat === "standup"
-        ? (
+      beat === "delta"
+        ? await buildIngestDeltaMessageForBot(bot.id)
+        : (
             await buildSystemBeatMessage({
               bot: {
                 id: bot.id,
@@ -158,20 +160,19 @@ async function startScenario(
                 ingestTimezone: bot.ingestTimezone,
                 followWholeBoard: bot.followWholeBoard,
               },
-              key: "standup",
+              key: beat,
               prompt:
-                SOKO_BOT_SYSTEM_SCHEDULES.find((s) => s.key === "standup")
-                  ?.prompt ?? "Daily stand-up.",
+                SOKO_BOT_SYSTEM_SCHEDULES.find((s) => s.key === beat)?.prompt ??
+                "Daily stand-up.",
               now: new Date(),
             })
-          ).message
-        : await buildIngestDeltaMessageForBot(bot.id);
+          ).message;
     const started = await sokoBotControlPlane.startTurn({
       userId: owner.bot.userId,
       workspaceId: owner.workspaceId,
       clientTurnId: `lab:${scenario.id}:${crypto.randomUUID()}`,
       message,
-      source: scenario.trigger.beat === "standup" ? "SCHEDULE" : "INGEST",
+      source: beat === "delta" ? "INGEST" : "SCHEDULE",
     });
     if (started.reconciliationLeaseToken) {
       await sokoBotControlPlane
