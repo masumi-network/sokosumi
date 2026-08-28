@@ -16,14 +16,13 @@ import {
   adminCreateMatchedChannelBodySchema,
   adminMatchedChannelOptionSchema,
 } from "@/schemas/admin.schema";
-import { CHAT_ROOM_ACCESS } from "@/schemas/chat-room.schema";
 
 const route = createRoute({
   method: "post",
   path: "/",
   operationId: "createAdminMatchedChannel",
   description:
-    "Create a live org-less matched channel (admin only). Forces `kind=channel`, `organizationId=null`, and `discoverability=matched`. Seeds the creating admin as a member so they can open the room.",
+    "Create a live org-less matched channel (admin only). Forces `kind=channel`, `organizationId=null`, and `discoverability=matched`. Does not add the creating admin to the roster.",
   tags: ["Admin"],
   request: {
     body: {
@@ -64,15 +63,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name,
           slug,
           topic: body.topic?.trim() || null,
-          userMembers: {
-            create: {
-              userId: admin.userId,
-              access: CHAT_ROOM_ACCESS.MEMBER,
-            },
-          },
-          readStates: {
-            create: { userId: admin.userId },
-          },
         },
         select: { id: true, name: true, slug: true },
       });

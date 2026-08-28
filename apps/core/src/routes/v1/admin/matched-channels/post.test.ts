@@ -89,7 +89,7 @@ describe("POST /admin/matched-channels", () => {
     });
   });
 
-  it("creates an org-less matched channel and seeds the creator as member", async () => {
+  it("creates an org-less matched channel without seeding the creator on the roster", async () => {
     const response = await post({
       name: "Partners",
       slug: "partners",
@@ -112,15 +112,6 @@ describe("POST /admin/matched-channels", () => {
         name: "Partners",
         slug: "partners",
         topic: "Partner coordination",
-        userMembers: {
-          create: {
-            userId: "user_admin",
-            access: "member",
-          },
-        },
-        readStates: {
-          create: { userId: "user_admin" },
-        },
       },
       select: { id: true, name: true, slug: true },
     });
