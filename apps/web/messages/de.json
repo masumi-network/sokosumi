@@ -6575,7 +6575,8 @@
       "heroTitle": "Da sind die Soko Bots!",
       "heroBody": "Ein Soko Bot ist dein eigener Assistent in Sokosumi. Er arbeitet mit deinen Coworkern am Taskboard, liest die Mails und Kalender, die du verbindest, startet die Arbeit, die sich lohnt, und erzählt dir im Chat davon. Jede Person im Workspace baut sich einen eigenen.",
       "heroCta": "Soko Bot erstellen",
-      "heroCtaHint": "Dauert eine Minute: Name und Gesicht aussuchen."
+      "heroCtaHint": "Dauert eine Minute: Name und Gesicht aussuchen.",
+      "teamCount": "{humans, plural, one {# Mensch} other {# Menschen}}, {bots, plural, =0 {noch keine Soko Bots} one {# Soko Bot} other {# Soko Bots}}"
     },
     "Calendar": {
       "Metadata": {

@@ -44,7 +44,10 @@ export default async function SokoBotsPage() {
                 {t("teamTitle")}
               </h2>
               <p className="text-muted-foreground text-xs tabular-nums">
-                {t("peopleCount", { count: team.members.length })}
+                {t("teamCount", {
+                  humans: team.members.length,
+                  bots: team.members.filter((member) => member.bot).length,
+                })}
               </p>
             </div>
             <p className="text-muted-foreground text-sm">
@@ -52,7 +55,9 @@ export default async function SokoBotsPage() {
                 ? t("teamDescription")
                 : t("teamDescriptionPersonal")}
             </p>
-            <hr className="border-border" />
+            {/* Breaks out of the page padding: the rule reads as a divider
+                across the view, not a line floating inside the content. */}
+            <hr className="border-border -mx-4 lg:-mx-6" />
           </div>
           <TeamChart team={team} />
         </section>
