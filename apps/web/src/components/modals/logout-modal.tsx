@@ -16,7 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { signOut } from "@/lib/auth/auth.client";
+import { releasePushDeviceOnSignOut } from "@/lib/ably/release-push-device";
+import { signOut, useSession } from "@/lib/auth/auth.client";
 
 interface LogoutModalProps {
   open: boolean;
@@ -32,9 +33,12 @@ export default function LogoutModal({
   const t = useTranslations("Components.Modals.LogoutModal");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { data: session } = useSession();
 
   const handleLogout = async () => {
     setLoading(true);
+    // Before the session ends, so the deactivation can still mint a token.
+    await releasePushDeviceOnSignOut(session?.user.id);
     await signOut({
       fetchOptions: {
         onError: () => {

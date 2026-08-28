@@ -8,6 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
+import { releasePushDeviceOnSignOut } from "@/lib/ably/release-push-device";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
@@ -152,6 +153,8 @@ export default function InvitationActions({
   const handleLogout = async () => {
     setLoading(true);
     setAction("logout");
+    // Before the session ends, so the deactivation can still mint a token.
+    await releasePushDeviceOnSignOut(user?.id);
     await authClient.signOut();
     const returnUrl = getReturnUrlFromCurrentLocation();
     router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);

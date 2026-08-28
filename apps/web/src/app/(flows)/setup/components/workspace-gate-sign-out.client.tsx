@@ -7,17 +7,21 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { authClient } from "@/lib/auth/auth.client";
+import { releasePushDeviceOnSignOut } from "@/lib/ably/release-push-device";
+import { authClient, useSession } from "@/lib/auth/auth.client";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 export function WorkspaceGateSignOut() {
   const t = useTranslations("WorkspaceGate");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { data: session } = useSession();
 
   async function handleSignOut() {
     setLoading(true);
     try {
+      // Before the session ends, so the deactivation can still mint a token.
+      await releasePushDeviceOnSignOut(session?.user.id);
       await authClient.signOut({
         fetchOptions: {
           onError: () => {
