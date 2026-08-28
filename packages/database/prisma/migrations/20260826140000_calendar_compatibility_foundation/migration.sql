@@ -200,8 +200,10 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM "task" AS t
+    JOIN "user" AS owner ON owner.id = t."ownerId"
     WHERE t."projectId" = OLD.id
       AND t."archivedAt" IS NULL
+      AND lower(owner.email) ~ '^[^@]+@nmkr\.io$'
       AND (
         t."nextRunAt" IS NOT NULL
         OR task_schedule_metadata_has_known_shape(t.metadata)
@@ -211,7 +213,9 @@ BEGIN
     FROM "task_link" AS link
     JOIN "task" AS source_task ON source_task.id = link."fromTaskId"
     JOIN "task" AS target_task ON target_task.id = link."toTaskId"
+    JOIN "user" AS owner ON owner.id = source_task."ownerId"
     WHERE link.type = 'SCHEDULE'
+      AND lower(owner.email) ~ '^[^@]+@nmkr\.io$'
       AND (
         source_task."projectId" = OLD.id
         OR target_task."projectId" = OLD.id
