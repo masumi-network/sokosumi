@@ -50,7 +50,8 @@ export function driveItemIconWellClass(viewMode: FilesViewMode): string {
 }
 
 /** Matches Lucide Folder `size-5` so react-file-icon does not fill the well. */
-export const DRIVE_FILE_TYPE_ICON_CLASS = "size-5 shrink-0";
+export const DRIVE_FILE_TYPE_ICON_CLASS =
+  "flex size-5 shrink-0 items-center justify-center overflow-hidden [&>svg]:size-full";
 
 /** Grid: one-line size · date. List: mobile-only row; desktop uses `driveItemMetaDesktopClass`. */
 export function driveItemMetaMobileClass(viewMode: FilesViewMode): string {
