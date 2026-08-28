@@ -60,7 +60,7 @@ function ProjectListItemSkeleton() {
     <article className={PROJECTS_ITEM_LAYOUT_CLASS}>
       <div
         className={cn(
-          "border-border/50 bg-background/60 flex min-w-0 flex-col gap-2 rounded-lg border p-3",
+          "border-border/50 bg-background/60 flex min-w-0 flex-col gap-2 rounded-none border p-3",
           "md:-mx-2 md:flex-row md:items-center md:gap-4 md:rounded-lg md:border-0 md:bg-transparent md:px-2 md:py-3",
         )}
       >

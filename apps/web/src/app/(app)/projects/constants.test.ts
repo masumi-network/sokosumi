@@ -33,21 +33,26 @@ describe("projects list CLS layout constants", () => {
 });
 
 describe("projects mobile padding shells", () => {
-  it("index shell cancels main p-4 and keeps net px-2", () => {
+  it("index shell cancels main p-4 on both edges and keeps net px-2", () => {
     const tokens = PROJECTS_PAGE_SHELL_CLASS.split(/\s+/);
     expect(tokens).toContain("-mx-4");
+    expect(tokens).toContain("w-[calc(100%+2rem)]");
     expect(tokens).toContain("px-2");
     expect(tokens).toContain("md:mx-0");
+    expect(tokens).toContain("md:w-full");
     expect(tokens).toContain("md:px-2");
     expect(tokens).not.toContain("px-4");
+    expect(tokens).not.toContain("w-full");
   });
 
-  it("detail shell cancels main p-4; workspace keeps index px-2", () => {
+  it("detail shell cancels main p-4 on both edges; workspace keeps index px-2", () => {
     const shell = PROJECTS_DETAIL_SHELL_CLASS.split(/\s+/);
     const workspace = PROJECTS_DETAIL_WORKSPACE_CLASS.split(/\s+/);
 
     expect(shell).toContain("-mx-4");
+    expect(shell).toContain("w-[calc(100%+2rem)]");
     expect(shell).toContain("md:mx-0");
+    expect(shell).toContain("md:w-full");
     expect(shell).toContain("md:px-6");
     expect(shell).not.toContain("px-4");
     expect(shell).not.toContain("px-2");

@@ -129,13 +129,15 @@ describe("ProjectDetailPage", () => {
 
     const { container } = render(html);
     expect(container.firstChild).toHaveClass(
-      "w-full",
+      "w-[calc(100%+2rem)]",
       "-mx-4",
       "py-6",
       "md:mx-0",
+      "md:w-full",
       "md:px-6",
     );
     expect(container.firstChild).not.toHaveClass("px-4");
+    expect(container.firstChild).not.toHaveClass("w-full");
     expect(container.querySelector(".max-w-4xl")).toBeNull();
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),

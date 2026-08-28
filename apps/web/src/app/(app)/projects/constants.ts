@@ -7,17 +7,20 @@ export const PROJECTS_PAGE_LIMIT = 20;
 
 /**
  * Projects index + Instant shell. Cancel authenticated-app-frame main `p-4` on
- * mobile (`-mx-4`) and keep a net `px-2` gutter (Drive/list rhythm). Desktop
- * restores the main margin and keeps a light `md:px-2`.
+ * mobile (`-mx-4`) and keep a net `px-2` gutter (Drive/list rhythm).
+ * `w-[calc(100%+2rem)]` is required with `-mx-4` under main `overflow-x-hidden`
+ * — bare `w-full` only cancels the left edge (chat landing uses the same calc).
+ * Desktop restores the main margin and keeps a light `md:px-2`.
  */
-export const PROJECTS_PAGE_SHELL_CLASS = "w-full -mx-4 px-2 md:mx-0 md:px-2";
+export const PROJECTS_PAGE_SHELL_CLASS =
+  "w-[calc(100%+2rem)] -mx-4 px-2 md:mx-0 md:w-full md:px-2";
 
 /**
  * Project detail outer shell. Cancel main `p-4` on mobile so the top block can
- * go edge-to-edge; desktop keeps a wider gutter.
+ * go edge-to-edge; same calc width as the index shell. Desktop keeps a wider gutter.
  */
 export const PROJECTS_DETAIL_SHELL_CLASS =
-  "min-h-full w-full -mx-4 py-6 md:mx-0 md:px-6";
+  "min-h-full w-[calc(100%+2rem)] -mx-4 py-6 md:mx-0 md:w-full md:px-6";
 
 /**
  * Detail header + briefing/brand/tasks/jobs/memory: full bleed under the

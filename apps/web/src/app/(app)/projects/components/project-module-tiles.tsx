@@ -56,7 +56,7 @@ export function ProjectModuleTiles({ labels }: ProjectModuleTilesProps) {
           <div
             key={key}
             aria-disabled="true"
-            className="bg-muted/30 border-border/50 min-w-0 cursor-default rounded-xl border p-4 opacity-70"
+            className="bg-muted/30 border-border/50 min-w-0 cursor-default rounded-none border p-4 opacity-70 md:rounded-xl"
           >
             <div className="flex items-start justify-between gap-2">
               <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">
