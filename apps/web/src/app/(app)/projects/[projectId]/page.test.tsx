@@ -157,7 +157,7 @@ describe("ProjectDetailPage", () => {
       "App.Projects.Detail.modules.title",
     );
     expect(workspaceHeading).toBeInTheDocument();
-    expect(workspaceHeading.closest("section")?.className).toContain("px-2");
+    expect(workspaceHeading.closest("section")?.className).toContain("px-4");
     expect(workspaceHeading.closest("section")?.className).toContain("md:px-0");
     expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
       7,
