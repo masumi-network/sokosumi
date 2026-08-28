@@ -105,6 +105,10 @@ describe("workspace switcher", () => {
       expect(getOrganizationSettingsPath("/account")).toBeNull();
       expect(getOrganizationSettingsPath("/tasks")).toBeNull();
       expect(getOrganizationSettingsPath("/billing")).toBeNull();
+      expect(getOrganizationSettingsPath("/admin/organizations")).toBeNull();
+      expect(
+        getOrganizationSettingsPath("/admin/organizations/acme"),
+      ).toBeNull();
     });
   });
 
@@ -192,6 +196,47 @@ describe("workspace switcher", () => {
       });
       expect(updatePreferredOrganization).toHaveBeenCalledWith({
         organizationId: "org-1",
+      });
+      expect(replaceMock).toHaveBeenCalledWith("/organization");
+      expect(refreshMock).toHaveBeenCalled();
+    });
+  });
+
+  it("replaces to /organization when switching to personal from org settings", async () => {
+    pathnameMock = "/organizations/utxo";
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        organizationId: null,
+      },
+    });
+
+    function PersonalSwitcherTestComponent() {
+      const { handleSelectWorkspace } = useWorkspaceSwitcher();
+      return (
+        <button type="button" onClick={() => handleSelectWorkspace(null)}>
+          Switch to personal
+        </button>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<PersonalSwitcherTestComponent />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Switch to personal" }),
+    );
+
+    await waitFor(() => {
+      expect(authClient.organization.setActive).toHaveBeenCalledWith({
+        organizationId: null,
+      });
+      expect(updatePreferredOrganization).toHaveBeenCalledWith({
+        organizationId: null,
       });
       expect(replaceMock).toHaveBeenCalledWith("/organization");
       expect(refreshMock).toHaveBeenCalled();
