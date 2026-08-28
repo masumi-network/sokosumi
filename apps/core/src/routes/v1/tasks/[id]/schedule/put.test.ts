@@ -228,6 +228,7 @@ describe("PUT /tasks/{id}/schedule", () => {
       assigneeId: "coworker-1",
       workspaceId: WORKSPACE_ID,
       organizationId: null,
+      projectId: null,
     });
     taskUpdateMock.mockImplementation(async ({ data }) =>
       createTaskResult(data.metadata, data.nextRunAt),

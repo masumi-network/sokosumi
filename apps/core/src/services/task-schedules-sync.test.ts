@@ -231,6 +231,7 @@ describe("taskSchedulesSyncService", () => {
     mockFindFirst.mockResolvedValue({
       id: "template-1",
       ownerId: "user-1",
+      owner: { email: "user@nmkr.io" },
       organizationId: "org-1",
       workspaceId: "workspace-1",
       projectId: null,
@@ -241,6 +242,7 @@ describe("taskSchedulesSyncService", () => {
         version: 1,
         mode: "recurring",
         scheduledAt: "2026-06-01T09:00:00.000Z",
+        lastRunAt: "2026-06-09T09:00:00.000Z",
         expr: "0 9 * * *",
         timezone: "UTC",
         endsMode: "never",
