@@ -61,6 +61,8 @@ vi.mock("@/helpers/admin-organization-overview.js", async (importOriginal) => {
 });
 
 vi.mock("@sokosumi/database/repositories", () => ({
+  creditBucketRepository: {},
+  organizationRepository: {},
   userRepository: {
     getUserById: (...args: unknown[]) => getUserByIdMock(...args),
   },
