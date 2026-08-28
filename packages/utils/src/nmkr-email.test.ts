@@ -17,6 +17,11 @@ describe("isNmkrEmail", () => {
     "alice@sub.nmkr.io",
     "alice@nmkr.io.example",
     "alice@notnmkr.io",
+    "nmkr.io",
+    "@nmkr.io",
+    "alice@other@nmkr.io",
+    "alice @nmkr.io",
+    " alice@nmkr.io",
   ])("rejects a non-NMKR email: %s", (email) => {
     expect(isNmkrEmail(email)).toBe(false);
   });
