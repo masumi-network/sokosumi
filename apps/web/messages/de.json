@@ -790,7 +790,7 @@
       "accept": "Akzeptieren",
       "view": "Ansehen",
       "browserNotificationTitle": "Sokosumi",
-      "browserPermissionTitle": "Erhalte Hinweise, wenn Sokosumi geschlossen ist",
+      "browserPermissionTitle": "Erhalte Meldungen, wenn Sokosumi geschlossen ist",
       "browserPermissionDescription": "Aktiviere Push-Benachrichtigungen für diesen Browser in deinen Kontoeinstellungen, um Chat-Updates zu erhalten, während Sokosumi geschlossen ist.",
       "browserPermissionOpenSettings": "Benachrichtigungseinstellungen öffnen",
       "browserPermissionInAppTitle": "Benachrichtigungen erhalten, wenn du in einem anderen Tab bist",
