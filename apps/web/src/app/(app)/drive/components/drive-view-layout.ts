@@ -49,9 +49,9 @@ export function driveItemIconWellClass(viewMode: FilesViewMode): string {
     : "flex size-8 shrink-0 items-center justify-center";
 }
 
-/** Matches Lucide Folder `size-5`; flex centers the svg inside the well. */
+/** Matches Lucide Folder `size-5`; flex centers the svg (keeps 40×48 aspect). */
 export const DRIVE_FILE_TYPE_ICON_CLASS =
-  "flex size-5 shrink-0 items-center justify-center [&_svg]:size-5";
+  "flex size-5 shrink-0 items-center justify-center [&_svg]:h-5 [&_svg]:w-auto";
 
 /** Grid: one-line size · date. List: mobile-only row; desktop uses `driveItemMetaDesktopClass`. */
 export function driveItemMetaMobileClass(viewMode: FilesViewMode): string {
