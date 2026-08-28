@@ -1,4 +1,6 @@
-import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
+
+import { buildCompensatingRefundTransactionCreate } from "@/helpers/compensating-refund";
 
 /**
  * Creates a refund transaction and source credit bucket for a job when the job
@@ -31,41 +33,12 @@ export async function refundJob(
     where: { id: jobId },
     data: {
       refundedTransaction: {
-        create: {
+        create: buildCompensatingRefundTransactionCreate({
           amount,
-          user: {
-            connect: {
-              id: transaction.userId,
-            },
-          },
-          ...(transaction.organizationId && {
-            organization: {
-              connect: {
-                id: transaction.organizationId,
-              },
-            },
-          }),
-          sourceCreditBucket: {
-            create: {
-              amount,
-              referenceId: jobId,
-              referenceType: CreditBucketReferenceType.REFUND,
-              user: {
-                connect: {
-                  id: transaction.userId,
-                },
-              },
-              expiresAt: null,
-              ...(transaction.organizationId && {
-                organization: {
-                  connect: {
-                    id: transaction.organizationId,
-                  },
-                },
-              }),
-            },
-          },
-        } satisfies Prisma.TransactionCreateInput,
+          actorUserId: transaction.userId,
+          organizationId: transaction.organizationId,
+          referenceId: jobId,
+        }),
       },
     },
   });
