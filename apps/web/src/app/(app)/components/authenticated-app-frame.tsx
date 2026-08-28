@@ -8,10 +8,12 @@ import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-conte
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
+import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import type { Notice } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
+import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 import { cn } from "@/lib/utils";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
@@ -61,76 +63,84 @@ export default async function AuthenticatedAppFrame({
   );
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
+  const hasAssignedSeat = await hasAssignedOrganizationSeat(
+    activeOrganizationId,
+  ).catch((error) => {
+    console.error("Failed to resolve assigned organization seat", error);
+    return activeOrganizationId == null;
+  });
 
   // AuthSessionHydrator must be an earlier sibling, not a wrapper.
   // Wrapping chrome would flush Header/Drive layout effects first.
   return (
     <>
       <AuthSessionHydrator session={session} />
-      <NotificationProvider userId={session.user.id}>
-        <OrgPresenceProvider organizationId={activeOrganizationId}>
-          <AccountNoticeProvider notice={null} sessionId={session.session.id}>
-            <CoworkersProvider initialCoworkers={EMPTY_COWORKERS}>
-              <NoticeDialogProvider
-                legalNotices={EMPTY_NOTICES}
-                announcementNotices={EMPTY_NOTICES}
-              >
-                <NotificationToaster />
-                <LoginAccountNoticeToast />
-                <RetiredOnboardingStorageHydrator />
-                <HistorySearchDialogProvider
-                  activeOrganizationId={activeOrganizationId}
+      <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
+        <NotificationProvider userId={session.user.id}>
+          <OrgPresenceProvider organizationId={activeOrganizationId}>
+            <AccountNoticeProvider notice={null} sessionId={session.session.id}>
+              <CoworkersProvider initialCoworkers={EMPTY_COWORKERS}>
+                <NoticeDialogProvider
+                  legalNotices={EMPTY_NOTICES}
+                  announcementNotices={EMPTY_NOTICES}
                 >
-                  <BreadcrumbOverrideProvider>
-                    <PrivateCachedAppSidebar
-                      sessionUser={session.user}
-                      activeOrganizationId={activeOrganizationId}
-                      adminMenuEnabled={adminMenuEnabled}
-                    />
-                    <Suspense fallback={null}>
-                      <AppShellOverlays />
-                    </Suspense>
-                    <div
-                      className="flex min-w-0 flex-1 overflow-clip"
-                      data-app-content
-                    >
+                  <NotificationToaster />
+                  <LoginAccountNoticeToast />
+                  <RetiredOnboardingStorageHydrator />
+                  <HistorySearchDialogProvider
+                    activeOrganizationId={activeOrganizationId}
+                  >
+                    <BreadcrumbOverrideProvider>
+                      <PrivateCachedAppSidebar
+                        sessionUser={session.user}
+                        activeOrganizationId={activeOrganizationId}
+                        adminMenuEnabled={adminMenuEnabled}
+                      />
+                      <Suspense fallback={null}>
+                        <AppShellOverlays />
+                      </Suspense>
                       <div
-                        className="flex min-w-0 flex-1 flex-col overflow-clip"
-                        data-app-content-inner
+                        className="flex min-w-0 flex-1 overflow-clip"
+                        data-app-content
                       >
-                        <Header
-                          // Horizontal pad only on md: vertical py would fight the
-                          // shared h-16 hairline with SidebarHeader.
-                          className="px-4 py-3 md:px-4 md:py-0"
-                          session={session}
-                          adminMenuEnabled={adminMenuEnabled}
-                        />
-                        <main
-                          className={cn(
-                            "relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",
-                            APP_MAIN_MOBILE_PT_CLASS,
-                            APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
-                            APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
-                          )}
-                          data-app-main
+                        <div
+                          className="flex min-w-0 flex-1 flex-col overflow-clip"
+                          data-app-content-inner
                         >
-                          <EmergencyDialog />
-                          <div
-                            className="flex min-h-full flex-1 flex-col overflow-visible"
-                            data-app-main-inner
+                          <Header
+                            // Horizontal pad only on md: vertical py would fight the
+                            // shared h-16 hairline with SidebarHeader.
+                            className="px-4 py-3 md:px-4 md:py-0"
+                            session={session}
+                            adminMenuEnabled={adminMenuEnabled}
+                          />
+                          <main
+                            className={cn(
+                              "relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",
+                              APP_MAIN_MOBILE_PT_CLASS,
+                              APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
+                              APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
+                            )}
+                            data-app-main
                           >
-                            <AppMobileChrome>{children}</AppMobileChrome>
-                          </div>
-                        </main>
+                            <EmergencyDialog />
+                            <div
+                              className="flex min-h-full flex-1 flex-col overflow-visible"
+                              data-app-main-inner
+                            >
+                              <AppMobileChrome>{children}</AppMobileChrome>
+                            </div>
+                          </main>
+                        </div>
                       </div>
-                    </div>
-                  </BreadcrumbOverrideProvider>
-                </HistorySearchDialogProvider>
-              </NoticeDialogProvider>
-            </CoworkersProvider>
-          </AccountNoticeProvider>
-        </OrgPresenceProvider>
-      </NotificationProvider>
+                    </BreadcrumbOverrideProvider>
+                  </HistorySearchDialogProvider>
+                </NoticeDialogProvider>
+              </CoworkersProvider>
+            </AccountNoticeProvider>
+          </OrgPresenceProvider>
+        </NotificationProvider>
+      </OrganizationSeatProvider>
     </>
   );
 }

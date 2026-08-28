@@ -5,11 +5,9 @@ import {
   ensurePurchasedSeatsSufficient,
   OrganizationSubscriptionExclusivityError,
   resolvePurchasedSeats,
+  unassignSeatsOverPurchasedCapacity,
 } from "@sokosumi/database/helpers";
-import {
-  memberRepository,
-  subscriptionRepository,
-} from "@sokosumi/database/repositories";
+import { subscriptionRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { stripeClient } from "@/clients/stripe.client";
@@ -37,7 +35,7 @@ const route = createRoute({
   method: "put",
   path: "/{id}/subscription/seats",
   description:
-    "Immediately update the purchased seat count on an organization's active subscription. Only organization owners and admins may do this. For Stripe-backed subscriptions the quantity change is invoiced right away (`proration_behavior: always_invoice`); local free subscriptions only update the stored seat count. Seats cannot drop below the number of currently assigned members.",
+    "Immediately update the purchased seat count on an organization's active subscription. Only organization owners and admins may do this. For Stripe-backed subscriptions the quantity change is invoiced right away (`proration_behavior: always_invoice`). Local free subscriptions return the stored seat count without changing it. Purchased seats must be at least 1 and may be lower than the current assigned or member count.",
   tags: ["Organizations"],
   request: {
     params,
@@ -64,7 +62,7 @@ const route = createRoute({
       },
     ),
     400: jsonErrorResponse(
-      "Bad Request - No active subscription, seats below assigned members, or enterprise contract exclusivity",
+      "Bad Request - No active subscription, invalid seat count, or enterprise contract exclusivity",
     ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse(
@@ -77,6 +75,7 @@ const route = createRoute({
 
 interface SeatUpdateTarget {
   currentSeats: number;
+  organizationId: string;
   stripeSubscriptionId: string | null;
   subscriptionId: string;
 }
@@ -105,6 +104,24 @@ async function increaseStripeSubscriptionSeats(
     firstItem.id,
     seats,
   );
+}
+
+async function persistPurchasedSeatsAndUnassignOverflow(params: {
+  subscriptionId: string;
+  organizationId: string;
+  seats: number;
+}): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.subscription.update({
+      where: { id: params.subscriptionId },
+      data: { seats: params.seats },
+    });
+    await unassignSeatsOverPurchasedCapacity(
+      params.organizationId,
+      params.seats,
+      tx,
+    );
+  });
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -151,46 +168,69 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
 
-        const assignedCount = await memberRepository.getAssignedMemberCount(
-          organization.id,
-          tx,
-        );
         try {
-          ensurePurchasedSeatsSufficient(seats, assignedCount);
+          ensurePurchasedSeatsSufficient(seats);
         } catch (error) {
           throw badRequest(
             error instanceof Error
               ? error.message
-              : `Seats must be at least ${assignedCount} to cover all assigned members`,
-            { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_SEATS_BELOW_ASSIGNED },
+              : "Purchased seats must be an integer of at least 1",
           );
         }
 
         return {
           currentSeats: resolvePurchasedSeats(subscription.seats),
+          organizationId: organization.id,
           stripeSubscriptionId: subscription.stripeSubscriptionId,
           subscriptionId: subscription.id,
         };
       },
     );
 
-    if (target.stripeSubscriptionId) {
-      if (target.currentSeats === seats) {
-        return ok(
-          c,
-          organizationSubscriptionSeatsSchema.parse({
-            seats: target.currentSeats,
-          }),
-        );
-      }
-
-      await increaseStripeSubscriptionSeats(target.stripeSubscriptionId, seats);
+    if (!target.stripeSubscriptionId) {
+      return ok(
+        c,
+        organizationSubscriptionSeatsSchema.parse({
+          seats: target.currentSeats,
+        }),
+      );
     }
 
-    await prisma.subscription.update({
-      where: { id: target.subscriptionId },
-      data: { seats },
-    });
+    if (target.currentSeats === seats) {
+      return ok(
+        c,
+        organizationSubscriptionSeatsSchema.parse({
+          seats: target.currentSeats,
+        }),
+      );
+    }
+
+    await increaseStripeSubscriptionSeats(target.stripeSubscriptionId, seats);
+
+    try {
+      await persistPurchasedSeatsAndUnassignOverflow({
+        subscriptionId: target.subscriptionId,
+        organizationId: target.organizationId,
+        seats,
+      });
+    } catch (error) {
+      try {
+        await persistPurchasedSeatsAndUnassignOverflow({
+          subscriptionId: target.subscriptionId,
+          organizationId: target.organizationId,
+          seats,
+        });
+      } catch {
+        await prisma.$transaction(async (tx) => {
+          await unassignSeatsOverPurchasedCapacity(
+            target.organizationId,
+            seats,
+            tx,
+          );
+        });
+        throw error;
+      }
+    }
 
     return ok(c, organizationSubscriptionSeatsSchema.parse({ seats }));
   });

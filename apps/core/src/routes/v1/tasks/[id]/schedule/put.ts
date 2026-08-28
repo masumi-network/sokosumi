@@ -4,6 +4,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -58,6 +60,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
+    const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
@@ -93,7 +96,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const task = await prisma.$transaction(async (tx) => {
-      await requireTaskCollaboration(authContext, id, tx);
+      const taskInTx = await requireTaskCollaboration(authContext, id, tx);
+
+      await requireAssignedOrganizationSeat(
+        userContext.userId,
+        taskInTx.organizationId,
+        tx,
+      );
 
       return tx.task.update({
         where: { id },

@@ -4,6 +4,7 @@ import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import { type AuthVariables, authMiddleware } from "@/middleware/auth";
 import { coworkerContextMiddleware } from "@/middleware/coworker-context";
 import { organizationHeaderMiddleware } from "@/middleware/organization";
+import { organizationProductSeatMiddleware } from "@/middleware/organization-product-seat";
 import {
   type WorkspaceVariables,
   workspaceMiddleware,
@@ -31,6 +32,11 @@ export interface OpenAPIHonoWithAuthOptions {
    * Defaults to false. Set to true for routers that need workspace-scoped reads.
    */
   includeWorkspaceContext?: boolean;
+  /**
+   * Human org members need an assigned Seat to use this router.
+   * Personal workspace, coworker, and orchestrator actors skip the gate.
+   */
+  requireOrganizationProductSeat?: boolean;
 }
 
 export type EnvVariables = {
@@ -56,7 +62,10 @@ export class OpenAPIHonoWithAuth<
   Variables: EnvVariables["Variables"] & ExtraVariables;
 }> {
   constructor(options: OpenAPIHonoWithAuthOptions = {}) {
-    const { includeWorkspaceContext = false } = options;
+    const {
+      includeWorkspaceContext = false,
+      requireOrganizationProductSeat = false,
+    } = options;
 
     super({
       defaultHook: defaultValidationHook,
@@ -66,6 +75,9 @@ export class OpenAPIHonoWithAuth<
     this.use(coworkerContextMiddleware);
     this.use(organizationHeaderMiddleware);
     this.use(workspaceMiddleware(includeWorkspaceContext));
+    if (requireOrganizationProductSeat) {
+      this.use(organizationProductSeatMiddleware);
+    }
   }
 }
 

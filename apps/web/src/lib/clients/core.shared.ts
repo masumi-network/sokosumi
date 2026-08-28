@@ -197,6 +197,7 @@ import {
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdInviteLinks as coreGetOrganizationsByIdInviteLinks,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
+  getOrganizationsByIdMembersMeSeat as coreGetOrganizationsByIdMembersMeSeat,
   getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
@@ -2290,8 +2291,8 @@ export function createCoreClient(getClient: GetCoreClient) {
    * Immediately updates the purchased seat count on an organization's active
    * subscription. Core enforces that the caller is an organization owner or
    * admin, blocks self-serve changes while an enterprise contract is active,
-   * and keeps seats at or above the assigned member count. Stripe-backed
-   * subscriptions are invoiced for the change right away.
+   * and requires at least 1 purchased seat. Stripe-backed subscriptions are
+   * invoiced for the change right away.
    */
   async function updateOrganizationSubscriptionSeats(
     organizationId: string,
@@ -2377,6 +2378,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization billing plan",
+    );
+  }
+
+  async function getOrganizationCallerSeat(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdMembersMeSeat({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization caller seat",
     );
   }
 
@@ -4583,6 +4597,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getOrganizationActiveSubscription,
     getOrganizationBillingDetails,
     getOrganizationBillingPlan,
+    getOrganizationCallerSeat,
     getOrganizationById,
     getOrganizationDeletion,
     getOrganizationBySlug,

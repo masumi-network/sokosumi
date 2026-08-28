@@ -15,6 +15,7 @@ export const CORE_API_ERROR_KINDS = {
   ORGANIZATION_MEMBERSHIP_REQUIRED: "organization_membership_required",
   ORGANIZATION_NOT_FOUND: "organization_not_found",
   ORGANIZATION_ROLE_FORBIDDEN: "organization_role_forbidden",
+  ORGANIZATION_SEAT_REQUIRED: "organization_seat_required",
   SEAT_CAPACITY_EXCEEDED: "seat_capacity_exceeded",
   SUBSCRIPTION_CHANGE_NOT_ALLOWED: "subscription_change_not_allowed",
   SUBSCRIPTION_NOT_ACTIVE: "subscription_not_active",

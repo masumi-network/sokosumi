@@ -83,6 +83,7 @@ function renderPanel(options: {
   isLoading: boolean;
   replies?: ChatRoomMessage[];
   onBack?: () => void;
+  composerDisabledMessage?: string;
 }) {
   return render(
     <ThreadPanel
@@ -102,6 +103,7 @@ function renderPanel(options: {
       onClose={() => undefined}
       onToggleReaction={() => undefined}
       roomId="room-1"
+      composerDisabledMessage={options.composerDisabledMessage}
     />,
   );
 }
@@ -142,5 +144,15 @@ describe("ThreadPanel empty vs loading", () => {
 
     expect(screen.getByLabelText("Thread.close")).toBeTruthy();
     expect(screen.queryByTestId("thread-panel-back")).toBeNull();
+  });
+
+  it("replaces the reply composer with the assigned-seat message when disabled", () => {
+    renderPanel({
+      isLoading: false,
+      composerDisabledMessage: "Composer disabled",
+    });
+
+    expect(screen.queryByTestId("thread-composer")).toBeNull();
+    expect(screen.getByText("Composer disabled")).toBeTruthy();
   });
 });

@@ -8,6 +8,9 @@ import {
 } from "../generated/prisma/client.js";
 import {
   buildOrganizationMemberSubscriptionReferenceId,
+  escapeStringForLike,
+  ORGANIZATION_CREDIT_REFERENCE_PREFIX,
+  ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
 import {
@@ -47,6 +50,7 @@ export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT = "local-free:";
 export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS = ":local-free:";
 
 interface LocalFreeSubscriptionGrant {
+  bucketUserId: string | null;
   credits: number;
   referenceId: string;
   userId: string;
@@ -206,96 +210,11 @@ export function buildLocalFreeOrganizationMemberSubscriptionReferenceId(
   );
 }
 
-export interface GrantFreeOrganizationMemberSubscriptionCreditsParams {
-  memberUserIds: string[];
-  now?: Date;
-  organizationId: string;
-  periodEnd: Date;
-}
-
-/**
- * Grants free monthly subscription credits to organization members for the
- * current subscription period without creating a separate local-free
- * `Subscription` row. This lets unassigned members of a paid (Stripe-backed)
- * organization receive the free tier alongside assigned members' paid credits.
- *
- * Grants are idempotent per period: a member that already holds a free-tier
- * bucket that has not expired yet is skipped. This mirrors the drift-tolerant
- * matching used for paid seat grants, so invoice-driven and event-driven grants
- * for the same period do not double up.
- */
-export async function grantFreeOrganizationMemberSubscriptionCredits(
-  params: GrantFreeOrganizationMemberSubscriptionCreditsParams,
-  tx: Prisma.TransactionClient,
-): Promise<number> {
-  const now = params.now ?? new Date();
-  if (params.periodEnd <= now) {
-    return 0;
-  }
-
-  const userIds = getSortedUniqueUserIds(params.memberUserIds);
-  if (userIds.length === 0) {
-    return 0;
-  }
-
-  const amount = convertCreditsToCents(FREE_SUBSCRIPTION_MONTHLY_CREDITS);
-  let grantsCreated = 0;
-
-  for (const userId of userIds) {
-    const referenceId = buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-      userId,
-      params.organizationId,
-      params.periodEnd,
-    );
-
-    // Idempotency: any bucket for this period (including future `activatesAt` from
-    // pre-create). Spendability is enforced separately via creditBucketActivatesAtOrBefore.
-    const existingForPeriod = await tx.creditBucket.findUnique({
-      where: {
-        referenceId_referenceType: {
-          referenceId,
-          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (existingForPeriod) {
-      continue;
-    }
-
-    await tx.transaction.create({
-      data: {
-        amount,
-        organization: {
-          connect: {
-            id: params.organizationId,
-          },
-        },
-        sourceCreditBucket: {
-          create: {
-            amount,
-            expiresAt: params.periodEnd,
-            organizationId: params.organizationId,
-            referenceId,
-            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-            userId,
-          },
-        },
-        user: {
-          connect: {
-            id: userId,
-          },
-        },
-      },
-    });
-
-    grantsCreated += 1;
-  }
-
-  return grantsCreated;
+export function buildLocalFreeOrganizationSubscriptionReferenceId(
+  organizationId: string,
+  periodEnd: Date,
+): string {
+  return `${ORGANIZATION_CREDIT_REFERENCE_PREFIX}${organizationId}:${LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT}${periodEnd.toISOString()}:subscription`;
 }
 
 function getOrganizationMemberUserIds(
@@ -315,6 +234,7 @@ function normalizeLocalFreeSubscriptionPeriod(
     return {
       grants: [
         {
+          bucketUserId: params.userId,
           credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
           referenceId: buildLocalFreeUserSubscriptionReferenceId(
             params.userId,
@@ -329,17 +249,23 @@ function normalizeLocalFreeSubscriptionPeriod(
   }
 
   const memberUserIds = getOrganizationMemberUserIds(params);
+  const transactionUserId = memberUserIds[0];
 
   return {
-    grants: memberUserIds.map((userId) => ({
-      credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
-      referenceId: buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-        userId,
-        params.organizationId,
-        params.periodEnd,
-      ),
-      userId,
-    })),
+    grants:
+      transactionUserId === undefined
+        ? []
+        : [
+            {
+              bucketUserId: null,
+              credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
+              referenceId: buildLocalFreeOrganizationSubscriptionReferenceId(
+                params.organizationId,
+                params.periodEnd,
+              ),
+              userId: transactionUserId,
+            },
+          ],
     organizationId: params.organizationId,
     seats: resolvePurchasedSeats(params.purchasedSeats),
   };
@@ -560,6 +486,28 @@ export async function ensureLocalFreeSubscriptionPeriod(
     subscriptionCreated = true;
   }
 
+  const leftoverMemberLocalFree =
+    organizationId === null
+      ? null
+      : await tx.creditBucket.findFirst({
+          where: {
+            organizationId,
+            userId: {
+              not: null,
+            },
+            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+            referenceId: {
+              startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
+              endsWith: escapeStringForLike(
+                `:${LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT}${organizationId}:${params.periodEnd.toISOString()}`,
+              ),
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
+
   let grantsCreated = 0;
   for (const grant of grants) {
     const existingBucket = await tx.creditBucket.findUnique({
@@ -574,7 +522,7 @@ export async function ensureLocalFreeSubscriptionPeriod(
       },
     });
 
-    if (existingBucket) {
+    if (existingBucket || leftoverMemberLocalFree) {
       continue;
     }
 
@@ -599,7 +547,7 @@ export async function ensureLocalFreeSubscriptionPeriod(
             organizationId,
             referenceId: grant.referenceId,
             referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-            userId: grant.userId,
+            userId: grant.bucketUserId,
           },
         },
         user: {
