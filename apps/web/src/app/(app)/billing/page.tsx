@@ -236,7 +236,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             showCreditsTab
             subscriptionContent={
               <OrganizationSubscriptionSection
-                assignedSeatCount={seatCounts.assignedCount}
                 cancelAtPeriodEnd={billingPlan.cancelAtPeriodEnd}
                 currentPlan={currentPlan}
                 currentPeriodEnd={billingPlan.periodEnd}

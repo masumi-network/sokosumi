@@ -1,9 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
-import {
-  memberRepository,
-  subscriptionRepository,
-} from "@sokosumi/database/repositories";
+import { memberRepository } from "@sokosumi/database/repositories";
 
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
 import { internalServerError, notFound } from "@/helpers/error";
@@ -13,12 +10,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { adminOrganizationMemberIdParamSchema } from "@/schemas/admin.schema";
 import { organizationSeatAssignmentSchema } from "@/schemas/organization-seat.schema";
-import {
-  grantUnusedSeatSubscriptionCreditsIfEligible,
-  mapSeatRepositoryError,
-  syncLocalFreeOrganizationCreditsIfNeeded,
-} from "@/services/organization-seat.service";
-import { getSubscriptionSeatCredits } from "@/services/subscription-seat-credits.service";
+import { mapSeatRepositoryError } from "@/services/organization-seat.service";
 
 const route = createRoute({
   method: "put",
@@ -51,8 +43,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Organization not found");
     }
 
-    void getSubscriptionSeatCredits().catch(() => {});
-
     try {
       const result = await prisma.$transaction(async (tx) => {
         const billingPlan = await resolveOrganizationBillingPlan(
@@ -60,13 +50,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tx,
         );
         const purchasedSeats = billingPlan.purchasedSeats;
-        const subscription =
-          billingPlan.mode === "self_serve"
-            ? await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-                organization.id,
-                tx,
-              )
-            : null;
 
         const member = await memberRepository.assignSeat(
           memberId,
@@ -77,37 +60,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (!member.seatAssignedAt) {
           throw internalServerError("Failed to assign seat");
-        }
-
-        const suppressSelfServeSeatCredits =
-          billingPlan.mode === "enterprise_contract" &&
-          billingPlan.isConsumable;
-
-        if (!suppressSelfServeSeatCredits) {
-          await grantUnusedSeatSubscriptionCreditsIfEligible(
-            organization.id,
-            member.userId,
-            tx,
-          );
-        }
-
-        if (
-          billingPlan.mode === "self_serve" &&
-          subscription?.periodStart &&
-          subscription?.periodEnd
-        ) {
-          await syncLocalFreeOrganizationCreditsIfNeeded(
-            organization.id,
-            {
-              createdAt: subscription.createdAt,
-              periodEnd: subscription.periodEnd,
-              periodStart: subscription.periodStart,
-              seats: subscription.seats,
-              status: subscription.status,
-              stripeSubscriptionId: subscription.stripeSubscriptionId,
-            },
-            tx,
-          );
         }
 
         return {

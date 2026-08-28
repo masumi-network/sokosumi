@@ -136,6 +136,66 @@ describe("taskSchedulesSyncService", () => {
     );
   });
 
+  it("still clones a due organization schedule after the creator is unseated", async () => {
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-1" }])
+      .mockResolvedValueOnce([]);
+
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+          updateMany: mockTaskUpdateMany,
+        },
+        taskLink: {
+          create: mockTaskLinkCreate,
+        },
+        taskEvent: {
+          create: mockTaskEventCreate,
+        },
+      }),
+    );
+
+    mockFindFirst.mockResolvedValue({
+      id: "template-1",
+      ownerId: "user-1",
+      organizationId: "org-1",
+      workspaceId: "workspace-1",
+      projectId: null,
+      assigneeId: null,
+      name: "Template",
+      description: "Run me",
+      metadata: JSON.stringify({
+        version: 1,
+        mode: "recurring",
+        scheduledAt: "2026-06-01T09:00:00.000Z",
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "never",
+      }),
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+    });
+
+    mockTaskCreate.mockResolvedValue({ id: "clone-1" });
+    mockTaskUpdateMany.mockResolvedValue({ count: 1 });
+    mockTaskUpdate.mockResolvedValue({ id: "template-1" });
+
+    const result = await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(result.cloned).toBe(1);
+    expect(mockTaskCreate).toHaveBeenCalled();
+  });
+
   it("stops recurring catch-up when the sync deadline is reached", async () => {
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"

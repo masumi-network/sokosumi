@@ -10,7 +10,7 @@ import { adminOrganizationMemberIdParamSchema } from "@/schemas/admin.schema";
 import { organizationSeatUnassignmentSchema } from "@/schemas/organization-seat.schema";
 import {
   mapSeatRepositoryError,
-  unassignOrganizationMemberSeatWithCreditSync,
+  unassignOrganizationMemberSeat,
 } from "@/services/organization-seat.service";
 
 const route = createRoute({
@@ -44,11 +44,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     try {
       const result = await prisma.$transaction(async (tx) =>
-        unassignOrganizationMemberSeatWithCreditSync(
-          organization.id,
-          memberId,
-          tx,
-        ),
+        unassignOrganizationMemberSeat(organization.id, memberId, tx),
       );
 
       return ok(c, organizationSeatUnassignmentSchema.parse(result));

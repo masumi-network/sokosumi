@@ -15,6 +15,7 @@ import mountGetProjectStats from "./stats/get.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
+  requireOrganizationProductSeat: true,
 });
 
 mountListProjects(app);

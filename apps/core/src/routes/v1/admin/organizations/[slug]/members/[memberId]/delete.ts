@@ -13,7 +13,6 @@ import { jsonErrorResponse } from "@/helpers/openapi";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { adminOrganizationMemberIdParamSchema } from "@/schemas/admin.schema";
-import { syncLocalFreeSeatsAndCreditsForCurrentMembers } from "@/services/organization-subscription-auth.service";
 
 const route = createRoute({
   method: "delete",
@@ -79,7 +78,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     await publishOrganizationExitChatRevocation(member.userId, chatRevocation);
-    await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
 
     return c.body(null, 204);
   });

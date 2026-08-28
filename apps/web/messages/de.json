@@ -146,7 +146,7 @@
       "creditsExpiresInDays": "Credits werden in {days, plural, =1 {1 Tag} other {# Tagen}} erneuert",
       "creditsExpiresToday": "Credits werden heute erneuert",
       "creditsExpired": "Credits verfallen",
-      "organizations": "Organisationen"
+      "organization": "Organisation"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Arbeitsbereich wechseln",
@@ -219,7 +219,7 @@
             "unauthorizedAction": "Anmelden"
           },
           "unassignSeatTitle": "Seat entfernen",
-          "unassignSeatDescription": "Wenn du {member} den bezahlten Seat entziehst, erhält die Person künftig keine Subscription-Credits mehr und stattdessen kostenlose monatliche Credits. Bereits gutgeschriebene Credits aus dem laufenden Zeitraum bleiben bis zum Ablauf bestehen."
+          "unassignSeatDescription": "Wenn du {member} den zugewiesenen Seat entziehst, kann die Person den Organisations-Credit-Pool nicht mehr ausgeben und keine bezahlte Coworker-Arbeit starten. Menschlicher Chat und bestehende Tasks bleiben. Credits des laufenden Zeitraums bleiben im Organisations-Pool bis zum Ablauf."
         },
         "assignSeat": "Seat zuweisen",
         "unassignSeat": "Seat entfernen"
@@ -2910,6 +2910,11 @@
           "back": "Zurück",
           "chat": "Chat"
         },
+        "SeatRequired": {
+          "title": "Zugewiesener Seat erforderlich",
+          "description": "Chat bleibt nutzbar. Aufgaben, Projekte, Dateien und der restliche Organisations-Bereich brauchen einen zugewiesenen Seat.",
+          "hint": "Bitte einen Eigentümer oder Admin, dir einen Seat zuzuweisen."
+        },
         "ChatLists": {
           "title": "Letzte Chats",
           "noChats": "Noch keine Chats",
@@ -2977,9 +2982,9 @@
           "features": {
             "title": "Free enthält:",
             "items": {
-              "item1": "Eingeschränkter Zugang zu einem agentischen Coworker",
+              "item1": "Zugang zu agentischen Coworkern",
               "item2": "E-Mail- und WhatsApp-Zugang zu Agents",
-              "item3": "Neueste Generation der Claude-Modelle",
+              "item3": "Zugang zu den neuesten KI-Modellen",
               "item4": "Zugang zu 100+ Marketing-Agents"
             }
           }
@@ -4476,7 +4481,7 @@
           "currentSeatsLabel": "Aktuelle Seats",
           "membersLabel": "Aktive Mitglieder",
           "seatsInputLabel": "Gekaufte Seats",
-          "seatsInputHint": "Das Minimum ist {minimum}, um genutzte bezahlte Seats abzudecken. Die Organisation hat {members, plural, =1 {# Mitglied} other {# Mitglieder}}. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
+          "seatsInputHint": "Das Minimum ist {minimum}. Die Organisation hat {members, plural, =1 {# Mitglied} other {# Mitglieder}}. Sie können weniger Seats kaufen als Mitglieder vorhanden sind.",
           "includedCreditsPerSeat": "{credits, plural, =0 {Keine Credits pro Seat} =1 {# Credit pro Seat} other {# Credits pro Seat}}",
           "noActivePlan": "Kein aktiver Plan",
           "seatsUpdatedSuccess": "Seats erfolgreich aktualisiert.",
@@ -4495,7 +4500,7 @@
         },
         "Seats": {
           "title": "Seat Übersicht",
-          "description": "Gekaufte Seats sind die Kapazität deines bezahlten Plans. Mitglieder mit einem bezahlten Seat erhalten Subscription-Credits. Mitglieder ohne bezahlten Seat erhalten kostenlose monatliche Credits.",
+          "description": "Gekaufte Seats sind die Kapazität deines bezahlten Plans. Zugewiesene Seats geben den gemeinsamen Organisations-Credit-Pool aus. Mitglieder ohne zugewiesenen Seat behalten menschlichen Chat und können bestehende Tasks lesen.",
           "purchased": "Gekauft",
           "assigned": "Zugewiesen",
           "unused": "Ungenutzt",
@@ -5525,7 +5530,12 @@
       "filterAll": "Alle",
       "filterCoworkerLabel": "Agent",
       "filterProjectLabel": "Projekt",
-      "filterTaskLabel": "Aufgabe"
+      "filterTaskLabel": "Aufgabe",
+      "recentsTab": "Zuletzt verwendet",
+      "recentsEmptyTitle": "Keine kürzlichen Dateien",
+      "recentsEmptyDescription": "Dateien, die du hochlädst oder aus Aufgaben erhältst, erscheinen hier",
+      "loadRecentsError": "Kürzliche Dateien konnten nicht geladen werden",
+      "loadMoreRecentsError": "Weitere kürzliche Dateien konnten nicht geladen werden"
     }
   },
   "Share": {

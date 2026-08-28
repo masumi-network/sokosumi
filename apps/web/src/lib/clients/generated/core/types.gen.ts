@@ -2383,6 +2383,84 @@ export type RenameDriveFolderRequest = {
     organizationId?: string;
 };
 
+export type DriveRecentsList = Array<DriveRecentsItem>;
+
+export type DriveRecentsItem = ({
+    kind: 'drive-file';
+} & DriveRecentsDriveFileItem) | ({
+    kind: 'task-output';
+} & DriveRecentsTaskOutputItem);
+
+export type DriveRecentsDriveFileItem = {
+    /**
+     * Drive blob file at any folder depth
+     */
+    kind: 'drive-file';
+    /**
+     * File name
+     */
+    name: string;
+    /**
+     * Blob URL
+     */
+    fileUrl: string;
+    /**
+     * Blob pathname
+     */
+    pathname: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+    /**
+     * Latest activity timestamp (blob uploadedAt)
+     */
+    activityAt: Date;
+};
+
+export type DriveRecentsTaskOutputItem = {
+    /**
+     * READY TASK_OUTPUT TaskFile row
+     */
+    kind: 'task-output';
+    /**
+     * TaskFile name
+     */
+    name: string;
+    /**
+     * TaskFile blob URL
+     */
+    fileUrl: string;
+    /**
+     * File size in bytes (null if unknown)
+     */
+    size: number | null;
+    /**
+     * Latest activity timestamp (TaskFile updatedAt)
+     */
+    activityAt: Date;
+    /**
+     * TaskFile ID
+     */
+    taskFileId: string;
+    /**
+     * Parent task ID
+     */
+    taskId: string;
+    /**
+     * Parent task name
+     */
+    taskName: string;
+    /**
+     * Parent project ID, or null
+     */
+    projectId: string | null;
+    /**
+     * Parent project name, or null
+     */
+    projectName: string | null;
+};
+
 export type DriveTasksList = Array<DriveTasksListItem>;
 
 export type DriveTasksListItem = ({
@@ -3684,6 +3762,13 @@ export type Member = {
      * Most recent session activity for the member (max Session.updatedAt); null if the member has never had a session.
      */
     lastSeenAt: Date | null;
+};
+
+export type OrganizationCallerSeat = {
+    /**
+     * Whether the caller is treated as seated in this organization (free: all members; paid/enterprise: assigned Seat)
+     */
+    assigned: boolean;
 };
 
 export type PendingInvitation = {
@@ -17650,6 +17735,125 @@ export type PatchDriveFoldersRenameResponses = {
 
 export type PatchDriveFoldersRenameResponse = PatchDriveFoldersRenameResponses[keyof PatchDriveFoldersRenameResponses];
 
+export type GetDriveRecentsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        /**
+         * Organization ID (required when scope=org)
+         */
+        organizationId?: string;
+        /**
+         * Search recents by file name (Drive blobs) or task/file name and task description (task outputs). Case-insensitive substring.
+         */
+        q?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/drive/recents';
+};
+
+export type GetDriveRecentsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveRecentsError = GetDriveRecentsErrors[keyof GetDriveRecentsErrors];
+
+export type GetDriveRecentsResponses = {
+    /**
+     * Drive recents retrieved
+     */
+    200: {
+        data: DriveRecentsList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveRecentsResponse = GetDriveRecentsResponses[keyof GetDriveRecentsResponses];
+
 export type GetDriveTasksData = {
     body?: never;
     path?: never;
@@ -24891,6 +25095,95 @@ export type GetOrganizationsByIdMembersResponses = {
 
 export type GetOrganizationsByIdMembersResponse = GetOrganizationsByIdMembersResponses[keyof GetOrganizationsByIdMembersResponses];
 
+export type GetOrganizationsByIdMembersMeSeatData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/members/me/seat';
+};
+
+export type GetOrganizationsByIdMembersMeSeatErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdMembersMeSeatError = GetOrganizationsByIdMembersMeSeatErrors[keyof GetOrganizationsByIdMembersMeSeatErrors];
+
+export type GetOrganizationsByIdMembersMeSeatResponses = {
+    /**
+     * The caller's seat assignment in this organization
+     */
+    200: {
+        data: OrganizationCallerSeat;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdMembersMeSeatResponse = GetOrganizationsByIdMembersMeSeatResponses[keyof GetOrganizationsByIdMembersMeSeatResponses];
+
 export type DeleteOrganizationsByIdMembersByMemberIdSeatData = {
     body?: never;
     path: {
@@ -26898,7 +27191,7 @@ export type PutOrganizationsByIdSubscriptionSeatsData = {
 
 export type PutOrganizationsByIdSubscriptionSeatsErrors = {
     /**
-     * Bad Request - No active subscription, seats below assigned members, or enterprise contract exclusivity
+     * Bad Request - No active subscription, invalid seat count, or enterprise contract exclusivity
      */
     400: {
         error: string;

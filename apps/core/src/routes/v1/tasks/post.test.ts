@@ -1,6 +1,9 @@
 import { Channel, TaskStatus, VendorGrantStatus } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostTask, { createTaskRequestSchema } from "./post";
@@ -136,6 +139,10 @@ function buildMapTaskResponse(task: {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+}));
+
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/helpers/design-md-effective", () => ({
@@ -465,6 +472,33 @@ describe("POST /tasks", () => {
         }),
       }),
     );
+  });
+
+  it("rejects create when the member has no assigned organization seat", async () => {
+    vi.mocked(requireAssignedOrganizationSeat).mockRejectedValueOnce(
+      new HTTPException(403, {
+        message: "An assigned seat is required to use this organization",
+        cause: { kind: CORE_API_ERROR_KINDS.ORGANIZATION_SEAT_REQUIRED },
+      }),
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "New Task",
+        description: null,
+        assigneeId: null,
+        status: TaskStatus.DRAFT,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("verifies and persists a project assignment on create", async () => {

@@ -64,7 +64,7 @@ export const userService = (() => {
   /**
    * Retrieves all organization memberships for the currently authenticated user.
    * Deduplicated per request via React cache() when used in Server Components
-   * (e.g. ProfileSwitch, UserAvatar on every page).
+   * (e.g. ProfileSwitch and account menus on every page).
    *
    * @returns A promise that resolves to an array of MemberWithOrganization objects for the current user.
    */

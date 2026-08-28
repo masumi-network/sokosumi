@@ -34,6 +34,7 @@ vi.mock("next-intl", () => ({
         if (key === "cta.error") return "Could not open the chat.";
         return key;
       },
+      "App.Channels": (key) => key,
     };
     return maps[namespace] ?? ((key: string) => key);
   },
@@ -62,6 +63,8 @@ vi.mock("@/app/chat/components/landing/use-open-coworker-room", () => ({
     openingId: null,
   }),
 }));
+
+import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 
 import { CoworkerGallerySection } from "../coworker-gallery-section";
 
@@ -101,7 +104,11 @@ describe("CoworkerGallerySection chat CTA", () => {
   });
 
   it("shows Chat with {name} next to Start New Task when coworker can chat", () => {
-    render(<CoworkerGallerySection coworkers={[makeCoworker()]} />);
+    render(
+      <OrganizationSeatProvider hasAssignedSeat={true}>
+        <CoworkerGallerySection coworkers={[makeCoworker()]} />
+      </OrganizationSeatProvider>,
+    );
 
     expect(
       screen.getByRole("button", { name: "Chat with Elena" }),
@@ -113,17 +120,19 @@ describe("CoworkerGallerySection chat CTA", () => {
 
   it("hides chat CTA when coworker is not chat-capable", () => {
     render(
-      <CoworkerGallerySection
-        coworkers={[
-          makeCoworker({
-            id: "cow-tasks-only",
-            name: "Tasks Only",
-            slug: "tasks-only",
-            capabilities: ["tasks"],
-            baseURL: null,
-          }),
-        ]}
-      />,
+      <OrganizationSeatProvider hasAssignedSeat={true}>
+        <CoworkerGallerySection
+          coworkers={[
+            makeCoworker({
+              id: "cow-tasks-only",
+              name: "Tasks Only",
+              slug: "tasks-only",
+              capabilities: ["tasks"],
+              baseURL: null,
+            }),
+          ]}
+        />
+      </OrganizationSeatProvider>,
     );
 
     expect(
@@ -136,10 +145,29 @@ describe("CoworkerGallerySection chat CTA", () => {
 
   it("opens the coworker direct room when chat CTA is clicked", async () => {
     const user = userEvent.setup();
-    render(<CoworkerGallerySection coworkers={[makeCoworker()]} />);
+    render(
+      <OrganizationSeatProvider hasAssignedSeat={true}>
+        <CoworkerGallerySection coworkers={[makeCoworker()]} />
+      </OrganizationSeatProvider>,
+    );
 
     await user.click(screen.getByRole("button", { name: "Chat with Elena" }));
 
     expect(openCoworkerRoomMock).toHaveBeenCalledWith("cow-elena");
+  });
+
+  it("keeps Chat and hides Start New Task when the viewer has no assigned seat", () => {
+    render(
+      <OrganizationSeatProvider hasAssignedSeat={false}>
+        <CoworkerGallerySection coworkers={[makeCoworker()]} />
+      </OrganizationSeatProvider>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Chat with Elena" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Start New Task for Elena/ }),
+    ).toBeNull();
   });
 });
