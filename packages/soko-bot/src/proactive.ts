@@ -74,10 +74,16 @@ export const SOKO_BOT_PROACTIVE_RULES: readonly SokoBotProactiveRule[] = [
       "Follow-ups it noted with a date come back on the day; it raises each once.",
   },
   {
-    id: "limits",
-    title: "Stays quiet by design",
+    id: "autonomy",
+    title: "Starts work when it is worth it",
     description:
-      "Never sends mail, never hires or starts work on its own — only drafts, comments, and messages to you. At most three comments per Task per day.",
+      "It can start a Task on its own — preparing a meeting from your calendar, the obvious next step after research it did for you — and always tells you in chat what it started and why. When the work looks expensive it asks first instead.",
+  },
+  {
+    id: "limits",
+    title: "Stays within its limits",
+    description:
+      "Never sends mail. One initiative per turn, capped by your daily limit, and at most three comments per Task per day. Pause everything it starts on its own at any time.",
   },
 ];
 

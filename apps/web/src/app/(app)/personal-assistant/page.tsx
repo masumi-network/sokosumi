@@ -65,13 +65,21 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
     return <CreateState />;
   }
 
+  // Skills, integrations, the catalog and the version chip are only rendered
+  // behind Advanced, which is off by default. Fetching them on every load cost
+  // four Core round-trips nobody was waiting to see.
+  const wantsAdvanced = params.view === "advanced";
   const [versions, installedSkills, stats, integrations, catalog] =
     await Promise.all([
-      sokoBotService.listVersions().catch(() => []),
-      sokoBotService.listSkills().catch(() => []),
+      wantsAdvanced ? sokoBotService.listVersions().catch(() => []) : [],
+      wantsAdvanced ? sokoBotService.listSkills().catch(() => []) : [],
       sokoBotService.getStats().catch(() => null),
-      sokoBotService.listIntegrations().catch(() => null),
-      sokoBotService.searchIntegrationCatalog("").catch(() => []),
+      wantsAdvanced
+        ? sokoBotService.listIntegrations().catch(() => null)
+        : null,
+      wantsAdvanced
+        ? sokoBotService.searchIntegrationCatalog("").catch(() => [])
+        : [],
     ]);
   const version =
     versions.find((v) => v.id === state.bot.versionId) ?? versions[0] ?? null;

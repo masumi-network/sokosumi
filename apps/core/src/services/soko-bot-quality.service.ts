@@ -32,6 +32,8 @@ export interface SokoBotQualityOverview {
 
 export interface SokoBotQualityOverviewOptions {
   versionId?: string;
+  /** Scope to one bot, for its operator status page. */
+  sokoBotId?: string;
 }
 
 function avg(values: number[]): number | null {
@@ -66,6 +68,7 @@ export async function getSokoBotQualityOverview(
       status: { in: ["COMPLETED", "FAILED"] },
       NOT: { clientTurnId: { startsWith: "lab:" } },
       OR: [{ createdAt: { gte: since } }, { ownerFeedbackAt: { gte: since } }],
+      ...(options.sokoBotId ? { sokoBotId: options.sokoBotId } : {}),
     },
     select: {
       createdAt: true,

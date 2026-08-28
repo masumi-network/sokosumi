@@ -20,6 +20,8 @@ export interface ListAdminSokoBotsParams {
 
 export interface AdminSokoBotQualityParams {
   versionId?: string;
+  /** Scope the charts to one bot, for its operator status page. */
+  sokoBotId?: string;
 }
 
 /** Platform-admin Soko Bot fleet reads and audited operator actions. */
@@ -38,7 +40,13 @@ export const adminSokoBotService = {
   ): Promise<AdminSokoBotQuality> {
     const response = await coreClient.getAdminSokoBotQuality({
       versionId: params.versionId,
+      sokoBotId: params.sokoBotId,
     });
+    return response.data;
+  },
+
+  async deleteBot(sokoBotId: string) {
+    const response = await coreClient.deleteAdminSokoBot(sokoBotId);
     return response.data;
   },
 

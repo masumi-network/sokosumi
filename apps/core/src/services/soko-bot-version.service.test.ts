@@ -1,3 +1,4 @@
+import { DEFAULT_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -89,7 +90,8 @@ describe("Soko Bot version resolution", () => {
     // A bot pinned to a version that was archived still has to run.
     const version = await resolveSokoBotVersion("deleted-version");
 
-    expect(version.id).toBe("v11");
+    // The default moves with the product; the fallback is what matters here.
+    expect(version.id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);
   });
 
   it("drops an empty tool list so the route ceiling applies", async () => {

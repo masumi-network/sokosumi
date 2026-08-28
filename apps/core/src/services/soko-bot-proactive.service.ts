@@ -5,7 +5,6 @@ import {
   type SokoBotCalendarEvent,
   type SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
-
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
@@ -60,6 +59,7 @@ export async function proactiveGate(
   const bot = await prisma.sokoBot.findUniqueOrThrow({
     where: { id: sokoBotId },
     select: {
+      userId: true,
       proactivePaused: true,
       proactiveDailyLimit: true,
       ingestTimezone: true,
@@ -68,10 +68,22 @@ export async function proactiveGate(
   const usedToday = await prisma.sokoBotTurn.count({
     where: {
       sokoBotId,
-      source: { in: ["SCHEDULE", "EVENT", "INGEST"] },
       createdAt: { gte: localDayStart(now, bot.ingestTimezone) },
       // Behaviour-lab turns are ours, not the owner's budget.
       clientTurnId: { not: { startsWith: "lab:" } },
+      OR: [
+        { source: { in: ["SCHEDULE", "EVENT", "INGEST"] } },
+        // A teammate's mention spends the owner's credits as surely as a turn
+        // the bot starts itself, and chat imposes no limit of its own. Without
+        // this the teammate check compares against a counter its own turns
+        // never increment.
+        {
+          AND: [
+            { requestedByUserId: { not: null } },
+            { requestedByUserId: { not: bot.userId } },
+          ],
+        },
+      ],
     },
   });
   const limit = bot.proactiveDailyLimit;

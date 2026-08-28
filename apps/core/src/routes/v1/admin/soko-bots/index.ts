@@ -26,6 +26,7 @@ import {
   adminSokoBotDetailSchema,
   adminSokoBotListSchema,
   adminSokoBotQualitySchema,
+  sokoBotDeletionResultSchema,
   sokoBotGatewayModelListSchema,
   sokoBotVersionDetailSchema,
   sokoBotVersionListSchema,
@@ -41,6 +42,7 @@ import {
   SokoBotValidationError,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
+import { deleteSokoBot } from "@/services/soko-bot-deletion.service";
 import { getSokoBotQualityOverview } from "@/services/soko-bot-quality.service";
 import {
   archiveAuthoredVersion,
@@ -175,6 +177,7 @@ const qualityRoute = createRoute({
   request: {
     query: z.object({
       versionId: z.string().trim().min(1).max(64).optional(),
+      sokoBotId: z.string().uuid().optional(),
     }),
   },
   responses: {
@@ -366,6 +369,30 @@ app.openapi(updateVersionRoute, async (c) => {
     c,
     versionDetail(version, true, await getDefaultSokoBotVersionId()),
   );
+});
+
+const deleteBotRoute = createRoute({
+  method: "delete",
+  path: "/{sokoBotId}",
+  operationId: "deleteAdminSokoBot",
+  tags: ["Admin"],
+  request: { params: z.object({ sokoBotId: z.string().uuid() }) },
+  responses: {
+    200: jsonSuccessResponse(sokoBotDeletionResultSchema, "Soko Bot deleted"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not found"),
+    409: jsonErrorResponse("Conflict"),
+  },
+});
+
+app.openapi(deleteBotRoute, async (c) => {
+  requireAdminAuthContext(c.var.authContext);
+  // No SokoBotAdminAction row: that table is foreign-keyed to the bot, so an
+  // audit entry would either violate the constraint or be cascaded away with
+  // the row it describes. Deletions are captured by request logging instead.
+  const result = await deleteSokoBot(c.req.valid("param").sokoBotId);
+  return ok(c, result);
 });
 
 const archiveVersionRoute = createRoute({

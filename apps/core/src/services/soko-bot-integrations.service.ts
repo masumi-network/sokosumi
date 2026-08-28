@@ -395,6 +395,41 @@ export async function disconnectSokoBotIntegration(input: {
   await prisma.sokoBotIntegration.delete({ where: { id: row.id } });
 }
 
+/**
+ * Revokes every connected account a bot holds, for deletion. Deleting the local
+ * rows alone would leave the accounts registered with Composio and take away
+ * the owner's only way to disconnect them from here.
+ *
+ * Returns the accounts it could not revoke so the caller can tell the owner
+ * rather than implying a clean break.
+ */
+export async function revokeAllSokoBotIntegrations(
+  sokoBotId: string,
+): Promise<{ revoked: number; failed: string[] }> {
+  const rows = await prisma.sokoBotIntegration.findMany({
+    where: { sokoBotId },
+    select: { provider: true, composioAccountId: true },
+  });
+  if (rows.length === 0) return { revoked: 0, failed: [] };
+  const composio = getComposio();
+  if (!composio) return { revoked: 0, failed: rows.map((r) => r.provider) };
+
+  const failed: string[] = [];
+  for (const row of rows) {
+    try {
+      await composio.connectedAccounts.delete(row.composioAccountId);
+    } catch (error) {
+      failed.push(row.provider);
+      console.error("Soko Bot integration revoke failed", {
+        sokoBotId,
+        provider: row.provider,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
+  }
+  return { revoked: rows.length - failed.length, failed };
+}
+
 // ---------------------------------------------------------------------------
 // Reading data through Composio tools, normalised per provider.
 // ---------------------------------------------------------------------------
