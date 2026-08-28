@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 
 const {
   findUniqueMock,
@@ -603,18 +604,7 @@ describe("dispatchChatRoomMention claim", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           id: "cow_1",
-          archivedAt: null,
-          OR: [
-            { isWhitelisted: true },
-            {
-              workspaceAccess: {
-                some: {
-                  workspaceId: ORG_WORKSPACE_ID,
-                  status: "GRANTED",
-                },
-              },
-            },
-          ],
+          ...buildCoworkerUsableInWorkspaceWhere(ORG_WORKSPACE_ID),
           capabilities: { has: "chat" },
           AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
         }),
@@ -664,19 +654,9 @@ describe("dispatchChatRoomMention claim", () => {
     });
     expect(coworkerFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          OR: [
-            { isWhitelisted: true },
-            {
-              workspaceAccess: {
-                some: {
-                  workspaceId: "ws_personal_1",
-                  status: "GRANTED",
-                },
-              },
-            },
-          ],
-        }),
+        where: expect.objectContaining(
+          buildCoworkerUsableInWorkspaceWhere("ws_personal_1"),
+        ),
       }),
     );
     expect(streamTextMock).toHaveBeenCalled();

@@ -62,6 +62,7 @@ import {
   type RoomMessageFilesSegment,
   segmentRoomMessageContent,
 } from "@/app/chat/utils/room-message-segments";
+import { AuroraOrb } from "@/components/aurora-orb";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import {
   ComposerWysiwygEditor,
@@ -129,6 +130,7 @@ import {
   scrollToRoomMessageElement,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
+import { SokoBotMessageFooter } from "./soko-bot-message-footer";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -2152,13 +2154,26 @@ export function ChatMessageRow({
             data-testid="message-sender-avatar"
             className="relative inline-flex size-8 shrink-0"
           >
-            <Avatar className="size-8">
-              <AvatarImage src={sender.image ?? undefined} alt="" />
-              <AvatarFallback className="text-xs">
-                {getInitials(sender.name)}
-              </AvatarFallback>
-            </Avatar>
-            {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
+            {sender.kind === "coworker" &&
+            sender.sokoBotAvatarSeed &&
+            !sender.image ? (
+              <AuroraOrb
+                seed={sender.sokoBotAvatarSeed}
+                size={64}
+                alt=""
+                className="ring-border/40 size-8 ring-1"
+              />
+            ) : (
+              <Avatar className="size-8">
+                <AvatarImage src={sender.image ?? undefined} alt="" />
+                <AvatarFallback className="text-xs">
+                  {getInitials(sender.name)}
+                </AvatarFallback>
+              </Avatar>
+            )}
+            {sender.kind === "coworker" && !sender.sokoBotAvatarSeed ? (
+              <AiCoworkerAvatarBadge />
+            ) : null}
           </span>
         </ChatParticipantHoverCard>
       )}
@@ -2304,6 +2319,7 @@ export function ChatMessageRow({
                         : undefined
                     }
                   />
+                  <SokoBotMessageFooter metadata={message.metadata} />
                 </>
               )}
             </>

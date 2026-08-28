@@ -12,6 +12,7 @@ import prisma from "@/lib/db/prisma";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { resolveWorkspaceIdForChatRoom } from "@/routes/v1/chats/rooms/helpers";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
+import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
 export const ROOM_COWORKER_TOTAL_MS = 240_000;
@@ -334,6 +335,44 @@ export function buildRoomMentionPrompt(params: {
   return `CONTEXT (last ${params.contextMessages.length} messages in #${params.roomName}):\n${contextLines.join("\n")}\n\n${messageBlock}`;
 }
 
+async function loadRoomContextMessages(params: {
+  roomId: string;
+  messageId: string;
+  createdAt: Date;
+  threadRootId: string | null;
+}): Promise<RoomContextMessage[]> {
+  const contextRows = await prisma.chatRoomMessage.findMany({
+    where: {
+      roomId: params.roomId,
+      id: { not: params.messageId },
+      deletedAt: null,
+      createdAt: { lte: params.createdAt },
+      ...(params.threadRootId
+        ? {
+            OR: [
+              { id: params.threadRootId },
+              { parentMessageId: params.threadRootId },
+            ],
+          }
+        : // Top-level mentions should not pull thread replies into CONTEXT.
+          { parentMessageId: null }),
+    },
+    orderBy: { createdAt: "desc" },
+    take: ROOM_CONTEXT_MESSAGE_LIMIT,
+    select: {
+      content: true,
+      senderUser: { select: { name: true } },
+      senderCoworker: { select: { name: true } },
+    },
+  });
+  return contextRows.reverse().map((row) => ({
+    senderName:
+      row.senderCoworker?.name ?? row.senderUser?.name ?? "Unknown sender",
+    isCoworker: row.senderCoworker != null,
+    content: row.content,
+  }));
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -437,6 +476,8 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           slug: true,
           name: true,
           baseURL: true,
+          sokoBotId: true,
+          sokoBot: { select: { userId: true, archivedAt: true } },
         },
       },
       message: {
@@ -444,6 +485,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           room: {
             select: {
               id: true,
+              kind: true,
               name: true,
               organizationId: true,
             },
@@ -499,6 +541,17 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     });
   } catch {
     await failWithShell("Coworker chat is not available");
+    return;
+  }
+
+  if (mention.coworker.sokoBotId) {
+    await runSokoBotMentionDispatch({
+      mentionId,
+      mention,
+      userId,
+      workspaceId,
+      failWithShell,
+    });
     return;
   }
 
@@ -643,34 +696,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   // The coworker only ever receives what is addressed to it, so hand it the
   // surrounding conversation: the last messages of the thread it is replying
   // in, or of the room for a top-level mention (oldest first).
-  const contextRows = await prisma.chatRoomMessage.findMany({
-    where: {
-      roomId: mention.message.roomId,
-      id: { not: mention.message.id },
-      deletedAt: null,
-      createdAt: { lte: mention.message.createdAt },
-      ...(threadRootId
-        ? { OR: [{ id: threadRootId }, { parentMessageId: threadRootId }] }
-        : // Top-level mentions should not pull thread replies into CONTEXT.
-          { parentMessageId: null }),
-    },
-    orderBy: { createdAt: "desc" },
-    take: ROOM_CONTEXT_MESSAGE_LIMIT,
-    select: {
-      content: true,
-      senderUser: { select: { name: true } },
-      senderCoworker: { select: { name: true } },
-    },
+  const contextMessages = await loadRoomContextMessages({
+    roomId: mention.message.roomId,
+    messageId: mention.message.id,
+    createdAt: mention.message.createdAt,
+    threadRootId,
   });
-
-  const contextMessages: RoomContextMessage[] = contextRows
-    .reverse()
-    .map((row) => ({
-      senderName:
-        row.senderCoworker?.name ?? row.senderUser?.name ?? "Unknown sender",
-      isCoworker: row.senderCoworker != null,
-      content: row.content,
-    }));
 
   const prompt = buildRoomMentionPrompt({
     roomName: mention.message.room.name,
@@ -906,5 +937,143 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         await discardMentionThoughtPlaceholder(placeholderId, parentMessageId);
       }
     }
+  }
+}
+
+/**
+ * A mention of the owner's Soko Bot starts a Soko Bot turn instead of a
+ * remote coworker stream. The Thought placeholder is opened here; the
+ * control plane mirrors tool progress into it and writes the answer back
+ * when the turn settles (see `soko-bot-chat.service.ts`).
+ */
+async function runSokoBotMentionDispatch(params: {
+  mentionId: string;
+  mention: {
+    message: {
+      id: string;
+      roomId: string;
+      parentMessageId: string | null;
+      content: string;
+      senderUser: { id: string; name: string | null } | null;
+      createdAt: Date;
+      room: {
+        id: string;
+        kind: string;
+        name: string | null;
+        organizationId: string | null;
+      };
+    };
+    responseMessageId: string | null;
+    coworker: {
+      id: string;
+      sokoBotId: string | null;
+      sokoBot: { userId: string; archivedAt: Date | null } | null;
+    };
+  };
+  userId: string;
+  workspaceId: string;
+  failWithShell: (error: unknown) => Promise<void>;
+}): Promise<void> {
+  const { mentionId, mention, userId, workspaceId, failWithShell } = params;
+  const bot = mention.coworker.sokoBot;
+  if (!bot || bot.archivedAt) {
+    await failWithShell("This Soko Bot is no longer active");
+    return;
+  }
+  // Teammates may talk to the bot in organization rooms; the turn runs as
+  // the owner (their bot, their credits) with a read-only ceiling, and the
+  // console shows who asked. Personal rooms stay owner-only.
+  const isOwner = bot.userId === userId;
+  if (!isOwner && !mention.message.room.organizationId) {
+    await failWithShell("Only the owner can message this assistant here");
+    return;
+  }
+  const membership = await prisma.chatRoomCoworkerMember.findUnique({
+    where: {
+      roomId_coworkerId: {
+        roomId: mention.message.roomId,
+        coworkerId: mention.coworker.id,
+      },
+    },
+    select: { id: true },
+  });
+  if (!membership) {
+    await failWithShell("Soko Bot is no longer a member of this room");
+    return;
+  }
+  const claimed = await claimMentionForDispatch(mentionId);
+  if (!claimed) return;
+
+  const startedAtMs = Date.now();
+  let placeholderId: string | null = mention.responseMessageId;
+  try {
+    placeholderId = await publishMentionThoughtPlaceholder({
+      placeholderId,
+      roomId: mention.message.roomId,
+      parentMessageId: mention.message.parentMessageId,
+      sourceMessageId: mention.message.id,
+      mentionId,
+      coworkerId: mention.coworker.id,
+      reasoningSteps: [],
+      thoughtStartedAtMs: startedAtMs,
+    });
+  } catch (publishError) {
+    console.error("Soko Bot Thought placeholder create failed:", {
+      mentionId,
+      error: publishError,
+    });
+  }
+  if (!placeholderId) {
+    await markMentionFailed(mentionId, "Could not open the reply");
+    return;
+  }
+
+  // Directs are the bot's own conversation: the control plane already
+  // rehydrates recent turns, so the message goes through as typed. Channel
+  // mentions carry the surrounding room context like coworker mentions do.
+  const threadRootId = mention.message.parentMessageId;
+  const message =
+    mention.message.room.kind === "direct"
+      ? mention.message.content
+      : buildRoomMentionPrompt({
+          roomName: mention.message.room.name ?? "chat",
+          senderName: mention.message.senderUser?.name ?? "A teammate",
+          content: mention.message.content,
+          isThreadReply: threadRootId != null,
+          contextMessages: await loadRoomContextMessages({
+            roomId: mention.message.roomId,
+            messageId: mention.message.id,
+            createdAt: mention.message.createdAt,
+            threadRootId,
+          }),
+        });
+
+  try {
+    const result = await sokoBotControlPlane.startTurn({
+      userId: bot.userId,
+      workspaceId,
+      clientTurnId: `chat:${mentionId}`,
+      message: isOwner
+        ? message
+        : `${mention.message.senderUser?.name ?? "A teammate"} (a teammate, not your owner) asked:\n${message}`,
+      source: "CHAT",
+      chat: {
+        mentionId,
+        responseMessageId: placeholderId,
+        requestedByUserId: isOwner ? null : userId,
+      },
+    });
+    if (
+      result.reconciliationLeaseToken &&
+      (result.status === "STARTING" || result.status === "RUNNING")
+    ) {
+      await sokoBotControlPlane.reconcileTurn(
+        result.turnId,
+        undefined,
+        result.reconciliationLeaseToken,
+      );
+    }
+  } catch (error) {
+    await failWithShell(error);
   }
 }

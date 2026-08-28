@@ -5,11 +5,7 @@ import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  isCoworkerAuthContext,
-  isOrchestratorAuthContext,
-  isUserAuthContext,
-} from "@/middleware/auth";
+import { isCoworkerAuthContext, isUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -43,8 +39,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const workspaceId =
       isUserAuthContext(authContext) ||
-      (isCoworkerAuthContext(authContext) && authContext.context) ||
-      (isOrchestratorAuthContext(authContext) && authContext.context)
+      (isCoworkerAuthContext(authContext) && authContext.context)
         ? requireWorkspaceContext(workspaceContext).workspaceId
         : null;
 

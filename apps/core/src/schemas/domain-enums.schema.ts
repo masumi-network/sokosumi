@@ -22,7 +22,7 @@ import type Stripe from "stripe";
  *
  * Each `.openapi("Name")` registers a reusable component so `@hey-api/openapi-ts`
  * with `enums: "javascript"` emits `export const Name = { … }` in the web Core
- * client. Keep domain enums here; feature-local enums (Hermes, Skills, …) may
+ * client. Keep domain enums here; feature-local enums may
  * stay next to their schemas when they are not shared.
  *
  * Value sources are Prisma / `@sokosumi/database` enums (+ `@sokosumi/utils` for

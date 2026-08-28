@@ -5,12 +5,10 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import type { AuthVariables } from "./auth";
 import { coworkerContextMiddleware } from "./coworker-context";
 
-const { memberFindUniqueMock, userFindUniqueMock, orchestratorFindFirstMock } =
-  vi.hoisted(() => ({
-    memberFindUniqueMock: vi.fn(),
-    userFindUniqueMock: vi.fn(),
-    orchestratorFindFirstMock: vi.fn(),
-  }));
+const { memberFindUniqueMock, userFindUniqueMock } = vi.hoisted(() => ({
+  memberFindUniqueMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -19,9 +17,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findUnique: memberFindUniqueMock,
-    },
-    orchestrator: {
-      findFirst: orchestratorFindFirstMock,
     },
   },
 }));
@@ -42,7 +37,6 @@ describe("coworkerContextMiddleware", () => {
   beforeEach(() => {
     memberFindUniqueMock.mockReset();
     userFindUniqueMock.mockReset();
-    orchestratorFindFirstMock.mockReset();
   });
 
   it("does not change user authentication context when context headers are present", async () => {
@@ -281,59 +275,5 @@ describe("coworkerContextMiddleware", () => {
     });
 
     expect(res.status).toBe(400);
-  });
-
-  it("binds active orchestratorId for orchestrator actor with X-Context-User-Id", async () => {
-    userFindUniqueMock.mockResolvedValue({ id: "user_context" });
-    orchestratorFindFirstMock.mockResolvedValue({
-      id: "01960001-0001-7001-8001-000000000099",
-    });
-
-    const app = createApp({
-      isAuthenticated: true,
-      authContext: { actor: "orchestrator" },
-    });
-
-    const res = await app.request("http://localhost/", {
-      headers: { "X-Context-User-Id": "user_context" },
-    });
-
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      authContext: AuthVariables["authContext"];
-    };
-    expect(body.authContext).toEqual({
-      actor: "orchestrator",
-      orchestratorId: "01960001-0001-7001-8001-000000000099",
-      context: { userId: "user_context", organizationId: null },
-    });
-    expect(orchestratorFindFirstMock).toHaveBeenCalledWith({
-      where: { userId: "user_context", archivedAt: null },
-      select: { id: true },
-    });
-  });
-
-  it("leaves orchestratorId unset when context user has no active instance", async () => {
-    userFindUniqueMock.mockResolvedValue({ id: "user_context" });
-    orchestratorFindFirstMock.mockResolvedValue(null);
-
-    const app = createApp({
-      isAuthenticated: true,
-      authContext: { actor: "orchestrator" },
-    });
-
-    const res = await app.request("http://localhost/", {
-      headers: { "X-Context-User-Id": "user_context" },
-    });
-
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      authContext: AuthVariables["authContext"];
-    };
-    expect(body.authContext).toEqual({
-      actor: "orchestrator",
-      orchestratorId: undefined,
-      context: { userId: "user_context", organizationId: null },
-    });
   });
 });

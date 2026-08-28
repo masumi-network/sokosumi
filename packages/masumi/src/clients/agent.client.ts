@@ -66,6 +66,9 @@ export interface AgentJobStartFailure {
   message: string;
 }
 
+/** Failure phase for `provide_input`, with same retry-safety semantics as start_job. */
+export type AgentJobInputFailure = AgentJobStartFailure;
+
 function unreachable(message: string): AgentJobStartFailure {
   return { kind: "unreachable", message };
 }
@@ -337,33 +340,38 @@ export function createAgentClient(config?: AgentClientConfig) {
       jobId: string,
       inputSchema: string,
       inputData: InputSchemaType,
-    ): Promise<Result<ProvideInputResponseSchemaType, string>> {
+    ): Promise<Result<ProvideInputResponseSchemaType, AgentJobInputFailure>> {
+      let provideInputUrl: URL;
       try {
-        const provideInputUrl = getAgentUrlWithPathComponent(
-          agent,
-          "provide_input",
-        );
+        provideInputUrl = getAgentUrlWithPathComponent(agent, "provide_input");
+      } catch (error) {
+        return err(unreachable(String(error)));
+      }
 
-        const inputSchemaHash = hashInputSchema(inputSchema);
-        if (!inputSchemaHash) {
-          return err("Failed to hash input schema");
-        }
+      const inputSchemaHash = hashInputSchema(inputSchema);
+      if (!inputSchemaHash) {
+        return err(unreachable("Failed to hash input schema"));
+      }
 
-        const requestPayload: ProvideInputRequestSchemaType = {
-          job_id: jobId,
-          input_schema_hash: inputSchemaHash,
-          input_data: inputData,
-        };
-        const parsedRequestPayload =
-          provideInputRequestSchema.safeParse(requestPayload);
-        if (!parsedRequestPayload.success) {
-          return err(
+      const requestPayload: ProvideInputRequestSchemaType = {
+        job_id: jobId,
+        input_schema_hash: inputSchemaHash,
+        input_data: inputData,
+      };
+      const parsedRequestPayload =
+        provideInputRequestSchema.safeParse(requestPayload);
+      if (!parsedRequestPayload.success) {
+        return err(
+          unreachable(
             `Failed to build provide input request: ${JSON.stringify(parsedRequestPayload.error)}`,
-          );
-        }
-        const body = JSON.stringify(parsedRequestPayload.data);
+          ),
+        );
+      }
+      const body = JSON.stringify(parsedRequestPayload.data);
 
-        const provideInputResponse = await ssrfSafeFetch(provideInputUrl, {
+      let provideInputResponse: Response;
+      try {
+        provideInputResponse = await ssrfSafeFetch(provideInputUrl, {
           method: "POST",
           headers: {
             Accept: "application/json",
@@ -371,26 +379,42 @@ export function createAgentClient(config?: AgentClientConfig) {
           },
           body,
         });
+      } catch (error) {
+        return err(ambiguous(String(error)));
+      }
 
-        if (!provideInputResponse.ok) {
-          return err(
-            `Failed to provide job input: ${provideInputResponse.status} ${provideInputResponse.statusText}`,
-          );
-        }
-        const responseJson = await provideInputResponse.json();
-        const parsedResult = provideInputResponseSchema.safeParse(responseJson);
-        if (!parsedResult.success) {
-          return err(
+      if (!provideInputResponse.ok) {
+        return err(
+          classifyStartJobHttpFailure(
+            provideInputResponse,
+            "Failed to provide job input",
+          ),
+        );
+      }
+
+      let responseJson: unknown;
+      try {
+        responseJson = await provideInputResponse.json();
+      } catch (error) {
+        return err(
+          invalidResponse(
+            `provide_input response was not valid JSON: ${error}`,
+          ),
+        );
+      }
+
+      const parsedResult = provideInputResponseSchema.safeParse(responseJson);
+      if (!parsedResult.success) {
+        return err(
+          invalidResponse(
             `Failed to parse provide input response: ${JSON.stringify(
               parsedResult.error,
             )}`,
-          );
-        }
-
-        return ok(parsedResult.data);
-      } catch (error) {
-        return err(String(error));
+          ),
+        );
       }
+
+      return ok(parsedResult.data);
     },
 
     async fetchAgentInputSchema(

@@ -8,7 +8,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import {
   deleteProjectBriefingBlob,
@@ -33,12 +33,12 @@ const paramsSchema = z.object({
     }),
 });
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "patch",
     path: "/{id}",
     description:
-      "Update a project's name, briefing, website, or logo. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Session user or orchestrator with context headers; coworker keys are rejected.",
+      "Update a project's name, briefing, website, or logo. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,

@@ -3,9 +3,12 @@
  * the name. Duplicate prefixes are collisions: apply order is no longer
  * uniquely determined by the timestamp.
  *
- * Two collisions already shipped and applied in production. They stay on disk
- * unchanged (renaming applied folders rewrites `_prisma_migrations`). This
- * allowlist is the exact folder sets, not a license to add a third.
+ * The collisions below already shipped and applied to a deployed database.
+ * They stay on disk unchanged: renaming an applied folder makes
+ * `migrate deploy` treat it as a new migration and re-run its SQL, which
+ * fails on the objects it already created and leaves the database in a
+ * failed-migration state. Entries are the exact folder sets, and this is not
+ * a license to land a new collision — pick a unique prefix instead.
  */
 
 export const ALLOWED_DUPLICATE_MIGRATION_PREFIX_FOLDERS = {
@@ -16,6 +19,17 @@ export const ALLOWED_DUPLICATE_MIGRATION_PREFIX_FOLDERS = {
   "20260802120000": [
     "20260802120000_chat_room_message_deleted_at",
     "20260802120000_chat_room_message_edited_at",
+  ],
+  "20260825140000": [
+    "20260825140000_chat_room_channel_slug_namespace",
+    "20260825140000_soko_bot_avatars_and_requester",
+  ],
+  // Calendar and Soko Bot landed the same hour on separate branches. Both are
+  // applied in deployed environments, so renaming either would re-run its SQL
+  // and wedge the database; the pair is recorded instead.
+  "20260826140000": [
+    "20260826140000_calendar_compatibility_foundation",
+    "20260826140000_soko_bot_runtime_event",
   ],
 } as const satisfies Record<string, readonly string[]>;
 

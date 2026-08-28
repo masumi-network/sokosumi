@@ -1,0 +1,27 @@
+# Only affects CLI uploads (`vercel deploy` from this root) — the web and core
+# production deploys go through scripts/ci/vercel-deploy.mjs, which sends a
+# gitSource ref rather than files.
+#
+# apps/soko-bot is deployed with the CLI from the repo root (its Vercel project
+# sets rootDirectory to apps/soko-bot). Without this file the upload enumerates
+# every local artifact — ~327k files against ~4.9k of actual source — and the
+# create-deployment request exceeds Vercel's 10 MB body limit.
+#
+# Everything below is regenerated on Vercel by `pnpm install` and the build, so
+# none of it should ever be uploaded.
+
+node_modules
+.git
+.pnpm-store
+
+# Framework and build output
+.next
+.eve
+.output
+dist
+.turbo
+*.tsbuildinfo
+
+# Local-only
+.vercel
+coverage

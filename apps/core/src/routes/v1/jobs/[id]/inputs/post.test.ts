@@ -1,5 +1,5 @@
 import { AgentStatus, JobType } from "@sokosumi/database";
-import { ok } from "neverthrow";
+import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -93,8 +93,6 @@ vi.mock("@/middleware/auth", () => ({
     authContext.actor === "user",
   isCoworkerAuthContext: (authContext: { actor: string }) =>
     authContext.actor === "coworker",
-  isOrchestratorAuthContext: (authContext: { actor: string }) =>
-    authContext.actor === "orchestrator",
 }));
 
 vi.mock("@/helpers/access-control.js", () => ({
@@ -262,5 +260,17 @@ describe("POST /jobs/{id}/inputs", () => {
       inputHash: "input_hash_123",
       signature: "signature_123",
     });
+  });
+
+  it("uses typed seller failure message in validation response", async () => {
+    provideJobInputMock.mockResolvedValue(
+      err({ kind: "ambiguous", message: "Seller response lost" }),
+    );
+
+    const response = await postInputs(createApp());
+    const body = await response.text();
+
+    expect(response.status).toBe(422);
+    expect(body).toBe("Seller response lost");
   });
 });

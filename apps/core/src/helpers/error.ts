@@ -89,8 +89,9 @@ export const badRequest = (
  */
 export const unauthorized = (
   message: string = "Unauthorized",
+  metadata?: HTTPExceptionMetadata,
 ): HTTPException => {
-  return createHTTPException(401, message);
+  return createHTTPException(401, message, metadata);
 };
 
 /**
@@ -132,8 +133,9 @@ export const conflict = (
  */
 export const payloadTooLarge = (
   message: string = "Payload Too Large",
+  metadata?: HTTPExceptionMetadata,
 ): HTTPException => {
-  return createHTTPException(413, message);
+  return createHTTPException(413, message, metadata);
 };
 
 /**
@@ -174,8 +176,9 @@ export const tooManyRequests = (
  */
 export const internalServerError = (
   message: string = "Internal Server Error",
+  metadata?: HTTPExceptionMetadata,
 ): HTTPException => {
-  return createHTTPException(500, message);
+  return createHTTPException(500, message, metadata);
 };
 
 /**

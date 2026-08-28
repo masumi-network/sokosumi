@@ -6,7 +6,7 @@ import {
   getPrivateCachedMembershipVisibleRooms,
   type PrivateChatListCacheArgs,
 } from "@/app/components/private-sidebar-cache";
-import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
+import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarSeparator } from "@/components/ui/sidebar";

@@ -63,8 +63,19 @@ export function isPrismaTransactionConflict(error: unknown): boolean {
         ? (error as { name: string }).name
         : "";
 
+  // Driver adapters (Neon) surface serialization failures either as a bare
+  // DriverAdapterError or wrapped in a PrismaClientKnownRequestError whose
+  // message embeds it; both are the same retryable condition.
+  if (
+    /transactionwriteconflict/i.test(message) &&
+    (name === "DriverAdapterError" || /driverAdapterError/i.test(message))
+  ) {
+    return true;
+  }
+  // Raw queries (SELECT … FOR UPDATE) surface the Postgres serialization
+  // failure directly: SQLSTATE 40001.
   return (
-    name === "DriverAdapterError" && /transactionwriteconflict/i.test(message)
+    /\b40001\b/.test(message) || /could not serialize access/i.test(message)
   );
 }
 

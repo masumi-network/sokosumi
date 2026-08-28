@@ -19,3 +19,16 @@ export function computeNextRun({
     return null;
   }
 }
+
+export function computeNextRunWithMinimumInterval(
+  input: ComputeNextRunInput,
+  minimumIntervalMs: number,
+): Date | null {
+  const first = computeNextRun(input);
+  if (!first) return null;
+  const second = computeNextRun({ ...input, from: first });
+  if (!second || second.getTime() - first.getTime() < minimumIntervalMs) {
+    return null;
+  }
+  return first;
+}

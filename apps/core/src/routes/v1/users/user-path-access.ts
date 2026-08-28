@@ -5,7 +5,6 @@ import {
   type AuthenticationContext,
   hasAdminRole,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
   isUserAuthContext,
   requireUserContext,
   type UserAuthenticationContext,
@@ -17,7 +16,7 @@ export const USERS_PATH_ME = "me" as const;
 
 /**
  * Session-only user context (admin or self). Prefer {@link UserContext} for
- * callers that also accept orchestrator/coworker context headers.
+ * callers that also accept coworker context headers.
  */
 export type SessionUserContext = {
   source: "session";
@@ -35,7 +34,7 @@ export const usersRoutePathUserIdSchema = z.string().openapi({
  * Resolves the first `/{id}` segment on user routes: `me` → effective user id;
  * otherwise enforces {@link requireAccessToTargetUserData}.
  *
- * Orchestrator or coworker with `X-Context-User-Id` may resolve that user's tree
+ * Coworker with `X-Context-User-Id` may resolve that user's tree
  * (path `me` or matching concrete id). Coworker access to non-allowlisted
  * subpaths is still rejected by `coworkerUserRouteAllowlistMiddleware`.
  */
@@ -60,7 +59,7 @@ export function resolveUsersPathUserId(
 
 /**
  * Effective user for path `me` and self-id access: session user, or
- * orchestrator/coworker with context headers.
+ * coworker with context headers.
  */
 function requireEffectiveUserPathContext(
   authContext: AuthenticationContext,
@@ -69,10 +68,7 @@ function requireEffectiveUserPathContext(
     return { source: "session", ...authContext };
   }
 
-  if (
-    isOrchestratorAuthContext(authContext) ||
-    isCoworkerAuthContext(authContext)
-  ) {
+  if (isCoworkerAuthContext(authContext)) {
     return requireUserContext(authContext);
   }
 
@@ -82,7 +78,7 @@ function requireEffectiveUserPathContext(
 /**
  * Ensures the caller may access or mutate data for `resolvedUserId`:
  * - session user matches `resolvedUserId`, or session user has admin role
- * - orchestrator or coworker with context whose `userId` matches `resolvedUserId`
+ * - coworker with context whose `userId` matches `resolvedUserId`
  *
  * Coworker callers still need an allowlisted subpath (profile, credits,
  * organizations list/credits).
@@ -101,10 +97,7 @@ export function requireAccessToTargetUserData(
     throw forbidden("You are not allowed to access this user's data");
   }
 
-  if (
-    isOrchestratorAuthContext(authContext) ||
-    isCoworkerAuthContext(authContext)
-  ) {
+  if (isCoworkerAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
     if (userContext.userId !== resolvedUserId) {
       throw forbidden("You are not allowed to access this user's data");
