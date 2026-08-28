@@ -248,16 +248,25 @@ describe("getNotificationServiceWorker", () => {
   });
 });
 
+/**
+ * The parts of the worker's query the listener reads. Narrower than
+ * `MessageEvent`, whose readonly `ports` a plain object cannot satisfy.
+ */
+interface QueryMessage {
+  data: { type: string };
+  ports: { postMessage: (answer: boolean) => void }[];
+}
+
 describe("answerShowsNotificationsQuery", () => {
   it("answers the worker's query and stops when unsubscribed", () => {
-    const listeners = new Set<(event: MessageEvent) => void>();
+    const listeners = new Set<(event: QueryMessage) => void>();
     stubServiceWorker({
-      addEventListener: (_type: string, handler: (e: MessageEvent) => void) => {
+      addEventListener: (_type: string, handler: (e: QueryMessage) => void) => {
         listeners.add(handler);
       },
       removeEventListener: (
         _type: string,
-        handler: (e: MessageEvent) => void,
+        handler: (e: QueryMessage) => void,
       ) => {
         listeners.delete(handler);
       },
@@ -268,7 +277,7 @@ describe("answerShowsNotificationsQuery", () => {
     const port = { postMessage: vi.fn() };
     const ask = (type: string) => {
       for (const listener of listeners) {
-        listener({ data: { type }, ports: [port] } as unknown as MessageEvent);
+        listener({ data: { type }, ports: [port] });
       }
     };
 

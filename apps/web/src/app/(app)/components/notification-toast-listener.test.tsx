@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { NotificationEventData } from "@/lib/ably/schema";
+import { NotificationKind } from "@/lib/clients/generated/core";
 
 const onNotificationRef = {
   current: null as ((notification: NotificationEventData) => void) | null,
@@ -95,11 +95,16 @@ vi.mock("@/lib/utils/notification-navigation", () => ({
 
 import { NotificationToastListener } from "./notification-toast-listener";
 
-const NOTIFICATION = {
+const NOTIFICATION: NotificationEventData = {
   ...TARGET,
+  kind: NotificationKind.CHAT,
+  userId: "user-1",
+  eventId: "event-1",
   messageParams: {},
   isRead: false,
-} as unknown as NotificationEventData;
+  readAt: null,
+  createdAt: "2026-01-01T00:00:00.000Z",
+};
 
 function emitOnUnfocusedTab() {
   render(<NotificationToastListener userId="user-1" markRead={markRead} />);

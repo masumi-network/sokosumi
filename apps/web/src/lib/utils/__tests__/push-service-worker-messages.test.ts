@@ -3,14 +3,14 @@ import { join } from "node:path";
 
 import { LOCALE_COOKIE_NAME, SUPPORTED_LOCALES } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-import deMessages from "@/../messages/de.json";
-import enMessages from "@/../messages/en.json";
-import esMessages from "@/../messages/es.json";
 import {
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
   SHOWS_NOTIFICATIONS_QUERY,
 } from "@/lib/utils/notification-service-worker";
+import deMessages from "@/messages/de.json";
+import enMessages from "@/messages/en.json";
+import esMessages from "@/messages/es.json";
 
 /**
  * The service worker cannot reach next-intl, so it carries its own copy of the
