@@ -7,7 +7,7 @@ import {
   normalizeInvitationEmail,
 } from "@/helpers/chat-room-invitation";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
-import { badRequest, notFound } from "@/helpers/error";
+import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -115,11 +115,19 @@ async function resolveInvitationStatusAfterJoin(
     outcome: "joined" | "already_guest" | "aborted";
   },
 ): Promise<string> {
-  if (args.outcome === "aborted") {
-    throw badRequest("Invitation is no longer pending.");
-  }
-  if (args.outcome === "joined") {
-    return CHAT_ROOM_INVITATION_STATUS.ACCEPTED;
+  switch (args.outcome) {
+    case "joined":
+      return CHAT_ROOM_INVITATION_STATUS.ACCEPTED;
+    case "already_guest":
+      break;
+    case "aborted":
+      throw internalServerError(
+        "Email invite accept cannot abort; beforeCreate throws instead",
+      );
+    default: {
+      const _exhaustive: never = args.outcome;
+      throw internalServerError(`Unexpected guest outcome: ${_exhaustive}`);
+    }
   }
 
   let status = await acceptPendingInvitationIfNeeded(tx, {

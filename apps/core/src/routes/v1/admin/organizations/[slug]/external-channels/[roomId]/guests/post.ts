@@ -79,6 +79,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
     );
 
+    const outcome = adminGuestOutcome(result.outcome);
+
     for (const message of statusMessages) {
       await publishChatRoomMessageRealtime(message, "create");
     }
@@ -89,7 +91,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: result.userId,
         roomId: result.roomId,
         access: result.access,
-        outcome: adminGuestOutcome(result.outcome),
+        outcome,
       }),
     );
   });

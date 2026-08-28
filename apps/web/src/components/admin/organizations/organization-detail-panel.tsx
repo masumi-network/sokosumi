@@ -180,6 +180,7 @@ export function OrganizationDetailPanel({
           ? t("addGuest.alreadyGuest")
           : t("addGuest.success"),
       );
+      setSelectedGuestUser(null);
       refresh();
     });
   }
