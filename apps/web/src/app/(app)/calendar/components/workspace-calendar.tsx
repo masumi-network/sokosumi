@@ -225,6 +225,7 @@ function CalendarView({
         }))}
         timeZone={CALENDAR_TIME_ZONE}
         allDaySlot={false}
+        slotEventOverlap={false}
         headerToolbar={false}
         height="auto"
         eventContent={(eventInfo) => {
