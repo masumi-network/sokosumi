@@ -13,11 +13,12 @@ import { getAblyRealtimeClient } from "./realtime-singleton.client";
 /**
  * Turn closed-app push on for this browser (ADR-0022).
  *
- * `activate()` asks for the OS notification permission, registers the service
- * worker, and registers the device with Ably. Call it only from an explicit
- * user gesture, or the browser rejects the permission prompt. `subscribeDevice`
- * then binds the device to the reader's own notifications channel, which is the
- * channel Core publishes the push payload on.
+ * `activate()` registers the service worker and registers the device with
+ * Ably. It asks the reader for nothing: `answerPermissionFromStoredValue`
+ * answers the SDK's own permission request from `Notification.permission` for
+ * the duration, so the caller has to hold the permission already.
+ * `subscribeDevice` then binds the device to the reader's own notifications
+ * channel, which is the channel Core publishes the push payload on.
  */
 export async function activatePush(userId: string): Promise<void> {
   const restorePermissionRequest = answerPermissionFromStoredValue();

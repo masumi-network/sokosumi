@@ -231,11 +231,12 @@ export function usePushPreference(userId: string | undefined): PushPreference {
    */
   const subscribeThisBrowser = useCallback(async (sessionUserId: string) => {
     // Ask for the OS permission before anything else awaits, so the prompt
-    // opens inside the click that asked for it. Ably requests it too
-    // (`ably/build/push.js:194`), but only after `loadPushActivation`
-    // fetches its chunk, and Ably documents the prompt as valid only "in
-    // response to direct user interaction". `activate()` then finds the
-    // permission already granted and opens no second prompt.
+    // opens inside the click that asked for it. Ably asks a second time inside
+    // `activate()` (`ably/build/push.js:194`), by which point the gesture is
+    // long gone: `loadPushActivation` has fetched its chunk in between, and
+    // Ably documents the prompt as valid only "in response to direct user
+    // interaction". `activatePush` answers that second request from the stored
+    // permission, so this one is the only prompt the reader ever sees.
     const granted = await requestBrowserNotificationPermission();
     setPermission(granted);
     if (granted !== "granted") {
