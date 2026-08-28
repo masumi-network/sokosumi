@@ -93,6 +93,7 @@ export async function ensureMatchedChannelParticipant(
   }
 
   try {
+    await tx.$executeRaw`SAVEPOINT matched_channel_member_create`;
     await tx.chatRoomUserMember.create({
       data: {
         roomId: room.id,
@@ -100,10 +101,15 @@ export async function ensureMatchedChannelParticipant(
         access: CHAT_ROOM_ACCESS.MEMBER,
       },
     });
+    await tx.$executeRaw`RELEASE SAVEPOINT matched_channel_member_create`;
   } catch (error) {
     if (!isPrismaUniqueViolation(error)) {
       throw error;
     }
+    // Unique violation aborts the interactive txn unless we roll back to a
+    // savepoint first (Postgres). Re-read after restoring so callers can keep
+    // using `tx` (e.g. org snapshot loops).
+    await tx.$executeRaw`ROLLBACK TO SAVEPOINT matched_channel_member_create`;
     const raced = await tx.chatRoomUserMember.findUnique({
       where: {
         roomId_userId: {

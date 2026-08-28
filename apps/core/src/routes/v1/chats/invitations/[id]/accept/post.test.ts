@@ -25,6 +25,7 @@ const {
   messageCreateMock,
   roomFindUniqueMock,
   queryRawMock,
+  executeRawMock,
   prismaTransactionMock,
   publishChatRoomMessageRealtimeMock,
 } = vi.hoisted(() => ({
@@ -38,6 +39,7 @@ const {
   messageCreateMock: vi.fn(),
   roomFindUniqueMock: vi.fn(),
   queryRawMock: vi.fn(),
+  executeRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
 }));
@@ -74,6 +76,7 @@ const tx = {
   member: { findUnique: memberFindUniqueMock },
   chatRoomMessage: { create: messageCreateMock },
   $queryRaw: queryRawMock,
+  $executeRaw: executeRawMock,
 };
 
 function createApp(
@@ -136,6 +139,7 @@ beforeEach(() => {
   userMemberFindUniqueMock.mockResolvedValue(null);
   memberFindUniqueMock.mockResolvedValue(null);
   queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+  executeRawMock.mockResolvedValue(0);
   roomFindUniqueMock.mockResolvedValue({
     id: ROOM_ID,
     name: "Client Room",

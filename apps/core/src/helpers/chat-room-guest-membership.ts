@@ -150,6 +150,7 @@ export async function joinExternalChannelAsGuest(
   }
 
   try {
+    await tx.$executeRaw`SAVEPOINT external_channel_guest_create`;
     await tx.chatRoomUserMember.create({
       data: {
         roomId: room.id,
@@ -157,10 +158,15 @@ export async function joinExternalChannelAsGuest(
         access: CHAT_ROOM_ACCESS.GUEST,
       },
     });
+    await tx.$executeRaw`RELEASE SAVEPOINT external_channel_guest_create`;
   } catch (error) {
     if (!isPrismaUniqueViolation(error)) {
       throw error;
     }
+    // Unique violation aborts the interactive txn unless we roll back to a
+    // savepoint first (Postgres). Re-read after restoring so callers can keep
+    // using `tx`.
+    await tx.$executeRaw`ROLLBACK TO SAVEPOINT external_channel_guest_create`;
     const raced = await tx.chatRoomUserMember.findUnique({
       where: {
         roomId_userId: {

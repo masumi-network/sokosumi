@@ -81,7 +81,12 @@ function room(
     slug: "general",
     topic: null,
     directKey: null,
-    discoverability: overrides.discoverability ?? "public",
+    discoverability:
+      overrides.discoverability !== undefined
+        ? overrides.discoverability
+        : overrides.kind === "direct"
+          ? null
+          : "public",
     createdByUserId: USER_ID,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),

@@ -14,6 +14,7 @@ const {
   readStateCreateManyMock,
   readStateDeleteManyMock,
   queryRawMock,
+  executeRawMock,
   recordChannelMembershipStatusMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
@@ -24,6 +25,7 @@ const {
   readStateCreateManyMock: vi.fn(),
   readStateDeleteManyMock: vi.fn(),
   queryRawMock: vi.fn(),
+  executeRawMock: vi.fn(),
   recordChannelMembershipStatusMock: vi.fn(),
 }));
 
@@ -60,6 +62,7 @@ function tx() {
       deleteMany: readStateDeleteManyMock,
     },
     $queryRaw: queryRawMock,
+    $executeRaw: executeRawMock,
   };
 }
 
@@ -68,6 +71,7 @@ describe("ensureMatchedChannelParticipant", () => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: USER_ID, name: "Ada" });
     queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+    executeRawMock.mockResolvedValue(0);
     roomFindUniqueMock.mockResolvedValue(matchedRoom());
     roomUserMemberFindUniqueMock.mockResolvedValue(null);
     roomUserMemberCreateMock.mockResolvedValue({});
@@ -125,6 +129,25 @@ describe("ensureMatchedChannelParticipant", () => {
     expect(result.outcome).toBe("already_member");
     expect(statusMessages).toEqual([]);
     expect(roomUserMemberCreateMock).not.toHaveBeenCalled();
+    expect(recordChannelMembershipStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("treats a concurrent unique violation as already_member after savepoint rollback", async () => {
+    roomUserMemberCreateMock.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+    roomUserMemberFindUniqueMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ access: "member" });
+
+    const { result, statusMessages } = await ensureMatchedChannelParticipant(
+      tx() as never,
+      { userId: USER_ID, roomId: ROOM_ID },
+    );
+
+    expect(result.outcome).toBe("already_member");
+    expect(statusMessages).toEqual([]);
+    expect(executeRawMock).toHaveBeenCalled();
     expect(recordChannelMembershipStatusMock).not.toHaveBeenCalled();
   });
 

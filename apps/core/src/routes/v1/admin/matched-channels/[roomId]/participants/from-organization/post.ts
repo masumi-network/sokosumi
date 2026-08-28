@@ -76,24 +76,41 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ReturnType<typeof ensureMatchedChannelParticipant>
     >["statusMessages"] = [];
 
-    await prisma.$transaction(async (tx) => {
-      for (const member of members) {
-        const { result, statusMessages } =
-          await ensureMatchedChannelParticipant(tx, {
-            userId: member.userId,
-            roomId,
-          });
-        if (result.outcome === "joined") {
-          added += 1;
-          statusMessagesToPublish.push(...statusMessages);
-        } else {
-          alreadyMember += 1;
+    await prisma.$transaction(
+      async (tx) => {
+        for (const member of members) {
+          const { result, statusMessages } =
+            await ensureMatchedChannelParticipant(tx, {
+              userId: member.userId,
+              roomId,
+            });
+          if (result.outcome === "joined") {
+            added += 1;
+            statusMessagesToPublish.push(...statusMessages);
+          } else {
+            alreadyMember += 1;
+          }
         }
-      }
-    });
+      },
+      {
+        // Default interactive timeout is 5s; 200 sequential ensure calls need more.
+        maxWait: 10_000,
+        timeout: 60_000,
+      },
+    );
 
-    for (const message of statusMessagesToPublish) {
-      await publishChatRoomMessageRealtime(message, "create");
+    const publishResults = await Promise.allSettled(
+      statusMessagesToPublish.map((message) =>
+        publishChatRoomMessageRealtime(message, "create"),
+      ),
+    );
+    for (const publishResult of publishResults) {
+      if (publishResult.status === "rejected") {
+        console.error(
+          "Failed to publish chat membership status after org snapshot",
+          publishResult.reason,
+        );
+      }
     }
 
     return ok(

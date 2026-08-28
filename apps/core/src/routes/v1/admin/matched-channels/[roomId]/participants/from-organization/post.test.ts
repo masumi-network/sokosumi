@@ -130,7 +130,10 @@ describe("POST /admin/matched-channels/{roomId}/participants/from-organization",
       { userId: "user_c" },
     ]);
     prismaTransactionMock.mockImplementation(
-      async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+      async (
+        fn: (tx: unknown) => Promise<unknown>,
+        _options?: { maxWait?: number; timeout?: number },
+      ) => fn({}),
     );
     ensureMatchedChannelParticipantMock
       .mockResolvedValueOnce({
@@ -166,7 +169,21 @@ describe("POST /admin/matched-channels/{roomId}/participants/from-organization",
       select: { id: true },
     });
     expect(ensureMatchedChannelParticipantMock).toHaveBeenCalledTimes(3);
+    expect(prismaTransactionMock).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ timeout: 60_000, maxWait: 10_000 }),
+    );
     expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fail the request when realtime publish rejects after commit", async () => {
+    publishChatRoomMessageRealtimeMock.mockRejectedValueOnce(
+      new Error("ably down"),
+    );
+
+    const response = await post({ organizationId: "org_1" });
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.added).toBe(2);
   });
 
   it("resolves the organization by slug", async () => {

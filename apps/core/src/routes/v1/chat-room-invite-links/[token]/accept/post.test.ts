@@ -15,6 +15,7 @@ const {
   roomUserMemberCreateMock,
   readStateCreateManyMock,
   queryRawMock,
+  executeRawMock,
   prismaTransactionMock,
   recordChannelMembershipStatusMock,
   publishChatRoomMessageRealtimeMock,
@@ -49,6 +50,7 @@ const {
   roomUserMemberCreateMock: vi.fn(),
   readStateCreateManyMock: vi.fn(),
   queryRawMock: vi.fn(),
+  executeRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   recordChannelMembershipStatusMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
@@ -95,6 +97,7 @@ const tx = {
   },
   chatRoomReadState: { createMany: readStateCreateManyMock },
   $queryRaw: queryRawMock,
+  $executeRaw: executeRawMock,
 };
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -168,6 +171,7 @@ describe("POST /chat-room-invite-links/{token}/accept", () => {
       async (cb: (client: typeof tx) => unknown) => cb(tx),
     );
     queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+    executeRawMock.mockResolvedValue(0);
     userFindUniqueMock.mockResolvedValue({
       id: "user_outsider",
       name: "Outsider",
