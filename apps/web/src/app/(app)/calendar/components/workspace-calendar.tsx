@@ -13,20 +13,17 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useState } from "react";
+import {
+  FilterDropdownMenu,
+  type FilterDropdownMenuSection,
+} from "@/components/common/filter-dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type {
   WorkspaceCalendarItem,
@@ -47,6 +44,7 @@ interface CalendarCoworker {
 }
 
 interface WorkspaceCalendarProps {
+  activeOrganizationId?: string | null;
   initialDate: string;
   items: WorkspaceCalendarItem[];
   latestDate?: string;
@@ -63,10 +61,9 @@ interface WorkspaceCalendarProps {
 }
 
 const calendarParsers = {
-  coworker: parseAsString.withDefault("all"),
+  assigneeId: parseAsString,
   date: parseAsString,
-  source: parseAsString.withDefault(""),
-  status: parseAsString.withDefault("all"),
+  scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
   view: parseAsStringLiteral(CALENDAR_VIEWS).withDefault("month"),
 };
 
@@ -149,10 +146,12 @@ function SourceMarker({
 function CalendarEvent({
   item,
   onNavigate,
+  showDetails,
   source,
 }: {
   item: WorkspaceCalendarItem;
   onNavigate: () => void;
+  showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
 }) {
   const t = useTranslations("App.Calendar");
@@ -162,7 +161,7 @@ function CalendarEvent({
     <span
       role="link"
       tabIndex={0}
-      className="bg-primary/10 text-foreground flex min-w-0 items-center gap-1 rounded px-1.5 py-1 text-xs font-medium"
+      className="bg-primary/10 text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-xs font-medium"
       onClick={(event) => {
         event.stopPropagation();
         onNavigate();
@@ -176,17 +175,16 @@ function CalendarEvent({
       }}
     >
       <SourceMarker source={source} sourceName={sourceName} />
-      <span className="truncate">{item.taskName}</span>
-      <span className="text-muted-foreground shrink-0">{sourceName}</span>
-      {item.sourceAccuracy !== "EXACT" ? (
-        <span className="text-muted-foreground shrink-0">
-          {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-        </span>
-      ) : null}
-      {item.timeAccuracy === "APPROXIMATE" ? (
-        <span className="text-muted-foreground shrink-0">
-          {t("accuracy.approximate")}
-        </span>
+      <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
+      {showDetails ? (
+        <>
+          <span className="text-muted-foreground shrink-0">{sourceName}</span>
+          {item.sourceAccuracy !== "EXACT" ? (
+            <span className="text-muted-foreground shrink-0">
+              {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+            </span>
+          ) : null}
+        </>
       ) : null}
     </span>
   );
@@ -212,7 +210,10 @@ function CalendarView({
   }[view];
 
   return (
-    <div className="overflow-x-auto" data-testid={`calendar-${view}`}>
+    <div
+      className="workspace-calendar-theme overflow-x-auto"
+      data-testid={`calendar-${view}`}
+    >
       <FullCalendar
         key={`${getCalendarDayKey(date)}-${view}`}
         plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
@@ -222,8 +223,12 @@ function CalendarView({
           id: item.id,
           title: item.taskName,
           start: item.scheduledAt.toISOString(),
+          classNames:
+            view === "week" ? ["!bg-transparent", "!border-transparent"] : [],
         }))}
         timeZone={CALENDAR_TIME_ZONE}
+        allDaySlot={false}
+        slotEventOverlap={false}
         headerToolbar={false}
         height="auto"
         eventContent={(eventInfo) => {
@@ -232,6 +237,7 @@ function CalendarView({
             <CalendarEvent
               item={item}
               onNavigate={() => onNavigate(item.taskId)}
+              showDetails={view === "agenda"}
               source={sources.find(
                 ({ sourceId }) => sourceId === item.sourceId,
               )}
@@ -252,6 +258,7 @@ function CalendarView({
 }
 
 export function WorkspaceCalendar({
+  activeOrganizationId = null,
   initialDate,
   items,
   latestDate,
@@ -261,6 +268,7 @@ export function WorkspaceCalendar({
   coworkers = [],
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
+  const tFilters = useTranslations("App.Tasks.Filters");
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const [state, setState] = useQueryStates(calendarParsers);
@@ -272,19 +280,10 @@ export function WorkspaceCalendar({
   const latestCalendarDate = latestDate
     ? parseCalendarDate(latestDate, initialDate)
     : null;
-  const visibleSourceIds = state.source ? state.source.split(",") : null;
-  const taskStatuses = [...new Set(loadedItems.map((item) => item.taskStatus))];
   const visibleItems = loadedItems
     .filter(
       (item) =>
-        visibleSourceIds === null || visibleSourceIds.includes(item.sourceId),
-    )
-    .filter(
-      (item) => state.status === "all" || item.taskStatus === state.status,
-    )
-    .filter(
-      (item) =>
-        state.coworker === "all" || item.taskAssigneeId === state.coworker,
+        state.assigneeId === null || item.taskAssigneeId === state.assigneeId,
     )
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
@@ -314,15 +313,6 @@ export function WorkspaceCalendar({
     void setState({ view }, { shallow: false });
   }
 
-  function handleSourceToggle(sourceId: string) {
-    const selectedSourceIds =
-      visibleSourceIds ?? sources.map((source) => source.sourceId);
-    const nextSourceIds = selectedSourceIds.includes(sourceId)
-      ? selectedSourceIds.filter((id) => id !== sourceId)
-      : [...selectedSourceIds, sourceId];
-    void setState({ source: nextSourceIds.join(",") });
-  }
-
   async function handleLoadMore() {
     if (!nextCursor || !range) {
       return;
@@ -336,6 +326,8 @@ export function WorkspaceCalendar({
         to: range.to,
         cursor: nextCursor,
         limit: pagination?.limit ?? 100,
+        scope: state.scope,
+        assigneeId: state.assigneeId ?? undefined,
       });
       setLoadedItems((currentItems) => [
         ...currentItems,
@@ -350,6 +342,41 @@ export function WorkspaceCalendar({
       setIsLoadingMore(false);
     }
   }
+
+  const filterSections: FilterDropdownMenuSection[] = [
+    ...(activeOrganizationId
+      ? [
+          {
+            id: "scope",
+            label: tFilters("scopeLabel"),
+            icon: Building2,
+            value: state.scope,
+            options: [
+              { value: "workspace", label: tFilters("scopeWorkspace") },
+              { value: "owned", label: tFilters("scopeOwned") },
+            ],
+            onChange: (scope: string | null) =>
+              void setState(
+                { scope: scope === "owned" ? "owned" : "workspace" },
+                { shallow: false },
+              ),
+          },
+        ]
+      : []),
+    {
+      id: "coworker",
+      label: tFilters("coworkerLabel"),
+      icon: Sparkles,
+      value: state.assigneeId,
+      allLabel: tFilters("all"),
+      options: coworkers.map((coworker) => ({
+        value: coworker.id,
+        label: coworker.name,
+      })),
+      onChange: (assigneeId: string | null) =>
+        void setState({ assigneeId }, { shallow: false }),
+    },
+  ];
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 pb-6">
@@ -407,65 +434,15 @@ export function WorkspaceCalendar({
             </Button>
           ))}
         </div>
-        <div
-          aria-label={t("source.label")}
-          className="flex flex-wrap gap-1"
-          role="group"
-        >
-          {sources.map((source) => {
-            const isVisible =
-              visibleSourceIds === null ||
-              visibleSourceIds.includes(source.sourceId);
-            return (
-              <Button
-                aria-pressed={isVisible}
-                key={source.sourceId}
-                size="sm"
-                variant={isVisible ? "secondary" : "outline"}
-                onClick={() => handleSourceToggle(source.sourceId)}
-              >
-                <SourceMarker
-                  decorative
-                  source={source}
-                  sourceName={source.displayName}
-                />
-                {source.displayName}
-              </Button>
-            );
-          })}
-        </div>
-        <Select
-          value={state.status}
-          onValueChange={(status) => void setState({ status })}
-        >
-          <SelectTrigger aria-label={t("status.label")} size="sm">
-            <SelectValue placeholder={t("status.all")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("status.all")}</SelectItem>
-            {taskStatuses.map((status) => (
-              <SelectItem key={status} value={status}>
-                {t(`status.${status}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={state.coworker}
-          onValueChange={(coworker) => void setState({ coworker })}
-        >
-          <SelectTrigger aria-label={t("coworker.label")} size="sm">
-            <SelectValue placeholder={t("coworker.all")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("coworker.all")}</SelectItem>
-            {coworkers.map((coworker) => (
-              <SelectItem key={coworker.id} value={coworker.id}>
-                {coworker.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterDropdownMenu
+          buttonLabel={tFilters("title")}
+          emptyResultsLabel={tFilters("emptyResults")}
+          searchPlaceholder={tFilters("searchPlaceholder")}
+          sections={filterSections}
+          showActiveIndicator={
+            state.scope === "owned" || state.assigneeId !== null
+          }
+        />
       </div>
 
       {visibleItems.length === 0 ? (

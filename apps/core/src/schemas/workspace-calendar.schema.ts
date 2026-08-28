@@ -23,6 +23,14 @@ export const workspaceCalendarQuerySchema = z
         "Exclusive end of the calendar range, at most 90 days after from",
       example: "2026-07-01T00:00:00.000Z",
     }),
+    scope: z.enum(["owned", "workspace"]).default("workspace").openapi({
+      description: "Whether to show only the caller's tasks or the workspace",
+      example: "workspace",
+    }),
+    assigneeId: z.uuid().optional().openapi({
+      description: "Only occurrences whose series task has this coworker",
+      example: "22222222-2222-7222-8222-222222222222",
+    }),
     cursor: z
       .string()
       .max(512)

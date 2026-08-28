@@ -18,7 +18,11 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 
 interface CalendarPageProps {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{
+    assigneeId?: string;
+    date?: string;
+    scope?: string;
+  }>;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -66,7 +70,7 @@ export default async function CalendarPage({
     notFound();
   }
 
-  const { date } = await searchParams;
+  const { assigneeId, date, scope } = await searchParams;
   const now = new Date();
   const latestCalendarDate = getLatestCalendarDate(now);
   const initialDate = resolveCalendarDate(date, now);
@@ -74,7 +78,9 @@ export default async function CalendarPage({
   const [{ items, pagination }, sources, coworkers] = await Promise.all([
     taskService.getWorkspaceCalendar({
       ...range,
+      assigneeId,
       limit: 100,
+      scope: scope === "owned" ? "owned" : "workspace",
     }),
     taskService.getWorkspaceCalendarSources(),
     coworkerService.listCoworkers().catch(() => []),
@@ -83,7 +89,8 @@ export default async function CalendarPage({
   return (
     <div className="w-full px-2">
       <WorkspaceCalendar
-        key={initialDate}
+        activeOrganizationId={session?.session?.activeOrganizationId ?? null}
+        key={`${initialDate}-${scope ?? "workspace"}-${assigneeId ?? "all"}`}
         initialDate={initialDate}
         items={items}
         latestDate={format(latestCalendarDate, "yyyy-MM-dd")}
