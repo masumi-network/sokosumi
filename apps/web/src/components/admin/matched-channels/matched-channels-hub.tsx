@@ -148,7 +148,33 @@ export function MatchedChannelsHub() {
             {t("Create.description")}
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="channel-slug">{t("Create.slug")}</Label>
+            <div className="relative">
+              <span
+                className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
+                aria-hidden
+              >
+                #
+              </span>
+              <Input
+                id="channel-slug"
+                value={channelSlug}
+                onChange={(event) => handleSlugChange(event.target.value)}
+                maxLength={CHANNEL_SLUG_MAX_LENGTH}
+                required
+                placeholder={t("Create.slugPlaceholder")}
+                className="pl-7"
+                autoComplete="off"
+                spellCheck={false}
+                autoFocus
+              />
+            </div>
+            <p className="text-muted-foreground text-xs">
+              {t("Create.slugHelp")}
+            </p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="channel-name">{t("Create.name")}</Label>
             <Input
@@ -159,19 +185,9 @@ export function MatchedChannelsHub() {
               placeholder={t("Create.namePlaceholder")}
               autoComplete="off"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="channel-slug">{t("Create.slug")}</Label>
-            <Input
-              id="channel-slug"
-              value={channelSlug}
-              onChange={(event) => handleSlugChange(event.target.value)}
-              maxLength={CHANNEL_SLUG_MAX_LENGTH}
-              required
-              placeholder={t("Create.slugPlaceholder")}
-              autoComplete="off"
-              spellCheck={false}
-            />
+            <p className="text-muted-foreground text-xs">
+              {t("Create.nameHelp")}
+            </p>
           </div>
         </div>
         <Button type="submit" disabled={isCreating || !channelSlug}>
