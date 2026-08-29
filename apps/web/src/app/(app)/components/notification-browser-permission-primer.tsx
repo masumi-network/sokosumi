@@ -18,6 +18,7 @@ import {
   isPushSupported,
   isServiceWorkerSupported,
 } from "@/lib/utils/notification-service-worker";
+import { NOTIFICATION_PREFERENCES_HREF } from "../account/constants";
 
 /**
  * Where the reader turns push on. On a browser that can push, the card hands
@@ -26,7 +27,6 @@ import {
  * notifications" would still hear nothing once they closed the app. The
  * account page runs the whole gesture, permission included.
  */
-const PUSH_SETTINGS_HREF = "/account#notification-preferences";
 
 /**
  * The most this browser can do, which decides what the card offers.
@@ -176,7 +176,7 @@ export function NotificationBrowserPermissionPrimer({
         variant="outline"
         className="shrink-0 self-start sm:self-center"
       >
-        <Link href={PUSH_SETTINGS_HREF} onClick={onNavigate}>
+        <Link href={NOTIFICATION_PREFERENCES_HREF} onClick={onNavigate}>
           {t("browserPermissionOpenSettings")}
         </Link>
       </Button>

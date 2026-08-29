@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
-
+import { NOTIFICATION_PREFERENCES_ANCHOR } from "../constants";
 import { PushNotificationSetting } from "./push-notification-setting";
 
 interface NotificationPreferencesProps {
@@ -22,14 +22,6 @@ interface NotificationPreferencesProps {
 }
 
 type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
-
-/**
- * The fragment the notification primer links to. Exported so the primer's test
- * can hold its href to this value: the primer is the only way most readers
- * reach this card, and a rename here would silently land them at the top of
- * `/account` instead.
- */
-export const NOTIFICATION_PREFERENCES_ANCHOR = "notification-preferences";
 
 export function NotificationPreferences({
   notificationsOptIn: initialNotificationsOptIn,
