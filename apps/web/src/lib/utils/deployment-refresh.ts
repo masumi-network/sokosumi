@@ -4,6 +4,7 @@ const DEPLOYMENT_REFRESH_PARAM = "deployment-refresh";
 
 const STALE_DEPLOYMENT_PATTERNS = [
   /failed to find server action/i,
+  /server action .+ was not found on the server/i,
   /older or newer deployment/i,
   /loading chunk failed/i,
   /chunkloaderror/i,
