@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { preferencesBrowserClient } from "@/lib/clients/core.preferences.browser.client";
@@ -142,18 +142,41 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     [queryClient, userId],
   );
 
+  /**
+   * Which read of the browser may still write the device row.
+   *
+   * Reads land out of order, and one of them is not the reader's. Granting the
+   * OS permission fires a permission change, whose refresh reads the browser
+   * while the activation that asked for the permission is still running: it
+   * finds no subscription yet and would paint the row off, over a save that
+   * goes on to succeed. The reader would then see "enabled on this device"
+   * above a switch sitting off until the next focus.
+   *
+   * So every write takes a ticket and only the newest one lands. A refresh
+   * issued before a save finished cannot overwrite what that save read, in
+   * either resolution order.
+   */
+  const latestSubscriptionRead = useRef(0);
+
+  /** Reads the browser and paints the row, unless a newer write started. */
+  const applySubscriptionRead = useCallback(async () => {
+    const readId = ++latestSubscriptionRead.current;
+    const subscribed = await readPushSubscription();
+    if (readId === latestSubscriptionRead.current) {
+      setHasPushSubscription(subscribed);
+    }
+  }, []);
+
+  /** Paints a value the caller already knows, and retires any read in flight. */
+  const setSubscriptionKnown = useCallback((subscribed: boolean) => {
+    latestSubscriptionRead.current += 1;
+    setHasPushSubscription(subscribed);
+  }, []);
+
   // Browser-only reads, so they cannot run during render.
   useMountEffect(() => {
-    // The subscription read outlives a reader who leaves the account page
-    // mid-flight, so it checks before it lands. Same shape as
-    // `lazy-ably-provider.tsx`.
-    let cancelled = false;
     const refreshSubscription = () => {
-      void readPushSubscription().then((subscribed) => {
-        if (!cancelled) {
-          setHasPushSubscription(subscribed);
-        }
-      });
+      void applySubscriptionRead();
     };
 
     setIsSupported(isPushSupported());
@@ -170,7 +193,10 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       refreshSubscription();
     });
     return () => {
-      cancelled = true;
+      // Retires whatever is in flight, so a read does not land on a reader who
+      // left the account page mid-flight. Same intent as the cancelled flag in
+      // `lazy-ably-provider.tsx`.
+      latestSubscriptionRead.current += 1;
       unsubscribe();
     };
   });
@@ -197,13 +223,6 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     [userId],
   );
 
-  /** Puts the device row back in step with the browser after a failed write. */
-  const resyncSubscription = useCallback(async () => {
-    // Re-read rather than assume the old value: the work may have failed
-    // halfway, after the subscription already changed.
-    setHasPushSubscription(await readPushSubscription());
-  }, []);
-
   /**
    * Move this browser into `nextSubscribed`, optimistically, and roll back if
    * the work throws. The device row uses this: its own click is the thing
@@ -212,15 +231,18 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   const changePushSubscription = useCallback(
     <T>(nextSubscribed: boolean, work: (sessionUserId: string) => Promise<T>) =>
       runSave(async (sessionUserId) => {
-        setHasPushSubscription(nextSubscribed);
+        setSubscriptionKnown(nextSubscribed);
         try {
           return await work(sessionUserId);
-        } catch (error) {
-          await resyncSubscription();
-          throw error;
+        } finally {
+          // Both outcomes end on a fresh read, not just the failing one. The
+          // work may have failed halfway, after the subscription already
+          // changed, and a permission change may have painted the row off
+          // while the work was still running.
+          await applySubscriptionRead();
         }
       }),
-    [resyncSubscription, runSave],
+    [applySubscriptionRead, runSave, setSubscriptionKnown],
   );
 
   /**
@@ -300,20 +322,21 @@ export function usePushPreference(userId: string | undefined): PushPreference {
           // goes in and this browser stays out. The blocked branch above does
           // the same for a reader who refused it earlier.
           const subscribedHere = await subscribeThisBrowser(sessionUserId);
-          setHasPushSubscription(subscribedHere);
+          setSubscriptionKnown(subscribedHere);
           await recordAccountOptIn(true);
           return subscribedHere;
         } catch (error) {
-          await resyncSubscription();
+          await applySubscriptionRead();
           throw error;
         }
       });
     },
     [
+      applySubscriptionRead,
       canSubscribeHere,
       recordAccountOptIn,
-      resyncSubscription,
       runSave,
+      setSubscriptionKnown,
       subscribeThisBrowser,
     ],
   );

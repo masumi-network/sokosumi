@@ -74,8 +74,16 @@ describe("usePushPreference", () => {
       },
     });
     setDeviceSubscribed(false);
-    activatePushMock.mockResolvedValue(undefined);
-    deactivatePushMock.mockResolvedValue(undefined);
+    // Both calls really move what the browser holds, and `activatePush` throws
+    // rather than resolve over a browser that created no subscription. The
+    // device row ends every save on a read, so the fixtures have to move the
+    // thing being read.
+    activatePushMock.mockImplementation(async () => {
+      setDeviceSubscribed(true);
+    });
+    deactivatePushMock.mockImplementation(async () => {
+      setDeviceSubscribed(false);
+    });
     setAccountWriteResult(true);
     setAccountOptIn(false);
   });
@@ -162,11 +170,79 @@ describe("usePushPreference", () => {
   });
 
   /**
+   * Granting the permission fires a permission change, and that refresh reads
+   * the browser while the activation that asked for the permission is still
+   * running. It finds no subscription yet. Letting it paint the row left the
+   * reader looking at "enabled on this device" above a switch sitting off.
+   */
+  it("keeps the device row on when a permission event lands mid-save", async () => {
+    setAccountOptIn(true);
+    setNotificationPermission("default");
+    requestPermissionMock.mockImplementation(async () => {
+      // The reader allows, and the browser fires the permission change while
+      // the activation that asked for it has not subscribed anything yet.
+      setNotificationPermission("granted");
+      window.dispatchEvent(new Event("focus"));
+      return "granted";
+    });
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleDevice).toBe(true));
+
+    await act(async () => {
+      await result.current.setDeviceEnabled(true);
+    });
+
+    expect(activatePushMock).toHaveBeenCalledWith("user_1");
+    expect(result.current.isDeviceEnabled).toBe(true);
+  });
+
+  /**
+   * The refresh's read is issued first and can still answer last. It carries
+   * the browser as it stood before the activation subscribed it, so letting it
+   * write would undo the read the save ended on, whichever order they land in.
+   */
+  it("ignores a browser read a newer one has already answered", async () => {
+    setAccountOptIn(true);
+    let landStaleRead: () => void = () => {};
+    const staleRead = new Promise((resolve) => {
+      landStaleRead = () => resolve(null);
+    });
+    activatePushMock.mockImplementation(async () => {
+      // The next read is the refresh the permission change fires, and it is
+      // held open past the read this save ends on.
+      getSubscriptionMock.mockReturnValueOnce(staleRead);
+      window.dispatchEvent(new Event("focus"));
+      setDeviceSubscribed(true);
+    });
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleDevice).toBe(true));
+
+    await act(async () => {
+      await result.current.setDeviceEnabled(true);
+    });
+    expect(result.current.isDeviceEnabled).toBe(true);
+
+    await act(async () => {
+      landStaleRead();
+      await staleRead;
+    });
+
+    expect(result.current.isDeviceEnabled).toBe(true);
+  });
+
+  /**
    * A half-failed activation: Ably reported success, the browser holds no
    * subscription. Assuming the value the write asked for would leave the row
    * claiming a device that gets nothing.
    */
   it("re-reads this browser when the account write fails after it", async () => {
+    // Unlike the default fixture, this activation leaves no subscription
+    // behind: the browser can drop one between the activation and the read.
+    activatePushMock.mockResolvedValue(undefined);
     setDeviceSubscribed(false);
     patchMyPreferencesMock.mockRejectedValue(new Error("core said no"));
     const { result } = renderHook(() => usePushPreference("user_1"), {
