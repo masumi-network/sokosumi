@@ -147,6 +147,29 @@ describe("PushNotificationSetting", () => {
   });
 
   /**
+   * The switches stay enabled through a save so the reader's focus survives
+   * it, which leaves this guard as the only thing between a second click and
+   * a second write. A second account write subscribes this browser again and
+   * clears the subscription-read ticket the first save still holds, so a
+   * permission change can paint over the row mid-save.
+   */
+  it("ignores a second click while a save is in flight", async () => {
+    renderWith({ isAccountEnabled: false, isSaving: true });
+
+    // The premise. If a later change disables the switches during a save, the
+    // clicks below stop being clicks and this test stops proving anything.
+    expect(accountSwitch()).toBeEnabled();
+    expect(deviceSwitch()).toBeEnabled();
+
+    await userEvent.click(accountSwitch());
+    await userEvent.click(deviceSwitch());
+
+    expect(vi.mocked(pushPreference.setAccountEnabled)).not.toHaveBeenCalled();
+    expect(vi.mocked(pushPreference.setDeviceEnabled)).not.toHaveBeenCalled();
+    expect(vi.mocked(toast.promise)).not.toHaveBeenCalled();
+  });
+
+  /**
    * The write reports whether this browser ended up subscribed, because it may
    * not have: no push API here, a blocked site, or a refused prompt. A flat
    * "enabled" would contradict the device row right under it.

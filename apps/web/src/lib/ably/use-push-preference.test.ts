@@ -177,6 +177,9 @@ describe("usePushPreference", () => {
 
     expect(result.current.isDeviceEnabled).toBe(false);
     expect(result.current.isAccountEnabled).toBe(false);
+    // The switches stay enabled through all of this, so the account row's
+    // click guard reads this flag to turn a second click away.
+    expect(result.current.isSaving).toBe(true);
 
     // The browser records the answer before it resolves the request.
     setNotificationPermission("granted");
@@ -194,6 +197,8 @@ describe("usePushPreference", () => {
       landAccountWrite();
       await pending;
     });
+    // Cleared on the way out, or the guard would swallow every later click.
+    expect(result.current.isSaving).toBe(false);
   });
 
   /**
