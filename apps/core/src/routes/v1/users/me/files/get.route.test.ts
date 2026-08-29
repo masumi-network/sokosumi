@@ -47,10 +47,6 @@ vi.mock("@/middleware/auth", async () => ({
     authContext: AuthenticationContext | null,
   ): authContext is Extract<AuthenticationContext, { actor: "coworker" }> =>
     authContext?.actor === "coworker",
-  isOrchestratorAuthContext: (
-    authContext: AuthenticationContext | null,
-  ): authContext is Extract<AuthenticationContext, { actor: "orchestrator" }> =>
-    authContext?.actor === "orchestrator",
   requireUserAuthContext: (authContext: AuthenticationContext | null) => {
     if (!authContext || authContext.actor !== "user") {
       throw new HTTPException(403, {
@@ -69,11 +65,7 @@ vi.mock("@/middleware/auth", async () => ({
     if (authContext.actor === "user") {
       return { source: "session" as const, ...authContext };
     }
-    if (
-      (authContext.actor === "orchestrator" ||
-        authContext.actor === "coworker") &&
-      authContext.context
-    ) {
+    if (authContext.actor === "coworker" && authContext.context) {
       return {
         source: "context" as const,
         userId: authContext.context.userId,

@@ -13,17 +13,17 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { unreadCountSchema } from "@/schemas/notification.schema";
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
     path: "/unread-count",
     description:
-      "Get the count of unread in-app notification-center items for the effective user (session user, or orchestrator with context headers). CHAT kind is excluded.",
+      "Get the count of unread in-app notification-center items for the interactive session user. CHAT kind is excluded.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(unreadCountSchema, "Unread count retrieved", {

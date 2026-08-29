@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   withCoworkerContextHeaderParameters,
   withGlobalHeaderParameters,
-  withOrchestratorContextHeaderParameters,
   withOrganizationSlugHeaderParameter,
 } from "./hono";
 
@@ -43,23 +42,13 @@ describe("OpenAPI header parameter helpers", () => {
     );
   });
 
-  it("withCoworkerContextHeaderParameters documents coworker/orchestrator context headers", () => {
+  it("withCoworkerContextHeaderParameters documents coworker context headers", () => {
     expect(
       parameterRefs(withCoworkerContextHeaderParameters(baseRoute)),
     ).toEqual([
       "#/components/parameters/OrganizationSlug",
       "#/components/parameters/ContextUserId",
       "#/components/parameters/ContextOrganizationId",
-    ]);
-  });
-
-  it("withOrchestratorContextHeaderParameters documents orchestrator-only context headers", () => {
-    expect(
-      parameterRefs(withOrchestratorContextHeaderParameters(baseRoute)),
-    ).toEqual([
-      "#/components/parameters/OrganizationSlug",
-      "#/components/parameters/OrchestratorContextUserId",
-      "#/components/parameters/OrchestratorContextOrganizationId",
     ]);
   });
 });

@@ -171,7 +171,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       if (assigneeIdWasProvided && assigneeId !== null) {
-        await requireTaskAssignableCoworker(assigneeId, task.workspaceId, tx);
+        await requireTaskAssignableCoworker(assigneeId, task.workspaceId, tx, {
+          kind: "user",
+          userId: userContext.userId,
+        });
       }
 
       const updatedTask = await tx.task.update({

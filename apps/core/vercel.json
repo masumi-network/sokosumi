@@ -44,10 +44,6 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/sync/hermes/poll-inboxes",
-      "schedule": "* * * * *"
-    },
-    {
       "path": "/sync/jobs",
       "schedule": "* * * * *"
     },
@@ -62,6 +58,26 @@
     {
       "path": "/sync/task-x402-payment-headers-purge",
       "schedule": "30 * * * *"
+    },
+    {
+      "path": "/sync/soko-bot-schedules",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/soko-bot-turns",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/soko-bot-events",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/sync/soko-bot-ingest",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/sync/soko-bot-avatars",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

@@ -43,7 +43,7 @@ const route = withGlobalHeaderParameters(
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse(
-        "Forbidden - session user required (coworker/orchestrator rejected)",
+        "Forbidden - session user required (coworker rejected)",
       ),
       404: jsonErrorResponse("Not Found - invalid link or room"),
       500: jsonErrorResponse("Internal Server Error"),
@@ -53,7 +53,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    // Session-only: a coworker/orchestrator key must not enroll an arbitrary user.
+    // Session-only: a coworker key must not enroll an arbitrary user.
     const userContext = requireUserAuthContext(c.var.authContext);
     const { token } = c.req.valid("param");
     const now = new Date();

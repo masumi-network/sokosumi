@@ -212,9 +212,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
         }
 
+        // A Soko Bot direct is mention-driven (its reply is a Core turn),
+        // so it never takes the coworker stream shortcut.
         const skipCoworkerMentions =
           room.kind === "direct" &&
           room.coworkerMembers.length === 1 &&
+          room.coworkerMembers[0]?.coworker.sokoBotId == null &&
           room.userMembers.length === 1 &&
           room.userMembers[0]?.userId === userContext.userId;
 

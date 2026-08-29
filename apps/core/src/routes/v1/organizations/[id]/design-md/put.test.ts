@@ -206,33 +206,4 @@ describe("PUT /organizations/{id}/design-md", () => {
     expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
     expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
   });
-
-  it("allows orchestrator with context headers as the context user", async () => {
-    setMembership("owner", JSON.stringify({ invoiceEmail: "b@acme.example" }));
-    uploadDesignMdContentMock.mockResolvedValueOnce(
-      "https://blob.example/org.md",
-    );
-
-    const response = await putDesignMd(
-      "org_123",
-      { content: "# Brand", extractionId: "55" },
-      {
-        actor: "orchestrator",
-        orchestratorId: "orch_1",
-        context: { userId: "user_123", organizationId: "org_123" },
-      },
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(uploadDesignMdContentMock).toHaveBeenCalledWith({
-      content: "# Brand",
-      owner: { kind: "organization", id: "org_123" },
-      extractionId: "55",
-    });
-    expect(body.data.designMd).toEqual({
-      url: "https://blob.example/org.md",
-      extractionId: "55",
-    });
-  });
 });

@@ -422,35 +422,4 @@ describe("PATCH /tasks/{id}", () => {
     expect(response.status).toBe(403);
     expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
   });
-
-  it("allows orchestrator with workspace context to patch as owner", async () => {
-    const updated = createTaskApi();
-    mapTaskMock.mockReturnValue(updated);
-    taskUpdateMock.mockResolvedValue(updated);
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        task: { update: taskUpdateMock },
-        project: { findFirst: projectFindFirstMock },
-      });
-    });
-
-    const app = createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_1",
-      context: { userId: "user_123", organizationId: "org_123" },
-    });
-
-    const response = await app.request("http://localhost/tsk_123", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "Orchestrator update",
-      }),
-    });
-
-    expect(response.status).toBe(200);
-    expect(requireTaskOwnershipMock).toHaveBeenCalled();
-  });
 });

@@ -29,7 +29,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/{id}/ratings",
     description:
-      "Create or update the authenticated caller's rating for an agent. Requires the caller to have finished at least one job with the agent. Session user or orchestrator/coworker with context headers.",
+      "Create or update the authenticated caller's rating for an agent. Requires the caller to have finished at least one job with the agent. Session user or coworker with authorized context headers.",
     tags: ["Agents"],
     request: {
       params,

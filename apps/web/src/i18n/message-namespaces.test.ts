@@ -5,7 +5,7 @@ import {
   APP_MESSAGE_PATHS,
   APP_SHELL_MESSAGE_PATHS,
   AUTH_MESSAGE_PATHS,
-  HERMES_MESSAGE_PATHS,
+  SOKO_BOT_MESSAGE_PATHS,
 } from "@/i18n/message-namespaces";
 
 describe("message namespaces", () => {
@@ -15,8 +15,8 @@ describe("message namespaces", () => {
     expect(AUTH_MESSAGE_PATHS).toContain("WorkspaceGate");
   });
 
-  it("excludes Hermes and Admin from the default APP bag", () => {
-    expect(APP_MESSAGE_PATHS).not.toContain("App.Hermes");
+  it("excludes SokoBot and Admin from the default APP bag", () => {
+    expect(APP_MESSAGE_PATHS).not.toContain("App.SokoBot");
     expect(APP_MESSAGE_PATHS).not.toContain("App.Admin");
     expect(APP_MESSAGE_PATHS).toContain("App.Account");
     expect(APP_MESSAGE_PATHS).toContain("App.Tasks");
@@ -26,16 +26,16 @@ describe("message namespaces", () => {
 
   it("includes WorkspaceGate on app chrome bags for the switcher create dialog", () => {
     expect(APP_SHELL_MESSAGE_PATHS).toContain("WorkspaceGate");
-    expect(HERMES_MESSAGE_PATHS).toContain("WorkspaceGate");
+    expect(SOKO_BOT_MESSAGE_PATHS).toContain("WorkspaceGate");
     expect(ADMIN_MESSAGE_PATHS).toContain("WorkspaceGate");
   });
 
-  it("builds Hermes bag from APP_SHELL + App.Hermes", () => {
+  it("builds Soko Bot bag from APP_SHELL + App.SokoBot", () => {
     for (const path of APP_SHELL_MESSAGE_PATHS) {
-      expect(HERMES_MESSAGE_PATHS).toContain(path);
+      expect(SOKO_BOT_MESSAGE_PATHS).toContain(path);
     }
-    expect(HERMES_MESSAGE_PATHS).toContain("App.Hermes");
-    expect(HERMES_MESSAGE_PATHS).not.toContain("App.Admin");
+    expect(SOKO_BOT_MESSAGE_PATHS).toContain("App.SokoBot");
+    expect(SOKO_BOT_MESSAGE_PATHS).not.toContain("App.Admin");
   });
 
   it("builds Admin bag from APP_SHELL + App.Admin", () => {
@@ -43,6 +43,6 @@ describe("message namespaces", () => {
       expect(ADMIN_MESSAGE_PATHS).toContain(path);
     }
     expect(ADMIN_MESSAGE_PATHS).toContain("App.Admin");
-    expect(ADMIN_MESSAGE_PATHS).not.toContain("App.Hermes");
+    expect(ADMIN_MESSAGE_PATHS).not.toContain("App.SokoBot");
   });
 });

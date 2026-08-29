@@ -96,6 +96,10 @@ export const chatRoomCoworkerParticipantSchema = z
       .nullable()
       .openapi({ example: "https://example.com/coworker.png" }),
     presence: chatRoomPresenceSchema.openapi({ example: "online" }),
+    /** Set when this coworker is a user's first-party Soko Bot. */
+    sokoBotId: z.string().nullable().optional(),
+    /** Generative orb seed for Soko Bot participants (no image). */
+    sokoBotAvatarSeed: z.string().nullable().optional(),
   })
   .openapi("ChatRoomCoworkerParticipant");
 

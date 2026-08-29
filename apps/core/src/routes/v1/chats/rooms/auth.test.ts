@@ -171,11 +171,6 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
   context: { userId: USER_ID, organizationId: ORG_ID },
 };
 
-const orchestratorAuthContext: AuthVariables["authContext"] = {
-  actor: "orchestrator",
-  context: { userId: USER_ID, organizationId: ORG_ID },
-};
-
 function createApp(authContext: AuthVariables["authContext"]) {
   const app = new OpenAPIHonoWithAuth();
 
@@ -214,10 +209,7 @@ beforeEach(() => {
   queryRawUnsafeMock.mockReset();
 });
 
-const forbiddenActors = [
-  ["coworker", coworkerAuthContext],
-  ["orchestrator", orchestratorAuthContext],
-] as const;
+const forbiddenActors = [["coworker", coworkerAuthContext]] as const;
 
 interface AuthRequestCase {
   label: string;
@@ -329,20 +321,6 @@ describe("chat room user auth guards", () => {
         expect(prismaTransactionMock).not.toHaveBeenCalled();
       },
     );
-  });
-
-  it("rejects orchestrator actor on POST /{id}/messages with 403", async () => {
-    const response = await createApp(orchestratorAuthContext).request(
-      `/${ROOM_ID}/messages`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content: "hello" }),
-      },
-    );
-
-    expect(response.status).toBe(403);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("allows coworker past the auth gate on POST /{id}/messages", async () => {

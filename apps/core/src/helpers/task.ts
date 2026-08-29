@@ -2,10 +2,7 @@ import { Channel, Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { canArchiveTaskStatus, convertCentsToCredits } from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
-import {
-  isCoworkerAgentContext,
-  isOrchestratorAuthContext,
-} from "@/middleware/auth";
+import { isCoworkerAgentContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
   type TaskDetailPayload,
@@ -118,26 +115,6 @@ interface ValidateTaskAssigneeAssignmentParams {
 function getAllowedTransitions(
   authContext: AuthenticationContext,
 ): Record<TaskStatus, TaskStatus[]> {
-  // Orchestrator may only toggle DRAFT ↔ READY; other status moves are coworker.
-  if (isOrchestratorAuthContext(authContext)) {
-    return {
-      [TaskStatus.DRAFT]: [TaskStatus.READY],
-      [TaskStatus.QUEUED]: [],
-      [TaskStatus.READY]: [TaskStatus.DRAFT],
-      [TaskStatus.GRANT_PENDING]: [],
-      [TaskStatus.INPUT_REQUIRED]: [],
-      [TaskStatus.APPROVAL_REQUIRED]: [],
-      [TaskStatus.AUTHENTICATION_REQUIRED]: [],
-      [TaskStatus.OUT_OF_CREDITS]: [],
-      [TaskStatus.CREDITS_TOPPED_UP]: [],
-      [TaskStatus.RUNNING]: [],
-      [TaskStatus.AWAITING_EXTERNAL]: [],
-      [TaskStatus.COMPLETED]: [],
-      [TaskStatus.FAILED]: [],
-      [TaskStatus.CANCELED]: [],
-    };
-  }
-
   // A coworker acting as itself (the agent) uses the agent transition table.
   // A delegated coworker acts as the user, so it falls through to the user table.
   if (isCoworkerAgentContext(authContext)) {

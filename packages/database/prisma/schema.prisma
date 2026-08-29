@@ -66,12 +66,17 @@ model User {
 
   workspace Workspace?
 
-  ownedTasks         Task[]              @relation("TaskOwner")
-  createdTasks       Task[]              @relation("TaskCreatorUser")
-  taskEvents         TaskEvent[]
-  uploadedTaskFiles  TaskFile[]          @relation("TaskFileUploadedByUser")
-  coworkerUsages     CoworkerUsage[]
-  orchestratorUsages OrchestratorUsage[]
+  ownedTasks              Task[]                   @relation("TaskOwner")
+  createdTasks            Task[]                   @relation("TaskCreatorUser")
+  taskEvents              TaskEvent[]
+  uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
+  coworkerUsages          CoworkerUsage[]
+  orchestratorUsages      OrchestratorUsage[]
+  sokoBotTurns            SokoBotTurn[]
+  sokoBotRequestedTurns   SokoBotTurn[] @relation("SokoBotTurnRequestedBy")
+  sokoBotPendingDecisions SokoBotPendingDecision[]
+  sokoBotSchedules        SokoBotSchedule[]
+  sokoBotLegacyMessages   SokoBotLegacyMessage[]
 
   vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
   vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
@@ -95,15 +100,16 @@ model User {
   chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[] @relation("ChatRoomGuestInviteLinkCreator")
   noticeAcknowledgments            NoticeAcknowledgment[]
 
-  // Hermes (per-user private agent — single conversation)
+  // Legacy personal-assistant storage. Retained read-only through rollback window.
   hermesMessages           HermesMessage[]
-  /// Per-user Hermes orchestrator instance (identity + local mirror metadata).
-  orchestrator             Orchestrator?
+  /// Per-user Soko Bot identity and control-plane state.
+  sokoBots                 SokoBot[]
   hermesPendingConnections HermesPendingConnection[]
 
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")
+  authoredSokoBotVersions SokoBotAuthoredVersion[] @relation("SokoBotAuthoredVersionAuthor")
 }
 
 model Session {
@@ -259,6 +265,11 @@ model Workspace {
   calendarInvalidations   CalendarInvalidationOutbox[]
   vendorGrants            VendorGrant[]
   coworkerWorkspaceAccess CoworkerWorkspaceAccess[]
+  sokoBotTurns            SokoBotTurn[]
+  sokoBotPendingDecisions SokoBotPendingDecision[]
+  sokoBotSchedules        SokoBotSchedule[]
+
+  sokoBots                SokoBot[]
 
   @@map("workspace")
 }
@@ -1070,7 +1081,8 @@ model Job {
   // Public Share
   share PublicShare?
 
-  events JobEvent[]
+  events             JobEvent[]
+  sokoBotDelegations SokoBotDelegation[]
 
   purchase JobPurchase?
 
@@ -1555,6 +1567,10 @@ model Coworker {
   vendorId String @db.Uuid
   vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict)
 
+  /// First-party Soko Bot this coworker row represents in chat (null for marketplace coworkers).
+  sokoBotId String?  @unique @db.Uuid
+  sokoBot   SokoBot? @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
   coworkerApiKeys CoworkerApiKey[]
   assignments     CoworkerAssignment[]
   workspaceAccess CoworkerWorkspaceAccess[]
@@ -1590,30 +1606,228 @@ model CoworkerAssignment {
   @@map("coworker_assignment")
 }
 
-/// Per-user first-party orchestrator instance (Hermes). Not a marketplace
-/// coworker: no vendor/owner/whitelist. Hermes authenticates with a shared
-/// env service token; each row is one user's instance (identity + mirror).
-model Orchestrator {
+enum SokoBotStatus {
+  IDLE
+  RUNNING
+  PAUSED
+  ERROR
+}
+
+enum SokoBotTurnSource {
+  CHAT
+  SCHEDULE
+  ADMIN_RETRY
+  EVENT
+  INGEST
+}
+
+/// Cooldown per proactive nudge (e.g. "stale:<taskId>") so a bot raises the
+/// same thing at most once a day.
+model SokoBotNudge {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  sokoBotId String   @db.Uuid
+  sokoBot   SokoBot  @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  key       String
+  lastAt    DateTime
+
+  @@unique([sokoBotId, key])
+  @@map("soko_bot_nudge")
+}
+
+/// Per-(bot, task) cursor for the taskboard sync: what the bot already saw.
+model SokoBotTaskWatch {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  taskId    String
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  /// Newest task event the bot has been told about.
+  lastSeenEventAt DateTime
+  lastSeenStatus  String?
+
+  @@unique([sokoBotId, taskId])
+  @@index([taskId])
+  @@map("soko_bot_task_watch")
+}
+
+enum SokoBotIntegrationStatus {
+  PENDING
+  ACTIVE
+  FAILED
+  REVOKED
+}
+
+/// One connected external account (Gmail, Outlook, Google Calendar, …) of
+/// a Soko Bot, brokered by Composio. Tokens live in Composio; only the
+/// account reference and our sync position live here.
+model SokoBotIntegration {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  /// Composio toolkit slug (any toolkit; known ones get mail/calendar ingest).
+  provider          String
+  /// Display name and logo as Composio lists the toolkit.
+  name              String?
+  logoUrl           String?
+  /// Composio connected_account id.
+  composioAccountId String                   @unique
+  status            SokoBotIntegrationStatus @default(PENDING)
+  connectedAt       DateTime?
+  lastError         String?
+  /// Provider-specific ingest position (e.g. newest seen email timestamp).
+  cursor            Json?
+  lastIngestAt      DateTime?
+  lastErrorAt       DateTime?
+
+  @@unique([sokoBotId, provider])
+  @@index([status])
+  @@map("soko_bot_integration")
+}
+
+enum SokoBotTurnStatus {
+  QUEUED
+  STARTING
+  RUNNING
+  CANCEL_REQUESTED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum SokoBotAdminActionStatus {
+  ATTEMPTED
+  SUCCEEDED
+  FAILED
+}
+
+enum SokoBotTurnRoute {
+  DIRECT_RESPONSE
+  CLARIFY
+  DELEGATE_TASK
+  HIRE_AGENT
+  MANAGE_WORK
+  MIXED
+}
+
+enum SokoBotDelegationKind {
+  TASK
+  JOB
+}
+
+enum SokoBotDecisionStatus {
+  PENDING
+  PROCESSING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum SokoBotScheduleRunStatus {
+  PENDING
+  CLAIMED
+  RUNNING
+  COMPLETED
+  FAILED
+  DEAD_LETTER
+}
+
+enum SokoBotToolCallStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+/// Per-user first-party Soko Bot. Not a marketplace coworker: no vendor,
+/// owner, or whitelist. Runtime access uses short-lived signed turn grants.
+/// Physical table name remains `orchestrator` through compatibility window.
+model SokoBot {
   id         String    @id @default(uuid(7)) @db.Uuid
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
-  /// Soft-deactivate on purge; keep row while tasks/events reference it.
+  /// Reversible owner deactivation. The row keeps its name, memory and history
+  /// and the owner can reactivate it from the console.
   archivedAt DateTime?
+  /// Irreversible owner deletion. Set only when Tasks, task events, billing
+  /// usage or chat messages still reference this bot, so the row must survive
+  /// as a tombstone to keep that provenance resolvable; everything the bot
+  /// owned is erased and the owner is free to create a brand-new bot. A bot
+  /// nothing references is deleted outright instead of tombstoned.
+  deletedAt DateTime?
 
-  /// Owner of this Hermes instance. One row per user (active or archived).
-  userId String @unique
+  /// Owner of this Soko Bot. One row per user and workspace (active or archived).
+  userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Workspace this bot lives in; bots never cross workspaces.
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Chat-facing coworker row for this bot (created when the bot is created).
+  coworker Coworker?
+  labRuns  SokoBotLabRun[]
+  installedSkills SokoBotInstalledSkill[]
+  integrations    SokoBotIntegration[]
+  taskWatches     SokoBotTaskWatch[]
+  nudges          SokoBotNudge[]
+
+  /// Timezone for the morning briefing and "today" in ingest packets.
+  ingestTimezone String    @default("Europe/Berlin")
+  /// Follow every open Task on the workspace board, not only its own. On by
+  /// default: an assistant that only watches what it created misses most of
+  /// what its owner is actually working on.
+  followWholeBoard Boolean @default(true)
+  /// Kill switch for everything the bot starts on its own (rhythms, ingest, nudges).
+  proactivePaused Boolean @default(false)
+  /// Max self-started turns per local day; beyond it the syncs skip the bot.
+  proactiveDailyLimit Int @default(20)
+  /// Last morning briefing sent; one per local day.
+  lastBriefingAt DateTime?
+
+  /// Picked mascot image (see SokoBotAvatar); null → generative orb.
+  avatarImageUrl String?
+  avatar         SokoBotAvatar?
 
   /// User-chosen display name for their personal assistant. Null until named.
   name String?
 
   /// Seed for the assistant's deterministic generative "aurora orb" avatar.
   avatarSeed String?
+  /// Agent version id (see @sokosumi/soko-bot versions); null = default.
+  versionId String?
 
   /// Personality spectrums 0–100 (tone / detail / style). Null until set.
   personalityTone   Int?
   personalityDetail Int?
   personalityStyle  Int?
+
+  /// Governs which product mutations may execute without owner approval.
+  /// Agent hiring always remains approval-gated regardless of this value.
+
+  /// First-party Soko Bot runtime state. Physical table remains `orchestrator`
+  /// during the expand/backfill/switch compatibility window.
+  status                  SokoBotStatus @default(IDLE)
+  /// Durable administrator pause. Owner archive/reactivation cannot clear it.
+  adminPausedAt           DateTime?
+  eveSessionId            String?       @unique
+  runtimeVersion          String?
+  runtimeDeployment       String?
+  lastSandboxId           String?
+  lastSandboxStatus       String?
+  memoryVersion           Int           @default(0)
+  memoryHash              String?
+  lastActivityAt          DateTime?
+  lastTurnAt              DateTime?
+  lastSucceededAt         DateTime?
+  lastFailedAt            DateTime?
+  consecutiveTurnFailures Int           @default(0)
 
   /// Inbox poll metadata (cron).
   lastPolledAt          DateTime?
@@ -1621,13 +1835,485 @@ model Orchestrator {
   lastSeenInboxAt       DateTime?
   consecutivePollErrors Int       @default(0)
 
-  createdTasks       Task[]              @relation("TaskCreatorOrchestrator")
+  createdTasks       Task[]                   @relation("TaskCreatorOrchestrator")
   taskEvents         TaskEvent[]
   orchestratorUsages OrchestratorUsage[]
+  turns              SokoBotTurn[]
+  memoryRevisions    SokoBotMemoryRevision[]
+  legacyMessages     SokoBotLegacyMessage[]
+  pendingDecisions   SokoBotPendingDecision[]
+  schedules          SokoBotSchedule[]
 
   @@index([archivedAt])
   @@index([lastPolledAt])
+  // One LIVE bot per user and workspace. Enforced by the partial unique index
+  // `orchestrator_user_workspace_live_key` (see the migrations): Prisma cannot
+  // express `WHERE "deletedAt" IS NULL`, and a plain unique would let a
+  // tombstone block its owner from ever creating a new bot.
+  @@index([userId, workspaceId])
+  @@index([workspaceId])
   @@map("orchestrator")
+}
+
+/// Immutable copy of external Hermes chat history made during first-party
+/// Soko Bot cutover. New messages are represented by SokoBotTurn.
+/// Pool of pre-generated mascot images. Each row is a unique (subject,
+/// background, seed) draw; a bot claims at most one at a time.
+model SokoBotAvatar {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  subject    String
+  background String
+  seed       Int
+  model      String
+  imageUrl   String
+  sourceUrl  String?
+
+  claimedBySokoBotId String?  @unique @db.Uuid
+  claimedBySokoBot   SokoBot? @relation(fields: [claimedBySokoBotId], references: [id], onDelete: SetNull)
+  claimedAt          DateTime?
+
+  @@unique([subject, background, seed])
+  @@index([claimedAt])
+  @@map("soko_bot_avatar")
+}
+
+model SokoBotLegacyMessage {
+  id        String   @id @db.Uuid
+  createdAt DateTime
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role       String
+  content    String
+  kind       String?
+  stepCount  Int     @default(0)
+  durationMs Int?
+
+  @@index([sokoBotId, createdAt])
+  @@index([userId, createdAt])
+  @@map("soko_bot_legacy_message")
+}
+
+model SokoBotTurn {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String       @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  source       SokoBotTurnSource
+  status       SokoBotTurnStatus @default(QUEUED)
+  route        SokoBotTurnRoute?
+  clientTurnId String
+  /// Version the turn ran with; null for turns before versions existed.
+  versionId    String?
+  /// Judge model's overall 1–5 score for this turn (see soko-bot-lab-judge.service).
+  /// Owner thumbs on a proactive message: 1 useful, -1 not.
+  ownerFeedback   Int?
+  ownerFeedbackAt DateTime?
+  qualityScore   Int?
+  qualityVerdict Json?
+  qualityModel   String?
+  judgedAt       DateTime?
+  labRun         SokoBotLabRun?
+  userMessage  String
+  finalAnswer  String?
+
+  classification       Json?
+  classifierModel      String?
+  classifierVersion    String?
+  classifierLatencyMs  Int?
+  classificationFailed Boolean  @default(false)
+  capabilityNames      String[]
+
+  eveSessionId                String?
+  eveTurnId                   String?
+  eveStreamIndex              Int     @default(-1)
+  activeUiStreamId            String?
+  continuationTokenCiphertext String?
+  continuationTokenKeyId      String?
+
+  modelId        String?
+  runtimeVersion String?
+  usage          Json?
+  costUsdMicros  BigInt?
+
+  leaseToken              String?
+  leaseExpiresAt          DateTime?
+  reconcilerHeartbeatAt   DateTime?
+  deadlineAt              DateTime
+  cancellationRequestedAt DateTime?
+  startedAt               DateTime?
+  completedAt             DateTime?
+  durationMs              Int?
+  errorKind               String?
+  errorDetail             String?
+
+  /// Who asked, when a teammate (not the owner) mentioned the bot in chat.
+  requestedByUserId String?
+  requestedBy       User?   @relation("SokoBotTurnRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  /// Chat-room mention that started this turn (null for the assistant page and schedules).
+  chatMentionId         String?          @unique @db.Uuid
+  chatMention           ChatRoomMention? @relation(fields: [chatMentionId], references: [id], onDelete: SetNull)
+  /// Thought placeholder / reply message in the room for a chat-started turn.
+  chatResponseMessageId String?          @db.Uuid
+
+  contextSnapshot  SokoBotContextSnapshot?
+  events           SokoBotEvent[]
+  runtimeEvents    SokoBotRuntimeEvent[]
+  toolCalls        SokoBotToolCall[]
+  delegations      SokoBotDelegation[]
+  pendingDecisions SokoBotPendingDecision[]
+  memoryRevisions  SokoBotMemoryRevision[]
+  scheduleRun      SokoBotScheduleRun?
+
+  @@unique([sokoBotId, clientTurnId])
+  @@unique([sokoBotId, eveSessionId, eveTurnId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([sokoBotId, status, createdAt(sort: Desc)])
+  @@index([status, reconcilerHeartbeatAt])
+  @@map("soko_bot_turn")
+}
+
+model SokoBotToolCall {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  toolCallId  String
+  capability  String
+  inputHash   String
+  /// Redacted, bounded copy of the tool input for the step-detail view.
+  input       Json?
+  status      SokoBotToolCallStatus @default(PENDING)
+  result      Json?
+  errorKind   String?
+  errorDetail String?
+
+  @@unique([turnId, toolCallId])
+  @@index([turnId, createdAt])
+  @@map("soko_bot_tool_call")
+}
+
+model SokoBotEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  eveEventId    String
+  eveStartIndex Int
+  sequence      Int
+  type          String
+  summary       String?
+  payload       Json?
+  toolName      String?
+  toolCallId    String?
+  toolStatus    String?
+  durationMs    Int?
+  providerAt    DateTime?
+
+  @@unique([turnId, eveEventId])
+  @@unique([turnId, eveStartIndex])
+  @@unique([turnId, sequence])
+  @@index([turnId, createdAt])
+  @@map("soko_bot_event")
+}
+
+/**
+ * Raw event log written by the in-process runtime while a turn executes.
+ * Serverless invocations share no memory, so the loop appends here and the
+ * `/sync/soko-bot-turns` drain reads it back through `streamEvents`.
+ */
+/**
+ * A Soko Bot version authored in the console, alongside the immutable
+ * built-ins in `packages/soko-bot/src/versions`. Built-ins stay the known-good
+ * baseline and keep their lab history comparable; an authored version can be
+ * edited, tested in the lab, and promoted to the default for new bots.
+ *
+ * `slug` shares a namespace with the built-in ids (v1, v2, …) so a bot's
+ * `versionId` resolves against either; creation rejects a slug a built-in
+ * already uses.
+ */
+model SokoBotAuthoredVersion {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Stable id a bot's `versionId` points at, e.g. "v13" or "inbox-tuned".
+  slug    String  @unique
+  name    String
+  summary String  @default("")
+
+  /// AI Gateway model id, e.g. "google/gemini-3.6-flash".
+  model           String
+  /// Pins inference to a gateway zone; null routes globally.
+  inferenceRegion String?
+  systemPrompt    String
+
+  /// Built-in skill ids plus installed skills.sh ids.
+  skills       String[]
+  /// Tool allowlist on top of the route ceiling; empty means every capability.
+  capabilities String[]
+
+  archivedAt DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("SokoBotAuthoredVersionAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([archivedAt, updatedAt])
+  @@map("soko_bot_authored_version")
+}
+
+/**
+ * Single-row platform settings for Soko Bot. Exists so promoting a version can
+ * point at either a built-in id or an authored slug; an `isDefault` flag on the
+ * authored table could not express "the default is the built-in v11".
+ */
+model SokoBotSetting {
+  id        String   @id @default("singleton")
+  updatedAt DateTime @updatedAt
+
+  /// Version new bots are created on; null falls back to the code default.
+  defaultVersionId String?
+
+  /// Set while an administrator has switched the whole feature off: no turns
+  /// start, no model calls are made, and the console says so. A database flag
+  /// rather than an env var so it takes effect at once, without a redeploy.
+  disabledAt       DateTime?
+  disabledByUserId String?
+  disabledReason   String?
+
+  @@map("soko_bot_setting")
+}
+
+model SokoBotRuntimeEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  sessionId  String
+  startIndex Int
+  eventId    String
+  type       String
+  data       Json
+  occurredAt DateTime
+
+  @@unique([turnId, startIndex])
+  @@index([sessionId, startIndex])
+  @@map("soko_bot_runtime_event")
+}
+
+model SokoBotContextSnapshot {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  createdAt   DateTime @default(now())
+  generatedAt DateTime
+
+  turnId String      @unique @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  schemaVersion Int
+  hash          String
+  packet        Json
+  byteSize      Int
+  tokenEstimate Int
+  counts        Json
+  omissions     Json
+
+  @@index([hash])
+  @@map("soko_bot_context_snapshot")
+}
+
+model SokoBotMemoryRevision {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  sokoBotId String       @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  version  Int
+  hash     String
+  markdown String
+  source   String
+
+  sourceTurnId String?      @db.Uuid
+  sourceTurn   SokoBotTurn? @relation(fields: [sourceTurnId], references: [id], onDelete: SetNull)
+
+  @@unique([sokoBotId, version])
+  @@index([sokoBotId, createdAt(sort: Desc)])
+  @@map("soko_bot_memory_revision")
+}
+
+model SokoBotDelegation {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  toolCallId String
+  kind       SokoBotDelegationKind
+  action     String
+  outcome    String?
+  error      String?
+
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  jobId String?
+  job   Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  /// Entity status the bot last reacted to; the events sync wakes the bot when it drifts.
+  lastSeenStatus String?
+
+  @@unique([turnId, toolCallId])
+  @@index([taskId])
+  @@index([jobId])
+  @@map("soko_bot_delegation")
+}
+
+model SokoBotPendingDecision {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String       @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  turnId String      @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  toolName          String
+  proposal          Json
+  reason            String
+  status            SokoBotDecisionStatus @default(PENDING)
+  expiresAt         DateTime
+  resolvedAt        DateTime?
+  resolvedByUserId  String?
+  resultingTurnId   String?               @db.Uuid
+  resultingEntityId String?
+
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@index([sokoBotId, status])
+  @@map("soko_bot_pending_decision")
+}
+
+model SokoBotSchedule {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String       @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  name                String
+  enabled             Boolean   @default(true)
+  timezone            String
+  cronExpression      String
+  prompt              String
+  /// External Hermes schedule id. Cutover imports use it for idempotency.
+  legacyScheduleId    String?    @unique
+  /// Built-in rhythm (see @sokosumi/soko-bot proactive); null for owner/bot-made schedules.
+  systemKey           String?
+  nextRunAt           DateTime
+  lastRunAt           DateTime?
+  consecutiveFailures Int       @default(0)
+
+  runs SokoBotScheduleRun[]
+
+  @@unique([sokoBotId, systemKey])
+  @@index([enabled, nextRunAt])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("soko_bot_schedule")
+}
+
+model SokoBotScheduleRun {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scheduleId String          @db.Uuid
+  schedule   SokoBotSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  turnId String?      @unique @db.Uuid
+  turn   SokoBotTurn? @relation(fields: [turnId], references: [id], onDelete: SetNull)
+
+  /// Immutable occurrence input. Nullable only for zero-downtime rollout from
+  /// pre-snapshot Core versions; the scheduler fills it before reservation.
+  prompt         String?
+  scheduledFor   DateTime
+  status         SokoBotScheduleRunStatus @default(PENDING)
+  attempt        Int                      @default(0)
+  leaseToken     String?
+  leaseExpiresAt DateTime?
+  errorKind      String?
+  errorDetail    String?
+  completedAt    DateTime?
+
+  @@unique([scheduleId, scheduledFor])
+  @@index([status, scheduledFor])
+  @@map("soko_bot_schedule_run")
+}
+
+/// Append-only operator audit. Deliberately FK-free so account/bot deletion
+/// cannot erase actions and audit rows cannot block deletion.
+model SokoBotAdminAction {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  operationId String
+  status      SokoBotAdminActionStatus
+  sokoBotId   String
+  userId      String
+  operatorId  String
+  action      String
+  targetId    String?
+  reason      String
+  before      Json?
+  after       Json?
+  errorKind   String?
+  errorDetail String?
+  requestId   String?
+  traceId     String?
+
+  @@unique([operationId, status])
+  @@index([sokoBotId, createdAt(sort: Desc)])
+  @@index([operatorId, createdAt(sort: Desc)])
+  @@index([traceId, createdAt(sort: Desc)])
+  @@map("soko_bot_admin_action")
 }
 
 model CoworkerApiKey {
@@ -1681,7 +2367,7 @@ model Task {
   creatorCoworker   Coworker? @relation("TaskCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
 
   creatorOrchestratorId String?       @db.Uuid
-  creatorOrchestrator   Orchestrator? @relation("TaskCreatorOrchestrator", fields: [creatorOrchestratorId], references: [id], onDelete: Restrict)
+  creatorOrchestrator   SokoBot? @relation("TaskCreatorOrchestrator", fields: [creatorOrchestratorId], references: [id], onDelete: Restrict)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -1695,10 +2381,12 @@ model Task {
 
   share PublicShare?
 
-  events       TaskEvent[]
-  jobs         Job[]
-  files        TaskFile[]
-  x402Payments TaskX402Payment[]
+  events             TaskEvent[]
+  sokoBotWatches     SokoBotTaskWatch[]
+  jobs               Job[]
+  files              TaskFile[]
+  x402Payments       TaskX402Payment[]
+  sokoBotDelegations SokoBotDelegation[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
@@ -2097,7 +2785,7 @@ model TaskEvent {
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
   orchestratorId String?       @db.Uuid
-  orchestrator   Orchestrator? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+  orchestrator   SokoBot? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
 
   transactionId String?
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
@@ -2490,7 +3178,7 @@ model OrchestratorUsage {
   referenceId    String?
 
   orchestratorId String       @db.Uuid
-  orchestrator   Orchestrator @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+  orchestrator   SokoBot @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2813,29 +3501,27 @@ model ChatRoomMention {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  sokoBotTurn SokoBotTurn?
+
   @@unique([messageId, coworkerId])
   @@index([coworkerId, status])
   @@map("chat_room_mention")
 }
 
-/// Per-user persistent history for the user's private Hermes agent. There is
-/// at most one logical conversation per user; messages are ordered by
-/// `createdAt`. Wiped when the user destroys their Hermes instance.
+/// Deprecated external-assistant history retained read-only for rollback and
+/// later explicit data migration or purge. New Soko Bot turns use SokoBotTurn.
 model HermesMessage {
   id         String   @id @default(uuid(7)) @db.Uuid
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role       String // "user" | "assistant" | "system"
   content    String
-  /// Outbox message kind from the orchestrator: "text" | "task_result" |
+  /// Legacy outbox message kind: "text" | "task_result" |
   /// "reminder" | future. Null for user turns + assistant replies from the
   /// regular chat path. Drives the notification-style rendering for
   /// agent-initiated pushes.
   kind       String?
-  /// Progress steps (tool calls etc.) captured from the orchestrator's
-  /// `hermes.status` frames during a streamed turn, so the collapsible "steps"
-  /// disclosure survives a reload. Shape: `[{ label, detail? }]`. Null for
-  /// turns with no tool activity and for user messages.
+  /// Legacy progress-step payload.
   steps      Json?
   /// Total wall-clock time of the streamed turn (ms), so the "Answered in Ns"
   /// stamp survives a reload. Null for user messages + non-streamed turns.
@@ -2846,21 +3532,14 @@ model HermesMessage {
   @@map("hermesMessage")
 }
 
-/// Short-lived claim record written by the `initiate` integration handler
-/// and consumed by `finalize`. Keyed by Composio's connection_id (the only
-/// thing the popup callback knows). Lives in Postgres rather than process
-/// memory because Vercel runs each handler on a different Lambda — an
-/// in-memory map will miss across cold starts and the user sees
-/// "unknown or expired connection — restart the integration flow."
-///
-/// Rows are deleted on a successful match; expired rows are pruned
-/// opportunistically by `rememberPendingConnection`.
+/// Deprecated external-integration claim record retained through rollback
+/// window. New Soko Bot runtime does not read or write this table.
 model HermesPendingConnection {
   /// Composio's connection_id, returned by `initiateConnection`.
   connectionId String   @id
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// Hermes integration provider slug (gmail, linear, slack, …). Stored as a
+  /// Legacy integration provider slug. Stored as a
   /// string instead of an enum so a new provider doesn't need a DB migration.
   provider     String
   /// Access mode the user picked at the interstitial (read | write). Pinned
@@ -2944,4 +3623,55 @@ model EnterpriseContractPeriod {
   @@index([contractId, periodStart])
   @@index([status, periodStart])
   @@map("enterprise_contract_period")
+}
+
+/// One behaviour-lab run: scenario × version × the turn it produced, with the
+/// deterministic checks and the judge verdict. Written by the console lab and
+/// the headless runner; read by the admin quality overview.
+model SokoBotLabRun {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  userId    String
+
+  turnId String      @unique @db.Uuid
+  turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  scenarioId String
+  versionId  String
+  passed     Int
+  total      Int
+  checks     Json
+  judge      Json?
+  judgeModel String?
+
+  @@index([versionId, createdAt(sort: Desc)])
+  @@index([sokoBotId, createdAt(sort: Desc)])
+  @@map("soko_bot_lab_run")
+}
+
+/// A skill the owner installed from skills.sh / GitHub for their Soko Bot.
+/// Stored as the SKILL.md markdown; the runtime advertises it as a
+/// load-on-demand skill. `slug` is the source id (owner/repo/skill-name).
+model SokoBotInstalledSkill {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  userId    String
+
+  slug        String
+  name        String
+  description String
+  markdown    String
+  sourceUrl   String
+  sourceRef   String?
+
+  @@unique([sokoBotId, name])
+  @@index([sokoBotId])
+  @@map("soko_bot_installed_skill")
 }

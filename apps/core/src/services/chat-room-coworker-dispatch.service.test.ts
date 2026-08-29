@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 
 const {
   findUniqueMock,
@@ -444,6 +445,26 @@ describe("dispatchChatRoomMention claim", () => {
     expect(streamTextMock).toHaveBeenCalled();
   });
 
+  it("gives up on a mention that keeps getting reclaimed", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      status: "sent",
+      createdAt: new Date(Date.now() - 16 * 60_000),
+      updatedAt: new Date(Date.now() - ROOM_SENT_STALE_MS - 1_000),
+    });
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(updateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: MENTION_ID, status: { not: "responded" } },
+        data: expect.objectContaining({ status: "failed" }),
+      }),
+    );
+  });
+
   it("does not reclaim a fresh sent mention still in flight", async () => {
     findUniqueMock.mockResolvedValue({
       ...pendingMention(),
@@ -603,18 +624,7 @@ describe("dispatchChatRoomMention claim", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           id: "cow_1",
-          archivedAt: null,
-          OR: [
-            { isWhitelisted: true },
-            {
-              workspaceAccess: {
-                some: {
-                  workspaceId: ORG_WORKSPACE_ID,
-                  status: "GRANTED",
-                },
-              },
-            },
-          ],
+          ...buildCoworkerUsableInWorkspaceWhere(ORG_WORKSPACE_ID),
           capabilities: { has: "chat" },
           AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
         }),
@@ -664,19 +674,9 @@ describe("dispatchChatRoomMention claim", () => {
     });
     expect(coworkerFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          OR: [
-            { isWhitelisted: true },
-            {
-              workspaceAccess: {
-                some: {
-                  workspaceId: "ws_personal_1",
-                  status: "GRANTED",
-                },
-              },
-            },
-          ],
-        }),
+        where: expect.objectContaining(
+          buildCoworkerUsableInWorkspaceWhere("ws_personal_1"),
+        ),
       }),
     );
     expect(streamTextMock).toHaveBeenCalled();

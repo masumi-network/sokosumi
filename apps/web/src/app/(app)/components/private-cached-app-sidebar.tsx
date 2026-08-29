@@ -26,11 +26,11 @@ export default function PrivateCachedAppSidebar({
   activeOrganizationId,
   adminMenuEnabled,
 }: PrivateCachedAppSidebarProps) {
-  const hermesMenuEnabled = isBetaAccessEmail(sessionUser.email);
+  const sokoBotMenuEnabled = isBetaAccessEmail(sessionUser.email);
 
   return (
     <Sidebar
-      hermesMenuEnabled={hermesMenuEnabled}
+      sokoBotMenuEnabled={sokoBotMenuEnabled}
       chatList={
         <Suspense fallback={<SidebarChatListFallback />}>
           <PrivateCachedSidebarRooms
