@@ -401,10 +401,13 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     (async () => {
-      const windows = await self.clients.matchAll({
-        type: "window",
-        includeUncontrolled: true,
-      });
+      // A failed look at the open tabs reads as no tabs, not as a failed
+      // click. Left to reject it would carry off the whole handler, and the
+      // banner is closed by here: the reader would get no window and no word
+      // of why. The push handler guards this same call.
+      const windows = await self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .catch(() => []);
 
       const open = await findRoutingClient(windows);
       // Only a tab that came forward is handed the target. Acting on a click

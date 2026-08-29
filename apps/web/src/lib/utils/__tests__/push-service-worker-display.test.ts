@@ -551,6 +551,24 @@ describe("ably-push-sw notificationclick", () => {
     expect(worker.reported).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * A click cannot be abandoned because the tab list would not load. The
+   * banner is closed by then, so the reader would be left with no window and
+   * nothing said.
+   */
+  it("opens a window when the tab list cannot be read", async () => {
+    const worker = loadServiceWorker({
+      isChromium: true,
+      matchAllThrows: true,
+      windows: [appPage({ focused: false })],
+    });
+
+    await worker.dispatchNotificationClick(MENTION_TARGET);
+
+    expect(worker.openedWindows).toEqual(["/"]);
+    expect(worker.reported).not.toHaveBeenCalled();
+  });
+
   /** With no tab to hand the click to, a refused window is the end of it. */
   it("reports a click it could neither route nor open", async () => {
     const worker = loadServiceWorker({
