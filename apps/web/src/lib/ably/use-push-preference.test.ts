@@ -493,6 +493,55 @@ describe("usePushPreference", () => {
     expect(result.current.isDeviceEnabled).toBe(true);
   });
 
+  /**
+   * The page keeps the preferences query open, and TanStack refetches a stale
+   * one when the window comes back into view. The OS permission prompt takes
+   * the view and gives it back, so the account row's own path starts that
+   * read, and it carries the consent as it stood before the write.
+   */
+  it("keeps the account row on the write, not on a read it outran", async () => {
+    let landRefetch!: () => void;
+    let landWrite!: () => void;
+    patchMyPreferencesMock.mockReturnValue(
+      new Promise((resolve) => {
+        landWrite = () => resolve({ data: { pushOptIn: true } });
+      }),
+    );
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+
+    let pending!: Promise<boolean>;
+    act(() => {
+      pending = result.current.setAccountEnabled(true);
+    });
+
+    // The reader answers the prompt, the window comes back, and the refetch
+    // it starts reads Core as it stood before the write.
+    getMyPreferencesMock.mockReturnValue(
+      new Promise((resolve) => {
+        landRefetch = () => resolve({ data: { pushOptIn: false } });
+      }),
+    );
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("visibilitychange"));
+    });
+    await waitFor(() => expect(getMyPreferencesMock).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      landWrite();
+      await pending;
+    });
+    await act(async () => {
+      landRefetch();
+      await Promise.resolve();
+    });
+
+    expect(result.current.isAccountEnabled).toBe(true);
+  });
+
   it("records nothing when activation fails", async () => {
     activatePushMock.mockRejectedValue(new Error("permission denied"));
     const { result } = renderHook(() => usePushPreference("user_1"), {

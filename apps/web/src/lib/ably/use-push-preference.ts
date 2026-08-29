@@ -134,10 +134,20 @@ export function usePushPreference(userId: string | undefined): PushPreference {
    */
   const recordAccountOptIn = useCallback(
     async (pushOptIn: boolean) => {
-      queryClient.setQueryData(
-        getMyPreferencesQueryKey(userId),
-        await preferencesBrowserClient.patchMyPreferences({ pushOptIn }),
-      );
+      const written = await preferencesBrowserClient.patchMyPreferences({
+        pushOptIn,
+      });
+      // A read that started before this write can answer after it, carrying
+      // the consent as it stood before. The page keeps that query open, it
+      // goes stale after a minute, and it refetches when the window comes
+      // back into view: the OS permission prompt takes the view and gives it
+      // back, so the account row's own path is what starts the losing read.
+      // Retired here rather than left to paint the switch back off beside a
+      // toast saying push is on.
+      await queryClient.cancelQueries({
+        queryKey: getMyPreferencesQueryKey(userId),
+      });
+      queryClient.setQueryData(getMyPreferencesQueryKey(userId), written);
     },
     [queryClient, userId],
   );
