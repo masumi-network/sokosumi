@@ -258,6 +258,25 @@ describe("ably-push-sw display", () => {
   });
 
   /**
+   * The cookie is the locale the reader picked in the app, so it outranks the
+   * browser's own list. Read with a Spanish browser, so the assertion fails
+   * both ways: a cookie the worker never reads leaves the banner in Spanish.
+   */
+  it("prefers the locale the reader picked over the browser's", async () => {
+    const worker = loadServiceWorker({
+      isChromium: true,
+      locale: "de",
+      browserLanguages: ["es-ES"],
+    });
+
+    await worker.dispatchPush(MENTION_PUSH);
+
+    expect(worker.shown[0]?.options.body).toBe(
+      "Ada hat dich in General erwähnt",
+    );
+  });
+
+  /**
    * The app negotiates every `Accept-Language` entry in order, and
    * `navigator.languages` is that same list. Reading only the first entry gave
    * a reader who prefers an unsupported language the app in German and the
