@@ -145,18 +145,20 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   /**
    * Which read of the browser may still write the device row.
    *
-   * Reads land out of order, and one of them is not the reader's. Granting the
-   * OS permission fires a permission change, whose refresh reads the browser
-   * while the activation that asked for the permission is still running: it
-   * finds no subscription yet and would paint the row off, over a save that
-   * goes on to succeed. The reader would then see "enabled on this device"
-   * above a switch sitting off until the next focus.
-   *
-   * So every write takes a ticket and only the newest one lands. A refresh
-   * issued before a save finished cannot overwrite what that save read, in
-   * either resolution order.
+   * Reads land out of order. Two overlap whenever the reader regains focus
+   * while an earlier read is still open, and the older one carries the browser
+   * as it stood before the newer one looked. So every write takes a ticket and
+   * only the newest lands, in either resolution order.
    */
   const latestSubscriptionRead = useRef(0);
+
+  /**
+   * Whether a save owns the row, so an unasked-for read cannot paint over it.
+   *
+   * A ref, not `isSaving`, because the reads that consult it are set up once
+   * on mount and would close over the first value of any state.
+   */
+  const saveOwnsSubscriptionRow = useRef(false);
 
   /** Reads the browser and paints the row, unless a newer write started. */
   const applySubscriptionRead = useCallback(async () => {
@@ -167,6 +169,24 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     }
   }, []);
 
+  /**
+   * A read the reader did not ask for, so it yields to one that is.
+   *
+   * Granting the OS permission fires a permission change, and its refresh
+   * reads the browser in the middle of the activation that asked for the
+   * permission. It finds no subscription yet. Letting it write would turn the
+   * switch the reader just clicked back off for the length of the activation,
+   * beside a toast saying push is on. The save ends on its own read, so
+   * nothing is lost by skipping this one.
+   */
+  const refreshSubscriptionRow = useCallback(() => {
+    if (saveOwnsSubscriptionRow.current) {
+      return;
+    }
+
+    void applySubscriptionRead();
+  }, [applySubscriptionRead]);
+
   /** Paints a value the caller already knows, and retires any read in flight. */
   const setSubscriptionKnown = useCallback((subscribed: boolean) => {
     latestSubscriptionRead.current += 1;
@@ -175,12 +195,8 @@ export function usePushPreference(userId: string | undefined): PushPreference {
 
   // Browser-only reads, so they cannot run during render.
   useMountEffect(() => {
-    const refreshSubscription = () => {
-      void applySubscriptionRead();
-    };
-
     setIsSupported(isPushSupported());
-    refreshSubscription();
+    refreshSubscriptionRow();
     setPermission(getBrowserNotificationPermission());
 
     // Re-read the permission when the reader changes it in browser settings,
@@ -190,12 +206,12 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     // own "not available in this browser".
     const unsubscribe = subscribeBrowserNotificationPermission((next) => {
       setPermission(next);
-      refreshSubscription();
+      refreshSubscriptionRow();
     });
     return () => {
-      // Retires whatever is in flight, so a read does not land on a reader who
-      // left the account page mid-flight. Same intent as the cancelled flag in
-      // `lazy-ably-provider.tsx`.
+      // Retires the reads this effect issued, so one does not land on a reader
+      // who left the account page mid-flight. Same intent as the cancelled
+      // flag in `lazy-ably-provider.tsx`.
       latestSubscriptionRead.current += 1;
       unsubscribe();
     };
@@ -214,9 +230,13 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       }
 
       setIsSaving(true);
+      // Held across the whole save, so the permission change the save itself
+      // provokes cannot repaint the row underneath it.
+      saveOwnsSubscriptionRow.current = true;
       try {
         return await work(userId);
       } finally {
+        saveOwnsSubscriptionRow.current = false;
         setIsSaving(false);
       }
     },
@@ -235,10 +255,11 @@ export function usePushPreference(userId: string | undefined): PushPreference {
         try {
           return await work(sessionUserId);
         } finally {
-          // Both outcomes end on a fresh read, not just the failing one. The
+          // Both outcomes end on a fresh read, not just the failing one: the
           // work may have failed halfway, after the subscription already
-          // changed, and a permission change may have painted the row off
-          // while the work was still running.
+          // changed. This is the read the skipped refreshes deferred to, so it
+          // goes through `applySubscriptionRead` rather than the row-yielding
+          // wrapper, which is still holding at this point.
           await applySubscriptionRead();
         }
       }),

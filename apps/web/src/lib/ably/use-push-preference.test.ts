@@ -172,12 +172,20 @@ describe("usePushPreference", () => {
   /**
    * Granting the permission fires a permission change, and that refresh reads
    * the browser while the activation that asked for the permission is still
-   * running. It finds no subscription yet. Letting it paint the row left the
-   * reader looking at "enabled on this device" above a switch sitting off.
+   * running. It finds no subscription yet.
+   *
+   * Asserted while the activation is still open, not only after it. The end
+   * state was already right; what the reader saw was the switch they had just
+   * clicked turning itself back off for the length of the activation, beside a
+   * toast saying push was on.
    */
-  it("keeps the device row on when a permission event lands mid-save", async () => {
+  it("keeps the device row on while the save that owns it runs", async () => {
     setAccountOptIn(true);
     setNotificationPermission("default");
+    let finishActivation: () => void = () => {};
+    const activation = new Promise<void>((resolve) => {
+      finishActivation = resolve;
+    });
     requestPermissionMock.mockImplementation(async () => {
       // The reader allows, and the browser fires the permission change while
       // the activation that asked for it has not subscribed anything yet.
@@ -185,13 +193,28 @@ describe("usePushPreference", () => {
       window.dispatchEvent(new Event("focus"));
       return "granted";
     });
+    activatePushMock.mockImplementation(async () => {
+      await activation;
+      setDeviceSubscribed(true);
+    });
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
     });
     await waitFor(() => expect(result.current.canToggleDevice).toBe(true));
 
+    let save: Promise<unknown> | undefined;
     await act(async () => {
-      await result.current.setDeviceEnabled(true);
+      save = result.current.setDeviceEnabled(true);
+      // Long enough for the refresh to have read the browser and painted, if
+      // the save did not hold the row.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.isDeviceEnabled).toBe(true);
+
+    await act(async () => {
+      finishActivation();
+      await save;
     });
 
     expect(activatePushMock).toHaveBeenCalledWith("user_1");
@@ -205,17 +228,47 @@ describe("usePushPreference", () => {
    */
   it("ignores a browser read a newer one has already answered", async () => {
     setAccountOptIn(true);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleDevice).toBe(true));
+
+    // Two refreshes overlap, with no save in sight. The first is held open, so
+    // it answers with the browser as it stood before the second one looked.
     let landStaleRead: () => void = () => {};
     const staleRead = new Promise((resolve) => {
       landStaleRead = () => resolve(null);
     });
-    activatePushMock.mockImplementation(async () => {
-      // The next read is the refresh the permission change fires, and it is
-      // held open past the read this save ends on.
-      getSubscriptionMock.mockReturnValueOnce(staleRead);
+    getSubscriptionMock.mockReturnValueOnce(staleRead);
+    await act(async () => {
       window.dispatchEvent(new Event("focus"));
-      setDeviceSubscribed(true);
     });
+
+    setDeviceSubscribed(true);
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await waitFor(() => expect(result.current.isDeviceEnabled).toBe(true));
+
+    await act(async () => {
+      landStaleRead();
+      await staleRead;
+    });
+
+    expect(result.current.isDeviceEnabled).toBe(true);
+  });
+
+  /**
+   * The device-row mirror of the account case below. `subscribeThisBrowser`
+   * reports success as soon as `activatePush` resolves, without reading the
+   * browser again, so the row would otherwise keep the value the click asked
+   * for over a browser that holds no subscription.
+   */
+  it("ends a device save on a read, not on what it asked for", async () => {
+    setAccountOptIn(true);
+    // Unlike the default fixture, this activation leaves nothing behind.
+    activatePushMock.mockResolvedValue(undefined);
+    setDeviceSubscribed(false);
     const { result } = renderHook(() => usePushPreference("user_1"), {
       wrapper,
     });
@@ -224,14 +277,9 @@ describe("usePushPreference", () => {
     await act(async () => {
       await result.current.setDeviceEnabled(true);
     });
-    expect(result.current.isDeviceEnabled).toBe(true);
 
-    await act(async () => {
-      landStaleRead();
-      await staleRead;
-    });
-
-    expect(result.current.isDeviceEnabled).toBe(true);
+    expect(activatePushMock).toHaveBeenCalledWith("user_1");
+    expect(result.current.isDeviceEnabled).toBe(false);
   });
 
   /**
