@@ -8,10 +8,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
-import { releasePushDeviceOnSignOut } from "@/lib/ably/release-push-device.client";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
+import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
@@ -153,9 +153,7 @@ export default function InvitationActions({
   const handleLogout = async () => {
     setLoading(true);
     setAction("logout");
-    // Before the session ends, so the deactivation can still mint a token.
-    await releasePushDeviceOnSignOut(user?.id);
-    await authClient.signOut();
+    await signOutWithPushRelease(user?.id);
     const returnUrl = getReturnUrlFromCurrentLocation();
     router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
     setLoading(false);
