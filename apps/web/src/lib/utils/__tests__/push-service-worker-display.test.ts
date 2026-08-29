@@ -114,8 +114,11 @@ function loadServiceWorker({
   const openedWindows: string[] = [];
   const skipWaiting = vi.fn();
   // The sandbox gets its own `console`, so a spy on this realm's would never
-  // see the worker's. Hand it one the test can read instead.
+  // see the worker's. Hand it one the test can read instead. Both methods the
+  // worker uses are stubbed: a missing one throws in the sandbox, where the
+  // browser would have carried on.
   const reported = vi.fn();
+  const warned = vi.fn();
 
   const self = {
     addEventListener: (type: string, handler: (event: unknown) => void) => {
@@ -163,7 +166,7 @@ function loadServiceWorker({
       self,
       setTimeout,
       clearTimeout,
-      console: { error: reported },
+      console: { error: reported, warn: warned },
       // The sandbox has no DOM. A synchronous pair is enough: the worker
       // assigns `port1.onmessage` before it hands `port2` to the client.
       MessageChannel: class {
@@ -221,6 +224,7 @@ function loadServiceWorker({
     shown,
     openedWindows,
     reported,
+    warned,
   };
 }
 
@@ -568,7 +572,10 @@ describe("ably-push-sw notificationclick", () => {
     await worker.dispatchNotificationClick(MENTION_TARGET);
 
     expect(worker.openedWindows).toEqual(["/"]);
+    // A window opened, so the click is not lost and this is not a report.
+    // It is still worth a line: the reader lost the tab they had.
     expect(worker.reported).not.toHaveBeenCalled();
+    expect(worker.warned).toHaveBeenCalledTimes(1);
   });
 
   /** With no tab to hand the click to, a refused window is the end of it. */

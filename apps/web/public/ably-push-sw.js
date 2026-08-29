@@ -404,9 +404,17 @@ self.addEventListener("notificationclick", (event) => {
       // click. Left to reject it would carry off the whole handler, and the
       // banner is closed by here: the reader would get no window and no word
       // of why. The push handler guards this same call.
+      //
+      // Warned, not reported: a window still opens, so the click is not lost.
+      // What the reader loses is the tab they had and the room the banner
+      // came from, which is worth a line when someone asks why a click opened
+      // a second tab on the home page.
       const windows = await self.clients
         .matchAll({ type: "window", includeUncontrolled: true })
-        .catch(() => []);
+        .catch((error) => {
+          console.warn("Could not read the open tabs for a click", error);
+          return [];
+        });
 
       const open = await findRoutingClient(windows);
       // Only a tab that came forward is handed the target. A click on a
