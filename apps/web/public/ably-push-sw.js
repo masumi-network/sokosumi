@@ -374,9 +374,8 @@ async function focusRoutingClient(client) {
  * does, a window in the origin holding transient activation (MDN,
  * `Clients.openWindow`), and the condition is per origin rather than per tab.
  * So a click that no tab would take usually cannot open a window either, and
- * there is nothing further to try: handing the target to a tab that stayed
- * hidden would switch the reader's workspace behind their back, which is
- * worse than the click going nowhere. Reported rather than thrown: the banner
+ * there is nothing further to try. The handler above says why it does not
+ * fall back to a tab that stayed hidden. Reported rather than thrown: the banner
  * is already closed, `waitUntil` has nothing to catch a rejection here, and a
  * click that reached nothing at all should not also be silent.
  */
@@ -410,10 +409,12 @@ self.addEventListener("notificationclick", (event) => {
         .catch(() => []);
 
       const open = await findRoutingClient(windows);
-      // Only a tab that came forward is handed the target. Acting on a click
-      // sets the active organization for the whole session and navigates the
-      // tab that took it, so a tab that stayed hidden would move the reader's
-      // front tab into another workspace on its own.
+      // Only a tab that came forward is handed the target. A click on a
+      // notification from another workspace switches the active organization,
+      // which is a session-wide write every tab shares, so a tab that stayed
+      // hidden would move the reader's front tab into that workspace on its
+      // own. The worker cannot tell that click from a same-workspace one,
+      // which only navigates the tab that takes it, so it withholds from both.
       if (open && (await focusRoutingClient(open))) {
         if (target) {
           open.postMessage({ type: CLICK_MESSAGE_TYPE, target });

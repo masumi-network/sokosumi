@@ -529,10 +529,12 @@ describe("ably-push-sw notificationclick", () => {
    * condition of the origin rather than of one tab, so the two usually refuse
    * together. Saying so is all that is left.
    *
-   * The withheld target is the point of the test. Acting on a click sets the
-   * active organization for the whole session and navigates the tab that took
-   * it, so a tab that never came forward would move the reader's front tab
-   * into another workspace. A click that goes nowhere is the better failure.
+   * The withheld target is the point of the test. A click on a notification
+   * from another workspace switches the active organization, which every tab
+   * shares, so a tab that never came forward would move the reader's front tab
+   * into that workspace. The worker cannot tell that click from a
+   * same-workspace one, so it withholds from both: a click that goes nowhere
+   * is the better failure.
    */
   it("withholds the target from a tab that would not come forward", async () => {
     const focus = vi.fn().mockRejectedValue(new Error("InvalidAccessError"));
