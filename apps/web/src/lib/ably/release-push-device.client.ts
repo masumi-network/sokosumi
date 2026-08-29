@@ -43,9 +43,16 @@ function hasAblyPushRegistration(): boolean {
 /**
  * How long the sign-out waits for the release before it goes anyway.
  *
- * The browser unsubscribe leads and is local, so this only ever sheds the
- * Ably half. That half is two REST calls, and `ably@2.28.0` allows each of
- * them a 10s request timeout on top of 15s of fallback-host retries
+ * The browser unsubscribe leads and does not wait on the network, so this
+ * only ever sheds the Ably half. `PushSubscription.unsubscribe()` deactivates
+ * the subscription and resolves; its request to the push service runs "in
+ * parallel" and the browser retries that on its own. The browser "MUST NOT
+ * deliver any further push messages" from the moment it deactivates, whether
+ * that request lands or not (W3C Push API, `unsubscribe()` steps 4-5). So the
+ * step that stops delivery is never the one this cap cuts.
+ *
+ * The Ably half is two REST calls, and `ably@2.28.0` allows each of them a 10s
+ * request timeout on top of 15s of fallback-host retries
  * (`build/ably.js:790-791`). An Ably incident or a captive portal would
  * otherwise hold the reader on a disabled Log out button for about half a
  * minute. Signing out is the more urgent of the two.
