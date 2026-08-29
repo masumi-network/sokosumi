@@ -45,6 +45,11 @@ async function importFresh() {
 }
 
 afterEach(() => {
+  // Several tests silence `console.error` and none of them put it back, and
+  // this project sets no `restoreMocks`. Left alone, the first silencer stubs
+  // the console for every test after it in the file, so one that means to
+  // assert on a report is asserting on someone else's stub.
+  vi.restoreAllMocks();
   if (originalServiceWorker) {
     Object.defineProperty(navigator, "serviceWorker", originalServiceWorker);
   } else {
@@ -160,12 +165,6 @@ describe("subscribeNotificationClicks", () => {
     // right answer to it. A click whose target will not parse is the case
     // worth reporting, and the two are told apart below.
     const reported = vi.spyOn(console, "error").mockImplementation(() => {});
-    // Counted by message: a registration rejected in an earlier test settles
-    // late and reports itself here, and it says nothing about this listener.
-    const reportedTargets = () =>
-      reported.mock.calls.filter(
-        ([message]) => message === "Ignored a notification click target",
-      );
     const unsubscribe = subscribeNotificationClicks(onClick);
     const emit = (data: unknown) => {
       for (const listener of listeners) {
@@ -175,7 +174,7 @@ describe("subscribeNotificationClicks", () => {
 
     emit({ type: "something-else", target: TARGET });
     emit({ type: SHOWS_NOTIFICATIONS_QUERY });
-    expect(reportedTargets()).toHaveLength(0);
+    expect(reported).not.toHaveBeenCalled();
 
     emit({ type: NOTIFICATION_CLICK_MESSAGE });
     emit({ type: NOTIFICATION_CLICK_MESSAGE, target: { id: "" } });
@@ -185,9 +184,8 @@ describe("subscribeNotificationClicks", () => {
     expect(onClick).toHaveBeenCalledWith(TARGET);
     // A banner the worker rendered but this build cannot route leaves the
     // reader with a focused tab and nothing else, so it must not be silent.
-    expect(reportedTargets()).toHaveLength(2);
+    expect(reported).toHaveBeenCalledTimes(2);
 
-    reported.mockRestore();
     unsubscribe();
     expect(listeners.size).toBe(0);
   });
