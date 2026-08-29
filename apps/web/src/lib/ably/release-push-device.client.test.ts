@@ -47,18 +47,42 @@ describe("releasePushDeviceOnSignOut", () => {
   });
 
   /**
-   * The browser subscription and Ably's device record come apart: a
-   * subscription dies on its own while the record stays. That device is still
-   * subscribed to this reader's notifications channel, and the next reader's
-   * activation reuses the same id and adds their channel beside it.
+   * The browser subscription and Ably's registration come apart: a
+   * subscription dies on its own while the registration stays. That device is
+   * still subscribed to this reader's notifications channel, and the next
+   * reader's activation reuses the same id and adds their channel beside it.
+   *
+   * The value is written the way Ably's own storage adapter writes it, wrapped
+   * in `{ value }` (`ably/build/ably.js:9616-9620`).
    */
   it("releases a device Ably still holds after the subscription died", async () => {
     hasWebPushSubscriptionMock.mockResolvedValue(false);
-    localStorage.setItem("ably.push.deviceId", "device_1");
+    localStorage.setItem(
+      "ably.push.deviceIdentityToken",
+      JSON.stringify({ value: { token: "tok_1", issued: 1, expires: 2 } }),
+    );
 
     await releasePushDeviceOnSignOut("user_1");
 
     expect(deactivatePushMock).toHaveBeenCalledWith("user_1");
+  });
+
+  /**
+   * `deactivate()` removes the identity token but mints a fresh
+   * `ably.push.deviceId` on its way out (`ably/build/push.js:419-423`). Gating
+   * on the id would make every later sign-out build a client and mint a token
+   * only to fail without the token.
+   */
+  it("loads nothing for a browser Ably has already deregistered", async () => {
+    hasWebPushSubscriptionMock.mockResolvedValue(false);
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "device_1" }),
+    );
+
+    await releasePushDeviceOnSignOut("user_1");
+
+    expect(deactivatePushMock).not.toHaveBeenCalled();
   });
 
   it("reads nothing on a browser that cannot push at all", async () => {

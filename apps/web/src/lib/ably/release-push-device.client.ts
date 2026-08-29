@@ -6,26 +6,33 @@ import {
 } from "@/lib/utils/notification-service-worker";
 
 /**
- * Where `ably@2.28.0` records that this browser is a registered push device
- * (`build/push.js`, alongside `ably.push.deviceIdentityToken` and
- * `ably.push.activationState`).
+ * The credential `ably@2.28.0` stores for a registered push device
+ * (`build/push.js:265`).
+ *
+ * This is the key that tracks a live registration, and the only one of the
+ * five that does. Deregistering removes it and `ably.push.pushRecipient`
+ * (`build/push.js:913-916`), then calls `resetId()`, which mints a new id and
+ * writes `ably.push.deviceId` and `ably.push.deviceSecret` straight back
+ * (`build/push.js:404-407`, `:419-423`). Reading the id instead would say
+ * "registered" forever, and every later sign-out would build a client and mint
+ * a token only to fail without this token (`build/push.js:155-159`).
  */
-const ABLY_PUSH_DEVICE_ID_KEY = "ably.push.deviceId";
+const ABLY_DEVICE_IDENTITY_TOKEN_KEY = "ably.push.deviceIdentityToken";
 
 /**
- * Whether Ably still counts this browser as one of its push devices.
+ * Whether Ably still holds a registration for this browser.
  *
  * Read separately from the browser subscription, because the two come apart.
  * `activatePush` already heals the case: a subscription can die on its own
  * (permission revoked, storage cleared, a half-failed disable) while Ably's
- * device record stays. That device is still subscribed to the previous
- * reader's notifications channel, and the next reader's activation reuses the
- * same id and adds their channel beside it, so one browser ends up delivering
- * both. Releasing on the record too is what stops that.
+ * registration stays. That device is still subscribed to the previous reader's
+ * notifications channel, and the next reader's activation reuses the same id
+ * and adds their channel beside it, so one browser ends up delivering both.
+ * Releasing on the registration too is what stops that.
  */
-function hasAblyPushDevice(): boolean {
+function hasAblyPushRegistration(): boolean {
   try {
-    return localStorage.getItem(ABLY_PUSH_DEVICE_ID_KEY) !== null;
+    return localStorage.getItem(ABLY_DEVICE_IDENTITY_TOKEN_KEY) !== null;
   } catch {
     // Reading storage throws outright where the browser blocks site data.
     return false;
@@ -38,8 +45,8 @@ function hasAblyPushDevice(): boolean {
  * Web Push needs no session. The push service keeps delivering to the
  * endpoint it holds and the service worker keeps rendering banners, so a
  * browser left signed out would go on showing the previous reader's chat
- * mentions to whoever uses it next. Ably's own device keys in `localStorage`
- * go with the deactivation.
+ * mentions to whoever uses it next. Ably's device identity token goes with the
+ * deactivation, so the browser stops counting as a registered device.
  *
  * Only an explicit sign-out calls this. A session that expires on its own
  * does not, so a reader who comes back finds push still on and never has to
@@ -58,7 +65,7 @@ export async function releasePushDeviceOnSignOut(
   }
 
   try {
-    if (!(await hasWebPushSubscription()) && !hasAblyPushDevice()) {
+    if (!(await hasWebPushSubscription()) && !hasAblyPushRegistration()) {
       return;
     }
 
