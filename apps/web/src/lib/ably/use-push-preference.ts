@@ -218,10 +218,19 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   });
 
   /**
-   * Runs one save against the session user and holds the saving flag for its
-   * duration. Hands the session user id to the callback so callers need no
-   * cast. Withdrawing account consent uses this directly: it touches no
-   * browser subscription, so there is nothing to roll back.
+   * Runs one save against the session user, and leaves the device row reading
+   * the browser however that save went. Hands the session user id to the
+   * callback so callers need no cast.
+   *
+   * The row is held for the save and read once at the end, and both belong
+   * here together. A save that held the row without reading would drop the
+   * refreshes it suppressed rather than defer them: the reader could revoke
+   * the permission mid-save and leave a checked row beside its own "not
+   * available in this browser". Withdrawing account consent touches no
+   * subscription and still pays the read, which costs one local lookup.
+   *
+   * The read runs after the hold is released, so a permission change landing
+   * during it takes a newer ticket and still wins.
    */
   const runSave = useCallback(
     async <T>(work: (sessionUserId: string) => Promise<T>): Promise<T> => {
@@ -230,17 +239,16 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       }
 
       setIsSaving(true);
-      // Held across the whole save, so the permission change the save itself
-      // provokes cannot repaint the row underneath it.
       saveOwnsSubscriptionRow.current = true;
       try {
         return await work(userId);
       } finally {
         saveOwnsSubscriptionRow.current = false;
         setIsSaving(false);
+        await applySubscriptionRead();
       }
     },
-    [userId],
+    [applySubscriptionRead, userId],
   );
 
   /**
@@ -252,18 +260,9 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     <T>(nextSubscribed: boolean, work: (sessionUserId: string) => Promise<T>) =>
       runSave(async (sessionUserId) => {
         setSubscriptionKnown(nextSubscribed);
-        try {
-          return await work(sessionUserId);
-        } finally {
-          // Both outcomes end on a fresh read, not just the failing one: the
-          // work may have failed halfway, after the subscription already
-          // changed. This is the read the skipped refreshes deferred to, so it
-          // goes through `applySubscriptionRead` rather than the row-yielding
-          // wrapper, which is still holding at this point.
-          await applySubscriptionRead();
-        }
+        return work(sessionUserId);
       }),
-    [applySubscriptionRead, runSave, setSubscriptionKnown],
+    [runSave, setSubscriptionKnown],
   );
 
   /**
@@ -333,27 +332,21 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       // lands, so painting this one on first would sit a checked switch beside
       // its own "push is off for your account" for as long as the prompt is up.
       return runSave(async (sessionUserId) => {
-        try {
-          // Register the device first. If the Core write then fails, the
-          // device is known to Ably but Core sends nothing, so the reader gets
-          // silence rather than banners they never consented to.
-          //
-          // A refused prompt is not a failure here. The reader asked for push
-          // on their account, and answered for this browser only, so consent
-          // goes in and this browser stays out. The blocked branch above does
-          // the same for a reader who refused it earlier.
-          const subscribedHere = await subscribeThisBrowser(sessionUserId);
-          setSubscriptionKnown(subscribedHere);
-          await recordAccountOptIn(true);
-          return subscribedHere;
-        } catch (error) {
-          await applySubscriptionRead();
-          throw error;
-        }
+        // Register the device first. If the Core write then fails, the device
+        // is known to Ably but Core sends nothing, so the reader gets silence
+        // rather than banners they never consented to.
+        //
+        // A refused prompt is not a failure here. The reader asked for push on
+        // their account, and answered for this browser only, so consent goes
+        // in and this browser stays out. The blocked branch above does the
+        // same for a reader who refused it earlier.
+        const subscribedHere = await subscribeThisBrowser(sessionUserId);
+        setSubscriptionKnown(subscribedHere);
+        await recordAccountOptIn(true);
+        return subscribedHere;
       });
     },
     [
-      applySubscriptionRead,
       canSubscribeHere,
       recordAccountOptIn,
       runSave,

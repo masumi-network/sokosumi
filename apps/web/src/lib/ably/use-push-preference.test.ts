@@ -162,6 +162,9 @@ describe("usePushPreference", () => {
     expect(result.current.isAccountEnabled).toBe(false);
 
     await act(async () => {
+      // The browser records the answer before it resolves the request, and the
+      // save ends on a read that consults it.
+      setNotificationPermission("granted");
       answerPrompt("granted");
       await pending;
     });
@@ -256,6 +259,40 @@ describe("usePushPreference", () => {
     });
 
     expect(result.current.isDeviceEnabled).toBe(true);
+  });
+
+  /**
+   * An account save holds the device row too, and a refresh it suppresses is
+   * deferred, not dropped. Nothing in the account path paints the row itself
+   * when consent goes off, so without a read at the end the row would sit
+   * checked beside its own "not available in this browser" until the reader
+   * left the window and came back a second time.
+   */
+  it("re-reads the device row after an account save that suppressed one", async () => {
+    setAccountOptIn(true);
+    setDeviceSubscribed(true);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.isDeviceEnabled).toBe(true));
+
+    setAccountWriteResult(false);
+    patchMyPreferencesMock.mockImplementation(async () => {
+      // The reader revokes the permission in browser settings and comes back
+      // while the consent write is still in flight. Revoking takes the
+      // subscription with it.
+      setNotificationPermission("denied");
+      setDeviceSubscribed(false);
+      window.dispatchEvent(new Event("focus"));
+      return { data: { pushOptIn: false } };
+    });
+
+    await act(async () => {
+      await result.current.setAccountEnabled(false);
+    });
+
+    expect(result.current.isBlocked).toBe(true);
+    expect(result.current.isDeviceEnabled).toBe(false);
   });
 
   /**
