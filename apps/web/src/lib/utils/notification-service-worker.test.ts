@@ -263,6 +263,30 @@ describe("getNotificationServiceWorker", () => {
     await expect(module.getNotificationServiceWorker()).resolves.not.toBeNull();
     expect(register).toHaveBeenCalledTimes(2);
   });
+
+  /**
+   * A registration still installing is awaited through `ready`. Returning that
+   * promise rather than awaiting it would settle it after the `try` is over,
+   * so the failure would be cached as a rejection and every later banner in
+   * the tab would throw instead of reporting that it showed nothing.
+   */
+  it("retries after the worker never becomes active", async () => {
+    const register = vi.fn().mockResolvedValue({ active: null });
+    stubServiceWorker({
+      register,
+      get ready() {
+        return register.mock.calls.length > 1
+          ? Promise.resolve({ active: {} })
+          : Promise.reject(new Error("never activated"));
+      },
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const module = await importFresh();
+    await expect(module.getNotificationServiceWorker()).resolves.toBeNull();
+    await expect(module.getNotificationServiceWorker()).resolves.not.toBeNull();
+    expect(register).toHaveBeenCalledTimes(2);
+  });
 });
 
 /**

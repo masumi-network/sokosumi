@@ -114,8 +114,15 @@ async function register(): Promise<ServiceWorkerRegistration | null> {
     const registration = await navigator.serviceWorker.register(
       NOTIFICATION_SERVICE_WORKER_URL,
     );
-    // A registration that is installing cannot show anything yet.
-    return registration.active ? registration : navigator.serviceWorker.ready;
+    // A registration that is installing cannot show anything yet. Awaited
+    // rather than returned: a returned promise settles after the `try` is
+    // over, so a rejected `ready` would skip the catch below and be cached as
+    // a rejection for the life of the tab, which is what the caller documents
+    // it does not do. MDN gives no rejection for `ready`, so this is a guard
+    // on that contract rather than a fix for a failure seen in a browser.
+    return registration.active
+      ? registration
+      : await navigator.serviceWorker.ready;
   } catch (error) {
     console.error("Failed to register the notification service worker", error);
     return null;
