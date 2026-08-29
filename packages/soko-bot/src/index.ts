@@ -31,10 +31,12 @@ export {
   type SokoBotPersona,
 } from "./persona.js";
 export {
+  exceedsUnattendedHireBudget,
   hasSokoBotNegatedMutationIntent,
   isSokoBotCapability,
   isSokoBotNegatableWrite,
   isSokoBotRoute,
+  SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_MEMORY_LIMITS,
   SOKO_BOT_ROUTE_CAPABILITIES,

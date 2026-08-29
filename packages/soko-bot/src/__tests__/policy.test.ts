@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  exceedsUnattendedHireBudget,
   hasSokoBotNegatedMutationIntent,
   isSokoBotNegatableWrite,
+  SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
 } from "../policy.js";
@@ -96,5 +98,82 @@ describe("Soko Bot route capability ceilings", () => {
     }
     expect(isSokoBotNegatableWrite("read_chat")).toBe(false);
     expect(isSokoBotNegatableWrite("list_files")).toBe(false);
+  });
+});
+
+describe("bot-to-bot ceiling", () => {
+  it("can answer, and can do nothing else a teammate could not", () => {
+    // Without post_chat a bot could be summoned but never reply, so a chain
+    // could never reach its second hop.
+    expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).toContain("post_chat");
+    for (const capability of SOKO_BOT_TEAMMATE_CAPABILITIES) {
+      expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).toContain(capability);
+    }
+    expect([...SOKO_BOT_BOT_TO_BOT_CAPABILITIES].sort()).toEqual(
+      [...SOKO_BOT_TEAMMATE_CAPABILITIES, "post_chat"].sort(),
+    );
+  });
+
+  it("keeps the owner's private surfaces unreadable", () => {
+    for (const ownerPrivate of [
+      "read_memory",
+      "search_inbox",
+      "read_email",
+      "list_calendar_events",
+      "list_files",
+      "read_chat",
+      "hire_agent",
+      "create_task",
+    ]) {
+      expect(
+        SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[],
+      ).not.toContain(ownerPrivate);
+    }
+  });
+});
+
+describe("exceedsUnattendedHireBudget", () => {
+  const ceiling = 50;
+
+  it("lets the owner commit whatever they ask for in their own chat", () => {
+    expect(
+      exceedsUnattendedHireBudget({
+        source: "CHAT",
+        chainDepth: 0,
+        maxCredits: 5_000,
+        ceiling,
+      }),
+    ).toBe(false);
+  });
+
+  it("caps a turn composed from untrusted mail", () => {
+    expect(
+      exceedsUnattendedHireBudget({
+        source: "INGEST",
+        chainDepth: 0,
+        maxCredits: 51,
+        ceiling,
+      }),
+    ).toBe(true);
+    expect(
+      exceedsUnattendedHireBudget({
+        source: "INGEST",
+        chainDepth: 0,
+        maxCredits: 50,
+        ceiling,
+      }),
+    ).toBe(false);
+  });
+
+  it("treats a chat turn another assistant started as unattended", () => {
+    // The message arrives on the CHAT source, but no person wrote it.
+    expect(
+      exceedsUnattendedHireBudget({
+        source: "CHAT",
+        chainDepth: 1,
+        maxCredits: 51,
+        ceiling,
+      }),
+    ).toBe(true);
   });
 });

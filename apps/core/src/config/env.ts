@@ -134,6 +134,11 @@ const baseEnvSchema = z.object({
     .default("deterministic"),
   SOKO_BOT_CREDITS_PER_USD: z.coerce.number().positive().default(100),
   SOKO_BOT_MIN_TURN_CREDITS: z.coerce.number().positive().default(0.1),
+  /** Most credits one hire may commit on a turn no owner asked for. */
+  SOKO_BOT_UNATTENDED_MAX_HIRE_CREDITS: z.coerce
+    .number()
+    .positive()
+    .default(50),
 
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),

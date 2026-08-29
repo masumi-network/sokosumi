@@ -92,6 +92,37 @@ export const SOKO_BOT_TEAMMATE_CAPABILITIES = [
   "get_job_status",
 ] as const satisfies readonly SokoBotCapability[];
 
+/**
+ * A turn another assistant asked for. The teammate ceiling plus the ability to
+ * answer: without `post_chat` a bot could be summoned but never reply, so a
+ * chain could never reach its second hop and the whole exchange would be one
+ * message into silence. Everything the owner keeps private stays unreadable,
+ * exactly as for a teammate.
+ */
+export const SOKO_BOT_BOT_TO_BOT_CAPABILITIES = [
+  ...SOKO_BOT_TEAMMATE_CAPABILITIES,
+  "post_chat",
+] as const satisfies readonly SokoBotCapability[];
+
+/**
+ * Whether a hire exceeds what a turn nobody asked for may commit.
+ *
+ * A turn with no owner message is composed from untrusted material — mail
+ * subjects, calendar titles, task comments — and hiring is the one tool that
+ * buys from a marketplace outright. Text that talks its way onto that route
+ * must not be able to spend the balance in one go. The owner asking for a
+ * hire in their own chat is unaffected.
+ */
+export function exceedsUnattendedHireBudget(params: {
+  source: string | null;
+  chainDepth: number;
+  maxCredits: number;
+  ceiling: number;
+}): boolean {
+  const unattended = params.source !== "CHAT" || params.chainDepth > 0;
+  return unattended && params.maxCredits > params.ceiling;
+}
+
 export const SOKO_BOT_ROUTE_CAPABILITIES = {
   DIRECT_RESPONSE: [
     ...DIRECT_READ_CAPABILITIES,
