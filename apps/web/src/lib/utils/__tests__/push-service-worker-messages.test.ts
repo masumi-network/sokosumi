@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
+  NOTIFICATION_SERVICE_WORKER_URL,
   SHOWS_NOTIFICATIONS_QUERY,
 } from "@/lib/utils/notification-service-worker";
 import deMessages from "@/messages/de.json";
@@ -18,7 +19,14 @@ import esMessages from "@/messages/es.json";
  * a changed value. This test does: edit a catalog string without editing the
  * worker and it fails. SOK-876 removes the copy and this guard with it.
  */
-const SERVICE_WORKER_PATH = join(process.cwd(), "public", "ably-push-sw.js");
+// Built from the URL production registers, not from the literal. Renaming the
+// constant alone would 404 the worker and take every banner with it, and a
+// hardcoded path here would keep passing over that.
+const SERVICE_WORKER_PATH = join(
+  process.cwd(),
+  "public",
+  NOTIFICATION_SERVICE_WORKER_URL,
+);
 
 const CATALOGS = {
   en: enMessages,

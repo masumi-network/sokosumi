@@ -4,14 +4,24 @@ import { createContext, runInContext } from "node:vm";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { notificationTargetSchema } from "@/lib/utils/notification-service-worker";
+import {
+  NOTIFICATION_SERVICE_WORKER_URL,
+  notificationTargetSchema,
+} from "@/lib/utils/notification-service-worker";
 
 /**
  * The worker ships as a plain script in `public/`, so it cannot be imported.
  * These tests run its source in a sandbox that stands in for the service
  * worker global, and drive it through a real `push` event.
  */
-const SERVICE_WORKER_PATH = join(process.cwd(), "public", "ably-push-sw.js");
+// Built from the URL production registers, not from the literal. Renaming the
+// constant alone would 404 the worker and take every banner with it, and a
+// hardcoded path here would keep passing over that.
+const SERVICE_WORKER_PATH = join(
+  process.cwd(),
+  "public",
+  NOTIFICATION_SERVICE_WORKER_URL,
+);
 
 interface WindowClientStub {
   focused: boolean;
