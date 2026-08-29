@@ -390,10 +390,10 @@ async function focusRoutingClient(client) {
  * does, a window in the origin holding transient activation (MDN,
  * `Clients.openWindow`), and the condition is per origin rather than per tab.
  * So a click that no tab would take usually cannot open a window either, and
- * there is nothing further to try. The handler above says why it does not
- * fall back to a tab that stayed hidden. Reported rather than thrown: the banner
- * is already closed, `waitUntil` has nothing to catch a rejection here, and a
- * click that reached nothing at all should not also be silent.
+ * there is nothing further to try. The click handler below says why it does
+ * not fall back to a tab that stayed hidden. Reported rather than thrown: the
+ * banner is already closed, `waitUntil` has nothing to catch a rejection here,
+ * and a click that reached nothing at all should not also be silent.
  */
 async function openAppWindow() {
   try {
