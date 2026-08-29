@@ -671,6 +671,10 @@ describe("usePushPreference", () => {
     });
 
     await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+    // That the row is off says nothing on its own: it starts off. What is
+    // pinned here is that the mount consulted the browser and found nothing,
+    // so a subscription lost while the reader was away reads as lost.
+    expect(getSubscriptionMock).toHaveBeenCalled();
     expect(result.current.isDeviceEnabled).toBe(false);
     expect(result.current.isAccountEnabled).toBe(true);
   });
