@@ -51,6 +51,12 @@ function hasAblyPushRegistration(): boolean {
  * that request lands or not (W3C Push API, `unsubscribe()` steps 4-5). So the
  * step that stops delivery is never the one this cap cuts.
  *
+ * Chromium matches: `PushMessagingServiceImpl::DidClearPushSubscriptionId`
+ * runs the unsubscribe callback "*before* asking the InstanceIDDriver/
+ * GCMDriver to unsubscribe, since that's a slow process involving network
+ * retries, and by this point enough local state has been deleted that the
+ * subscription is inactive".
+ *
  * The Ably half is two REST calls, and `ably@2.28.0` allows each of them a 10s
  * request timeout on top of 15s of fallback-host retries
  * (`build/ably.js:790-791`). An Ably incident or a captive portal would
