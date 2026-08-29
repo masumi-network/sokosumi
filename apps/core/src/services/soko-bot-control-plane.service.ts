@@ -143,6 +143,14 @@ export interface StartSokoBotTurnInput {
     responseMessageId: string;
     /** Teammate who asked; turns they trigger are read-only. */
     requestedByUserId?: string | null;
+    /**
+     * Another bot asked. Read-only like a teammate — it answers into a room
+     * neither of them owns — and counted against the allowance for unprompted
+     * work, because no person decided this turn should happen.
+     */
+    askedByBot?: boolean;
+    /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
+    chainDepth?: number;
   };
   scheduleReservation?: {
     runId: string;
@@ -1641,8 +1649,9 @@ export class SokoBotControlPlane {
       );
     }
     const requestedByTeammate =
-      !!input.chat?.requestedByUserId &&
-      input.chat.requestedByUserId !== input.userId;
+      input.chat?.askedByBot === true ||
+      (!!input.chat?.requestedByUserId &&
+        input.chat.requestedByUserId !== input.userId);
     // A teammate may ask the owner's bot questions but never spend the owner's
     // credits, create work in their name, or read the owner's private surfaces:
     // the answer is published back into the shared room.
@@ -1746,6 +1755,7 @@ export class SokoBotControlPlane {
             requestedByUserId: requestedByTeammate
               ? input.chat?.requestedByUserId
               : null,
+            chainDepth: input.chat?.chainDepth ?? 0,
             classification: jsonInput(classification.classification),
             classifierModel: classification.model,
             classifierVersion: classification.version,

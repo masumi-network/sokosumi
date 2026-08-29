@@ -1,5 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
-import { composeSokoBotIntroduction } from "@sokosumi/soko-bot";
+import {
+  composeSokoBotIntroduction,
+  isSokoBotSilentAnswer,
+} from "@sokosumi/soko-bot";
 import { getFirstName } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
@@ -105,11 +108,12 @@ interface ChatLinkedTurn {
   completedAt: Date | null;
   chatMentionId: string | null;
   chatResponseMessageId: string | null;
+  chainDepth: number;
 }
 
 async function publishRealtime(
   messageId: string,
-  eventType: "update" | "mention_status",
+  eventType: "update" | "mention_status" | "delete",
 ): Promise<void> {
   const { publishChatRoomMessageRealtimeById } = await import(
     "@/helpers/chat-room-message-realtime"
@@ -132,6 +136,7 @@ async function loadChatLinkedTurn(turnId: string): Promise<
       id: true,
       status: true,
       finalAnswer: true,
+      chainDepth: true,
       errorDetail: true,
       startedAt: true,
       createdAt: true,
@@ -306,8 +311,7 @@ export async function deliverSokoBotTurnToDirectRoom(
   if (!turn || turn.source === "CHAT" || turn.chatMention) return;
   if (turn.status !== "COMPLETED") return;
   const answer = turn.finalAnswer?.trim() ?? "";
-  if (!answer || /^nothing (new worth flagging|to add)\.?$/i.test(answer))
-    return;
+  if (isSokoBotSilentAnswer(answer)) return;
   const coworkerId = turn.sokoBot.coworker?.id;
   if (!coworkerId) return;
   const room = await prisma.chatRoom.findFirst({
@@ -351,6 +355,26 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
 
   const answer = turn.finalAnswer?.trim() ?? "";
   const succeeded = turn.status === "COMPLETED" && answer.length > 0;
+  // A bot answering another bot may say nothing at all. Without this every
+  // hop must produce a message, so a depth ceiling would bound how long an
+  // exchange runs without ever letting one end early — and "thanks" would
+  // cost a turn. The placeholder goes away rather than becoming an answer.
+  const stayedSilent =
+    turn.chainDepth > 0 &&
+    turn.status === "COMPLETED" &&
+    isSokoBotSilentAnswer(answer);
+  if (stayedSilent) {
+    await prisma.$transaction(async (tx) => {
+      await tx.chatRoomMention.updateMany({
+        where: { id: mention.id, status: { in: ["pending", "sent"] } },
+        data: { status: "responded", error: null },
+      });
+      await tx.chatRoomMessage.delete({ where: { id: responseMessageId } });
+    });
+    await publishRealtime(responseMessageId, "delete");
+    await publishRealtime(mention.messageId, "mention_status");
+    return;
+  }
   const startedAtMs = (turn.startedAt ?? turn.createdAt).getTime();
   const endedAtMs = (turn.completedAt ?? new Date()).getTime();
 

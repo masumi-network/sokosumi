@@ -46,6 +46,7 @@ export {
 } from "./policy.js";
 export {
   dueFollowUps,
+  isSokoBotSilentAnswer,
   SOKO_BOT_PROACTIVE_RULES,
   SOKO_BOT_SYSTEM_SCHEDULES,
   type SokoBotDueFollowUp,

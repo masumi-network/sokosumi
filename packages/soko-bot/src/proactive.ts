@@ -1,4 +1,20 @@
 /**
+ * The prompt tells a bot with nothing worth saying to answer exactly
+ * `Nothing to add.` — this recognises that, so silence stays silence instead
+ * of becoming a message nobody wanted. Callers treat it as a successful turn
+ * that posts nothing.
+ */
+export function isSokoBotSilentAnswer(
+  answer: string | null | undefined,
+): boolean {
+  const trimmed = answer?.trim() ?? "";
+  return (
+    trimmed.length === 0 ||
+    /^nothing (new worth flagging|to add)\.?$/i.test(trimmed)
+  );
+}
+
+/**
  * What a Soko Bot does on its own: fixed rhythms (system schedules) and
  * deterministic triggers. Single source for Core's behaviour and the
  * console's "How it works" explanation.

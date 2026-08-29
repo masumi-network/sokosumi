@@ -516,6 +516,13 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
               name: true,
             },
           },
+          senderCoworker: {
+            select: {
+              id: true,
+              name: true,
+              sokoBot: { select: { userId: true, archivedAt: true } },
+            },
+          },
         },
       },
     },
@@ -558,9 +565,24 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
-  const userId = mention.message.senderUserId;
+  // A bot may summon another bot, but only in an organization room: a personal
+  // room has no shared workspace to run in, and every bot conversation stays
+  // somewhere a person can see it.
+  const senderBot = mention.message.senderCoworker?.sokoBot ?? null;
+  const askedByBot = mention.message.senderUserId == null && senderBot != null;
+  if (askedByBot && !mention.message.room.organizationId) {
+    await failWithShell("Soko Bots can only talk to each other in a channel");
+    return;
+  }
+  // The sending bot's owner is the workspace fallback and the attribution:
+  // their assistant asked, so the console can say whose curiosity this was.
+  const userId = mention.message.senderUserId ?? senderBot?.userId ?? null;
   if (!userId) {
     await failWithShell("Mention sender is no longer available");
+    return;
+  }
+  if (askedByBot && senderBot?.archivedAt) {
+    await failWithShell("The Soko Bot that asked is no longer active");
     return;
   }
 
@@ -583,6 +605,8 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       userId,
       workspaceId,
       failWithShell,
+      askedByBot,
+      chainDepth: mention.chainDepth,
     });
     return;
   }
@@ -1005,8 +1029,18 @@ async function runSokoBotMentionDispatch(params: {
   userId: string;
   workspaceId: string;
   failWithShell: (error: unknown) => Promise<void>;
+  askedByBot: boolean;
+  chainDepth: number;
 }): Promise<void> {
-  const { mentionId, mention, userId, workspaceId, failWithShell } = params;
+  const {
+    mentionId,
+    mention,
+    userId,
+    workspaceId,
+    failWithShell,
+    askedByBot,
+    chainDepth,
+  } = params;
   const bot = mention.coworker.sokoBot;
   if (!bot || bot.archivedAt) {
     await failWithShell("This Soko Bot is no longer active");
@@ -1015,7 +1049,7 @@ async function runSokoBotMentionDispatch(params: {
   // Teammates may talk to the bot in organization rooms; the turn runs as
   // the owner (their bot, their credits) with a read-only ceiling, and the
   // console shows who asked. Personal rooms stay owner-only.
-  const isOwner = bot.userId === userId;
+  const isOwner = bot.userId === userId && !askedByBot;
   if (!isOwner && !mention.message.room.organizationId) {
     await failWithShell("Only the owner can message this assistant here");
     return;
@@ -1092,7 +1126,9 @@ async function runSokoBotMentionDispatch(params: {
       chat: {
         mentionId,
         responseMessageId: placeholderId,
-        requestedByUserId: isOwner ? null : userId,
+        requestedByUserId: isOwner && !askedByBot ? null : userId,
+        askedByBot,
+        chainDepth,
       },
     });
     let acceptTimer: ReturnType<typeof setTimeout> | undefined;

@@ -1,5 +1,5 @@
 import type { SokoBotTurnSource } from "@sokosumi/database";
-import { SOKO_BOT_VERSIONS } from "@sokosumi/soko-bot";
+import { isSokoBotSilentAnswer, SOKO_BOT_VERSIONS } from "@sokosumi/soko-bot";
 
 import prisma from "@/lib/db/prisma";
 
@@ -53,9 +53,7 @@ function isProactiveTurn(turn: {
   ) {
     return false;
   }
-  return !/^nothing (new worth flagging|to add)\.?$/i.test(
-    turn.finalAnswer.trim(),
-  );
+  return !isSokoBotSilentAnswer(turn.finalAnswer);
 }
 
 /** Real-run judge scores and owner feedback over time and per version. */
