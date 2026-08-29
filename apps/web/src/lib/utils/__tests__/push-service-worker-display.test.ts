@@ -526,15 +526,15 @@ describe("ably-push-sw notificationclick", () => {
   /**
    * `focus()` and `openWindow()` both reject with `InvalidAccessError` unless
    * a window in the origin holds transient activation (MDN), and that is a
-   * condition of the origin rather than of one tab. So the fallback is refused
-   * for the same reason the focus was, and the tab acting on the click while
-   * it stays in the background is the only answer left.
+   * condition of the origin rather than of one tab, so the two usually refuse
+   * together. Saying so is all that is left.
    *
-   * The refused window is asserted alongside the refused focus. An earlier
-   * version of this test let `openWindow` resolve, which is a browser that
-   * cannot exist, and it passed over a click that reached nothing.
+   * The withheld target is the point of the test. Acting on a click sets the
+   * active organization for the whole session and navigates the tab that took
+   * it, so a tab that never came forward would move the reader's front tab
+   * into another workspace. A click that goes nowhere is the better failure.
    */
-  it("hands the target to a tab that will not come forward", async () => {
+  it("withholds the target from a tab that would not come forward", async () => {
     const focus = vi.fn().mockRejectedValue(new Error("InvalidAccessError"));
     const postMessage = vi.fn();
     const worker = loadServiceWorker({
@@ -546,10 +546,7 @@ describe("ably-push-sw notificationclick", () => {
     await worker.dispatchNotificationClick(MENTION_TARGET);
 
     expect(focus).toHaveBeenCalledTimes(1);
-    expect(postMessage).toHaveBeenCalledWith({
-      type: "sokosumi:notification-click",
-      target: MENTION_TARGET,
-    });
+    expect(postMessage).not.toHaveBeenCalled();
     expect(worker.openedWindows).toEqual([]);
     expect(worker.reported).toHaveBeenCalledTimes(1);
   });
@@ -568,16 +565,23 @@ describe("ably-push-sw notificationclick", () => {
     expect(worker.reported).toHaveBeenCalledTimes(1);
   });
 
-  it("opens a window when the tab refuses the focus", async () => {
-    const focus = vi.fn().mockRejectedValue(new Error("InvalidAccessError"));
+  /**
+   * The missing activation above is the one refusal MDN names, and it stops
+   * the new window too. A `focus()` refused for any other reason leaves the
+   * window open to try, and the reader gets the app rather than nothing.
+   */
+  it("opens a window when a tab refuses the focus by itself", async () => {
+    const focus = vi.fn().mockRejectedValue(new Error("gone"));
+    const postMessage = vi.fn();
     const worker = loadServiceWorker({
       isChromium: true,
-      windows: [appPage({ focused: false, focus })],
+      windows: [appPage({ focused: false, focus, postMessage })],
     });
 
     await worker.dispatchNotificationClick(MENTION_TARGET);
 
     expect(focus).toHaveBeenCalledTimes(1);
+    expect(postMessage).not.toHaveBeenCalled();
     expect(worker.openedWindows).toEqual(["/"]);
   });
 

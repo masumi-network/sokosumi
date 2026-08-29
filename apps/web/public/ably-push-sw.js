@@ -373,8 +373,10 @@ async function focusRoutingClient(client) {
  * This rejects with `InvalidAccessError` under the same condition `focus()`
  * does, a window in the origin holding transient activation (MDN,
  * `Clients.openWindow`), and the condition is per origin rather than per tab.
- * So a refused focus means a refused window too, and this is where a click
- * with no activation behind it ends. Reported rather than thrown: the banner
+ * So a click that no tab would take usually cannot open a window either, and
+ * there is nothing further to try: handing the target to a tab that stayed
+ * hidden would switch the reader's workspace behind their back, which is
+ * worse than the click going nowhere. Reported rather than thrown: the banner
  * is already closed, `waitUntil` has nothing to catch a rejection here, and a
  * click that reached nothing at all should not also be silent.
  */
@@ -405,19 +407,15 @@ self.addEventListener("notificationclick", (event) => {
       });
 
       const open = await findRoutingClient(windows);
-      if (open) {
-        // The target goes out whether or not the tab takes the focus. Both
-        // ways of answering a click need transient activation in the origin,
-        // so a tab that will not come forward means no new window will open
-        // either. A tab that stays in the background can still mark the
-        // notification read and route itself, and it is the only thing left
-        // that works.
+      // Only a tab that came forward is handed the target. Acting on a click
+      // sets the active organization for the whole session and navigates the
+      // tab that took it, so a tab that stayed hidden would move the reader's
+      // front tab into another workspace on its own.
+      if (open && (await focusRoutingClient(open))) {
         if (target) {
           open.postMessage({ type: CLICK_MESSAGE_TYPE, target });
         }
-        if (await focusRoutingClient(open)) {
-          return;
-        }
+        return;
       }
 
       await openAppWindow();
