@@ -1,5 +1,8 @@
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 
+import { ProjectsPageSkeleton } from "@/app/projects/components/projects-loading-view";
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import {
   PROJECTS_PAGE_LIMIT,
@@ -17,9 +20,13 @@ export const metadata = {
   title: "Projects",
 };
 
-export default async function ProjectsPage({
-  searchParams,
-}: ProjectsPageProps) {
+/**
+ * Async hole for Instant Nav. `await connection()` first so PPR shell probing
+ * does not soft-reject cookies()/headers()-bound work while filling Suspense.
+ */
+export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
+  await connection();
+
   const { create } = await searchParams;
   const projectsPagePromise = projectService.listProjects({
     limit: PROJECTS_PAGE_LIMIT,
@@ -59,5 +66,13 @@ export default async function ProjectsPage({
         }}
       />
     </div>
+  );
+}
+
+export default function ProjectsPage({ searchParams }: ProjectsPageProps) {
+  return (
+    <Suspense fallback={<ProjectsPageSkeleton />}>
+      <ProjectsPageContent searchParams={searchParams} />
+    </Suspense>
   );
 }
