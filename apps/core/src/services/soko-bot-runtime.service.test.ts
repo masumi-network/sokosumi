@@ -61,6 +61,7 @@ const {
   transactionChatMentionCreateManyMock,
   transactionChatRoomUpdateMock,
   chatCoworkerMemberFindManyMock,
+  chatMessageCountMock,
   turnUpdateManyMock,
   workspaceFindFirstMock,
   availabilityMock,
@@ -122,6 +123,7 @@ const {
   transactionChatMentionCreateManyMock: vi.fn(),
   transactionChatRoomUpdateMock: vi.fn(),
   chatCoworkerMemberFindManyMock: vi.fn(),
+  chatMessageCountMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   availabilityMock: vi.fn(),
@@ -143,7 +145,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: chatRoomFindFirstMock,
       findMany: chatRoomFindManyMock,
     },
-    chatRoomMessage: { findMany: chatMessageFindManyMock },
+    chatRoomMessage: {
+      findMany: chatMessageFindManyMock,
+      count: chatMessageCountMock,
+    },
     chatRoomCoworkerMember: { findMany: chatCoworkerMemberFindManyMock },
     sokoBotContextSnapshot: { findFirst: contextSnapshotFindFirstMock },
     sokoBotDelegation: {
@@ -250,7 +255,10 @@ vi.mock("@sokosumi/masumi", () => ({
   createAgentClient: createAgentClientMock,
 }));
 
-import { MAX_CHAT_CHAIN_DEPTH } from "@/lib/soko-bot/chat-chain";
+import {
+  MAX_CHAT_CHAIN_DEPTH,
+  ROOM_BOT_MESSAGES_PER_HOUR,
+} from "@/lib/soko-bot/chat-chain";
 import {
   isSokoBotDecisionTargetAllowed,
   SokoBotRuntimeAuthorizationError,
@@ -2343,6 +2351,7 @@ describe("post_chat chain depth", () => {
     chatCoworkerMemberFindManyMock.mockResolvedValue([
       { coworker: { id: "cow_other", name: "Jarvis", slug: "jarvis" } },
     ]);
+    chatMessageCountMock.mockResolvedValue(0);
     transactionChatMessageCreateMock.mockResolvedValue({
       id: "msg_1",
       createdAt: new Date("2026-08-29T10:00:00.000Z"),
@@ -2390,6 +2399,47 @@ describe("post_chat chain depth", () => {
     expect(transactionChatMessageCreateMock).toHaveBeenCalled();
     expect(transactionChatMentionCreateManyMock).not.toHaveBeenCalled();
     expect(result).toMatchObject({ summoned: 0 });
+  });
+
+  it("refuses to post once the room has had its hour's worth", async () => {
+    // Independent of the hop counter on purpose: depth reasoning is pairwise,
+    // so three bots in a triangle could defeat it.
+    const authorized = armPostChat(0);
+    chatMessageCountMock.mockResolvedValue(ROOM_BOT_MESSAGES_PER_HOUR);
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](authorized, {
+        roomId: "room_1",
+        content: "@jarvis still here?",
+      }),
+    ).rejects.toThrow(/rate limited/i);
+
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("tells the reader how far the chain has run", async () => {
+    const authorized = armPostChat(1);
+    chatMessageCountMock.mockResolvedValue(3);
+
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "@jarvis one detail",
+    });
+
+    expect(transactionChatMessageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: {
+            soko_bot_chain: {
+              depth: 2,
+              max_depth: MAX_CHAT_CHAIN_DEPTH,
+              room_messages_this_hour: 4,
+              room_messages_per_hour: ROOM_BOT_MESSAGES_PER_HOUR,
+            },
+          },
+        }),
+      }),
+    );
   });
 
   it("never summons itself", async () => {

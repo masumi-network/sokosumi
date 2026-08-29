@@ -26,3 +26,15 @@ export function nextChatChainDepth(turnChainDepth: number): number {
 export function chatChainMayWake(chainDepth: number): boolean {
   return chainDepth <= MAX_CHAT_CHAIN_DEPTH;
 }
+
+/**
+ * Bot-authored messages one room accepts per hour, whoever wrote them.
+ *
+ * Deliberately independent of the hop counter. Depth reasoning is pairwise, so
+ * three bots in a triangle can defeat it if a reset is ever wrong; this is the
+ * backstop that does not care how the traffic was produced. It bounds noise in
+ * a shared room as much as it bounds cost.
+ */
+export const ROOM_BOT_MESSAGES_PER_HOUR = 20;
+
+export const ROOM_BOT_MESSAGE_WINDOW_MS = 60 * 60 * 1_000;

@@ -62,7 +62,10 @@ import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import {
   chatChainMayWake,
+  MAX_CHAT_CHAIN_DEPTH,
   nextChatChainDepth,
+  ROOM_BOT_MESSAGE_WINDOW_MS,
+  ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { resolveMentionedCoworkerIds } from "@/routes/v1/chats/rooms/helpers";
@@ -846,6 +849,25 @@ export class SokoBotRuntimeService {
     // counted: past the ceiling the message still posts and simply stops being
     // a summons, so an unattended exchange cannot run for ever.
     const chainDepth = nextChatChainDepth(authorized.turn.chainDepth);
+    // Backstop the hop counter cannot provide: it reasons pairwise, so three
+    // bots in a triangle could defeat it. This does not care who produced the
+    // traffic, only how much of it a room has taken lately.
+    const botMessagesThisHour = await prisma.chatRoomMessage.count({
+      where: {
+        roomId: room.id,
+        senderCoworkerId: { not: null },
+        deletedAt: null,
+        createdAt: {
+          gte: new Date(Date.now() - ROOM_BOT_MESSAGE_WINDOW_MS),
+        },
+      },
+    });
+    const throttled = botMessagesThisHour >= ROOM_BOT_MESSAGES_PER_HOUR;
+    if (throttled) {
+      throw new SokoBotRuntimeValidationError(
+        `This room has taken ${botMessagesThisHour} assistant messages in the last hour and is rate limited. Say nothing further here for now.`,
+      );
+    }
     const roomCoworkers = chatChainMayWake(chainDepth)
       ? await prisma.chatRoomCoworkerMember.findMany({
           where: { roomId: room.id, coworkerId: { not: room.coworkerId } },
@@ -864,6 +886,16 @@ export class SokoBotRuntimeService {
           roomId: room.id,
           senderCoworkerId: room.coworkerId,
           content: input.content,
+          // Lets the reader see, on hover, that this is part of an assistant
+          // exchange and how close it is to the point where it stops.
+          metadata: {
+            soko_bot_chain: {
+              depth: chainDepth,
+              max_depth: MAX_CHAT_CHAIN_DEPTH,
+              room_messages_this_hour: botMessagesThisHour + 1,
+              room_messages_per_hour: ROOM_BOT_MESSAGES_PER_HOUR,
+            },
+          },
         },
         select: { id: true, createdAt: true },
       });

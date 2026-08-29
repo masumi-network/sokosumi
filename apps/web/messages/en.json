@@ -1622,7 +1622,10 @@
         "feedbackThanks": "Thanks, noted.",
         "approvals": "{count, plural, one {# approval waiting} other {# approvals waiting}}",
         "review": "Review on the assistant page",
-        "task": "Task"
+        "task": "Task",
+        "chainDepth": "Assistant-to-assistant reply {depth} of {max}. A person writing here resets the count.",
+        "chainRoomRate": "{count} of {max} assistant messages in this room this hour.",
+        "chainLastHop": "This is the last hop — it will not wake anyone else."
       }
     },
     "Tasks": {
