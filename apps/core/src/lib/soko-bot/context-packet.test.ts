@@ -572,6 +572,37 @@ describe("ContextPacketBuilder", () => {
     }
   });
 
+  it("keeps the newest exchange when trimming a packet over budget", async () => {
+    // Newest first, as the query returns them; the packet renders chronologically.
+    recentTurnFindManyMock.mockResolvedValue(
+      Array.from({ length: 12 }, (_, index) =>
+        recentTurn(`turn-${11 - index}`, "y".repeat(1_200), "y".repeat(2_500)),
+      ),
+    );
+    recentTurnCountMock.mockResolvedValue(12);
+    taskFindManyMock.mockResolvedValue(
+      Array.from({ length: 24 }, (_, index) => ({
+        ...task(`task-${index}`, "界".repeat(2_000)),
+        linksTo: [],
+        _count: { linksTo: 0 },
+      })),
+    );
+    taskCountMock.mockResolvedValue(24);
+
+    const result = await new ContextPacketBuilder().build(buildInput());
+
+    expect(result.byteSize).toBeLessThanOrEqual(
+      SOKO_BOT_CONTEXT_PACKET_MAX_BYTES,
+    );
+    // Something had to go, but the newest exchanges survive, in order.
+    expect(result.packet.recentTurns.length).toBeLessThan(12);
+    expect(result.packet.recentTurns.map((turn) => turn.id).slice(-3)).toEqual([
+      "turn-9",
+      "turn-10",
+      "turn-11",
+    ]);
+  });
+
   it("withholds the owner's private surfaces from a teammate turn", async () => {
     // A teammate mention runs as the owner and answers into the shared room,
     // so the packet must not carry what only the owner should see.
