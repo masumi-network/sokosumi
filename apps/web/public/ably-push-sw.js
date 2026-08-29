@@ -13,12 +13,15 @@
  * written, so it never passes through the TypeScript build. Its copies of app
  * constants are guarded by tests instead of by the compiler.
  *
- * That constraint is also why two decisions exist twice. `canSkipDisplay` here
- * answers the same question as `shouldShowBrowserNotification` in
- * `lib/utils/browser-notification.ts`, and `buildTarget` here builds the same
- * shape as `toNotificationTarget` in `lib/utils/notification-service-worker.ts`.
- * The spec wants one pure function both paths call; SOK-876 owns that renderer,
- * and it takes these two pairs and the catalog below with it.
+ * That constraint is also why two decisions exist twice. `buildTarget` here
+ * builds the same shape as `toNotificationTarget` in
+ * `lib/utils/notification-service-worker.ts`. `canSkipDisplay` here decides
+ * the focused-page suppression that `shouldShowBrowserNotification` in
+ * `lib/utils/browser-notification.ts` decides for the page, from different
+ * inputs and in the opposite direction: the worker sees neither `isRead` nor
+ * the permission, and reads focus from `clients.matchAll` rather than from the
+ * document. The spec wants one pure function both paths call; SOK-876 owns
+ * that renderer, and it takes these two pairs and the catalog below with it.
  */
 
 /**
