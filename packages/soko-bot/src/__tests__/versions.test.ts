@@ -35,6 +35,7 @@ describe("versions", () => {
     // silence has to be the expected reply rather than a permitted one.
     const prompt = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID).systemPrompt;
     expect(prompt).toMatch(/another assistant addresses you/i);
+    expect(prompt).toMatch(/you have no chat tools on that turn/i);
     expect(prompt).toMatch(/Never acknowledge, thank, confirm receipt/i);
     expect(prompt).toMatch(/Nothing to add\./);
   });

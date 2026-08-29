@@ -255,7 +255,29 @@ async function failMentionThoughtPlaceholder(params: {
         },
       },
     })
-    .catch(() => undefined);
+    // Swallowing this once left the bubble streaming for ever while the
+    // mention was marked terminally failed, so nothing would revisit it. One
+    // retry, then delete: an empty space is honest, a spinner that never
+    // stops is not.
+    .catch(async () => {
+      await prisma.chatRoomMessage
+        .update({
+          where: { id: params.placeholderId as string },
+          data: {
+            content: "",
+            metadata: {
+              in_reply_to_message_id: params.sourceMessageId,
+              mention_id: params.mentionId,
+              mention_failed: true,
+            },
+          },
+        })
+        .catch(async () => {
+          await prisma.chatRoomMessage
+            .delete({ where: { id: params.placeholderId as string } })
+            .catch(() => undefined);
+        });
+    });
   await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
 }
 

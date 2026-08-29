@@ -527,6 +527,16 @@ const TURN_CHAT_ATTRIBUTION_INCLUDE = {
   },
 } as const;
 
+/** A turn the bot decided to take rather than one a person asked for. */
+function unpromptedTurn(turn: { source: string; chainDepth: number }): boolean {
+  return (
+    turn.source === "SCHEDULE" ||
+    turn.source === "EVENT" ||
+    turn.source === "INGEST" ||
+    turn.chainDepth > 0
+  );
+}
+
 export class SokoBotControlPlane {
   constructor(
     private readonly runtime: SokoBotRuntime = getSokoBotRuntime(),
@@ -742,10 +752,7 @@ export class SokoBotControlPlane {
     // Same rule as crash recovery: an unprompted turn is not resumed once the
     // owner has paused that work.
     if (
-      (turn.source === "SCHEDULE" ||
-        turn.source === "EVENT" ||
-        turn.source === "INGEST" ||
-        turn.chainDepth > 0) &&
+      unpromptedTurn(turn) &&
       (bot.proactivePaused || getEnv().SOKO_BOT_PROACTIVE_PAUSED)
     ) {
       throw new SokoBotBusyError(
@@ -941,10 +948,7 @@ export class SokoBotControlPlane {
     // the owner has since paused unprompted work — the pause would look
     // ignored, and this turn can still spend.
     if (
-      (turn.source === "SCHEDULE" ||
-        turn.source === "EVENT" ||
-        turn.source === "INGEST" ||
-        turn.chainDepth > 0) &&
+      unpromptedTurn(turn) &&
       (turn.sokoBot.proactivePaused || getEnv().SOKO_BOT_PROACTIVE_PAUSED)
     ) {
       return null;
@@ -952,6 +956,17 @@ export class SokoBotControlPlane {
 
     const leaseToken = randomUUID();
     const claimedAt = new Date();
+    // Re-read at the moment of the claim: the check above ran against a row
+    // loaded before the owner had any chance to act, and this turn can spend.
+    if (unpromptedTurn(turn)) {
+      const now = await prisma.sokoBot.findUnique({
+        where: { id: turn.sokoBotId },
+        select: { proactivePaused: true },
+      });
+      if (now?.proactivePaused || getEnv().SOKO_BOT_PROACTIVE_PAUSED) {
+        return null;
+      }
+    }
     const claimed = await prisma.sokoBotTurn.updateMany({
       where: {
         id: turn.id,

@@ -124,7 +124,7 @@ export function classifyDeterministically(
     // bot answered that it had no way to reach them — while holding the tool.
     // The whitespace before @ is load-bearing: it separates a handle from the
     // local part of an email address, so "cc finance@acme.com" stays a read.
-    /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in|get)\b[^@]{0,60}\s@[a-z0-9][a-z0-9._-]*/,
+    /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in)\b[^@]{0,60}\s@[a-z0-9][a-z0-9._-]*/,
   ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,

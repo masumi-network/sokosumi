@@ -8,6 +8,13 @@
 -- first draft did not move at all.
 --
 -- Written to be a no-op wherever the corrected version already ran.
+--
+-- Known limit, stated rather than papered over: if a database ran the first
+-- draft *while* an authored "v14" existed, that draft promoted built-in bots
+-- to the same string. The two kinds of pin are then indistinguishable, and
+-- this repair moves both onto the authored slug. No production or preview
+-- database is known to be in that state — built-in v14 ships here for the
+-- first time — but if one is, its built-in pins must be reset by hand.
 DO $$
 DECLARE
   target TEXT;

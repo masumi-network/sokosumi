@@ -93,19 +93,21 @@ export const SOKO_BOT_TEAMMATE_CAPABILITIES = [
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
- * A turn another assistant asked for. The teammate ceiling plus the ability to
- * answer: without `post_chat` a bot could be summoned but never reply, so a
- * chain could never reach its second hop and the whole exchange would be one
- * message into silence. Everything the owner keeps private stays unreadable,
- * exactly as for a teammate.
+ * A turn another assistant asked for: the teammate ceiling, and nothing more.
+ *
+ * A consulted assistant answers by finishing its turn — the reply is posted
+ * for it, in the room it was asked in. It gets no `post_chat`, which means it
+ * cannot summon a third assistant, so a chain is one hop deep by construction
+ * rather than by a counter. That also removes the only way it could post the
+ * same answer twice, and the only way a room id supplied by the asking bot
+ * could steer it somewhere its own owner cannot see.
+ *
+ * The cost is that A cannot ask B to go and consult C. That is deliberate: an
+ * assistant deciding on its own to involve another is the step with nobody in
+ * the room to notice it, and a person can always ask C directly.
  */
 export const SOKO_BOT_BOT_TO_BOT_CAPABILITIES = [
   ...SOKO_BOT_TEAMMATE_CAPABILITIES,
-  // `post_chat` takes a room id, and a mention prompt names the room rather
-  // than identifying it, so without `list_chats` a bot could be asked to
-  // consult a third assistant and have no way to find where.
-  "list_chats",
-  "post_chat",
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
