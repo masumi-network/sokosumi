@@ -59,6 +59,7 @@ const {
   turnFindUniqueMock,
   turnUpdateManyMock,
   workspaceFindFirstMock,
+  availabilityMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
@@ -115,9 +116,13 @@ const {
   turnFindUniqueMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
+  availabilityMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/services/soko-bot-availability.service", () => ({
+  getSokoBotAvailability: availabilityMock,
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
@@ -329,6 +334,11 @@ function memoryMarkdown(activeGoal: string): string {
 describe("SokoBotRuntimeService authorization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({
+      disabled: false,
+      disabledAt: null,
+      disabledReason: null,
+    });
     getEnvMock.mockReturnValue({
       SOKO_BOT_ENABLED: true,
       SOKO_BOT_EVE_PROJECT_ID: "prj_soko_bot",
@@ -380,6 +390,21 @@ describe("SokoBotRuntimeService authorization", () => {
       status: "PENDING",
       expiresAt: new Date(Date.now() + 60_000),
     });
+  });
+
+  it("stops a turn already running when the administrator switch is thrown", async () => {
+    // The switch has to reach work that started before it was thrown, not only
+    // new turns; authorize runs before every tool call, so it stops there.
+    availabilityMock.mockResolvedValue({
+      disabled: true,
+      disabledAt: new Date(),
+      disabledReason: "Paused by an administrator",
+    });
+
+    const service = new SokoBotRuntimeService();
+    await expect(
+      service.authorize({ ...SCOPE, capability: "create_task" }),
+    ).rejects.toThrow(SokoBotRuntimeAuthorizationError);
   });
 
   it("denies capability execution after cancellation is requested", async () => {

@@ -1386,7 +1386,13 @@ export class SokoBotControlPlane {
           const { judgeTurnQuality } = await import(
             "@/services/soko-bot-lab-judge.service"
           );
-          void judgeTurnQuality(input.turnId).catch((error) => {
+          // A turn still in flight when the switch was thrown settles here.
+          // Scoring it is another model call, so it waits until the feature is
+          // switched back on.
+          const judgeAllowed = !(await getSokoBotAvailability()).disabled;
+          void (
+            judgeAllowed ? judgeTurnQuality(input.turnId) : Promise.resolve()
+          ).catch((error) => {
             console.error("Soko Bot turn judge failed", {
               turnId: input.turnId,
               error: error instanceof Error ? error.message : "unknown",
