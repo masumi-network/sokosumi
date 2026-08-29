@@ -7,7 +7,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { releasePushDeviceOnSignOut } from "@/lib/ably/release-push-device";
+import { releasePushDeviceOnSignOut } from "@/lib/ably/release-push-device.client";
 import { authClient, useSession } from "@/lib/auth/auth.client";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 

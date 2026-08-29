@@ -6,6 +6,33 @@ import {
 } from "@/lib/utils/notification-service-worker";
 
 /**
+ * Where `ably@2.28.0` records that this browser is a registered push device
+ * (`build/push.js`, alongside `ably.push.deviceIdentityToken` and
+ * `ably.push.activationState`).
+ */
+const ABLY_PUSH_DEVICE_ID_KEY = "ably.push.deviceId";
+
+/**
+ * Whether Ably still counts this browser as one of its push devices.
+ *
+ * Read separately from the browser subscription, because the two come apart.
+ * `activatePush` already heals the case: a subscription can die on its own
+ * (permission revoked, storage cleared, a half-failed disable) while Ably's
+ * device record stays. That device is still subscribed to the previous
+ * reader's notifications channel, and the next reader's activation reuses the
+ * same id and adds their channel beside it, so one browser ends up delivering
+ * both. Releasing on the record too is what stops that.
+ */
+function hasAblyPushDevice(): boolean {
+  try {
+    return localStorage.getItem(ABLY_PUSH_DEVICE_ID_KEY) !== null;
+  } catch {
+    // Reading storage throws outright where the browser blocks site data.
+    return false;
+  }
+}
+
+/**
  * Drop this browser's push registration before an explicit sign-out.
  *
  * Web Push needs no session. The push service keeps delivering to the
@@ -24,14 +51,14 @@ import {
 export async function releasePushDeviceOnSignOut(
   userId: string | undefined,
 ): Promise<void> {
-  // The support check and the subscription read are both local, so a reader
-  // who never enabled push pays nothing and never loads the Ably SDK.
+  // The support check and both registration reads are local, so a reader who
+  // never enabled push pays nothing and never loads the Ably SDK.
   if (!userId || !isPushSupported()) {
     return;
   }
 
   try {
-    if (!(await hasWebPushSubscription())) {
+    if (!(await hasWebPushSubscription()) && !hasAblyPushDevice()) {
       return;
     }
 

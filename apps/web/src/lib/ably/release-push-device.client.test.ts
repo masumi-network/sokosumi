@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { releasePushDeviceOnSignOut } from "./release-push-device";
+import { releasePushDeviceOnSignOut } from "./release-push-device.client";
 
 const deactivatePushMock = vi.fn();
 const hasWebPushSubscriptionMock = vi.fn();
@@ -18,6 +18,7 @@ vi.mock("@/lib/utils/notification-service-worker", () => ({
 describe("releasePushDeviceOnSignOut", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     isPushSupportedMock.mockReturnValue(true);
     hasWebPushSubscriptionMock.mockResolvedValue(true);
     deactivatePushMock.mockResolvedValue(undefined);
@@ -34,8 +35,8 @@ describe("releasePushDeviceOnSignOut", () => {
   });
 
   /**
-   * The subscription read is local. A reader who never turned push on must not
-   * pay for the Ably SDK on their way out.
+   * Both registration reads are local. A reader who never turned push on must
+   * not pay for the Ably SDK on their way out.
    */
   it("loads nothing for a browser that never subscribed", async () => {
     hasWebPushSubscriptionMock.mockResolvedValue(false);
@@ -43,6 +44,21 @@ describe("releasePushDeviceOnSignOut", () => {
     await releasePushDeviceOnSignOut("user_1");
 
     expect(deactivatePushMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The browser subscription and Ably's device record come apart: a
+   * subscription dies on its own while the record stays. That device is still
+   * subscribed to this reader's notifications channel, and the next reader's
+   * activation reuses the same id and adds their channel beside it.
+   */
+  it("releases a device Ably still holds after the subscription died", async () => {
+    hasWebPushSubscriptionMock.mockResolvedValue(false);
+    localStorage.setItem("ably.push.deviceId", "device_1");
+
+    await releasePushDeviceOnSignOut("user_1");
+
+    expect(deactivatePushMock).toHaveBeenCalledWith("user_1");
   });
 
   it("reads nothing on a browser that cannot push at all", async () => {

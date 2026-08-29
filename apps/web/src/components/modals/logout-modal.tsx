@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { releasePushDeviceOnSignOut } from "@/lib/ably/release-push-device";
+import { releasePushDeviceOnSignOut } from "@/lib/ably/release-push-device.client";
 import { signOut, useSession } from "@/lib/auth/auth.client";
 
 interface LogoutModalProps {

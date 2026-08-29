@@ -8,7 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
-import { releasePushDeviceOnSignOut } from "@/lib/ably/release-push-device";
+import { releasePushDeviceOnSignOut } from "@/lib/ably/release-push-device.client";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
