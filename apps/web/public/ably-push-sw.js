@@ -303,6 +303,14 @@ async function showPushNotification(data) {
   const pushData = readPushData(data);
 
   const target = buildTarget(pushData);
+  if (!target) {
+    // Core sends an `id` on every push, so no target means the envelope did
+    // not arrive in a shape this worker reads. The banner below then carries
+    // the app name and nothing else, which on its own looks like a push that
+    // genuinely said nothing. Keys only: the values are the reader's own
+    // mention text.
+    console.error("Could not read the push payload", Object.keys(pushData));
+  }
 
   await self.registration.showNotification(APP_TITLE, {
     body: await buildBody(pushData),

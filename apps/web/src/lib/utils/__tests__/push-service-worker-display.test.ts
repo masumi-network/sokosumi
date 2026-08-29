@@ -310,6 +310,9 @@ describe("ably-push-sw display", () => {
         },
       },
     ]);
+    // A bare banner is what a push carrying nothing would look like too, so
+    // the report is the only thing that tells the two apart.
+    expect(worker.reported).toHaveBeenCalledTimes(1);
   });
 
   it("skips display on Chromium while a focused app page shows it instead", async () => {
