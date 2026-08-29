@@ -495,9 +495,9 @@ describe("usePushPreference", () => {
 
   /**
    * The page keeps the preferences query open, and TanStack refetches a stale
-   * one when the window comes back into view. The OS permission prompt takes
-   * the view and gives it back, so the account row's own path starts that
-   * read, and it carries the consent as it stood before the write.
+   * one when the tab is hidden and shown again. Enabling push waits on an OS
+   * prompt the reader paces, so a switch away and back can land inside the
+   * write, and the read it starts carries the consent as it stood before.
    */
   it("keeps the account row on the write, not on a read it outran", async () => {
     let landRefetch!: () => void;
@@ -517,8 +517,8 @@ describe("usePushPreference", () => {
       pending = result.current.setAccountEnabled(true);
     });
 
-    // The reader answers the prompt, the window comes back, and the refetch
-    // it starts reads Core as it stood before the write.
+    // The reader switches away while the prompt is up and comes back, and
+    // the refetch that starts reads Core as it stood before the write.
     getMyPreferencesMock.mockReturnValue(
       new Promise((resolve) => {
         landRefetch = () => resolve({ data: { pushOptIn: false } });

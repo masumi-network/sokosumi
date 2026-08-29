@@ -139,9 +139,9 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       });
       // A read that started before this write can answer after it, carrying
       // the consent as it stood before. The page keeps that query open, it
-      // goes stale after a minute, and it refetches when the window comes
-      // back into view: the OS permission prompt takes the view and gives it
-      // back, so the account row's own path is what starts the losing read.
+      // goes stale after a minute, and it refetches when the tab is hidden
+      // and shown again, or when the connection returns. Enabling push waits
+      // on an OS prompt the reader paces, which leaves room for either.
       // Retired here rather than left to paint the switch back off beside a
       // toast saying push is on.
       await queryClient.cancelQueries({
