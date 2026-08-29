@@ -502,6 +502,12 @@ describe("ably-push-sw notificationclick", () => {
     expect(Object.keys(worker.shown[0]?.options.data ?? {}).sort()).toEqual(
       Object.keys(notificationTargetSchema.shape).sort(),
     );
+    // The names alone would pass on `{ kind: undefined }`, which is what a
+    // Core field dropped from the payload builds. The app rejects that target
+    // and the click then does nothing at all, so parse it too.
+    expect(
+      notificationTargetSchema.safeParse(worker.shown[0]?.options.data).success,
+    ).toBe(true);
   });
 
   it("shows the banner when the focused page says it is not receiving", async () => {
