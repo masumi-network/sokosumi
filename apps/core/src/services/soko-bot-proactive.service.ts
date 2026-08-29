@@ -73,8 +73,13 @@ export async function proactiveGate(
       clientTurnId: { not: { startsWith: "lab:" } },
       // Only what the bot decided to do by itself. A teammate mentioning it in
       // a shared room is a person asking a question, the same as the owner
-      // typing one, and does not draw on the allowance for unprompted work.
-      source: { in: ["SCHEDULE", "EVENT", "INGEST"] },
+      // typing one, and does not draw on the allowance for unprompted work —
+      // but another bot mentioning it is a machine deciding, which is exactly
+      // what this allowance is for.
+      OR: [
+        { source: { in: ["SCHEDULE", "EVENT", "INGEST"] } },
+        { chainDepth: { gt: 0 } },
+      ],
     },
   });
   const limit = bot.proactiveDailyLimit;

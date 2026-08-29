@@ -38,11 +38,15 @@ beforeEach(() => {
 });
 
 describe("proactiveGate", () => {
-  it("counts only turns the bot started by itself", async () => {
+  it("counts what the bot decided to do, not what a person asked", async () => {
     await proactiveGate("bot-1", new Date("2026-08-29T12:00:00.000Z"));
 
     const where = turnCountMock.mock.calls[0]?.[0]?.where;
-    expect(where.source).toEqual({ in: ["SCHEDULE", "EVENT", "INGEST"] });
+    expect(where.OR).toEqual([
+      { source: { in: ["SCHEDULE", "EVENT", "INGEST"] } },
+      // Another bot asking is a machine deciding, so it counts.
+      { chainDepth: { gt: 0 } },
+    ]);
     // A teammate mentioning the bot is a person asking a question, not work
     // the bot decided to do; it must not draw on the unprompted allowance.
     expect(JSON.stringify(where)).not.toContain("requestedByUserId");

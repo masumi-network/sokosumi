@@ -60,7 +60,12 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
+import {
+  chatChainMayWake,
+  nextChatChainDepth,
+} from "@/lib/soko-bot/chat-chain";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import { resolveMentionedCoworkerIds } from "@/routes/v1/chats/rooms/helpers";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 
@@ -229,6 +234,8 @@ export interface SokoBotActionContext {
     // disabled the DRAFT-only rule for self-started work.
     versionId: string | null;
     source: string | null;
+    /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
+    chainDepth: number;
   };
   classificationConfidence: number;
   hasNegatedMutationIntent: boolean;
@@ -483,6 +490,7 @@ export class SokoBotRuntimeService {
         userMessage: true,
         versionId: true,
         source: true,
+        chainDepth: true,
         deadlineAt: true,
         leaseExpiresAt: true,
         capabilityNames: true,
@@ -641,6 +649,7 @@ export class SokoBotRuntimeService {
         eveSessionId: storedSessionId,
         versionId: turn.versionId,
         source: turn.source,
+        chainDepth: turn.chainDepth,
       },
       classificationConfidence:
         typeof turn.classification === "object" &&
@@ -833,6 +842,22 @@ export class SokoBotRuntimeService {
     input: { roomId: string; content: string },
   ) {
     const room = await this.requireChatMembership(authorized, input.roomId);
+    // Who this post summons. A bot may address another bot, but every hop is
+    // counted: past the ceiling the message still posts and simply stops being
+    // a summons, so an unattended exchange cannot run for ever.
+    const chainDepth = nextChatChainDepth(authorized.turn.chainDepth);
+    const roomCoworkers = chatChainMayWake(chainDepth)
+      ? await prisma.chatRoomCoworkerMember.findMany({
+          where: { roomId: room.id, coworkerId: { not: room.coworkerId } },
+          select: {
+            coworker: { select: { id: true, name: true, slug: true } },
+          },
+        })
+      : [];
+    const mentionedCoworkerIds = resolveMentionedCoworkerIds({
+      content: input.content,
+      roomCoworkers: roomCoworkers.map(({ coworker }) => coworker),
+    });
     const message = await prisma.$transaction(async (tx) => {
       const created = await tx.chatRoomMessage.create({
         data: {
@@ -842,6 +867,16 @@ export class SokoBotRuntimeService {
         },
         select: { id: true, createdAt: true },
       });
+      if (mentionedCoworkerIds.length > 0) {
+        await tx.chatRoomMention.createMany({
+          data: mentionedCoworkerIds.map((coworkerId) => ({
+            messageId: created.id,
+            coworkerId,
+            chainDepth,
+          })),
+          skipDuplicates: true,
+        });
+      }
       await tx.chatRoom.update({
         where: { id: room.id },
         data: { updatedAt: new Date() },
@@ -855,6 +890,8 @@ export class SokoBotRuntimeService {
       messageId: message.id,
       roomId: room.id,
       postedAt: message.createdAt.toISOString(),
+      /** Coworkers this post woke; empty once the chain hits its ceiling. */
+      summoned: mentionedCoworkerIds.length,
     };
   }
 
@@ -2717,6 +2754,7 @@ export class SokoBotRuntimeService {
             eveSessionId: decision.turn.eveSessionId,
             versionId: decision.turn.versionId,
             source: decision.turn.source,
+            chainDepth: decision.turn.chainDepth,
           },
           classificationConfidence: 1,
           hasNegatedMutationIntent: false,
@@ -2739,6 +2777,7 @@ export class SokoBotRuntimeService {
               eveSessionId: decision.turn.eveSessionId,
               versionId: decision.turn.versionId,
               source: decision.turn.source,
+              chainDepth: decision.turn.chainDepth,
             },
             classificationConfidence: 1,
             hasNegatedMutationIntent: false,
@@ -2759,6 +2798,7 @@ export class SokoBotRuntimeService {
               eveSessionId: decision.turn.eveSessionId,
               versionId: decision.turn.versionId,
               source: decision.turn.source,
+              chainDepth: decision.turn.chainDepth,
             },
             classificationConfidence: 1,
             hasNegatedMutationIntent: false,

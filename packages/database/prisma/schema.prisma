@@ -1966,6 +1966,11 @@ model SokoBotTurn {
   requestedByUserId String?
   requestedBy       User?   @relation("SokoBotTurnRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
+  /// Bot-to-bot hops behind this turn (see ChatRoomMention.chainDepth). Above
+  /// zero the turn exists because another bot spoke, not because a person did,
+  /// so it draws on the owner's allowance for unprompted work.
+  chainDepth Int @default(0)
+
   /// Chat-room mention that started this turn (null for the assistant page and schedules).
   chatMentionId         String?          @unique @db.Uuid
   chatMention           ChatRoomMention? @relation(fields: [chatMentionId], references: [id], onDelete: SetNull)
@@ -3497,6 +3502,12 @@ model ChatRoomMention {
   providerResponseId     String?
   responseMessageId      String?          @unique @db.Uuid
   responseMessage        ChatRoomMessage? @relation("ChatRoomMentionResponse", fields: [responseMessageId], references: [id], onDelete: SetNull)
+
+  /// Bot-to-bot hops since the last human message. A person speaking resets it
+  /// to 0; a mention created by a coworker's own message inherits its turn's
+  /// depth plus one. Past the ceiling no mention row is written at all, so an
+  /// unattended cascade terminates whatever the models decide to say.
+  chainDepth Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
