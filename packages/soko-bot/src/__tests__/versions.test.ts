@@ -20,6 +20,16 @@ describe("versions", () => {
     }
   });
 
+  it("tell the default version that delegating work costs money", () => {
+    const prompt = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID).systemPrompt;
+    // v13 said "a Task assigned to an existing Coworker is not [expensive]"
+    // while the runtime withheld the hire, aiming the bot's caution at the one
+    // spend path it could not take and waving through the one it could.
+    expect(prompt).toMatch(/assigning a Task to a Coworker/i);
+    expect(prompt).toMatch(/never free/i);
+    expect(prompt).not.toMatch(/assigned to an existing Coworker is not/i);
+  });
+
   it("fall back to the default for unknown ids", () => {
     expect(getSokoBotVersion(null).id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);
     expect(getSokoBotVersion("nope").id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);

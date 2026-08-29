@@ -1649,42 +1649,17 @@ export class SokoBotControlPlane {
     const version = await resolveSokoBotVersion(
       input.versionId ?? bot.versionId,
     );
-    // A turn with no owner message is composed from untrusted material — mail
-    // subjects, calendar titles, task comments — and the classifier reads that
-    // composed text. Hiring is the one tool that spends real money on a
-    // marketplace, and it executes without approval, so an attacker who can
-    // put the word "hire" in the owner's inbox must not be able to route a
-    // scheduled turn onto it. Autonomy covers starting work the owner already
-    // pays for; buying more is still theirs to ask for.
-    // A teammate mentioning the bot spends the OWNER's credits, and nothing in
-    // chat limits how often they may do it. Their turns draw on the owner's
-    // daily allowance so the bill has a ceiling its owner set.
-    if (requestedByTeammate) {
-      const { proactiveGate } = await import(
-        "@/services/soko-bot-proactive.service"
-      );
-      const gate = await proactiveGate(bot.id);
-      // Only the allowance: a pause means "stop what you start on your own",
-      // which a teammate asking a question is not.
-      if (!gate.ok && gate.reason === "daily-limit") {
-        throw new SokoBotBusyError(
-          "This Soko Bot has reached its owner's daily limit",
-        );
-      }
-    }
-    // ADMIN_RETRY replays the original message verbatim — the same untrusted
-    // mail or schedule text — so it must not restore what that text was
-    // denied the first time.
-    const selfStarted =
-      input.source === "SCHEDULE" ||
-      input.source === "INGEST" ||
-      input.source === "EVENT" ||
-      input.source === "ADMIN_RETRY";
+    // Self-started turns keep every capability of their route, hiring
+    // included. Withholding only `hire_agent` read as a spend limit and was
+    // not one: assigning a Task to a Coworker bills the owner just as a hire
+    // does, and stayed available throughout — so untrusted mail text that
+    // could route a scheduled turn onto a purchase could always reach that
+    // path instead. What bounds the spend is the owner's daily cap and pause,
+    // and what tempers it is the version prompt, which now weighs delegation
+    // and hiring alike rather than calling delegation free.
     const routeCapabilities = SOKO_BOT_ROUTE_CAPABILITIES[
       classification.classification.route
-    ].filter(
-      (capability) => !(selfStarted && capability === "hire_agent"),
-    ) as readonly SokoBotCapability[];
+    ] as readonly SokoBotCapability[];
     const capabilities = applyVersionCapabilities(
       version,
       (requestedByTeammate
