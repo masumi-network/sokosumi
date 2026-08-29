@@ -197,7 +197,7 @@ export const sokoBotTurnSchema = z
     // Named schemas must be unioned with null, not `.nullable()`, or the
     // generated client's transformer breaks.
     qualityVerdict: z.union([sokoBotQualityVerdictSchema, z.null()]).optional(),
-    /** Judge model that graded the turn, e.g. "openai/gpt-5.5". */
+    /** Judge model that graded the turn, e.g. "anthropic/claude-haiku-4.5". */
     qualityModel: z.string().nullable().optional(),
     judgedAt: dateTimeSchema.nullable().optional(),
     userMessage: z.string(),
