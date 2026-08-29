@@ -105,15 +105,15 @@ describe("bot-to-bot ceiling", () => {
   it("can answer, and can do nothing else a teammate could not", () => {
     // Without post_chat a bot could be summoned but never reply, so a chain
     // could never reach its second hop.
-    expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).toContain("post_chat");
-    // post_chat takes a room id and a mention prompt only names the room, so
-    // without this a bot asked to consult a third assistant cannot find where.
-    expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).toContain("list_chats");
-    for (const capability of SOKO_BOT_TEAMMATE_CAPABILITIES) {
-      expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).toContain(capability);
-    }
+    // A consulted assistant answers by finishing its turn; the reply is posted
+    // for it. With no post_chat it cannot summon a third assistant, so a chain
+    // is one hop deep by construction rather than by a counter — and it cannot
+    // post the same answer twice, or be steered into another room.
+    expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[]).not.toContain(
+      "post_chat",
+    );
     expect([...SOKO_BOT_BOT_TO_BOT_CAPABILITIES].sort()).toEqual(
-      [...SOKO_BOT_TEAMMATE_CAPABILITIES, "list_chats", "post_chat"].sort(),
+      [...SOKO_BOT_TEAMMATE_CAPABILITIES].sort(),
     );
   });
 
