@@ -62,6 +62,9 @@ const {
   transactionChatRoomUpdateMock,
   chatCoworkerMemberFindManyMock,
   chatMessageCountMock,
+  mentionFindManyMock,
+  dispatchChatRoomMentionMock,
+  serializableTransactionMock,
   turnUpdateManyMock,
   workspaceFindFirstMock,
   availabilityMock,
@@ -124,6 +127,9 @@ const {
   transactionChatRoomUpdateMock: vi.fn(),
   chatCoworkerMemberFindManyMock: vi.fn(),
   chatMessageCountMock: vi.fn(),
+  mentionFindManyMock: vi.fn(),
+  dispatchChatRoomMentionMock: vi.fn(),
+  serializableTransactionMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   availabilityMock: vi.fn(),
@@ -186,50 +192,62 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 vi.mock("@/lib/db/transaction", () => ({
-  serializableTransaction: vi.fn(async (operation) =>
-    operation({
-      $queryRaw: transactionTurnLockMock,
-      sokoBot: {
-        findFirst: transactionBotFindFirstMock,
-        findUniqueOrThrow: transactionBotFindUniqueOrThrowMock,
-        update: transactionBotUpdateMock,
-        updateMany: transactionBotUpdateManyMock,
-      },
-      sokoBotMemoryRevision: {
-        create: transactionMemoryRevisionCreateMock,
-        findUnique: transactionMemoryRevisionFindUniqueMock,
-      },
-      sokoBotDelegation: {
-        create: delegationCreateMock,
-        update: delegationUpdateMock,
-        updateMany: transactionDelegationUpdateManyMock,
-      },
-      sokoBotPendingDecision: {
-        create: transactionDecisionCreateMock,
-        findFirst: transactionDecisionFindFirstMock,
-      },
-      sokoBotToolCall: {
-        count: transactionToolCallCountMock,
-        create: transactionToolCallCreateMock,
-        findUnique: transactionToolCallFindUniqueMock,
-        update: transactionToolCallUpdateMock,
-      },
-      project: { findFirst: transactionProjectFindFirstMock },
-      workspace: { findFirst: transactionWorkspaceFindFirstMock },
-      sokoBotTurn: {
-        findFirst: transactionTurnFindFirstMock,
-        updateMany: transactionTurnUpdateManyMock,
-      },
-      task: {
-        create: transactionTaskCreateMock,
-        findFirst: transactionTaskFindFirstMock,
-        update: transactionTaskUpdateMock,
-      },
-      chatRoomMessage: { create: transactionChatMessageCreateMock },
-      chatRoomMention: { createMany: transactionChatMentionCreateManyMock },
-      chatRoom: { update: transactionChatRoomUpdateMock },
-    }),
+  serializableTransaction: serializableTransactionMock.mockImplementation(
+    async (operation) =>
+      operation({
+        $queryRaw: transactionTurnLockMock,
+        sokoBot: {
+          findFirst: transactionBotFindFirstMock,
+          findUniqueOrThrow: transactionBotFindUniqueOrThrowMock,
+          update: transactionBotUpdateMock,
+          updateMany: transactionBotUpdateManyMock,
+        },
+        sokoBotMemoryRevision: {
+          create: transactionMemoryRevisionCreateMock,
+          findUnique: transactionMemoryRevisionFindUniqueMock,
+        },
+        sokoBotDelegation: {
+          create: delegationCreateMock,
+          update: delegationUpdateMock,
+          updateMany: transactionDelegationUpdateManyMock,
+        },
+        sokoBotPendingDecision: {
+          create: transactionDecisionCreateMock,
+          findFirst: transactionDecisionFindFirstMock,
+        },
+        sokoBotToolCall: {
+          count: transactionToolCallCountMock,
+          create: transactionToolCallCreateMock,
+          findUnique: transactionToolCallFindUniqueMock,
+          update: transactionToolCallUpdateMock,
+        },
+        project: { findFirst: transactionProjectFindFirstMock },
+        workspace: { findFirst: transactionWorkspaceFindFirstMock },
+        sokoBotTurn: {
+          findFirst: transactionTurnFindFirstMock,
+          updateMany: transactionTurnUpdateManyMock,
+        },
+        task: {
+          create: transactionTaskCreateMock,
+          findFirst: transactionTaskFindFirstMock,
+          update: transactionTaskUpdateMock,
+        },
+        chatRoomMessage: { create: transactionChatMessageCreateMock },
+        chatRoomMention: {
+          createMany: transactionChatMentionCreateManyMock,
+          findMany: mentionFindManyMock,
+        },
+        chatRoom: { update: transactionChatRoomUpdateMock },
+      }),
   ),
+}));
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    void promise;
+  },
+}));
+vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
+  dispatchChatRoomMention: dispatchChatRoomMentionMock,
 }));
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
@@ -2357,13 +2375,19 @@ describe("post_chat chain depth", () => {
       createdAt: new Date("2026-08-29T10:00:00.000Z"),
     });
     transactionChatMentionCreateManyMock.mockResolvedValue({ count: 1 });
+    mentionFindManyMock.mockResolvedValue([{ id: "mention_1" }]);
+    dispatchChatRoomMentionMock.mockResolvedValue(undefined);
     transactionChatRoomUpdateMock.mockResolvedValue({});
-    transactionMock.mockImplementation(
+    serializableTransactionMock.mockImplementation(
       async (run: (tx: unknown) => unknown) =>
         await run({
-          chatRoomMessage: { create: transactionChatMessageCreateMock },
+          chatRoomMessage: {
+            create: transactionChatMessageCreateMock,
+            count: chatMessageCountMock,
+          },
           chatRoomMention: {
             createMany: transactionChatMentionCreateManyMock,
+            findMany: mentionFindManyMock,
           },
           chatRoom: { update: transactionChatRoomUpdateMock },
         }),
@@ -2384,6 +2408,9 @@ describe("post_chat chain depth", () => {
         data: [{ messageId: "msg_1", coworkerId: "cow_other", chainDepth: 1 }],
       }),
     );
+    // Writing the row is not enough: reclaim only rescues `sent`, so a row
+    // nobody dispatches stays `pending` for ever and the target never wakes.
+    expect(dispatchChatRoomMentionMock).toHaveBeenCalledWith("mention_1");
   });
 
   it("stops summoning once the chain reaches its ceiling", async () => {

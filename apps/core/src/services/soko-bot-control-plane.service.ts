@@ -13,6 +13,7 @@ import {
   type IndexedRuntimeEvent,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
+  SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
@@ -1666,14 +1667,32 @@ export class SokoBotControlPlane {
     // path instead. What bounds the spend is the owner's daily cap and pause,
     // and what tempers it is the version prompt, which now weighs delegation
     // and hiring alike rather than calling delegation free.
+    // A turn another assistant asked for is unprompted work, so the owner's
+    // brakes govern it — counting it without enforcing would leave a setting
+    // they can see doing nothing to the turn it is meant to stop.
+    if (input.chat?.askedByBot) {
+      const { proactiveGate } = await import(
+        "@/services/soko-bot-proactive.service"
+      );
+      const gate = await proactiveGate(bot.id);
+      if (!gate.ok) {
+        throw new SokoBotBusyError(
+          gate.reason === "daily-limit"
+            ? "This Soko Bot has reached its owner's daily limit"
+            : "This Soko Bot's owner has paused unprompted work",
+        );
+      }
+    }
     const routeCapabilities = SOKO_BOT_ROUTE_CAPABILITIES[
       classification.classification.route
     ] as readonly SokoBotCapability[];
     const capabilities = applyVersionCapabilities(
       version,
-      (requestedByTeammate
-        ? [...SOKO_BOT_TEAMMATE_CAPABILITIES]
-        : routeCapabilities) as readonly SokoBotCapability[],
+      (input.chat?.askedByBot
+        ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
+        : requestedByTeammate
+          ? [...SOKO_BOT_TEAMMATE_CAPABILITIES]
+          : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
     const leaseToken = randomUUID();

@@ -3,7 +3,32 @@
 -- weighed before starting. v13 called delegation free while the runtime
 -- withheld the hire, which pointed the bot's caution at the one path it could
 -- not take and waved through the one it could.
---
+
+-- Before this release "v14" was not a built-in, so an administrator could have
+-- authored a version under that slug. Runtime resolves built-ins first, so a
+-- bot pinned to an authored "v14" would silently start running the built-in —
+-- a different prompt, and a wider capability allowlist than the author chose.
+-- Rename the authored row out of the way and carry its pins with it, so a
+-- deliberate configuration survives instead of being quietly replaced.
+UPDATE "soko_bot_authored_version"
+SET "slug" = 'v14-authored'
+WHERE "slug" = 'v14';
+
+UPDATE "orchestrator"
+SET "versionId" = 'v14-authored'
+WHERE "versionId" = 'v14'
+  AND EXISTS (
+    SELECT 1 FROM "soko_bot_authored_version" WHERE "slug" = 'v14-authored'
+  );
+
+UPDATE "soko_bot_setting"
+SET "defaultVersionId" = 'v14-authored'
+WHERE "id" = 'singleton'
+  AND "defaultVersionId" = 'v14'
+  AND EXISTS (
+    SELECT 1 FROM "soko_bot_authored_version" WHERE "slug" = 'v14-authored'
+  );
+
 -- Every bot on a built-in version moves, per the owner's request that v14 be
 -- the default for existing assistants too. Bots pinned to an authored
 -- (custom-written) version keep it: that pin is a deliberate choice rather

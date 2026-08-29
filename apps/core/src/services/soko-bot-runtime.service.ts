@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from "node:crypto";
-
 import {
   AgentJobStatus,
   Channel,
@@ -13,6 +12,7 @@ import {
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotDecisionInputSchema as decisionInputSchema,
+  exceedsUnattendedHireBudget,
   hasSokoBotNegatedMutationIntent,
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
@@ -53,6 +53,7 @@ import {
   buildUserDriveFilePrefix,
 } from "@sokosumi/utils";
 import { list, put } from "@vercel/blob";
+import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import { toMasumiAgent } from "@/helpers/agent";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
@@ -852,22 +853,6 @@ export class SokoBotRuntimeService {
     // Backstop the hop counter cannot provide: it reasons pairwise, so three
     // bots in a triangle could defeat it. This does not care who produced the
     // traffic, only how much of it a room has taken lately.
-    const botMessagesThisHour = await prisma.chatRoomMessage.count({
-      where: {
-        roomId: room.id,
-        senderCoworkerId: { not: null },
-        deletedAt: null,
-        createdAt: {
-          gte: new Date(Date.now() - ROOM_BOT_MESSAGE_WINDOW_MS),
-        },
-      },
-    });
-    const throttled = botMessagesThisHour >= ROOM_BOT_MESSAGES_PER_HOUR;
-    if (throttled) {
-      throw new SokoBotRuntimeValidationError(
-        `This room has taken ${botMessagesThisHour} assistant messages in the last hour and is rate limited. Say nothing further here for now.`,
-      );
-    }
     const roomCoworkers = chatChainMayWake(chainDepth)
       ? await prisma.chatRoomCoworkerMember.findMany({
           where: { roomId: room.id, coworkerId: { not: room.coworkerId } },
@@ -880,7 +865,28 @@ export class SokoBotRuntimeService {
       content: input.content,
       roomCoworkers: roomCoworkers.map(({ coworker }) => coworker),
     });
-    const message = await prisma.$transaction(async (tx) => {
+    // Written inside the transaction, dispatched after it commits — the same
+    // handoff the human message route performs. Without it the rows sit
+    // `pending` for ever: reclaim only rescues `sent`, so nobody ever wakes.
+    const mentionIds: string[] = [];
+    const message = await serializableTransaction(async (tx) => {
+      // Counted inside the transaction: read outside it, two bots posting at
+      // once both see room for one more and the room takes both.
+      const botMessagesThisHour = await tx.chatRoomMessage.count({
+        where: {
+          roomId: room.id,
+          senderCoworkerId: { not: null },
+          deletedAt: null,
+          createdAt: {
+            gte: new Date(Date.now() - ROOM_BOT_MESSAGE_WINDOW_MS),
+          },
+        },
+      });
+      if (botMessagesThisHour >= ROOM_BOT_MESSAGES_PER_HOUR) {
+        throw new SokoBotRuntimeValidationError(
+          `This room has taken ${botMessagesThisHour} assistant messages in the last hour and is rate limited. Say nothing further here for now.`,
+        );
+      }
       const created = await tx.chatRoomMessage.create({
         data: {
           roomId: room.id,
@@ -908,16 +914,30 @@ export class SokoBotRuntimeService {
           })),
           skipDuplicates: true,
         });
+        mentionIds.push(
+          ...(
+            await tx.chatRoomMention.findMany({
+              where: { messageId: created.id },
+              select: { id: true },
+            })
+          ).map((mention) => mention.id),
+        );
       }
       await tx.chatRoom.update({
         where: { id: room.id },
         data: { updatedAt: new Date() },
       });
       return created;
-    });
+    }, "Another assistant posted into this room at the same moment");
     // Every other message-create site publishes; without this the bot's post
     // only appears after a refresh, which reads as the tool having failed.
     await publishChatRoomMessageRealtimeById(message.id, "create");
+    for (const mentionId of mentionIds) {
+      const { dispatchChatRoomMention } = await import(
+        "@/services/chat-room-coworker-dispatch.service"
+      );
+      waitUntil(dispatchChatRoomMention(mentionId));
+    }
     return {
       messageId: message.id,
       roomId: room.id,
@@ -2012,14 +2032,34 @@ export class SokoBotRuntimeService {
           throw new SokoBotRuntimeValidationError(result.error);
         return inputSchemaSchema.parse(result.value);
       }
-      case "hire_agent":
-        parseHireAgentInput(input.input);
+      case "hire_agent": {
+        const hire = parseHireAgentInput(input.input);
+        // A turn with no owner message is composed from untrusted material —
+        // mail subjects, calendar titles, task comments. Hiring is the one
+        // tool that buys from a marketplace outright, so text that talks its
+        // way onto this route must not be able to commit the whole balance in
+        // a single unattended turn. The owner asking for a hire themselves is
+        // unaffected.
+        const ceiling = getEnv().SOKO_BOT_UNATTENDED_MAX_HIRE_CREDITS;
+        if (
+          exceedsUnattendedHireBudget({
+            source: authorized.turn.source,
+            chainDepth: authorized.turn.chainDepth,
+            maxCredits: hire.maxCredits,
+            ceiling,
+          })
+        ) {
+          throw new SokoBotRuntimeValidationError(
+            `An unattended turn may commit at most ${ceiling} credits per hire; this one asked for ${hire.maxCredits}. Ask the owner in their chat instead.`,
+          );
+        }
         return this.executeAsAccepted(
           authorized,
           input.capability,
           input.input,
           input.toolCallId,
         );
+      }
       case "get_job_status": {
         const { jobId } = jobIdInputSchema.parse(input.input);
         return prisma.job.findFirst({
