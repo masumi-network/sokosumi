@@ -92,7 +92,7 @@ const baseEnvSchema = z.object({
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /** Judge model for lab runs and per-turn quality scores (AI Gateway id). */
-  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("openai/gpt-5.5"),
+  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
   /** Score every completed turn with the judge model. */
   SOKO_BOT_TURN_JUDGE_ENABLED: z
     .enum(["true", "false"])

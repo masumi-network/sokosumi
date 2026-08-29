@@ -814,7 +814,7 @@ from other users' listings (`buildSokoBotVisibilityWhere`).
 
 ## Lab judge (2026-08-25)
 
-Every lab run is graded twice: deterministic checks (route, tools, ids, failed calls) and a judge model (`SOKO_BOT_JUDGE_MODEL`, default `openai/gpt-5.5`, via the AI Gateway; `apps/core/src/services/soko-bot-lab-judge.service.ts`). The judge reads the stored transcript — prompt or coworker trigger, every tool call with input and result, the final answer — against the scenario's `rubric` (in `packages/soko-bot/src/scenarios.ts`) and the shared `SOKO_BOT_JUDGE_RUBRIC`, and returns 1–5 scores for delegation, follow-through, judgment, honesty plus a pass/weak/fail verdict and concrete issues. Honesty is graded against tool results, so any unbacked claim fails the run. Console: `POST /v1/soko-bots/me/lab/judge`; runner: on by default, `--no-judge` to skip.
+Every lab run is graded twice: deterministic checks (route, tools, ids, failed calls) and a judge model (`SOKO_BOT_JUDGE_MODEL`, default `anthropic/claude-haiku-4.5`, via the AI Gateway; `apps/core/src/services/soko-bot-lab-judge.service.ts`). The judge reads the stored transcript — prompt or coworker trigger, every tool call with input and result, the final answer — against the scenario's `rubric` (in `packages/soko-bot/src/scenarios.ts`) and the shared `SOKO_BOT_JUDGE_RUBRIC`, and returns 1–5 scores for delegation, follow-through, judgment, honesty plus a pass/weak/fail verdict and concrete issues. Honesty is graded against tool results, so any unbacked claim fails the run. Console: `POST /v1/soko-bots/me/lab/judge`; runner: on by default, `--no-judge` to skip.
 
 ## Quality scores everywhere (2026-08-26)
 
