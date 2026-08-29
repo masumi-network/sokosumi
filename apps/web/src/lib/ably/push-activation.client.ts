@@ -142,7 +142,7 @@ export async function deactivatePush(userId: string): Promise<void> {
   const failures: unknown[] = [];
 
   await attempt(failures, dropBrowserPushSubscription);
-  await attempt(failures, () => dropAblyPushDevice(userId));
+  await attempt(failures, () => dropAblyPushDevice(failures, userId));
 
   if (failures.length > 0) {
     throw failures[0];
@@ -152,13 +152,21 @@ export async function deactivatePush(userId: string): Promise<void> {
 /**
  * Drop Ably's own device, and the channel subscription that points at it.
  *
- * Building the client belongs inside this step rather than on a line above it.
- * `getAblyRealtimeClient` constructs on its first call and can throw there, and
- * a bare call would both skip the browser endpoint and throw away whatever the
- * step before it had already recorded.
+ * Records into the caller's list rather than keeping one of its own. Throwing
+ * the first failure on would reach the caller's `attempt` and log the same
+ * rejection a second time, which reads in triage as two steps failing when
+ * one did.
+ *
+ * Building the client belongs in here rather than on a line above the call.
+ * `getAblyRealtimeClient` constructs on its first call and can throw there,
+ * and a bare call would both skip the browser endpoint and throw away whatever
+ * the step before it had already recorded. That construction is the one throw
+ * this function still hands back, and the caller's `attempt` catches it.
  */
-async function dropAblyPushDevice(userId: string): Promise<void> {
-  const failures: unknown[] = [];
+async function dropAblyPushDevice(
+  failures: unknown[],
+  userId: string,
+): Promise<void> {
   const client = getAblyRealtimeClient();
 
   // Unsubscribing the device before deactivating keeps Ably from holding a
@@ -170,10 +178,6 @@ async function dropAblyPushDevice(userId: string): Promise<void> {
   // `ably.push.deviceIdentityToken`, which is what the next sign-out reads to
   // decide whether this browser has anything left to release.
   await attempt(failures, () => client.push.deactivate());
-
-  if (failures.length > 0) {
-    throw failures[0];
-  }
 }
 
 /**

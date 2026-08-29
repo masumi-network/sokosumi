@@ -79,6 +79,12 @@ describe("deactivatePush", () => {
     });
   });
 
+  afterEach(() => {
+    // One test spies on the console. A failed assertion would leave that spy
+    // in place and swallow every later report in this file.
+    vi.restoreAllMocks();
+  });
+
   /**
    * Ably's `deactivate()` leaves the browser subscription alive, and the
    * settings switch reads that subscription. Leaving it would show the switch
@@ -94,8 +100,8 @@ describe("deactivatePush", () => {
 
   /**
    * The Ably calls can throw, and the sign-out path swallows that so the
-   * reader can still leave. The browser endpoint is the only step that stops
-   * delivery here, so it has to be gone before Ably gets its chance to fail.
+   * reader can still leave. The browser endpoint must still be gone. Order is
+   * not what this pins; the test below it does that.
    */
   it("drops the browser subscription even when ably fails", async () => {
     unsubscribeDeviceMock.mockRejectedValue(new Error("ably said no"));
@@ -187,6 +193,22 @@ describe("deactivatePush", () => {
     await expect(deactivatePush("user_1")).rejects.toThrow(
       "push service said no",
     );
+  });
+
+  /**
+   * One failed step is one failed step. `dropAblyPushDevice` used to keep its
+   * own list and rethrow, so the caller's `attempt` logged the same rejection
+   * again and triage read two failures where there was one.
+   */
+  it("logs a failed Ably step once", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const reason = new Error("ably said no");
+    deactivateMock.mockRejectedValue(reason);
+
+    await expect(deactivatePush("user_1")).rejects.toThrow("ably said no");
+
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(logged).toHaveBeenCalledWith("A push teardown step failed", reason);
   });
 
   /**
