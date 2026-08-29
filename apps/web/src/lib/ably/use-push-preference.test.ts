@@ -139,6 +139,11 @@ describe("usePushPreference", () => {
    * The account row cannot move until its write lands, so a device row that
    * moved first would sit checked beside its own "push is off for your
    * account" for as long as the reader leaves the prompt open.
+   *
+   * Both edges of that window are asserted, and neither on the end state: the
+   * read that ends the save reaches the same end state on its own. What is
+   * pinned here is that the row moves on the answer. Not before it, and not
+   * as late as the consent write.
    */
   it("holds the device row until the reader answers the prompt", async () => {
     setNotificationPermission("default");
@@ -146,6 +151,14 @@ describe("usePushPreference", () => {
     requestPermissionMock.mockReturnValue(
       new Promise((resolve) => {
         answerPrompt = resolve;
+      }),
+    );
+    // Held open, so the row can be read after the subscription exists and
+    // before the save ends. Core is a round trip away; the answer is not.
+    let landAccountWrite!: () => void;
+    patchMyPreferencesMock.mockReturnValue(
+      new Promise((resolve) => {
+        landAccountWrite = () => resolve({ data: { pushOptIn: true } });
       }),
     );
     const { result } = renderHook(() => usePushPreference("user_1"), {
@@ -161,15 +174,22 @@ describe("usePushPreference", () => {
     expect(result.current.isDeviceEnabled).toBe(false);
     expect(result.current.isAccountEnabled).toBe(false);
 
-    await act(async () => {
-      // The browser records the answer before it resolves the request, and the
-      // save ends on a read that consults it.
-      setNotificationPermission("granted");
+    // The browser records the answer before it resolves the request.
+    setNotificationPermission("granted");
+    act(() => {
       answerPrompt("granted");
-      await pending;
     });
 
+    // The consent write starting means the subscription landed, so the row is
+    // painted from that and not from the read the held write is still holding.
+    await waitFor(() => expect(patchMyPreferencesMock).toHaveBeenCalled());
     expect(result.current.isDeviceEnabled).toBe(true);
+    expect(result.current.isAccountEnabled).toBe(false);
+
+    await act(async () => {
+      landAccountWrite();
+      await pending;
+    });
   });
 
   /**
@@ -276,7 +296,6 @@ describe("usePushPreference", () => {
     });
     await waitFor(() => expect(result.current.isDeviceEnabled).toBe(true));
 
-    setAccountWriteResult(false);
     patchMyPreferencesMock.mockImplementation(async () => {
       // The reader revokes the permission in browser settings and comes back
       // while the consent write is still in flight. Revoking takes the

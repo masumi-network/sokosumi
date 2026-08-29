@@ -252,9 +252,10 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   );
 
   /**
-   * Move this browser into `nextSubscribed`, optimistically, and roll back if
-   * the work throws. The device row uses this: its own click is the thing
-   * being painted, so it may move before the work lands.
+   * Move this browser into `nextSubscribed` before the work lands. The device
+   * row uses this: its own click is the thing being painted, so it may lead
+   * the work. The read that ends every save is what corrects it when the
+   * browser did not end up where the click asked.
    */
   const changePushSubscription = useCallback(
     <T>(nextSubscribed: boolean, work: (sessionUserId: string) => Promise<T>) =>
