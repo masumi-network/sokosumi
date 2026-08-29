@@ -55,3 +55,54 @@ describe("Soko Bot turn classifier", () => {
     expect(result.classification.requiresClarification).toBe(true);
   });
 });
+
+describe("addressing another coworker", () => {
+  it("routes a request to speak to someone onto a route that can post", () => {
+    // CLARIFY is read-only, so this fell through to the bot replying that it
+    // had no way to reach them — while holding post_chat on other routes.
+    for (const message of [
+      "please ask @jarvis what is still open on the launch, then tell me",
+      "check with @hannah whether the copy is ready",
+      "ping @ben about the invoice",
+    ]) {
+      const result = classifyDeterministically(message);
+      expect(result?.route).toBe("DIRECT_RESPONSE");
+    }
+  });
+
+  it("does not read an email address as a handle", () => {
+    // These may still be conversational, but they must not reach the chat
+    // route *as a request to go and speak to someone*: that reading is what
+    // grants chat and Drive writes.
+    const chatWrite = "Message asks the assistant to say something in chat";
+    for (const message of [
+      "tell me the invoice status, cc finance@acme.com",
+      "get the report and mail it to sam@x.io",
+      "email me at patrick@example.com when done",
+    ]) {
+      expect(
+        classifyDeterministically(message)?.rationaleSummary ?? "",
+      ).not.toContain(chatWrite);
+    }
+  });
+
+  it("does not read a question about acting as permission to act", () => {
+    const chatWrite = "Message asks the assistant to say something in chat";
+    for (const message of [
+      "Should we ping @alice, or wait?",
+      "Do I need to follow up with @alice?",
+      "Do you think we should ask @sam about the contract?",
+    ]) {
+      expect(
+        classifyDeterministically(message)?.rationaleSummary ?? "",
+      ).not.toContain(chatWrite);
+    }
+  });
+
+  it("leaves an ordinary vague request alone", () => {
+    const result = classifyDeterministically(
+      "sort out the thing from last week",
+    );
+    expect(result?.route).not.toBe("DIRECT_RESPONSE");
+  });
+});

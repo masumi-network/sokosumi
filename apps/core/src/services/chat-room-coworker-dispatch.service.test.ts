@@ -445,6 +445,27 @@ describe("dispatchChatRoomMention claim", () => {
     expect(streamTextMock).toHaveBeenCalled();
   });
 
+  it("ends the assistant bubble when dispatch throws after opening one", async () => {
+    // Marking the row failed unpins the poller but leaves the person watching
+    // a spinner that never stops — the shape of the messages that never ended.
+    findUniqueMock.mockResolvedValueOnce(pendingMention()).mockResolvedValue({
+      responseMessageId: "reply_1",
+      message: { id: "msg_1" },
+    });
+    updateManyMock.mockRejectedValue(new Error("database went away"));
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(updateMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "reply_1" },
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({ mention_failed: true }),
+        }),
+      }),
+    );
+  });
+
   it("gives up on a mention that keeps getting reclaimed", async () => {
     findUniqueMock.mockResolvedValue({
       ...pendingMention(),
@@ -1042,7 +1063,7 @@ describe("dispatchChatRoomMention claim", () => {
 });
 
 describe("listStaleSentChatRoomMentionIds", () => {
-  it("queries sent mentions older than the stale window for the room", async () => {
+  it("queries unfinished mentions older than the stale window for the room", async () => {
     findManyMentionMock.mockResolvedValue([{ id: MENTION_ID }]);
     const now = new Date("2025-06-01T12:00:00.000Z");
 
@@ -1051,7 +1072,9 @@ describe("listStaleSentChatRoomMentionIds", () => {
     expect(ids).toEqual([MENTION_ID]);
     expect(findManyMentionMock).toHaveBeenCalledWith({
       where: {
-        status: "sent",
+        // Pending too: a row written but never handed to the dispatcher is
+        // stranded otherwise, because nothing else retries it.
+        status: { in: ["pending", "sent"] },
         updatedAt: { lt: new Date(now.getTime() - ROOM_SENT_STALE_MS) },
         message: { roomId: "room_1" },
       },

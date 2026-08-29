@@ -115,9 +115,24 @@ export function classifyDeterministically(
   // Saying something in chat or writing a file is the owner asking for an
   // action, not for clarification. Without this it fell through to CLARIFY,
   // which is read-only, so the bot could not do what it was plainly told.
+  // "Should we ping @alice, or wait?" is the owner thinking aloud, not an
+  // instruction. Treating it as one grants chat, Drive, schedule, and
+  // connected-account writes off a question that authorises nothing.
+  const deliberating =
+    normalized.includes("?") &&
+    /^\s*(should|shall|do you think|would it|might we|is it worth|do i need|do we need|any thoughts|thoughts)\b/.test(
+      normalized,
+    );
   const chatOrFileWriteSignal = includesAny(normalized, [
     /\b(post|send|reply|drop|leave)\b.{0,40}\b(message|note|update|reply|chat|room|channel|thread)\b/,
     /\b(write|save|upload|put|create)\b.{0,40}\b(file|note|document|doc|markdown|\.md|drive)\b/,
+    // Being told to go and speak to someone the message names with an @handle
+    // is a chat write, whatever verb it uses. Without this "ask @finn whether
+    // the copy is ready" fell through to CLARIFY, which is read-only, and the
+    // bot answered that it had no way to reach them — while holding the tool.
+    // The whitespace before @ is load-bearing: it separates a handle from the
+    // local part of an email address, so "cc finance@acme.com" stays a read.
+    /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in)\b[^@]{0,60}\s@[a-z0-9][a-z0-9._-]*/,
   ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,
@@ -148,7 +163,12 @@ export function classifyDeterministically(
       0.98,
     );
   }
-  if (chatOrFileWriteSignal && !delegateSignal && !hireSignal) {
+  if (
+    chatOrFileWriteSignal &&
+    !deliberating &&
+    !delegateSignal &&
+    !hireSignal
+  ) {
     return baseClassification(
       "DIRECT_RESPONSE",
       message,
