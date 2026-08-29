@@ -78,6 +78,18 @@ describe("deactivatePush", () => {
     expect(unsubscribeMock).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * The Ably calls can throw, and the sign-out path swallows that so the
+   * reader can still leave. The browser endpoint is the only step that stops
+   * delivery here, so it has to be gone before Ably gets its chance to fail.
+   */
+  it("drops the browser subscription even when ably fails", async () => {
+    unsubscribeDeviceMock.mockRejectedValue(new Error("ably said no"));
+
+    await expect(deactivatePush("user_1")).rejects.toThrow("ably said no");
+    expect(unsubscribeMock).toHaveBeenCalledTimes(1);
+  });
+
   it("finishes when this browser holds no subscription", async () => {
     getSubscriptionMock.mockResolvedValue(null);
 
@@ -98,11 +110,16 @@ describe("deactivatePush", () => {
     expect(calls).toEqual(["unsubscribeDevice", "deactivate"]);
   });
 
-  it("stops when Ably refuses the deactivation", async () => {
+  /**
+   * This assertion used to read `not.toHaveBeenCalled()`, which locked in the
+   * defect: the rejection reaches a sign-out that swallows it, so leaving the
+   * browser endpoint live let the previous reader's banners carry on.
+   */
+  it("has already dropped the browser subscription when Ably refuses", async () => {
     deactivateMock.mockRejectedValue(new Error("offline"));
 
     await expect(deactivatePush("user_1")).rejects.toThrow("offline");
-    expect(unsubscribeMock).not.toHaveBeenCalled();
+    expect(unsubscribeMock).toHaveBeenCalledTimes(1);
   });
 });
 
