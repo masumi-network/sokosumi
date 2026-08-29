@@ -70,6 +70,22 @@ describe("addressing another coworker", () => {
     }
   });
 
+  it("does not read an email address as a handle", () => {
+    // These may still be conversational, but they must not reach the chat
+    // route *as a request to go and speak to someone*: that reading is what
+    // grants chat and Drive writes.
+    const chatWrite = "Message asks the assistant to say something in chat";
+    for (const message of [
+      "tell me the invoice status, cc finance@acme.com",
+      "get the report and mail it to sam@x.io",
+      "email me at patrick@example.com when done",
+    ]) {
+      expect(
+        classifyDeterministically(message)?.rationaleSummary ?? "",
+      ).not.toContain(chatWrite);
+    }
+  });
+
   it("leaves an ordinary vague request alone", () => {
     const result = classifyDeterministically(
       "sort out the thing from last week",
