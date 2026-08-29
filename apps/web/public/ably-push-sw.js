@@ -351,6 +351,24 @@ async function findRoutingClient(windows) {
 }
 
 /**
+ * Whether the tab took the focus.
+ *
+ * `focus()` rejects with `InvalidAccessError` unless a window in the origin
+ * holds transient activation (MDN, `WindowClient.focus`). The banner is closed
+ * by the time this runs, so a rejection left to propagate would take the click
+ * with it: the banner would vanish and nothing would open. A refusal falls
+ * back to a new window instead.
+ */
+async function focusRoutingClient(client) {
+  try {
+    await client.focus();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Focus a tab that can act on the click and hand it the banner's target, so
  * the page can mark the notification read and route to it. The target rides on
  * the banner rather than in the page, because the tab that receives this click
@@ -369,8 +387,7 @@ self.addEventListener("notificationclick", (event) => {
       });
 
       const open = await findRoutingClient(windows);
-      if (open) {
-        await open.focus();
+      if (open && (await focusRoutingClient(open))) {
         if (target) {
           open.postMessage({ type: CLICK_MESSAGE_TYPE, target });
         }

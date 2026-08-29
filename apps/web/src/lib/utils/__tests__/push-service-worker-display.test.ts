@@ -510,6 +510,27 @@ describe("ably-push-sw notificationclick", () => {
     expect(worker.openedWindows).toEqual(["/"]);
   });
 
+  /**
+   * `focus()` rejects with `InvalidAccessError` unless a window in the origin
+   * holds transient activation (MDN, `WindowClient.focus`). The banner is
+   * already closed by then, so a rejection left alone takes the click with it.
+   */
+  it("opens a window when the tab refuses the focus", async () => {
+    const focus = vi.fn().mockRejectedValue(new Error("InvalidAccessError"));
+    const postMessage = vi.fn();
+    const worker = loadServiceWorker({
+      isChromium: true,
+      windows: [appPage({ focused: false, focus, postMessage })],
+    });
+
+    await worker.dispatchNotificationClick(MENTION_TARGET);
+
+    expect(focus).toHaveBeenCalledTimes(1);
+    // The tab never took the focus, so it is not the one holding the click.
+    expect(postMessage).not.toHaveBeenCalled();
+    expect(worker.openedWindows).toEqual(["/"]);
+  });
+
   it("still focuses a tab when the banner carries no target", async () => {
     const focus = vi.fn().mockResolvedValue(undefined);
     const postMessage = vi.fn();
