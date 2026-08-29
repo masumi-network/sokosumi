@@ -193,13 +193,24 @@ const SHOWS_NOTIFICATIONS_QUERY = "sokosumi:shows-notifications";
 /** How long a focused page has to claim it shows notifications itself. */
 const SHOWS_NOTIFICATIONS_TIMEOUT_MS = 200;
 
+/** Nothing replied inside the timeout: this page has no listener mounted. */
+const NO_ANSWER = "no-answer";
+
 /**
- * Whether this page shows notifications in the app itself. Only pages that
- * mount the notification listener answer at all, so a focused tab on a share
- * link or the sign-in page reads as false and keeps its banner. A page that
- * answers can still say no: it mounts the listener but has stopped receiving.
+ * Ask one page whether it shows notifications in the app itself.
+ *
+ * Three outcomes, not two, because the two callers ask for different reasons.
+ * `true` and `false` both come from a page that mounts the notification
+ * listener; `NO_ANSWER` means nothing there answers at all, so the page is a
+ * share link or the sign-in page.
+ *
+ * That distinction is the whole point. A page that answers has the listener
+ * mounted, and that listener handles banner clicks whatever it says here: it
+ * subscribes to clicks and answers this query from one mount. `false` only
+ * means the channel has stopped receiving, which costs the page its in-app
+ * update and nothing else.
  */
-function showsNotificationsInApp(client) {
+function askShowsNotifications(client) {
   return new Promise((resolve) => {
     const channel = new MessageChannel();
 
@@ -210,7 +221,7 @@ function showsNotificationsInApp(client) {
     };
 
     const timer = setTimeout(
-      () => answer(false),
+      () => answer(NO_ANSWER),
       SHOWS_NOTIFICATIONS_TIMEOUT_MS,
     );
 
@@ -253,8 +264,10 @@ async function canSkipDisplay() {
     return false;
   }
 
-  const answers = await Promise.all(focused.map(showsNotificationsInApp));
-  return answers.some(Boolean);
+  // Only a page that says yes renders this notification itself. A page that
+  // says no, and a page with no listener at all, both need the banner.
+  const answers = await Promise.all(focused.map(askShowsNotifications));
+  return answers.some((answer) => answer === true);
 }
 
 async function showPushNotification(data) {
@@ -296,15 +309,23 @@ self.addEventListener("push", (event) => {
 const CLICK_MESSAGE_TYPE = "sokosumi:notification-click";
 
 /**
- * The first open tab that shows notifications in the app, so a click reaches a
- * page that can act on it. A tab showing a share link or the sign-in page
- * cannot, and focusing one of those would drop the click in silence.
+ * The first open tab that can act on a click. A tab showing a share link or
+ * the sign-in page cannot, and focusing one of those would drop the click in
+ * silence.
+ *
+ * Any reply qualifies, including `false`. Requiring `true` here would reject a
+ * tab whose channel is merely detached, which is the ordinary state of a tab
+ * that has sat in the background: the click would then open a second tab on
+ * the home page and leave the notification unread, with the tab that could
+ * have handled it still sitting there.
  */
 async function findRoutingClient(windows) {
   const candidates = windows.filter((client) => "focus" in client);
-  const answers = await Promise.all(candidates.map(showsNotificationsInApp));
+  const answers = await Promise.all(candidates.map(askShowsNotifications));
 
-  return candidates.find((_client, index) => answers[index]) || null;
+  return (
+    candidates.find((_client, index) => answers[index] !== NO_ANSWER) || null
+  );
 }
 
 /**

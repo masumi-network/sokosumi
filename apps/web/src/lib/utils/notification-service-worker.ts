@@ -213,6 +213,11 @@ export async function showNotification({
  * gets a banner instead of silence. `showsNotifications` is read at answer
  * time rather than at subscribe time, because a page that mounts the listener
  * can still stop receiving while it sits there.
+ *
+ * Replying at all carries its own meaning, so mount this beside
+ * `subscribeNotificationClicks` and drop the two together. The worker routes a
+ * banner click to any page that answers, `false` included, because a detached
+ * channel stops in-app updates and not click handling.
  */
 export function answerShowsNotificationsQuery(
   showsNotifications: () => boolean,

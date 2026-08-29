@@ -42,16 +42,22 @@ function appPage({
 }
 
 /** A page with the listener mounted that has stopped receiving events. */
-function stalledPage(
-  overrides: Partial<WindowClientStub> = {},
-): WindowClientStub {
+function stalledPage({
+  postMessage,
+  ...overrides
+}: Partial<WindowClientStub> = {}): WindowClientStub {
   return {
     focused: true,
     visibilityState: "visible",
     ...overrides,
-    postMessage: (_message: unknown, transfer?: unknown[]) => {
+    postMessage: (message: unknown, transfer?: unknown[]) => {
       const port = transfer?.[0] as MessagePort | undefined;
-      port?.postMessage(false);
+      if (port) {
+        port.postMessage(false);
+        return;
+      }
+
+      postMessage?.(message);
     },
   };
 }
@@ -433,6 +439,30 @@ describe("ably-push-sw notificationclick", () => {
 
     expect(silentFocus).not.toHaveBeenCalled();
     expect(appFocus).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * A tab whose channel has detached still handles clicks: it subscribes to
+   * them and answers the worker's query from one mount. Requiring a yes here
+   * would open a second tab on the home page and leave the notification
+   * unread, with the tab that could have handled it still sitting there.
+   */
+  it("routes the click to a tab that has stopped receiving", async () => {
+    const focus = vi.fn().mockResolvedValue(undefined);
+    const postMessage = vi.fn();
+    const worker = loadServiceWorker({
+      isChromium: true,
+      windows: [stalledPage({ focused: false, focus, postMessage })],
+    });
+
+    await worker.dispatchNotificationClick(MENTION_TARGET);
+
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith({
+      type: "sokosumi:notification-click",
+      target: MENTION_TARGET,
+    });
+    expect(worker.openedWindows).toEqual([]);
   });
 
   it("opens the app when no open tab can act on the click", async () => {
