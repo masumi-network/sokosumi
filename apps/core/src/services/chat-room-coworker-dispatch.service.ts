@@ -1094,6 +1094,17 @@ async function runSokoBotMentionDispatch(params: {
     });
   }
   if (!placeholderId) {
+    // The create may have committed with its acknowledgement lost, leaving a
+    // bubble streaming that this worker never learned the id of. Marking the
+    // mention failed without adopting it is how a placeholder outlives every
+    // other signal, so look before giving up.
+    const committed = await prisma.chatRoomMention.findUnique({
+      where: { id: mentionId },
+      select: { responseMessageId: true },
+    });
+    placeholderId = committed?.responseMessageId ?? null;
+  }
+  if (!placeholderId) {
     await markMentionFailed(mentionId, "Could not open the reply");
     return;
   }
@@ -1117,21 +1128,30 @@ async function runSokoBotMentionDispatch(params: {
   // rehydrates recent turns, so the message goes through as typed. Channel
   // mentions carry the surrounding room context like coworker mentions do.
   const threadRootId = mention.message.parentMessageId;
-  const message =
-    mention.message.room.kind === "direct"
-      ? mention.message.content
-      : buildRoomMentionPrompt({
-          roomName: mention.message.room.name ?? "chat",
-          senderName: mention.message.senderUser?.name ?? "A teammate",
-          content: mention.message.content,
-          isThreadReply: threadRootId != null,
-          contextMessages: await loadRoomContextMessages({
-            roomId: mention.message.roomId,
-            messageId: mention.message.id,
-            createdAt: mention.message.createdAt,
-            threadRootId,
-          }),
-        });
+  // Inside the guard: this reads the room, and a read that throws once left
+  // the placeholder above streaming for ever while the mention was marked
+  // failed somewhere the reader could not see.
+  let message: string;
+  try {
+    message =
+      mention.message.room.kind === "direct"
+        ? mention.message.content
+        : buildRoomMentionPrompt({
+            roomName: mention.message.room.name ?? "chat",
+            senderName: mention.message.senderUser?.name ?? "A teammate",
+            content: mention.message.content,
+            isThreadReply: threadRootId != null,
+            contextMessages: await loadRoomContextMessages({
+              roomId: mention.message.roomId,
+              messageId: mention.message.id,
+              createdAt: mention.message.createdAt,
+              threadRootId,
+            }),
+          });
+  } catch (error) {
+    await failPlaceholder(error);
+    return;
+  }
 
   try {
     const accepted = sokoBotControlPlane.startTurn({

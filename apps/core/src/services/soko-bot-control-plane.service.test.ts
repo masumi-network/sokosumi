@@ -248,6 +248,7 @@ function transactionClient() {
       updateMany: scheduleRunUpdateManyMock,
     },
     sokoBotTurn: {
+      count: turnCountMock,
       create: turnCreateMock,
       findFirst: turnFindFirstMock,
       findUnique: turnFindUniqueMock,

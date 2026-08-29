@@ -739,6 +739,19 @@ export class SokoBotControlPlane {
         "Ambiguous Soko Bot start reached its deadline",
       );
     }
+    // Same rule as crash recovery: an unprompted turn is not resumed once the
+    // owner has paused that work.
+    if (
+      (turn.source === "SCHEDULE" ||
+        turn.source === "EVENT" ||
+        turn.source === "INGEST" ||
+        turn.chainDepth > 0) &&
+      (bot.proactivePaused || getEnv().SOKO_BOT_PROACTIVE_PAUSED)
+    ) {
+      throw new SokoBotBusyError(
+        "This Soko Bot's owner has paused unprompted work",
+      );
+    }
     const snapshot = await prisma.sokoBotContextSnapshot.findUnique({
       where: { turnId: turn.id },
       select: { id: true, packet: true },
@@ -921,6 +934,18 @@ export class SokoBotControlPlane {
       turn.sokoBot.archivedAt ||
       turn.sokoBot.adminPausedAt ||
       turn.sokoBot.status === "PAUSED"
+    ) {
+      return null;
+    }
+    // A turn nobody asked for, stranded by a crash, must not be resumed after
+    // the owner has since paused unprompted work — the pause would look
+    // ignored, and this turn can still spend.
+    if (
+      (turn.source === "SCHEDULE" ||
+        turn.source === "EVENT" ||
+        turn.source === "INGEST" ||
+        turn.chainDepth > 0) &&
+      (turn.sokoBot.proactivePaused || getEnv().SOKO_BOT_PROACTIVE_PAUSED)
     ) {
       return null;
     }
@@ -1667,6 +1692,13 @@ export class SokoBotControlPlane {
     // path instead. What bounds the spend is the owner's daily cap and pause,
     // and what tempers it is the version prompt, which now weighs delegation
     // and hiring alike rather than calling delegation free.
+    // Work the bot decided to do rather than work a person asked for. Both the
+    // preflight below and the reservation that binds are judged by this.
+    const unpromptedWork =
+      input.chat?.askedByBot === true ||
+      input.source === "SCHEDULE" ||
+      input.source === "EVENT" ||
+      input.source === "INGEST";
     // A turn another assistant asked for is unprompted work, so the owner's
     // brakes govern it — counting it without enforcing would leave a setting
     // they can see doing nothing to the turn it is meant to stop.
@@ -1725,7 +1757,14 @@ export class SokoBotControlPlane {
         `;
         const currentBot = await tx.sokoBot.findUnique({
           where: { id: bot.id },
-          select: { archivedAt: true, adminPausedAt: true, status: true },
+          select: {
+            archivedAt: true,
+            adminPausedAt: true,
+            status: true,
+            proactivePaused: true,
+            proactiveDailyLimit: true,
+            ingestTimezone: true,
+          },
         });
         if (
           !currentBot ||
@@ -1734,6 +1773,41 @@ export class SokoBotControlPlane {
           currentBot.status === "PAUSED"
         ) {
           throw new SokoBotBusyError("Soko Bot is paused");
+        }
+        // The preflight gate is only advice by the time we get here: building
+        // context takes long enough for the owner to have paused, or for a
+        // second unprompted turn to have used the last slot. This row is
+        // locked FOR UPDATE, so recounting here is the decision that binds.
+        if (unpromptedWork) {
+          if (
+            currentBot.proactivePaused ||
+            getEnv().SOKO_BOT_PROACTIVE_PAUSED
+          ) {
+            throw new SokoBotBusyError(
+              "This Soko Bot's owner has paused unprompted work",
+            );
+          }
+          const { localDayStart } = await import(
+            "@/services/soko-bot-proactive.service"
+          );
+          const usedToday = await tx.sokoBotTurn.count({
+            where: {
+              sokoBotId: bot.id,
+              createdAt: {
+                gte: localDayStart(new Date(), currentBot.ingestTimezone),
+              },
+              clientTurnId: { not: { startsWith: "lab:" } },
+              OR: [
+                { source: { in: ["SCHEDULE", "EVENT", "INGEST"] } },
+                { chainDepth: { gt: 0 } },
+              ],
+            },
+          });
+          if (usedToday >= currentBot.proactiveDailyLimit) {
+            throw new SokoBotBusyError(
+              "This Soko Bot has reached its owner's daily limit",
+            );
+          }
         }
         const active = await tx.sokoBotTurn.findFirst({
           where: {

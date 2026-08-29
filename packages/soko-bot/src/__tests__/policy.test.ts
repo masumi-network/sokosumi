@@ -106,11 +106,14 @@ describe("bot-to-bot ceiling", () => {
     // Without post_chat a bot could be summoned but never reply, so a chain
     // could never reach its second hop.
     expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).toContain("post_chat");
+    // post_chat takes a room id and a mention prompt only names the room, so
+    // without this a bot asked to consult a third assistant cannot find where.
+    expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).toContain("list_chats");
     for (const capability of SOKO_BOT_TEAMMATE_CAPABILITIES) {
       expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).toContain(capability);
     }
     expect([...SOKO_BOT_BOT_TO_BOT_CAPABILITIES].sort()).toEqual(
-      [...SOKO_BOT_TEAMMATE_CAPABILITIES, "post_chat"].sort(),
+      [...SOKO_BOT_TEAMMATE_CAPABILITIES, "list_chats", "post_chat"].sort(),
     );
   });
 
@@ -163,6 +166,20 @@ describe("exceedsUnattendedHireBudget", () => {
         ceiling,
       }),
     ).toBe(false);
+  });
+
+  it("is a budget for the whole turn, not a limit per call", () => {
+    // Compared call by call, an unattended turn could issue one hire per tool
+    // call and commit many times the intended rail; callers pass the running
+    // total, so a second hire is measured against what the first committed.
+    expect(
+      exceedsUnattendedHireBudget({
+        source: "INGEST",
+        chainDepth: 0,
+        maxCredits: 40 + 40,
+        ceiling,
+      }),
+    ).toBe(true);
   });
 
   it("treats a chat turn another assistant started as unattended", () => {

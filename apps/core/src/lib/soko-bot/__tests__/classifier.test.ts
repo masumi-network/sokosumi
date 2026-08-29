@@ -55,3 +55,25 @@ describe("Soko Bot turn classifier", () => {
     expect(result.classification.requiresClarification).toBe(true);
   });
 });
+
+describe("addressing another coworker", () => {
+  it("routes a request to speak to someone onto a route that can post", () => {
+    // CLARIFY is read-only, so this fell through to the bot replying that it
+    // had no way to reach them — while holding post_chat on other routes.
+    for (const message of [
+      "please ask @jarvis what is still open on the launch, then tell me",
+      "check with @hannah whether the copy is ready",
+      "ping @ben about the invoice",
+    ]) {
+      const result = classifyDeterministically(message);
+      expect(result?.route).toBe("DIRECT_RESPONSE");
+    }
+  });
+
+  it("leaves an ordinary vague request alone", () => {
+    const result = classifyDeterministically(
+      "sort out the thing from last week",
+    );
+    expect(result?.route).not.toBe("DIRECT_RESPONSE");
+  });
+});

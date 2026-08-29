@@ -101,6 +101,10 @@ export const SOKO_BOT_TEAMMATE_CAPABILITIES = [
  */
 export const SOKO_BOT_BOT_TO_BOT_CAPABILITIES = [
   ...SOKO_BOT_TEAMMATE_CAPABILITIES,
+  // `post_chat` takes a room id, and a mention prompt names the room rather
+  // than identifying it, so without `list_chats` a bot could be asked to
+  // consult a third assistant and have no way to find where.
+  "list_chats",
   "post_chat",
 ] as const satisfies readonly SokoBotCapability[];
 
