@@ -445,6 +445,27 @@ describe("dispatchChatRoomMention claim", () => {
     expect(streamTextMock).toHaveBeenCalled();
   });
 
+  it("ends the assistant bubble when dispatch throws after opening one", async () => {
+    // Marking the row failed unpins the poller but leaves the person watching
+    // a spinner that never stops — the shape of the messages that never ended.
+    findUniqueMock.mockResolvedValueOnce(pendingMention()).mockResolvedValue({
+      responseMessageId: "reply_1",
+      message: { id: "msg_1" },
+    });
+    updateManyMock.mockRejectedValue(new Error("database went away"));
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(updateMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "reply_1" },
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({ mention_failed: true }),
+        }),
+      }),
+    );
+  });
+
   it("gives up on a mention that keeps getting reclaimed", async () => {
     findUniqueMock.mockResolvedValue({
       ...pendingMention(),

@@ -115,6 +115,14 @@ export function classifyDeterministically(
   // Saying something in chat or writing a file is the owner asking for an
   // action, not for clarification. Without this it fell through to CLARIFY,
   // which is read-only, so the bot could not do what it was plainly told.
+  // "Should we ping @alice, or wait?" is the owner thinking aloud, not an
+  // instruction. Treating it as one grants chat, Drive, schedule, and
+  // connected-account writes off a question that authorises nothing.
+  const deliberating =
+    normalized.includes("?") &&
+    /^\s*(should|shall|do you think|would it|might we|is it worth|do i need|do we need|any thoughts|thoughts)\b/.test(
+      normalized,
+    );
   const chatOrFileWriteSignal = includesAny(normalized, [
     /\b(post|send|reply|drop|leave)\b.{0,40}\b(message|note|update|reply|chat|room|channel|thread)\b/,
     /\b(write|save|upload|put|create)\b.{0,40}\b(file|note|document|doc|markdown|\.md|drive)\b/,
@@ -155,7 +163,12 @@ export function classifyDeterministically(
       0.98,
     );
   }
-  if (chatOrFileWriteSignal && !delegateSignal && !hireSignal) {
+  if (
+    chatOrFileWriteSignal &&
+    !deliberating &&
+    !delegateSignal &&
+    !hireSignal
+  ) {
     return baseClassification(
       "DIRECT_RESPONSE",
       message,

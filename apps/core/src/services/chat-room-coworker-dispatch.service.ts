@@ -450,6 +450,25 @@ export async function dispatchChatRoomMention(
     await runChatRoomMentionDispatch(mentionId);
   } catch (error) {
     console.error("Room coworker dispatch failed:", { mentionId, error });
+    // Marking the row failed unpins the poller but says nothing to the person
+    // watching the bubble. Anything that escaped after a placeholder was
+    // opened — a thread lookup, a provider update, a room read — would leave
+    // it streaming for ever, so end it here whatever threw.
+    const linked = await prisma.chatRoomMention
+      .findUnique({
+        where: { id: mentionId },
+        select: { responseMessageId: true, message: { select: { id: true } } },
+      })
+      .catch(() => null);
+    if (linked?.responseMessageId) {
+      await failMentionThoughtPlaceholder({
+        placeholderId: linked.responseMessageId,
+        sourceMessageId: linked.message.id,
+        mentionId,
+      }).catch((cleanupError) => {
+        console.error("Failed to end the assistant bubble:", cleanupError);
+      });
+    }
     await markMentionFailed(mentionId, error);
   }
 }

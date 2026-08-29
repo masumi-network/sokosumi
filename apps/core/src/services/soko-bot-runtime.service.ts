@@ -2061,34 +2061,43 @@ export class SokoBotRuntimeService {
         // a single unattended turn. The owner asking for a hire themselves is
         // unaffected.
         const ceiling = getEnv().SOKO_BOT_UNATTENDED_MAX_HIRE_CREDITS;
-        // The ceiling is a budget for the whole turn, not a per-call limit:
-        // compared call by call, a turn could issue one hire per tool call and
-        // commit many times the intended rail. Sum what this turn already
-        // committed and charge the new hire against the remainder.
-        const priorHires = await prisma.sokoBotToolCall.findMany({
-          where: {
-            turnId: authorized.turn.id,
-            capability: "hire_agent",
-            status: { in: ["PENDING", "COMPLETED"] },
-            NOT: { toolCallId: input.toolCallId },
-          },
-          select: { input: true },
+        // One hire per unattended turn, and that one under the ceiling.
+        //
+        // Summing what the turn already committed looked more precise and was
+        // not: a tool input over 16KB is persisted as a truncated preview, so
+        // `maxCredits` disappears from the stored row and every prior hire
+        // sums to zero. Counting rows cannot be defeated that way, and it
+        // matches the prompt's own rule of one initiative per turn.
+        const unattended = exceedsUnattendedHireBudget({
+          source: authorized.turn.source,
+          chainDepth: authorized.turn.chainDepth,
+          maxCredits: Number.POSITIVE_INFINITY,
+          ceiling,
         });
-        const committed = priorHires.reduce((total, call) => {
-          const credits = (call.input as { maxCredits?: unknown } | null)
-            ?.maxCredits;
-          return total + (typeof credits === "number" ? credits : 0);
-        }, 0);
+        if (unattended) {
+          const priorHires = await prisma.sokoBotToolCall.count({
+            where: {
+              turnId: authorized.turn.id,
+              capability: "hire_agent",
+              NOT: { toolCallId: input.toolCallId },
+            },
+          });
+          if (priorHires > 0) {
+            throw new SokoBotRuntimeValidationError(
+              "A turn nobody asked for may hire once. Report what you found and ask the owner before hiring again.",
+            );
+          }
+        }
         if (
           exceedsUnattendedHireBudget({
             source: authorized.turn.source,
             chainDepth: authorized.turn.chainDepth,
-            maxCredits: committed + hire.maxCredits,
+            maxCredits: hire.maxCredits,
             ceiling,
           })
         ) {
           throw new SokoBotRuntimeValidationError(
-            `An unattended turn may commit at most ${ceiling} credits in total; ${committed} are already committed and this asked for ${hire.maxCredits}. Ask the owner in their chat instead.`,
+            `A turn nobody asked for may commit at most ${ceiling} credits; this asked for ${hire.maxCredits}. Ask the owner in their chat instead.`,
           );
         }
         return this.executeAsAccepted(
