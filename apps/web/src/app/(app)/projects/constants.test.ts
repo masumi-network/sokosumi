@@ -25,7 +25,7 @@ describe("projects list CLS layout constants", () => {
       "[content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     );
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toBe(
-      "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+      "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
     );
     expect(PROJECTS_BROWSE_DIVIDE_CLASS).toBe("divide-border/50 divide-y px-2");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).not.toContain("grid-cols-2");

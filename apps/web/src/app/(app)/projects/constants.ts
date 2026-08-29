@@ -43,7 +43,7 @@ export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
  * Shared by live `ProjectsView` and Instant skeleton.
  */
 export const PROJECTS_BROWSE_LAYOUT_CLASS =
-  "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
+  "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
 /**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.

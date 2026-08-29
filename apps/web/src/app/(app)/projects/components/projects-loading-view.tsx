@@ -61,7 +61,7 @@ export function ProjectsLoadingView() {
 function ProjectListItemSkeleton() {
   return (
     <article className={PROJECTS_LIST_ROW_LAYOUT_CLASS}>
-      <div className="-mx-2 flex min-w-0 flex-row items-center gap-4 rounded-none px-2 py-3 md:rounded-lg">
+      <div className="flex min-w-0 flex-row items-center gap-4 rounded-none px-2 py-3 md:rounded-lg">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Skeleton className="size-8 shrink-0 rounded-lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
