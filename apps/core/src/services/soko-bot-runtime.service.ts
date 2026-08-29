@@ -846,9 +846,11 @@ export class SokoBotRuntimeService {
     input: { roomId: string; content: string },
   ) {
     // A turn another assistant started may answer only where it was asked.
-    // post_chat otherwise takes any room id the caller supplies, so text from
-    // the requesting bot could name a room its own owner cannot see and have
-    // this bot post — and summon coworkers — there on its behalf.
+    // Unreachable while the bot-to-bot ceiling withholds `post_chat` — kept
+    // because it is the guard that would matter the moment that ceiling is
+    // widened again, and the failure it prevents is silent: text from the
+    // requesting bot naming a room its own owner cannot see, and this bot
+    // posting there on its behalf.
     if (authorized.turn.chainDepth > 0) {
       const origin = await prisma.sokoBotTurn.findUnique({
         where: { id: authorized.turn.id },

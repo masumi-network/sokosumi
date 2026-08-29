@@ -8,6 +8,11 @@ import {
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
 } from "../policy.js";
+import {
+  applyVersionCapabilities,
+  DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotVersion,
+} from "../versions/index.js";
 
 describe("Soko Bot route capability ceilings", () => {
   it("keeps ambiguous routes read-only", () => {
@@ -115,6 +120,21 @@ describe("bot-to-bot ceiling", () => {
     expect([...SOKO_BOT_BOT_TO_BOT_CAPABILITIES].sort()).toEqual(
       [...SOKO_BOT_TEAMMATE_CAPABILITIES].sort(),
     );
+  });
+
+  it("cannot be widened back by an authored version", () => {
+    // The depth-1 bound rests on this: applyVersionCapabilities filters and
+    // never adds, so no authored allowlist can hand post_chat back to a turn
+    // another assistant started.
+    const widened = applyVersionCapabilities(
+      {
+        ...getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
+        capabilities: ["post_chat", "list_chats", "refresh_context"],
+      },
+      [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES],
+    );
+    expect(widened).not.toContain("post_chat");
+    expect(widened).not.toContain("list_chats");
   });
 
   it("keeps the owner's private surfaces unreadable", () => {
