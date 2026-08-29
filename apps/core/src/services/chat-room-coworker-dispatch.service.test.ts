@@ -445,6 +445,26 @@ describe("dispatchChatRoomMention claim", () => {
     expect(streamTextMock).toHaveBeenCalled();
   });
 
+  it("gives up on a mention that keeps getting reclaimed", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      status: "sent",
+      createdAt: new Date(Date.now() - 16 * 60_000),
+      updatedAt: new Date(Date.now() - ROOM_SENT_STALE_MS - 1_000),
+    });
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(updateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: MENTION_ID, status: { not: "responded" } },
+        data: expect.objectContaining({ status: "failed" }),
+      }),
+    );
+  });
+
   it("does not reclaim a fresh sent mention still in flight", async () => {
     findUniqueMock.mockResolvedValue({
       ...pendingMention(),

@@ -41,6 +41,17 @@ export const ROOM_COWORKER_STREAM_TIMEOUT = {
 
 /** Must exceed `ROOM_COWORKER_TOTAL_MS` so reclaim cannot steal an in-flight run. */
 export const ROOM_SENT_STALE_MS = ROOM_COWORKER_TOTAL_MS + 30_000;
+
+/**
+ * After this long a mention is given up on rather than reclaimed again.
+ *
+ * Reclaim exists for a worker that died mid-dispatch, and it retries by
+ * re-running the same work. When the cause is not transient the mention is
+ * reclaimed for ever and the asker watches "Thinking…" indefinitely: the turn
+ * that would have carried a deadline was never created, so nothing else can
+ * end it. Past this age the reply says it failed.
+ */
+const ROOM_MENTION_GIVE_UP_MS = 15 * 60_000;
 const STALE_SENT_RECLAIM_LIMIT = 10;
 /** Cap Ably thought updates; first beat always publishes. */
 const MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS = 250;
@@ -534,6 +545,18 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       existingPlaceholderId: mention.responseMessageId,
       error,
     });
+
+  // `instanceof` because unit fixtures build partial mention rows; the real
+  // query selects every scalar, so this is always a Date in production.
+  const askedAt = mention.createdAt;
+  if (
+    askedAt instanceof Date &&
+    Date.now() - askedAt.getTime() > ROOM_MENTION_GIVE_UP_MS &&
+    mention.status !== "responded"
+  ) {
+    await failWithShell("Soko Bot never picked this up; ask again");
+    return;
+  }
 
   const userId = mention.message.senderUserId;
   if (!userId) {
