@@ -10,33 +10,41 @@ const getNotificationServiceWorkerMock = vi.fn();
 
 const calls: string[] = [];
 
+/** Set to make the singleton throw the way a first construction can. */
+let clientConstructionError: Error | null = null;
+
 vi.mock("./realtime-singleton.client", () => ({
-  getAblyRealtimeClient: () => ({
-    push: {
-      activate: () => {
-        calls.push("activate");
-        return activateMock();
-      },
-      deactivate: () => {
-        calls.push("deactivate");
-        return deactivateMock();
-      },
-    },
-    channels: {
-      get: () => ({
-        push: {
-          subscribeDevice: () => {
-            calls.push("subscribeDevice");
-            return subscribeDeviceMock();
-          },
-          unsubscribeDevice: () => {
-            calls.push("unsubscribeDevice");
-            return unsubscribeDeviceMock();
-          },
+  getAblyRealtimeClient: () => {
+    if (clientConstructionError) {
+      throw clientConstructionError;
+    }
+    return {
+      push: {
+        activate: () => {
+          calls.push("activate");
+          return activateMock();
         },
-      }),
-    },
-  }),
+        deactivate: () => {
+          calls.push("deactivate");
+          return deactivateMock();
+        },
+      },
+      channels: {
+        get: () => ({
+          push: {
+            subscribeDevice: () => {
+              calls.push("subscribeDevice");
+              return subscribeDeviceMock();
+            },
+            unsubscribeDevice: () => {
+              calls.push("unsubscribeDevice");
+              return unsubscribeDeviceMock();
+            },
+          },
+        }),
+      },
+    };
+  },
 }));
 
 const hasWebPushSubscriptionMock = vi.fn();
@@ -53,12 +61,18 @@ describe("deactivatePush", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     calls.length = 0;
+    clientConstructionError = null;
     activateMock.mockResolvedValue(undefined);
     subscribeDeviceMock.mockResolvedValue(undefined);
     unsubscribeDeviceMock.mockResolvedValue(undefined);
     deactivateMock.mockResolvedValue(undefined);
     unsubscribeMock.mockResolvedValue(true);
-    getSubscriptionMock.mockResolvedValue({ unsubscribe: unsubscribeMock });
+    getSubscriptionMock.mockResolvedValue({
+      unsubscribe: () => {
+        calls.push("unsubscribeBrowser");
+        return unsubscribeMock();
+      },
+    });
     hasWebPushSubscriptionMock.mockResolvedValue(true);
     getNotificationServiceWorkerMock.mockResolvedValue({
       pushManager: { getSubscription: getSubscriptionMock },
@@ -132,10 +146,33 @@ describe("deactivatePush", () => {
     expect(unsubscribeMock).not.toHaveBeenCalled();
   });
 
-  it("drops the channel subscription before the device", async () => {
+  /**
+   * The browser endpoint leads, because it is the only step that stops
+   * delivery here and the two Ably calls can fail. `attempt` removed the
+   * short-circuit that used to imply this, so the order is asserted directly.
+   */
+  it("drops the browser endpoint, then the channel, then the device", async () => {
     await deactivatePush("user_1");
 
-    expect(calls).toEqual(["unsubscribeDevice", "deactivate"]);
+    expect(calls).toEqual([
+      "unsubscribeBrowser",
+      "unsubscribeDevice",
+      "deactivate",
+    ]);
+  });
+
+  /**
+   * `getAblyRealtimeClient` builds the client on its first call and can throw
+   * there. Reading it before the browser endpoint went would skip the one step
+   * that stops delivery, which is the whole reason that step leads.
+   */
+  it("drops the browser endpoint even when the Ably client cannot be built", async () => {
+    clientConstructionError = new Error("no realtime client");
+
+    await expect(deactivatePush("user_1")).rejects.toThrow(
+      "no realtime client",
+    );
+    expect(unsubscribeMock).toHaveBeenCalledTimes(1);
   });
 
   /**

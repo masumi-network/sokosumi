@@ -140,9 +140,14 @@ async function subscribeThisDevice(
  */
 export async function deactivatePush(userId: string): Promise<void> {
   const failures: unknown[] = [];
-  const client = getAblyRealtimeClient();
 
   await attempt(failures, dropBrowserPushSubscription);
+
+  // Built after that step, never before it. `getAblyRealtimeClient` constructs
+  // the client on its first call and can throw there, which would skip the one
+  // step that actually stops delivery to this browser.
+  const client = getAblyRealtimeClient();
+
   // Unsubscribing the device before deactivating keeps Ably from holding a
   // channel subscription for a device it no longer knows.
   await attempt(failures, () =>
@@ -158,7 +163,12 @@ export async function deactivatePush(userId: string): Promise<void> {
   }
 }
 
-/** Records a rejection instead of letting it skip the steps that follow. */
+/**
+ * Records a rejection instead of letting it skip the steps that follow.
+ *
+ * Logs it too, because only the first failure is thrown on and the settings
+ * switch shows one generic message for whatever it gets.
+ */
 async function attempt(
   failures: unknown[],
   work: () => Promise<unknown>,
@@ -166,6 +176,7 @@ async function attempt(
   try {
     await work();
   } catch (error) {
+    console.error("A push teardown step failed", error);
     failures.push(error);
   }
 }

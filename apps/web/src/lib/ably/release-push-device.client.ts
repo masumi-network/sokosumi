@@ -13,9 +13,10 @@ import {
  * five that does. Deregistering removes it and `ably.push.pushRecipient`
  * (`build/push.js:913-916`), then calls `resetId()`, which mints a new id and
  * writes `ably.push.deviceId` and `ably.push.deviceSecret` straight back
- * (`build/push.js:419-423`, persisting at `:405-410`). Reading the id instead would say
- * "registered" forever, and every later sign-out would build a client and mint
- * a token only to fail without this token (`build/push.js:155-159`).
+ * (`build/push.js:419-423`, persisting at `:405-410`). Reading the id instead
+ * would say "registered" forever, and every later sign-out would build a
+ * client and mint a token only to fail without this token
+ * (`build/push.js:155-159`).
  */
 const ABLY_DEVICE_IDENTITY_TOKEN_KEY = "ably.push.deviceIdentityToken";
 
