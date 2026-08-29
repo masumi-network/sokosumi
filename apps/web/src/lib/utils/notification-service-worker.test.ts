@@ -156,6 +156,16 @@ describe("subscribeNotificationClicks", () => {
     });
 
     const onClick = vi.fn();
+    // The worker's own query reaches this listener too, so silence is the
+    // right answer to it. A click whose target will not parse is the case
+    // worth reporting, and the two are told apart below.
+    const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+    // Counted by message: a registration rejected in an earlier test settles
+    // late and reports itself here, and it says nothing about this listener.
+    const reportedTargets = () =>
+      reported.mock.calls.filter(
+        ([message]) => message === "Ignored a notification click target",
+      );
     const unsubscribe = subscribeNotificationClicks(onClick);
     const emit = (data: unknown) => {
       for (const listener of listeners) {
@@ -164,13 +174,20 @@ describe("subscribeNotificationClicks", () => {
     };
 
     emit({ type: "something-else", target: TARGET });
+    emit({ type: SHOWS_NOTIFICATIONS_QUERY });
+    expect(reportedTargets()).toHaveLength(0);
+
     emit({ type: NOTIFICATION_CLICK_MESSAGE });
     emit({ type: NOTIFICATION_CLICK_MESSAGE, target: { id: "" } });
     emit({ type: NOTIFICATION_CLICK_MESSAGE, target: TARGET });
 
     expect(onClick).toHaveBeenCalledTimes(1);
     expect(onClick).toHaveBeenCalledWith(TARGET);
+    // A banner the worker rendered but this build cannot route leaves the
+    // reader with a focused tab and nothing else, so it must not be silent.
+    expect(reportedTargets()).toHaveLength(2);
 
+    reported.mockRestore();
     unsubscribe();
     expect(listeners.size).toBe(0);
   });

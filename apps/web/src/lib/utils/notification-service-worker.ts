@@ -76,6 +76,11 @@ const clickMessageSchema = z.object({
   target: notificationTargetSchema,
 });
 
+/** Tells a click whose target will not parse from a message that is not one. */
+const clickMessageTypeSchema = z.object({
+  type: z.literal(NOTIFICATION_CLICK_MESSAGE),
+});
+
 export interface ShowNotificationInput {
   title: string;
   body: string;
@@ -241,6 +246,17 @@ export function subscribeNotificationClicks(
     const message = clickMessageSchema.safeParse(event.data);
     if (message.success) {
       onClick(message.data.target);
+      return;
+    }
+
+    // Every worker message reaches every listener, so the query the worker
+    // sends before it skips a banner lands here too. Only a message that says
+    // it is a click is worth reporting: the worker validates the id alone, so
+    // a payload Core changed (a dropped `referenceId`, a kind this build does
+    // not know) arrives here and is dropped. The reader then clicks a banner,
+    // watches a tab take the focus, and nothing more happens.
+    if (clickMessageTypeSchema.safeParse(event.data).success) {
+      console.error("Ignored a notification click target", message.error);
     }
   });
 }
