@@ -1042,7 +1042,7 @@ describe("dispatchChatRoomMention claim", () => {
 });
 
 describe("listStaleSentChatRoomMentionIds", () => {
-  it("queries sent mentions older than the stale window for the room", async () => {
+  it("queries unfinished mentions older than the stale window for the room", async () => {
     findManyMentionMock.mockResolvedValue([{ id: MENTION_ID }]);
     const now = new Date("2025-06-01T12:00:00.000Z");
 
@@ -1051,7 +1051,9 @@ describe("listStaleSentChatRoomMentionIds", () => {
     expect(ids).toEqual([MENTION_ID]);
     expect(findManyMentionMock).toHaveBeenCalledWith({
       where: {
-        status: "sent",
+        // Pending too: a row written but never handed to the dispatcher is
+        // stranded otherwise, because nothing else retries it.
+        status: { in: ["pending", "sent"] },
         updatedAt: { lt: new Date(now.getTime() - ROOM_SENT_STALE_MS) },
         message: { roomId: "room_1" },
       },

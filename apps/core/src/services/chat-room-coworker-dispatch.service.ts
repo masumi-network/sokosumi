@@ -444,7 +444,11 @@ export async function listStaleSentChatRoomMentionIds(
   const staleBefore = new Date(now.getTime() - ROOM_SENT_STALE_MS);
   const rows = await prisma.chatRoomMention.findMany({
     where: {
-      status: "sent",
+      // `pending` too: a mention is written in one transaction and handed to
+      // the dispatcher after it commits, so a process that dies in between
+      // leaves a row nobody ever claimed. Scanning only `sent` left those
+      // stranded for ever.
+      status: { in: ["pending", "sent"] },
       updatedAt: { lt: staleBefore },
       message: { roomId },
     },
@@ -1094,6 +1098,21 @@ async function runSokoBotMentionDispatch(params: {
     return;
   }
 
+  // From here the caller's closure is stale: it captured the mention's
+  // responseMessageId before this placeholder existed, so failing through it
+  // would open a second bubble and leave this one streaming for ever — the
+  // shape of the "Thinking…" messages that never ended.
+  const failPlaceholder = (error: unknown) =>
+    failMentionWithCoworkerShell({
+      mentionId,
+      sourceMessageId: mention.message.id,
+      roomId: mention.message.roomId,
+      parentMessageId: mention.message.parentMessageId,
+      coworkerId: mention.coworker.id,
+      existingPlaceholderId: placeholderId,
+      error,
+    });
+
   // Directs are the bot's own conversation: the control plane already
   // rehydrates recent turns, so the message goes through as typed. Channel
   // mentions carry the surrounding room context like coworker mentions do.
@@ -1155,6 +1174,6 @@ async function runSokoBotMentionDispatch(params: {
       );
     }
   } catch (error) {
-    await failWithShell(error);
+    await failPlaceholder(error);
   }
 }

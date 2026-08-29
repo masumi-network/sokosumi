@@ -845,6 +845,24 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     input: { roomId: string; content: string },
   ) {
+    // A turn another assistant started may answer only where it was asked.
+    // post_chat otherwise takes any room id the caller supplies, so text from
+    // the requesting bot could name a room its own owner cannot see and have
+    // this bot post — and summon coworkers — there on its behalf.
+    if (authorized.turn.chainDepth > 0) {
+      const origin = await prisma.sokoBotTurn.findUnique({
+        where: { id: authorized.turn.id },
+        select: {
+          chatMention: { select: { message: { select: { roomId: true } } } },
+        },
+      });
+      const originRoomId = origin?.chatMention?.message.roomId;
+      if (!originRoomId || originRoomId !== input.roomId) {
+        throw new SokoBotRuntimeAuthorizationError(
+          "You may only reply in the room you were asked in",
+        );
+      }
+    }
     const room = await this.requireChatMembership(authorized, input.roomId);
     // Who this post summons. A bot may address another bot, but every hop is
     // counted: past the ceiling the message still posts and simply stops being

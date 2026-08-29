@@ -2366,6 +2366,10 @@ describe("post_chat chain depth", () => {
     botFindUniqueMock.mockResolvedValue({ coworker: { id: "cow_self" } });
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
     chatRoomFindFirstMock.mockResolvedValue({ id: "room_1", name: "Launch" });
+    // Where the chain was started, for the origin-room check on depth > 0.
+    turnFindUniqueMock.mockResolvedValue({
+      chatMention: { message: { roomId: "room_1" } },
+    });
     chatCoworkerMemberFindManyMock.mockResolvedValue([
       { coworker: { id: "cow_other", name: "Jarvis", slug: "jarvis" } },
     ]);
@@ -2467,6 +2471,39 @@ describe("post_chat chain depth", () => {
         }),
       }),
     );
+  });
+
+  it("refuses to answer anywhere but the room it was asked in", async () => {
+    // post_chat takes a room id from the caller, so without this the bot that
+    // asked could name a room its own owner cannot see and have this bot post
+    // — and summon coworkers — there on its behalf.
+    const authorized = armPostChat(1);
+    turnFindUniqueMock.mockResolvedValue({
+      chatMention: { message: { roomId: "room_asked_in" } },
+    });
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](authorized, {
+        roomId: "room_somewhere_else",
+        content: "@jarvis look at this",
+      }),
+    ).rejects.toThrow(/only reply in the room you were asked in/i);
+
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("answers normally in the room it was asked in", async () => {
+    const authorized = armPostChat(1);
+    turnFindUniqueMock.mockResolvedValue({
+      chatMention: { message: { roomId: "room_1" } },
+    });
+
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "@jarvis the date is confirmed",
+    });
+
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
   });
 
   it("never summons itself", async () => {
