@@ -97,10 +97,32 @@ async function resolveLocale() {
     // Cookie access can throw on a partitioned or restricted origin.
   }
 
-  const browserLocale = (self.navigator.language || "").split("-")[0];
-  return Object.hasOwn(MESSAGES, browserLocale)
-    ? browserLocale
-    : FALLBACK_LOCALE;
+  return resolveBrowserLocale();
+}
+
+/**
+ * The first browser language this worker has strings for.
+ *
+ * Reads the whole list, not just `navigator.language`. The app negotiates
+ * every entry of `Accept-Language` in order (`resolveLocaleFromAcceptLanguage`
+ * in `@sokosumi/utils`), and `navigator.languages` is the same list in the
+ * same order. Reading only the first entry made a reader who prefers an
+ * unsupported language over a supported one read the app in their second
+ * choice and the banners in English.
+ */
+function resolveBrowserLocale() {
+  const preferences = self.navigator.languages?.length
+    ? self.navigator.languages
+    : [self.navigator.language];
+
+  for (const preference of preferences) {
+    const locale = (preference || "").split("-")[0];
+    if (Object.hasOwn(MESSAGES, locale)) {
+      return locale;
+    }
+  }
+
+  return FALLBACK_LOCALE;
 }
 
 function interpolate(template, params) {

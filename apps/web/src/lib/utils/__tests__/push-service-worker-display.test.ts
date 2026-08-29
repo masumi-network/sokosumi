@@ -99,11 +99,13 @@ function loadServiceWorker({
   windows = [],
   matchAllThrows = false,
   locale,
+  browserLanguages,
 }: {
   isChromium: boolean;
   windows?: WindowClientStub[];
   matchAllThrows?: boolean;
   locale?: string;
+  browserLanguages?: string[];
 }) {
   const listeners = new Map<string, (event: unknown) => void>();
   const shown: ShownNotification[] = [];
@@ -119,7 +121,8 @@ function loadServiceWorker({
       ? { cookieStore: { get: async () => ({ value: locale }) } }
       : {}),
     navigator: {
-      language: "en-US",
+      language: browserLanguages?.[0] ?? "en-US",
+      ...(browserLanguages ? { languages: browserLanguages } : {}),
       ...(isChromium ? { userAgentData: { brands: [] } } : {}),
     },
     clients: {
@@ -235,6 +238,25 @@ describe("ably-push-sw display", () => {
     await worker.dispatchPush(MENTION_PUSH);
 
     expect(worker.shown[0]?.options.body).toBe("Ada mentioned you in General");
+  });
+
+  /**
+   * The app negotiates every `Accept-Language` entry in order, and
+   * `navigator.languages` is that same list. Reading only the first entry gave
+   * a reader who prefers an unsupported language the app in German and the
+   * banners in English.
+   */
+  it("reads past a browser language it has no strings for", async () => {
+    const worker = loadServiceWorker({
+      isChromium: true,
+      browserLanguages: ["fr-FR", "de"],
+    });
+
+    await worker.dispatchPush(MENTION_PUSH);
+
+    expect(worker.shown[0]?.options.body).toBe(
+      "Ada hat dich in General erwähnt",
+    );
   });
 
   it("renders the localized message tagged with the notification id", async () => {
