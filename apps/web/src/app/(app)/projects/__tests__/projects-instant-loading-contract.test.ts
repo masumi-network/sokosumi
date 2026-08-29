@@ -48,6 +48,15 @@ describe("projects Instant Nav skeleton contract", () => {
     expect(source).not.toMatch(/export\s+const\s+instant\s*=\s*false/);
   });
 
+  it("projects/(root)/page.tsx paints Instant via Suspense + ProjectsPageSkeleton", () => {
+    const code = stripComments(readApp("projects/(root)/page.tsx"));
+    expect(code).toMatch(
+      /export\s+default\s+function\s+\w+\s*\([^)]*\)\s*\{[\s\S]*<\s*Suspense\b/,
+    );
+    expect(code).toMatch(/fallback=\{\s*<\s*ProjectsPageSkeleton\s*\/>\s*\}/);
+    expect(code).toMatch(/await\s+connection\s*\(\s*\)/);
+  });
+
   it("projects/(root)/loading.tsx stays sync (no cookies/connection/session/i18n)", () => {
     const code = stripComments(readApp("projects/(root)/loading.tsx"));
     expect(code).not.toMatch(DYNAMIC_SHELL_API_RE);
