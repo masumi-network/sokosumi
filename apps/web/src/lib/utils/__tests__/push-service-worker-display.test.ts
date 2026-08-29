@@ -98,12 +98,14 @@ function loadServiceWorker({
   isChromium,
   windows = [],
   matchAllThrows = false,
+  openWindowThrows = false,
   locale,
   browserLanguages,
 }: {
   isChromium: boolean;
   windows?: WindowClientStub[];
   matchAllThrows?: boolean;
+  openWindowThrows?: boolean;
   locale?: string;
   browserLanguages?: string[];
 }) {
@@ -111,6 +113,9 @@ function loadServiceWorker({
   const shown: ShownNotification[] = [];
   const openedWindows: string[] = [];
   const skipWaiting = vi.fn();
+  // The sandbox gets its own `console`, so a spy on this realm's would never
+  // see the worker's. Hand it one the test can read instead.
+  const reported = vi.fn();
 
   const self = {
     addEventListener: (type: string, handler: (event: unknown) => void) => {
@@ -133,6 +138,12 @@ function loadServiceWorker({
         return windows;
       },
       openWindow: async (url: string) => {
+        // `openWindow` and `focus` share one precondition, so a browser that
+        // refuses the focus refuses this too. A harness that always resolves
+        // hides that, and hid it once already.
+        if (openWindowThrows) {
+          throw new Error("InvalidAccessError");
+        }
         openedWindows.push(url);
       },
     },
@@ -152,6 +163,7 @@ function loadServiceWorker({
       self,
       setTimeout,
       clearTimeout,
+      console: { error: reported },
       // The sandbox has no DOM. A synchronous pair is enough: the worker
       // assigns `port1.onmessage` before it hands `port2` to the client.
       MessageChannel: class {
@@ -208,6 +220,7 @@ function loadServiceWorker({
     skipWaiting,
     shown,
     openedWindows,
+    reported,
   };
 }
 
@@ -511,23 +524,60 @@ describe("ably-push-sw notificationclick", () => {
   });
 
   /**
-   * `focus()` rejects with `InvalidAccessError` unless a window in the origin
-   * holds transient activation (MDN, `WindowClient.focus`). The banner is
-   * already closed by then, so a rejection left alone takes the click with it.
+   * `focus()` and `openWindow()` both reject with `InvalidAccessError` unless
+   * a window in the origin holds transient activation (MDN), and that is a
+   * condition of the origin rather than of one tab. So the fallback is refused
+   * for the same reason the focus was, and the tab acting on the click while
+   * it stays in the background is the only answer left.
+   *
+   * The refused window is asserted alongside the refused focus. An earlier
+   * version of this test let `openWindow` resolve, which is a browser that
+   * cannot exist, and it passed over a click that reached nothing.
    */
-  it("opens a window when the tab refuses the focus", async () => {
+  it("hands the target to a tab that will not come forward", async () => {
     const focus = vi.fn().mockRejectedValue(new Error("InvalidAccessError"));
     const postMessage = vi.fn();
     const worker = loadServiceWorker({
       isChromium: true,
+      openWindowThrows: true,
       windows: [appPage({ focused: false, focus, postMessage })],
     });
 
     await worker.dispatchNotificationClick(MENTION_TARGET);
 
     expect(focus).toHaveBeenCalledTimes(1);
-    // The tab never took the focus, so it is not the one holding the click.
-    expect(postMessage).not.toHaveBeenCalled();
+    expect(postMessage).toHaveBeenCalledWith({
+      type: "sokosumi:notification-click",
+      target: MENTION_TARGET,
+    });
+    expect(worker.openedWindows).toEqual([]);
+    expect(worker.reported).toHaveBeenCalledTimes(1);
+  });
+
+  /** With no tab to hand the click to, a refused window is the end of it. */
+  it("reports a click it could neither route nor open", async () => {
+    const worker = loadServiceWorker({
+      isChromium: true,
+      openWindowThrows: true,
+      windows: [],
+    });
+
+    await worker.dispatchNotificationClick(MENTION_TARGET);
+
+    expect(worker.openedWindows).toEqual([]);
+    expect(worker.reported).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens a window when the tab refuses the focus", async () => {
+    const focus = vi.fn().mockRejectedValue(new Error("InvalidAccessError"));
+    const worker = loadServiceWorker({
+      isChromium: true,
+      windows: [appPage({ focused: false, focus })],
+    });
+
+    await worker.dispatchNotificationClick(MENTION_TARGET);
+
+    expect(focus).toHaveBeenCalledTimes(1);
     expect(worker.openedWindows).toEqual(["/"]);
   });
 

@@ -356,8 +356,7 @@ async function findRoutingClient(windows) {
  * `focus()` rejects with `InvalidAccessError` unless a window in the origin
  * holds transient activation (MDN, `WindowClient.focus`). The banner is closed
  * by the time this runs, so a rejection left to propagate would take the click
- * with it: the banner would vanish and nothing would open. A refusal falls
- * back to a new window instead.
+ * with it: the banner would vanish and nothing would happen at all.
  */
 async function focusRoutingClient(client) {
   try {
@@ -365,6 +364,25 @@ async function focusRoutingClient(client) {
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Open the app for a click no tab could take.
+ *
+ * This rejects with `InvalidAccessError` under the same condition `focus()`
+ * does, a window in the origin holding transient activation (MDN,
+ * `Clients.openWindow`), and the condition is per origin rather than per tab.
+ * So a refused focus means a refused window too, and this is where a click
+ * with no activation behind it ends. Reported rather than thrown: the banner
+ * is already closed, `waitUntil` has nothing to catch a rejection here, and a
+ * click that reached nothing at all should not also be silent.
+ */
+async function openAppWindow() {
+  try {
+    await self.clients.openWindow("/");
+  } catch (error) {
+    console.error("Could not open a window for a notification click", error);
   }
 }
 
@@ -387,14 +405,22 @@ self.addEventListener("notificationclick", (event) => {
       });
 
       const open = await findRoutingClient(windows);
-      if (open && (await focusRoutingClient(open))) {
+      if (open) {
+        // The target goes out whether or not the tab takes the focus. Both
+        // ways of answering a click need transient activation in the origin,
+        // so a tab that will not come forward means no new window will open
+        // either. A tab that stays in the background can still mark the
+        // notification read and route itself, and it is the only thing left
+        // that works.
         if (target) {
           open.postMessage({ type: CLICK_MESSAGE_TYPE, target });
         }
-        return;
+        if (await focusRoutingClient(open)) {
+          return;
+        }
       }
 
-      await self.clients.openWindow("/");
+      await openAppWindow();
     })(),
   );
 });
