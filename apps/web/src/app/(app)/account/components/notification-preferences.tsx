@@ -23,6 +23,14 @@ interface NotificationPreferencesProps {
 
 type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
 
+/**
+ * The fragment the notification primer links to. Exported so the primer's test
+ * can hold its href to this value: the primer is the only way most readers
+ * reach this card, and a rename here would silently land them at the top of
+ * `/account` instead.
+ */
+export const NOTIFICATION_PREFERENCES_ANCHOR = "notification-preferences";
+
 export function NotificationPreferences({
   notificationsOptIn: initialNotificationsOptIn,
   marketingOptIn: initialMarketingOptIn,
@@ -96,7 +104,7 @@ export function NotificationPreferences({
   );
 
   return (
-    <Card className="flex h-full flex-col" id="notification-preferences">
+    <Card className="flex h-full flex-col" id={NOTIFICATION_PREFERENCES_ANCHOR}>
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>

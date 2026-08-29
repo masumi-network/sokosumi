@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { NOTIFICATION_PREFERENCES_ANCHOR } from "../account/components/notification-preferences";
 import { NotificationBrowserPermissionPrimer } from "./notification-browser-permission-primer";
 
 vi.mock("next-intl", () => ({
@@ -67,9 +67,11 @@ describe("NotificationBrowserPermissionPrimer", () => {
     setNotificationPermission("default");
     render(<NotificationBrowserPermissionPrimer />);
 
+    // Built from the card's own anchor, so renaming that id fails here rather
+    // than landing the reader at the top of `/account` with no scroll.
     expect(settingsLink()).toHaveAttribute(
       "href",
-      "/account#notification-preferences",
+      `/account#${NOTIFICATION_PREFERENCES_ANCHOR}`,
     );
 
     await userEvent.click(settingsLink());
