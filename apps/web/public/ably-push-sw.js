@@ -319,11 +319,16 @@ function showFallbackNotification() {
 
 self.addEventListener("push", (event) => {
   event.waitUntil(
-    showPushNotification(event.data).catch(() =>
-      showFallbackNotification().catch(() => {
+    showPushNotification(event.data).catch((error) => {
+      // The fallback carries no body and no target, so the reader gets a bare
+      // title they cannot click through to anything. The two ways to land
+      // here, a rejected `showNotification` and a rejected `clients.matchAll`
+      // inside the skip check, leave no other trace.
+      console.error("Could not render a push notification", error);
+      return showFallbackNotification().catch(() => {
         // Nothing left to try. The browser posts its own banner instead.
-      }),
-    ),
+      });
+    }),
   );
 });
 

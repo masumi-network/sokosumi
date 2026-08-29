@@ -401,6 +401,10 @@ describe("ably-push-sw display", () => {
         },
       },
     ]);
+    // The fallback banner carries no body and no target, so on its own it
+    // looks like a push that simply said nothing. The report is the only
+    // record that a real notification was lost.
+    expect(worker.reported).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the banner when the payload names a prototype member", async () => {
