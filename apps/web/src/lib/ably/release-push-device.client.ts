@@ -41,6 +41,18 @@ function hasAblyPushRegistration(): boolean {
 }
 
 /**
+ * How long the sign-out waits for the release before it goes anyway.
+ *
+ * The browser unsubscribe leads and is local, so this only ever sheds the
+ * Ably half. That half is two REST calls, and `ably@2.28.0` allows each of
+ * them a 10s request timeout on top of 15s of fallback-host retries
+ * (`build/ably.js:790-791`). An Ably incident or a captive portal would
+ * otherwise hold the reader on a disabled Log out button for about half a
+ * minute. Signing out is the more urgent of the two.
+ */
+const RELEASE_TIMEOUT_MS = 5_000;
+
+/**
  * Drop this browser's push registration before an explicit sign-out.
  *
  * Web Push needs no session. The push service keeps delivering to the
@@ -54,24 +66,43 @@ function hasAblyPushRegistration(): boolean {
  * turn it on again.
  *
  * Must run before `signOut()`: deactivation mints an Ably token, which needs
- * the session that is about to end.
+ * the session that is about to end. It is capped, so a slow Ably cannot hold
+ * the reader on the button; what the cap sheds is a device record Ably prunes
+ * once its endpoint stops answering.
  */
 export async function releasePushDeviceOnSignOut(
   userId: string | undefined,
 ): Promise<void> {
-  // The support check and both registration reads are local, so a reader who
-  // never enabled push pays nothing and never loads the Ably SDK.
-  if (!userId || !isPushSupported()) {
-    return;
-  }
-
   try {
+    // The support check and both registration reads are local, so a reader who
+    // never enabled push pays nothing and never loads the Ably SDK. Inside the
+    // `try` with the rest: a throw from any of them would otherwise reject,
+    // and the reader could then not sign out at all.
+    if (!userId || !isPushSupported()) {
+      return;
+    }
+
     if (!(await hasWebPushSubscription()) && !hasAblyPushRegistration()) {
       return;
     }
 
     const { deactivatePush } = await import("./push-activation.client");
-    await deactivatePush(userId);
+
+    // Caught here rather than by the `catch` below, because the cap can let
+    // the sign-out go before this settles. The alternative for a late
+    // rejection is no handler at all.
+    const release = deactivatePush(userId).catch((error) => {
+      console.error("Failed to release the push device on sign out", error);
+    });
+
+    let capTimer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      release,
+      new Promise<void>((resolve) => {
+        capTimer = setTimeout(resolve, RELEASE_TIMEOUT_MS);
+      }),
+    ]);
+    clearTimeout(capTimer);
   } catch (error) {
     // Signing out must not fail because Ably did. The registration is then
     // still live, and the reader can clear it from the settings switch or

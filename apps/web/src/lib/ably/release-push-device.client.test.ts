@@ -27,8 +27,9 @@ describe("releasePushDeviceOnSignOut", () => {
   afterEach(() => {
     // The console spy below is installed inside one test. A failed assertion
     // leaves it in place, and every later test in the file then reports into a
-    // stub instead of the console.
+    // stub instead of the console. Same for the fake timers.
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   /**
@@ -108,6 +109,49 @@ describe("releasePushDeviceOnSignOut", () => {
 
     expect(isPushSupportedMock).not.toHaveBeenCalled();
     expect(deactivatePushMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Ably gives each of its two REST calls a 10s timeout on top of 15s of
+   * fallback-host retries, so a captive portal or an Ably incident would hold
+   * the reader on a disabled Log out button for about half a minute.
+   */
+  it("lets the sign-out go when the release hangs", async () => {
+    vi.useFakeTimers();
+    deactivatePushMock.mockReturnValue(new Promise(() => {}));
+
+    const released = releasePushDeviceOnSignOut("user_1");
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    await expect(released).resolves.toBeUndefined();
+  });
+
+  /**
+   * The cap can let the sign-out go first, so the rejection lands with the
+   * race already settled. Without its own handler it would be unhandled.
+   */
+  it("logs a rejection that lands after the cap", async () => {
+    vi.useFakeTimers();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const reason = new Error("ably said no");
+    let failRelease: (error: unknown) => void = () => {};
+    deactivatePushMock.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        failRelease = reject;
+      }),
+    );
+
+    const released = releasePushDeviceOnSignOut("user_1");
+    await vi.advanceTimersByTimeAsync(5_000);
+    await expect(released).resolves.toBeUndefined();
+
+    failRelease(reason);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(logged).toHaveBeenCalledWith(
+      "Failed to release the push device on sign out",
+      reason,
+    );
   });
 
   /**
