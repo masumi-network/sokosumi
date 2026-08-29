@@ -52,14 +52,16 @@ describe("releasePushDeviceOnSignOut", () => {
    * still subscribed to this reader's notifications channel, and the next
    * reader's activation reuses the same id and adds their channel beside it.
    *
-   * The value is written the way Ably's own storage adapter writes it, wrapped
-   * in `{ value }` (`ably/build/ably.js:9616-9620`).
+   * The value is written the way Ably really writes it: the token is a bare
+   * string (`ably/build/push.js:839`), JSON-encoded once on persist (`:412`),
+   * then wrapped in `{ value }` by the storage adapter
+   * (`ably/build/ably.js:9616-9620`).
    */
   it("releases a device Ably still holds after the subscription died", async () => {
     hasWebPushSubscriptionMock.mockResolvedValue(false);
     localStorage.setItem(
       "ably.push.deviceIdentityToken",
-      JSON.stringify({ value: { token: "tok_1", issued: 1, expires: 2 } }),
+      JSON.stringify({ value: JSON.stringify("tok_1") }),
     );
 
     await releasePushDeviceOnSignOut("user_1");

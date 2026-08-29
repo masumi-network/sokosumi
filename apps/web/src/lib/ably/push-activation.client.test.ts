@@ -90,6 +90,34 @@ describe("deactivatePush", () => {
     expect(unsubscribeMock).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * `deactivate()` is what clears the identity token the next sign-out reads.
+   * Letting a failed channel unsubscribe skip it would leave the token behind,
+   * and every later sign-out would build a client and mint a token to fail the
+   * same way again.
+   */
+  it("deactivates the device even when the channel unsubscribe fails", async () => {
+    unsubscribeDeviceMock.mockRejectedValue(new Error("ably said no"));
+
+    await expect(deactivatePush("user_1")).rejects.toThrow("ably said no");
+    expect(deactivateMock).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * A push service can refuse the browser unsubscribe. Ably's own teardown
+   * must still happen, or the device keeps its channel subscription and the
+   * reader keeps receiving.
+   */
+  it("still tears Ably down when the browser unsubscribe fails", async () => {
+    unsubscribeMock.mockRejectedValue(new Error("push service said no"));
+
+    await expect(deactivatePush("user_1")).rejects.toThrow(
+      "push service said no",
+    );
+    expect(unsubscribeDeviceMock).toHaveBeenCalledTimes(1);
+    expect(deactivateMock).toHaveBeenCalledTimes(1);
+  });
+
   it("finishes when this browser holds no subscription", async () => {
     getSubscriptionMock.mockResolvedValue(null);
 

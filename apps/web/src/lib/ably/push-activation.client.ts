@@ -127,26 +127,55 @@ async function subscribeThisDevice(
  * settings switch reads that subscription, so it has to go too, or the switch
  * reads on again after a reload.
  *
- * The browser subscription goes first, because it is the only step that
- * actually stops delivery to this browser. The two Ably calls can throw, and
- * the sign-out path swallows that failure so the reader can still leave: an
- * endpoint left live there would go on rendering the previous reader's
- * banners. Ably then holds a device whose endpoint is dead, which its own
- * delivery prunes; the reverse leaves a live endpoint nobody meant to keep.
+ * Every step is attempted, whatever the ones before it did, and the first
+ * failure is thrown once they have all had their turn. Chaining them on one
+ * `await` meant any single rejection skipped the rest, and the sign-out path
+ * swallows what this throws: a step skipped there is a registration nobody
+ * comes back to clear.
  *
- * Unsubscribing the device before deactivating still keeps Ably from holding a
- * channel subscription for a device it no longer knows.
+ * The browser subscription goes first, because it is the only step that
+ * actually stops delivery to this browser. Ably is then left holding a device
+ * whose endpoint is dead, which its own delivery prunes; the reverse leaves a
+ * live endpoint nobody meant to keep.
  */
 export async function deactivatePush(userId: string): Promise<void> {
+  const failures: unknown[] = [];
+  const client = getAblyRealtimeClient();
+
+  await attempt(failures, dropBrowserPushSubscription);
+  // Unsubscribing the device before deactivating keeps Ably from holding a
+  // channel subscription for a device it no longer knows.
+  await attempt(failures, () =>
+    getNotificationsPushChannel(client, userId).unsubscribeDevice(),
+  );
+  // Runs even when that unsubscribe did not. This is the call that clears
+  // `ably.push.deviceIdentityToken`, which is what the next sign-out reads to
+  // decide whether this browser has anything left to release.
+  await attempt(failures, () => client.push.deactivate());
+
+  if (failures.length > 0) {
+    throw failures[0];
+  }
+}
+
+/** Records a rejection instead of letting it skip the steps that follow. */
+async function attempt(
+  failures: unknown[],
+  work: () => Promise<unknown>,
+): Promise<void> {
+  try {
+    await work();
+  } catch (error) {
+    failures.push(error);
+  }
+}
+
+async function dropBrowserPushSubscription(): Promise<void> {
   // Read the registration rather than create one: turning push off must not
   // install a worker. A browser that never had one has nothing to drop.
   const registration = await getExistingNotificationServiceWorker();
   const subscription = await registration?.pushManager.getSubscription();
   await subscription?.unsubscribe();
-
-  const client = getAblyRealtimeClient();
-  await getNotificationsPushChannel(client, userId).unsubscribeDevice();
-  await client.push.deactivate();
 }
 
 function getNotificationsPushChannel(

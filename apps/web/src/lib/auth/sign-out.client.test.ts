@@ -32,12 +32,29 @@ describe("signOutWithPushRelease", () => {
    * Deactivation mints an Ably token, so it needs the session that is about to
    * end. This is the contract the wrapper exists to hold; inverted, the release
    * silently stops working and every test above it still passes.
+   *
+   * The release is held open rather than merely ordered, because invocation
+   * order alone passes for a dropped `await` too: the release would start,
+   * the session would end under it, and the token mint would fail.
    */
-  it("releases the push device before it ends the session", async () => {
-    await signOutWithPushRelease("user_1");
+  it("waits for the release to finish before it ends the session", async () => {
+    let finishRelease: () => void = () => {};
+    releaseMock.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishRelease = resolve;
+      }),
+    );
+
+    const signingOut = signOutWithPushRelease("user_1");
+    await Promise.resolve();
+
+    expect(releaseMock).toHaveBeenCalledWith("user_1");
+    expect(signOutMock).not.toHaveBeenCalled();
+
+    finishRelease();
+    await signingOut;
 
     expect(calls).toEqual(["release", "signOut"]);
-    expect(releaseMock).toHaveBeenCalledWith("user_1");
   });
 
   it("passes the caller's options straight through", async () => {
