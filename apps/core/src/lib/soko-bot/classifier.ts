@@ -122,7 +122,9 @@ export function classifyDeterministically(
     // is a chat write, whatever verb it uses. Without this "ask @finn whether
     // the copy is ready" fell through to CLARIFY, which is read-only, and the
     // bot answered that it had no way to reach them — while holding the tool.
-    /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in|get)\b[^@]{0,60}@[a-z0-9][a-z0-9._-]*/,
+    // The whitespace before @ is load-bearing: it separates a handle from the
+    // local part of an email address, so "cc finance@acme.com" stays a read.
+    /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in|get)\b[^@]{0,60}\s@[a-z0-9][a-z0-9._-]*/,
   ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,
