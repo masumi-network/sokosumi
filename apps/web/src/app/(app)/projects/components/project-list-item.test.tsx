@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ProjectListItem } from "@/app/projects/components/project-list-item";
-import { PROJECTS_ITEM_LAYOUT_CLASS } from "@/app/projects/constants";
+import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
 import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 
 const labels = {
@@ -57,17 +57,22 @@ describe("ProjectListItem", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders as a bordered card on mobile and a list row from md up", () => {
+  it("renders as a horizontal list row with no mobile card chrome", () => {
     render(<ProjectListItem project={project} labels={labels} />);
 
     const link = screen.getByRole("link", { name: /Autumn Launch/ });
-    expect(link.className).toContain("border");
-    expect(link.className).toContain("rounded-lg");
-    expect(link.className).toContain("md:border-0");
-    expect(link.className).toContain("p-3");
+    expect(link.className).toContain("flex-row");
+    expect(link.className).toContain("items-center");
+    expect(link.className).toContain("gap-4");
+    expect(link.className).toContain("hover:bg-muted/50");
+    expect(link.className).toContain("rounded-none");
+    expect(link.className).toContain("md:rounded-lg");
+    expect(link.className).not.toContain("border-border/50");
+    expect(link.className).not.toContain("bg-background/60");
+    expect(link.className.split(/\s+/)).not.toContain("border");
 
     const article = link.closest("article");
-    for (const token of PROJECTS_ITEM_LAYOUT_CLASS.split(/\s+/)) {
+    for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
       expect(article?.className).toContain(token);
     }
   });
