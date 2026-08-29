@@ -176,6 +176,20 @@ describe("deactivatePush", () => {
   });
 
   /**
+   * Both halves failing must still report the first one. Building the client
+   * outside `attempt` used to discard the browser failure and report only its
+   * own, which is the failure the caller can do least about.
+   */
+  it("reports the browser failure when the client also cannot be built", async () => {
+    unsubscribeMock.mockRejectedValue(new Error("push service said no"));
+    clientConstructionError = new Error("no realtime client");
+
+    await expect(deactivatePush("user_1")).rejects.toThrow(
+      "push service said no",
+    );
+  });
+
+  /**
    * This assertion used to read `not.toHaveBeenCalled()`, which locked in the
    * defect: the rejection reaches a sign-out that swallows it, so leaving the
    * browser endpoint live let the previous reader's banners carry on.
@@ -194,6 +208,7 @@ describe("activatePush", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     calls.length = 0;
+    clientConstructionError = null;
     activateMock.mockResolvedValue(undefined);
     subscribeDeviceMock.mockResolvedValue(undefined);
     deactivateMock.mockResolvedValue(undefined);

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { releasePushDeviceOnSignOut } from "./release-push-device.client";
 
@@ -22,6 +22,13 @@ describe("releasePushDeviceOnSignOut", () => {
     isPushSupportedMock.mockReturnValue(true);
     hasWebPushSubscriptionMock.mockResolvedValue(true);
     deactivatePushMock.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    // The console spy below is installed inside one test. A failed assertion
+    // leaves it in place, and every later test in the file then reports into a
+    // stub instead of the console.
+    vi.restoreAllMocks();
   });
 
   /**
@@ -118,7 +125,5 @@ describe("releasePushDeviceOnSignOut", () => {
       "Failed to release the push device on sign out",
       reason,
     );
-
-    logged.mockRestore();
   });
 });

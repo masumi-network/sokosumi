@@ -142,10 +142,23 @@ export async function deactivatePush(userId: string): Promise<void> {
   const failures: unknown[] = [];
 
   await attempt(failures, dropBrowserPushSubscription);
+  await attempt(failures, () => dropAblyPushDevice(userId));
 
-  // Built after that step, never before it. `getAblyRealtimeClient` constructs
-  // the client on its first call and can throw there, which would skip the one
-  // step that actually stops delivery to this browser.
+  if (failures.length > 0) {
+    throw failures[0];
+  }
+}
+
+/**
+ * Drop Ably's own device, and the channel subscription that points at it.
+ *
+ * Building the client belongs inside this step rather than on a line above it.
+ * `getAblyRealtimeClient` constructs on its first call and can throw there, and
+ * a bare call would both skip the browser endpoint and throw away whatever the
+ * step before it had already recorded.
+ */
+async function dropAblyPushDevice(userId: string): Promise<void> {
+  const failures: unknown[] = [];
   const client = getAblyRealtimeClient();
 
   // Unsubscribing the device before deactivating keeps Ably from holding a
