@@ -1622,7 +1622,10 @@
         "feedbackThanks": "Danke, notiert.",
         "approvals": "{count, plural, one {# Freigabe wartet} other {# Freigaben warten}}",
         "review": "Auf der Assistenten-Seite prüfen",
-        "task": "Task"
+        "task": "Task",
+        "chainDepth": "Antwort {depth} von {max} zwischen Assistenten. Schreibt eine Person hier, beginnt die Zählung von vorn.",
+        "chainRoomRate": "{count} von {max} Assistenten-Nachrichten in diesem Raum in dieser Stunde.",
+        "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr."
       }
     },
     "Tasks": {

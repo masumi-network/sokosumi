@@ -130,6 +130,7 @@ import {
   scrollToRoomMessageElement,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
+import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import { SokoBotMessageFooter } from "./soko-bot-message-footer";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
@@ -1086,6 +1087,7 @@ function MessageActions({
         moreOpen && "[@media(hover:hover)]:opacity-100",
       )}
     >
+      <SokoBotChainBadge metadata={message.metadata} />
       <MessageActionControls
         message={message}
         onToggleReaction={onToggleReaction}
