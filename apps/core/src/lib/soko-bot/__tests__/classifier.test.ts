@@ -86,6 +86,19 @@ describe("addressing another coworker", () => {
     }
   });
 
+  it("does not read a question about acting as permission to act", () => {
+    const chatWrite = "Message asks the assistant to say something in chat";
+    for (const message of [
+      "Should we ping @alice, or wait?",
+      "Do I need to follow up with @alice?",
+      "Do you think we should ask @sam about the contract?",
+    ]) {
+      expect(
+        classifyDeterministically(message)?.rationaleSummary ?? "",
+      ).not.toContain(chatWrite);
+    }
+  });
+
   it("leaves an ordinary vague request alone", () => {
     const result = classifyDeterministically(
       "sort out the thing from last week",

@@ -956,16 +956,11 @@ export class SokoBotControlPlane {
 
     const leaseToken = randomUUID();
     const claimedAt = new Date();
-    // Re-read at the moment of the claim: the check above ran against a row
-    // loaded before the owner had any chance to act, and this turn can spend.
-    if (unpromptedTurn(turn)) {
-      const now = await prisma.sokoBot.findUnique({
-        where: { id: turn.sokoBotId },
-        select: { proactivePaused: true },
-      });
-      if (now?.proactivePaused || getEnv().SOKO_BOT_PROACTIVE_PAUSED) {
-        return null;
-      }
+    // The pause is part of the claim rather than a read before it: any check
+    // that happens first is stale by the time the row is won, and this turn
+    // can spend. A pause committed mid-flight now loses the claim outright.
+    if (unpromptedTurn(turn) && getEnv().SOKO_BOT_PROACTIVE_PAUSED) {
+      return null;
     }
     const claimed = await prisma.sokoBotTurn.updateMany({
       where: {
@@ -973,6 +968,9 @@ export class SokoBotControlPlane {
         status: "STARTING",
         eveSessionId: null,
         leaseToken: turn.leaseToken,
+        ...(unpromptedTurn(turn)
+          ? { sokoBot: { is: { proactivePaused: false } } }
+          : {}),
         leaseExpiresAt: turn.leaseExpiresAt,
         reconcilerHeartbeatAt: turn.reconcilerHeartbeatAt,
       },
@@ -3386,6 +3384,22 @@ export class SokoBotControlPlane {
           clientTurnId: `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
           message: failed.userMessage,
           source: "ADMIN_RETRY",
+          // A retry replays untrusted text, so it must not replay it with a
+          // wider grant than the turn that failed. Dropping these turned a
+          // failed depth-1 turn another assistant asked for — read-only, and
+          // its message written by that assistant — into an owner-audience
+          // turn holding the whole route ceiling.
+          ...(failed.chainDepth > 0 || failed.requestedByUserId
+            ? {
+                chat: {
+                  mentionId: failed.chatMentionId ?? "",
+                  responseMessageId: failed.chatResponseMessageId ?? "",
+                  requestedByUserId: failed.requestedByUserId,
+                  askedByBot: failed.chainDepth > 0,
+                  chainDepth: failed.chainDepth,
+                },
+              }
+            : {}),
         });
       } catch (error) {
         await recordFailure(error);
