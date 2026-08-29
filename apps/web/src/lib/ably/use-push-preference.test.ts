@@ -61,7 +61,11 @@ describe("usePushPreference", () => {
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    vi.clearAllMocks();
+    // Reset, not clear: `mockClear` keeps a queued `mockReturnValueOnce`
+    // (`@vitest/spy` clears that queue in `mockReset` only). One test queues a
+    // read that never resolves, and a failure before it is consumed would hang
+    // the next test's mount read on it and report the wrong test as broken.
+    vi.resetAllMocks();
     setNotificationPermission("granted");
     vi.stubGlobal("PushManager", function PushManager() {});
     Object.defineProperty(window.navigator, "serviceWorker", {
@@ -671,12 +675,21 @@ describe("usePushPreference", () => {
     expect(result.current.isAccountEnabled).toBe(true);
   });
 
-  it("re-reads the subscription after a half-failed disable", async () => {
+  /**
+   * The device row paints its own click before the work runs, so a disable
+   * that removed nothing has to be taken back. Left alone, the row would say
+   * this browser is out while it still holds a subscription and still shows
+   * the banners.
+   *
+   * Asserted on the browser, not on the click: the earlier version of this
+   * test had the failing disable remove the subscription too, so the value it
+   * checked was the one the click had already painted.
+   */
+  it("re-reads the subscription after a disable that removed nothing", async () => {
     setDeviceSubscribed(true);
     setAccountOptIn(true);
     deactivatePushMock.mockImplementation(async () => {
-      // Ably removed the subscription, then failed before reporting success.
-      setDeviceSubscribed(false);
+      // Ably failed before removing anything, so the browser still holds one.
       throw new Error("deactivate failed");
     });
     const { result } = renderHook(() => usePushPreference("user_1"), {
@@ -690,7 +703,7 @@ describe("usePushPreference", () => {
       );
     });
 
-    expect(result.current.isDeviceEnabled).toBe(false);
+    expect(result.current.isDeviceEnabled).toBe(true);
   });
 
   it("cannot be toggled while the session is still loading", async () => {
