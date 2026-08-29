@@ -21,14 +21,6 @@ import {
 import { NOTIFICATION_PREFERENCES_HREF } from "../account/constants";
 
 /**
- * Where the reader turns push on. On a browser that can push, the card hands
- * them here rather than asking for the permission itself: a bare permission
- * only buys banners while a tab is open, and the reader who clicked "enable
- * notifications" would still hear nothing once they closed the app. The
- * account page runs the whole gesture, permission included.
- */
-
-/**
  * The most this browser can do, which decides what the card offers.
  *
  * `push` links to the settings. `in-app` asks for the permission here,

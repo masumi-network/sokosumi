@@ -8,5 +8,11 @@
  */
 export const NOTIFICATION_PREFERENCES_ANCHOR = "notification-preferences";
 
-/** Where the primer sends a reader to finish turning push on. */
+/**
+ * Where the reader turns push on. On a browser that can push, the primer hands
+ * them here rather than asking for the permission itself: a bare permission
+ * only buys banners while a tab is open, and the reader who clicked "enable
+ * notifications" would still hear nothing once they closed the app. The
+ * account page runs the whole gesture, permission included.
+ */
 export const NOTIFICATION_PREFERENCES_HREF = `/account#${NOTIFICATION_PREFERENCES_ANCHOR}`;
