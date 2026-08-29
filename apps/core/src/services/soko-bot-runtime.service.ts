@@ -2059,16 +2059,34 @@ export class SokoBotRuntimeService {
         // a single unattended turn. The owner asking for a hire themselves is
         // unaffected.
         const ceiling = getEnv().SOKO_BOT_UNATTENDED_MAX_HIRE_CREDITS;
+        // The ceiling is a budget for the whole turn, not a per-call limit:
+        // compared call by call, a turn could issue one hire per tool call and
+        // commit many times the intended rail. Sum what this turn already
+        // committed and charge the new hire against the remainder.
+        const priorHires = await prisma.sokoBotToolCall.findMany({
+          where: {
+            turnId: authorized.turn.id,
+            capability: "hire_agent",
+            status: { in: ["PENDING", "COMPLETED"] },
+            NOT: { toolCallId: input.toolCallId },
+          },
+          select: { input: true },
+        });
+        const committed = priorHires.reduce((total, call) => {
+          const credits = (call.input as { maxCredits?: unknown } | null)
+            ?.maxCredits;
+          return total + (typeof credits === "number" ? credits : 0);
+        }, 0);
         if (
           exceedsUnattendedHireBudget({
             source: authorized.turn.source,
             chainDepth: authorized.turn.chainDepth,
-            maxCredits: hire.maxCredits,
+            maxCredits: committed + hire.maxCredits,
             ceiling,
           })
         ) {
           throw new SokoBotRuntimeValidationError(
-            `An unattended turn may commit at most ${ceiling} credits per hire; this one asked for ${hire.maxCredits}. Ask the owner in their chat instead.`,
+            `An unattended turn may commit at most ${ceiling} credits in total; ${committed} are already committed and this asked for ${hire.maxCredits}. Ask the owner in their chat instead.`,
           );
         }
         return this.executeAsAccepted(

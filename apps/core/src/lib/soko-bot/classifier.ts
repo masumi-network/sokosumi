@@ -118,6 +118,11 @@ export function classifyDeterministically(
   const chatOrFileWriteSignal = includesAny(normalized, [
     /\b(post|send|reply|drop|leave)\b.{0,40}\b(message|note|update|reply|chat|room|channel|thread)\b/,
     /\b(write|save|upload|put|create)\b.{0,40}\b(file|note|document|doc|markdown|\.md|drive)\b/,
+    // Being told to go and speak to someone the message names with an @handle
+    // is a chat write, whatever verb it uses. Without this "ask @finn whether
+    // the copy is ready" fell through to CLARIFY, which is read-only, and the
+    // bot answered that it had no way to reach them — while holding the tool.
+    /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in|get)\b[^@]{0,60}@[a-z0-9][a-z0-9._-]*/,
   ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,
