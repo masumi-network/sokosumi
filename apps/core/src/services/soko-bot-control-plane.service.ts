@@ -1439,11 +1439,17 @@ export class SokoBotControlPlane {
           const judgeAllowed = !(await getSokoBotAvailability()).disabled;
           void (
             judgeAllowed ? judgeTurnQuality(input.turnId) : Promise.resolve()
-          ).catch((error) => {
+          ).catch(async (error) => {
             console.error("Soko Bot turn judge failed", {
               turnId: input.turnId,
               error: error instanceof Error ? error.message : "unknown",
             });
+            // A judge that produced nothing usable still spent the tokens it
+            // spent, and it fails most often on the turns that cost the most.
+            const { recordFailedJudgeUsage } = await import(
+              "@/services/soko-bot-lab-judge.service"
+            );
+            await recordFailedJudgeUsage(input.turnId, error);
           });
         }
         return settled;
@@ -1873,6 +1879,25 @@ export class SokoBotControlPlane {
             classifierVersion: classification.version,
             classifierLatencyMs: classification.latencyMs,
             classificationFailed: classification.failed,
+            // Seeds the turn's usage before the agent loop starts. The drain
+            // reads this row's `usage` as its starting aggregate, so the
+            // classifier's tokens survive every later step write. Its cost is
+            // deliberately kept out of `costUsdMicros`, which is what the
+            // owner is billed for.
+            ...(classification.usage
+              ? {
+                  usage: jsonInput({
+                    inputTokens: classification.usage.inputTokens,
+                    outputTokens: classification.usage.outputTokens,
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                    costUsd: classification.usage.costUsd,
+                  }),
+                  overheadCostUsdMicros: BigInt(
+                    Math.round(classification.usage.costUsd * 1_000_000),
+                  ),
+                }
+              : {}),
             capabilityNames: [...capabilities],
             eveSessionId: sessionIdForTurn,
             eveStreamIndex: -1,

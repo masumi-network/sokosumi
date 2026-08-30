@@ -133,6 +133,26 @@ export const sokoBotTurnUsageSchema = z
   })
   .openapi("SokoBotTurnUsage");
 
+/**
+ * What a bot has spent since it was created. `costUsd` is what the tokens
+ * cost across all three model calls a turn makes; `credits` is what the owner
+ * was actually charged, and the two differ because billing applies a per-turn
+ * floor.
+ */
+export const sokoBotUsageSchema = z
+  .object({
+    turns: z.number().int().nonnegative(),
+    inputTokens: z.number().int().nonnegative(),
+    outputTokens: z.number().int().nonnegative(),
+    cacheReadTokens: z.number().int().nonnegative(),
+    cacheWriteTokens: z.number().int().nonnegative(),
+    totalTokens: z.number().int().nonnegative(),
+    costUsd: z.number().nonnegative(),
+    billableCostUsd: z.number().nonnegative(),
+    credits: z.number().nonnegative(),
+  })
+  .openapi("SokoBotUsage");
+
 export const sokoBotToolCallSchema = z
   .object({
     id: z.string().uuid(),
@@ -487,6 +507,7 @@ export const adminSokoBotDetailSchema = sokoBotSchema
     schedules: z.array(adminSokoBotScheduleSchema),
     adminActions: z.array(sokoBotAdminActionSchema),
     runtimeHealth: sokoBotRuntimeHealthSchema.nullable(),
+    usage: sokoBotUsageSchema,
   })
   .openapi("AdminSokoBotDetail");
 
