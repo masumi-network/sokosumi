@@ -297,13 +297,15 @@ const NEGATED_MUTATION_INTENT = new RegExp(
 
 /**
  * "Don't wait", "do not delay", "don't forget" are the owner pressing for the
- * thing to happen. Every word in them is a word a prohibition uses, so they
+ * thing to happen. "Stop" and "pause" go both ways and are only anti-delay
+ * with a preposition after them: "don't stop to ask Nina" urges the work on,
+ * where "don't stop the daily check-in" forbids ending it. Every word in them is a word a prohibition uses, so they
  * are cut out before the sentence is read rather than guarded against inside
  * it: that way "don't forget to message Nina, but don't post it publicly yet"
  * still lands on the half that is a real refusal.
  */
 const ANTI_DELAY =
-  /\b(?:don't|do not|won't|will not|never|no need to)\s+(?:wait|delay|hold off(?: on)?|hesitate|forget)\b/gi;
+  /\b(?:don't|do not|won't|will not|never|no need to)\s+(?:(?:wait|delay|hold off(?: on)?|hesitate|forget)\b|(?:pause|stop)\s+(?:before|to)\b)/gi;
 
 /** True when user explicitly says a mutation must not happen yet. */
 export function hasSokoBotNegatedMutationIntent(message: string): boolean {

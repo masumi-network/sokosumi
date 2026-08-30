@@ -293,6 +293,10 @@ describe("negated intent covers opening a chat", () => {
       "Don't hold off on messaging Nina",
       "Don't wait until Friday to post",
       "I won't wait until approval before messaging Nina; send it now",
+      // "stop" and "pause" only urge the work on with a preposition after
+      // them, which is what separates these from the prohibitions above.
+      "Don't pause before changing the daily reminder; change it now",
+      "Don't stop to ask Nina, just book it",
     ]) {
       expect(hasSokoBotNegatedMutationIntent(message)).toBe(false);
     }
