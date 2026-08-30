@@ -1,4 +1,3 @@
-import { convertCentsToCredits } from "@sokosumi/utils";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { sokoBotService } from "@/lib/services/soko-bot.service";
@@ -17,7 +16,6 @@ export async function SokoBotUsageCard() {
   ]);
   if (!usage) return null;
 
-  const credits = convertCentsToCredits(BigInt(usage.creditsCents));
   const numbers = (value: number) => format.number(value);
   // Two decimals would report four tenths of a cent as "$0.00", which reads as
   // "this cost nothing" on the one page whose job is to say what it cost.
@@ -35,7 +33,7 @@ export async function SokoBotUsageCard() {
         <div>
           <p className="text-muted-foreground text-xs">{t("credits")}</p>
           <p className="text-foreground text-2xl font-medium tabular-nums">
-            {numbers(credits)}
+            {numbers(usage.credits)}
           </p>
           <p className="text-muted-foreground text-xs">
             {t("turns", { count: usage.turns })}

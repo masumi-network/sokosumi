@@ -45,8 +45,9 @@ describe("Soko Bot turn classifier", () => {
 
 describe("classifier usage", () => {
   it("reports no usage when the deterministic rules answer", async () => {
-    // No model call was made, so charging the owner for one would be wrong.
-    const result = await new ExternalTurnClassifier(false).classify(
+    // With the model enabled, so this proves the deterministic path answered
+    // rather than passing through the disabled-model branch.
+    const result = await new ExternalTurnClassifier(true).classify(
       "Create a task and assign it to a coworker",
       EMPTY_CONTEXT,
     );

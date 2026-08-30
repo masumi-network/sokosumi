@@ -2671,8 +2671,8 @@ export const SokoBotUsageSchema = {
             type: 'number',
             minimum: 0
         },
-        creditsCents: {
-            type: 'integer',
+        credits: {
+            type: 'number',
             minimum: 0
         }
     },
@@ -2685,7 +2685,7 @@ export const SokoBotUsageSchema = {
         'totalTokens',
         'costUsd',
         'billableCostUsd',
-        'creditsCents'
+        'credits'
     ]
 } as const;
 

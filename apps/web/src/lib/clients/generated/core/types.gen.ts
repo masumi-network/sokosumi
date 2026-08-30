@@ -595,7 +595,7 @@ export type SokoBotUsage = {
     totalTokens: number;
     costUsd: number;
     billableCostUsd: number;
-    creditsCents: number;
+    credits: number;
 };
 
 export type SokoBot = {
@@ -30929,6 +30929,20 @@ export type GetMySokoBotUsageErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;

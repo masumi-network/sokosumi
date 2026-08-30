@@ -135,9 +135,9 @@ export const sokoBotTurnUsageSchema = z
 
 /**
  * What a bot has spent since it was created. `costUsd` is what the tokens
- * cost across all three model calls a turn makes; `creditsCents` is what the
- * owner was actually charged, and the two differ because billing applies a
- * per-turn floor.
+ * cost across all three model calls a turn makes; `credits` is what the owner
+ * was actually charged, and the two differ because billing applies a per-turn
+ * floor.
  */
 export const sokoBotUsageSchema = z
   .object({
@@ -149,7 +149,7 @@ export const sokoBotUsageSchema = z
     totalTokens: z.number().int().nonnegative(),
     costUsd: z.number().nonnegative(),
     billableCostUsd: z.number().nonnegative(),
-    creditsCents: z.number().int().nonnegative(),
+    credits: z.number().nonnegative(),
   })
   .openapi("SokoBotUsage");
 

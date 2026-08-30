@@ -1,3 +1,5 @@
+import { convertCentsToCredits } from "@sokosumi/utils";
+
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -5,7 +7,7 @@ import prisma from "@/lib/db/prisma";
  *
  * Three separate model calls make up a turn — the agent loop, the classifier
  * that routes it and the judge that scores it — and only the first is billed.
- * `costUsd` is therefore what the tokens cost, `creditsCents` is what the
+ * `costUsd` is therefore what the tokens cost, `credits` is what the
  * owner actually paid, and they do not match: `sokoBotUsageCents` applies a
  * per-turn floor, so a turn costing a hundredth of a cent still bills the
  * minimum.
@@ -22,8 +24,11 @@ export interface SokoBotUsageTotals {
   costUsd: number;
   /** The billed share of `costUsd` — the agent loop alone. */
   billableCostUsd: number;
-  /** What the owner was actually charged, from the usage ledger. */
-  creditsCents: number;
+  /**
+   * What the owner was actually charged, from the usage ledger. Credits, not
+   * cents: cents are the stored unit and never cross the API boundary.
+   */
+  credits: number;
 }
 
 interface UsageRow {
@@ -86,6 +91,8 @@ export async function sokoBotUsageTotals(
       inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens,
     costUsd: (billableMicros + overheadMicros) / 1e6,
     billableCostUsd: billableMicros / 1e6,
-    creditsCents: asNumber(charged._sum.cents ?? null),
+    // Converted here rather than in the response producer so the only number
+    // that leaves this service is already the user-facing one.
+    credits: convertCentsToCredits(charged._sum.cents ?? 0n),
   };
 }

@@ -252,6 +252,7 @@ const getMyUsageRoute = createRoute({
   responses: {
     200: jsonSuccessResponse(sokoBotUsageSchema, "Lifetime usage and cost"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
   },
 });

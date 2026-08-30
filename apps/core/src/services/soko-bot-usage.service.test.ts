@@ -33,7 +33,8 @@ describe("sokoBotUsageTotals", () => {
         overheadCostUsdMicros: 30_000n,
       },
     ]);
-    usageAggregateMock.mockResolvedValue({ _sum: { cents: 900n } });
+    // 10^10 cents is one credit; the API must never carry the stored unit.
+    usageAggregateMock.mockResolvedValue({ _sum: { cents: 25_000_000_000n } });
 
     const totals = await sokoBotUsageTotals("bot_1");
 
@@ -46,7 +47,7 @@ describe("sokoBotUsageTotals", () => {
       totalTokens: 48_000,
       costUsd: 0.15,
       billableCostUsd: 0.12,
-      creditsCents: 900,
+      credits: 2.5,
     });
   });
 
@@ -71,6 +72,6 @@ describe("sokoBotUsageTotals", () => {
     expect(totals.turns).toBe(0);
     expect(totals.totalTokens).toBe(0);
     expect(totals.costUsd).toBe(0);
-    expect(totals.creditsCents).toBe(0);
+    expect(totals.credits).toBe(0);
   });
 });

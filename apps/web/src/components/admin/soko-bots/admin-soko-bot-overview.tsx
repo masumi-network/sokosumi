@@ -1,4 +1,3 @@
-import { convertCentsToCredits } from "@sokosumi/utils";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { shortId } from "@/components/soko-bot/format";
 
@@ -132,9 +131,7 @@ export async function AdminSokoBotOverview({ bot }: AdminSokoBotOverviewProps) {
               // including the classifier and judge calls that are not billed.
               {
                 label: t("usageCredits"),
-                value: numbers(
-                  convertCentsToCredits(BigInt(bot.usage.creditsCents)),
-                ),
+                value: numbers(bot.usage.credits),
               },
               {
                 label: t("usageTurns"),
