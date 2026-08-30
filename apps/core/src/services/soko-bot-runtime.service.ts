@@ -105,6 +105,8 @@ const DECISION_PENDING_MESSAGE =
   "Owner approval requested. Do not call this tool again with the same input; tell the owner what is pending and finish the turn.";
 const TOOL_CALL_STALE_MS = 2 * 60 * 1_000;
 const TOOL_CALL_LIMIT_PER_TURN = 64;
+/** Enough for "ask Nina and Tom", far short of an organization. */
+const MAX_DIRECTS_OPENED_PER_TURN = 5;
 const TOOL_RESULT_MAX_BYTES = 16_384;
 const ERROR_DETAIL_MAX_BYTES = 1_000;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
@@ -854,8 +856,30 @@ export class SokoBotRuntimeService {
    */
   private async openDirectChat(
     authorized: AuthorizedSokoBotRuntime,
-    input: { userId: string },
+    input: { userId: string; toolCallId: string },
   ) {
+    // Approaching somebody is the owner's call. A turn nobody asked for can
+    // still say "I would ask Nina about this" in the owner's own chat and let
+    // them decide, which costs nothing and embarrasses no one.
+    if (authorized.turn.source !== "CHAT" || authorized.turn.chainDepth > 0) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Opening a chat with a colleague is for turns your owner asked for. Tell them who you would approach and why instead.",
+      );
+    }
+    // A turn may make 64 tool calls, so without a bound one instruction could
+    // put the bot in front of every member of the organization at once.
+    const opened = await prisma.sokoBotToolCall.count({
+      where: {
+        turnId: authorized.turn.id,
+        capability: "open_direct_chat",
+        NOT: { toolCallId: input.toolCallId },
+      },
+    });
+    if (opened >= MAX_DIRECTS_OPENED_PER_TURN) {
+      throw new SokoBotRuntimeValidationError(
+        `One turn may open at most ${MAX_DIRECTS_OPENED_PER_TURN} direct chats. Tell the owner who else you would approach.`,
+      );
+    }
     const coworkerId = await this.chatCoworkerId(authorized);
     if (!coworkerId) {
       throw new SokoBotRuntimeValidationError(
@@ -2254,7 +2278,10 @@ export class SokoBotRuntimeService {
       }
       case "open_direct_chat": {
         const parsed = sokoBotOpenDirectChatInputSchema.parse(input.input);
-        return this.openDirectChat(authorized, parsed);
+        return this.openDirectChat(authorized, {
+          ...parsed,
+          toolCallId: input.toolCallId,
+        });
       }
       case "post_chat": {
         const parsed = sokoBotPostChatInputSchema.parse(input.input);
