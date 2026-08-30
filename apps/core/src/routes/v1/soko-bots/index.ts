@@ -1231,6 +1231,10 @@ app.openapi(simulateTaskEventRoute, async (c) => {
     return ok(c, sokoBotLabTaskEventSchema.parse(result));
   } catch (error) {
     if (error instanceof SokoBotLabError) throw notFound(error.message);
+    // "at its daily limit", "owner has paused unprompted work", "already
+    // working" — the reasons a wake is refused. Surfaced verbatim so the lab
+    // says which one it was instead of waiting out its timeout.
+    if (error instanceof SokoBotBusyError) throw conflict(error.message);
     throw error;
   }
 });

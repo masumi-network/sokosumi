@@ -68,9 +68,11 @@ export async function simulateSokoBotTaskEvent(input: {
       select: { id: true, name: true, status: true },
     });
     // Marked as seen at the new status so the events cron does not wake the
-    // bot a second time for the turn this function is about to start.
-    await tx.sokoBotDelegation.updateMany({
-      where: { taskId: task.id },
+    // bot a second time for the turn this function is about to start. Scoped
+    // to this delegation: two members' bots can hold delegations on one Task,
+    // and marking theirs seen would swallow a wake they were owed.
+    await tx.sokoBotDelegation.update({
+      where: { id: delegation.id },
       data: { lastSeenStatus: input.status },
     });
     return {
@@ -82,25 +84,40 @@ export async function simulateSokoBotTaskEvent(input: {
     };
   }, "Soko Bot lab event collided with another action");
 
-  const started = await sokoBotControlPlane.startTurn({
-    userId: input.userId,
-    workspaceId: input.workspaceId,
-    // `lab:` keeps it out of the owner's proactive allowance, which is for
-    // work the bot decided to do by itself.
-    clientTurnId: `lab:event:${simulated.taskId}:${Date.now()}`,
-    message: buildEventMessage([
-      {
-        delegationId: simulated.delegationId,
-        kind: "TASK",
-        entityId: simulated.taskId,
-        name: simulated.name ?? "Untitled task",
-        from: simulated.previousStatus,
-        to: simulated.status,
-        note: input.comment,
-      },
-    ]),
-    source: "EVENT",
-  });
+  // The event is committed and the cursor advanced before this, so a start
+  // that fails would otherwise strand the simulation: no turn, and a cursor
+  // that tells the cron there is nothing to retry. Putting the cursor back is
+  // what makes a refused start recoverable rather than a silently lost run.
+  let started: Awaited<ReturnType<typeof sokoBotControlPlane.startTurn>>;
+  try {
+    started = await sokoBotControlPlane.startTurn({
+      userId: input.userId,
+      workspaceId: input.workspaceId,
+      // `lab:` keeps it out of the owner's proactive allowance, which is for
+      // work the bot decided to do by itself.
+      clientTurnId: `lab:event:${simulated.taskId}:${Date.now()}`,
+      message: buildEventMessage([
+        {
+          delegationId: simulated.delegationId,
+          kind: "TASK",
+          entityId: simulated.taskId,
+          name: simulated.name ?? "Untitled task",
+          from: simulated.previousStatus,
+          to: simulated.status,
+          note: input.comment,
+        },
+      ]),
+      source: "EVENT",
+    });
+  } catch (error) {
+    await prisma.sokoBotDelegation
+      .update({
+        where: { id: simulated.delegationId },
+        data: { lastSeenStatus: simulated.previousStatus },
+      })
+      .catch(() => undefined);
+    throw error;
+  }
 
   return {
     taskId: simulated.taskId,

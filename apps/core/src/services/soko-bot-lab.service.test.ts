@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   botFindFirstMock,
   delegationFindFirstMock,
-  delegationUpdateManyMock,
+  delegationUpdateMock,
   taskFindFirstMock,
   taskUpdateMock,
   taskEventCreateMock,
@@ -11,7 +11,7 @@ const {
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   delegationFindFirstMock: vi.fn(),
-  delegationUpdateManyMock: vi.fn(),
+  delegationUpdateMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   taskEventCreateMock: vi.fn(),
@@ -21,7 +21,10 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBot: { findFirst: botFindFirstMock },
-    sokoBotDelegation: { findFirst: delegationFindFirstMock },
+    sokoBotDelegation: {
+      findFirst: delegationFindFirstMock,
+      update: delegationUpdateMock,
+    },
   },
 }));
 
@@ -30,7 +33,7 @@ vi.mock("@/lib/db/transaction", () => ({
     await run({
       task: { findFirst: taskFindFirstMock, update: taskUpdateMock },
       taskEvent: { create: taskEventCreateMock },
-      sokoBotDelegation: { updateMany: delegationUpdateManyMock },
+      sokoBotDelegation: { update: delegationUpdateMock },
     }),
 }));
 
@@ -66,7 +69,7 @@ describe("simulateSokoBotTaskEvent", () => {
       status: "FAILED",
     });
     taskEventCreateMock.mockResolvedValue({});
-    delegationUpdateManyMock.mockResolvedValue({ count: 1 });
+    delegationUpdateMock.mockResolvedValue({});
     startTurnMock.mockResolvedValue({ turnId: "turn_1" });
   });
 
@@ -101,11 +104,30 @@ describe("simulateSokoBotTaskEvent", () => {
     expect(message).toContain("The upstream export is empty.");
   });
 
-  it("marks the delegation seen so the cron does not wake it twice", async () => {
+  it("marks only this delegation seen, so the cron does not wake it twice", async () => {
+    // Scoped by id: two members' bots can hold delegations on one Task, and
+    // marking theirs seen would swallow a wake they were owed.
     await simulateSokoBotTaskEvent(INPUT);
 
-    expect(delegationUpdateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { lastSeenStatus: "FAILED" } }),
+    expect(delegationUpdateMock).toHaveBeenCalledWith({
+      where: { id: "del_1" },
+      data: { lastSeenStatus: "FAILED" },
+    });
+  });
+
+  it("puts the cursor back when the turn is refused", async () => {
+    // The event is already committed by then. Leaving the cursor forward
+    // would mean no turn and nothing for the cron to retry — the run lost in
+    // exactly the silence this whole change is about.
+    startTurnMock.mockRejectedValue(new Error("daily limit"));
+
+    await expect(simulateSokoBotTaskEvent(INPUT)).rejects.toThrow(
+      "daily limit",
     );
+
+    expect(delegationUpdateMock).toHaveBeenLastCalledWith({
+      where: { id: "del_1" },
+      data: { lastSeenStatus: "RUNNING" },
+    });
   });
 });

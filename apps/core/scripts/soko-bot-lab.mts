@@ -19,7 +19,6 @@ import {
 
 import prisma from "@/lib/db/prisma";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
-import { sokoBotEventsSyncService } from "@/services/soko-bot-events-sync.service";
 import { buildIngestDeltaMessageForBot } from "@/services/soko-bot-ingest.service";
 import { simulateSokoBotTaskEvent } from "@/services/soko-bot-lab.service";
 import { judgeSokoBotLabTurn } from "@/services/soko-bot-lab-judge.service";
@@ -186,29 +185,16 @@ async function startScenario(
     return started.turnId;
   }
   if (scenario.trigger?.kind === "task_event") {
-    const since = new Date(Date.now() - 5_000);
+    // The simulation starts the turn and returns it. It used to run the
+    // events sync instead — a global scan that woke every owner's pending
+    // delegations and spent their allowances to score one scenario here.
     const simulated = await simulateSokoBotTaskEvent({
       userId: owner.bot.userId,
       workspaceId: owner.workspaceId,
       status: scenario.trigger.status,
       comment: scenario.trigger.comment,
     });
-    // Same code path the cron uses; it starts and reconciles the EVENT turn.
-    await sokoBotEventsSyncService.syncDelegatedWork({
-      abortSignal: new AbortController().signal,
-      shouldContinue: () => true,
-    });
-    const turn = await prisma.sokoBotTurn.findFirst({
-      where: {
-        source: "EVENT",
-        createdAt: { gte: since },
-        userMessage: { contains: simulated.taskId },
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true },
-    });
-    if (!turn) throw new Error("Events sync did not start a turn");
-    return turn.id;
+    return simulated.turnId;
   }
   const started = await sokoBotControlPlane.startTurn({
     userId: owner.bot.userId,
