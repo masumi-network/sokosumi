@@ -81,7 +81,7 @@ export async function YourSokoBots({ me }: { me: Member | null }) {
                       key={avatar.id}
                       src={avatar.imageUrl}
                       alt=""
-                      className="ring-background size-12 rounded-full object-cover ring-2"
+                      className="size-12 rounded-full object-cover"
                     />
                   ))}
                 </span>
