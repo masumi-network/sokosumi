@@ -66,6 +66,7 @@ import {
   sokoBotTeamSchema,
   sokoBotTurnFeedbackRequestSchema,
   sokoBotTurnSchema,
+  sokoBotUsageSchema,
   sokoBotVersionSchema,
   startSokoBotTurnRequestSchema,
   startSokoBotTurnResponseSchema,
@@ -241,6 +242,36 @@ app.openapi(getMeRoute, async (c) => {
     workspace.workspaceId,
   );
   return ok(c, sokoBotStateSchema.parse({ sokoBot: mapBot(bot) }));
+});
+
+const getMyUsageRoute = createRoute({
+  method: "get",
+  path: "/me/usage",
+  operationId: "getMySokoBotUsage",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(sokoBotUsageSchema, "Lifetime usage and cost"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+// Its own route rather than a field on `/me`: that one is polled for turn
+// state and this aggregates every turn the bot has ever taken.
+app.openapi(getMyUsageRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const bot = await sokoBotControlPlane.getForUser(
+    auth.userId,
+    workspace.workspaceId,
+  );
+  if (!bot) {
+    throw notFound("Soko Bot not found");
+  }
+  const { sokoBotUsageTotals } = await import(
+    "@/services/soko-bot-usage.service"
+  );
+  return ok(c, sokoBotUsageSchema.parse(await sokoBotUsageTotals(bot.id)));
 });
 
 const createMeRoute = createRoute({

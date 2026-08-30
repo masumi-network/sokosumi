@@ -7,9 +7,9 @@ import {
   sokoBotJudgeVerdictSchema,
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
-
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 const JUDGE_TIMEOUT_MS = 90_000;
 const VALUE_LIMIT = 2_000;
@@ -79,9 +79,16 @@ async function loadTranscript(turnId: string, userId?: string) {
   };
 }
 
-async function askJudge(payload: unknown): Promise<SokoBotJudgeVerdict> {
+/** The verdict and what it cost. Both attempts count when the first fails. */
+interface JudgeCall {
+  verdict: SokoBotJudgeVerdict;
+  usage: { inputTokens: number; outputTokens: number; costUsd: number };
+}
+
+async function askJudge(payload: unknown): Promise<JudgeCall> {
   // Structured output occasionally comes back empty; one retry is cheap.
   let lastError: unknown;
+  const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const result = await generateText({
@@ -92,7 +99,15 @@ async function askJudge(payload: unknown): Promise<SokoBotJudgeVerdict> {
         instructions: SOKO_BOT_JUDGE_RUBRIC,
         prompt: JSON.stringify(payload),
       });
-      return sokoBotJudgeVerdictSchema.parse(result.output);
+      // Counted before the parse: a verdict this call cannot read still cost
+      // what it cost, and the retry below spends again on top.
+      usage.inputTokens += result.usage?.inputTokens ?? 0;
+      usage.outputTokens += result.usage?.outputTokens ?? 0;
+      usage.costUsd += gatewayCostUsd(result.providerMetadata);
+      return {
+        verdict: sokoBotJudgeVerdictSchema.parse(result.output),
+        usage,
+      };
     } catch (error) {
       lastError = error;
     }
@@ -102,7 +117,24 @@ async function askJudge(payload: unknown): Promise<SokoBotJudgeVerdict> {
     : new SokoBotLabJudgeError("Judge produced no verdict");
 }
 
-async function storeTurnVerdict(turnId: string, verdict: SokoBotJudgeVerdict) {
+async function storeTurnVerdict(turnId: string, call: JudgeCall) {
+  const { verdict, usage } = call;
+  // Read-modify-write on the JSON, which is safe here because the judge runs
+  // only after the turn has settled and the event drain has stopped writing.
+  // The cost is an atomic increment, so the lab re-judging a turn adds to
+  // what the live judge already spent rather than replacing it.
+  const current = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { usage: true },
+  });
+  const previous =
+    current?.usage && typeof current.usage === "object"
+      ? (current.usage as Record<string, unknown>)
+      : {};
+  const asNumber = (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0
+      ? value
+      : 0;
   await prisma.sokoBotTurn.update({
     where: { id: turnId },
     data: {
@@ -110,6 +142,16 @@ async function storeTurnVerdict(turnId: string, verdict: SokoBotJudgeVerdict) {
       qualityVerdict: verdict,
       qualityModel: sokoBotJudgeModel(),
       judgedAt: new Date(),
+      usage: {
+        inputTokens: asNumber(previous.inputTokens) + usage.inputTokens,
+        outputTokens: asNumber(previous.outputTokens) + usage.outputTokens,
+        cacheReadTokens: asNumber(previous.cacheReadTokens),
+        cacheWriteTokens: asNumber(previous.cacheWriteTokens),
+        costUsd: asNumber(previous.costUsd) + usage.costUsd,
+      },
+      overheadCostUsdMicros: {
+        increment: BigInt(Math.round(usage.costUsd * 1_000_000)),
+      },
     },
   });
 }
@@ -149,7 +191,7 @@ export async function judgeSokoBotLabTurn(input: {
     });
   };
   await record(null);
-  const verdict = await askJudge({
+  const call = await askJudge({
     scenario: {
       id: scenario.id,
       title: scenario.title,
@@ -164,8 +206,11 @@ export async function judgeSokoBotLabTurn(input: {
     },
     turn: transcript,
   });
-  await Promise.all([record(verdict), storeTurnVerdict(input.turnId, verdict)]);
-  return { verdict, model };
+  await Promise.all([
+    record(call.verdict),
+    storeTurnVerdict(input.turnId, call),
+  ]);
+  return { verdict: call.verdict, model };
 }
 
 /**
@@ -177,7 +222,7 @@ export async function judgeTurnQuality(turnId: string): Promise<void> {
   const { turn, transcript } = await loadTranscript(turnId);
   if (turn.status !== "COMPLETED" && turn.status !== "FAILED") return;
   const proactive = turn.source !== "CHAT" && turn.source !== "ADMIN_RETRY";
-  const verdict = await askJudge({
+  const call = await askJudge({
     scenario: {
       id: proactive ? "live-proactive-turn" : "live-turn",
       title: proactive ? "Self-started turn" : "Live turn",
@@ -191,5 +236,5 @@ export async function judgeTurnQuality(turnId: string): Promise<void> {
     },
     turn: transcript,
   });
-  await storeTurnVerdict(turnId, verdict);
+  await storeTurnVerdict(turnId, call);
 }

@@ -1,6 +1,7 @@
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { shortId } from "@/components/soko-bot/format";
+
 import { MetaGrid } from "@/components/soko-bot/meta-grid";
 import { Panel } from "@/components/soko-bot/panel";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
@@ -11,6 +12,7 @@ interface AdminSokoBotOverviewProps {
 }
 
 export async function AdminSokoBotOverview({ bot }: AdminSokoBotOverviewProps) {
+  const numbers = new Intl.NumberFormat();
   const [t, format] = await Promise.all([
     getTranslations("App.Admin.SokoBots.Overview"),
     getFormatter(),
@@ -123,6 +125,28 @@ export async function AdminSokoBotOverview({ bot }: AdminSokoBotOverviewProps) {
                   bot.personalityStyle !== null
                     ? `${bot.personalityTone ?? "–"} / ${bot.personalityDetail ?? "–"} / ${bot.personalityStyle ?? "–"}`
                     : null,
+              },
+              // Everything the bot has spent. Credits are what the owner was
+              // charged; the model cost is what the tokens actually cost,
+              // including the classifier and judge calls that are not billed.
+              {
+                label: t("usageCredits"),
+                value: numbers.format(
+                  convertCentsToCredits(BigInt(bot.usage.creditsCents)),
+                ),
+              },
+              {
+                label: t("usageTurns"),
+                value: numbers.format(bot.usage.turns),
+              },
+              {
+                label: t("usageTokens"),
+                value: `${numbers.format(bot.usage.totalTokens)} (${numbers.format(bot.usage.inputTokens)} / ${numbers.format(bot.usage.outputTokens)})`,
+              },
+              {
+                label: t("usageModelCost"),
+                value: `$${bot.usage.costUsd.toFixed(4)}`,
+                mono: true,
               },
             ]}
           />

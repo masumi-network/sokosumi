@@ -56,6 +56,28 @@ describe("Soko Bot turn classifier", () => {
   });
 });
 
+describe("classifier usage", () => {
+  it("reports no usage when the deterministic rules answer", async () => {
+    // No model call was made, so charging the owner for one would be wrong.
+    const result = await new ExternalTurnClassifier(false).classify(
+      "Create a task and assign it to a coworker",
+      EMPTY_CONTEXT,
+    );
+
+    expect(result.model).toBeNull();
+    expect(result.usage).toBeNull();
+  });
+
+  it("reports no usage when the model is switched off", async () => {
+    const result = await new ExternalTurnClassifier(false).classify(
+      "the quarterly thing, you know the one",
+      EMPTY_CONTEXT,
+    );
+
+    expect(result.usage).toBeNull();
+  });
+});
+
 describe("addressing another coworker", () => {
   it("routes a request to speak to someone onto a route that can post", () => {
     // CLARIFY is read-only, so this fell through to the bot replying that it

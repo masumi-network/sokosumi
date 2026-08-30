@@ -504,10 +504,18 @@ app.openapi(promoteVersionRoute, async (c) => {
 
 app.openapi(detailRoute, async (c) => {
   try {
-    const detail = await sokoBotControlPlane.getForAdmin(
-      c.req.valid("param").sokoBotId,
+    const sokoBotId = c.req.valid("param").sokoBotId;
+    const { sokoBotUsageTotals } = await import(
+      "@/services/soko-bot-usage.service"
     );
-    return ok(c, adminSokoBotDetailSchema.parse(mapDetail(detail)));
+    const [detail, usage] = await Promise.all([
+      sokoBotControlPlane.getForAdmin(sokoBotId),
+      sokoBotUsageTotals(sokoBotId),
+    ]);
+    return ok(
+      c,
+      adminSokoBotDetailSchema.parse({ ...mapDetail(detail), usage }),
+    );
   } catch (error) {
     mapError(error);
   }

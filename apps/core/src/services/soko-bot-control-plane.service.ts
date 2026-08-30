@@ -1873,6 +1873,25 @@ export class SokoBotControlPlane {
             classifierVersion: classification.version,
             classifierLatencyMs: classification.latencyMs,
             classificationFailed: classification.failed,
+            // Seeds the turn's usage before the agent loop starts. The drain
+            // reads this row's `usage` as its starting aggregate, so the
+            // classifier's tokens survive every later step write. Its cost is
+            // deliberately kept out of `costUsdMicros`, which is what the
+            // owner is billed for.
+            ...(classification.usage
+              ? {
+                  usage: jsonInput({
+                    inputTokens: classification.usage.inputTokens,
+                    outputTokens: classification.usage.outputTokens,
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                    costUsd: classification.usage.costUsd,
+                  }),
+                  overheadCostUsdMicros: BigInt(
+                    Math.round(classification.usage.costUsd * 1_000_000),
+                  ),
+                }
+              : {}),
             capabilityNames: [...capabilities],
             eveSessionId: sessionIdForTurn,
             eveStreamIndex: -1,
