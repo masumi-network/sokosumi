@@ -255,6 +255,24 @@ describe("negated intent covers opening a chat", () => {
       "Don't consult @ben yet",
       "Don't loop in the design team",
       "Don't check with sales about this",
+      // The classifier reads these as chat or Drive writes too.
+      "Don't leave Nina a note yet",
+      "Don't put that in the brief file yet",
+      // English doubles the consonant in the gerund, which is the form a
+      // prohibition reaches the verb in.
+      "Wait until I approve before getting in touch with Nina",
+      "Wait until I approve before dropping a line to Nina",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
+    }
+  });
+
+  it("hears a refusal that the anti-delay phrase is wrapped around", () => {
+    // Cutting "don't forget" out of this leaves "not to message Nina yet",
+    // which is still the whole point of the sentence.
+    for (const message of [
+      "Don't forget not to message Nina yet",
+      "Remember not to post that",
     ]) {
       expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
     }
@@ -268,6 +286,7 @@ describe("negated intent covers opening a chat", () => {
       "Do not delay - message Nina now",
       "Don't hold off on messaging Nina",
       "Don't wait until Friday to post",
+      "I won't wait until approval before messaging Nina; send it now",
     ]) {
       expect(hasSokoBotNegatedMutationIntent(message)).toBe(false);
     }

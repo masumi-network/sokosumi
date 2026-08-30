@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
+
+import * as Sentry from "@sentry/node";
 import {
   AgentJobStatus,
   Channel,
@@ -909,6 +911,13 @@ export class SokoBotRuntimeService {
     // A leading "@" is how the owner writes a handle — "ping @ben" — not part
     // of the name, and left on it nothing matches.
     const needle = input.person.trim().replace(/^@+/, "");
+    // "@" on its own passes the schema and strips to nothing, which would
+    // match a member whose display name is blank.
+    if (!needle) {
+      throw new SokoBotRuntimeValidationError(
+        "Name the person to write to. Ask the owner who they mean.",
+      );
+    }
     // An address is matched against addresses and a name against names, never
     // both: a member who sets their display name to counsel@outside.example
     // would otherwise be the match when the owner asks to contact counsel.
@@ -996,9 +1005,19 @@ export class SokoBotRuntimeService {
       // very message it just sent — along with anything the other person had
       // already replied.
       if (created) {
+        // Reported rather than swallowed: what survives a failure here is the
+        // permanent empty room this whole path exists to prevent, and nothing
+        // downstream would ever notice it.
         await prisma.chatRoom
           .deleteMany({ where: { id: room.id, messages: { none: {} } } })
-          .catch(() => undefined);
+          .catch((cleanupError: unknown) => {
+            Sentry.captureException(cleanupError, {
+              extra: {
+                roomId: room.id,
+                errorType: "soko-bot-open-direct-chat-rollback",
+              },
+            });
+          });
       }
       throw error;
     }

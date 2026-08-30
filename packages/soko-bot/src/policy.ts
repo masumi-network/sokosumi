@@ -232,6 +232,9 @@ const MUTATION_VERBS = [
   "reach out",
   "get in touch",
   "drop a line",
+  "drop",
+  "leave",
+  "put",
   "ping",
   "chase",
   "ask",
@@ -245,20 +248,26 @@ const MUTATION_VERBS = [
 /**
  * Accept the tense the sentence actually uses. A prohibition reaches the verb
  * through "before", which puts it in the gerund — "before reaching out to
- * Nina" — and a bare list of infinitives never sees it.
+ * Nina" — and a bare list of infinitives never sees it. English doubles the
+ * final consonant there ("getting", "dropping") and drops a silent "e"
+ * ("messaging"), so both spellings have to be allowed. The forms this admits
+ * that are not words ("gett", "postt") match nothing and cost nothing.
  */
 function inflected(verb: string): string {
   const [head = "", ...rest] = verb.split(" ");
   const forms = head.endsWith("e")
     ? `${head.slice(0, -1)}(?:e|es|ed|ing)`
-    : `${head}(?:s|ed|ing)?`;
+    : `${head}${head.slice(-1)}?(?:s|ed|ing)?`;
   return [forms, ...rest].join("\\s+");
 }
 
 const MUTATION_VERB = `(?:${MUTATION_VERBS.map(inflected).join("|")})`;
 
+// "not to" carries a prohibition on its own — "remember not to post that",
+// and what is left of "don't forget not to message Nina" once the anti-delay
+// phrase in front of it is cut away.
 const NEGATION_LEAD =
-  "(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)";
+  "(?:don't|do not|never|not to|not yet|not now|wait before|hold off(?: on)?)";
 
 // The refusal can follow the instruction as easily as precede it: "reach out
 // to Nina, but not yet" is the same prohibition read backwards.
@@ -283,7 +292,7 @@ const NEGATED_MUTATION_INTENT = new RegExp(
  * still lands on the half that is a real refusal.
  */
 const ANTI_DELAY =
-  /\b(?:don't|do not|never|no need to)\s+(?:wait|delay|hold off(?: on)?|hesitate|forget)\b/gi;
+  /\b(?:don't|do not|won't|will not|never|no need to)\s+(?:wait|delay|hold off(?: on)?|hesitate|forget)\b/gi;
 
 /** True when user explicitly says a mutation must not happen yet. */
 export function hasSokoBotNegatedMutationIntent(message: string): boolean {

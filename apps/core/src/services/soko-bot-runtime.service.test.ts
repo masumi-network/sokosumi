@@ -2729,6 +2729,21 @@ describe("open_direct_chat", () => {
     expect(JSON.stringify(where.user)).not.toContain("email");
   });
 
+  it("refuses a target that is nothing but an @", async () => {
+    // It passes the schema's min(1) and strips to an empty string, which
+    // would match a member whose display name is blank.
+    const authorized = arm();
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "@",
+        message: "Hi",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/Name the person to write to/i);
+    expect(memberFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("offers addresses when two names differ only in case", async () => {
     // Compared case-sensitively, "Nina" and "NINA" look like two usable
     // answers — and either one matches both people again, for ever.
