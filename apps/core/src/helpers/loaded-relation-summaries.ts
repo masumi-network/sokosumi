@@ -1,5 +1,3 @@
-import { sokoBotOrbSeed } from "@/helpers/soko-bot-avatar";
-
 export type UserSummaryFields = {
   id: string;
   name: string;
@@ -131,7 +129,7 @@ export function orchestratorSummaryFromLoadedRelation(
   return {
     id: orchestrator.id,
     name: orchestrator.name,
-    avatarSeed: sokoBotOrbSeed(orchestrator),
+    avatarSeed: orchestrator.avatarSeed,
     owner: userSummaryFromLoadedRelation(
       `${context} orchestrator owner`,
       orchestrator.userId,

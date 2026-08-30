@@ -616,12 +616,13 @@ describe("ContextPacketBuilder", () => {
     const result = await new ContextPacketBuilder().build({
       ...buildInput(),
       audience: "TEAMMATE" as const,
+      askedByKind: "TEAMMATE" as const,
       askedByUserId: "user-2",
     });
 
     expect(result.packet.trigger.askedBy).toEqual({
+      kind: "TEAMMATE",
       name: "Patrick Tobler",
-      isOwner: false,
       trust: "untrusted-data",
     });
     expect(result.packet.actor.name).toBe("Ada");
@@ -631,8 +632,8 @@ describe("ContextPacketBuilder", () => {
     const result = await new ContextPacketBuilder().build(buildInput());
 
     expect(result.packet.trigger.askedBy).toEqual({
+      kind: "OWNER",
       name: "Ada",
-      isOwner: true,
       trust: "untrusted-data",
     });
     expect(userFindUniqueMock).not.toHaveBeenCalled();
@@ -645,8 +646,27 @@ describe("ContextPacketBuilder", () => {
       askedByUserId: "user-1",
     });
 
-    expect(result.packet.trigger.askedBy.isOwner).toBe(true);
+    expect(result.packet.trigger.askedBy.kind).toBe("OWNER");
     expect(result.packet.trigger.askedBy.name).toBe("Ada");
+  });
+
+  it("leaves another assistant nameless rather than naming its owner", async () => {
+    // The only id behind a bot-to-bot question is the *sending* bot's owner,
+    // who is not in the conversation. Naming them would tell this bot it was
+    // talking to a colleague who never said anything.
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      audience: "TEAMMATE" as const,
+      askedByKind: "ASSISTANT" as const,
+      askedByUserId: "user-2",
+    });
+
+    expect(result.packet.trigger.askedBy).toEqual({
+      kind: "ASSISTANT",
+      name: null,
+      trust: "untrusted-data",
+    });
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("keeps the owner's own turn complete", async () => {

@@ -1117,34 +1117,9 @@ describe("mapTaskEventActor", () => {
       orchestrator: {
         id: orchestrator.id,
         name: orchestrator.name,
-        // A seed the bot chose is kept as it is.
-        avatarSeed: "orb:jewel-sky:user_123",
+        avatarSeed: orchestrator.avatarSeed,
         owner: defaultTaskUser,
       },
-    });
-  });
-
-  it("gives a bot with no chosen seed the orb it wears in chat", () => {
-    // `avatarSeed` is null for every bot — nothing writes the column — and the
-    // task API used to pass that straight through, so the same assistant
-    // showed its real orb in a room and a blank disc on a Task.
-    const orchestrator = {
-      id: "01960001-0001-7001-8001-000000000099",
-      name: "Hermes",
-      avatarSeed: null,
-      userId: defaultTaskUser.id,
-      user: defaultTaskUser,
-    };
-
-    expect(
-      mapTaskEventActor(
-        buildTaskEventFixture({
-          orchestratorId: orchestrator.id,
-          orchestrator,
-        }),
-      ),
-    ).toMatchObject({
-      orchestrator: { avatarSeed: `orb:${defaultTaskUser.id}` },
     });
   });
 
@@ -1193,9 +1168,7 @@ describe("mapTaskEventActor", () => {
       orchestrator: {
         id: orchestrator.id,
         name: orchestrator.name,
-        // Null in the row: the seed is derived from the owner's id so the
-        // assistant wears the same orb here as it does in chat.
-        avatarSeed: `orb:${defaultTaskUser.id}`,
+        avatarSeed: orchestrator.avatarSeed,
         owner: defaultTaskUser,
       },
     });
@@ -1225,9 +1198,7 @@ describe("mapTaskEventActor", () => {
       orchestrator: {
         id: orchestrator.id,
         name: orchestrator.name,
-        // Null in the row: the seed is derived from the owner's id so the
-        // assistant wears the same orb here as it does in chat.
-        avatarSeed: `orb:${defaultTaskUser.id}`,
+        avatarSeed: orchestrator.avatarSeed,
         owner: defaultTaskUser,
       },
     });
@@ -1448,7 +1419,7 @@ describe("mapTask", () => {
     const mappedOrchestrator = {
       id: creatorOrchestrator.id,
       name: creatorOrchestrator.name,
-      avatarSeed: `orb:${defaultTaskUser.id}`,
+      avatarSeed: creatorOrchestrator.avatarSeed,
       owner: defaultTaskUser,
     };
 

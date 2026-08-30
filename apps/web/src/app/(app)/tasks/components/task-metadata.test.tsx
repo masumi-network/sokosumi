@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 
@@ -161,9 +162,37 @@ describe("TaskMetadata", () => {
     expect(
       screen.getByText("Ada Lovelace's personal assistant"),
     ).toBeInTheDocument();
+    // Same fallback the sidebar uses, so the bot wears one face everywhere.
     expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
       "data-seed",
-      "",
+      defaultOrbSeed("user_2"),
     );
+  });
+
+  it("does not print the role twice when the bot is named after it", () => {
+    render(
+      <TaskMetadata
+        task={createTask({
+          creator: {
+            type: "orchestrator",
+            id: "01960001-0001-7001-8001-000000000099",
+            orchestrator: {
+              id: "01960001-0001-7001-8001-000000000099",
+              name: "Ada Lovelace's personal assistant",
+              avatarSeed: null,
+              owner: { id: "user_2", name: "Ada Lovelace", image: null },
+            },
+          },
+        })}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    expect(
+      screen.getAllByText("Ada Lovelace's personal assistant"),
+    ).toHaveLength(1);
   });
 });

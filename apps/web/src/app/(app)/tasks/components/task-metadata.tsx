@@ -5,6 +5,7 @@ import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
@@ -87,11 +88,19 @@ function resolveTaskCreatorDisplay(
       // underneath says what it is and who it belongs to. Without it a Task
       // created by "Jarvis" gives the reader no way to tell that a colleague's
       // assistant did it, or on whose behalf.
+      const assistantName = orchestrator.name ?? "Assistant";
+      const role = formatOrchestratorRole({ owner: orchestrator.owner.name });
       return {
-        name: orchestrator.name ?? "Assistant",
-        role: formatOrchestratorRole({ owner: orchestrator.owner.name }),
+        name: assistantName,
+        // A bot named "Ada's personal assistant" would otherwise print the
+        // same sentence twice.
+        role: role.toLowerCase() === assistantName.toLowerCase() ? null : role,
         image: null,
-        avatarSeed: orchestrator.avatarSeed ?? null,
+        // Same fallback the sidebar and the Soko Bots page use. `avatarSeed`
+        // is null for every bot, and passing that through rendered a different
+        // face here than the one the owner sees everywhere else.
+        avatarSeed:
+          orchestrator.avatarSeed ?? defaultOrbSeed(orchestrator.owner.id),
       };
     }
     default: {

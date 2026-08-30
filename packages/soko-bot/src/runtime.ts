@@ -22,8 +22,9 @@ export interface SokoBotContextPacket {
      * shared room apart from the owner asking in their own.
      */
     askedBy: {
+      kind: "OWNER" | "TEAMMATE" | "ASSISTANT";
+      /** Null for `ASSISTANT`: the only id behind one is its owner's. */
       name: string | null;
-      isOwner: boolean;
       trust: "untrusted-data";
     };
   };

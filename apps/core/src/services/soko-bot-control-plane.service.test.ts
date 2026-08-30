@@ -268,7 +268,7 @@ function builtContext(memoryVersion = 1): BuiltContextPacket {
         route: "DIRECT_RESPONSE",
         confidence: 1,
         requestedOutcome: "Hello",
-        askedBy: { name: "Owner", isOwner: true, trust: "untrusted-data" },
+        askedBy: { kind: "OWNER", name: "Owner", trust: "untrusted-data" },
       },
       actor: {},
       workspace: {},
@@ -837,6 +837,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(contextBuilder.build).toHaveBeenCalledWith(
       expect.objectContaining({
         audience: "TEAMMATE",
+        askedByKind: "TEAMMATE",
         askedByUserId: "user_teammate",
       }),
     );

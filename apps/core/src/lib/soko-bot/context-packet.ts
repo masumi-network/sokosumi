@@ -119,11 +119,17 @@ export interface BuildContextPacketInput {
    */
   audience?: "OWNER" | "TEAMMATE";
   /**
-   * The person who actually typed the message, when that is not the owner.
-   * The turn runs as the owner — their bot, their credits — so `actor` is
-   * always the owner, and without this the packet asserts the owner is the
-   * one speaking. A bot reading that greets its owner by name at a teammate.
+   * Who is on the other side of this turn. The turn runs as the owner — their
+   * bot, their credits — so `actor` is always the owner, and without this the
+   * packet asserts the owner is the one speaking: a bot reading that greets
+   * its owner by name at a teammate.
+   *
+   * `ASSISTANT` is another bot asking, and is deliberately nameless. The id
+   * that reaches us then belongs to the *sending bot's owner*, who is not in
+   * the conversation at all, so naming them would be worse than saying
+   * nothing.
    */
+  askedByKind?: "OWNER" | "TEAMMATE" | "ASSISTANT";
   askedByUserId?: string | null;
 }
 
@@ -741,9 +747,11 @@ export class ContextPacketBuilder {
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
         },
       }),
-      // Null whenever the owner is the one asking, which is the common case
-      // and the reason this is a lookup rather than a required input.
-      input.askedByUserId && input.askedByUserId !== input.userId
+      // Only a named human is looked up: the owner is already `actor`, and
+      // the id behind an assistant's question is its owner, not the asker.
+      input.askedByKind === "TEAMMATE" &&
+      input.askedByUserId &&
+      input.askedByUserId !== input.userId
         ? prisma.user.findUnique({
             where: { id: input.askedByUserId },
             select: { name: true },
@@ -779,12 +787,16 @@ export class ContextPacketBuilder {
           ) ?? "",
         // Who is on the other side of this turn. `actor` below is the owner
         // whatever happens, so this is the only field that distinguishes the
-        // owner asking from a colleague asking in a shared room.
+        // owner asking, a colleague asking in a shared room, and another
+        // assistant asking on its own owner's behalf.
         askedBy: {
-          name: asker
-            ? sanitizeText(asker.name, TEXT_LIMITS.actorName)
-            : sanitizeText(user.name, TEXT_LIMITS.actorName),
-          isOwner: !asker,
+          kind: input.askedByKind ?? "OWNER",
+          name:
+            input.askedByKind === "ASSISTANT"
+              ? null
+              : asker
+                ? sanitizeText(asker.name, TEXT_LIMITS.actorName)
+                : sanitizeText(user.name, TEXT_LIMITS.actorName),
           trust: "untrusted-data",
         },
       },
