@@ -514,6 +514,7 @@ export class ContextPacketBuilder {
       AGENT_PRICING_READ_TRANSACTION_OPTIONS,
     );
 
+    const askedByKind = input.askedByKind ?? "OWNER";
     const [
       user,
       projects,
@@ -749,7 +750,7 @@ export class ContextPacketBuilder {
       }),
       // Only a named human is looked up: the owner is already `actor`, and
       // the id behind an assistant's question is its owner, not the asker.
-      input.askedByKind === "TEAMMATE" &&
+      askedByKind === "TEAMMATE" &&
       input.askedByUserId &&
       input.askedByUserId !== input.userId
         ? prisma.user.findUnique({
@@ -790,13 +791,17 @@ export class ContextPacketBuilder {
         // owner asking, a colleague asking in a shared room, and another
         // assistant asking on its own owner's behalf.
         askedBy: {
-          kind: input.askedByKind ?? "OWNER",
+          kind: askedByKind,
+          // Only an OWNER turn may borrow the owner's name. A colleague whose
+          // account has since been deleted has no name to give, and falling
+          // back to the owner's would say the owner is the one asking — the
+          // exact confusion this field exists to end.
           name:
-            input.askedByKind === "ASSISTANT"
-              ? null
+            askedByKind === "OWNER"
+              ? sanitizeText(user.name, TEXT_LIMITS.actorName)
               : asker
                 ? sanitizeText(asker.name, TEXT_LIMITS.actorName)
-                : sanitizeText(user.name, TEXT_LIMITS.actorName),
+                : null,
           trust: "untrusted-data",
         },
       },

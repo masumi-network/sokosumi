@@ -650,6 +650,25 @@ describe("ContextPacketBuilder", () => {
     expect(result.packet.trigger.askedBy.name).toBe("Ada");
   });
 
+  it("gives no name for a colleague whose account is gone", async () => {
+    // Falling back to the owner's name here would say the owner is the one
+    // asking, which is the confusion this field exists to end.
+    userFindUniqueMock.mockResolvedValue(null);
+
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      audience: "TEAMMATE" as const,
+      askedByKind: "TEAMMATE" as const,
+      askedByUserId: "user-gone",
+    });
+
+    expect(result.packet.trigger.askedBy).toEqual({
+      kind: "TEAMMATE",
+      name: null,
+      trust: "untrusted-data",
+    });
+  });
+
   it("leaves another assistant nameless rather than naming its owner", async () => {
     // The only id behind a bot-to-bot question is the *sending* bot's owner,
     // who is not in the conversation. Naming them would tell this bot it was
