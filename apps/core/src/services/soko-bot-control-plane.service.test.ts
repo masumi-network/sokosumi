@@ -268,6 +268,7 @@ function builtContext(memoryVersion = 1): BuiltContextPacket {
         route: "DIRECT_RESPONSE",
         confidence: 1,
         requestedOutcome: "Hello",
+        askedBy: { kind: "OWNER", name: "Owner", trust: "untrusted-data" },
       },
       actor: {},
       workspace: {},
@@ -831,8 +832,14 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]) {
       expect(granted).not.toContain(ownerPrivate);
     }
+    // The packet's `actor` is the owner on every turn, so the asker's id has
+    // to travel with the audience or the bot cannot tell who it is answering.
     expect(contextBuilder.build).toHaveBeenCalledWith(
-      expect.objectContaining({ audience: "TEAMMATE" }),
+      expect.objectContaining({
+        audience: "TEAMMATE",
+        askedByKind: "TEAMMATE",
+        askedByUserId: "user_teammate",
+      }),
     );
   });
 

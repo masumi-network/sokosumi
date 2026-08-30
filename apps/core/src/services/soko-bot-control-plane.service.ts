@@ -1756,6 +1756,12 @@ export class SokoBotControlPlane {
       source: input.source ?? "CHAT",
       classification: classification.classification,
       audience: requestedByTeammate ? "TEAMMATE" : "OWNER",
+      askedByKind: input.chat?.askedByBot
+        ? "ASSISTANT"
+        : requestedByTeammate
+          ? "TEAMMATE"
+          : "OWNER",
+      askedByUserId: input.chat?.requestedByUserId ?? null,
     });
     const contextSnapshotId = randomUUID();
 

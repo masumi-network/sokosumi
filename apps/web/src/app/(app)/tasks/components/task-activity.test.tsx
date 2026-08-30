@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type { TaskEvent } from "@/lib/clients/generated/core";
 import { Channel, TaskStatus } from "@/lib/clients/generated/core";
 
@@ -728,7 +729,7 @@ describe("TaskActivitySection", () => {
     );
   });
 
-  it("shows static placeholder orb when orchestrator avatarSeed is null", () => {
+  it("falls back to the orb the bot wears everywhere else", () => {
     const events: TaskEvent[] = [
       createEvent("orch-null-seed", {
         createdAt: "2026-01-01T12:00:00.000Z",
@@ -753,9 +754,11 @@ describe("TaskActivitySection", () => {
     render(<TaskActivitySection {...baseProps} events={events} />);
 
     expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
+    // `avatarSeed` is null for every bot, so passing it through showed a
+    // different face here than the sidebar and the Soko Bots page show.
     expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
       "data-seed",
-      "",
+      defaultOrbSeed("user-1"),
     );
     expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
       "data-animate",

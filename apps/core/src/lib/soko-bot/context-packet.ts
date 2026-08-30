@@ -118,6 +118,19 @@ export interface BuildContextPacketInput {
    * the owner's private surfaces even though the turn runs as the owner.
    */
   audience?: "OWNER" | "TEAMMATE";
+  /**
+   * Who is on the other side of this turn. The turn runs as the owner — their
+   * bot, their credits — so `actor` is always the owner, and without this the
+   * packet asserts the owner is the one speaking: a bot reading that greets
+   * its owner by name at a teammate.
+   *
+   * `ASSISTANT` is another bot asking, and is deliberately nameless. The id
+   * that reaches us then belongs to the *sending bot's owner*, who is not in
+   * the conversation at all, so naming them would be worse than saying
+   * nothing.
+   */
+  askedByKind?: "OWNER" | "TEAMMATE" | "ASSISTANT";
+  askedByUserId?: string | null;
 }
 
 export interface BuiltContextPacket {
@@ -501,6 +514,7 @@ export class ContextPacketBuilder {
       AGENT_PRICING_READ_TRANSACTION_OPTIONS,
     );
 
+    const askedByKind = input.askedByKind ?? "OWNER";
     const [
       user,
       projects,
@@ -518,6 +532,7 @@ export class ContextPacketBuilder {
       jobCount,
       pendingDecisionCount,
       recentTurnCount,
+      asker,
     ] = await Promise.all([
       prisma.user.findUniqueOrThrow({
         where: { id: input.userId },
@@ -733,6 +748,16 @@ export class ContextPacketBuilder {
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
         },
       }),
+      // Only a named human is looked up: the owner is already `actor`, and
+      // the id behind an assistant's question is its owner, not the asker.
+      askedByKind === "TEAMMATE" &&
+      input.askedByUserId &&
+      input.askedByUserId !== input.userId
+        ? prisma.user.findUnique({
+            where: { id: input.askedByUserId },
+            select: { name: true },
+          })
+        : null,
     ]);
 
     const [agents, agentCount, creditCosts] = agentRead;
@@ -761,6 +786,24 @@ export class ContextPacketBuilder {
             input.classification.requestedOutcome,
             TEXT_LIMITS.requestedOutcome,
           ) ?? "",
+        // Who is on the other side of this turn. `actor` below is the owner
+        // whatever happens, so this is the only field that distinguishes the
+        // owner asking, a colleague asking in a shared room, and another
+        // assistant asking on its own owner's behalf.
+        askedBy: {
+          kind: askedByKind,
+          // Only an OWNER turn may borrow the owner's name. A colleague whose
+          // account has since been deleted has no name to give, and falling
+          // back to the owner's would say the owner is the one asking — the
+          // exact confusion this field exists to end.
+          name:
+            askedByKind === "OWNER"
+              ? sanitizeText(user.name, TEXT_LIMITS.actorName)
+              : asker
+                ? sanitizeText(asker.name, TEXT_LIMITS.actorName)
+                : null,
+          trust: "untrusted-data",
+        },
       },
       actor: {
         id: boundedIdentifier(user.id),
