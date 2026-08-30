@@ -200,29 +200,97 @@ export interface TurnClassification {
   proposedTaskBrief?: string;
 }
 
-const MUTATION_VERB =
-  "(?:create|make|open|assign|delegate|hand off|hire|book|run|use|post|send|share|publish|reply|upload|write|save|file|dm|message|contact|reach out|get in touch|drop a line)";
+// Every way of telling the bot to go and act on something, including the ways
+// of telling it to go and speak to a person. This has to stay in step with the
+// verbs the classifier reads as a chat write in
+// `apps/core/src/lib/soko-bot/classifier.ts`: a verb it routes to a
+// write-capable route but this list omits is one the owner can forbid and the
+// bot still perform. "Don't ping @alice" was exactly that.
+const MUTATION_VERBS = [
+  "create",
+  "make",
+  "open",
+  "assign",
+  "delegate",
+  "hand off",
+  "hire",
+  "book",
+  "run",
+  "use",
+  "post",
+  "send",
+  "share",
+  "publish",
+  "reply",
+  "upload",
+  "write",
+  "save",
+  "file",
+  "dm",
+  "message",
+  "contact",
+  "reach out",
+  "get in touch",
+  "drop a line",
+  "ping",
+  "chase",
+  "ask",
+  "tell",
+  "consult",
+  "check with",
+  "follow up with",
+  "loop in",
+];
 
-// "Don't forget to message Nina" urges the message rather than forbidding it,
-// and so does "don't hesitate to"; both read as prohibitions to a bare "don't".
+/**
+ * Accept the tense the sentence actually uses. A prohibition reaches the verb
+ * through "before", which puts it in the gerund — "before reaching out to
+ * Nina" — and a bare list of infinitives never sees it.
+ */
+function inflected(verb: string): string {
+  const [head = "", ...rest] = verb.split(" ");
+  const forms = head.endsWith("e")
+    ? `${head.slice(0, -1)}(?:e|es|ed|ing)`
+    : `${head}(?:s|ed|ing)?`;
+  return [forms, ...rest].join("\\s+");
+}
+
+const MUTATION_VERB = `(?:${MUTATION_VERBS.map(inflected).join("|")})`;
+
 const NEGATION_LEAD =
-  "(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)(?!\\s+(?:forget|hesitate)\\b)";
+  "(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)";
 
 // The refusal can follow the instruction as easily as precede it: "reach out
 // to Nina, but not yet" is the same prohibition read backwards.
 const TRAILING_NEGATION = "(?:not yet|not now|not until|hold off|wait until)";
 
+// "Wait until I approve before reaching out to Nina" puts the condition first
+// and the refusal in "before", so neither of the other two shapes sees it.
+const GATED_NEGATION = `\\bwait\\s+(?:until|till|for)\\b.{0,60}\\bbefore\\b.{0,40}\\b${MUTATION_VERB}\\b`;
+
 const NEGATED_MUTATION_INTENT = new RegExp(
   `\\b${NEGATION_LEAD}\\b.{0,80}\\b${MUTATION_VERB}\\b` +
-    `|\\b${MUTATION_VERB}\\b.{0,80}\\b${TRAILING_NEGATION}\\b`,
+    `|\\b${MUTATION_VERB}\\b.{0,80}\\b${TRAILING_NEGATION}\\b` +
+    `|${GATED_NEGATION}`,
   "i",
 );
+
+/**
+ * "Don't wait", "do not delay", "don't forget" are the owner pressing for the
+ * thing to happen. Every word in them is a word a prohibition uses, so they
+ * are cut out before the sentence is read rather than guarded against inside
+ * it: that way "don't forget to message Nina, but don't post it publicly yet"
+ * still lands on the half that is a real refusal.
+ */
+const ANTI_DELAY =
+  /\b(?:don't|do not|never|no need to)\s+(?:wait|delay|hold off(?: on)?|hesitate|forget)\b/gi;
 
 /** True when user explicitly says a mutation must not happen yet. */
 export function hasSokoBotNegatedMutationIntent(message: string): boolean {
   // A curly apostrophe reaches us from every phone keyboard and from the
   // model's own rephrasings; "don\u2019t" must read as "don't".
-  return NEGATED_MUTATION_INTENT.test(message.replace(/\u2019/g, "'"));
+  const text = message.replace(/\u2019/g, "'").replace(ANTI_DELAY, " ");
+  return NEGATED_MUTATION_INTENT.test(text);
 }
 
 /**

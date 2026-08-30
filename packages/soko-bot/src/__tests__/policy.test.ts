@@ -237,9 +237,49 @@ describe("negated intent covers opening a chat", () => {
       "Don't drop a line to Nina",
       // The refusal can follow the instruction rather than precede it.
       "Reach out to Nina, but not yet",
+      // The condition can come first, with the refusal inside "before".
+      "Wait until I approve before reaching out to Nina",
+      "Wait for my sign-off before pinging the design team",
     ]) {
       expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
     }
+  });
+
+  it("covers every verb the classifier reads as a chat write", () => {
+    // A verb the classifier routes to a write-capable route but this guard
+    // does not know is one the owner can forbid and the bot still perform.
+    for (const message of [
+      "Do not ping @alice",
+      "Don't ask @ben about the invoice",
+      "Don't tell Nina yet",
+      "Don't consult @ben yet",
+      "Don't loop in the design team",
+      "Don't check with sales about this",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
+    }
+  });
+
+  it("reads an instruction to hurry as the instruction it is", () => {
+    // Every word in "don't wait" belongs to a prohibition, and the sentence
+    // means the opposite of one.
+    for (const message of [
+      "Don't wait before messaging Nina; send it now",
+      "Do not delay - message Nina now",
+      "Don't hold off on messaging Nina",
+      "Don't wait until Friday to post",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(false);
+    }
+  });
+
+  it("still hears the refusal in a message that also urges something", () => {
+    // Cutting "don't forget" must not take the real prohibition with it.
+    expect(
+      hasSokoBotNegatedMutationIntent(
+        "Don't forget to message Nina, but don't post it publicly yet",
+      ),
+    ).toBe(true);
   });
 
   it("leaves a plain instruction alone", () => {

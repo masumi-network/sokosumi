@@ -78,8 +78,6 @@ describe("addressing another coworker", () => {
       "Please reach out to Nina directly and ask for the final tiers",
       "get in touch with sales about the renewal",
       "drop a line to the design team about the deadline",
-      // "dm" as an imperative opening the sentence, where a noun would not.
-      "DM Nina the brief when it is ready",
     ]) {
       expect(classifyDeterministically(message)?.route).toBe("DIRECT_RESPONSE");
     }
@@ -91,13 +89,18 @@ describe("addressing another coworker", () => {
       "what is the contact address for billing",
       "tell me the contact details",
       "the message board is broken",
-      // "dm" is a noun as often as a verb, so only the imperative counts:
-      // opening the sentence and naming a person.
+      // "dm" is a noun as often as a verb, and a capital cannot tell the two
+      // apart: "DM Settings are broken" opens exactly like "DM Nina the
+      // brief", so neither is a trigger and both go to the model classifier.
       "the DM integration is broken",
       "the DM settings need review",
-      "DM integration is broken again",
+      "DM Settings are broken",
       "Message board is down, can you look?",
       "Contact details for billing, please",
+      // Asking how to reach someone is a question about a route, not an
+      // instruction to take it.
+      "How do I get in touch with Nina?",
+      "What is the best way to reach out to sales?",
     ]) {
       expect(
         classifyDeterministically(message)?.rationaleSummary ?? "",

@@ -7,7 +7,7 @@ const {
   botFindFirstMock,
   botFindUniqueMock,
   chatRoomFindFirstMock,
-  chatRoomDeleteMock,
+  chatRoomDeleteManyMock,
   workspaceFindUniqueMock,
   chatRoomFindManyMock,
   chatMessageFindManyMock,
@@ -76,7 +76,7 @@ const {
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
-  chatRoomDeleteMock: vi.fn(),
+  chatRoomDeleteManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   chatRoomFindManyMock: vi.fn(),
   chatMessageFindManyMock: vi.fn(),
@@ -158,7 +158,7 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoom: {
       findFirst: chatRoomFindFirstMock,
       findMany: chatRoomFindManyMock,
-      delete: chatRoomDeleteMock,
+      deleteMany: chatRoomDeleteManyMock,
     },
     chatRoomMessage: {
       findMany: chatMessageFindManyMock,
@@ -2585,7 +2585,7 @@ describe("open_direct_chat", () => {
     // The first message is posted as part of opening, so post_chat's own
     // dependencies have to be armed here too.
     chatRoomFindFirstMock.mockResolvedValue({ id: "room_new", name: "Nina" });
-    chatRoomDeleteMock.mockResolvedValue({});
+    chatRoomDeleteManyMock.mockResolvedValue({ count: 1 });
     chatMessageCountMock.mockResolvedValue(0);
     chatCoworkerMemberFindManyMock.mockResolvedValue([]);
     transactionChatMessageCreateMock.mockResolvedValue({
@@ -2649,8 +2649,11 @@ describe("open_direct_chat", () => {
       }),
     ).rejects.toThrow(/rate limited/i);
 
-    expect(chatRoomDeleteMock).toHaveBeenCalledWith({
-      where: { id: "room_new" },
+    // Conditioned on the room still being empty: postChat can fail after its
+    // message commits, and an unconditional delete would take that message
+    // — and any reply to it — with the room.
+    expect(chatRoomDeleteManyMock).toHaveBeenCalledWith({
+      where: { id: "room_new", messages: { none: {} } },
     });
   });
 
@@ -2672,7 +2675,7 @@ describe("open_direct_chat", () => {
       }),
     ).rejects.toThrow(/rate limited/i);
 
-    expect(chatRoomDeleteMock).not.toHaveBeenCalled();
+    expect(chatRoomDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("does not let a wildcard stand in for a name", async () => {
@@ -2708,6 +2711,40 @@ describe("open_direct_chat", () => {
       email: { equals: "counsel@outside.example", mode: "insensitive" },
     });
     expect(JSON.stringify(where.user)).not.toContain("name");
+  });
+
+  it("looks up an @handle as a name, never as an address", async () => {
+    // The classifier routes "ping @ben" here, so this is the shape the model
+    // passes on. Looked up as an address, "@ben" can only ever miss.
+    const authorized = arm();
+
+    await new SokoBotRuntimeService()["openDirectChat"](authorized, {
+      person: "@ben",
+      message: "Hi",
+      toolCallId: "call_1",
+    });
+
+    const where = memberFindManyMock.mock.calls[0]?.[0]?.where;
+    expect(where.user.OR[0].name.equals).toBe("ben");
+    expect(JSON.stringify(where.user)).not.toContain("email");
+  });
+
+  it("offers addresses when two names differ only in case", async () => {
+    // Compared case-sensitively, "Nina" and "NINA" look like two usable
+    // answers — and either one matches both people again, for ever.
+    const authorized = arm();
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: "u1", name: "Nina", email: "nina.a@x.io" } },
+      { user: { id: "u2", name: "NINA", email: "nina.b@x.io" } },
+    ]);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Nina",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/nina\.a@x\.io, nina\.b@x\.io/);
   });
 
   it("asks rather than guessing when a name matches two people", async () => {

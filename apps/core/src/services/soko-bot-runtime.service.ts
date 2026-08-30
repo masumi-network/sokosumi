@@ -906,11 +906,15 @@ export class SokoBotRuntimeService {
     // the owner and their coworkers, never the organization's roster, so a
     // tool that demanded a UUID could only ever be called with one that
     // happened to appear in the text — which is to say, almost never.
-    const needle = input.person.trim();
+    // A leading "@" is how the owner writes a handle — "ping @ben" — not part
+    // of the name, and left on it nothing matches.
+    const needle = input.person.trim().replace(/^@+/, "");
     // An address is matched against addresses and a name against names, never
     // both: a member who sets their display name to counsel@outside.example
     // would otherwise be the match when the owner asks to contact counsel.
-    const looksLikeEmail = needle.includes("@");
+    // It has to be a whole address, not merely contain an "@": "@ben" is a
+    // handle, and looked up as an address it can only ever miss.
+    const looksLikeEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(needle);
     const members = await prisma.member.findMany({
       where: {
         organizationId,
@@ -944,7 +948,11 @@ export class SokoBotRuntimeService {
       // them would mean approaching the wrong colleague. Full names separate
       // two Ninas without putting anyone's address into the transcript, and
       // an address is only offered when the names themselves collide.
-      const namesCollide = new Set(members.map((m) => m.user.name)).size < 2;
+      // Compared the way the lookup matches, or "Nina" and "NINA" read as two
+      // distinguishable names and the owner is asked to choose between two
+      // strings that both match both people, for ever.
+      const namesCollide =
+        new Set(members.map((m) => m.user.name?.trim().toLowerCase())).size < 2;
       throw new SokoBotRuntimeValidationError(
         `More than one person matches "${needle}": ${members
           .map((m) => (namesCollide ? m.user.email : m.user.name))
@@ -982,11 +990,14 @@ export class SokoBotRuntimeService {
       });
     } catch (error) {
       // A room whose first message never landed is the empty room this exists
-      // to prevent, so it goes with it. Everything hanging off a room cascades,
-      // and nothing else has had time to reference one this new.
+      // to prevent, so it goes with it. Everything hanging off a room cascades.
+      // Conditioned on the room still being empty: `postChat` can fail after
+      // its message commits, and taking the room down then would delete the
+      // very message it just sent — along with anything the other person had
+      // already replied.
       if (created) {
         await prisma.chatRoom
-          .delete({ where: { id: room.id } })
+          .deleteMany({ where: { id: room.id, messages: { none: {} } } })
           .catch(() => undefined);
       }
       throw error;
