@@ -186,6 +186,8 @@ export const sokoBotUploadFileInputSchema = z.object({
 export const sokoBotOpenDirectChatInputSchema = z.object({
   /** Who to reach: their name or email address, as your owner said it. Must be someone in your owner's organization. */
   person: z.string().min(1).max(200),
+  /** What to say. Sent as the first message, so introduce yourself and say why you are writing. */
+  message: z.string().min(1).max(4_000),
 });
 
 export const sokoBotReadChatInputSchema = z.object({
@@ -286,7 +288,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   post_chat:
     "Post a message into a chat room you are a member of. Use it to answer people in a room you were added to, or to share something you found. It appears as you, immediately, so say only what you can back up.",
   open_direct_chat:
-    "Open a direct chat with a person in your owner\u2019s organization, or return the one that already exists. Name them the way your owner did \u2014 a name or an email address \u2014 and post_chat in the room it returns. Nobody can leave a direct chat once it exists, so open one only when you have something worth that person\u2019s attention, and say who you are and why in your first message.",
+    "Write to a person in your owner\u2019s organization who is not already in a room with you. Name them the way your owner did \u2014 a name or an email address \u2014 and give the message to send; the chat is opened and your message posted together. Nobody can leave a direct chat once it exists, so write only when you have something worth that person\u2019s attention, and open by saying who you are and who you work for.",
   list_files:
     "Files in the owner\u2019s Drive: name, size, type and when each was uploaded. Use it to find an existing document before writing a new one.",
   upload_file:

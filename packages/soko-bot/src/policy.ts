@@ -200,12 +200,29 @@ export interface TurnClassification {
   proposedTaskBrief?: string;
 }
 
-const NEGATED_MUTATION_INTENT =
-  /\b(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)\b.{0,80}\b(?:create|make|open|assign|delegate|hand off|hire|book|run|use|post|send|share|publish|reply|upload|write|save|file|dm|message|contact|reach out)\b/i;
+const MUTATION_VERB =
+  "(?:create|make|open|assign|delegate|hand off|hire|book|run|use|post|send|share|publish|reply|upload|write|save|file|dm|message|contact|reach out|get in touch|drop a line)";
+
+// "Don't forget to message Nina" urges the message rather than forbidding it,
+// and so does "don't hesitate to"; both read as prohibitions to a bare "don't".
+const NEGATION_LEAD =
+  "(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)(?!\\s+(?:forget|hesitate)\\b)";
+
+// The refusal can follow the instruction as easily as precede it: "reach out
+// to Nina, but not yet" is the same prohibition read backwards.
+const TRAILING_NEGATION = "(?:not yet|not now|not until|hold off|wait until)";
+
+const NEGATED_MUTATION_INTENT = new RegExp(
+  `\\b${NEGATION_LEAD}\\b.{0,80}\\b${MUTATION_VERB}\\b` +
+    `|\\b${MUTATION_VERB}\\b.{0,80}\\b${TRAILING_NEGATION}\\b`,
+  "i",
+);
 
 /** True when user explicitly says a mutation must not happen yet. */
 export function hasSokoBotNegatedMutationIntent(message: string): boolean {
-  return NEGATED_MUTATION_INTENT.test(message);
+  // A curly apostrophe reaches us from every phone keyboard and from the
+  // model's own rephrasings; "don\u2019t" must read as "don't".
+  return NEGATED_MUTATION_INTENT.test(message.replace(/\u2019/g, "'"));
 }
 
 /**

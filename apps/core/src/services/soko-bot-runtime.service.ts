@@ -468,6 +468,11 @@ export function isSokoBotDecisionTargetAllowed(
   );
 }
 
+/** `%` and `_` are wildcards in Prisma's contains/startsWith filters. */
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
 export class SokoBotRuntimeService {
   async authorize(
     input: RuntimeAuthorizationInput,
@@ -857,7 +862,7 @@ export class SokoBotRuntimeService {
    */
   private async openDirectChat(
     authorized: AuthorizedSokoBotRuntime,
-    input: { person: string; toolCallId: string },
+    input: { person: string; message: string; toolCallId: string },
   ) {
     // Approaching somebody is the owner's call. A turn nobody asked for can
     // still say "I would ask Nina about this" in the owner's own chat and let
@@ -902,16 +907,29 @@ export class SokoBotRuntimeService {
     // tool that demanded a UUID could only ever be called with one that
     // happened to appear in the text — which is to say, almost never.
     const needle = input.person.trim();
+    // An address is matched against addresses and a name against names, never
+    // both: a member who sets their display name to counsel@outside.example
+    // would otherwise be the match when the owner asks to contact counsel.
+    const looksLikeEmail = needle.includes("@");
     const members = await prisma.member.findMany({
       where: {
         organizationId,
-        user: {
-          OR: [
-            { email: { equals: needle, mode: "insensitive" } },
-            { name: { equals: needle, mode: "insensitive" } },
-            { name: { startsWith: `${needle} `, mode: "insensitive" } },
-          ],
-        },
+        user: looksLikeEmail
+          ? { email: { equals: needle, mode: "insensitive" } }
+          : {
+              OR: [
+                { name: { equals: needle, mode: "insensitive" } },
+                // `%` and `_` are wildcards here, and this string comes from
+                // a model reading untrusted text: unescaped, "%" alone would
+                // match a colleague at random.
+                {
+                  name: {
+                    startsWith: `${escapeLikePattern(needle)} `,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
       },
       select: { user: { select: { id: true, name: true, email: true } } },
       take: 5,
@@ -952,12 +970,37 @@ export class SokoBotRuntimeService {
       // The sidebar flags belong to a viewer; this actor is not one.
       viewerUserId: null,
     });
+    // The message is posted here rather than left to a later tool call. A room
+    // opened and never written in is an empty conversation in somebody's
+    // sidebar that they cannot remove, and the model stopping early — or
+    // simply not calling post_chat — is enough to leave one.
+    let posted: Awaited<ReturnType<SokoBotRuntimeService["postChat"]>>;
+    try {
+      posted = await this.postChat(authorized, {
+        roomId: room.id,
+        content: input.message,
+      });
+    } catch (error) {
+      // A room whose first message never landed is the empty room this exists
+      // to prevent, so it goes with it. Everything hanging off a room cascades,
+      // and nothing else has had time to reference one this new.
+      if (created) {
+        await prisma.chatRoom
+          .delete({ where: { id: room.id } })
+          .catch(() => undefined);
+      }
+      throw error;
+    }
     return {
       roomId: room.id,
       name: room.name,
       /** False when the room already existed, so nobody was newly approached. */
       created,
       withUserName: member.user.name,
+      // Named so the model reads the message as sent and does not post it a
+      // second time through post_chat.
+      messageId: posted.messageId,
+      postedAt: posted.postedAt,
     };
   }
 

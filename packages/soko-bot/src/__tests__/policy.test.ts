@@ -229,9 +229,26 @@ describe("negated intent covers opening a chat", () => {
     }
   });
 
+  it("catches the phrasings a prohibition actually uses", () => {
+    for (const message of [
+      // A curly apostrophe reaches us from every phone keyboard.
+      "Don\u2019t reach out to Nina",
+      "Don't get in touch with Nina yet",
+      "Don't drop a line to Nina",
+      // The refusal can follow the instruction rather than precede it.
+      "Reach out to Nina, but not yet",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
+    }
+  });
+
   it("leaves a plain instruction alone", () => {
-    expect(hasSokoBotNegatedMutationIntent("reach out to Nina and ask")).toBe(
-      false,
-    );
+    for (const message of [
+      "reach out to Nina and ask",
+      // "Don't forget to" is an instruction, not a prohibition.
+      "Don't forget to message Nina now",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(false);
+    }
   });
 });

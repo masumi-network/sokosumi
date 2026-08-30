@@ -123,26 +123,37 @@ export function classifyDeterministically(
     /^\s*(should|shall|do you think|would it|might we|is it worth|do i need|do we need|any thoughts|thoughts)\b/.test(
       normalized,
     );
-  const chatOrFileWriteSignal = includesAny(normalized, [
-    /\b(post|send|reply|drop|leave)\b.{0,40}\b(message|note|update|reply|chat|room|channel|thread)\b/,
-    /\b(write|save|upload|put|create)\b.{0,40}\b(file|note|document|doc|markdown|\.md|drive)\b/,
-    // Being told to go and speak to someone the message names with an @handle
-    // is a chat write, whatever verb it uses. Without this "ask @finn whether
-    // the copy is ready" fell through to CLARIFY, which is read-only, and the
-    // bot answered that it had no way to reach them — while holding the tool.
-    // The whitespace before @ is load-bearing: it separates a handle from the
-    // local part of an email address, so "cc finance@acme.com" stays a read.
-    /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in)\b[^@]{0,60}\s@[a-z0-9][a-z0-9._-]*/,
-    // Being told to go and contact somebody, named or not. "Reach out to Nina
-    // and ask" carries no @handle, and without this it fell through to
-    // CLARIFY — read-only — where the bot reported it had no way to reach
-    // anyone while holding the tools to open a chat and post in it.
-    // Only phrasal verbs that cannot also be nouns: "contact", "message" and
-    // "dm" read as instructions in "contact details", "message board" and
-    // "the DM integration is broken", which are questions, and answering them
-    // does not need chat or Drive writes.
-    /\b(reach out to|get in touch with|drop a line to)\b\s+(?!me\b)[a-z@]/,
-  ]);
+  // "DM Nina the brief" is an instruction; "DM integration is down" is a
+  // question about a feature, and "Message board is broken" would read as one
+  // too if the verb alone were the trigger. Only the imperative opens the
+  // sentence and is followed by somebody's name, so the capital is the signal
+  // — which is why this reads the message before it was lowercased. An
+  // all-lowercase "dm nina ..." falls through to the model classifier, which
+  // is the right place for a judgement call this rule cannot make.
+  const dmImperative = /^[Dd][Mm]\s+(?:@|[A-Z])/.test(message.trim());
+  const chatOrFileWriteSignal =
+    dmImperative ||
+    includesAny(normalized, [
+      /\b(post|send|reply|drop|leave)\b.{0,40}\b(message|note|update|reply|chat|room|channel|thread)\b/,
+      /\b(write|save|upload|put|create)\b.{0,40}\b(file|note|document|doc|markdown|\.md|drive)\b/,
+      // Being told to go and speak to someone the message names with an @handle
+      // is a chat write, whatever verb it uses. Without this "ask @finn whether
+      // the copy is ready" fell through to CLARIFY, which is read-only, and the
+      // bot answered that it had no way to reach them — while holding the tool.
+      // The whitespace before @ is load-bearing: it separates a handle from the
+      // local part of an email address, so "cc finance@acme.com" stays a read.
+      /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in)\b[^@]{0,60}\s@[a-z0-9][a-z0-9._-]*/,
+      // Being told to go and contact somebody, named or not. "Reach out to Nina
+      // and ask" carries no @handle, and without this it fell through to
+      // CLARIFY — read-only — where the bot reported it had no way to reach
+      // anyone while holding the tools to open a chat and post in it.
+      // Only phrasal verbs that cannot also be nouns: bare "contact", "message"
+      // and "dm" read as instructions in "contact details", "message board" and
+      // "the DM integration is broken", which are questions, and answering them
+      // does not need chat or Drive writes. "dm" has its own rule above, for
+      // the one shape where it can only be the verb.
+      /\b(reach out to|get in touch with|drop a line to)\b\s+(?!me\b)[a-z@]/,
+    ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,
     /\b(tasks?|jobs?)\b.{0,30}\b(status|progress|reprioriti[sz]e)\b/,
