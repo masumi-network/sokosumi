@@ -217,9 +217,11 @@ export function computeEnabledPricedNetworks(
  * On (4), masumi ADR 0016: the node caps x402 spend on the API KEY, not on a
  * wallet. `usageLimited` off means uncapped. On, it requires a positive
  * balance for unit `<caip2Network>:<asset>`, byte-identical to this pair
- * key, which is why the gate is a map lookup. No exception for a key holding
- * no `eip155:` row at all: the node used to grandfather that key to uncapped
- * spend, so this gate let it through, and it now refuses the payment instead.
+ * key, which is why the gate is a map lookup. There is no exception for a key
+ * holding no `eip155:` row at all. The node used to grandfather such a key to
+ * uncapped spend, which is why this gate once let it through; the node now
+ * refuses its payments, so listing the pair would advertise an agent that
+ * cannot be hired.
  * The gate asks whether the unit holds credit, never whether it holds enough:
  * no price exists at sync time, so a nearly exhausted unit stays listed and
  * the node refuses the charge with a 402 instead.
