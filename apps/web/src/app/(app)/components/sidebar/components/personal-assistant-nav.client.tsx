@@ -42,14 +42,14 @@ function BotStack({ bots }: { bots: SidebarSokoBotAvatar[] }) {
               key={bot.id}
               src={bot.imageUrl}
               alt=""
-              className="ring-sidebar size-5 rounded-full object-cover ring-2"
+              className="size-5 rounded-full object-cover"
             />
           ) : (
             <AuroraOrb
               key={bot.id}
               seed={bot.seed}
               size={40}
-              className="ring-sidebar size-5 ring-2"
+              className="size-5"
             />
           ),
         )}
