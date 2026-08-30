@@ -15,11 +15,9 @@ import {
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotDecisionInputSchema as decisionInputSchema,
   exceedsUnattendedHireBudget,
-  hasSokoBotNegatedMutationIntent,
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
-  isSokoBotNegatableWrite,
   sokoBotJobIdInputSchema as jobIdInputSchema,
   sokoBotLinkTasksInputSchema as linkTasksInputSchema,
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
@@ -247,7 +245,6 @@ export interface SokoBotActionContext {
     chainDepth: number;
   };
   classificationConfidence: number;
-  hasNegatedMutationIntent: boolean;
 }
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
@@ -672,9 +669,6 @@ export class SokoBotRuntimeService {
         typeof turn.classification.confidence === "number"
           ? turn.classification.confidence
           : 1,
-      hasNegatedMutationIntent: hasSokoBotNegatedMutationIntent(
-        turn.userMessage,
-      ),
     };
   }
 
@@ -2143,16 +2137,6 @@ export class SokoBotRuntimeService {
     input: ExecuteSokoBotToolInput,
   ): Promise<unknown> {
     const authorized = await this.authorize(input);
-    if (
-      authorized.hasNegatedMutationIntent &&
-      (isSokoBotDecisionTarget(input.capability) ||
-        input.capability === "request_user_decision" ||
-        isSokoBotNegatableWrite(input.capability))
-    ) {
-      throw new SokoBotRuntimeAuthorizationError(
-        "User explicitly asked for this not to happen yet",
-      );
-    }
     switch (input.capability) {
       case "refresh_context":
         return this.getContext(input);
@@ -3116,7 +3100,6 @@ export class SokoBotRuntimeService {
             chainDepth: decision.turn.chainDepth,
           },
           classificationConfidence: 1,
-          hasNegatedMutationIntent: false,
         };
         const task = await this.createTask(
           authorized,
@@ -3139,7 +3122,6 @@ export class SokoBotRuntimeService {
               chainDepth: decision.turn.chainDepth,
             },
             classificationConfidence: 1,
-            hasNegatedMutationIntent: false,
           },
           proposal,
           `decision:${decision.id}`,
@@ -3160,7 +3142,6 @@ export class SokoBotRuntimeService {
               chainDepth: decision.turn.chainDepth,
             },
             classificationConfidence: 1,
-            hasNegatedMutationIntent: false,
           },
           proposal,
           `decision:${decision.id}`,

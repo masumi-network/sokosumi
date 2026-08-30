@@ -1150,43 +1150,6 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(detail).toBe("[Sensitive value removed]");
   });
 
-  it("rejects mutation when stored user message contains negative imperative", async () => {
-    turnFindUniqueMock.mockResolvedValue({
-      id: SCOPE.turnId,
-      sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
-      workspaceId: SCOPE.workspaceId,
-      capabilityNames: ["create_task"],
-      contextSnapshot: {
-        id: "01960001-0001-7001-8001-000000000004",
-        packet: { memory: { version: 1 } },
-      },
-      eveSessionId: SCOPE.sessionId,
-      userMessage: "Don't create a task yet",
-      classification: { confidence: 1 },
-      status: "RUNNING",
-      deadlineAt: new Date(Date.now() + 60_000),
-      leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: {
-        archivedAt: null,
-        status: "RUNNING",
-      },
-    });
-    toolCallFindUniqueMock.mockResolvedValue(null);
-
-    await expect(
-      new SokoBotRuntimeService().executeTool({
-        ...SCOPE,
-        capability: "create_task",
-        toolCallId: "call_negated",
-        input: { name: "Forbidden", status: "DRAFT" },
-      }),
-    ).rejects.toThrow("explicitly asked for this not to");
-
-    expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
-    expect(transactionTaskCreateMock).not.toHaveBeenCalled();
-  });
-
   it("creates Task through shared domain operation with Soko Bot attribution", async () => {
     turnFindUniqueMock.mockResolvedValue({
       userMessage: "Check the tasks",

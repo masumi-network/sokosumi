@@ -1,6 +1,5 @@
 import { z } from "@hono/zod-openapi";
 import {
-  hasSokoBotNegatedMutationIntent,
   SOKO_BOT_ROUTES,
   type SokoBotRoute,
   type TurnClassification,
@@ -84,15 +83,6 @@ export function classifyDeterministically(
       "CLARIFY",
       message,
       "Message has no actionable content.",
-      1,
-    );
-  }
-
-  if (hasSokoBotNegatedMutationIntent(normalized)) {
-    return baseClassification(
-      "DIRECT_RESPONSE",
-      message,
-      "Message explicitly says not to create, assign, or hire work.",
       1,
     );
   }
