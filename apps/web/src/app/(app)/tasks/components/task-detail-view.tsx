@@ -416,8 +416,8 @@ async function TaskOverviewSection({
           created: t("created"),
           updated: t("updated"),
           schedule: t("schedule"),
-          formatOrchestratorActorName: (values) =>
-            t("actorOrchestratorWithOwner", values),
+          formatOrchestratorRole: (values) =>
+            t("actorOrchestratorRole", values),
         }}
       />
     </>

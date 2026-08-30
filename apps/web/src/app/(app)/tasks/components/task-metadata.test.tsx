@@ -26,13 +26,8 @@ const baseLabels = {
   created: "Created",
   updated: "Updated",
   schedule: "Schedule",
-  formatOrchestratorActorName: ({
-    assistant,
-    owner,
-  }: {
-    assistant: string;
-    owner: string;
-  }) => `${assistant} · ${owner}`,
+  formatOrchestratorRole: ({ owner }: { owner: string }) =>
+    `${owner}'s personal assistant`,
 };
 
 function createTask(
@@ -133,7 +128,7 @@ describe("TaskMetadata", () => {
     expect(screen.getByText("Creator Coworker")).toBeInTheDocument();
   });
 
-  it("shows orchestrator creator with owner name", () => {
+  it("says whose personal assistant created the task", () => {
     render(
       <TaskMetadata
         task={createTask({
@@ -160,7 +155,12 @@ describe("TaskMetadata", () => {
     );
 
     expect(screen.getByText("Creator")).toBeInTheDocument();
-    expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
+    // The assistant's name reads as a person's, so the role line underneath is
+    // the only thing telling the reader what made this Task and for whom.
+    expect(screen.getByText("Hermes")).toBeInTheDocument();
+    expect(
+      screen.getByText("Ada Lovelace's personal assistant"),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
       "data-seed",
       "",

@@ -1781,7 +1781,8 @@
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
         "actorOrchestrator": "Orchestrator",
-        "actorOrchestratorWithOwner": "{assistant} · {owner}",
+        "actorOrchestratorWithOwner": "{assistant} · Assistent von {owner}",
+        "actorOrchestratorRole": "Persönlicher Assistent von {owner}",
         "actorSystem": "System",
         "originFromApp": "von {appName}",
         "channelApp": {

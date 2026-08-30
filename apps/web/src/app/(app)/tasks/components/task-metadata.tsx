@@ -25,10 +25,7 @@ interface TaskMetadataLabels {
   created: string;
   updated: string;
   schedule: string;
-  formatOrchestratorActorName: (values: {
-    assistant: string;
-    owner: string;
-  }) => string;
+  formatOrchestratorRole: (values: { owner: string }) => string;
 }
 
 interface TaskMetadataTask {
@@ -46,11 +43,13 @@ interface TaskCreatorDisplay {
   name: string;
   image: string | null;
   avatarSeed?: string | null;
+  /** Under the name: what this creator is, when it is not a person. */
+  role?: string | null;
 }
 
 function resolveTaskCreatorDisplay(
   task: TaskMetadataTask,
-  formatOrchestratorActorName: TaskMetadataLabels["formatOrchestratorActorName"],
+  formatOrchestratorRole: TaskMetadataLabels["formatOrchestratorRole"],
 ): TaskCreatorDisplay | null {
   switch (task.creator.type) {
     case "user": {
@@ -84,11 +83,13 @@ function resolveTaskCreatorDisplay(
         return null;
       }
 
+      // The assistant's own name reads as a person's here, so the line
+      // underneath says what it is and who it belongs to. Without it a Task
+      // created by "Jarvis" gives the reader no way to tell that a colleague's
+      // assistant did it, or on whose behalf.
       return {
-        name: formatOrchestratorActorName({
-          assistant: orchestrator.name ?? "Assistant",
-          owner: orchestrator.owner.name,
-        }),
+        name: orchestrator.name ?? "Assistant",
+        role: formatOrchestratorRole({ owner: orchestrator.owner.name }),
         image: null,
         avatarSeed: orchestrator.avatarSeed ?? null,
       };
@@ -121,7 +122,7 @@ export function TaskMetadata({
   const assigneeImage = getCoworkerImage(task.assignee);
   const creator = resolveTaskCreatorDisplay(
     task,
-    labels.formatOrchestratorActorName,
+    labels.formatOrchestratorRole,
   );
 
   return (
@@ -154,6 +155,7 @@ export function TaskMetadata({
             image={creator.image}
             fallback={creator.name}
             avatarSeed={creator.avatarSeed}
+            role={creator.role}
           />
         ) : null}
 
@@ -259,6 +261,7 @@ interface MetadataAvatarValueProps {
   image: string | null;
   fallback: string;
   avatarSeed?: string | null;
+  role?: string | null;
 }
 
 function MetadataAvatarValue({
@@ -267,6 +270,7 @@ function MetadataAvatarValue({
   image,
   fallback,
   avatarSeed,
+  role,
 }: MetadataAvatarValueProps) {
   return (
     <div className="flex items-center justify-between gap-4">
@@ -293,7 +297,14 @@ function MetadataAvatarValue({
             </AvatarFallback>
           </Avatar>
         )}
-        <span className="truncate text-right text-sm font-medium">{name}</span>
+        <div className="min-w-0 text-right">
+          <span className="block truncate text-sm font-medium">{name}</span>
+          {role ? (
+            <span className="text-muted-foreground block truncate text-xs">
+              {role}
+            </span>
+          ) : null}
+        </div>
       </div>
     </div>
   );

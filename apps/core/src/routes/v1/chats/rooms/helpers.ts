@@ -18,6 +18,7 @@ import {
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { isDirectKeyUniqueConstraintError } from "@/helpers/prisma";
+import { sokoBotOrbSeed } from "@/helpers/soko-bot-avatar";
 import prisma from "@/lib/db/prisma";
 import {
   type ChatRoom,
@@ -57,7 +58,7 @@ export function sokoBotAvatarSeedFor(coworker: {
   sokoBot: { userId: string; avatarSeed: string | null } | null;
 }): string | null {
   if (!coworker.sokoBotId || !coworker.sokoBot) return null;
-  return coworker.sokoBot.avatarSeed ?? `orb:${coworker.sokoBot.userId}`;
+  return sokoBotOrbSeed(coworker.sokoBot);
 }
 
 type ChatRoomPresence = "online" | "afk" | "offline";
