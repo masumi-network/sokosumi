@@ -8,6 +8,7 @@ export {
   createPaymentClient,
   doesResolvedPurchaseSellerMatch,
   type MasumiTaskPurchaseInput,
+  type PurchaseFailure,
 } from "./masumi-payment.client.js";
 export type {
   X402AvailableNetwork,
