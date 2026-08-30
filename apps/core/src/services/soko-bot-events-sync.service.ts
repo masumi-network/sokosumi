@@ -223,7 +223,9 @@ export class SokoBotEventsSyncService {
           limit: gate.limit,
           changes: work.changes.length,
         });
-        result.deferred += work.changes.length;
+        // One deferral, matching the busy-bot case below: the counter is bots
+        // whose wake did not happen, not changes.
+        result.deferred += 1;
         continue;
       }
       // Collapse one entity's multiple delegations into one change line.
