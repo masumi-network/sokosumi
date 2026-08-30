@@ -6524,6 +6524,16 @@
           "ran": "ran {when}",
           "due": "due {when}",
           "overdue": "overdue since {when}"
+        },
+        "Usage": {
+          "title": "Usage",
+          "description": "Everything this assistant has spent since you created it.",
+          "credits": "Credits spent",
+          "turns": "over {count, plural, one {# turn} other {# turns}}",
+          "tokens": "Tokens",
+          "tokenSplit": "{input} in · {output} out",
+          "modelCost": "Model cost",
+          "modelCostHint": "What the tokens cost, before the per-turn minimum"
         }
       },
       "Avatar": {
@@ -6602,16 +6612,7 @@
       "heroCta": "Create your Soko Bot",
       "heroCtaHint": "Takes a minute: pick a name and a face.",
       "teamCount": "{humans, plural, one {# human} other {# humans}}, {bots, plural, =0 {no Soko Bots yet} one {# Soko Bot} other {# Soko Bots}}",
-      "disabled": "Soko Bot is temporarily unavailable",
-      "Usage": {
-        "title": "Usage",
-        "credits": "Credits spent",
-        "turns": "over {count, plural, one {# turn} other {# turns}}",
-        "tokens": "Tokens",
-        "tokenSplit": "{input} in · {output} out",
-        "modelCost": "Model cost",
-        "modelCostHint": "What the tokens cost, before the per-turn minimum"
-      }
+      "disabled": "Soko Bot is temporarily unavailable"
     },
     "Calendar": {
       "Metadata": {

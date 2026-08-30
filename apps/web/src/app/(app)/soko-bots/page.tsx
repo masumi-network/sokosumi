@@ -9,7 +9,6 @@ import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 import { SokoBotsHero } from "./components/soko-bots-hero";
 import { TeamChart } from "./components/team-chart";
-import { SokoBotUsageCard } from "./components/usage-card";
 
 export const metadata: Metadata = { title: "Soko Bots" };
 
@@ -37,9 +36,6 @@ export default async function SokoBotsPage() {
   return (
     <div className="w-full space-y-10 px-4 py-4 lg:px-6">
       <SokoBotsHero me={me} avatars={avatars} />
-      {/* Only once a bot exists: there is nothing to have spent before that,
-          and the call to create one is the point of the page until then. */}
-      {me?.bot ? <SokoBotUsageCard /> : null}
       {team ? (
         <section className="space-y-4">
           <div className="space-y-3">
