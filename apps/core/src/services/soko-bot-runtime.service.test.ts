@@ -62,7 +62,7 @@ const {
   transactionChatRoomUpdateMock,
   chatCoworkerMemberFindManyMock,
   chatMessageCountMock,
-  memberFindFirstMock,
+  memberFindManyMock,
   toolCallCountMock,
   createOrGetDirectRoomMock,
   mentionFindManyMock,
@@ -130,7 +130,7 @@ const {
   transactionChatRoomUpdateMock: vi.fn(),
   chatCoworkerMemberFindManyMock: vi.fn(),
   chatMessageCountMock: vi.fn(),
-  memberFindFirstMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
   toolCallCountMock: vi.fn(),
   createOrGetDirectRoomMock: vi.fn(),
   mentionFindManyMock: vi.fn(),
@@ -196,7 +196,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: workspaceFindFirstMock,
       findUnique: workspaceFindUniqueMock,
     },
-    member: { findFirst: memberFindFirstMock },
+    member: { findMany: memberFindManyMock },
   },
 }));
 vi.mock("@/lib/db/transaction", () => ({
@@ -2553,9 +2553,9 @@ describe("open_direct_chat", () => {
     toolCallCountMock.mockResolvedValue(0);
     botFindUniqueMock.mockResolvedValue({ coworker: { id: "cow_self" } });
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
-    memberFindFirstMock.mockResolvedValue({
-      user: { id: "user_colleague", name: "Nina" },
-    });
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: "user_colleague", name: "Nina", email: "nina@x.io" } },
+    ]);
     createOrGetDirectRoomMock.mockResolvedValue({
       room: { id: "room_new", name: "Nina" },
       created: true,
@@ -2568,7 +2568,7 @@ describe("open_direct_chat", () => {
 
     const result = await new SokoBotRuntimeService()["openDirectChat"](
       authorized,
-      { userId: "user_colleague", toolCallId: "call_1" },
+      { person: "Nina", toolCallId: "call_1" },
     );
 
     expect(createOrGetDirectRoomMock).toHaveBeenCalledWith({
@@ -2581,6 +2581,24 @@ describe("open_direct_chat", () => {
     expect(result).toMatchObject({ roomId: "room_new", created: true });
   });
 
+  it("asks rather than guessing when a name matches two people", async () => {
+    // Picking one would mean approaching the wrong colleague, in a room
+    // neither of them can leave.
+    const authorized = arm();
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: "u1", name: "Nina Alvarez", email: "nina.a@x.io" } },
+      { user: { id: "u2", name: "Nina Brown", email: "nina.b@x.io" } },
+    ]);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Nina",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/nina\.a@x\.io, nina\.b@x\.io/);
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
   it("refuses on a turn the owner did not ask for", async () => {
     // Approaching a colleague unprompted puts the owner in front of someone
     // with nobody having asked; the bot can suggest it in their chat instead.
@@ -2591,7 +2609,7 @@ describe("open_direct_chat", () => {
 
     await expect(
       new SokoBotRuntimeService()["openDirectChat"](scheduled, {
-        userId: "user_colleague",
+        person: "Nina",
         toolCallId: "call_1",
       }),
     ).rejects.toThrow(/turns your owner asked for/i);
@@ -2607,7 +2625,7 @@ describe("open_direct_chat", () => {
 
     await expect(
       new SokoBotRuntimeService()["openDirectChat"](asked, {
-        userId: "user_colleague",
+        person: "Nina",
         toolCallId: "call_1",
       }),
     ).rejects.toThrow(/turns your owner asked for/i);
@@ -2622,7 +2640,7 @@ describe("open_direct_chat", () => {
 
     await expect(
       new SokoBotRuntimeService()["openDirectChat"](authorized, {
-        userId: "user_colleague",
+        person: "Nina",
         toolCallId: "call_6",
       }),
     ).rejects.toThrow(/at most 5 direct chats/i);
@@ -2633,14 +2651,14 @@ describe("open_direct_chat", () => {
     // Otherwise a bot could start a conversation with anyone whose id it can
     // name, from a workspace they have nothing to do with.
     const authorized = arm();
-    memberFindFirstMock.mockResolvedValue(null);
+    memberFindManyMock.mockResolvedValue([]);
 
     await expect(
       new SokoBotRuntimeService()["openDirectChat"](authorized, {
-        userId: "user_stranger",
+        person: "Stranger",
         toolCallId: "call_1",
       }),
-    ).rejects.toThrow(/not a member of this organization/i);
+    ).rejects.toThrow(/No member of this organization matches/i);
     expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
   });
 
@@ -2650,7 +2668,7 @@ describe("open_direct_chat", () => {
 
     await expect(
       new SokoBotRuntimeService()["openDirectChat"](authorized, {
-        userId: "user_colleague",
+        person: "Nina",
         toolCallId: "call_1",
       }),
     ).rejects.toThrow(/need an organization workspace/i);
@@ -2661,13 +2679,13 @@ describe("open_direct_chat", () => {
     // The owner already has the bot's direct room; a second would split the
     // conversation in two.
     const authorized = arm();
-    memberFindFirstMock.mockResolvedValue({
-      user: { id: SCOPE.userId, name: "Owner" },
-    });
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: SCOPE.userId, name: "Owner", email: "owner@x.io" } },
+    ]);
 
     await expect(
       new SokoBotRuntimeService()["openDirectChat"](authorized, {
-        userId: SCOPE.userId,
+        person: "Owner",
         toolCallId: "call_1",
       }),
     ).rejects.toThrow(/already have a direct chat with your owner/i);

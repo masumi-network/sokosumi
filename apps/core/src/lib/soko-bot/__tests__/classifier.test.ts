@@ -77,7 +77,7 @@ describe("addressing another coworker", () => {
     for (const message of [
       "Please reach out to Nina directly and ask for the final tiers",
       "get in touch with sales about the renewal",
-      "dm her the brief when it is ready",
+      "drop a line to the design team about the deadline",
     ]) {
       expect(classifyDeterministically(message)?.route).toBe("DIRECT_RESPONSE");
     }
@@ -89,6 +89,9 @@ describe("addressing another coworker", () => {
       "what is the contact address for billing",
       "tell me the contact details",
       "the message board is broken",
+      // "dm" is a noun as often as a verb, so it is not a trigger at all.
+      "the DM integration is broken",
+      "the DM settings need review",
     ]) {
       expect(
         classifyDeterministically(message)?.rationaleSummary ?? "",

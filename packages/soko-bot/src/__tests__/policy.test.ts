@@ -214,3 +214,24 @@ describe("exceedsUnattendedHireBudget", () => {
     ).toBe(true);
   });
 });
+
+describe("negated intent covers opening a chat", () => {
+  it("blocks the room, not only the message", () => {
+    // Blocking post_chat while allowing the room left the owner with the one
+    // part they cannot undo: nobody can leave a direct once it exists.
+    expect(isSokoBotNegatableWrite("open_direct_chat")).toBe(true);
+    for (const message of [
+      "Do not open a direct chat with Nina yet, just draft what I should say",
+      "Don't DM Nina about this",
+      "do not reach out to sales yet",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
+    }
+  });
+
+  it("leaves a plain instruction alone", () => {
+    expect(hasSokoBotNegatedMutationIntent("reach out to Nina and ask")).toBe(
+      false,
+    );
+  });
+});

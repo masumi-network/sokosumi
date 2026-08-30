@@ -201,7 +201,7 @@ export interface TurnClassification {
 }
 
 const NEGATED_MUTATION_INTENT =
-  /\b(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)\b.{0,80}\b(?:create|make|open|assign|delegate|hand off|hire|book|run|use|post|send|share|publish|reply|upload|write|save|file)\b/i;
+  /\b(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)\b.{0,80}\b(?:create|make|open|assign|delegate|hand off|hire|book|run|use|post|send|share|publish|reply|upload|write|save|file|dm|message|contact|reach out)\b/i;
 
 /** True when user explicitly says a mutation must not happen yet. */
 export function hasSokoBotNegatedMutationIntent(message: string): boolean {
@@ -216,6 +216,10 @@ export function hasSokoBotNegatedMutationIntent(message: string): boolean {
  */
 const NEGATABLE_WRITE_CAPABILITIES = new Set<string>([
   "post_chat",
+  // "Don't open a chat with Nina yet, just draft it" blocked the posting and
+  // opened the room anyway, which is the part the owner cannot undo: nobody
+  // can leave or archive a direct once it exists.
+  "open_direct_chat",
   "upload_file",
   "run_integration_tool",
   "create_schedule",

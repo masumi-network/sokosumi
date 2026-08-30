@@ -846,8 +846,9 @@ export class SokoBotRuntimeService {
   /**
    * Opens (or returns) the bot's direct room with one person in its owner's
    * organization, so it can reach a colleague it does not already share a room
-   * with. The bot appears as itself, and the person can leave or mute like any
-   * other direct.
+   * with. Nobody can leave or archive a direct room — its participant set is
+   * its identity — so an unwanted one is permanent, which is why opening one
+   * is bounded rather than merely discouraged.
    *
    * Deliberately narrow. The target must be a member of the organization the
    * turn runs in — a bot must not be able to start a conversation with someone
@@ -856,7 +857,7 @@ export class SokoBotRuntimeService {
    */
   private async openDirectChat(
     authorized: AuthorizedSokoBotRuntime,
-    input: { userId: string; toolCallId: string },
+    input: { person: string; toolCallId: string },
   ) {
     // Approaching somebody is the owner's call. A turn nobody asked for can
     // still say "I would ask Nina about this" in the owner's own chat and let
@@ -896,15 +897,40 @@ export class SokoBotRuntimeService {
         "Direct chats with colleagues need an organization workspace",
       );
     }
-    const member = await prisma.member.findFirst({
-      where: { organizationId, userId: input.userId },
-      select: { user: { select: { id: true, name: true } } },
+    // Resolved from a name or an email, not an opaque id: the packet carries
+    // the owner and their coworkers, never the organization's roster, so a
+    // tool that demanded a UUID could only ever be called with one that
+    // happened to appear in the text — which is to say, almost never.
+    const needle = input.person.trim();
+    const members = await prisma.member.findMany({
+      where: {
+        organizationId,
+        user: {
+          OR: [
+            { email: { equals: needle, mode: "insensitive" } },
+            { name: { equals: needle, mode: "insensitive" } },
+            { name: { startsWith: `${needle} `, mode: "insensitive" } },
+          ],
+        },
+      },
+      select: { user: { select: { id: true, name: true, email: true } } },
+      take: 5,
     });
-    if (!member) {
+    if (members.length === 0) {
       throw new SokoBotRuntimeAuthorizationError(
-        "That person is not a member of this organization",
+        `No member of this organization matches "${needle}". Ask the owner who they mean.`,
       );
     }
+    if (members.length > 1) {
+      // Naming the candidates lets the owner disambiguate; picking one for
+      // them would mean approaching the wrong colleague.
+      throw new SokoBotRuntimeValidationError(
+        `More than one person matches "${needle}": ${members
+          .map((m) => m.user.email)
+          .join(", ")}. Ask the owner which they mean.`,
+      );
+    }
+    const member = members[0]!;
     // The owner is reachable in their own direct room; opening a second one
     // would split the conversation in two.
     if (member.user.id === authorized.turn.userId) {
