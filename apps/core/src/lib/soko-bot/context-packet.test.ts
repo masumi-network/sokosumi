@@ -20,6 +20,7 @@ const {
   taskFindManyMock,
   transactionMock,
   userFindUniqueOrThrowMock,
+  userFindUniqueMock,
   workspaceFindFirstMock,
 } = vi.hoisted(() => ({
   agentCountMock: vi.fn(),
@@ -41,6 +42,7 @@ const {
   taskFindManyMock: vi.fn(),
   transactionMock: vi.fn(),
   userFindUniqueOrThrowMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
 }));
 
@@ -65,7 +67,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: pendingDecisionFindManyMock,
     },
     task: { count: taskCountMock, findMany: taskFindManyMock },
-    user: { findUniqueOrThrow: userFindUniqueOrThrowMock },
+    user: {
+      findUniqueOrThrow: userFindUniqueOrThrowMock,
+      findUnique: userFindUniqueMock,
+    },
     workspace: { findFirst: workspaceFindFirstMock },
   },
 }));
@@ -227,6 +232,7 @@ beforeEach(() => {
       members: [{ role: "owner" }],
     },
   });
+  userFindUniqueMock.mockResolvedValue({ name: "Patrick Tobler" });
   userFindUniqueOrThrowMock.mockResolvedValue({
     id: "user-1",
     name: "Ada",
@@ -601,6 +607,46 @@ describe("ContextPacketBuilder", () => {
     expect(result.packet.workspace.availableCredits).toBeNull();
     expect(serialized).not.toContain("Ship the secret");
     expect(serialized).not.toContain("Private answer");
+  });
+
+  it("names the colleague who asked, not the owner the turn runs as", async () => {
+    // `actor` is the owner on every turn, so without this the packet asserts
+    // the owner is the one speaking and the bot greets them by name at
+    // somebody else.
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      audience: "TEAMMATE" as const,
+      askedByUserId: "user-2",
+    });
+
+    expect(result.packet.trigger.askedBy).toEqual({
+      name: "Patrick Tobler",
+      isOwner: false,
+      trust: "untrusted-data",
+    });
+    expect(result.packet.actor.name).toBe("Ada");
+  });
+
+  it("names the owner when the owner is the one asking", async () => {
+    const result = await new ContextPacketBuilder().build(buildInput());
+
+    expect(result.packet.trigger.askedBy).toEqual({
+      name: "Ada",
+      isOwner: true,
+      trust: "untrusted-data",
+    });
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("treats the owner asking under their own id as the owner", async () => {
+    // The dispatch path passes the asker's id even when it is the owner's.
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      askedByUserId: "user-1",
+    });
+
+    expect(result.packet.trigger.askedBy.isOwner).toBe(true);
+    expect(result.packet.trigger.askedBy.name).toBe("Ada");
   });
 
   it("keeps the owner's own turn complete", async () => {

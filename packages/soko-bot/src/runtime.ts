@@ -15,6 +15,17 @@ export interface SokoBotContextPacket {
     route: SokoBotRoute;
     confidence: number;
     requestedOutcome: string;
+    /**
+     * Who is on the other side of this turn. The turn always runs as the
+     * owner — their bot, their credits — so `actor` is the owner whatever
+     * happens, and this is the only field that tells a colleague asking in a
+     * shared room apart from the owner asking in their own.
+     */
+    askedBy: {
+      name: string | null;
+      isOwner: boolean;
+      trust: "untrusted-data";
+    };
   };
   actor: Record<string, unknown>;
   workspace: Record<string, unknown>;

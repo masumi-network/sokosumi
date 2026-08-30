@@ -118,6 +118,13 @@ export interface BuildContextPacketInput {
    * the owner's private surfaces even though the turn runs as the owner.
    */
   audience?: "OWNER" | "TEAMMATE";
+  /**
+   * The person who actually typed the message, when that is not the owner.
+   * The turn runs as the owner — their bot, their credits — so `actor` is
+   * always the owner, and without this the packet asserts the owner is the
+   * one speaking. A bot reading that greets its owner by name at a teammate.
+   */
+  askedByUserId?: string | null;
 }
 
 export interface BuiltContextPacket {
@@ -518,6 +525,7 @@ export class ContextPacketBuilder {
       jobCount,
       pendingDecisionCount,
       recentTurnCount,
+      asker,
     ] = await Promise.all([
       prisma.user.findUniqueOrThrow({
         where: { id: input.userId },
@@ -733,6 +741,14 @@ export class ContextPacketBuilder {
           status: { in: ["COMPLETED", "FAILED", "CANCELLED"] },
         },
       }),
+      // Null whenever the owner is the one asking, which is the common case
+      // and the reason this is a lookup rather than a required input.
+      input.askedByUserId && input.askedByUserId !== input.userId
+        ? prisma.user.findUnique({
+            where: { id: input.askedByUserId },
+            select: { name: true },
+          })
+        : null,
     ]);
 
     const [agents, agentCount, creditCosts] = agentRead;
@@ -761,6 +777,16 @@ export class ContextPacketBuilder {
             input.classification.requestedOutcome,
             TEXT_LIMITS.requestedOutcome,
           ) ?? "",
+        // Who is on the other side of this turn. `actor` below is the owner
+        // whatever happens, so this is the only field that distinguishes the
+        // owner asking from a colleague asking in a shared room.
+        askedBy: {
+          name: asker
+            ? sanitizeText(asker.name, TEXT_LIMITS.actorName)
+            : sanitizeText(user.name, TEXT_LIMITS.actorName),
+          isOwner: !asker,
+          trust: "untrusted-data",
+        },
       },
       actor: {
         id: boundedIdentifier(user.id),
