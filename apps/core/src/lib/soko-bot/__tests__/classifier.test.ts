@@ -70,6 +70,44 @@ describe("addressing another coworker", () => {
     }
   });
 
+  it("routes an instruction to contact someone onto a route that can", () => {
+    // No @handle at all: this is how an owner actually phrases it, and it
+    // fell through to CLARIFY, where the bot said it had no way to reach
+    // anyone while holding the tools to open a chat and post in it.
+    for (const message of [
+      "Please reach out to Nina directly and ask for the final tiers",
+      "get in touch with sales about the renewal",
+      "drop a line to the design team about the deadline",
+    ]) {
+      expect(classifyDeterministically(message)?.route).toBe("DIRECT_RESPONSE");
+    }
+  });
+
+  it("does not read a noun as an instruction to contact anyone", () => {
+    const chatWrite = "Message asks the assistant to say something in chat";
+    for (const message of [
+      "what is the contact address for billing",
+      "tell me the contact details",
+      "the message board is broken",
+      // "dm" is a noun as often as a verb, and a capital cannot tell the two
+      // apart: "DM Settings are broken" opens exactly like "DM Nina the
+      // brief", so neither is a trigger and both go to the model classifier.
+      "the DM integration is broken",
+      "the DM settings need review",
+      "DM Settings are broken",
+      "Message board is down, can you look?",
+      "Contact details for billing, please",
+      // Asking how to reach someone is a question about a route, not an
+      // instruction to take it.
+      "How do I get in touch with Nina?",
+      "What is the best way to reach out to sales?",
+    ]) {
+      expect(
+        classifyDeterministically(message)?.rationaleSummary ?? "",
+      ).not.toContain(chatWrite);
+    }
+  });
+
   it("does not read an email address as a handle", () => {
     // These may still be conversational, but they must not reach the chat
     // route *as a request to go and speak to someone*: that reading is what

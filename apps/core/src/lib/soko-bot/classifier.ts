@@ -118,9 +118,12 @@ export function classifyDeterministically(
   // "Should we ping @alice, or wait?" is the owner thinking aloud, not an
   // instruction. Treating it as one grants chat, Drive, schedule, and
   // connected-account writes off a question that authorises nothing.
+  // "How do I get in touch with Nina?" is the same trap in the other mood:
+  // it asks the bot to explain a route, not to take it. These openings are
+  // never an instruction, where "can you reach out to Nina" is one.
   const deliberating =
     normalized.includes("?") &&
-    /^\s*(should|shall|do you think|would it|might we|is it worth|do i need|do we need|any thoughts|thoughts)\b/.test(
+    /^\s*(should|shall|do you think|would it|might we|is it worth|do i need|do we need|any thoughts|thoughts|how do i|how do we|how can i|how can we|what(?:'s| is) the best way|is there a way|what happens if)\b/.test(
       normalized,
     );
   const chatOrFileWriteSignal = includesAny(normalized, [
@@ -133,6 +136,16 @@ export function classifyDeterministically(
     // The whitespace before @ is load-bearing: it separates a handle from the
     // local part of an email address, so "cc finance@acme.com" stays a read.
     /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in)\b[^@]{0,60}\s@[a-z0-9][a-z0-9._-]*/,
+    // Being told to go and contact somebody, named or not. "Reach out to Nina
+    // and ask" carries no @handle, and without this it fell through to
+    // CLARIFY — read-only — where the bot reported it had no way to reach
+    // anyone while holding the tools to open a chat and post in it.
+    // Only phrasal verbs that cannot also be nouns: "contact", "message" and
+    // "dm" read as instructions in "contact details", "message board" and
+    // "DM settings are broken", which are questions, and answering them does
+    // not need chat or Drive writes. Capitalisation cannot rescue them either:
+    // "DM Settings are broken" opens exactly like "DM Nina the brief".
+    /\b(reach out to|get in touch with|drop a line to)\b\s+(?!me\b)[a-z@]/,
   ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,

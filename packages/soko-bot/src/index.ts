@@ -99,6 +99,7 @@ export {
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
   sokoBotMemoryUpdateInputSchema,
+  sokoBotOpenDirectChatInputSchema,
   sokoBotPostChatInputSchema,
   sokoBotProvideJobInputSchema,
   sokoBotReadChatInputSchema,

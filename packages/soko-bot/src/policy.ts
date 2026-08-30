@@ -34,6 +34,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_chats",
   "read_chat",
   "post_chat",
+  "open_direct_chat",
   "list_files",
   "upload_file",
   "list_integrations",
@@ -72,6 +73,9 @@ const SCHEDULE_CAPABILITIES = [
 /** Writes into chat and the owner's Drive; not available on read-only routes. */
 const CHAT_FILE_WRITE_CAPABILITIES = [
   "post_chat",
+  // Starts a conversation with somebody who did not ask for one. A write in
+  // the plainest sense: it puts the bot in front of a colleague.
+  "open_direct_chat",
   "upload_file",
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.
@@ -196,12 +200,106 @@ export interface TurnClassification {
   proposedTaskBrief?: string;
 }
 
-const NEGATED_MUTATION_INTENT =
-  /\b(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)\b.{0,80}\b(?:create|make|open|assign|delegate|hand off|hire|book|run|use|post|send|share|publish|reply|upload|write|save|file)\b/i;
+// Every way of telling the bot to go and act on something, including the ways
+// of telling it to go and speak to a person. This has to stay in step with the
+// verbs the classifier reads as a chat write in
+// `apps/core/src/lib/soko-bot/classifier.ts`: a verb it routes to a
+// write-capable route but this list omits is one the owner can forbid and the
+// bot still perform. "Don't ping @alice" was exactly that.
+const MUTATION_VERBS = [
+  "create",
+  "make",
+  "open",
+  "assign",
+  "delegate",
+  "hand off",
+  "hire",
+  "book",
+  "run",
+  "use",
+  "post",
+  "send",
+  "share",
+  "publish",
+  "reply",
+  "upload",
+  "write",
+  "save",
+  "file",
+  "dm",
+  "message",
+  "contact",
+  "reach out",
+  "get in touch",
+  "drop a line",
+  "drop",
+  "leave",
+  "put",
+  "ping",
+  "chase",
+  "ask",
+  "tell",
+  "consult",
+  "check with",
+  "follow up with",
+  "loop in",
+];
+
+/**
+ * Accept the tense the sentence actually uses. A prohibition reaches the verb
+ * through "before", which puts it in the gerund — "before reaching out to
+ * Nina" — and a bare list of infinitives never sees it. English doubles the
+ * final consonant there ("getting", "dropping") and drops a silent "e"
+ * ("messaging"), so both spellings have to be allowed. The forms this admits
+ * that are not words ("gett", "postt") match nothing and cost nothing.
+ */
+function inflected(verb: string): string {
+  const [head = "", ...rest] = verb.split(" ");
+  const forms = head.endsWith("e")
+    ? `${head.slice(0, -1)}(?:e|es|ed|ing)`
+    : `${head}${head.slice(-1)}?(?:s|ed|ing)?`;
+  return [forms, ...rest].join("\\s+");
+}
+
+const MUTATION_VERB = `(?:${MUTATION_VERBS.map(inflected).join("|")})`;
+
+// "not to" carries a prohibition on its own — "remember not to post that",
+// and what is left of "don't forget not to message Nina" once the anti-delay
+// phrase in front of it is cut away.
+const NEGATION_LEAD =
+  "(?:don't|do not|never|not to|not yet|not now|wait before|hold off(?: on)?)";
+
+// The refusal can follow the instruction as easily as precede it: "reach out
+// to Nina, but not yet" is the same prohibition read backwards.
+const TRAILING_NEGATION = "(?:not yet|not now|not until|hold off|wait until)";
+
+// "Wait until I approve before reaching out to Nina" puts the condition first
+// and the refusal in "before", so neither of the other two shapes sees it.
+const GATED_NEGATION = `\\bwait\\s+(?:until|till|for)\\b.{0,60}\\bbefore\\b.{0,40}\\b${MUTATION_VERB}\\b`;
+
+const NEGATED_MUTATION_INTENT = new RegExp(
+  `\\b${NEGATION_LEAD}\\b.{0,80}\\b${MUTATION_VERB}\\b` +
+    `|\\b${MUTATION_VERB}\\b.{0,80}\\b${TRAILING_NEGATION}\\b` +
+    `|${GATED_NEGATION}`,
+  "i",
+);
+
+/**
+ * "Don't wait", "do not delay", "don't forget" are the owner pressing for the
+ * thing to happen. Every word in them is a word a prohibition uses, so they
+ * are cut out before the sentence is read rather than guarded against inside
+ * it: that way "don't forget to message Nina, but don't post it publicly yet"
+ * still lands on the half that is a real refusal.
+ */
+const ANTI_DELAY =
+  /\b(?:don't|do not|won't|will not|never|no need to)\s+(?:wait|delay|hold off(?: on)?|hesitate|forget)\b/gi;
 
 /** True when user explicitly says a mutation must not happen yet. */
 export function hasSokoBotNegatedMutationIntent(message: string): boolean {
-  return NEGATED_MUTATION_INTENT.test(message);
+  // A curly apostrophe reaches us from every phone keyboard and from the
+  // model's own rephrasings; "don\u2019t" must read as "don't".
+  const text = message.replace(/\u2019/g, "'").replace(ANTI_DELAY, " ");
+  return NEGATED_MUTATION_INTENT.test(text);
 }
 
 /**
@@ -212,6 +310,10 @@ export function hasSokoBotNegatedMutationIntent(message: string): boolean {
  */
 const NEGATABLE_WRITE_CAPABILITIES = new Set<string>([
   "post_chat",
+  // "Don't open a chat with Nina yet, just draft it" blocked the posting and
+  // opened the room anyway, which is the part the owner cannot undo: nobody
+  // can leave or archive a direct once it exists.
+  "open_direct_chat",
   "upload_file",
   "run_integration_tool",
   "create_schedule",

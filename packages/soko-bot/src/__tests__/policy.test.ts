@@ -214,3 +214,100 @@ describe("exceedsUnattendedHireBudget", () => {
     ).toBe(true);
   });
 });
+
+describe("negated intent covers opening a chat", () => {
+  it("blocks the room, not only the message", () => {
+    // Blocking post_chat while allowing the room left the owner with the one
+    // part they cannot undo: nobody can leave a direct once it exists.
+    expect(isSokoBotNegatableWrite("open_direct_chat")).toBe(true);
+    for (const message of [
+      "Do not open a direct chat with Nina yet, just draft what I should say",
+      "Don't DM Nina about this",
+      "do not reach out to sales yet",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
+    }
+  });
+
+  it("catches the phrasings a prohibition actually uses", () => {
+    for (const message of [
+      // A curly apostrophe reaches us from every phone keyboard.
+      "Don\u2019t reach out to Nina",
+      "Don't get in touch with Nina yet",
+      "Don't drop a line to Nina",
+      // The refusal can follow the instruction rather than precede it.
+      "Reach out to Nina, but not yet",
+      // The condition can come first, with the refusal inside "before".
+      "Wait until I approve before reaching out to Nina",
+      "Wait for my sign-off before pinging the design team",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
+    }
+  });
+
+  it("covers every verb the classifier reads as a chat write", () => {
+    // A verb the classifier routes to a write-capable route but this guard
+    // does not know is one the owner can forbid and the bot still perform.
+    for (const message of [
+      "Do not ping @alice",
+      "Don't ask @ben about the invoice",
+      "Don't tell Nina yet",
+      "Don't consult @ben yet",
+      "Don't loop in the design team",
+      "Don't check with sales about this",
+      // The classifier reads these as chat or Drive writes too.
+      "Don't leave Nina a note yet",
+      "Don't put that in the brief file yet",
+      // English doubles the consonant in the gerund, which is the form a
+      // prohibition reaches the verb in.
+      "Wait until I approve before getting in touch with Nina",
+      "Wait until I approve before dropping a line to Nina",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
+    }
+  });
+
+  it("hears a refusal that the anti-delay phrase is wrapped around", () => {
+    // Cutting "don't forget" out of this leaves "not to message Nina yet",
+    // which is still the whole point of the sentence.
+    for (const message of [
+      "Don't forget not to message Nina yet",
+      "Remember not to post that",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
+    }
+  });
+
+  it("reads an instruction to hurry as the instruction it is", () => {
+    // Every word in "don't wait" belongs to a prohibition, and the sentence
+    // means the opposite of one.
+    for (const message of [
+      "Don't wait before messaging Nina; send it now",
+      "Do not delay - message Nina now",
+      "Don't hold off on messaging Nina",
+      "Don't wait until Friday to post",
+      "I won't wait until approval before messaging Nina; send it now",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(false);
+    }
+  });
+
+  it("still hears the refusal in a message that also urges something", () => {
+    // Cutting "don't forget" must not take the real prohibition with it.
+    expect(
+      hasSokoBotNegatedMutationIntent(
+        "Don't forget to message Nina, but don't post it publicly yet",
+      ),
+    ).toBe(true);
+  });
+
+  it("leaves a plain instruction alone", () => {
+    for (const message of [
+      "reach out to Nina and ask",
+      // "Don't forget to" is an instruction, not a prohibition.
+      "Don't forget to message Nina now",
+    ]) {
+      expect(hasSokoBotNegatedMutationIntent(message)).toBe(false);
+    }
+  });
+});
