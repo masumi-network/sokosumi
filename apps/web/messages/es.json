@@ -4010,7 +4010,11 @@
           "healthUnknown": "Salud desconocida",
           "checkedAt": "comprobado",
           "healthRuntimeVersion": "Runtime del chequeo",
-          "sessionStatus": "Estado de sesión"
+          "sessionStatus": "Estado de sesión",
+          "usageCredits": "Créditos gastados",
+          "usageTurns": "Turnos",
+          "usageTokens": "Tokens (entrada / salida)",
+          "usageModelCost": "Coste del modelo"
         },
         "Turns": {
           "title": "Turnos",
@@ -6598,7 +6602,16 @@
       "heroCta": "Crea tu Soko Bot",
       "heroCtaHint": "Un minuto: elige un nombre y una cara.",
       "teamCount": "{humans, plural, one {# humano} other {# humanos}}, {bots, plural, =0 {aún sin Soko Bots} one {# Soko Bot} other {# Soko Bots}}",
-      "disabled": "Soko Bot no está disponible temporalmente"
+      "disabled": "Soko Bot no está disponible temporalmente",
+      "Usage": {
+        "title": "Uso",
+        "credits": "Créditos gastados",
+        "turns": "en {count, plural, one {# turno} other {# turnos}}",
+        "tokens": "Tokens",
+        "tokenSplit": "{input} entrada · {output} salida",
+        "modelCost": "Coste del modelo",
+        "modelCostHint": "Lo que costaron los tokens, antes del mínimo por turno"
+      }
     },
     "Calendar": {
       "Metadata": {

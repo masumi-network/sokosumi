@@ -504,10 +504,18 @@ app.openapi(promoteVersionRoute, async (c) => {
 
 app.openapi(detailRoute, async (c) => {
   try {
-    const detail = await sokoBotControlPlane.getForAdmin(
-      c.req.valid("param").sokoBotId,
+    const sokoBotId = c.req.valid("param").sokoBotId;
+    const { sokoBotUsageTotals } = await import(
+      "@/services/soko-bot-usage.service"
     );
-    return ok(c, adminSokoBotDetailSchema.parse(mapDetail(detail)));
+    const [detail, usage] = await Promise.all([
+      sokoBotControlPlane.getForAdmin(sokoBotId),
+      sokoBotUsageTotals(sokoBotId),
+    ]);
+    return ok(
+      c,
+      adminSokoBotDetailSchema.parse({ ...mapDetail(detail), usage }),
+    );
   } catch (error) {
     mapError(error);
   }
@@ -553,7 +561,19 @@ app.openapi(actionRoute, async (c) => {
         );
       }
     }
-    return ok(c, adminSokoBotDetailSchema.parse(mapDetail(detail)));
+    // The same shape the detail route returns: `usage` is required, so
+    // omitting it here failed response validation after the action had
+    // already been performed.
+    const { sokoBotUsageTotals } = await import(
+      "@/services/soko-bot-usage.service"
+    );
+    return ok(
+      c,
+      adminSokoBotDetailSchema.parse({
+        ...mapDetail(detail),
+        usage: await sokoBotUsageTotals(c.req.valid("param").sokoBotId),
+      }),
+    );
   } catch (error) {
     mapError(error);
   }

@@ -6,6 +6,8 @@ import {
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
 
+import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
+
 const CLASSIFIER_MODEL = "mistral/mistral-small";
 const CLASSIFIER_VERSION = "soko-bot-classifier-v1";
 const CLASSIFIER_TIMEOUT_MS = 8_000;
@@ -32,12 +34,28 @@ export interface ClassifierContextSummary {
   jobIds: readonly string[];
 }
 
+/**
+ * What one model call spent. Null when the deterministic rules answered and no
+ * call was made, which is the common case and costs nothing.
+ */
+export interface ClassifierUsage {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+}
+
 export interface ClassificationResult {
   classification: TurnClassification;
   model: string | null;
   version: string;
   latencyMs: number;
   failed: boolean;
+  /**
+   * Every turn that the deterministic rules do not catch pays for this call,
+   * and it used to be discarded here — so a bot's reported spend was short by
+   * one model call on most turns.
+   */
+  usage: ClassifierUsage | null;
 }
 
 export interface TurnClassifier {
@@ -253,6 +271,9 @@ export class ExternalTurnClassifier implements TurnClassifier {
     context: ClassifierContextSummary,
   ): Promise<ClassificationResult> {
     const startedAt = performance.now();
+    // Assigned by the model call below and reported whatever happens after it,
+    // including the parse failures and timeouts that still cost money.
+    let usage: ClassifierUsage | null = null;
     const deterministic = classifyDeterministically(message);
     if (deterministic) {
       return {
@@ -261,6 +282,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
         version: CLASSIFIER_VERSION,
         latencyMs: Math.round(performance.now() - startedAt),
         failed: false,
+        usage,
       };
     }
 
@@ -276,6 +298,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
         version: CLASSIFIER_VERSION,
         latencyMs: Math.round(performance.now() - startedAt),
         failed: false,
+        usage,
       };
     }
 
@@ -292,6 +315,13 @@ export class ExternalTurnClassifier implements TurnClassifier {
           allowedCandidates: context,
         }),
       });
+      // A failed call still burns tokens, so this is read before anything
+      // that can throw.
+      usage = {
+        inputTokens: result.usage?.inputTokens ?? 0,
+        outputTokens: result.usage?.outputTokens ?? 0,
+        costUsd: gatewayCostUsd(result.providerMetadata),
+      };
       const parsed = classificationSchema.parse(result.output);
       const proposedTaskBrief = parsed.proposedTaskBrief ?? undefined;
       const classification = constrainCandidateIds(
@@ -314,6 +344,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
           version: CLASSIFIER_VERSION,
           latencyMs: Math.round(performance.now() - startedAt),
           failed: false,
+          usage,
         };
       }
 
@@ -323,6 +354,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
         version: CLASSIFIER_VERSION,
         latencyMs: Math.round(performance.now() - startedAt),
         failed: false,
+        usage,
       };
     } catch (error) {
       // Fail closed, but never silently: a broken classifier turns every
@@ -342,6 +374,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
         version: CLASSIFIER_VERSION,
         latencyMs: Math.round(performance.now() - startedAt),
         failed: true,
+        usage,
       };
     }
   }
