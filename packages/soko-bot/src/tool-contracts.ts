@@ -183,6 +183,11 @@ export const sokoBotUploadFileInputSchema = z.object({
   contentType: z.string().max(120).optional(),
 });
 
+export const sokoBotOpenDirectChatInputSchema = z.object({
+  /** The person to open a direct chat with. They must share an organization with your owner. */
+  userId: z.string().min(1),
+});
+
 export const sokoBotReadChatInputSchema = z.object({
   /** Room id from `list_chats`. */
   roomId: z.string().min(1),
@@ -238,6 +243,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   run_integration_tool: sokoBotRunIntegrationToolInputSchema,
   list_chats: emptyInputSchema,
   read_chat: sokoBotReadChatInputSchema,
+  open_direct_chat: sokoBotOpenDirectChatInputSchema,
   post_chat: sokoBotPostChatInputSchema,
   list_files: sokoBotListFilesInputSchema,
   upload_file: sokoBotUploadFileInputSchema,
@@ -279,6 +285,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Read recent messages in one chat room you are a member of, newest first, with who sent each one. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
   post_chat:
     "Post a message into a chat room you are a member of. Use it to answer people in a room you were added to, or to share something you found. It appears as you, immediately, so say only what you can back up.",
+  open_direct_chat:
+    "Open a direct chat with a person in your owner's organization, or return the one that already exists. Use it when you need to reach a colleague who is not already in a room with you \u2014 then post_chat there. Starting a conversation puts your owner in front of that person, so open one only when you have something worth their attention, and say who you are and why in your first message.",
   list_files:
     "Files in the owner\u2019s Drive: name, size, type and when each was uploaded. Use it to find an existing document before writing a new one.",
   upload_file:

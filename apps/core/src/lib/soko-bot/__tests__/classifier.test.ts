@@ -70,6 +70,32 @@ describe("addressing another coworker", () => {
     }
   });
 
+  it("routes an instruction to contact someone onto a route that can", () => {
+    // No @handle at all: this is how an owner actually phrases it, and it
+    // fell through to CLARIFY, where the bot said it had no way to reach
+    // anyone while holding the tools to open a chat and post in it.
+    for (const message of [
+      "Please reach out to Nina directly and ask for the final tiers",
+      "get in touch with sales about the renewal",
+      "dm her the brief when it is ready",
+    ]) {
+      expect(classifyDeterministically(message)?.route).toBe("DIRECT_RESPONSE");
+    }
+  });
+
+  it("does not read a noun as an instruction to contact anyone", () => {
+    const chatWrite = "Message asks the assistant to say something in chat";
+    for (const message of [
+      "what is the contact address for billing",
+      "tell me the contact details",
+      "the message board is broken",
+    ]) {
+      expect(
+        classifyDeterministically(message)?.rationaleSummary ?? "",
+      ).not.toContain(chatWrite);
+    }
+  });
+
   it("does not read an email address as a handle", () => {
     // These may still be conversational, but they must not reach the chat
     // route *as a request to go and speak to someone*: that reading is what

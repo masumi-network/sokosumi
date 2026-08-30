@@ -35,6 +35,7 @@ import {
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
+  sokoBotOpenDirectChatInputSchema,
   sokoBotPostChatInputSchema,
   sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
@@ -838,6 +839,73 @@ export class SokoBotRuntimeService {
       );
     }
     return { id: room.id, name: room.name, coworkerId };
+  }
+
+  /**
+   * Opens (or returns) the bot's direct room with one person in its owner's
+   * organization, so it can reach a colleague it does not already share a room
+   * with. The bot appears as itself, and the person can leave or mute like any
+   * other direct.
+   *
+   * Deliberately narrow. The target must be a member of the organization the
+   * turn runs in — a bot must not be able to start a conversation with someone
+   * outside the workspace it lives in — and it can never be another assistant:
+   * a room with no person in it is one where a runaway is invisible.
+   */
+  private async openDirectChat(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { userId: string },
+  ) {
+    const coworkerId = await this.chatCoworkerId(authorized);
+    if (!coworkerId) {
+      throw new SokoBotRuntimeValidationError(
+        "This Soko Bot has no chat identity",
+      );
+    }
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: authorized.turn.workspaceId },
+      select: { organizationId: true },
+    });
+    const organizationId = workspace?.organizationId ?? null;
+    if (!organizationId) {
+      throw new SokoBotRuntimeValidationError(
+        "Direct chats with colleagues need an organization workspace",
+      );
+    }
+    const member = await prisma.member.findFirst({
+      where: { organizationId, userId: input.userId },
+      select: { user: { select: { id: true, name: true } } },
+    });
+    if (!member) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "That person is not a member of this organization",
+      );
+    }
+    // The owner is reachable in their own direct room; opening a second one
+    // would split the conversation in two.
+    if (member.user.id === authorized.turn.userId) {
+      throw new SokoBotRuntimeValidationError(
+        "You already have a direct chat with your owner",
+      );
+    }
+    const { createOrGetDirectRoom } = await import(
+      "@/routes/v1/chats/rooms/helpers"
+    );
+    const { room, created } = await createOrGetDirectRoom({
+      organizationId,
+      currentUserId: member.user.id,
+      memberUserIds: [],
+      coworkerIds: [coworkerId],
+      // The sidebar flags belong to a viewer; this actor is not one.
+      viewerUserId: null,
+    });
+    return {
+      roomId: room.id,
+      name: room.name,
+      /** False when the room already existed, so nobody was newly approached. */
+      created,
+      withUserName: member.user.name,
+    };
   }
 
   /** Post into a room the bot belongs to, as the bot's coworker identity. */
@@ -2183,6 +2251,10 @@ export class SokoBotRuntimeService {
       case "read_chat": {
         const parsed = sokoBotReadChatInputSchema.parse(input.input);
         return this.readChat(authorized, parsed);
+      }
+      case "open_direct_chat": {
+        const parsed = sokoBotOpenDirectChatInputSchema.parse(input.input);
+        return this.openDirectChat(authorized, parsed);
       }
       case "post_chat": {
         const parsed = sokoBotPostChatInputSchema.parse(input.input);

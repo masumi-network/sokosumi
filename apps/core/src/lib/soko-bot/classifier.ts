@@ -133,6 +133,14 @@ export function classifyDeterministically(
     // The whitespace before @ is load-bearing: it separates a handle from the
     // local part of an email address, so "cc finance@acme.com" stays a read.
     /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in)\b[^@]{0,60}\s@[a-z0-9][a-z0-9._-]*/,
+    // Being told to go and contact somebody, named or not. "Reach out to Nina
+    // and ask" carries no @handle, and without this it fell through to
+    // CLARIFY — read-only — where the bot reported it had no way to reach
+    // anyone while holding the tools to open a chat and post in it.
+    // Only phrasal verbs that cannot also be nouns: "contact" and "message"
+    // read as instructions in "contact details" and "message board", which
+    // are questions, and answering them does not need chat or Drive writes.
+    /\b(reach out to|get in touch with|drop a line to|dm)\b\s+(?!me\b)[a-z@]/,
   ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,

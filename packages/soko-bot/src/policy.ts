@@ -34,6 +34,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_chats",
   "read_chat",
   "post_chat",
+  "open_direct_chat",
   "list_files",
   "upload_file",
   "list_integrations",
@@ -72,6 +73,9 @@ const SCHEDULE_CAPABILITIES = [
 /** Writes into chat and the owner's Drive; not available on read-only routes. */
 const CHAT_FILE_WRITE_CAPABILITIES = [
   "post_chat",
+  // Starts a conversation with somebody who did not ask for one. A write in
+  // the plainest sense: it puts the bot in front of a colleague.
+  "open_direct_chat",
   "upload_file",
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.

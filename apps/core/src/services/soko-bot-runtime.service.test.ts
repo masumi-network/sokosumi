@@ -62,6 +62,8 @@ const {
   transactionChatRoomUpdateMock,
   chatCoworkerMemberFindManyMock,
   chatMessageCountMock,
+  memberFindFirstMock,
+  createOrGetDirectRoomMock,
   mentionFindManyMock,
   dispatchChatRoomMentionMock,
   serializableTransactionMock,
@@ -127,6 +129,8 @@ const {
   transactionChatRoomUpdateMock: vi.fn(),
   chatCoworkerMemberFindManyMock: vi.fn(),
   chatMessageCountMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
+  createOrGetDirectRoomMock: vi.fn(),
   mentionFindManyMock: vi.fn(),
   dispatchChatRoomMentionMock: vi.fn(),
   serializableTransactionMock: vi.fn(),
@@ -189,6 +193,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: workspaceFindFirstMock,
       findUnique: workspaceFindUniqueMock,
     },
+    member: { findFirst: memberFindFirstMock },
   },
 }));
 vi.mock("@/lib/db/transaction", () => ({
@@ -248,6 +253,12 @@ vi.mock("@vercel/functions", () => ({
 }));
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: dispatchChatRoomMentionMock,
+}));
+vi.mock("@/routes/v1/chats/rooms/helpers", async (importOriginal) => ({
+  // Only room creation is stubbed; post_chat still needs the real mention
+  // resolver, and stubbing that would have hidden what it actually matches.
+  ...(await importOriginal<object>()),
+  createOrGetDirectRoom: createOrGetDirectRoomMock,
 }));
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
@@ -2519,5 +2530,91 @@ describe("post_chat chain depth", () => {
       chatCoworkerMemberFindManyMock.mock.calls[0][0].where.coworkerId,
     ).toEqual({ not: "cow_self" });
     expect(transactionChatMentionCreateManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("open_direct_chat", () => {
+  const SCOPE_TURN = {
+    id: SCOPE.turnId,
+    sokoBotId: SCOPE.sokoBotId,
+    userId: SCOPE.userId,
+    workspaceId: SCOPE.workspaceId,
+    eveSessionId: SCOPE.sessionId,
+    chainDepth: 0,
+  };
+
+  function arm() {
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
+    botFindUniqueMock.mockResolvedValue({ coworker: { id: "cow_self" } });
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
+    memberFindFirstMock.mockResolvedValue({
+      user: { id: "user_colleague", name: "Nina" },
+    });
+    createOrGetDirectRoomMock.mockResolvedValue({
+      room: { id: "room_new", name: "Nina" },
+      created: true,
+    });
+    return { turn: SCOPE_TURN } as never;
+  }
+
+  it("opens a direct with a colleague in the same organization", async () => {
+    const authorized = arm();
+
+    const result = await new SokoBotRuntimeService()["openDirectChat"](
+      authorized,
+      { userId: "user_colleague" },
+    );
+
+    expect(createOrGetDirectRoomMock).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      currentUserId: "user_colleague",
+      memberUserIds: [],
+      coworkerIds: ["cow_self"],
+      viewerUserId: null,
+    });
+    expect(result).toMatchObject({ roomId: "room_new", created: true });
+  });
+
+  it("refuses someone outside the organization", async () => {
+    // Otherwise a bot could start a conversation with anyone whose id it can
+    // name, from a workspace they have nothing to do with.
+    const authorized = arm();
+    memberFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        userId: "user_stranger",
+      }),
+    ).rejects.toThrow(/not a member of this organization/i);
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the workspace has no organization", async () => {
+    const authorized = arm();
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        userId: "user_colleague",
+      }),
+    ).rejects.toThrow(/need an organization workspace/i);
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("does not open a second room with its own owner", async () => {
+    // The owner already has the bot's direct room; a second would split the
+    // conversation in two.
+    const authorized = arm();
+    memberFindFirstMock.mockResolvedValue({
+      user: { id: SCOPE.userId, name: "Owner" },
+    });
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        userId: SCOPE.userId,
+      }),
+    ).rejects.toThrow(/already have a direct chat with your owner/i);
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
   });
 });
