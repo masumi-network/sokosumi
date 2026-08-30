@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import {
   type ScenarioCheck,
   SOKO_BOT_JUDGE_RUBRIC,
@@ -9,6 +10,7 @@ import {
 import { generateText, Output } from "ai";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 const JUDGE_TIMEOUT_MS = 90_000;
@@ -112,47 +114,81 @@ async function askJudge(payload: unknown): Promise<JudgeCall> {
       lastError = error;
     }
   }
-  throw lastError instanceof Error
-    ? lastError
-    : new SokoBotLabJudgeError("Judge produced no verdict");
+  // Both attempts spent tokens. Throwing without reporting them would hide a
+  // judge that fails often, which is exactly when it costs the most.
+  throw new SokoBotJudgeFailure(
+    lastError instanceof Error
+      ? lastError.message
+      : "Judge produced no verdict",
+    usage,
+  );
 }
 
-async function storeTurnVerdict(turnId: string, call: JudgeCall) {
-  const { verdict, usage } = call;
-  // Read-modify-write on the JSON, which is safe here because the judge runs
-  // only after the turn has settled and the event drain has stopped writing.
-  // The cost is an atomic increment, so the lab re-judging a turn adds to
-  // what the live judge already spent rather than replacing it.
-  const current = await prisma.sokoBotTurn.findUnique({
-    where: { id: turnId },
-    select: { usage: true },
-  });
-  const previous =
-    current?.usage && typeof current.usage === "object"
-      ? (current.usage as Record<string, unknown>)
-      : {};
+/** Carries what the failed attempts cost, so the caller can still record it. */
+export class SokoBotJudgeFailure extends SokoBotLabJudgeError {
+  constructor(
+    message: string,
+    readonly usage: {
+      inputTokens: number;
+      outputTokens: number;
+      costUsd: number;
+    },
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Adds one model call's spend to a turn.
+ *
+ * Serializable because the JSON is a read-modify-write: the live judge and a
+ * lab re-judge of the same turn can overlap, and two plain updates would each
+ * read the same prior total and the later one would erase the earlier call's
+ * tokens while its cost was counted twice.
+ */
+async function addTurnOverheadUsage(
+  turnId: string,
+  usage: { inputTokens: number; outputTokens: number; costUsd: number },
+  extra: Prisma.SokoBotTurnUpdateInput = {},
+): Promise<void> {
   const asNumber = (value: unknown) =>
     typeof value === "number" && Number.isFinite(value) && value >= 0
       ? value
       : 0;
-  await prisma.sokoBotTurn.update({
-    where: { id: turnId },
-    data: {
-      qualityScore: overallScore(verdict),
-      qualityVerdict: verdict,
-      qualityModel: sokoBotJudgeModel(),
-      judgedAt: new Date(),
-      usage: {
-        inputTokens: asNumber(previous.inputTokens) + usage.inputTokens,
-        outputTokens: asNumber(previous.outputTokens) + usage.outputTokens,
-        cacheReadTokens: asNumber(previous.cacheReadTokens),
-        cacheWriteTokens: asNumber(previous.cacheWriteTokens),
-        costUsd: asNumber(previous.costUsd) + usage.costUsd,
+  await serializableTransaction(async (tx) => {
+    const current = await tx.sokoBotTurn.findUnique({
+      where: { id: turnId },
+      select: { usage: true },
+    });
+    const previous =
+      current?.usage && typeof current.usage === "object"
+        ? (current.usage as Record<string, unknown>)
+        : {};
+    await tx.sokoBotTurn.update({
+      where: { id: turnId },
+      data: {
+        ...extra,
+        usage: {
+          inputTokens: asNumber(previous.inputTokens) + usage.inputTokens,
+          outputTokens: asNumber(previous.outputTokens) + usage.outputTokens,
+          cacheReadTokens: asNumber(previous.cacheReadTokens),
+          cacheWriteTokens: asNumber(previous.cacheWriteTokens),
+          costUsd: asNumber(previous.costUsd) + usage.costUsd,
+        },
+        overheadCostUsdMicros: {
+          increment: BigInt(Math.round(usage.costUsd * 1_000_000)),
+        },
       },
-      overheadCostUsdMicros: {
-        increment: BigInt(Math.round(usage.costUsd * 1_000_000)),
-      },
-    },
+    });
+  }, "Another judge recorded usage for this turn at the same moment");
+}
+
+async function storeTurnVerdict(turnId: string, call: JudgeCall) {
+  await addTurnOverheadUsage(turnId, call.usage, {
+    qualityScore: overallScore(call.verdict),
+    qualityVerdict: call.verdict,
+    qualityModel: sokoBotJudgeModel(),
+    judgedAt: new Date(),
   });
 }
 
@@ -237,4 +273,18 @@ export async function judgeTurnQuality(turnId: string): Promise<void> {
     turn: transcript,
   });
   await storeTurnVerdict(turnId, call);
+}
+
+/**
+ * Records what a judge call cost when it produced nothing usable. The verdict
+ * is lost either way; the spend is not, and a bot's reported usage has to
+ * include the calls that failed.
+ */
+export async function recordFailedJudgeUsage(
+  turnId: string,
+  error: unknown,
+): Promise<void> {
+  if (!(error instanceof SokoBotJudgeFailure)) return;
+  if (error.usage.costUsd === 0 && error.usage.inputTokens === 0) return;
+  await addTurnOverheadUsage(turnId, error.usage).catch(() => undefined);
 }

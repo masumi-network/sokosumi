@@ -12,11 +12,12 @@ interface AdminSokoBotOverviewProps {
 }
 
 export async function AdminSokoBotOverview({ bot }: AdminSokoBotOverviewProps) {
-  const numbers = new Intl.NumberFormat();
   const [t, format] = await Promise.all([
     getTranslations("App.Admin.SokoBots.Overview"),
     getFormatter(),
   ]);
+  // The request's locale, like every other number on this page.
+  const numbers = (value: number) => format.number(value);
   const dateTime = (date: Date | null | undefined) =>
     date
       ? format.dateTime(date, { dateStyle: "medium", timeStyle: "short" })
@@ -131,21 +132,25 @@ export async function AdminSokoBotOverview({ bot }: AdminSokoBotOverviewProps) {
               // including the classifier and judge calls that are not billed.
               {
                 label: t("usageCredits"),
-                value: numbers.format(
+                value: numbers(
                   convertCentsToCredits(BigInt(bot.usage.creditsCents)),
                 ),
               },
               {
                 label: t("usageTurns"),
-                value: numbers.format(bot.usage.turns),
+                value: numbers(bot.usage.turns),
               },
               {
                 label: t("usageTokens"),
-                value: `${numbers.format(bot.usage.totalTokens)} (${numbers.format(bot.usage.inputTokens)} / ${numbers.format(bot.usage.outputTokens)})`,
+                value: `${numbers(bot.usage.totalTokens)} (${numbers(bot.usage.inputTokens)} / ${numbers(bot.usage.outputTokens)})`,
               },
               {
                 label: t("usageModelCost"),
-                value: `$${bot.usage.costUsd.toFixed(4)}`,
+                value: format.number(bot.usage.costUsd, {
+                  style: "currency",
+                  currency: "USD",
+                  maximumFractionDigits: 4,
+                }),
                 mono: true,
               },
             ]}

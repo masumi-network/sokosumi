@@ -561,7 +561,19 @@ app.openapi(actionRoute, async (c) => {
         );
       }
     }
-    return ok(c, adminSokoBotDetailSchema.parse(mapDetail(detail)));
+    // The same shape the detail route returns: `usage` is required, so
+    // omitting it here failed response validation after the action had
+    // already been performed.
+    const { sokoBotUsageTotals } = await import(
+      "@/services/soko-bot-usage.service"
+    );
+    return ok(
+      c,
+      adminSokoBotDetailSchema.parse({
+        ...mapDetail(detail),
+        usage: await sokoBotUsageTotals(c.req.valid("param").sokoBotId),
+      }),
+    );
   } catch (error) {
     mapError(error);
   }

@@ -1,5 +1,5 @@
 import { convertCentsToCredits } from "@sokosumi/utils";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
@@ -10,14 +10,23 @@ import { sokoBotService } from "@/lib/services/soko-bot.service";
  * turn costing a fraction of a cent still charges the minimum.
  */
 export async function SokoBotUsageCard() {
-  const [t, usage] = await Promise.all([
+  const [t, format, usage] = await Promise.all([
     getTranslations("App.SokoBots.Usage"),
+    getFormatter(),
     sokoBotService.getMyUsage().catch(() => null),
   ]);
   if (!usage) return null;
 
   const credits = convertCentsToCredits(BigInt(usage.creditsCents));
-  const numbers = new Intl.NumberFormat();
+  const numbers = (value: number) => format.number(value);
+  // Two decimals would report four tenths of a cent as "$0.00", which reads as
+  // "this cost nothing" on the one page whose job is to say what it cost.
+  const money = format.number(usage.costUsd, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: usage.costUsd > 0 && usage.costUsd < 0.01 ? 4 : 2,
+  });
 
   return (
     <section className="space-y-3">
@@ -26,7 +35,7 @@ export async function SokoBotUsageCard() {
         <div>
           <p className="text-muted-foreground text-xs">{t("credits")}</p>
           <p className="text-foreground text-2xl font-medium tabular-nums">
-            {numbers.format(credits)}
+            {numbers(credits)}
           </p>
           <p className="text-muted-foreground text-xs">
             {t("turns", { count: usage.turns })}
@@ -35,19 +44,19 @@ export async function SokoBotUsageCard() {
         <div>
           <p className="text-muted-foreground text-xs">{t("tokens")}</p>
           <p className="text-foreground text-2xl font-medium tabular-nums">
-            {numbers.format(usage.totalTokens)}
+            {numbers(usage.totalTokens)}
           </p>
           <p className="text-muted-foreground text-xs">
             {t("tokenSplit", {
-              input: numbers.format(usage.inputTokens),
-              output: numbers.format(usage.outputTokens),
+              input: numbers(usage.inputTokens),
+              output: numbers(usage.outputTokens),
             })}
           </p>
         </div>
         <div>
           <p className="text-muted-foreground text-xs">{t("modelCost")}</p>
           <p className="text-foreground text-2xl font-medium tabular-nums">
-            ${usage.costUsd.toFixed(2)}
+            {money}
           </p>
           <p className="text-muted-foreground text-xs">{t("modelCostHint")}</p>
         </div>
