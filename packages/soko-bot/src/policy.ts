@@ -243,6 +243,17 @@ const MUTATION_VERBS = [
   "check with",
   "follow up with",
   "loop in",
+  // Undoing something is a mutation too. The classifier reads exactly these
+  // verbs as a change to the bot's own schedules and routes them to
+  // MANAGE_WORK, which grants delete_schedule — so without them "don't cancel
+  // my weekly reminder" was heard as no prohibition at all.
+  "cancel",
+  "stop",
+  "remove",
+  "pause",
+  "delete",
+  "change",
+  "move",
 ];
 
 /**

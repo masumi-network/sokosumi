@@ -262,6 +262,12 @@ describe("negated intent covers opening a chat", () => {
       // prohibition reaches the verb in.
       "Wait until I approve before getting in touch with Nina",
       "Wait until I approve before dropping a line to Nina",
+      // Undoing is a mutation: MANAGE_WORK grants delete_schedule, so a
+      // prohibition using these verbs has to be heard as one.
+      "Don't cancel my weekly reminder",
+      "Don't stop the daily check-in",
+      "Don't delete that schedule",
+      "Don't pause the stand-up yet",
     ]) {
       expect(hasSokoBotNegatedMutationIntent(message)).toBe(true);
     }
