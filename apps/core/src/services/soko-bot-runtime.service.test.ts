@@ -2595,8 +2595,23 @@ describe("open_direct_chat", () => {
         person: "Nina",
         toolCallId: "call_1",
       }),
-    ).rejects.toThrow(/nina\.a@x\.io, nina\.b@x\.io/);
+    ).rejects.toThrow(/Nina Alvarez, Nina Brown/);
     expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to addresses only when the names themselves collide", async () => {
+    const authorized = arm();
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: "u1", name: "Nina", email: "nina.a@x.io" } },
+      { user: { id: "u2", name: "Nina", email: "nina.b@x.io" } },
+    ]);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Nina",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/nina\.a@x\.io, nina\.b@x\.io/);
   });
 
   it("refuses on a turn the owner did not ask for", async () => {

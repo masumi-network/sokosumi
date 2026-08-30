@@ -923,10 +923,13 @@ export class SokoBotRuntimeService {
     }
     if (members.length > 1) {
       // Naming the candidates lets the owner disambiguate; picking one for
-      // them would mean approaching the wrong colleague.
+      // them would mean approaching the wrong colleague. Full names separate
+      // two Ninas without putting anyone's address into the transcript, and
+      // an address is only offered when the names themselves collide.
+      const namesCollide = new Set(members.map((m) => m.user.name)).size < 2;
       throw new SokoBotRuntimeValidationError(
         `More than one person matches "${needle}": ${members
-          .map((m) => m.user.email)
+          .map((m) => (namesCollide ? m.user.email : m.user.name))
           .join(", ")}. Ask the owner which they mean.`,
       );
     }
