@@ -3,6 +3,7 @@ import "server-only";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  GetProjectsByIdCalendarData,
   JobSummary,
   Project,
   ProjectContextMd,
@@ -91,6 +92,18 @@ export const projectService = (() => {
 
       throw error;
     }
+  }
+
+  async function getProjectCalendar(
+    projectId: string,
+    query: GetProjectsByIdCalendarData["query"],
+  ) {
+    const result = await coreClient.getProjectsByIdCalendar(projectId, query);
+
+    return {
+      items: result.data,
+      pagination: result.meta?.pagination ?? null,
+    };
   }
 
   async function createProject(input: CreateProjectInput): Promise<Project> {
@@ -238,6 +251,7 @@ export const projectService = (() => {
     getProjectsStats,
     getProjectById,
     getProjectContextMd,
+    getProjectCalendar,
     createProject,
     patchProject,
     removeProjectDesignMd,

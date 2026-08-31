@@ -5,13 +5,19 @@ import type { EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 const {
+  coworkerFindFirstMock,
   taskFindManyMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
+  userFindUniqueMock,
+  vendorGrantFindUniqueMock,
 } = vi.hoisted(() => ({
+  coworkerFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+  vendorGrantFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
@@ -25,6 +31,18 @@ vi.mock("@/middleware/coworker-context", () => ({
     _c: unknown,
     next: () => Promise<unknown>,
   ) => await next(),
+}));
+
+vi.mock("@/helpers/coworker-user-context-binding", () => ({
+  requireAuthorizedUserContext: async (authContext: AuthenticationContext) => {
+    if (authContext.actor === "user") {
+      return { source: "session" as const, ...authContext };
+    }
+    if (authContext.actor === "coworker" && authContext.context) {
+      return { source: "context" as const, ...authContext.context };
+    }
+    throw new Error("User authentication required");
+  },
 }));
 
 vi.mock("@/middleware/organization", () => ({
@@ -52,39 +70,49 @@ vi.mock("@/middleware/workspace", () => ({
       },
       next: () => Promise<unknown>,
     ) => {
-      if (c.var.authContext.actor !== "user") {
+      const { authContext } = c.var;
+      if (!includeWorkspaceContext) {
         c.set("workspaceContext", null);
         return await next();
       }
-
-      const { authContext } = c.var;
-      c.set(
-        "workspaceContext",
-        includeWorkspaceContext
-          ? authContext.organizationId
-            ? {
-                workspaceId: "22222222-2222-7222-8222-222222222222",
-                userId: null,
-                organizationId: authContext.organizationId,
-              }
-            : {
-                workspaceId: "11111111-1111-7111-8111-111111111111",
-                userId: authContext.userId,
-                organizationId: null,
-              }
-          : null,
-      );
+      if (authContext.actor === "coworker") {
+        c.set("workspaceContext", {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          userId: "user_123",
+          organizationId: null,
+        });
+        return await next();
+      }
+      if (authContext.actor === "user") {
+        const workspaceContext = authContext.organizationId
+          ? {
+              workspaceId: "22222222-2222-7222-8222-222222222222",
+              userId: null,
+              organizationId: authContext.organizationId,
+            }
+          : {
+              workspaceId: "11111111-1111-7111-8111-111111111111",
+              userId: authContext.userId,
+              organizationId: null,
+            };
+        c.set("workspaceContext", workspaceContext);
+        return await next();
+      }
+      c.set("workspaceContext", null);
       return await next();
     },
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    coworker: { findFirst: coworkerFindFirstMock },
     task: { findMany: taskFindManyMock },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
+    user: { findUnique: userFindUniqueMock },
+    vendorGrant: { findUnique: vendorGrantFindUniqueMock },
   },
 }));
 
@@ -110,9 +138,12 @@ describe("GET /workspaces/calendar", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    coworkerFindFirstMock.mockResolvedValue({ id: "coworker_123" });
     taskFindManyMock.mockResolvedValue([]);
     taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
+    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
+    vendorGrantFindUniqueMock.mockResolvedValue(null);
   });
 
   it("reads the calendar for the active organization workspace", async () => {
@@ -150,6 +181,41 @@ describe("GET /workspaces/calendar", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           sourceWorkspaceId: "11111111-1111-7111-8111-111111111111",
+        }),
+      }),
+    );
+  });
+
+  it("limits a delegated coworker to Tasks it can read", async () => {
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "coworker_123",
+      vendorId: "vendor_123",
+      context: {
+        userId: "user_123",
+        organizationId: null,
+      },
+    }).request(
+      "http://localhost/calendar?from=2026-06-01T00:00:00.000Z&to=2026-06-08T00:00:00.000Z",
+    );
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "coworker_123",
+        archivedAt: null,
+        capabilities: { has: "tasks" },
+      },
+      select: {
+        id: true,
+        slug: true,
+        baseURL: true,
+      },
+    });
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.any(Array),
         }),
       }),
     );

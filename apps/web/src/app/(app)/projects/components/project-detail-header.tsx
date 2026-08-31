@@ -10,20 +10,32 @@ interface ProjectDetailHeaderMetadataItem {
 }
 
 interface ProjectDetailHeaderProps {
+  calendarLabel: string;
   projectName: string;
+  projectId: string;
   projectLogo?: string | null;
   websiteUrl?: string | null;
   backLabel: string;
   metadata: ProjectDetailHeaderMetadataItem[];
+  navigationLabel: string;
+  overviewLabel: string;
+  selectedView: "overview" | "calendar";
+  showCalendar: boolean;
   actions?: React.ReactNode;
 }
 
 export function ProjectDetailHeader({
+  calendarLabel,
   projectName,
+  projectId,
   projectLogo,
   websiteUrl,
   backLabel,
   metadata,
+  navigationLabel,
+  overviewLabel,
+  selectedView,
+  showCalendar,
   actions,
 }: ProjectDetailHeaderProps) {
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
@@ -79,6 +91,35 @@ export function ProjectDetailHeader({
           </div>
         ))}
       </dl>
+
+      <nav aria-label={navigationLabel} className="border-border border-b">
+        <div className="flex gap-4">
+          <Link
+            aria-current={selectedView === "overview" ? "page" : undefined}
+            className={`border-b-2 px-1 py-2 text-sm font-medium transition-colors ${
+              selectedView === "overview"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            href={`/projects/${projectId}`}
+          >
+            {overviewLabel}
+          </Link>
+          {showCalendar ? (
+            <Link
+              aria-current={selectedView === "calendar" ? "page" : undefined}
+              className={`border-b-2 px-1 py-2 text-sm font-medium transition-colors ${
+                selectedView === "calendar"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+              href={`/projects/${projectId}/calendar`}
+            >
+              {calendarLabel}
+            </Link>
+          ) : null}
+        </div>
+      </nav>
     </div>
   );
 }

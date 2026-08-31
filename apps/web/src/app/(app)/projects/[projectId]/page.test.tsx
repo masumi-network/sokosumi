@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { projectServiceMock, notFoundMock } = vi.hoisted(() => ({
+const { getSessionMock, projectServiceMock, notFoundMock } = vi.hoisted(() => ({
+  getSessionMock: vi.fn(),
   projectServiceMock: {
     getProjectById: vi.fn(),
     getProjectsStats: vi.fn(),
@@ -21,6 +22,10 @@ vi.mock("next-intl/server", () => ({
   getLocale: async () => "en",
   getTranslations: async (namespace: string) => (key: string) =>
     `${namespace}.${key}`,
+}));
+
+vi.mock("@/lib/auth/auth.server", () => ({
+  getSession: () => getSessionMock(),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -76,6 +81,7 @@ function buildProject() {
 describe("ProjectDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
   });
 
   it("calls notFound without loading jobs or tasks when the project is missing", async () => {

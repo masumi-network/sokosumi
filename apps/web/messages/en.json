@@ -6807,6 +6807,9 @@
         "label": "Coworker",
         "all": "All coworkers"
       },
+      "timezone": {
+        "label": "Time zone"
+      },
       "empty": {
         "title": "No scheduled releases match these filters."
       },

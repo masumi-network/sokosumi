@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
+  CalendarSourceType,
   type Prisma,
   TaskScheduleOccurrenceState,
   TaskStatus,
@@ -22,7 +23,7 @@ import {
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext } from "@/middleware/auth";
+import { type AuthenticationContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   workspaceCalendarItemSchema,
@@ -97,13 +98,54 @@ interface CalendarCursor {
 }
 
 export interface WorkspaceCalendarReadQuery {
-  assigneeId: string | null;
+  assigneeId?: string;
   from: Date;
-  scope: "owned" | "workspace";
   to: Date;
   cursor: CalendarCursor | null;
   requestedCursor: string | null;
   limit: number;
+  scope: "owned" | "workspace";
+  status?: TaskStatus;
+}
+
+export interface WorkspaceCalendarReadOptions {
+  projectId?: string;
+  taskWhere?: Prisma.TaskWhereInput;
+}
+
+export async function getCalendarTaskWhere(
+  authContext: AuthenticationContext,
+  workspaceId: string,
+): Promise<Prisma.TaskWhereInput | undefined> {
+  if (authContext.actor === "sokoBot") {
+    return {
+      archivedAt: null,
+      workspaceId,
+      assigneeSokoBotId: authContext.sokoBotId,
+      status: { not: TaskStatus.DRAFT },
+    };
+  }
+
+  if (authContext.actor !== "coworker") {
+    return undefined;
+  }
+
+  await requireCoworkerCapability(authContext.coworkerId, "tasks");
+  const hasWorkspaceGrant = authContext.context
+    ? await hasGrantedWorkspaceAccess({
+        vendorId: authContext.vendorId,
+        workspaceId,
+      })
+    : false;
+
+  return {
+    archivedAt: null,
+    ...buildCoworkerTaskListAccessFilter({
+      coworkerId: authContext.coworkerId,
+      vendorId: authContext.vendorId,
+      hasWorkspaceGrant,
+    }),
+  };
 }
 
 function encodeCursor(item: { id: string; scheduledAt: string }): string {
@@ -161,13 +203,14 @@ export function parseWorkspaceCalendarQuery(
 ): WorkspaceCalendarReadQuery {
   const { from, to } = validateRange(query.from, query.to);
   return {
-    assigneeId: query.assigneeId ?? null,
+    assigneeId: query.assigneeId,
     from,
-    scope: query.scope,
     to,
     cursor: query.cursor ? decodeCursor(query.cursor) : null,
     requestedCursor: query.cursor ?? null,
     limit: query.limit,
+    scope: query.scope,
+    status: query.status,
   };
 }
 
@@ -177,65 +220,67 @@ function isPersistedOccurrenceCursor(
   return cursor !== null && z.uuid().safeParse(cursor.id).success;
 }
 
-async function resolveCoworkerCalendarTaskAccess(
-  authContext: AuthenticationContext,
-  workspaceId: string,
-): Promise<Prisma.TaskWhereInput | undefined> {
-  if (authContext.actor === "sokoBot") {
-    return {
-      workspaceId,
-      assigneeSokoBotId: authContext.sokoBotId,
-      status: { not: TaskStatus.DRAFT },
-    };
-  }
-
-  if (authContext.actor !== "coworker") {
-    return undefined;
-  }
-
-  await requireCoworkerCapability(authContext.coworkerId, "tasks");
-  const hasWorkspaceGrant = authContext.context
-    ? await hasGrantedWorkspaceAccess({
-        vendorId: authContext.vendorId,
-        workspaceId,
-      })
-    : false;
-
-  return buildCoworkerTaskListAccessFilter({
-    coworkerId: authContext.coworkerId,
-    vendorId: authContext.vendorId,
-    hasWorkspaceGrant,
-  });
-}
-
-function buildSeriesTaskWhere(
-  query: WorkspaceCalendarReadQuery,
-  userId: string,
-  coworkerTaskAccess: Prisma.TaskWhereInput | undefined,
-): Prisma.TaskWhereInput | undefined {
-  const seriesTask: Prisma.TaskWhereInput = {
-    ...(query.scope === "owned" ? { ownerId: userId } : {}),
-    ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
-    ...(coworkerTaskAccess ? { AND: [coworkerTaskAccess] } : {}),
-  };
-  return Object.keys(seriesTask).length > 0 ? seriesTask : undefined;
-}
-
 export async function readWorkspaceCalendar(
   workspaceId: string,
   userId: string,
   query: WorkspaceCalendarReadQuery,
-  authContext: AuthenticationContext,
+  options: WorkspaceCalendarReadOptions = {},
 ) {
   const { cursor, from, to } = query;
   const maxCandidates = query.limit + 1;
-  const coworkerTaskAccess = await resolveCoworkerCalendarTaskAccess(
-    authContext,
-    workspaceId,
-  );
-  const seriesTask = buildSeriesTaskWhere(query, userId, coworkerTaskAccess);
+  const taskFilters: Prisma.TaskWhereInput[] = [
+    ...(options.taskWhere ? [options.taskWhere] : []),
+    ...(query.scope === "owned" || query.assigneeId || query.status
+      ? [
+          {
+            ...(query.scope === "owned" ? { ownerId: userId } : {}),
+            ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
+            ...(query.status ? { status: query.status } : {}),
+          },
+        ]
+      : []),
+  ];
+  const taskVisibilityFilters: Prisma.TaskScheduleOccurrenceWhereInput[] =
+    taskFilters.map((taskWhere) => ({
+      OR: [
+        {
+          state: TaskScheduleOccurrenceState.PLANNED,
+          seriesTask: { is: taskWhere },
+        },
+        {
+          state: TaskScheduleOccurrenceState.RELEASED,
+          releasedTask: { is: taskWhere },
+        },
+        {
+          state: TaskScheduleOccurrenceState.RELEASED,
+          releasedTaskId: null,
+          seriesTask: { is: taskWhere },
+        },
+      ],
+    }));
+  const cursorFilter: Prisma.TaskScheduleOccurrenceWhereInput | null = cursor
+    ? {
+        OR: [
+          { effectiveScheduledAt: { gt: new Date(cursor.scheduledAt) } },
+          ...(isPersistedOccurrenceCursor(cursor)
+            ? [
+                {
+                  effectiveScheduledAt: new Date(cursor.scheduledAt),
+                  id: { gt: cursor.id },
+                },
+              ]
+            : []),
+        ],
+      }
+    : null;
   const persistedOccurrenceBaseWhere = {
     sourceWorkspaceId: workspaceId,
+    ...(options.projectId
+      ? {
+          sourceProjectId: options.projectId,
+          sourceType: CalendarSourceType.PROJECT,
+        }
+      : {}),
     state: {
       in: [
         TaskScheduleOccurrenceState.PLANNED,
@@ -243,24 +288,14 @@ export async function readWorkspaceCalendar(
       ],
     },
     effectiveScheduledAt: { gte: from, lt: to },
-    ...(seriesTask ? { seriesTask } : {}),
+    ...(taskVisibilityFilters.length > 0 ? { AND: taskVisibilityFilters } : {}),
   };
   const persistedOccurrenceWhere = {
     ...persistedOccurrenceBaseWhere,
-    ...(cursor
-      ? {
-          OR: [
-            { effectiveScheduledAt: { gt: new Date(cursor.scheduledAt) } },
-            ...(isPersistedOccurrenceCursor(cursor)
-              ? [
-                  {
-                    effectiveScheduledAt: new Date(cursor.scheduledAt),
-                    id: { gt: cursor.id },
-                  },
-                ]
-              : []),
-          ],
-        }
+    ...(cursorFilter
+      ? taskVisibilityFilters.length > 0
+        ? { AND: [...taskVisibilityFilters, cursorFilter] }
+        : cursorFilter
       : {}),
   };
   const [occurrences, persistedOccurrenceCount] = await Promise.all([
@@ -288,6 +323,14 @@ export async function readWorkspaceCalendar(
             assigneeId: true,
           },
         },
+        releasedTask: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            assigneeId: true,
+          },
+        },
       },
     }),
     prisma.taskScheduleOccurrence.count({
@@ -295,25 +338,33 @@ export async function readWorkspaceCalendar(
     }),
   ]);
 
-  const persistedItems = occurrences.slice(0, maxCandidates).map((occurrence) =>
-    workspaceCalendarItemSchema.parse({
-      id: occurrence.id,
-      taskId: occurrence.seriesTask.id,
-      taskName: occurrence.seriesTask.name,
-      taskStatus: occurrence.seriesTask.status,
-      taskAssigneeId: occurrence.seriesTask.assigneeId,
-      scheduledAt: occurrence.effectiveScheduledAt.toISOString(),
-      originalScheduledAt:
-        occurrence.originalScheduledAt?.toISOString() ?? null,
-      state: occurrence.state,
-      sourceId: getCalendarSourceId(occurrence),
-      sourceWorkspaceId: occurrence.sourceWorkspaceId,
-      sourceType: occurrence.sourceType,
-      sourceProjectId: occurrence.sourceProjectId,
-      sourceAccuracy: occurrence.sourceAccuracy,
-      timeAccuracy: occurrence.timeAccuracy,
-    }),
-  );
+  const persistedItems = occurrences
+    .slice(0, maxCandidates)
+    .map((occurrence) => {
+      const task =
+        occurrence.state === TaskScheduleOccurrenceState.RELEASED &&
+        occurrence.releasedTask
+          ? occurrence.releasedTask
+          : occurrence.seriesTask;
+
+      return workspaceCalendarItemSchema.parse({
+        id: occurrence.id,
+        taskId: task.id,
+        taskName: task.name,
+        taskStatus: task.status,
+        taskAssigneeId: task.assigneeId,
+        scheduledAt: occurrence.effectiveScheduledAt.toISOString(),
+        originalScheduledAt:
+          occurrence.originalScheduledAt?.toISOString() ?? null,
+        state: occurrence.state,
+        sourceId: getCalendarSourceId(occurrence),
+        sourceWorkspaceId: occurrence.sourceWorkspaceId,
+        sourceType: occurrence.sourceType,
+        sourceProjectId: occurrence.sourceProjectId,
+        sourceAccuracy: occurrence.sourceAccuracy,
+        timeAccuracy: occurrence.timeAccuracy,
+      });
+    });
   const page = persistedItems.slice(0, query.limit);
   const hasMore = persistedItems.length > page.length;
 
@@ -373,11 +424,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("You do not have access to this workspace");
     }
 
+    const taskWhere = await getCalendarTaskWhere(
+      c.var.authContext,
+      workspaceId,
+    );
     const { items, pagination } = await readWorkspaceCalendar(
       workspaceId,
       userContext.userId,
       calendarQuery,
-      c.var.authContext,
+      { taskWhere },
     );
 
     return ok(c, items, pagination);

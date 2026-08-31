@@ -6807,6 +6807,9 @@
         "label": "Coworker",
         "all": "Alle Coworker"
       },
+      "timezone": {
+        "label": "Zeitzone"
+      },
       "empty": {
         "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
       },

@@ -6807,6 +6807,9 @@
         "label": "Coworker",
         "all": "Todos los coworkers"
       },
+      "timezone": {
+        "label": "Zona horaria"
+      },
       "empty": {
         "title": "Ninguna ejecución programada coincide con estos filtros."
       },
