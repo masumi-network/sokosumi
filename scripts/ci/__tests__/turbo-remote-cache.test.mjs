@@ -45,6 +45,7 @@ const PASSTHROUGH_ENV = [
   "MICROSOFT_CLIENT_SECRET",
   "TURBO_TOKEN",
   "TURBO_TEAM",
+  "ENABLE_EXPERIMENTAL_COREPACK",
 ];
 
 async function readRepoFile(...segments) {

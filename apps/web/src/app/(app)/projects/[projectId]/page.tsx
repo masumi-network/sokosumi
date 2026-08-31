@@ -12,6 +12,11 @@ import { ProjectJobsSection } from "@/app/projects/components/project-jobs-secti
 import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
 import { ProjectModuleTiles } from "@/app/projects/components/project-module-tiles";
 import { ProjectTasksSection } from "@/app/projects/components/project-tasks-section";
+import {
+  PROJECTS_DETAIL_SHELL_CLASS,
+  PROJECTS_DETAIL_TOP_CLASS,
+  PROJECTS_DETAIL_WORKSPACE_CLASS,
+} from "@/app/projects/constants";
 import { projectService } from "@/lib/services/project.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
@@ -44,134 +49,137 @@ export default async function ProjectDetailPage({
   ]);
 
   return (
-    <div className="min-h-full w-full px-4 py-6 md:px-6">
-      <ProjectDetailHeader
-        projectName={project.name}
-        projectLogo={project.logo}
-        websiteUrl={project.websiteUrl}
-        backLabel={t("back")}
-        metadata={[
-          {
-            label: t("header.updated"),
-            value: formatShortDateTime(project.updatedAt, locale),
-          },
-          {
-            label: t("header.created"),
-            value: formatShortDateTime(project.createdAt, locale),
-          },
-        ]}
-        actions={
-          <ProjectDetailActions
-            projectId={project.id}
-            labels={{
-              moreActions: t("actions.moreActions"),
-              edit: t("actions.edit"),
-              delete: t("actions.delete"),
-              deleteDialog: {
-                title: t("deleteDialog.title"),
-                description: t("deleteDialog.description"),
-                confirm: t("deleteDialog.confirm"),
-                cancel: t("deleteDialog.cancel"),
-                error: t("errors.delete"),
-              },
-            }}
-          />
-        }
-      />
-
-      <ProjectBrandProvider
-        key={project.designMd?.url ?? "project-brand-empty"}
-        projectId={project.id}
-        initialDesignMd={project.designMd}
-        websiteUrl={project.websiteUrl}
-      >
-        <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
-          <div className="bg-muted/30 border-border/50 rounded-xl border p-4 xl:col-span-2">
-            <ProjectBriefing
-              title={t("briefing")}
-              briefing={project.briefing}
-              emptyLabel={t("emptyBriefing")}
-              emptyActionLabel={t("writeBriefing")}
-              editHref={`/projects/${project.id}/edit`}
-              editLabel={t("editBriefing")}
-              showMoreLabel={t("showMore")}
-              showLessLabel={t("showLess")}
-            />
-          </div>
-
-          <ProjectBrandCard
-            projectId={project.id}
-            projectName={project.name}
-            logo={project.logo}
-            websiteUrl={project.websiteUrl}
-          />
-
-          <div className="bg-muted/30 border-border/50 rounded-xl border p-4 xl:col-span-2">
-            <ProjectTasksSection
+    <div className={PROJECTS_DETAIL_SHELL_CLASS}>
+      <div className={PROJECTS_DETAIL_TOP_CLASS}>
+        <ProjectDetailHeader
+          projectName={project.name}
+          projectLogo={project.logo}
+          websiteUrl={project.websiteUrl}
+          backLabel={t("back")}
+          metadata={[
+            {
+              label: t("header.updated"),
+              value: formatShortDateTime(project.updatedAt, locale),
+            },
+            {
+              label: t("header.created"),
+              value: formatShortDateTime(project.createdAt, locale),
+            },
+          ]}
+          actions={
+            <ProjectDetailActions
               projectId={project.id}
-              tasks={projectTasksResult.tasks}
               labels={{
-                title: t("tasks.title"),
-                empty: t("tasks.empty"),
-                add: t("tasks.add"),
-                remove: t("tasks.remove"),
-                pickerTitle: t("tasks.pickerTitle"),
-                pickerDescription: t("tasks.pickerDescription"),
-                pickerSearchPlaceholder: t("tasks.pickerSearchPlaceholder"),
-                pickerEmpty: t("tasks.pickerEmpty"),
-                pickerLoading: t("tasks.pickerLoading"),
-                pickerError: t("tasks.pickerError"),
-                confirmRemove: t("actions.confirmRemoveTask"),
-                cancel: t("deleteDialog.cancel"),
-                errors: {
-                  add: t("errors.addTask"),
-                  remove: t("errors.removeTask"),
+                moreActions: t("actions.moreActions"),
+                edit: t("actions.edit"),
+                delete: t("actions.delete"),
+                deleteDialog: {
+                  title: t("deleteDialog.title"),
+                  description: t("deleteDialog.description"),
+                  confirm: t("deleteDialog.confirm"),
+                  cancel: t("deleteDialog.cancel"),
+                  error: t("errors.delete"),
                 },
               }}
             />
-          </div>
+          }
+        />
 
-          <ProjectMemoryRow
-            projectId={project.id}
-            contextMd={project.contextMd}
-            contextMdUpdating={project.contextMdUpdating}
-            memoryEnabled={project.memoryEnabled}
-            memoryModel={project.memoryModel}
-          />
+        <ProjectBrandProvider
+          key={project.designMd?.url ?? "project-brand-empty"}
+          projectId={project.id}
+          initialDesignMd={project.designMd}
+          websiteUrl={project.websiteUrl}
+        >
+          <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div className="bg-muted/30 border-border/50 rounded-none border p-4 md:rounded-xl xl:col-span-2">
+              <ProjectBriefing
+                title={t("briefing")}
+                briefing={project.briefing}
+                emptyLabel={t("emptyBriefing")}
+                emptyActionLabel={t("writeBriefing")}
+                editHref={`/projects/${project.id}/edit`}
+                editLabel={t("editBriefing")}
+                showMoreLabel={t("showMore")}
+                showLessLabel={t("showLess")}
+              />
+            </div>
 
-          <div className="bg-muted/30 border-border/50 rounded-xl border p-4 xl:col-span-3">
-            <ProjectJobsSection
+            <ProjectBrandCard
               projectId={project.id}
-              jobs={projectJobsResult.jobs}
-              labels={{
-                title: t("jobs.title"),
-                empty: t("jobs.empty"),
-                add: t("jobs.add"),
-                remove: t("jobs.remove"),
-                pickerTitle: t("jobs.pickerTitle"),
-                pickerDescription: t("jobs.pickerDescription"),
-                pickerSearchPlaceholder: t("jobs.pickerSearchPlaceholder"),
-                pickerEmpty: t("jobs.pickerEmpty"),
-                pickerLoading: t("jobs.pickerLoading"),
-                pickerError: t("jobs.pickerError"),
-                confirmRemove: t("actions.confirmRemoveJob"),
-                cancel: t("deleteDialog.cancel"),
-                untitled: t("jobs.untitled"),
-                errors: {
-                  add: t("errors.addJob"),
-                  remove: t("errors.removeJob"),
-                },
-              }}
+              projectName={project.name}
+              logo={project.logo}
+              websiteUrl={project.websiteUrl}
             />
-          </div>
-        </div>
-      </ProjectBrandProvider>
 
-      <section className="mt-6 space-y-3">
+            <div className="bg-muted/30 border-border/50 rounded-none border p-4 md:rounded-xl xl:col-span-2">
+              <ProjectTasksSection
+                projectId={project.id}
+                tasks={projectTasksResult.tasks}
+                labels={{
+                  title: t("tasks.title"),
+                  empty: t("tasks.empty"),
+                  add: t("tasks.add"),
+                  remove: t("tasks.remove"),
+                  pickerTitle: t("tasks.pickerTitle"),
+                  pickerDescription: t("tasks.pickerDescription"),
+                  pickerSearchPlaceholder: t("tasks.pickerSearchPlaceholder"),
+                  pickerEmpty: t("tasks.pickerEmpty"),
+                  pickerLoading: t("tasks.pickerLoading"),
+                  pickerError: t("tasks.pickerError"),
+                  confirmRemove: t("actions.confirmRemoveTask"),
+                  cancel: t("deleteDialog.cancel"),
+                  errors: {
+                    add: t("errors.addTask"),
+                    remove: t("errors.removeTask"),
+                  },
+                }}
+              />
+            </div>
+
+            <ProjectMemoryRow
+              projectId={project.id}
+              contextMd={project.contextMd}
+              contextMdUpdating={project.contextMdUpdating}
+              memoryEnabled={project.memoryEnabled}
+              memoryModel={project.memoryModel}
+            />
+
+            <div className="bg-muted/30 border-border/50 rounded-none border p-4 md:rounded-xl xl:col-span-3">
+              <ProjectJobsSection
+                projectId={project.id}
+                jobs={projectJobsResult.jobs}
+                labels={{
+                  title: t("jobs.title"),
+                  empty: t("jobs.empty"),
+                  add: t("jobs.add"),
+                  remove: t("jobs.remove"),
+                  pickerTitle: t("jobs.pickerTitle"),
+                  pickerDescription: t("jobs.pickerDescription"),
+                  pickerSearchPlaceholder: t("jobs.pickerSearchPlaceholder"),
+                  pickerEmpty: t("jobs.pickerEmpty"),
+                  pickerLoading: t("jobs.pickerLoading"),
+                  pickerError: t("jobs.pickerError"),
+                  confirmRemove: t("actions.confirmRemoveJob"),
+                  cancel: t("deleteDialog.cancel"),
+                  untitled: t("jobs.untitled"),
+                  errors: {
+                    add: t("errors.addJob"),
+                    remove: t("errors.removeJob"),
+                  },
+                }}
+              />
+            </div>
+          </div>
+        </ProjectBrandProvider>
+      </div>
+
+      <section className={PROJECTS_DETAIL_WORKSPACE_CLASS}>
         <h2 className="text-muted-foreground text-xs font-medium">
           {t("modules.title")}
         </h2>
         <ProjectModuleTiles
+          projectId={project.id}
           labels={{
             comingSoon: t("modules.comingSoon"),
             seo: {

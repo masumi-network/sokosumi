@@ -63,6 +63,9 @@
     "data-migration:better-auth-1-7-harvest": "tsx --env-file=../../apps/core/.env scripts/better-auth-1-7-harvest.ts",
     "data-migration:org-only-personal-workspaces": "tsx scripts/backfill-org-only-personal-workspaces.ts",
     "data-migration:member-period-credit-pool": "tsx scripts/transfer-member-period-credit-pool.ts",
+    "data-migration:org-period-idempotency-sentinels": "tsx scripts/backfill-org-period-idempotency-sentinels.ts",
+    "data-migration:delete-member-period-tombstones": "tsx scripts/delete-covered-member-period-tombstones.ts",
+    "data-migration:credit-bucket-owner-xor": "tsx scripts/reconcile-credit-bucket-owner-xor.ts",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest"
@@ -72,6 +75,7 @@
     "@prisma/client": "7.10.0",
     "@sokosumi/masumi": "workspace:*",
     "@sokosumi/utils": "workspace:*",
+    "neverthrow": "8.2.0",
     "pg": "8.23.0",
     "pg-pool": "3.14.0",
     "uuid": "14.0.2",

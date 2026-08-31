@@ -1,0 +1,33 @@
+name: OpenAPI pin drift
+
+# The generated masumi clients are built from committed snapshots in
+# packages/masumi/spec/, never from live URLs, so codegen stays deterministic
+# and spec changes arrive as reviewable diffs. The cost of that choice is that
+# a snapshot goes stale silently: info.version does not move on every release,
+# so the script's own version guard cannot see it. This job is what notices.
+#
+# Deliberately NOT a pull_request check. Drift is never caused by the PR under
+# review, and an upstream outage must not block merging.
+on:
+  schedule:
+    # Mondays 06:00 UTC, so drift is on the board at the start of the week.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    name: Check pinned OpenAPI snapshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Compare pinned snapshots against their deployments
+        run: pnpm --filter @sokosumi/masumi check:specs

@@ -96,6 +96,14 @@ _Avoid_: Inbox, activity feed (unless intentionally renaming the product surface
 A workspace- or account-level call to action that is not itself a notification, but may surface next to notifications in the Notification Center.
 _Avoid_: Notification (for this cue), banner (unless referring to a specific layout)
 
+**OS banner**:
+The operating-system alert shown for a Notification on a device, whether Sokosumi is open or closed.
+_Avoid_: Push notification (when meaning the banner itself), toast (toasts are in-app only), browser notification
+
+**Push opt-in**:
+A user's explicit consent to receive OS banners while Sokosumi is closed; one switch per user, with device registrations underneath.
+_Avoid_: Notification opt-in (that phrase gates email today), subscription (when meaning consent)
+
 ### Header identity
 
 **App chrome**:

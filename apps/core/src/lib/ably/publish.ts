@@ -59,6 +59,79 @@ interface NotificationEventData {
 interface PublishNotificationEventInput {
   userId: string;
   notification: NotificationEventData;
+  /** Also deliver as a closed-app OS banner (ADR-0022 channel-based push). */
+  push?: boolean;
+}
+
+/**
+ * The closed-app push payload the service worker receives. Data only, by
+ * design: the worker renders title, body, and destination, so Core ships no
+ * display strings (ADR-0023).
+ *
+ * Flat, and every value a string: Ably documents push `data` as a
+ * string-to-string map, and FCM's HTTP v1 API rejects nested JSON outright.
+ * The plain string fields stay tied to the event shape so the two cannot
+ * drift; the two structured fields are JSON-encoded for the worker to parse.
+ */
+interface NotificationPushData
+  extends Pick<
+    NotificationEventData,
+    "id" | "kind" | "referenceId" | "messageKey"
+  > {
+  messageParams: string;
+  /** Omitted, not null, when the notification carries no metadata. */
+  metadata?: string;
+}
+
+/**
+ * The longest string a single push parameter may carry.
+ *
+ * A display name has no server-side length limit: the 128 in the web form's
+ * schema is client-side only, and the column is unbounded text. The whole push
+ * payload rides a 4 KB Web Push ceiling, so one very long name would cost
+ * every recipient of that account's messages their banner.
+ *
+ * The values are capped rather than the encoded string, because a truncated
+ * JSON document does not parse and the worker would fall back to a generic
+ * banner instead of a shortened name. `metadata` is left alone: it carries
+ * ids Core generates, and truncating one would break routing silently.
+ */
+const MAX_PUSH_PARAM_LENGTH = 128;
+
+/** Codepoint-safe, so a cut never lands inside a surrogate pair. */
+function capPushParamValue(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const codePoints = [...value];
+  if (codePoints.length <= MAX_PUSH_PARAM_LENGTH) {
+    return value;
+  }
+
+  return codePoints.slice(0, MAX_PUSH_PARAM_LENGTH).join("");
+}
+
+function toNotificationPushData(
+  notification: NotificationEventData,
+): NotificationPushData {
+  return {
+    id: notification.id,
+    kind: notification.kind,
+    referenceId: notification.referenceId,
+    messageKey: notification.messageKey,
+    messageParams: JSON.stringify(
+      Object.fromEntries(
+        Object.entries(notification.messageParams).map(([key, value]) => [
+          key,
+          capPushParamValue(value),
+        ]),
+      ),
+    ),
+    ...(notification.metadata !== null && {
+      metadata: JSON.stringify(notification.metadata),
+    }),
+  };
 }
 
 export async function publishTaskEventData({
@@ -94,10 +167,17 @@ export async function publishJobStatusData({
 export async function publishNotificationEvent({
   userId,
   notification,
+  push = false,
 }: PublishNotificationEventInput) {
   const client = getRestClient();
   const channel = client.channels.get(makeUserNotificationsChannelName(userId));
-  await channel.publish("notification_created", notification);
+  await channel.publish({
+    name: "notification_created",
+    data: notification,
+    ...(push && {
+      extras: { push: { data: toNotificationPushData(notification) } },
+    }),
+  });
 }
 
 /** Patch body for high-chatter slices (SOK-737). */

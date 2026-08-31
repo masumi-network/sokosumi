@@ -217,13 +217,20 @@ export async function refundFailedTaskPaymentClaim(
       throw new Error(`Task payment claim ${claimId} has no debit to refund`);
     }
 
+    const actorUserId = claim.transaction.userId;
+    if (actorUserId === null) {
+      throw new Error(
+        `Task payment claim ${claimId} spend transaction is missing userId`,
+      );
+    }
+
     await tx.taskPaymentClaim.update({
       where: { id: claim.id },
       data: {
         refundTransaction: {
           create: buildCompensatingRefundTransactionCreate({
             amount: refundAmount,
-            actorUserId: claim.transaction.userId,
+            actorUserId,
             organizationId: claim.transaction.organizationId,
             referenceId: `task-payment:${claim.id}`,
           }),

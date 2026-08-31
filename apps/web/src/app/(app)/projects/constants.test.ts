@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_LAYOUT_CLASS,
+  PROJECTS_DETAIL_SHELL_CLASS,
+  PROJECTS_DETAIL_TOP_CLASS,
+  PROJECTS_DETAIL_WORKSPACE_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
+  PROJECTS_PAGE_SHELL_CLASS,
   UNASSIGNED_PROJECT_QUERY,
   unassignedWorkspaceJobsQuery,
   unassignedWorkspaceTasksQuery,
@@ -18,6 +24,41 @@ describe("projects list CLS layout constants", () => {
     expect(PROJECTS_LIST_ROW_LAYOUT_CLASS).toBe(
       "[content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     );
+    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toBe(
+      "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+    );
+    expect(PROJECTS_BROWSE_DIVIDE_CLASS).toBe("divide-border/50 divide-y px-2");
+    expect(PROJECTS_BROWSE_LAYOUT_CLASS).not.toContain("grid-cols-2");
+    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("rounded-none");
+    expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:rounded-xl");
+  });
+});
+
+describe("projects mobile padding shells", () => {
+  it("index shell is w-full inside main p-4 (no extra px-2 / -mx-4)", () => {
+    const tokens = PROJECTS_PAGE_SHELL_CLASS.split(/\s+/);
+    expect(tokens).toContain("w-full");
+    expect(tokens).not.toContain("px-2");
+    expect(tokens).not.toContain("-mx-4");
+    expect(tokens).not.toContain("px-4");
+    expect(PROJECTS_PAGE_SHELL_CLASS).not.toContain("calc(100%");
+  });
+
+  it("detail shell cancels main p-4 on both edges; workspace keeps mobile px-4", () => {
+    const shell = PROJECTS_DETAIL_SHELL_CLASS.split(/\s+/);
+    const workspace = PROJECTS_DETAIL_WORKSPACE_CLASS.split(/\s+/);
+
+    expect(shell).toContain("-mx-4");
+    expect(shell).toContain("w-[calc(100%+2rem)]");
+    expect(shell).toContain("md:mx-0");
+    expect(shell).toContain("md:w-full");
+    expect(shell).toContain("md:px-6");
+    expect(shell).not.toContain("px-4");
+    expect(shell).not.toContain("px-2");
+
+    expect(PROJECTS_DETAIL_TOP_CLASS).toBe("w-full");
+    expect(workspace).toContain("px-4");
+    expect(workspace).toContain("md:px-0");
   });
 });
 

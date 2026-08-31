@@ -314,13 +314,14 @@ export async function evaluateUserDeletion(
       transaction: { select: { userId: true } },
     },
   });
-  const foreignChargePayment = foreignChargeRow
-    ? {
-        id: foreignChargeRow.id,
-        taskId: foreignChargeRow.taskId,
-        chargedUserId: foreignChargeRow.transaction.userId,
-      }
-    : null;
+  const foreignChargePayment =
+    foreignChargeRow?.transaction.userId != null
+      ? {
+          id: foreignChargeRow.id,
+          taskId: foreignChargeRow.taskId,
+          chargedUserId: foreignChargeRow.transaction.userId,
+        }
+      : null;
   if (foreignChargePayment) {
     blockers.push("TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH");
   }

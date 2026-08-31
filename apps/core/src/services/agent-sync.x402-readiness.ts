@@ -119,7 +119,6 @@ function summarizeEmptyX402Readiness(
       defaultAssetDecimals: network.defaultAssetDecimals,
     })),
     usageLimited: spendCaps?.usageLimited ?? null,
-    grandfatheredUncapped: spendCaps?.grandfatheredUncapped ?? null,
     creditUnits: Array.from(spendCaps?.creditsByUnit ?? [])
       .slice(0, 20)
       .map(([unit, amount]) => ({ unit, hasRemaining: amount > 0n })),
@@ -350,25 +349,6 @@ export async function syncX402BuySideReadiness(
     });
   }
 
-  if (readySources.length > 0 && keySpendCaps?.grandfatheredUncapped) {
-    // The node grandfathers a usageLimited key that holds no eip155 credit
-    // row: it enforces NO x402 spend cap at all, so every pair recorded above
-    // is payable without a ceiling while the operator believes a cap is on.
-    // compose warns per pair, but a warn line is not a signal anyone watches,
-    // and the zero-pairs page below cannot cover this by construction: the
-    // whole point of this state is that there ARE ready pairs.
-    //
-    // Latched on the transition like that page, so a lasting misconfiguration
-    // does not spam; the per-pair warn log repeats every cycle regardless.
-    // Preview runs a deliberately non-admin key (SOK-860) and must not page.
-    if (readinessChanged && !isX402ReadinessPreviewDeploy()) {
-      Sentry.captureMessage(
-        "x402 buy-side readiness recorded payable pairs on an UNCAPPED payment-node API key. The key is usageLimited but holds no eip155 credit row, so the node grandfathers it and enforces no x402 spend cap: Soko will sign x402 payments with no ceiling. Grant credits for the listed units with PATCH /api/v1/api-key to make the intended cap real, or clear usageLimited on the key if uncapped is deliberate. The sync warn log names every affected pair",
-        "warning",
-      );
-    }
-  }
-
   if (readySources.length === 0) {
     console.warn(
       "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents stay unlisted and dynamic agents remain visible as non-payable previews",
@@ -393,7 +373,7 @@ export async function syncX402BuySideReadiness(
         // The likeliest new cause is an operator one, not an outage: a chain
         // whose `defaultAssetDecimals` is still null publishes no scale, and
         // an unpriceable asset is deliberately not recorded ready.
-        "x402 buy-side readiness reports no payable (network, asset) pair. Fixed-price x402 agents are hidden and dynamic agents are preview-only. Check four things. 1) The node publishes a confirmed defaultAssetDecimals for each enabled chain. 2) The chain is in this environment's CAIP-2 allowlist and its priced asset is in X402_TRUSTED_EXACT_EVM_DOMAINS (both in apps/core/src/helpers/x402-readiness.ts; the sync warn log names any untrusted pair). 3) Soko's key carries pay or admin permission and the node lists at least one Purchasing wallet it can reach on that chain, funded with native gas and the priced token (the sync warn log names the chain when the listing is empty or every wallet is unfunded). A read-only key can read the wallet listing but can never sign a payment, so Soko treats it as having no wallets at all. 4) If Soko's key is usage limited, it holds remaining credits for unit <caip2Network>:<asset> on that chain; grant them with PATCH /api/v1/api-key. A usage-limited key with NO eip155 credit row at all is grandfathered uncapped by the node and stays payable, so an operator who expected a cap there has not set one",
+        "x402 buy-side readiness reports no payable (network, asset) pair. Fixed-price x402 agents are hidden and dynamic agents are preview-only. Check four things. 1) The node publishes a confirmed defaultAssetDecimals for each enabled chain. 2) The chain is in this environment's CAIP-2 allowlist and its priced asset is in X402_TRUSTED_EXACT_EVM_DOMAINS (both in apps/core/src/helpers/x402-readiness.ts; the sync warn log names any untrusted pair). 3) Soko's key carries pay or admin permission and the node lists at least one Purchasing wallet it can reach on that chain, funded with native gas and the priced token (the sync warn log names the chain when the listing is empty or every wallet is unfunded). A read-only key can read the wallet listing but can never sign a payment, so Soko treats it as having no wallets at all. 4) If Soko's key is usage limited, it holds remaining credits for unit <caip2Network>:<asset> on that chain; grant them with PATCH /api/v1/api-key. A usage-limited key with NO eip155 credit row at all cannot pay on any chain: the node refuses every x402 payment it makes until one unit holds credit",
         "error",
       );
     }

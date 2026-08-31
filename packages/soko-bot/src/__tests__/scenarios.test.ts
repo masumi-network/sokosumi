@@ -20,8 +20,16 @@ function turn(overrides: Partial<SokoBotLabTurn>): SokoBotLabTurn {
   };
 }
 
-function call(capability: string): SokoBotLabTurn["toolCalls"][number] {
-  return { capability, status: "COMPLETED", result: null };
+function call(
+  capability: string,
+  result: unknown = null,
+): SokoBotLabTurn["toolCalls"][number] {
+  return { capability, status: "COMPLETED", result };
+}
+
+/** A schedule row as the tool returns it, naming the Task it watches. */
+function scheduleFor(taskId: string) {
+  return { id: "sch-1", prompt: `Check on task ${taskId} and nudge me.` };
 }
 
 const byId = (id: string): SokoBotScenario => {
@@ -120,7 +128,7 @@ describe("evaluateScenario", () => {
         toolCalls: [
           call("find_coworkers"),
           call("create_task"),
-          call("create_schedule"),
+          call("create_schedule", scheduleFor("task-1")),
         ],
         finalAnswer: "Created it and I'll check every weekday at 9.",
         delegations: [{ id: "d1", taskId: "task-1", jobId: null }],
@@ -158,6 +166,92 @@ describe("evaluateScenario", () => {
     expect(result.passed).toBe(result.total);
   });
 
+  it("accepts an existing daily schedule pointed at the new task", () => {
+    // Reusing the schedule the owner already has is a real follow-up, and a
+    // tidier one than a second daily check-in beside it.
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({
+        toolCalls: [
+          call("create_task"),
+          call("update_schedule", scheduleFor("task-1")),
+        ],
+        finalAnswer: "Created the brief and pointed your daily check at it.",
+        delegations: [{ id: "d1", taskId: "task-1", jobId: null }],
+      }),
+    );
+
+    expect(result.checks.filter((c) => !c.pass)).toEqual([]);
+  });
+
+  it("names the tool that failed rather than only listing it", () => {
+    // "No failed tool calls — assign_task" reads as an answer to the label.
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({
+        toolCalls: [
+          call("create_task"),
+          { ...call("assign_task"), status: "FAILED" },
+        ],
+      }),
+    );
+
+    const check = result.checks.find((c) => c.label === "No failed tool calls");
+    expect(check?.actual).toBe("assign_task failed");
+  });
+
+  it("says a tool was never called instead of printing the haystack", () => {
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({ toolCalls: [call("get_task_status")] }),
+    );
+
+    const check = result.checks.find((c) => c.label === "Calls create_task");
+    expect(check?.actual).toBe("never called — used get_task_status");
+  });
+
+  it("fails a schedule left pointing at some other task", () => {
+    // "Called a schedule tool" is not the same as following up on the brief:
+    // reusing yesterday's check-in without repointing it watches the wrong
+    // work and reads, from the outside, exactly like success.
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({
+        toolCalls: [
+          call("create_task"),
+          call("update_schedule", scheduleFor("some-older-task")),
+        ],
+        delegations: [{ id: "d1", taskId: "task-1", jobId: null }],
+      }),
+    );
+
+    const check = result.checks.find(
+      (c) => c.label === "Schedule names a task from this turn",
+    );
+    expect(check?.pass).toBe(false);
+    expect(check?.actual).toBe("schedule points somewhere else");
+  });
+
+  it("does not accept an id that merely sits inside a longer one", () => {
+    // "task-1" appearing within "task-10" is a different task, and reporting
+    // that schedule as correct is the failure this check exists to catch.
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({
+        toolCalls: [
+          call("create_task"),
+          call("update_schedule", scheduleFor("task-10")),
+        ],
+        delegations: [{ id: "d1", taskId: "task-1", jobId: null }],
+      }),
+    );
+
+    const check = result.checks.find(
+      (c) => c.label === "Schedule names a task from this turn",
+    );
+    expect(check?.pass).toBe(false);
+  });
+
   it("fails a bare promise to follow up without a schedule", () => {
     const result = evaluateScenario(
       byId("delegate-with-daily-checkin"),
@@ -169,7 +263,8 @@ describe("evaluateScenario", () => {
     );
     const failed = result.checks.filter((c) => !c.pass).map((c) => c.label);
     expect(failed).toEqual([
-      "Calls create_schedule",
+      "Calls one of create_schedule, update_schedule",
+      "Schedule names a task from this turn",
       "No follow-up promise without a schedule",
     ]);
   });

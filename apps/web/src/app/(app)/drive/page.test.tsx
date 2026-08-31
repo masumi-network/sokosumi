@@ -478,10 +478,12 @@ describe("DrivePage tasks mobile toolbar", () => {
     });
 
     expect(screen.getByRole("tab", { name: "recentsTab" })).toBeVisible();
-    expect(screen.getByRole("tab", { name: "Org A" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Org A" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+    });
   });
 
   it("places the tasks filter beside the mobile search input", async () => {

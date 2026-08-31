@@ -33,7 +33,9 @@ describe("refundJob", () => {
           create: {
             amount: bigint;
             organization?: { connect: { id: string } };
-            user: { connect: { id: string } };
+            organizationId?: string | null;
+            user?: { connect: { id: string } };
+            userId?: string | null;
             sourceCreditBucket: {
               create: {
                 expiresAt: Date | null;
@@ -52,8 +54,10 @@ describe("refundJob", () => {
 
     expect(updateCall.where.id).toBe("job-1");
     expect(updateCall.data.refundedTransaction.create.amount).toBe(500n);
-    expect(updateCall.data.refundedTransaction.create.user.connect.id).toBe(
-      "user-1",
+    expect(updateCall.data.refundedTransaction.create.user).toBeUndefined();
+    expect(updateCall.data.refundedTransaction.create.userId).toBeNull();
+    expect(updateCall.data.refundedTransaction.create.organizationId).toBe(
+      "org-1",
     );
     expect(
       updateCall.data.refundedTransaction.create.sourceCreditBucket.create
@@ -64,8 +68,8 @@ describe("refundJob", () => {
         .referenceType,
     ).toBe(CreditBucketReferenceType.REFUND);
     expect(
-      updateCall.data.refundedTransaction.create.organization?.connect.id,
-    ).toBe("org-1");
+      updateCall.data.refundedTransaction.create.organization,
+    ).toBeUndefined();
     expect(
       updateCall.data.refundedTransaction.create.sourceCreditBucket.create
         .userId,
@@ -109,12 +113,11 @@ describe("refundJob", () => {
       data: {
         refundedTransaction: {
           create: {
-            organization?: { connect: { id: string } };
-            user: { connect: { id: string } };
+            organizationId?: string | null;
+            userId?: string | null;
             sourceCreditBucket: {
               create: {
                 organizationId?: string | null;
-                user?: { connect: { id: string } };
                 userId?: string | null;
               };
             };
@@ -123,12 +126,10 @@ describe("refundJob", () => {
       };
     };
 
-    expect(updateCall.data.refundedTransaction.create.user.connect.id).toBe(
-      "user-1",
-    );
+    expect(updateCall.data.refundedTransaction.create.userId).toBe("user-1");
     expect(
-      updateCall.data.refundedTransaction.create.organization,
-    ).toBeUndefined();
+      updateCall.data.refundedTransaction.create.organizationId,
+    ).toBeNull();
     expect(
       updateCall.data.refundedTransaction.create.sourceCreditBucket.create
         .userId,

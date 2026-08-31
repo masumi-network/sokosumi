@@ -21,7 +21,7 @@ export interface GrantFreeCreditsParams {
   referenceNote: string | null;
   targetId: string;
   targetType: "user" | "organization";
-  transactionUserId: string;
+  transactionUserId: string | null;
 }
 
 export interface GrantFreeCreditsResult {
@@ -52,6 +52,21 @@ export async function grantFreeCredits(
     );
   }
 
+  if (params.targetType === "user" && params.transactionUserId === null) {
+    throw new GrantFreeCreditsError(
+      "User free credits require a transaction actor user id",
+    );
+  }
+
+  if (
+    params.targetType === "organization" &&
+    params.transactionUserId !== null
+  ) {
+    throw new GrantFreeCreditsError(
+      "Organization free credits must not stamp a transaction actor",
+    );
+  }
+
   const referenceId = buildFreeCreditReferenceId({
     grantId: params.grantId,
     targetId: params.targetId,
@@ -63,13 +78,8 @@ export async function grantFreeCredits(
   const transaction = await tx.transaction.create({
     data: {
       amount,
-      ...(params.organizationId && {
-        organization: {
-          connect: {
-            id: params.organizationId,
-          },
-        },
-      }),
+      organizationId: params.organizationId,
+      userId: params.transactionUserId,
       sourceCreditBucket: {
         create: {
           amount,
@@ -79,11 +89,6 @@ export async function grantFreeCredits(
           referenceNote: params.referenceNote,
           referenceType: CreditBucketReferenceType.FREE,
           userId: bucketUserId,
-        },
-      },
-      user: {
-        connect: {
-          id: params.transactionUserId,
         },
       },
     },

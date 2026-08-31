@@ -84,6 +84,7 @@ import type {
   RefundAdminTaskX402PaymentData,
   ResolveAdminTaskX402PaymentData,
   ResolveSokoBotDecisionRequest,
+  SokoBotLabIngestRequest,
   SokoBotVersionWrite,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
@@ -365,6 +366,7 @@ import {
   resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
   resolveMySokoBotDecision as coreResolveMySokoBotDecision,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
+  runMySokoBotLabIngest as coreRunMySokoBotLabIngest,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
   searchSokoBotIntegrationCatalog as coreSearchSokoBotIntegrationCatalog,
@@ -4035,6 +4037,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function runMySokoBotLabIngest(body: SokoBotLabIngestRequest) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreRunMySokoBotLabIngest({ client, body }),
+      "Failed to run the scenario",
+    );
+  }
+
   async function getMySokoBotStats() {
     return executeCoreOperation(
       getClient,
@@ -4976,6 +4986,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     judgeMySokoBotLabTurn,
     listMySokoBotLabRuns,
     getMySokoBotStats,
+    runMySokoBotLabIngest,
     getMySokoBotUsage,
     listMySokoBotIntegrations,
     searchSokoBotIntegrationCatalog,

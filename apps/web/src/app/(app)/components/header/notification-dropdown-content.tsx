@@ -98,7 +98,10 @@ export function NotificationDropdownContent({
     return (
       <>
         {accountNoticeSection}
-        <NotificationBrowserPermissionPrimer className="mx-2 mt-2" />
+        <NotificationBrowserPermissionPrimer
+          className="mx-2 mt-2"
+          onNavigate={onClose}
+        />
         <div className="flex flex-col items-center justify-center py-8">
           <div className="bg-muted size-12 animate-pulse rounded-full" />
           <div className="bg-muted mt-4 h-4 w-32 animate-pulse rounded" />
@@ -111,7 +114,10 @@ export function NotificationDropdownContent({
     return (
       <>
         {accountNoticeSection}
-        <NotificationBrowserPermissionPrimer className="mx-2 mt-2" />
+        <NotificationBrowserPermissionPrimer
+          className="mx-2 mt-2"
+          onNavigate={onClose}
+        />
         <div className="flex flex-col items-center gap-3 px-4 py-8">
           <p className="text-muted-foreground text-center text-sm">
             {t("fetchError")}
@@ -133,7 +139,10 @@ export function NotificationDropdownContent({
     return (
       <>
         {accountNoticeSection}
-        <NotificationBrowserPermissionPrimer className="mx-2 mt-2" />
+        <NotificationBrowserPermissionPrimer
+          className="mx-2 mt-2"
+          onNavigate={onClose}
+        />
         {notice === null ? (
           <div className="flex flex-col items-center justify-center py-8">
             <p className="text-muted-foreground text-sm">{t("emptyState")}</p>
@@ -165,7 +174,10 @@ export function NotificationDropdownContent({
         ) : null}
       </div>
       <DropdownMenuSeparator />
-      <NotificationBrowserPermissionPrimer className="mx-2 my-2" />
+      <NotificationBrowserPermissionPrimer
+        className="mx-2 my-2"
+        onNavigate={onClose}
+      />
       <div className="max-h-96 overflow-y-auto">
         {notifications.map((notification) => (
           <NotificationItem
