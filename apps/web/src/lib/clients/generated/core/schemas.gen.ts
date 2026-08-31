@@ -16441,6 +16441,36 @@ export const UpdateSokoBotVersionRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SokoBotLabIngestSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'turnId'
+    ]
+} as const;
+
+export const SokoBotLabIngestRequestSchema = {
+    type: 'object',
+    properties: {
+        beat: {
+            type: 'string',
+            enum: [
+                'standup',
+                'weekly-wrap',
+                'delta'
+            ]
+        }
+    },
+    required: [
+        'beat'
+    ]
+} as const;
+
 export const SokoBotLabTaskEventSchema = {
     type: 'object',
     properties: {
