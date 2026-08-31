@@ -364,7 +364,11 @@ describe("fetchDriveRecentsPage", () => {
       limit: 10,
       searchQuery: "report",
       cursorSecret: CURSOR_SECRET,
-      cursorBinding: { prefix: PREFIX, searchQuery: "report" },
+      cursorBinding: {
+        prefix: PREFIX,
+        searchQuery: "report",
+        sortFingerprint: "desc:none:asc",
+      },
       fetchTaskOutputs,
     });
 
@@ -596,7 +600,11 @@ describe("fetchDriveRecentsPage", () => {
       limit: 2,
       searchQuery: "pdf",
       cursorSecret: CURSOR_SECRET,
-      cursorBinding: { prefix: PREFIX, searchQuery: "pdf" },
+      cursorBinding: {
+        prefix: PREFIX,
+        searchQuery: "pdf",
+        sortFingerprint: "desc:none:asc",
+      },
       fetchTaskOutputs,
     });
 
