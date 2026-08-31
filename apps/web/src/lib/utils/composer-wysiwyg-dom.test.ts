@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  composerCaretScrollDelta,
   isInsideComposerProtectedContext,
   replaceComposerTextRange,
 } from "@/lib/utils/composer-wysiwyg-dom";
@@ -100,5 +101,51 @@ describe("replaceComposerTextRange", () => {
     expect(editor.textContent).not.toContain(":D");
 
     document.body.removeChild(editor);
+  });
+});
+
+describe("composerCaretScrollDelta", () => {
+  it("scrolls down when the caret sits below the content box", () => {
+    expect(
+      composerCaretScrollDelta({
+        caretTop: 183,
+        caretBottom: 200,
+        visibleTop: 14,
+        visibleBottom: 150,
+      }),
+    ).toBe(50);
+  });
+
+  it("scrolls up when the caret sits above the content box", () => {
+    expect(
+      composerCaretScrollDelta({
+        caretTop: 0,
+        caretBottom: 17,
+        visibleTop: 14,
+        visibleBottom: 150,
+      }),
+    ).toBe(-14);
+  });
+
+  it("does not scroll when the caret is fully inside the content box", () => {
+    expect(
+      composerCaretScrollDelta({
+        caretTop: 40,
+        caretBottom: 57,
+        visibleTop: 14,
+        visibleBottom: 150,
+      }),
+    ).toBe(0);
+  });
+
+  it("does not scroll when the caret is flush with the content bottom", () => {
+    expect(
+      composerCaretScrollDelta({
+        caretTop: 133,
+        caretBottom: 150,
+        visibleTop: 14,
+        visibleBottom: 150,
+      }),
+    ).toBe(0);
   });
 });

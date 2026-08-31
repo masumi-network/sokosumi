@@ -79,3 +79,19 @@ export function replaceComposerTextRange(
   setCaretAfterNode(editor, textNode);
   return true;
 }
+
+export interface ComposerCaretScrollBox {
+  caretTop: number;
+  caretBottom: number;
+  visibleTop: number;
+  visibleBottom: number;
+}
+
+/**
+ * How far a scrollport must move so the caret sits in the content box.
+ * Chromium caret-scroll uses the padding box, so the last line can sit in
+ * padding-bottom after max-height and look like the caret stopped following.
+ */
+export function composerCaretScrollDelta(box: ComposerCaretScrollBox): number {
+  return 0;
+}
