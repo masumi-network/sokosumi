@@ -92,7 +92,7 @@ const baseEnvSchema = z.object({
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /** Judge model for lab runs and per-turn quality scores (AI Gateway id). */
-  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("openai/gpt-5.5"),
+  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
   /** Score every completed turn with the judge model. */
   SOKO_BOT_TURN_JUDGE_ENABLED: z
     .enum(["true", "false"])
@@ -134,6 +134,11 @@ const baseEnvSchema = z.object({
     .default("deterministic"),
   SOKO_BOT_CREDITS_PER_USD: z.coerce.number().positive().default(100),
   SOKO_BOT_MIN_TURN_CREDITS: z.coerce.number().positive().default(0.1),
+  /** Most credits one hire may commit on a turn no owner asked for. */
+  SOKO_BOT_UNATTENDED_MAX_HIRE_CREDITS: z.coerce
+    .number()
+    .positive()
+    .default(50),
 
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),

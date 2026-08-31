@@ -32,7 +32,7 @@ export function UserProfileAvatar({
 
   const avatarContent = (
     <span className={cn("inline-flex", className)}>
-      <Avatar className={cn(sizeClass, "ring-background shrink-0 ring-2")}>
+      <Avatar className={cn(sizeClass, "shrink-0")}>
         {resolvedImage ? (
           <AvatarImage
             src={resolvedImage}

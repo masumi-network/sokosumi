@@ -6,11 +6,11 @@
 
 **Framework**: Next.js 16 App Router with React 19.2 Server Components
 **Location**: `apps/web/` directory within the pnpm workspace
-**Key Directories**: The live tree is `src/`. Conventions that still match: `src/app/` (routes), `src/components/` (Shadcn + Radix), `src/lib/` (three-layer services/actions/utils), `src/hooks/`, `src/contexts/`. Also `src/auth/`, `src/config/`, `src/i18n/`, `src/queries/`, `src/middleware/`.
+**Key Directories**: The live tree is `src/`. Conventions that still match: `src/app/` (routes), `src/components/` (Shadcn + Radix), `src/lib/` (three-layer services/actions/utils), `src/hooks/`, `src/contexts/`. Also `src/auth/`, `src/config/`, `src/i18n/`, `src/queries/`, `src/middleware/` (auth helpers). The Next.js 16 request interceptor is `src/proxy.ts` (`export async function proxy`), not `middleware.ts`.
 
 ## App Router Structure
 
-The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `share/`, `composio/`, `tasks/`, `maintenance`.
+The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `share/`, `tasks/`, `maintenance`.
 
 ## App-Specific Conventions
 

@@ -34,6 +34,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_chats",
   "read_chat",
   "post_chat",
+  "open_direct_chat",
   "list_files",
   "upload_file",
   "list_integrations",
@@ -72,6 +73,9 @@ const SCHEDULE_CAPABILITIES = [
 /** Writes into chat and the owner's Drive; not available on read-only routes. */
 const CHAT_FILE_WRITE_CAPABILITIES = [
   "post_chat",
+  // Starts a conversation with somebody who did not ask for one. A write in
+  // the plainest sense: it puts the bot in front of a colleague.
+  "open_direct_chat",
   "upload_file",
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.
@@ -91,6 +95,43 @@ export const SOKO_BOT_TEAMMATE_CAPABILITIES = [
   "get_task_status",
   "get_job_status",
 ] as const satisfies readonly SokoBotCapability[];
+
+/**
+ * A turn another assistant asked for: the teammate ceiling, and nothing more.
+ *
+ * A consulted assistant answers by finishing its turn — the reply is posted
+ * for it, in the room it was asked in. It gets no `post_chat`, which means it
+ * cannot summon a third assistant, so a chain is one hop deep by construction
+ * rather than by a counter. That also removes the only way it could post the
+ * same answer twice, and the only way a room id supplied by the asking bot
+ * could steer it somewhere its own owner cannot see.
+ *
+ * The cost is that A cannot ask B to go and consult C. That is deliberate: an
+ * assistant deciding on its own to involve another is the step with nobody in
+ * the room to notice it, and a person can always ask C directly.
+ */
+export const SOKO_BOT_BOT_TO_BOT_CAPABILITIES = [
+  ...SOKO_BOT_TEAMMATE_CAPABILITIES,
+] as const satisfies readonly SokoBotCapability[];
+
+/**
+ * Whether a hire exceeds what a turn nobody asked for may commit.
+ *
+ * A turn with no owner message is composed from untrusted material — mail
+ * subjects, calendar titles, task comments — and hiring is the one tool that
+ * buys from a marketplace outright. Text that talks its way onto that route
+ * must not be able to spend the balance in one go. The owner asking for a
+ * hire in their own chat is unaffected.
+ */
+export function exceedsUnattendedHireBudget(params: {
+  source: string | null;
+  chainDepth: number;
+  maxCredits: number;
+  ceiling: number;
+}): boolean {
+  const unattended = params.source !== "CHAT" || params.chainDepth > 0;
+  return unattended && params.maxCredits > params.ceiling;
+}
 
 export const SOKO_BOT_ROUTE_CAPABILITIES = {
   DIRECT_RESPONSE: [
@@ -157,35 +198,6 @@ export interface TurnClassification {
   requiresClarification: boolean;
   requiresApproval: boolean;
   proposedTaskBrief?: string;
-}
-
-const NEGATED_MUTATION_INTENT =
-  /\b(?:don't|do not|never|not yet|not now|wait before|hold off(?: on)?)\b.{0,80}\b(?:create|make|open|assign|delegate|hand off|hire|book|run|use|post|send|share|publish|reply|upload|write|save|file)\b/i;
-
-/** True when user explicitly says a mutation must not happen yet. */
-export function hasSokoBotNegatedMutationIntent(message: string): boolean {
-  return NEGATED_MUTATION_INTENT.test(message);
-}
-
-/**
- * Tools a negated instruction must also block. "Don't post this yet, just draft
- * it here" routes to DIRECT_RESPONSE, which grants chat, Drive, and connected
- * account writes; without this the model may do the very thing it was told not
- * to. Reads stay available so it can still answer.
- */
-const NEGATABLE_WRITE_CAPABILITIES = new Set<string>([
-  "post_chat",
-  "upload_file",
-  "run_integration_tool",
-  "create_schedule",
-  "update_schedule",
-  "delete_schedule",
-  "reply_to_task",
-  "update_assigned_task",
-]);
-
-export function isSokoBotNegatableWrite(capability: string): boolean {
-  return NEGATABLE_WRITE_CAPABILITIES.has(capability);
 }
 
 export function isSokoBotRoute(value: string): value is SokoBotRoute {

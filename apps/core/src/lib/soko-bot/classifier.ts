@@ -1,11 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import {
-  hasSokoBotNegatedMutationIntent,
   SOKO_BOT_ROUTES,
   type SokoBotRoute,
   type TurnClassification,
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
+
+import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 const CLASSIFIER_MODEL = "mistral/mistral-small";
 const CLASSIFIER_VERSION = "soko-bot-classifier-v1";
@@ -33,12 +34,28 @@ export interface ClassifierContextSummary {
   jobIds: readonly string[];
 }
 
+/**
+ * What one model call spent. Null when the deterministic rules answered and no
+ * call was made, which is the common case and costs nothing.
+ */
+export interface ClassifierUsage {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+}
+
 export interface ClassificationResult {
   classification: TurnClassification;
   model: string | null;
   version: string;
   latencyMs: number;
   failed: boolean;
+  /**
+   * Every turn that the deterministic rules do not catch pays for this call,
+   * and it used to be discarded here — so a bot's reported spend was short by
+   * one model call on most turns.
+   */
+  usage: ClassifierUsage | null;
 }
 
 export interface TurnClassifier {
@@ -88,15 +105,6 @@ export function classifyDeterministically(
     );
   }
 
-  if (hasSokoBotNegatedMutationIntent(normalized)) {
-    return baseClassification(
-      "DIRECT_RESPONSE",
-      message,
-      "Message explicitly says not to create, assign, or hire work.",
-      1,
-    );
-  }
-
   const hireSignal = includesAny(normalized, [
     /\bhire\b/,
     /\b(book|run|use)\b.{0,40}\b(agent|ai agent)\b/,
@@ -115,9 +123,37 @@ export function classifyDeterministically(
   // Saying something in chat or writing a file is the owner asking for an
   // action, not for clarification. Without this it fell through to CLARIFY,
   // which is read-only, so the bot could not do what it was plainly told.
+  // "Should we ping @alice, or wait?" is the owner thinking aloud, not an
+  // instruction. Treating it as one grants chat, Drive, schedule, and
+  // connected-account writes off a question that authorises nothing.
+  // "How do I get in touch with Nina?" is the same trap in the other mood:
+  // it asks the bot to explain a route, not to take it. These openings are
+  // never an instruction, where "can you reach out to Nina" is one.
+  const deliberating =
+    normalized.includes("?") &&
+    /^\s*(should|shall|do you think|would it|might we|is it worth|do i need|do we need|any thoughts|thoughts|how do i|how do we|how can i|how can we|what(?:'s| is) the best way|is there a way|what happens if)\b/.test(
+      normalized,
+    );
   const chatOrFileWriteSignal = includesAny(normalized, [
     /\b(post|send|reply|drop|leave)\b.{0,40}\b(message|note|update|reply|chat|room|channel|thread)\b/,
     /\b(write|save|upload|put|create)\b.{0,40}\b(file|note|document|doc|markdown|\.md|drive)\b/,
+    // Being told to go and speak to someone the message names with an @handle
+    // is a chat write, whatever verb it uses. Without this "ask @finn whether
+    // the copy is ready" fell through to CLARIFY, which is read-only, and the
+    // bot answered that it had no way to reach them — while holding the tool.
+    // The whitespace before @ is load-bearing: it separates a handle from the
+    // local part of an email address, so "cc finance@acme.com" stays a read.
+    /\b(ask|tell|check with|consult|ping|chase|follow up with|loop in)\b[^@]{0,60}\s@[a-z0-9][a-z0-9._-]*/,
+    // Being told to go and contact somebody, named or not. "Reach out to Nina
+    // and ask" carries no @handle, and without this it fell through to
+    // CLARIFY — read-only — where the bot reported it had no way to reach
+    // anyone while holding the tools to open a chat and post in it.
+    // Only phrasal verbs that cannot also be nouns: "contact", "message" and
+    // "dm" read as instructions in "contact details", "message board" and
+    // "DM settings are broken", which are questions, and answering them does
+    // not need chat or Drive writes. Capitalisation cannot rescue them either:
+    // "DM Settings are broken" opens exactly like "DM Nina the brief".
+    /\b(reach out to|get in touch with|drop a line to)\b\s+(?!me\b)[a-z@]/,
   ]);
   const manageSignal = includesAny(normalized, [
     /\b(status|progress|update|rundown|overview|reprioriti[sz]e|follow up|follow-up)\b.{0,50}\b(tasks?|jobs?|projects?|work)\b/,
@@ -148,7 +184,12 @@ export function classifyDeterministically(
       0.98,
     );
   }
-  if (chatOrFileWriteSignal && !delegateSignal && !hireSignal) {
+  if (
+    chatOrFileWriteSignal &&
+    !deliberating &&
+    !delegateSignal &&
+    !hireSignal
+  ) {
     return baseClassification(
       "DIRECT_RESPONSE",
       message,
@@ -230,6 +271,9 @@ export class ExternalTurnClassifier implements TurnClassifier {
     context: ClassifierContextSummary,
   ): Promise<ClassificationResult> {
     const startedAt = performance.now();
+    // Assigned by the model call below and reported whatever happens after it,
+    // including the parse failures and timeouts that still cost money.
+    let usage: ClassifierUsage | null = null;
     const deterministic = classifyDeterministically(message);
     if (deterministic) {
       return {
@@ -238,6 +282,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
         version: CLASSIFIER_VERSION,
         latencyMs: Math.round(performance.now() - startedAt),
         failed: false,
+        usage,
       };
     }
 
@@ -253,6 +298,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
         version: CLASSIFIER_VERSION,
         latencyMs: Math.round(performance.now() - startedAt),
         failed: false,
+        usage,
       };
     }
 
@@ -269,6 +315,13 @@ export class ExternalTurnClassifier implements TurnClassifier {
           allowedCandidates: context,
         }),
       });
+      // A failed call still burns tokens, so this is read before anything
+      // that can throw.
+      usage = {
+        inputTokens: result.usage?.inputTokens ?? 0,
+        outputTokens: result.usage?.outputTokens ?? 0,
+        costUsd: gatewayCostUsd(result.providerMetadata),
+      };
       const parsed = classificationSchema.parse(result.output);
       const proposedTaskBrief = parsed.proposedTaskBrief ?? undefined;
       const classification = constrainCandidateIds(
@@ -291,6 +344,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
           version: CLASSIFIER_VERSION,
           latencyMs: Math.round(performance.now() - startedAt),
           failed: false,
+          usage,
         };
       }
 
@@ -300,6 +354,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
         version: CLASSIFIER_VERSION,
         latencyMs: Math.round(performance.now() - startedAt),
         failed: false,
+        usage,
       };
     } catch (error) {
       // Fail closed, but never silently: a broken classifier turns every
@@ -319,6 +374,7 @@ export class ExternalTurnClassifier implements TurnClassifier {
         version: CLASSIFIER_VERSION,
         latencyMs: Math.round(performance.now() - startedAt),
         failed: true,
+        usage,
       };
     }
   }

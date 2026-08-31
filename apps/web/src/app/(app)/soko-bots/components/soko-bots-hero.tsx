@@ -30,7 +30,7 @@ function AvatarStack({
           key={avatar.id}
           src={avatar.imageUrl}
           alt=""
-          className="ring-background size-14 rounded-full object-cover ring-3 sm:size-16"
+          className="size-14 rounded-full object-cover sm:size-16"
         />
       ))}
       {seeds.map((seed) => (
@@ -39,7 +39,7 @@ function AvatarStack({
           seed={seed}
           size={128}
           alt=""
-          className="ring-background size-14 ring-3 sm:size-16"
+          className="size-14 sm:size-16"
         />
       ))}
     </span>

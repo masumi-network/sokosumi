@@ -71,18 +71,14 @@ export async function proactiveGate(
       createdAt: { gte: localDayStart(now, bot.ingestTimezone) },
       // Behaviour-lab turns are ours, not the owner's budget.
       clientTurnId: { not: { startsWith: "lab:" } },
+      // Only what the bot decided to do by itself. A teammate mentioning it in
+      // a shared room is a person asking a question, the same as the owner
+      // typing one, and does not draw on the allowance for unprompted work —
+      // but another bot mentioning it is a machine deciding, which is exactly
+      // what this allowance is for.
       OR: [
         { source: { in: ["SCHEDULE", "EVENT", "INGEST"] } },
-        // A teammate's mention spends the owner's credits as surely as a turn
-        // the bot starts itself, and chat imposes no limit of its own. Without
-        // this the teammate check compares against a counter its own turns
-        // never increment.
-        {
-          AND: [
-            { requestedByUserId: { not: null } },
-            { requestedByUserId: { not: bot.userId } },
-          ],
-        },
+        { chainDepth: { gt: 0 } },
       ],
     },
   });

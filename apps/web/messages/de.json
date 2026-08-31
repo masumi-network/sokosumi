@@ -1622,7 +1622,10 @@
         "feedbackThanks": "Danke, notiert.",
         "approvals": "{count, plural, one {# Freigabe wartet} other {# Freigaben warten}}",
         "review": "Auf der Assistenten-Seite prüfen",
-        "task": "Task"
+        "task": "Task",
+        "chainDepth": "Antwort {depth} von {max} zwischen Assistenten. Schreibt eine Person hier, beginnt die Zählung von vorn.",
+        "chainRoomRate": "{count} von {max} Assistenten-Nachrichten in diesem Raum in dieser Stunde.",
+        "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr."
       }
     },
     "Tasks": {
@@ -1778,7 +1781,8 @@
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
         "actorOrchestrator": "Orchestrator",
-        "actorOrchestratorWithOwner": "{assistant} · {owner}",
+        "actorOrchestratorWithOwner": "{assistant} · Assistent von {owner}",
+        "actorOrchestratorRole": "Persönlicher Assistent von {owner}",
         "actorSystem": "System",
         "originFromApp": "von {appName}",
         "channelApp": {
@@ -4006,7 +4010,11 @@
           "healthUnknown": "Zustand unbekannt",
           "checkedAt": "geprüft",
           "healthRuntimeVersion": "Health-Check-Runtime",
-          "sessionStatus": "Session-Status"
+          "sessionStatus": "Session-Status",
+          "usageCredits": "Verbrauchte Credits",
+          "usageTurns": "Durchläufe",
+          "usageTokens": "Tokens (rein / raus)",
+          "usageModelCost": "Modellkosten"
         },
         "Turns": {
           "title": "Turns",
@@ -4314,7 +4322,8 @@
           "neverRun": "Noch nicht ausgeführt.",
           "score": "{passed}/{total} Prüfungen bestanden",
           "startError": "Der Durchlauf konnte nicht gestartet werden.",
-          "timeout": "Der Durchlauf war nach 5 Minuten nicht fertig.",
+          "timeout": "Der Durchlauf wurde nicht innerhalb von 5 Minuten beendet. Durchlauf {turnId} — siehe seine Ereignisse auf der Admin-Seite des Bots.",
+          "noTurn": "Es wurde kein Durchlauf gestartet. Der Bot ist möglicherweise pausiert oder hat sein Tageslimit erreicht.",
           "version": "Version",
           "overviewModel": "Modell",
           "overviewSkills": "Skills",
@@ -6516,6 +6525,16 @@
           "ran": "lief {when}",
           "due": "fällig {when}",
           "overdue": "überfällig seit {when}"
+        },
+        "Usage": {
+          "title": "Nutzung",
+          "description": "Alles, was dieser Assistent seit seiner Erstellung verbraucht hat.",
+          "credits": "Verbrauchte Credits",
+          "turns": "in {count, plural, one {# Durchlauf} other {# Durchläufen}}",
+          "tokens": "Tokens",
+          "tokenSplit": "{input} rein · {output} raus",
+          "modelCost": "Modellkosten",
+          "modelCostHint": "Was die Tokens gekostet haben, vor dem Mindestbetrag pro Durchlauf"
         }
       },
       "Avatar": {

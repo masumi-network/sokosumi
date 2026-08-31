@@ -322,6 +322,7 @@ export type AdminSokoBotDetail = SokoBot & {
     memoryRevisions: Array<SokoBotMemory>;
     adminActions: Array<SokoBotAdminAction>;
     runtimeHealth: SokoBotRuntimeHealth;
+    usage: SokoBotUsage;
 };
 
 export type SokoBotMemory = {
@@ -584,6 +585,18 @@ export type SokoBotRuntimeHealth = {
     checkedAt: Date;
     errorKind: string | null;
 } | null;
+
+export type SokoBotUsage = {
+    turns: number;
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    totalTokens: number;
+    costUsd: number;
+    billableCostUsd: number;
+    credits: number;
+};
 
 export type SokoBot = {
     id: string;
@@ -4823,6 +4836,7 @@ export type SokoBotLabTaskEvent = {
     taskId: string;
     name: string;
     status: string;
+    turnId: string;
 };
 
 export type SimulateSokoBotTaskEventRequest = {
@@ -30903,6 +30917,76 @@ export type CreateMySokoBotResponses = {
 };
 
 export type CreateMySokoBotResponse = CreateMySokoBotResponses[keyof CreateMySokoBotResponses];
+
+export type GetMySokoBotUsageData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/usage';
+};
+
+export type GetMySokoBotUsageErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetMySokoBotUsageError = GetMySokoBotUsageErrors[keyof GetMySokoBotUsageErrors];
+
+export type GetMySokoBotUsageResponses = {
+    /**
+     * Lifetime usage and cost
+     */
+    200: {
+        data: SokoBotUsage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetMySokoBotUsageResponse = GetMySokoBotUsageResponses[keyof GetMySokoBotUsageResponses];
 
 export type DeleteMySokoBotPermanentlyData = {
     body?: never;

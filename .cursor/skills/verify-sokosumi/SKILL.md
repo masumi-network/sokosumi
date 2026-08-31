@@ -91,6 +91,7 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 # or: … sign-in --method vault    # skip fixtures; coworker profile
 # or: … sign-in --method cookie   # fixture cookie bootstrap only
 # or: … sign-in --method ui       # fixture UI only (signin-submit proof)
+# doctor / sign-in alias SESSION_NAME → AGENT_BROWSER_SESSION when unset
 ```
 
 Artifacts land under `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `after-login.png`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). Cookie-only unlocks later features — for `signin-submit` proof, require `method=ui`. Vault unlocks the map on coworker/shared Neon; it is not fixture `signin-submit` proof.
@@ -105,6 +106,10 @@ Session reuse:
 
 ```bash
 export AGENT_BROWSER_SESSION_NAME=sokosumi
+# agent-browser 0.35+ isolates on AGENT_BROWSER_SESSION; the harness aliases
+# SESSION_NAME → SESSION when SESSION is unset. Prefer both, or rely on
+# `verify-sokosumi sign-in` / doctor to export the alias.
+export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-$AGENT_BROWSER_SESSION_NAME}"
 ```
 
 Stable auth selectors: `[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`, `[data-testid="auth-submit"]`.
@@ -165,7 +170,7 @@ Executable: `.cursor/skills/verify-sokosumi/bin/verify-sokosumi`
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi cleanup
 ```
 
-Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `pnpm portless:url web` / `core`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `VERIFY_SOKOSUMI_VAULT_PROFILE`.
+Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `pnpm portless:url web` / `core`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `VERIFY_SOKOSUMI_VAULT_PROFILE`. `AGENT_BROWSER_SESSION_NAME` (preferred `sokosumi`) is aliased to `AGENT_BROWSER_SESSION` when the latter is unset.
 
 `sign-in` / doctor UI paths auto-export `AGENT_BROWSER_ARGS=--ignore-certificate-errors` for HTTPS named URLs when unset (Chromium on Linux often rejects the portless CA). Override with your own `AGENT_BROWSER_ARGS` if needed — the helper appends the flag when missing.
 

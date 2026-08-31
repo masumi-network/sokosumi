@@ -6,17 +6,21 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 const {
+  requireCoworkerCapabilityMock,
   taskFindManyMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
   userFindUniqueMock,
+  vendorGrantFindUniqueMock,
   workspaceFindUniqueMock,
   resolveMemberOrganizationByIdMock,
 } = vi.hoisted(() => ({
+  requireCoworkerCapabilityMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
+  vendorGrantFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
 }));
@@ -33,6 +37,10 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
   },
 }));
 
+vi.mock("@/helpers/access-control", () => ({
+  requireCoworkerCapability: requireCoworkerCapabilityMock,
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     task: { findMany: taskFindManyMock },
@@ -41,6 +49,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: taskScheduleOccurrenceFindManyMock,
     },
     user: { findUnique: userFindUniqueMock },
+    vendorGrant: { findUnique: vendorGrantFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
   },
 }));
@@ -72,12 +81,25 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "coworker_123",
-  vendorId: "vendor_123",
+  vendorId: "01960001-0001-7001-8001-000000000001",
   context: {
     userId: "user_123",
     organizationId: null,
   },
 };
+
+const COWORKER_SIBLING_LIST_FILTER = {
+  status: { not: TaskStatus.DRAFT },
+  OR: [
+    { assigneeId: "coworker_123" },
+    {
+      assigneeId: { not: "coworker_123" },
+      assignee: {
+        vendorId: "01960001-0001-7001-8001-000000000001",
+      },
+    },
+  ],
+} as const;
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const FROM = "2026-06-01T00:00:00.000Z";
@@ -147,7 +169,9 @@ describe("GET /workspaces/{id}/calendar", () => {
     taskFindManyMock.mockReset();
     taskScheduleOccurrenceCountMock.mockReset();
     taskScheduleOccurrenceFindManyMock.mockReset();
+    requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
+    vendorGrantFindUniqueMock.mockResolvedValue(null);
     taskFindManyMock.mockResolvedValue([]);
     taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
@@ -292,6 +316,68 @@ describe("GET /workspaces/{id}/calendar", () => {
 
     expect(response.status).toBe(403);
     expect(taskFindManyMock).not.toHaveBeenCalled();
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("scopes calendar occurrences to coworker task access inside the active workspace", async () => {
+    const response = await requestCalendar(
+      createApp(COWORKER_AUTH_CONTEXT, WORKSPACE_ID),
+    );
+
+    expect(response.status).toBe(200);
+    expect(requireCoworkerCapabilityMock).toHaveBeenCalledWith(
+      "coworker_123",
+      "tasks",
+    );
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          seriesTask: {
+            AND: [COWORKER_SIBLING_LIST_FILTER],
+          },
+        }),
+      }),
+    );
+    expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        seriesTask: {
+          AND: [COWORKER_SIBLING_LIST_FILTER],
+        },
+      }),
+    });
+  });
+
+  it("lets a granted coworker read non-draft workspace occurrences", async () => {
+    vendorGrantFindUniqueMock.mockResolvedValue({ status: "GRANTED" });
+
+    const response = await requestCalendar(
+      createApp(COWORKER_AUTH_CONTEXT, WORKSPACE_ID),
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          seriesTask: {
+            AND: [{ status: { not: TaskStatus.DRAFT } }],
+          },
+        }),
+      }),
+    );
+  });
+
+  it("rejects a coworker without the tasks capability before reading calendar data", async () => {
+    requireCoworkerCapabilityMock.mockRejectedValue(
+      new HTTPException(403, {
+        message: "Coworker is not allowed to use tasks",
+      }),
+    );
+
+    const response = await requestCalendar(
+      createApp(COWORKER_AUTH_CONTEXT, WORKSPACE_ID),
+    );
+
+    expect(response.status).toBe(403);
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 

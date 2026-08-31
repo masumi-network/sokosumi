@@ -1,6 +1,6 @@
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { shortId } from "@/components/soko-bot/format";
+
 import { MetaGrid } from "@/components/soko-bot/meta-grid";
 import { Panel } from "@/components/soko-bot/panel";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
@@ -15,6 +15,8 @@ export async function AdminSokoBotOverview({ bot }: AdminSokoBotOverviewProps) {
     getTranslations("App.Admin.SokoBots.Overview"),
     getFormatter(),
   ]);
+  // The request's locale, like every other number on this page.
+  const numbers = (value: number) => format.number(value);
   const dateTime = (date: Date | null | undefined) =>
     date
       ? format.dateTime(date, { dateStyle: "medium", timeStyle: "short" })
@@ -123,6 +125,30 @@ export async function AdminSokoBotOverview({ bot }: AdminSokoBotOverviewProps) {
                   bot.personalityStyle !== null
                     ? `${bot.personalityTone ?? "–"} / ${bot.personalityDetail ?? "–"} / ${bot.personalityStyle ?? "–"}`
                     : null,
+              },
+              // Everything the bot has spent. Credits are what the owner was
+              // charged; the model cost is what the tokens actually cost,
+              // including the classifier and judge calls that are not billed.
+              {
+                label: t("usageCredits"),
+                value: numbers(bot.usage.credits),
+              },
+              {
+                label: t("usageTurns"),
+                value: numbers(bot.usage.turns),
+              },
+              {
+                label: t("usageTokens"),
+                value: `${numbers(bot.usage.totalTokens)} (${numbers(bot.usage.inputTokens)} / ${numbers(bot.usage.outputTokens)})`,
+              },
+              {
+                label: t("usageModelCost"),
+                value: format.number(bot.usage.costUsd, {
+                  style: "currency",
+                  currency: "USD",
+                  maximumFractionDigits: 4,
+                }),
+                mono: true,
               },
             ]}
           />

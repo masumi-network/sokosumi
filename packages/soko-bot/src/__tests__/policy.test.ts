@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  hasSokoBotNegatedMutationIntent,
-  isSokoBotNegatableWrite,
+  exceedsUnattendedHireBudget,
+  SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
 } from "../policy.js";
+import {
+  applyVersionCapabilities,
+  DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotVersion,
+} from "../versions/index.js";
 
 describe("Soko Bot route capability ceilings", () => {
   it("keeps ambiguous routes read-only", () => {
@@ -75,26 +80,113 @@ describe("Soko Bot route capability ceilings", () => {
       expect(clarify).toContain(capability);
     }
   });
+});
 
-  it("treats an explicit refusal as covering chat, Drive and account writes", () => {
-    // DIRECT_RESPONSE still grants these, so the refusal has to be enforced at
-    // the tool rather than only by the route.
-    expect(
-      hasSokoBotNegatedMutationIntent(
-        "Don't post this to the launch channel; just draft it here",
-      ),
-    ).toBe(true);
-    expect(
-      hasSokoBotNegatedMutationIntent("Do not upload anything to Drive yet"),
-    ).toBe(true);
-    for (const capability of [
+describe("bot-to-bot ceiling", () => {
+  it("can answer, and can do nothing else a teammate could not", () => {
+    // Without post_chat a bot could be summoned but never reply, so a chain
+    // could never reach its second hop.
+    // A consulted assistant answers by finishing its turn; the reply is posted
+    // for it. With no post_chat it cannot summon a third assistant, so a chain
+    // is one hop deep by construction rather than by a counter — and it cannot
+    // post the same answer twice, or be steered into another room.
+    expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[]).not.toContain(
       "post_chat",
-      "upload_file",
-      "run_integration_tool",
+    );
+    expect([...SOKO_BOT_BOT_TO_BOT_CAPABILITIES].sort()).toEqual(
+      [...SOKO_BOT_TEAMMATE_CAPABILITIES].sort(),
+    );
+  });
+
+  it("cannot be widened back by an authored version", () => {
+    // The depth-1 bound rests on this: applyVersionCapabilities filters and
+    // never adds, so no authored allowlist can hand post_chat back to a turn
+    // another assistant started.
+    const widened = applyVersionCapabilities(
+      {
+        ...getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
+        capabilities: ["post_chat", "list_chats", "refresh_context"],
+      },
+      [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES],
+    );
+    expect(widened).not.toContain("post_chat");
+    expect(widened).not.toContain("list_chats");
+  });
+
+  it("keeps the owner's private surfaces unreadable", () => {
+    for (const ownerPrivate of [
+      "read_memory",
+      "search_inbox",
+      "read_email",
+      "list_calendar_events",
+      "list_files",
+      "read_chat",
+      "hire_agent",
+      "create_task",
     ]) {
-      expect(isSokoBotNegatableWrite(capability)).toBe(true);
+      expect(
+        SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[],
+      ).not.toContain(ownerPrivate);
     }
-    expect(isSokoBotNegatableWrite("read_chat")).toBe(false);
-    expect(isSokoBotNegatableWrite("list_files")).toBe(false);
+  });
+});
+
+describe("exceedsUnattendedHireBudget", () => {
+  const ceiling = 50;
+
+  it("lets the owner commit whatever they ask for in their own chat", () => {
+    expect(
+      exceedsUnattendedHireBudget({
+        source: "CHAT",
+        chainDepth: 0,
+        maxCredits: 5_000,
+        ceiling,
+      }),
+    ).toBe(false);
+  });
+
+  it("caps a turn composed from untrusted mail", () => {
+    expect(
+      exceedsUnattendedHireBudget({
+        source: "INGEST",
+        chainDepth: 0,
+        maxCredits: 51,
+        ceiling,
+      }),
+    ).toBe(true);
+    expect(
+      exceedsUnattendedHireBudget({
+        source: "INGEST",
+        chainDepth: 0,
+        maxCredits: 50,
+        ceiling,
+      }),
+    ).toBe(false);
+  });
+
+  it("is a budget for the whole turn, not a limit per call", () => {
+    // Compared call by call, an unattended turn could issue one hire per tool
+    // call and commit many times the intended rail; callers pass the running
+    // total, so a second hire is measured against what the first committed.
+    expect(
+      exceedsUnattendedHireBudget({
+        source: "INGEST",
+        chainDepth: 0,
+        maxCredits: 40 + 40,
+        ceiling,
+      }),
+    ).toBe(true);
+  });
+
+  it("treats a chat turn another assistant started as unattended", () => {
+    // The message arrives on the CHAT source, but no person wrote it.
+    expect(
+      exceedsUnattendedHireBudget({
+        source: "CHAT",
+        chainDepth: 1,
+        maxCredits: 51,
+        ceiling,
+      }),
+    ).toBe(true);
   });
 });

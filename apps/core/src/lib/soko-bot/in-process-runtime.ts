@@ -16,9 +16,9 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { generateText, stepCountIs, type ToolSet, tool } from "ai";
-
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
@@ -200,18 +200,6 @@ class RuntimeEventLog {
       }
     }
   }
-}
-
-/** AI Gateway reports per-call cost in provider metadata; absent means unpriced. */
-function gatewayCostUsd(metadata: unknown): number {
-  if (!metadata || typeof metadata !== "object") return 0;
-  const gateway = (metadata as Record<string, unknown>).gateway;
-  if (!gateway || typeof gateway !== "object") return 0;
-  const cost = (gateway as Record<string, unknown>).cost;
-  const parsed = typeof cost === "string" ? Number(cost) : cost;
-  return typeof parsed === "number" && Number.isFinite(parsed) && parsed > 0
-    ? parsed
-    : 0;
 }
 
 /** Runs one turn to completion, recording everything the drain needs. */

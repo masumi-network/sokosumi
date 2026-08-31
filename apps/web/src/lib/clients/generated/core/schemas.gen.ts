@@ -1412,6 +1412,9 @@ export const AdminSokoBotDetailSchema = {
                 },
                 runtimeHealth: {
                     $ref: '#/components/schemas/SokoBotRuntimeHealth'
+                },
+                usage: {
+                    $ref: '#/components/schemas/SokoBotUsage'
                 }
             },
             required: [
@@ -1426,7 +1429,8 @@ export const AdminSokoBotDetailSchema = {
                 'turns',
                 'memoryRevisions',
                 'adminActions',
-                'runtimeHealth'
+                'runtimeHealth',
+                'usage'
             ]
         }
     ]
@@ -2629,6 +2633,59 @@ export const SokoBotRuntimeHealthSchema = {
         'sessionStatus',
         'checkedAt',
         'errorKind'
+    ]
+} as const;
+
+export const SokoBotUsageSchema = {
+    type: 'object',
+    properties: {
+        turns: {
+            type: 'integer',
+            minimum: 0
+        },
+        inputTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        outputTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        cacheReadTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        cacheWriteTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        totalTokens: {
+            type: 'integer',
+            minimum: 0
+        },
+        costUsd: {
+            type: 'number',
+            minimum: 0
+        },
+        billableCostUsd: {
+            type: 'number',
+            minimum: 0
+        },
+        credits: {
+            type: 'number',
+            minimum: 0
+        }
+    },
+    required: [
+        'turns',
+        'inputTokens',
+        'outputTokens',
+        'cacheReadTokens',
+        'cacheWriteTokens',
+        'totalTokens',
+        'costUsd',
+        'billableCostUsd',
+        'credits'
     ]
 } as const;
 
@@ -16396,12 +16453,17 @@ export const SokoBotLabTaskEventSchema = {
         },
         status: {
             type: 'string'
+        },
+        turnId: {
+            type: 'string',
+            format: 'uuid'
         }
     },
     required: [
         'taskId',
         'name',
-        'status'
+        'status',
+        'turnId'
     ]
 } as const;
 

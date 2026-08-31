@@ -7,6 +7,8 @@ const {
   botFindFirstMock,
   botFindUniqueMock,
   chatRoomFindFirstMock,
+  chatRoomDeleteManyMock,
+  chatRoomUserMemberFindFirstMock,
   workspaceFindUniqueMock,
   chatRoomFindManyMock,
   chatMessageFindManyMock,
@@ -57,6 +59,17 @@ const {
   transactionWorkspaceFindFirstMock,
   transactionMock,
   turnFindUniqueMock,
+  transactionChatMessageCreateMock,
+  transactionChatMentionCreateManyMock,
+  transactionChatRoomUpdateMock,
+  chatCoworkerMemberFindManyMock,
+  chatMessageCountMock,
+  memberFindManyMock,
+  toolCallCountMock,
+  createOrGetDirectRoomMock,
+  mentionFindManyMock,
+  dispatchChatRoomMentionMock,
+  serializableTransactionMock,
   turnUpdateManyMock,
   workspaceFindFirstMock,
   availabilityMock,
@@ -64,6 +77,8 @@ const {
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
+  chatRoomDeleteManyMock: vi.fn(),
+  chatRoomUserMemberFindFirstMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   chatRoomFindManyMock: vi.fn(),
   chatMessageFindManyMock: vi.fn(),
@@ -114,6 +129,17 @@ const {
   transactionWorkspaceFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
+  transactionChatMessageCreateMock: vi.fn(),
+  transactionChatMentionCreateManyMock: vi.fn(),
+  transactionChatRoomUpdateMock: vi.fn(),
+  chatCoworkerMemberFindManyMock: vi.fn(),
+  chatMessageCountMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
+  toolCallCountMock: vi.fn(),
+  createOrGetDirectRoomMock: vi.fn(),
+  mentionFindManyMock: vi.fn(),
+  dispatchChatRoomMentionMock: vi.fn(),
+  serializableTransactionMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   availabilityMock: vi.fn(),
@@ -134,8 +160,14 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoom: {
       findFirst: chatRoomFindFirstMock,
       findMany: chatRoomFindManyMock,
+      deleteMany: chatRoomDeleteManyMock,
     },
-    chatRoomMessage: { findMany: chatMessageFindManyMock },
+    chatRoomUserMember: { findFirst: chatRoomUserMemberFindFirstMock },
+    chatRoomMessage: {
+      findMany: chatMessageFindManyMock,
+      count: chatMessageCountMock,
+    },
+    chatRoomCoworkerMember: { findMany: chatCoworkerMemberFindManyMock },
     sokoBotContextSnapshot: { findFirst: contextSnapshotFindFirstMock },
     sokoBotDelegation: {
       create: delegationCreateMock,
@@ -153,6 +185,7 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: turnUpdateManyMock,
     },
     sokoBotToolCall: {
+      count: toolCallCountMock,
       create: toolCallCreateMock,
       findUnique: toolCallFindUniqueMock,
       update: toolCallUpdateMock,
@@ -169,50 +202,72 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: workspaceFindFirstMock,
       findUnique: workspaceFindUniqueMock,
     },
+    member: { findMany: memberFindManyMock },
   },
 }));
 vi.mock("@/lib/db/transaction", () => ({
-  serializableTransaction: vi.fn(async (operation) =>
-    operation({
-      $queryRaw: transactionTurnLockMock,
-      sokoBot: {
-        findFirst: transactionBotFindFirstMock,
-        findUniqueOrThrow: transactionBotFindUniqueOrThrowMock,
-        update: transactionBotUpdateMock,
-        updateMany: transactionBotUpdateManyMock,
-      },
-      sokoBotMemoryRevision: {
-        create: transactionMemoryRevisionCreateMock,
-        findUnique: transactionMemoryRevisionFindUniqueMock,
-      },
-      sokoBotDelegation: {
-        create: delegationCreateMock,
-        update: delegationUpdateMock,
-        updateMany: transactionDelegationUpdateManyMock,
-      },
-      sokoBotPendingDecision: {
-        create: transactionDecisionCreateMock,
-        findFirst: transactionDecisionFindFirstMock,
-      },
-      sokoBotToolCall: {
-        count: transactionToolCallCountMock,
-        create: transactionToolCallCreateMock,
-        findUnique: transactionToolCallFindUniqueMock,
-        update: transactionToolCallUpdateMock,
-      },
-      project: { findFirst: transactionProjectFindFirstMock },
-      workspace: { findFirst: transactionWorkspaceFindFirstMock },
-      sokoBotTurn: {
-        findFirst: transactionTurnFindFirstMock,
-        updateMany: transactionTurnUpdateManyMock,
-      },
-      task: {
-        create: transactionTaskCreateMock,
-        findFirst: transactionTaskFindFirstMock,
-        update: transactionTaskUpdateMock,
-      },
-    }),
+  serializableTransaction: serializableTransactionMock.mockImplementation(
+    async (operation) =>
+      operation({
+        $queryRaw: transactionTurnLockMock,
+        sokoBot: {
+          findFirst: transactionBotFindFirstMock,
+          findUniqueOrThrow: transactionBotFindUniqueOrThrowMock,
+          update: transactionBotUpdateMock,
+          updateMany: transactionBotUpdateManyMock,
+        },
+        sokoBotMemoryRevision: {
+          create: transactionMemoryRevisionCreateMock,
+          findUnique: transactionMemoryRevisionFindUniqueMock,
+        },
+        sokoBotDelegation: {
+          create: delegationCreateMock,
+          update: delegationUpdateMock,
+          updateMany: transactionDelegationUpdateManyMock,
+        },
+        sokoBotPendingDecision: {
+          create: transactionDecisionCreateMock,
+          findFirst: transactionDecisionFindFirstMock,
+        },
+        sokoBotToolCall: {
+          count: transactionToolCallCountMock,
+          create: transactionToolCallCreateMock,
+          findUnique: transactionToolCallFindUniqueMock,
+          update: transactionToolCallUpdateMock,
+        },
+        project: { findFirst: transactionProjectFindFirstMock },
+        workspace: { findFirst: transactionWorkspaceFindFirstMock },
+        sokoBotTurn: {
+          findFirst: transactionTurnFindFirstMock,
+          updateMany: transactionTurnUpdateManyMock,
+        },
+        task: {
+          create: transactionTaskCreateMock,
+          findFirst: transactionTaskFindFirstMock,
+          update: transactionTaskUpdateMock,
+        },
+        chatRoomMessage: { create: transactionChatMessageCreateMock },
+        chatRoomMention: {
+          createMany: transactionChatMentionCreateManyMock,
+          findMany: mentionFindManyMock,
+        },
+        chatRoom: { update: transactionChatRoomUpdateMock },
+      }),
   ),
+}));
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    void promise;
+  },
+}));
+vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
+  dispatchChatRoomMention: dispatchChatRoomMentionMock,
+}));
+vi.mock("@/routes/v1/chats/rooms/helpers", async (importOriginal) => ({
+  // Only room creation is stubbed; post_chat still needs the real mention
+  // resolver, and stubbing that would have hidden what it actually matches.
+  ...(await importOriginal<object>()),
+  createOrGetDirectRoom: createOrGetDirectRoomMock,
 }));
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
@@ -238,6 +293,10 @@ vi.mock("@sokosumi/masumi", () => ({
   createAgentClient: createAgentClientMock,
 }));
 
+import {
+  MAX_CHAT_CHAIN_DEPTH,
+  ROOM_BOT_MESSAGES_PER_HOUR,
+} from "@/lib/soko-bot/chat-chain";
 import {
   isSokoBotDecisionTargetAllowed,
   SokoBotRuntimeAuthorizationError,
@@ -409,6 +468,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("denies capability execution after cancellation is requested", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -441,6 +501,7 @@ describe("SokoBotRuntimeService authorization", () => {
     // Dropping these silently made every turn resolve the default version and
     // meant self-started turns could not be told apart from owner turns.
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -474,6 +535,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("denies Context reads while cancellation settles", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -503,6 +565,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("does not attach a pending Eve session after administrator PAUSE wins", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -555,6 +618,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("atomically attaches an eligible pending Eve session to turn and bot", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -618,6 +682,7 @@ describe("SokoBotRuntimeService authorization", () => {
     // Both requests optimistically read null. This request then waits for the
     // first request's transaction and reloads the exact same bound session.
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -664,6 +729,7 @@ describe("SokoBotRuntimeService authorization", () => {
   it("rejects a pending attachment when a different Eve session won", async () => {
     const differentSessionId = "session_different_request";
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -704,6 +770,7 @@ describe("SokoBotRuntimeService authorization", () => {
   it("replaces the prior completed turn session when attaching a new turn", async () => {
     const priorSessionId = "session_previous_turn";
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -761,6 +828,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("denies Context reads after current workspace access is revoked", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -847,6 +915,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("reclaims a stale in-flight read tool call", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -903,6 +972,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("keeps a fresh in-flight tool call single-flight", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -1080,45 +1150,9 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(detail).toBe("[Sensitive value removed]");
   });
 
-  it("rejects mutation when stored user message contains negative imperative", async () => {
-    turnFindUniqueMock.mockResolvedValue({
-      id: SCOPE.turnId,
-      sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
-      workspaceId: SCOPE.workspaceId,
-      capabilityNames: ["create_task"],
-      contextSnapshot: {
-        id: "01960001-0001-7001-8001-000000000004",
-        packet: { memory: { version: 1 } },
-      },
-      eveSessionId: SCOPE.sessionId,
-      userMessage: "Don't create a task yet",
-      classification: { confidence: 1 },
-      status: "RUNNING",
-      deadlineAt: new Date(Date.now() + 60_000),
-      leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: {
-        archivedAt: null,
-        status: "RUNNING",
-      },
-    });
-    toolCallFindUniqueMock.mockResolvedValue(null);
-
-    await expect(
-      new SokoBotRuntimeService().executeTool({
-        ...SCOPE,
-        capability: "create_task",
-        toolCallId: "call_negated",
-        input: { name: "Forbidden", status: "DRAFT" },
-      }),
-    ).rejects.toThrow("explicitly asked for this not to");
-
-    expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
-    expect(transactionTaskCreateMock).not.toHaveBeenCalled();
-  });
-
   it("creates Task through shared domain operation with Soko Bot attribution", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -1176,6 +1210,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("shares project/workspace rejection with normal Task create", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -1282,6 +1317,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("limits Task updates to DRAFT and READY records", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -1324,6 +1360,7 @@ describe("SokoBotRuntimeService authorization", () => {
 
   it("denies a Task mutation after workspace access is revoked", async () => {
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -1368,6 +1405,7 @@ describe("SokoBotRuntimeService memory updates", () => {
       SOKO_BOT_EVE_ENVIRONMENT: "production",
     });
     turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
       id: SCOPE.turnId,
       sokoBotId: SCOPE.sokoBotId,
       userId: SCOPE.userId,
@@ -2309,5 +2347,580 @@ describe("SokoBotRuntimeService chat reading", () => {
       from: "Patrick",
       fromYou: false,
     });
+  });
+});
+
+describe("post_chat chain depth", () => {
+  const SCOPE_TURN = {
+    id: SCOPE.turnId,
+    sokoBotId: SCOPE.sokoBotId,
+    userId: SCOPE.userId,
+    workspaceId: SCOPE.workspaceId,
+    eveSessionId: SCOPE.sessionId,
+  };
+
+  function armPostChat(chainDepth: number) {
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
+    botFindUniqueMock.mockResolvedValue({ coworker: { id: "cow_self" } });
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_1",
+      name: "Launch",
+      kind: "channel",
+    });
+    // Where the chain was started, for the origin-room check on depth > 0.
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
+      chatMention: { message: { roomId: "room_1" } },
+    });
+    chatCoworkerMemberFindManyMock.mockResolvedValue([
+      { coworker: { id: "cow_other", name: "Jarvis", slug: "jarvis" } },
+    ]);
+    chatMessageCountMock.mockResolvedValue(0);
+    transactionChatMessageCreateMock.mockResolvedValue({
+      id: "msg_1",
+      createdAt: new Date("2026-08-29T10:00:00.000Z"),
+    });
+    transactionChatMentionCreateManyMock.mockResolvedValue({ count: 1 });
+    mentionFindManyMock.mockResolvedValue([{ id: "mention_1" }]);
+    dispatchChatRoomMentionMock.mockResolvedValue(undefined);
+    transactionChatRoomUpdateMock.mockResolvedValue({});
+    serializableTransactionMock.mockImplementation(
+      async (run: (tx: unknown) => unknown) =>
+        await run({
+          chatRoomMessage: {
+            create: transactionChatMessageCreateMock,
+            count: chatMessageCountMock,
+          },
+          chatRoomMention: {
+            createMany: transactionChatMentionCreateManyMock,
+            findMany: mentionFindManyMock,
+          },
+          chatRoom: { update: transactionChatRoomUpdateMock },
+        }),
+    );
+    return { turn: { ...SCOPE_TURN, chainDepth } } as never;
+  }
+
+  it("refuses an unattended post into a colleague's direct", async () => {
+    // Nobody can leave a direct, so being in one must not become a standing
+    // licence to write in it: one instruction to reach Nina would otherwise
+    // let every later stand-up reach her again with nobody asking.
+    armPostChat(0);
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_direct",
+      name: "Nina",
+      kind: "direct",
+    });
+    chatRoomUserMemberFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](
+        { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
+        { roomId: "room_direct", content: "Morning, any update?" },
+      ),
+    ).rejects.toThrow(/turns your owner asked for/i);
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("still briefs the owner in their own direct unprompted", async () => {
+    // The whole point of a scheduled turn, so the owner's room is exempt.
+    armPostChat(0);
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_owner",
+      name: "Ada",
+      kind: "direct",
+    });
+    chatRoomUserMemberFindFirstMock.mockResolvedValue({ id: "member_1" });
+
+    await new SokoBotRuntimeService()["postChat"](
+      { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
+      { roomId: "room_owner", content: "Here is your stand-up." },
+    );
+
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+  });
+
+  it("leaves channels alone on an unattended turn", async () => {
+    // A person can leave or mute a channel, and a bot added to a project room
+    // is expected to speak in it.
+    armPostChat(0);
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_1",
+      name: "Launch",
+      kind: "channel",
+    });
+
+    await new SokoBotRuntimeService()["postChat"](
+      { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
+      { roomId: "room_1", content: "Nightly digest." },
+    );
+
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+    expect(chatRoomUserMemberFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("summons the bot it addresses, one hop deeper", async () => {
+    const authorized = armPostChat(0);
+
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "@jarvis can you confirm the date?",
+    });
+
+    expect(transactionChatMentionCreateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [{ messageId: "msg_1", coworkerId: "cow_other", chainDepth: 1 }],
+      }),
+    );
+    // Writing the row is not enough: reclaim only rescues `sent`, so a row
+    // nobody dispatches stays `pending` for ever and the target never wakes.
+    expect(dispatchChatRoomMentionMock).toHaveBeenCalledWith("mention_1");
+  });
+
+  it("stops summoning once the chain reaches its ceiling", async () => {
+    // The message still posts — it simply stops being a summons, so an
+    // unattended exchange between two bots cannot run for ever.
+    const authorized = armPostChat(MAX_CHAT_CHAIN_DEPTH);
+
+    const result = await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "@jarvis one more thing",
+    });
+
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+    expect(transactionChatMentionCreateManyMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ summoned: 0 });
+  });
+
+  it("refuses to post once the room has had its hour's worth", async () => {
+    // Independent of the hop counter on purpose: depth reasoning is pairwise,
+    // so three bots in a triangle could defeat it.
+    const authorized = armPostChat(0);
+    chatMessageCountMock.mockResolvedValue(ROOM_BOT_MESSAGES_PER_HOUR);
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](authorized, {
+        roomId: "room_1",
+        content: "@jarvis still here?",
+      }),
+    ).rejects.toThrow(/rate limited/i);
+
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("tells the reader how far the chain has run", async () => {
+    const authorized = armPostChat(1);
+    chatMessageCountMock.mockResolvedValue(3);
+
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "@jarvis one detail",
+    });
+
+    expect(transactionChatMessageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: {
+            soko_bot_chain: {
+              depth: 2,
+              max_depth: MAX_CHAT_CHAIN_DEPTH,
+              room_messages_this_hour: 4,
+              room_messages_per_hour: ROOM_BOT_MESSAGES_PER_HOUR,
+            },
+          },
+        }),
+      }),
+    );
+  });
+
+  it("refuses to answer anywhere but the room it was asked in", async () => {
+    // post_chat takes a room id from the caller, so without this the bot that
+    // asked could name a room its own owner cannot see and have this bot post
+    // — and summon coworkers — there on its behalf.
+    const authorized = armPostChat(1);
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
+      chatMention: { message: { roomId: "room_asked_in" } },
+    });
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](authorized, {
+        roomId: "room_somewhere_else",
+        content: "@jarvis look at this",
+      }),
+    ).rejects.toThrow(/only reply in the room you were asked in/i);
+
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("answers normally in the room it was asked in", async () => {
+    const authorized = armPostChat(1);
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Check the tasks",
+      chatMention: { message: { roomId: "room_1" } },
+    });
+
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "@jarvis the date is confirmed",
+    });
+
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+  });
+
+  it("never summons itself", async () => {
+    const authorized = armPostChat(0);
+    chatCoworkerMemberFindManyMock.mockResolvedValue([]);
+
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "@jarvis and me",
+    });
+
+    expect(
+      chatCoworkerMemberFindManyMock.mock.calls[0][0].where.coworkerId,
+    ).toEqual({ not: "cow_self" });
+    expect(transactionChatMentionCreateManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("open_direct_chat", () => {
+  const SCOPE_TURN = {
+    id: SCOPE.turnId,
+    sokoBotId: SCOPE.sokoBotId,
+    userId: SCOPE.userId,
+    workspaceId: SCOPE.workspaceId,
+    eveSessionId: SCOPE.sessionId,
+    source: "CHAT",
+    chainDepth: 0,
+  };
+
+  function arm() {
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
+    toolCallCountMock.mockResolvedValue(0);
+    botFindUniqueMock.mockResolvedValue({ coworker: { id: "cow_self" } });
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: "user_colleague", name: "Nina", email: "nina@x.io" } },
+    ]);
+    createOrGetDirectRoomMock.mockResolvedValue({
+      room: { id: "room_new", name: "Nina" },
+      created: true,
+    });
+    // The first message is posted as part of opening, so post_chat's own
+    // dependencies have to be armed here too.
+    chatRoomFindFirstMock.mockResolvedValue({ id: "room_new", name: "Nina" });
+    chatRoomDeleteManyMock.mockResolvedValue({ count: 1 });
+    chatMessageCountMock.mockResolvedValue(0);
+    chatCoworkerMemberFindManyMock.mockResolvedValue([]);
+    transactionChatMessageCreateMock.mockResolvedValue({
+      id: "msg_1",
+      createdAt: new Date("2026-08-30T10:00:00.000Z"),
+    });
+    transactionChatRoomUpdateMock.mockResolvedValue({});
+    serializableTransactionMock.mockImplementation(
+      async (run: (tx: unknown) => unknown) =>
+        await run({
+          chatRoomMessage: {
+            create: transactionChatMessageCreateMock,
+            count: chatMessageCountMock,
+          },
+          chatRoomMention: {
+            createMany: transactionChatMentionCreateManyMock,
+            findMany: mentionFindManyMock,
+          },
+          chatRoom: { update: transactionChatRoomUpdateMock },
+        }),
+    );
+    return { turn: SCOPE_TURN } as never;
+  }
+
+  it("opens a direct with a colleague in the same organization", async () => {
+    const authorized = arm();
+
+    const result = await new SokoBotRuntimeService()["openDirectChat"](
+      authorized,
+      { person: "Nina", message: "Hi, I am Ana.", toolCallId: "call_1" },
+    );
+
+    expect(createOrGetDirectRoomMock).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      currentUserId: "user_colleague",
+      memberUserIds: [],
+      coworkerIds: ["cow_self"],
+      viewerUserId: null,
+    });
+    expect(result).toMatchObject({ roomId: "room_new", created: true });
+    // The room and its first message land together: a room opened and never
+    // written in is an empty conversation nobody can remove.
+    expect(transactionChatMessageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ content: "Hi, I am Ana." }),
+      }),
+    );
+  });
+
+  it("takes the room back down when the first message cannot be sent", async () => {
+    // Half of this is worse than none: a room the colleague can never leave,
+    // holding nothing that says who opened it or why.
+    const authorized = arm();
+    chatMessageCountMock.mockResolvedValue(ROOM_BOT_MESSAGES_PER_HOUR);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Nina",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/rate limited/i);
+
+    // Conditioned on the room still being empty: postChat can fail after its
+    // message commits, and an unconditional delete would take that message
+    // — and any reply to it — with the room.
+    expect(chatRoomDeleteManyMock).toHaveBeenCalledWith({
+      where: { id: "room_new", messages: { none: {} } },
+    });
+  });
+
+  it("leaves a room it did not open standing when the message fails", async () => {
+    // The conversation predates this turn; deleting it would take somebody
+    // else's history with it.
+    const authorized = arm();
+    createOrGetDirectRoomMock.mockResolvedValue({
+      room: { id: "room_new", name: "Nina" },
+      created: false,
+    });
+    chatMessageCountMock.mockResolvedValue(ROOM_BOT_MESSAGES_PER_HOUR);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Nina",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/rate limited/i);
+
+    expect(chatRoomDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("does not let a wildcard stand in for a name", async () => {
+    // `%` and `_` are wildcards in Prisma's startsWith, and this string comes
+    // from a model reading untrusted text: unescaped, "%" alone would match a
+    // colleague at random and open a permanent room with them.
+    const authorized = arm();
+
+    await new SokoBotRuntimeService()["openDirectChat"](authorized, {
+      person: "%",
+      message: "Hi",
+      toolCallId: "call_1",
+    });
+
+    const where = memberFindManyMock.mock.calls[0]?.[0]?.where;
+    const startsWith = where.user.OR[1].name.startsWith;
+    expect(startsWith).toBe("\\% ");
+  });
+
+  it("matches an address against addresses, never a display name", async () => {
+    // A member who sets their display name to counsel@outside.example would
+    // otherwise be the match when the owner asks to contact counsel.
+    const authorized = arm();
+
+    await new SokoBotRuntimeService()["openDirectChat"](authorized, {
+      person: "counsel@outside.example",
+      message: "Hi",
+      toolCallId: "call_1",
+    });
+
+    const where = memberFindManyMock.mock.calls[0]?.[0]?.where;
+    expect(where.user).toEqual({
+      email: { equals: "counsel@outside.example", mode: "insensitive" },
+    });
+    expect(JSON.stringify(where.user)).not.toContain("name");
+  });
+
+  it("looks up an @handle as a name, never as an address", async () => {
+    // The classifier routes "ping @ben" here, so this is the shape the model
+    // passes on. Looked up as an address, "@ben" can only ever miss.
+    const authorized = arm();
+
+    await new SokoBotRuntimeService()["openDirectChat"](authorized, {
+      person: "@ben",
+      message: "Hi",
+      toolCallId: "call_1",
+    });
+
+    const where = memberFindManyMock.mock.calls[0]?.[0]?.where;
+    expect(where.user.OR[0].name.equals).toBe("ben");
+    expect(JSON.stringify(where.user)).not.toContain("email");
+  });
+
+  it("refuses a target that is nothing but an @", async () => {
+    // It passes the schema's min(1) and strips to an empty string, which
+    // would match a member whose display name is blank.
+    const authorized = arm();
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "@",
+        message: "Hi",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/Name the person to write to/i);
+    expect(memberFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("offers addresses when two names differ only in case", async () => {
+    // Compared case-sensitively, "Nina" and "NINA" look like two usable
+    // answers — and either one matches both people again, for ever.
+    const authorized = arm();
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: "u1", name: "Nina", email: "nina.a@x.io" } },
+      { user: { id: "u2", name: "NINA", email: "nina.b@x.io" } },
+    ]);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Nina",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/nina\.a@x\.io, nina\.b@x\.io/);
+  });
+
+  it("asks rather than guessing when a name matches two people", async () => {
+    // Picking one would mean approaching the wrong colleague, in a room
+    // neither of them can leave.
+    const authorized = arm();
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: "u1", name: "Nina Alvarez", email: "nina.a@x.io" } },
+      { user: { id: "u2", name: "Nina Brown", email: "nina.b@x.io" } },
+    ]);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Nina",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/Nina Alvarez, Nina Brown/);
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to addresses only when the names themselves collide", async () => {
+    const authorized = arm();
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: "u1", name: "Nina", email: "nina.a@x.io" } },
+      { user: { id: "u2", name: "Nina", email: "nina.b@x.io" } },
+    ]);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Nina",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/nina\.a@x\.io, nina\.b@x\.io/);
+  });
+
+  it("refuses on a turn the owner did not ask for", async () => {
+    // Approaching a colleague unprompted puts the owner in front of someone
+    // with nobody having asked; the bot can suggest it in their chat instead.
+    const authorized = arm();
+    const scheduled = {
+      turn: { ...SCOPE_TURN, source: "SCHEDULE" },
+    } as never;
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](scheduled, {
+        person: "Nina",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/turns your owner asked for/i);
+    void authorized;
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a turn another assistant asked for", async () => {
+    const asked = {
+      turn: { ...SCOPE_TURN, source: "CHAT", chainDepth: 1 },
+    } as never;
+    arm();
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](asked, {
+        person: "Nina",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/turns your owner asked for/i);
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("stops one turn approaching the whole organization", async () => {
+    // A turn may make 64 tool calls; without this one instruction could open
+    // a direct with every member at once.
+    const authorized = arm();
+    toolCallCountMock.mockResolvedValue(5);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Nina",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_6",
+      }),
+    ).rejects.toThrow(/at most 5 direct chats/i);
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses someone outside the organization", async () => {
+    // Otherwise a bot could start a conversation with anyone whose id it can
+    // name, from a workspace they have nothing to do with.
+    const authorized = arm();
+    memberFindManyMock.mockResolvedValue([]);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Stranger",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/No member of this organization matches/i);
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the workspace has no organization", async () => {
+    const authorized = arm();
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Nina",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/need an organization workspace/i);
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+
+  it("does not open a second room with its own owner", async () => {
+    // The owner already has the bot's direct room; a second would split the
+    // conversation in two.
+    const authorized = arm();
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: SCOPE.userId, name: "Owner", email: "owner@x.io" } },
+    ]);
+
+    await expect(
+      new SokoBotRuntimeService()["openDirectChat"](authorized, {
+        person: "Owner",
+        message: "Hi, I am Ana.",
+        toolCallId: "call_1",
+      }),
+    ).rejects.toThrow(/already have a direct chat with your owner/i);
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
   });
 });

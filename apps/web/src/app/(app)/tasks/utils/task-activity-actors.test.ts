@@ -1,5 +1,6 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 
 import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
@@ -278,7 +279,9 @@ describe("buildTaskActivityActors", () => {
       "orch-2": {
         name: "Athena",
         image: null,
-        avatarSeed: null,
+        // No chosen seed: the same fallback the sidebar and the Soko Bots
+        // page use, so one bot has one face across the product.
+        avatarSeed: defaultOrbSeed("user-3"),
         ownerName: "Grace Hopper",
       },
     });

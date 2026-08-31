@@ -13,6 +13,7 @@ import {
   type IndexedRuntimeEvent,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
+  SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
@@ -143,6 +144,14 @@ export interface StartSokoBotTurnInput {
     responseMessageId: string;
     /** Teammate who asked; turns they trigger are read-only. */
     requestedByUserId?: string | null;
+    /**
+     * Another bot asked. Read-only like a teammate — it answers into a room
+     * neither of them owns — and counted against the allowance for unprompted
+     * work, because no person decided this turn should happen.
+     */
+    askedByBot?: boolean;
+    /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
+    chainDepth?: number;
   };
   scheduleReservation?: {
     runId: string;
@@ -518,6 +527,16 @@ const TURN_CHAT_ATTRIBUTION_INCLUDE = {
   },
 } as const;
 
+/** A turn the bot decided to take rather than one a person asked for. */
+function unpromptedTurn(turn: { source: string; chainDepth: number }): boolean {
+  return (
+    turn.source === "SCHEDULE" ||
+    turn.source === "EVENT" ||
+    turn.source === "INGEST" ||
+    turn.chainDepth > 0
+  );
+}
+
 export class SokoBotControlPlane {
   constructor(
     private readonly runtime: SokoBotRuntime = getSokoBotRuntime(),
@@ -730,6 +749,16 @@ export class SokoBotControlPlane {
         "Ambiguous Soko Bot start reached its deadline",
       );
     }
+    // Same rule as crash recovery: an unprompted turn is not resumed once the
+    // owner has paused that work.
+    if (
+      unpromptedTurn(turn) &&
+      (bot.proactivePaused || getEnv().SOKO_BOT_PROACTIVE_PAUSED)
+    ) {
+      throw new SokoBotBusyError(
+        "This Soko Bot's owner has paused unprompted work",
+      );
+    }
     const snapshot = await prisma.sokoBotContextSnapshot.findUnique({
       where: { turnId: turn.id },
       select: { id: true, packet: true },
@@ -915,15 +944,33 @@ export class SokoBotControlPlane {
     ) {
       return null;
     }
+    // A turn nobody asked for, stranded by a crash, must not be resumed after
+    // the owner has since paused unprompted work — the pause would look
+    // ignored, and this turn can still spend.
+    if (
+      unpromptedTurn(turn) &&
+      (turn.sokoBot.proactivePaused || getEnv().SOKO_BOT_PROACTIVE_PAUSED)
+    ) {
+      return null;
+    }
 
     const leaseToken = randomUUID();
     const claimedAt = new Date();
+    // The pause is part of the claim rather than a read before it: any check
+    // that happens first is stale by the time the row is won, and this turn
+    // can spend. A pause committed mid-flight now loses the claim outright.
+    if (unpromptedTurn(turn) && getEnv().SOKO_BOT_PROACTIVE_PAUSED) {
+      return null;
+    }
     const claimed = await prisma.sokoBotTurn.updateMany({
       where: {
         id: turn.id,
         status: "STARTING",
         eveSessionId: null,
         leaseToken: turn.leaseToken,
+        ...(unpromptedTurn(turn)
+          ? { sokoBot: { is: { proactivePaused: false } } }
+          : {}),
         leaseExpiresAt: turn.leaseExpiresAt,
         reconcilerHeartbeatAt: turn.reconcilerHeartbeatAt,
       },
@@ -1392,11 +1439,17 @@ export class SokoBotControlPlane {
           const judgeAllowed = !(await getSokoBotAvailability()).disabled;
           void (
             judgeAllowed ? judgeTurnQuality(input.turnId) : Promise.resolve()
-          ).catch((error) => {
+          ).catch(async (error) => {
             console.error("Soko Bot turn judge failed", {
               turnId: input.turnId,
               error: error instanceof Error ? error.message : "unknown",
             });
+            // A judge that produced nothing usable still spent the tokens it
+            // spent, and it fails most often on the turns that cost the most.
+            const { recordFailedJudgeUsage } = await import(
+              "@/services/soko-bot-lab-judge.service"
+            );
+            await recordFailedJudgeUsage(input.turnId, error);
           });
         }
         return settled;
@@ -1641,55 +1694,56 @@ export class SokoBotControlPlane {
       );
     }
     const requestedByTeammate =
-      !!input.chat?.requestedByUserId &&
-      input.chat.requestedByUserId !== input.userId;
+      input.chat?.askedByBot === true ||
+      (!!input.chat?.requestedByUserId &&
+        input.chat.requestedByUserId !== input.userId);
     // A teammate may ask the owner's bot questions but never spend the owner's
     // credits, create work in their name, or read the owner's private surfaces:
     // the answer is published back into the shared room.
     const version = await resolveSokoBotVersion(
       input.versionId ?? bot.versionId,
     );
-    // A turn with no owner message is composed from untrusted material — mail
-    // subjects, calendar titles, task comments — and the classifier reads that
-    // composed text. Hiring is the one tool that spends real money on a
-    // marketplace, and it executes without approval, so an attacker who can
-    // put the word "hire" in the owner's inbox must not be able to route a
-    // scheduled turn onto it. Autonomy covers starting work the owner already
-    // pays for; buying more is still theirs to ask for.
-    // A teammate mentioning the bot spends the OWNER's credits, and nothing in
-    // chat limits how often they may do it. Their turns draw on the owner's
-    // daily allowance so the bill has a ceiling its owner set.
-    if (requestedByTeammate) {
+    // Self-started turns keep every capability of their route, hiring
+    // included. Withholding only `hire_agent` read as a spend limit and was
+    // not one: assigning a Task to a Coworker bills the owner just as a hire
+    // does, and stayed available throughout — so untrusted mail text that
+    // could route a scheduled turn onto a purchase could always reach that
+    // path instead. What bounds the spend is the owner's daily cap and pause,
+    // and what tempers it is the version prompt, which now weighs delegation
+    // and hiring alike rather than calling delegation free.
+    // Work the bot decided to do rather than work a person asked for. Both the
+    // preflight below and the reservation that binds are judged by this.
+    const unpromptedWork =
+      input.chat?.askedByBot === true ||
+      input.source === "SCHEDULE" ||
+      input.source === "EVENT" ||
+      input.source === "INGEST";
+    // A turn another assistant asked for is unprompted work, so the owner's
+    // brakes govern it — counting it without enforcing would leave a setting
+    // they can see doing nothing to the turn it is meant to stop.
+    if (input.chat?.askedByBot) {
       const { proactiveGate } = await import(
         "@/services/soko-bot-proactive.service"
       );
       const gate = await proactiveGate(bot.id);
-      // Only the allowance: a pause means "stop what you start on your own",
-      // which a teammate asking a question is not.
-      if (!gate.ok && gate.reason === "daily-limit") {
+      if (!gate.ok) {
         throw new SokoBotBusyError(
-          "This Soko Bot has reached its owner's daily limit",
+          gate.reason === "daily-limit"
+            ? "This Soko Bot has reached its owner's daily limit"
+            : "This Soko Bot's owner has paused unprompted work",
         );
       }
     }
-    // ADMIN_RETRY replays the original message verbatim — the same untrusted
-    // mail or schedule text — so it must not restore what that text was
-    // denied the first time.
-    const selfStarted =
-      input.source === "SCHEDULE" ||
-      input.source === "INGEST" ||
-      input.source === "EVENT" ||
-      input.source === "ADMIN_RETRY";
     const routeCapabilities = SOKO_BOT_ROUTE_CAPABILITIES[
       classification.classification.route
-    ].filter(
-      (capability) => !(selfStarted && capability === "hire_agent"),
-    ) as readonly SokoBotCapability[];
+    ] as readonly SokoBotCapability[];
     const capabilities = applyVersionCapabilities(
       version,
-      (requestedByTeammate
-        ? [...SOKO_BOT_TEAMMATE_CAPABILITIES]
-        : routeCapabilities) as readonly SokoBotCapability[],
+      (input.chat?.askedByBot
+        ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
+        : requestedByTeammate
+          ? [...SOKO_BOT_TEAMMATE_CAPABILITIES]
+          : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
     const leaseToken = randomUUID();
@@ -1708,6 +1762,12 @@ export class SokoBotControlPlane {
       source: input.source ?? "CHAT",
       classification: classification.classification,
       audience: requestedByTeammate ? "TEAMMATE" : "OWNER",
+      askedByKind: input.chat?.askedByBot
+        ? "ASSISTANT"
+        : requestedByTeammate
+          ? "TEAMMATE"
+          : "OWNER",
+      askedByUserId: input.chat?.requestedByUserId ?? null,
     });
     const contextSnapshotId = randomUUID();
 
@@ -1722,7 +1782,14 @@ export class SokoBotControlPlane {
         `;
         const currentBot = await tx.sokoBot.findUnique({
           where: { id: bot.id },
-          select: { archivedAt: true, adminPausedAt: true, status: true },
+          select: {
+            archivedAt: true,
+            adminPausedAt: true,
+            status: true,
+            proactivePaused: true,
+            proactiveDailyLimit: true,
+            ingestTimezone: true,
+          },
         });
         if (
           !currentBot ||
@@ -1731,6 +1798,41 @@ export class SokoBotControlPlane {
           currentBot.status === "PAUSED"
         ) {
           throw new SokoBotBusyError("Soko Bot is paused");
+        }
+        // The preflight gate is only advice by the time we get here: building
+        // context takes long enough for the owner to have paused, or for a
+        // second unprompted turn to have used the last slot. This row is
+        // locked FOR UPDATE, so recounting here is the decision that binds.
+        if (unpromptedWork) {
+          if (
+            currentBot.proactivePaused ||
+            getEnv().SOKO_BOT_PROACTIVE_PAUSED
+          ) {
+            throw new SokoBotBusyError(
+              "This Soko Bot's owner has paused unprompted work",
+            );
+          }
+          const { localDayStart } = await import(
+            "@/services/soko-bot-proactive.service"
+          );
+          const usedToday = await tx.sokoBotTurn.count({
+            where: {
+              sokoBotId: bot.id,
+              createdAt: {
+                gte: localDayStart(new Date(), currentBot.ingestTimezone),
+              },
+              clientTurnId: { not: { startsWith: "lab:" } },
+              OR: [
+                { source: { in: ["SCHEDULE", "EVENT", "INGEST"] } },
+                { chainDepth: { gt: 0 } },
+              ],
+            },
+          });
+          if (usedToday >= currentBot.proactiveDailyLimit) {
+            throw new SokoBotBusyError(
+              "This Soko Bot has reached its owner's daily limit",
+            );
+          }
         }
         const active = await tx.sokoBotTurn.findFirst({
           where: {
@@ -1771,11 +1873,31 @@ export class SokoBotControlPlane {
             requestedByUserId: requestedByTeammate
               ? input.chat?.requestedByUserId
               : null,
+            chainDepth: input.chat?.chainDepth ?? 0,
             classification: jsonInput(classification.classification),
             classifierModel: classification.model,
             classifierVersion: classification.version,
             classifierLatencyMs: classification.latencyMs,
             classificationFailed: classification.failed,
+            // Seeds the turn's usage before the agent loop starts. The drain
+            // reads this row's `usage` as its starting aggregate, so the
+            // classifier's tokens survive every later step write. Its cost is
+            // deliberately kept out of `costUsdMicros`, which is what the
+            // owner is billed for.
+            ...(classification.usage
+              ? {
+                  usage: jsonInput({
+                    inputTokens: classification.usage.inputTokens,
+                    outputTokens: classification.usage.outputTokens,
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                    costUsd: classification.usage.costUsd,
+                  }),
+                  overheadCostUsdMicros: BigInt(
+                    Math.round(classification.usage.costUsd * 1_000_000),
+                  ),
+                }
+              : {}),
             capabilityNames: [...capabilities],
             eveSessionId: sessionIdForTurn,
             eveStreamIndex: -1,
@@ -3293,6 +3415,22 @@ export class SokoBotControlPlane {
           clientTurnId: `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
           message: failed.userMessage,
           source: "ADMIN_RETRY",
+          // A retry replays untrusted text, so it must not replay it with a
+          // wider grant than the turn that failed. Dropping these turned a
+          // failed depth-1 turn another assistant asked for — read-only, and
+          // its message written by that assistant — into an owner-audience
+          // turn holding the whole route ceiling.
+          ...(failed.chainDepth > 0 || failed.requestedByUserId
+            ? {
+                chat: {
+                  mentionId: failed.chatMentionId ?? "",
+                  responseMessageId: failed.chatResponseMessageId ?? "",
+                  requestedByUserId: failed.requestedByUserId,
+                  askedByBot: failed.chainDepth > 0,
+                  chainDepth: failed.chainDepth,
+                },
+              }
+            : {}),
         });
       } catch (error) {
         await recordFailure(error);
