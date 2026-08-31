@@ -7,6 +7,7 @@ import {
 import { escapeStringForLike } from "./credit.js";
 import {
   buildLocalFreeOrganizationMemberSubscriptionReferenceId,
+  buildLocalFreeOrganizationSubscriptionReferenceId,
   buildLocalFreeUserSubscriptionReferenceId,
   ensureInitialLocalFreeSubscriptionPeriod,
   ensureLocalFreeSubscriptionPeriod,
@@ -300,6 +301,34 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
     );
   });
 
+  it("does not mint an org-owned free period when the org local-free sentinel fingerprint exists", async () => {
+    const periodEnd = new Date("2026-05-01T00:00:00.000Z");
+    const sentinelReferenceId =
+      buildLocalFreeOrganizationSubscriptionReferenceId("org-1", periodEnd);
+    const { createTransactionMock, tx } = createTransactionClient({
+      existingBucketReferenceIds: [sentinelReferenceId],
+    });
+
+    const result = await ensureLocalFreeSubscriptionPeriod(
+      {
+        billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
+        memberUserIds: ["member-1", "owner-1"],
+        organizationId: "org-1",
+        periodEnd,
+        periodStart: new Date("2026-04-01T00:00:00.000Z"),
+        referenceId: "org-1",
+      },
+      tx,
+    );
+
+    assert.deepEqual(result, {
+      grantsCreated: 0,
+      subscriptionCreated: true,
+      subscriptionId: "subscription-local-free",
+    });
+    assert.equal(createTransactionMock.mock.calls.length, 0);
+  });
+
   it("does not mint an org-owned free period when leftover member local-free rows exist for that periodEnd", async () => {
     const { createTransactionMock, findFirstBucketMock, tx } =
       createTransactionClient({
@@ -362,10 +391,30 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
       subscriptionId: "subscription-local-free",
     });
     assert.equal(createTransactionMock.mock.calls.length, 1);
-    assert.match(
-      findFirstBucketMock.mock.calls[0]?.[0].where.referenceId.endsWith,
-      /2026-05-01T00:00:00\.000Z/,
+    assert.equal(findFirstBucketMock.mock.calls.length, 1);
+  });
+
+  it("still mints an org-owned free period when no org local-free fingerprint exists for that periodEnd", async () => {
+    const { createTransactionMock, tx } = createTransactionClient();
+
+    const result = await ensureLocalFreeSubscriptionPeriod(
+      {
+        billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
+        memberUserIds: ["member-1", "owner-1"],
+        organizationId: "org-1",
+        periodEnd: new Date("2026-05-01T00:00:00.000Z"),
+        periodStart: new Date("2026-04-01T00:00:00.000Z"),
+        referenceId: "org-1",
+      },
+      tx,
     );
+
+    assert.deepEqual(result, {
+      grantsCreated: 1,
+      subscriptionCreated: true,
+      subscriptionId: "subscription-local-free",
+    });
+    assert.equal(createTransactionMock.mock.calls.length, 1);
   });
 
   it("allows organization periods with no unassigned members", async () => {
