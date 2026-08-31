@@ -43,7 +43,7 @@ export async function simulateSokoBotTaskEvent(input: {
       task: { workspaceId: input.workspaceId, archivedAt: null },
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, taskId: true, lastSeenStatus: true },
+    select: { id: true, taskId: true },
   });
   const taskId = delegation?.taskId;
   if (!taskId) throw new SokoBotLabError("No delegated Task to simulate on");
@@ -67,6 +67,12 @@ export async function simulateSokoBotTaskEvent(input: {
       data: { status: input.status },
       select: { id: true, name: true, status: true },
     });
+    // Read in the same transaction that overwrites it, so the value the
+    // rollback restores is the one that was actually there.
+    const cursor = await tx.sokoBotDelegation.findUnique({
+      where: { id: delegation.id },
+      select: { lastSeenStatus: true },
+    });
     // Marked as seen at the new status so the events cron does not wake the
     // bot a second time for the turn this function is about to start. Scoped
     // to this delegation: two members' bots can hold delegations on one Task,
@@ -77,6 +83,7 @@ export async function simulateSokoBotTaskEvent(input: {
     });
     return {
       previousStatus: task.status,
+      previousCursor: cursor?.lastSeenStatus ?? null,
       taskId: updated.id,
       name: updated.name,
       status: updated.status,
@@ -116,7 +123,7 @@ export async function simulateSokoBotTaskEvent(input: {
         // The cursor this delegation actually held, not the Task's previous
         // status: the two are only sometimes the same, and writing the wrong
         // one would either lose the retry or replay an older transition.
-        data: { lastSeenStatus: delegation.lastSeenStatus },
+        data: { lastSeenStatus: simulated.previousCursor },
       })
       .catch(() => undefined);
     throw error;
