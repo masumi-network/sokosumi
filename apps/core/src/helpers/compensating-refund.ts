@@ -10,32 +10,31 @@ export interface CompensatingRefundInput {
 }
 
 /**
- * Nested TransactionCreateInput shared by job, claim, and x402 refunds.
+ * Nested transaction create shared by job, claim, and x402 refunds.
  *
- * Scalar `userId` on the bucket is load-bearing. `user.connect` cannot
- * express org ownership. The debit may have consumed expiring buckets, so
- * the refund bucket does not expire.
+ * Always unchecked scalars so org `userId: null` and personal `userId` share
+ * one shape. Org refunds leave the ledger actor null; personal refunds stamp
+ * the spend actor. The debit may have consumed expiring buckets, so the
+ * refund bucket does not expire.
  */
 export function buildCompensatingRefundTransactionCreate(
   input: CompensatingRefundInput,
-): Prisma.TransactionCreateInput {
-  const bucketUserId = input.organizationId ? null : input.actorUserId;
+): Prisma.TransactionUncheckedCreateInput {
+  const isOrg = input.organizationId != null;
 
   return {
     amount: input.amount,
-    user: { connect: { id: input.actorUserId } },
-    ...(input.organizationId
-      ? { organization: { connect: { id: input.organizationId } } }
-      : {}),
+    organizationId: input.organizationId,
+    userId: isOrg ? null : input.actorUserId,
     sourceCreditBucket: {
       create: {
         amount: input.amount,
         referenceId: input.referenceId,
         referenceType: CreditBucketReferenceType.REFUND,
         expiresAt: null,
-        userId: bucketUserId,
+        userId: isOrg ? null : input.actorUserId,
         organizationId: input.organizationId,
       },
     },
-  } satisfies Prisma.TransactionCreateInput;
+  };
 }

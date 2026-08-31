@@ -31,6 +31,7 @@ type OrchestratorActorSummary = {
   id: string;
   name: string | null;
   avatarSeed?: string | null;
+  avatarImageUrl?: string | null;
   owner: {
     id: string;
     name: string;
@@ -218,12 +219,17 @@ function orchestratorActorInfo(
 ): TaskActivityActorInfo {
   return {
     name: orchestrator.name ?? "Assistant",
-    image: null,
+    // A claimed mascot is the bot's face everywhere else; the orb is only the
+    // fallback for a bot that has not picked one.
+    image: orchestrator.avatarImageUrl
+      ? resolveIpfsOrHttpUrl(orchestrator.avatarImageUrl)
+      : null,
     // Same fallback the sidebar and the Soko Bots page use. `avatarSeed` is
     // null for every bot, and passing that through rendered a different face
     // here than the one the owner sees everywhere else.
-    avatarSeed:
-      orchestrator.avatarSeed ?? defaultOrbSeed(orchestrator.owner.id),
+    avatarSeed: orchestrator.avatarImageUrl
+      ? null
+      : (orchestrator.avatarSeed ?? defaultOrbSeed(orchestrator.owner.id)),
     ownerName: orchestrator.owner.name,
   };
 }

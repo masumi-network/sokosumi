@@ -1,6 +1,6 @@
 import { NotificationKind } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   publishChatMembershipRevoked,
@@ -65,30 +65,177 @@ describe("publishJobStatusData", () => {
 });
 
 describe("publishNotificationEvent", () => {
-  it("publishes notification event to the user channel", async () => {
-    const notification = {
-      id: "notif_123",
-      userId: "user_123",
-      kind: NotificationKind.JOB,
-      referenceId: "job_123",
-      eventId: "event_123",
-      messageKey: "Notifications.Job.completed",
-      messageParams: { agentName: "Test Agent", jobName: "Test Job" },
-      metadata: { agentId: "agent_123" },
-      isRead: false,
-      readAt: null,
-      createdAt: "2026-06-17T12:00:00.000Z",
-    };
+  const notification = {
+    id: "notif_123",
+    userId: "user_123",
+    kind: NotificationKind.JOB,
+    referenceId: "job_123",
+    eventId: "event_123",
+    messageKey: "Notifications.Job.completed",
+    messageParams: { agentName: "Test Agent", jobName: "Test Job" },
+    metadata: { agentId: "agent_123" },
+    isRead: false,
+    readAt: null,
+    createdAt: "2026-06-17T12:00:00.000Z",
+  };
 
+  beforeEach(() => {
+    // getMock is shared file-wide: clear it too, so the channel-name assertion
+    // cannot pass on a stale call from a test declared above this block.
+    publishMock.mockClear();
+    getMock.mockClear();
+  });
+
+  it("publishes notification event to the user channel", async () => {
     await publishNotificationEvent({
       userId: "user_123",
       notification,
     });
 
     expect(getMock).toHaveBeenCalledWith("notifications:all:user_user_123");
-    expect(publishMock).toHaveBeenCalledWith(
-      "notification_created",
+    expect(publishMock).toHaveBeenCalledWith({
+      name: "notification_created",
+      data: notification,
+    });
+  });
+
+  it("carries no push extras unless push is requested", async () => {
+    await publishNotificationEvent({
+      userId: "user_123",
       notification,
+      push: false,
+    });
+
+    expect(publishMock).toHaveBeenCalledWith({
+      name: "notification_created",
+      data: notification,
+    });
+  });
+
+  it("attaches a data-only push payload when push is requested", async () => {
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification,
+      push: true,
+    });
+
+    expect(publishMock).toHaveBeenCalledWith({
+      name: "notification_created",
+      data: notification,
+      extras: {
+        push: {
+          data: {
+            id: notification.id,
+            kind: notification.kind,
+            referenceId: notification.referenceId,
+            messageKey: notification.messageKey,
+            messageParams: JSON.stringify(notification.messageParams),
+            metadata: JSON.stringify(notification.metadata),
+          },
+        },
+      },
+    });
+    // ADR-0023: the service worker renders text, so Core ships no display part.
+    //
+    // The part must be absent, not empty. Ably defines `notification` as
+    // title, body, icon, sound and collapseKey, so a `notification` holding
+    // only a `ttl` carries no field Ably reads. An earlier revision sent
+    // exactly that, and this guard keeps it from coming back.
+    //
+    // It was removed as undefined input, not as a proven delivery failure.
+    // The silence that prompted the change was macOS: it suppresses banners
+    // while the display is shared, and files them into Notification Centre
+    // instead. Push delivery itself was working the whole time.
+    expect(publishMock.mock.calls[0]?.[0]?.extras?.push).not.toHaveProperty(
+      "notification",
+    );
+  });
+
+  it("keeps every push data value a string", async () => {
+    // Ably documents push data as a string-to-string map and FCM rejects
+    // nested JSON, so no value may be an object, array, number, or null.
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification,
+      push: true,
+    });
+
+    const pushData = publishMock.mock.calls[0]?.[0]?.extras?.push?.data as
+      | Record<string, unknown>
+      | undefined;
+
+    expect(pushData).toBeDefined();
+    expect(Object.keys(pushData ?? {})).toHaveLength(6);
+    for (const value of Object.values(pushData ?? {})) {
+      expect(typeof value).toBe("string");
+    }
+  });
+
+  /**
+   * A display name has no server-side length limit, and the whole push payload
+   * rides a 4 KB Web Push ceiling. Without a cap, one account with a very long
+   * name would silence the banner for everyone it messages.
+   */
+  it("caps a long push parameter so one name cannot break the payload", async () => {
+    const longName = "a".repeat(500);
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification: {
+        ...notification,
+        messageParams: { authorName: longName, roomName: "General" },
+      },
+      push: true,
+    });
+
+    const pushData = publishMock.mock.calls[0]?.[0]?.extras?.push?.data as
+      | Record<string, string>
+      | undefined;
+    const params = JSON.parse(pushData?.messageParams ?? "{}") as {
+      authorName: string;
+      roomName: string;
+    };
+
+    expect(params.authorName).toBe("a".repeat(128));
+    // Everything else rides through untouched, and the document still parses.
+    expect(params.roomName).toBe("General");
+  });
+
+  /** A cut inside a surrogate pair would send a lone half to the worker. */
+  it("cuts a long parameter on a codepoint, not a code unit", async () => {
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification: {
+        ...notification,
+        messageParams: { authorName: "\u{1F600}".repeat(200) },
+      },
+      push: true,
+    });
+
+    const pushData = publishMock.mock.calls[0]?.[0]?.extras?.push?.data as
+      | Record<string, string>
+      | undefined;
+    const params = JSON.parse(pushData?.messageParams ?? "{}") as {
+      authorName: string;
+    };
+
+    expect([...params.authorName]).toHaveLength(128);
+    expect(params.authorName).toBe("\u{1F600}".repeat(128));
+  });
+
+  it("omits metadata rather than sending null when there is none", async () => {
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification: { ...notification, metadata: null },
+      push: true,
+    });
+
+    const pushData = publishMock.mock.calls[0]?.[0]?.extras?.push?.data as
+      | Record<string, unknown>
+      | undefined;
+
+    expect(pushData).not.toHaveProperty("metadata");
+    expect(pushData?.messageParams).toBe(
+      JSON.stringify(notification.messageParams),
     );
   });
 });

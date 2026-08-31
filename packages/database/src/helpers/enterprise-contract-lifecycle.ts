@@ -20,7 +20,6 @@ import {
   createEnterpriseTopUpCreditBucket,
   expireCreditBucketsNow,
   findEnterprisePeriodCreditBucket,
-  resolveOrganizationGrantTransactionUserId,
 } from "./enterprise-contract-grants.js";
 import {
   autoAssignSeatsOnPaidSubscribe,
@@ -143,11 +142,6 @@ export async function activateEnterpriseContract(
     );
   }
 
-  const transactionUserId = await resolveOrganizationGrantTransactionUserId(
-    contract.organizationId,
-    tx,
-  );
-
   const periodBucket = await createEnterprisePeriodCreditBucket(
     {
       activatesAt: activatedAt,
@@ -155,7 +149,6 @@ export async function activateEnterpriseContract(
       expiresAt: firstPeriod.periodEnd,
       organizationId: contract.organizationId,
       periodId: firstPeriod.id,
-      transactionUserId,
     },
     tx,
   );
@@ -178,7 +171,6 @@ export async function activateEnterpriseContract(
         contractId: contract.id,
         expiresAt: contract.oneTimeExpiresAt,
         organizationId: contract.organizationId,
-        transactionUserId,
       },
       tx,
     );

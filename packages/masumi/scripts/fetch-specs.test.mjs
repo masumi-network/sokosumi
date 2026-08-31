@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  diffSpecPaths,
   findMissingSpecLandmarks,
+  hasSpecDrift,
   isOlderVersion,
   SPEC_LANDMARKS,
 } from "./fetch-specs.mjs";
@@ -73,4 +75,43 @@ test("accepts a registry spec with V2 and x402 landmarks", () => {
     findMissingSpecLandmarks(registrySpec, SPEC_LANDMARKS.registry),
     [],
   );
+});
+
+test("drift check reports paths added and retired upstream", () => {
+  // The real case this exists for: the node retired GET /x402/budgets and
+  // added unrelated endpoints while info.version never moved, so the version
+  // guard saw nothing.
+  const pinned = { paths: { "/x402/budgets": {}, "/x402/pay": {} } };
+  const deployed = { paths: { "/x402/pay": {}, "/hydra/head": {} } };
+
+  assert.deepEqual(diffSpecPaths(deployed, pinned), {
+    added: ["/hydra/head"],
+    removed: ["/x402/budgets"],
+  });
+});
+
+test("drift check tolerates a spec with no paths", () => {
+  assert.deepEqual(diffSpecPaths({}, {}), { added: [], removed: [] });
+  assert.deepEqual(diffSpecPaths(undefined, undefined), {
+    added: [],
+    removed: [],
+  });
+});
+
+test("drift is detected even when the version holds", () => {
+  const pinned = { info: { version: "1.0.0" }, paths: { "/pay": {} } };
+  const drifted = {
+    info: { version: "1.0.0" },
+    paths: { "/pay": {}, "/new": {} },
+  };
+
+  assert.equal(hasSpecDrift(drifted, pinned), true);
+  assert.equal(hasSpecDrift(pinned, pinned), false);
+});
+
+test("prose-only drift counts, because it still reaches the client", () => {
+  const pinned = { paths: { "/pay": { post: { summary: "Pay" } } } };
+  const reworded = { paths: { "/pay": { post: { summary: "Pay now" } } } };
+
+  assert.equal(hasSpecDrift(reworded, pinned), true);
 });

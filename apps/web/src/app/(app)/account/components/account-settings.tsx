@@ -14,9 +14,9 @@ import { BrandProfileSection } from "./brand-profile-section";
 import { DeleteAccountForm } from "./delete-account-form";
 import { DeletePersonalWorkspaceForm } from "./delete-personal-workspace-form";
 import { EmailForm } from "./email-form";
-import { EmailPreferences } from "./email-preferences";
 import { NameForm } from "./name-form";
 import { NewPasswordForm } from "./new-password-form";
+import { NotificationPreferences } from "./notification-preferences";
 import { PasskeySettings } from "./passkey-settings";
 import { PasswordForm } from "./password-form";
 import { PreferencesSection } from "./preferences-section";
@@ -110,7 +110,7 @@ export function AccountSettings({
       </div>
 
       <div className="border-t pt-8">
-        <EmailPreferences
+        <NotificationPreferences
           notificationsOptIn={notificationsOptIn}
           marketingOptIn={marketingOptIn}
         />

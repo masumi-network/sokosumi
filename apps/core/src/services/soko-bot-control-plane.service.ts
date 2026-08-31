@@ -66,7 +66,7 @@ const TURN_LEASE_MS = 16 * 60 * 1_000;
 const RECONCILER_HEARTBEAT_MS = 15_000;
 export const SOKO_BOT_START_RECOVERY_GRACE_MS = 120_000;
 
-const ACTIVE_TURN_STATUSES = [
+export const ACTIVE_TURN_STATUSES = [
   SokoBotTurnStatus.QUEUED,
   SokoBotTurnStatus.STARTING,
   SokoBotTurnStatus.RUNNING,
@@ -1713,11 +1713,19 @@ export class SokoBotControlPlane {
     // and hiring alike rather than calling delegation free.
     // Work the bot decided to do rather than work a person asked for. Both the
     // preflight below and the reservation that binds are judged by this.
+    // A behaviour-lab run wears the source the real rhythm would, so the turn
+    // is classified and capability-scoped the same way — but it is a person
+    // pressing a button, not the bot deciding. The allowance already excludes
+    // these from its count; enforcing the cap against them too would leave the
+    // lab working below the limit and refusing above it, which is exactly when
+    // somebody needs it.
+    const isLabRun = clientTurnId.startsWith("lab:");
     const unpromptedWork =
-      input.chat?.askedByBot === true ||
-      input.source === "SCHEDULE" ||
-      input.source === "EVENT" ||
-      input.source === "INGEST";
+      !isLabRun &&
+      (input.chat?.askedByBot === true ||
+        input.source === "SCHEDULE" ||
+        input.source === "EVENT" ||
+        input.source === "INGEST");
     // A turn another assistant asked for is unprompted work, so the owner's
     // brakes govern it — counting it without enforcing would leave a setting
     // they can see doing nothing to the turn it is meant to stop.

@@ -13,18 +13,20 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
+import { NOTIFICATION_PREFERENCES_ANCHOR } from "../constants";
+import { PushNotificationSetting } from "./push-notification-setting";
 
-interface EmailPreferencesProps {
+interface NotificationPreferencesProps {
   notificationsOptIn: boolean;
   marketingOptIn: boolean;
 }
 
 type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
 
-export function EmailPreferences({
+export function NotificationPreferences({
   notificationsOptIn: initialNotificationsOptIn,
   marketingOptIn: initialMarketingOptIn,
-}: EmailPreferencesProps) {
+}: NotificationPreferencesProps) {
   const t = useTranslations("App.Account.Notifications");
   const [notificationsOptIn, setNotificationsOptIn] = useState(
     initialNotificationsOptIn,
@@ -94,7 +96,7 @@ export function EmailPreferences({
   );
 
   return (
-    <Card className="flex h-full flex-col">
+    <Card className="flex h-full flex-col" id={NOTIFICATION_PREFERENCES_ANCHOR}>
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
@@ -132,6 +134,7 @@ export function EmailPreferences({
             aria-label={t("marketingEmailsAriaLabel")}
           />
         </div>
+        <PushNotificationSetting />
       </CardContent>
     </Card>
   );

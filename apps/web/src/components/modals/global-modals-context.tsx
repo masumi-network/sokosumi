@@ -4,10 +4,10 @@ import { createContext, useContext, useState } from "react";
 
 import AuthenticationModal from "./authentication-modal";
 import { CalendarClientUpgradeModal } from "./calendar-client-upgrade-modal";
-import LogoutModal from "./logout-modal";
+import LogoutModal, { type LogoutModalUser } from "./logout-modal";
 
 interface GlobalModalsContextType {
-  showLogoutModal: (email: string) => void;
+  showLogoutModal: (user: LogoutModalUser) => void;
   hideLogoutModal: () => void;
   showAuthenticationModal: () => void;
   hideAuthenticationModal: () => void;
@@ -27,14 +27,14 @@ export function GlobalModalsContextProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [email, setEmail] = useState<string>("");
+  const [logoutUser, setLogoutUser] = useState<LogoutModalUser | null>(null);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [authenticationModalOpen, setAuthenticationModalOpen] = useState(false);
   const [calendarClientUpgradeModalOpen, setCalendarClientUpgradeModalOpen] =
     useState(false);
 
-  const showLogoutModal = (email: string) => {
-    setEmail(email);
+  const showLogoutModal = (user: LogoutModalUser) => {
+    setLogoutUser(user);
     setLogoutModalOpen(true);
   };
 
@@ -67,7 +67,7 @@ export function GlobalModalsContextProvider({
       <LogoutModal
         open={logoutModalOpen}
         onOpenChange={setLogoutModalOpen}
-        email={email}
+        user={logoutUser}
       />
       <AuthenticationModal
         open={authenticationModalOpen}
