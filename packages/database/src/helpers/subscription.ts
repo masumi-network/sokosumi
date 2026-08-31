@@ -8,9 +8,7 @@ import {
 } from "../generated/prisma/client.js";
 import {
   buildOrganizationMemberSubscriptionReferenceId,
-  escapeStringForLike,
   ORGANIZATION_CREDIT_REFERENCE_PREFIX,
-  ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
 import {
@@ -486,28 +484,6 @@ export async function ensureLocalFreeSubscriptionPeriod(
     subscriptionCreated = true;
   }
 
-  const leftoverMemberLocalFree =
-    organizationId === null
-      ? null
-      : await tx.creditBucket.findFirst({
-          where: {
-            organizationId,
-            userId: {
-              not: null,
-            },
-            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-            referenceId: {
-              startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-              endsWith: escapeStringForLike(
-                `:${LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT}${organizationId}:${params.periodEnd.toISOString()}`,
-              ),
-            },
-          },
-          select: {
-            id: true,
-          },
-        });
-
   let grantsCreated = 0;
   for (const grant of grants) {
     const existingBucket = await tx.creditBucket.findUnique({
@@ -522,7 +498,7 @@ export async function ensureLocalFreeSubscriptionPeriod(
       },
     });
 
-    if (existingBucket || leftoverMemberLocalFree) {
+    if (existingBucket) {
       continue;
     }
 
