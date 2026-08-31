@@ -144,6 +144,14 @@ if (connected)
 await probe("search_inbox", { query: "" });
 await probe("list_calendar_events", {});
 
+// Writes a small file to the owner's Drive. Included rather than guarded
+// because storage was the one thing actually broken here, and a probe that
+// never writes would not have caught it.
+await probe("upload_file", {
+  filename: `tool-smoke-${Date.now()}.md`,
+  content: "Written by soko-bot:tool-smoke. Safe to delete.",
+});
+
 // Guards: these spend credits or leave something nobody can remove.
 await probe(
   "hire_agent",
