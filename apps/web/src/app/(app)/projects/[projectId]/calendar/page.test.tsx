@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
@@ -27,10 +27,6 @@ vi.mock("@/app/calendar/components/workspace-calendar", () => ({
     workspaceCalendarMock(props);
     return null;
   },
-}));
-
-vi.mock("@/app/projects/components/project-detail-header", () => ({
-  ProjectDetailHeader: () => null,
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -113,6 +109,13 @@ describe("ProjectCalendarPage", () => {
         status: "READY",
       }),
     );
+    expect(screen.getByRole("link", { name: "backToProject" })).toHaveAttribute(
+      "href",
+      "/projects/project-1",
+    );
+    expect(
+      screen.getByRole("link", { name: "backToProject" }).className,
+    ).not.toContain("hidden");
     expect(workspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: PROJECT.id,

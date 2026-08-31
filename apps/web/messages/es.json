@@ -2308,6 +2308,10 @@
         "modules": {
           "title": "Espacio de trabajo",
           "comingSoon": "Próximamente",
+          "calendar": {
+            "title": "Calendario",
+            "description": "Consulta el trabajo próximo del proyecto"
+          },
           "seo": {
             "title": "SEO",
             "description": "Palabras clave, rankings, auditorías"

@@ -10,32 +10,24 @@ interface ProjectDetailHeaderMetadataItem {
 }
 
 interface ProjectDetailHeaderProps {
-  calendarLabel: string;
+  backHref?: string;
   projectName: string;
-  projectId: string;
   projectLogo?: string | null;
   websiteUrl?: string | null;
   backLabel: string;
   metadata: ProjectDetailHeaderMetadataItem[];
-  navigationLabel: string;
-  overviewLabel: string;
-  selectedView: "overview" | "calendar";
-  showCalendar: boolean;
+  showBackOnMobile?: boolean;
   actions?: React.ReactNode;
 }
 
 export function ProjectDetailHeader({
-  calendarLabel,
+  backHref = "/projects",
   projectName,
-  projectId,
   projectLogo,
   websiteUrl,
   backLabel,
   metadata,
-  navigationLabel,
-  overviewLabel,
-  selectedView,
-  showCalendar,
+  showBackOnMobile = false,
   actions,
 }: ProjectDetailHeaderProps) {
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
@@ -43,8 +35,10 @@ export function ProjectDetailHeader({
   return (
     <div className="space-y-4 px-4 md:px-0">
       <Link
-        href="/projects"
-        className="text-muted-foreground hover:text-foreground hidden items-center gap-1.5 text-sm transition-colors md:inline-flex"
+        href={backHref}
+        className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
+          showBackOnMobile ? "inline-flex" : "hidden md:inline-flex"
+        }`}
       >
         <ArrowLeft className="size-4" aria-hidden />
         <span>{backLabel}</span>
@@ -91,35 +85,6 @@ export function ProjectDetailHeader({
           </div>
         ))}
       </dl>
-
-      <nav aria-label={navigationLabel} className="border-border border-b">
-        <div className="flex gap-4">
-          <Link
-            aria-current={selectedView === "overview" ? "page" : undefined}
-            className={`border-b-2 px-1 py-2 text-sm font-medium transition-colors ${
-              selectedView === "overview"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            href={`/projects/${projectId}`}
-          >
-            {overviewLabel}
-          </Link>
-          {showCalendar ? (
-            <Link
-              aria-current={selectedView === "calendar" ? "page" : undefined}
-              className={`border-b-2 px-1 py-2 text-sm font-medium transition-colors ${
-                selectedView === "calendar"
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-              href={`/projects/${projectId}/calendar`}
-            >
-              {calendarLabel}
-            </Link>
-          ) : null}
-        </div>
-      </nav>
     </div>
   );
 }

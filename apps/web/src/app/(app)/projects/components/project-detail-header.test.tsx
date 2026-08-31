@@ -4,22 +4,16 @@ import { describe, expect, it } from "vitest";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 
 describe("ProjectDetailHeader", () => {
-  it("pads on mobile, keeps desktop flex layout, and places metadata as a full-width sibling row", () => {
+  it("pads on mobile and places metadata as a full-width sibling row", () => {
     const { container } = render(
       <ProjectDetailHeader
-        calendarLabel="Calendar"
         projectName="Example project"
-        projectId="project-1"
         websiteUrl="https://www.example.com/about"
         backLabel="Back"
         metadata={[
           { label: "Updated", value: "Today" },
           { label: "Created", value: "Yesterday" },
         ]}
-        navigationLabel="Project navigation"
-        overviewLabel="Overview"
-        selectedView="overview"
-        showCalendar
         actions={<button type="button">Actions</button>}
       />,
     );
@@ -39,14 +33,7 @@ describe("ProjectDetailHeader", () => {
     expect(screen.getByText("Updated")).toBeInTheDocument();
     expect(screen.getByText("Today")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
-      "href",
-      "/projects/project-1",
-    );
-    expect(screen.getByRole("link", { name: "Calendar" })).toHaveAttribute(
-      "href",
-      "/projects/project-1/calendar",
-    );
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
 
     const titleRow = root?.children[1];
     const metadata = root?.querySelector("dl");
@@ -57,47 +44,21 @@ describe("ProjectDetailHeader", () => {
     expect(metadata?.previousElementSibling).toBe(titleRow);
   });
 
-  it("hides the Calendar link when the feature is unavailable", () => {
+  it("shows a project-specific back link on mobile when requested", () => {
     render(
       <ProjectDetailHeader
-        calendarLabel="Calendar"
+        {...{
+          backHref: "/projects/project-1",
+          showBackOnMobile: true,
+        }}
         projectName="Example project"
-        projectId="project-1"
-        backLabel="Back"
+        backLabel="Back to project"
         metadata={[]}
-        navigationLabel="Project navigation"
-        overviewLabel="Overview"
-        selectedView="overview"
-        showCalendar={false}
       />,
     );
 
-    expect(
-      screen.queryByRole("link", { name: "Calendar" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("marks the Calendar link as the current view", () => {
-    render(
-      <ProjectDetailHeader
-        calendarLabel="Calendar"
-        projectName="Example project"
-        projectId="project-1"
-        backLabel="Back"
-        metadata={[]}
-        navigationLabel="Project navigation"
-        overviewLabel="Overview"
-        selectedView="calendar"
-        showCalendar
-      />,
-    );
-
-    expect(screen.getByRole("link", { name: "Calendar" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute(
-      "aria-current",
-    );
+    const back = screen.getByRole("link", { name: "Back to project" });
+    expect(back).toHaveAttribute("href", "/projects/project-1");
+    expect(back.className).not.toContain("hidden");
   });
 });

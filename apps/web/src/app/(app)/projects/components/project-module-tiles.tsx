@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  CalendarDays,
   FileText,
   FolderOpen,
   Mail,
@@ -19,6 +20,7 @@ interface ProjectModuleLabel {
 }
 
 interface ProjectModuleTilesLabels {
+  calendar: ProjectModuleLabel;
   comingSoon: string;
   content: ProjectModuleLabel;
   email: ProjectModuleLabel;
@@ -30,6 +32,7 @@ interface ProjectModuleTilesLabels {
 }
 
 interface ProjectModuleTilesProps {
+  calendarHref?: string;
   labels: ProjectModuleTilesLabels;
   projectId: string;
 }
@@ -55,11 +58,34 @@ const PROJECT_MODULES: ProjectModuleDefinition[] = [
 ];
 
 export function ProjectModuleTiles({
+  calendarHref,
   labels,
   projectId,
 }: ProjectModuleTilesProps) {
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-7">
+    <div
+      className={`grid grid-cols-2 gap-4 md:grid-cols-4 ${
+        calendarHref ? "xl:grid-cols-4" : "xl:grid-cols-7"
+      }`}
+    >
+      {calendarHref ? (
+        <Link
+          aria-label={labels.calendar.title}
+          className="border-border/50 hover:border-primary/50 hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-ring/50 flex min-w-0 flex-col rounded-xl border p-4 transition-colors outline-none focus-visible:ring-[3px]"
+          href={calendarHref}
+        >
+          <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">
+            <CalendarDays
+              className="text-muted-foreground size-4"
+              aria-hidden
+            />
+          </span>
+          <h3 className="mt-3 text-sm font-medium">{labels.calendar.title}</h3>
+          <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+            {labels.calendar.description}
+          </p>
+        </Link>
+      ) : null}
       {PROJECT_MODULES.map(({ icon: Icon, key, href }) => {
         const module = labels[key];
         const className = cn(

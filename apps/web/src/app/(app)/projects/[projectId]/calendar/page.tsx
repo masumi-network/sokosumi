@@ -67,8 +67,8 @@ export default async function ProjectCalendarPage({
   return (
     <div className="min-h-full w-full px-4 py-6 md:px-6">
       <ProjectDetailHeader
-        backLabel={t("back")}
-        calendarLabel={t("navigation.calendar")}
+        backHref={`/projects/${project.id}`}
+        backLabel={t("backToProject")}
         metadata={[
           {
             label: t("header.updated"),
@@ -79,13 +79,9 @@ export default async function ProjectCalendarPage({
             value: formatShortDateTime(project.createdAt, locale),
           },
         ]}
-        navigationLabel={t("navigation.label")}
-        overviewLabel={t("navigation.overview")}
-        projectId={project.id}
         projectLogo={project.logo}
         projectName={project.name}
-        selectedView="calendar"
-        showCalendar
+        showBackOnMobile
         websiteUrl={project.websiteUrl}
       />
 

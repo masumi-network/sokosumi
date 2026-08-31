@@ -150,7 +150,7 @@ describe("ProjectDetailPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", {
-        name: "App.Projects.Detail.navigation.calendar",
+        name: "App.Projects.Detail.modules.calendar.title",
       }),
     ).toHaveAttribute("href", "/projects/project-1/calendar");
     expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
@@ -182,7 +182,7 @@ describe("ProjectDetailPage", () => {
     );
   });
 
-  it("hides the Calendar tab for non-beta sessions", async () => {
+  it("hides the Calendar card for non-beta sessions", async () => {
     const project = buildProject();
     getSessionMock.mockResolvedValue({ user: { email: "member@example.com" } });
     projectServiceMock.getProjectById.mockResolvedValue(project);
@@ -204,7 +204,7 @@ describe("ProjectDetailPage", () => {
 
     expect(
       screen.queryByRole("link", {
-        name: "App.Projects.Detail.navigation.calendar",
+        name: "App.Projects.Detail.modules.calendar.title",
       }),
     ).not.toBeInTheDocument();
   });

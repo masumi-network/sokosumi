@@ -54,16 +54,10 @@ export default async function ProjectDetailPage({
     <div className={PROJECTS_DETAIL_SHELL_CLASS}>
       <div className={PROJECTS_DETAIL_TOP_CLASS}>
         <ProjectDetailHeader
-          calendarLabel={t("navigation.calendar")}
           projectName={project.name}
-          projectId={project.id}
           projectLogo={project.logo}
           websiteUrl={project.websiteUrl}
           backLabel={t("back")}
-          navigationLabel={t("navigation.label")}
-          overviewLabel={t("navigation.overview")}
-          selectedView="overview"
-          showCalendar={isBetaAccessEmail(session?.user.email)}
           metadata={[
             {
               label: t("header.updated"),
@@ -187,8 +181,17 @@ export default async function ProjectDetailPage({
           {t("modules.title")}
         </h2>
         <ProjectModuleTiles
+          calendarHref={
+            isBetaAccessEmail(session?.user.email)
+              ? `/projects/${project.id}/calendar`
+              : undefined
+          }
           projectId={project.id}
           labels={{
+            calendar: {
+              title: t("modules.calendar.title"),
+              description: t("modules.calendar.description"),
+            },
             comingSoon: t("modules.comingSoon"),
             seo: {
               title: t("modules.seo.title"),
