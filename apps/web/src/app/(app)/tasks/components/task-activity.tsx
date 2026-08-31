@@ -492,7 +492,11 @@ export function TaskActivitySection({
                   })
                 : (actorInfo?.name ?? actorLabel);
             const actorImage = actorInfo?.image ?? null;
-            const showAssistantOrb = actorKind === "orchestrator";
+            // Only when the bot has no mascot of its own: a claimed image is
+            // its face in chat and the sidebar, and an orb here made the same
+            // assistant look like two different ones.
+            const showAssistantOrb =
+              actorKind === "orchestrator" && !actorInfo?.image;
             const ChannelIcon = CHANNEL_ICON_MAP[event.channel];
             const channelAppName = t(
               `channelApp.${CHANNEL_APP_NAME_KEY_MAP[event.channel]}`,
