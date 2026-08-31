@@ -5737,7 +5737,7 @@
       "composerTooLong": "Message is too long ({count}/{max}). Shorten it to send.",
       "composerTooLongHint": "Too long to send as text",
       "composerCharacterCount": "{count}/{max}",
-      "composerAttachAsMarkdownFile": "Convert to markdown",
+      "composerConvertToFile": "Convert to file",
       "NoOrganization": {
         "title": "Channels coming soon",
         "description": "Channels are in testing for organization workspaces. Support for personal use is coming soon."

@@ -191,7 +191,7 @@ describe("RoomComposer over-limit recovery", () => {
     expect(screen.getByRole("alert")).not.toHaveTextContent("10001/10000");
     expect(screen.getByText("composerCharacterCount 10001/10000")).toBeTruthy();
     expect(
-      screen.queryByRole("button", { name: "composerAttachAsMarkdownFile" }),
+      screen.queryByRole("button", { name: "composerConvertToFile" }),
     ).toBeNull();
     expect(screen.getByRole("button", { name: "send" })).toBeDisabled();
   });
@@ -215,7 +215,7 @@ describe("RoomComposer over-limit recovery", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("composerTooLongHint");
     expect(screen.getByRole("alert")).not.toHaveTextContent("10001/10000");
     const recover = screen.getByRole("button", {
-      name: "composerAttachAsMarkdownFile",
+      name: "composerConvertToFile",
     });
     expect(screen.getByRole("button", { name: "send" })).toBeDisabled();
     expect(screen.getByText("composerCharacterCount 10001/10000")).toBeTruthy();
@@ -238,7 +238,7 @@ describe("RoomComposer over-limit recovery", () => {
     expect(screen.getByTestId("attachment-count")).toHaveTextContent("1");
     expect(onSubmit).not.toHaveBeenCalled();
     expect(
-      screen.queryByRole("button", { name: "composerAttachAsMarkdownFile" }),
+      screen.queryByRole("button", { name: "composerConvertToFile" }),
     ).toBeNull();
     expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
   });
@@ -253,7 +253,7 @@ describe("RoomComposer over-limit recovery", () => {
     render(<OverflowHarness initialValue={TOO_LONG} onSubmit={onSubmit} />);
 
     await user.click(
-      screen.getByRole("button", { name: "composerAttachAsMarkdownFile" }),
+      screen.getByRole("button", { name: "composerConvertToFile" }),
     );
 
     await waitFor(() => {

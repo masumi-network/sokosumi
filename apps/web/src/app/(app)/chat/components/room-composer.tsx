@@ -656,7 +656,7 @@ export function RoomComposer({
                   ) : (
                     <FileText className="size-3.5" aria-hidden />
                   )}
-                  {t("composerAttachAsMarkdownFile")}
+                  {t("composerConvertToFile")}
                 </Button>
               ) : null}
             </div>
