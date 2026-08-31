@@ -217,14 +217,14 @@ export function computeEnabledPricedNetworks(
  * On (4), masumi ADR 0016: the node caps x402 spend on the API KEY, not on a
  * wallet. `usageLimited` off means uncapped. On, it requires a positive
  * balance for unit `<caip2Network>:<asset>`, byte-identical to this pair
- * key, which is why the gate is a map lookup. The one exception is the node's
- * own grandfathering: a `usageLimited` key holding NO `eip155:` row at all is
- * uncapped on the node and really can pay, so treating it as unready would
- * hide agents the node would happily settle. It warns instead, because an
- * operator who believes they set a cap has not. The gate asks whether the
- * unit holds credit, never whether it holds enough: no price exists at sync
- * time, so a nearly exhausted unit stays listed and the node refuses the
- * charge with a 402 instead.
+ * key, which is why the gate is a map lookup. There is no exception for a key
+ * holding no `eip155:` row at all. The node used to grandfather such a key to
+ * uncapped spend, which is why this gate once let it through; the node now
+ * refuses its payments, so listing the pair would advertise an agent that
+ * cannot be hired.
+ * The gate asks whether the unit holds credit, never whether it holds enough:
+ * no price exists at sync time, so a nearly exhausted unit stays listed and
+ * the node refuses the charge with a 402 instead.
  *
  * On (3), any funded wallet is an equally valid signer now that the cap is
  * key-global: nothing binds a chain's spend to one wallet any more. The
@@ -301,7 +301,7 @@ export function composeX402ReadySources(
     if (!spendCaps) {
       continue;
     }
-    if (spendCaps.usageLimited && !spendCaps.grandfatheredUncapped) {
+    if (spendCaps.usageLimited) {
       // Presence, not sufficiency. The node debits by comparing the SUM of
       // the unit's credit rows against the payment amount, while readiness
       // runs before any price is known. A unit holding one base unit still
@@ -350,12 +350,6 @@ export function composeX402ReadySources(
         `[sync/agents] x402 pair ${pairLabel} has no usable Purchasing wallet, so it cannot be buy-side ready. The node's listing exposes none that Soko's key can reach on this chain, or none holding both native gas and the priced token; create, scope, and fund one`,
       );
       continue;
-    }
-
-    if (spendCaps.grandfatheredUncapped) {
-      console.warn(
-        `[sync/agents] x402 pair ${pairLabel} is buy-side ready on an UNCAPPED key: the key is usageLimited but holds no eip155 credit row, so the payment node grandfathers it and enforces no x402 spend cap. Grant credits for unit ${pairLabel} to make the cap real`,
-      );
     }
 
     readySources.push({

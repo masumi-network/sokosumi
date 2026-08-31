@@ -1,7 +1,13 @@
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 
+import { ProjectsPageSkeleton } from "@/app/projects/components/projects-loading-view";
 import { ProjectsView } from "@/app/projects/components/projects-view";
-import { PROJECTS_PAGE_LIMIT } from "@/app/projects/constants";
+import {
+  PROJECTS_PAGE_LIMIT,
+  PROJECTS_PAGE_SHELL_CLASS,
+} from "@/app/projects/constants";
 import { projectService } from "@/lib/services/project.service";
 
 interface ProjectsPageProps {
@@ -14,9 +20,13 @@ export const metadata = {
   title: "Projects",
 };
 
-export default async function ProjectsPage({
-  searchParams,
-}: ProjectsPageProps) {
+/**
+ * Async hole for Instant Nav. `await connection()` first so PPR shell probing
+ * does not soft-reject cookies()/headers()-bound work while filling Suspense.
+ */
+export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
+  await connection();
+
   const { create } = await searchParams;
   const projectsPagePromise = projectService.listProjects({
     limit: PROJECTS_PAGE_LIMIT,
@@ -30,7 +40,7 @@ export default async function ProjectsPage({
   const initialCreateProjectOpen = create === "true";
 
   return (
-    <div className="w-full px-2">
+    <div className={PROJECTS_PAGE_SHELL_CLASS}>
       <ProjectsView
         key={projectsPage.projects
           .map((project) => `${project.id}:${project.updatedAt}`)
@@ -49,19 +59,6 @@ export default async function ProjectsPage({
           loadMore: t("list.loadMore"),
           loading: t("list.loading"),
           loadMoreError: t("Detail.errors.loadMore"),
-          rowActions: {
-            moreActions: t("Detail.actions.moreActions"),
-            viewDetails: t("Detail.actions.viewDetails"),
-            edit: t("Detail.actions.edit"),
-            delete: t("Detail.actions.delete"),
-          },
-          deleteDialog: {
-            title: t("Detail.deleteDialog.title"),
-            description: t("Detail.deleteDialog.description"),
-            confirm: t("Detail.deleteDialog.confirm"),
-            cancel: t("Detail.deleteDialog.cancel"),
-            error: t("Detail.errors.delete"),
-          },
           counts: {
             tasks: t("list.stats.tasks"),
             jobs: t("list.stats.jobs"),
@@ -69,5 +66,13 @@ export default async function ProjectsPage({
         }}
       />
     </div>
+  );
+}
+
+export default function ProjectsPage({ searchParams }: ProjectsPageProps) {
+  return (
+    <Suspense fallback={<ProjectsPageSkeleton />}>
+      <ProjectsPageContent searchParams={searchParams} />
+    </Suspense>
   );
 }

@@ -45,5 +45,11 @@ describe("ProjectModuleTiles", () => {
     expect(
       tiles.every((tile) => tile.className.includes("cursor-default")),
     ).toBe(true);
+    expect(tiles.every((tile) => tile.className.includes("rounded-xl"))).toBe(
+      true,
+    );
+    expect(
+      tiles.every((tile) => !tile.className.includes("rounded-none")),
+    ).toBe(true);
   });
 });

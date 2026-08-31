@@ -207,7 +207,7 @@ export function ProjectBrandCard({
     <>
       <section
         id="project-brand-card"
-        className="bg-muted/30 border-border/50 scroll-mt-4 self-start rounded-xl border p-4"
+        className="bg-muted/30 border-border/50 scroll-mt-4 self-start rounded-none border p-4 md:rounded-xl"
         data-testid="project-brand-card"
       >
         <div className="flex items-start justify-between gap-3">

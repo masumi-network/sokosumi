@@ -96,7 +96,7 @@ export function ProjectMemoryRow({
   if (!contextMd && !contextMdUpdating) {
     return (
       <div
-        className="bg-muted/30 border-border/50 min-w-0 self-start rounded-xl border p-4"
+        className="bg-muted/30 border-border/50 min-w-0 self-start rounded-none border p-4 md:rounded-xl"
         data-testid="project-memory-empty"
       >
         <p className="text-muted-foreground text-xs font-medium">
@@ -129,7 +129,7 @@ export function ProjectMemoryRow({
         data-testid="project-memory-row"
         disabled={!contextMd}
         onClick={() => void handleOpen()}
-        className="bg-muted/30 border-border/50 hover:bg-muted/50 min-w-0 self-start rounded-xl border p-4 text-left transition-colors disabled:cursor-default disabled:hover:bg-muted/30"
+        className="bg-muted/30 border-border/50 hover:bg-muted/50 min-w-0 self-start rounded-none border p-4 text-left transition-colors disabled:cursor-default disabled:hover:bg-muted/30 md:rounded-xl"
       >
         <p className="text-muted-foreground text-xs font-medium">
           {t("memory.fileName")}
