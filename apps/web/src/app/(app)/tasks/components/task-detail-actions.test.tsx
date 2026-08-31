@@ -382,14 +382,6 @@ vi.mock("@/app/tasks/components/task-share-button", () => ({
 }));
 
 vi.mock("@/app/tasks/components/task-form", () => ({
-  taskAssigneeFormLabels: (t: (key: string) => string) => ({
-    assignee: t("assignee"),
-    assigneeUnassigned: t("assigneeUnassigned"),
-    assigneePeople: t("assigneePeople"),
-    assigneeCoworkers: t("assigneeCoworkers"),
-    assigneeSearchPlaceholder: t("assigneeSearchPlaceholder"),
-    assigneeEmptyResults: t("assigneeEmptyResults"),
-  }),
   TaskForm: ({
     initialValues,
     initialDesignMdAttachment,

@@ -1,13 +1,11 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
-import {
-  TaskForm,
-  taskAssigneeFormLabels,
-} from "@/app/tasks/components/task-form";
+import { TaskForm } from "@/app/tasks/components/task-form";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/list-task-assignee-member-options";
+import { taskAssigneeFormLabels } from "@/app/tasks/utils/task-assignee-form-labels";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -26,7 +24,7 @@ export default async function NewTaskPage() {
     getSession(),
     listTaskAssigneeMemberOptions(),
   ]);
-  const initialDesignMdAttachment = session?.user.id
+  const initialDesignMdAttachment = session?.user?.id
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
   const coworkerOptions = getCoworkerOptions(taskCoworkers);

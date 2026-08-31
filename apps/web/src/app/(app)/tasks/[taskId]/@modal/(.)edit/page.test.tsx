@@ -13,6 +13,7 @@ const getCoworkerOptionsMock = vi.fn();
 const buildAgentNameByIdMock = vi.fn();
 const notFoundMock = vi.fn();
 const redirectMock = vi.fn();
+const listTaskAssigneeMemberOptionsMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => notFoundMock(),
@@ -43,6 +44,11 @@ vi.mock("@/app/tasks/utils/agent-names", () => ({
 
 vi.mock("@/app/tasks/utils/coworker-options", () => ({
   getCoworkerOptions: (...args: unknown[]) => getCoworkerOptionsMock(...args),
+}));
+
+vi.mock("@/app/tasks/utils/list-task-assignee-member-options", () => ({
+  listTaskAssigneeMemberOptions: (...args: unknown[]) =>
+    listTaskAssigneeMemberOptionsMock(...args),
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -84,6 +90,7 @@ describe("TaskEditModalPage", () => {
     redirectMock.mockImplementation((path: string) => {
       throw new Error(`redirect:${path}`);
     });
+    listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
     getTranslationsMock.mockImplementation(async (namespace: string) => {
       if (namespace === "Components.OrganizationSwitcher") {
         const translator = (key: string) =>
@@ -138,6 +145,7 @@ describe("TaskEditModalPage", () => {
       successMessage: 'switchedWorkspace:{"account":"Workspace Org"}',
     });
     expect(listCoworkersMock).not.toHaveBeenCalled();
+    expect(listTaskAssigneeMemberOptionsMock).not.toHaveBeenCalled();
     expect(getAvailableAgentsWithCreditsPriceMock).not.toHaveBeenCalled();
     expect(taskEditModalMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("auto-context-switch")).toBeInTheDocument();

@@ -11,6 +11,7 @@ const getTranslationsMock = vi.fn();
 const autoContextSwitchMock = vi.fn();
 const taskEditModalMock = vi.fn();
 const getCoworkerOptionsMock = vi.fn();
+const listTaskAssigneeMemberOptionsMock = vi.fn();
 const buildAgentNameByIdMock = vi.fn();
 const notFoundMock = vi.fn();
 const redirectMock = vi.fn();
@@ -44,6 +45,11 @@ vi.mock("@/app/tasks/utils/agent-names", () => ({
 
 vi.mock("@/app/tasks/utils/coworker-options", () => ({
   getCoworkerOptions: (...args: unknown[]) => getCoworkerOptionsMock(...args),
+}));
+
+vi.mock("@/app/tasks/utils/list-task-assignee-member-options", () => ({
+  listTaskAssigneeMemberOptions: (...args: unknown[]) =>
+    listTaskAssigneeMemberOptionsMock(...args),
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -108,6 +114,7 @@ describe("EditTaskPage", () => {
     getCoworkerOptionsMock.mockReturnValue([
       { value: "cow_123", label: "Coworker" },
     ]);
+    listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
     buildAgentNameByIdMock.mockReturnValue({
       agent_123: "Agent",
     });
@@ -152,6 +159,7 @@ describe("EditTaskPage", () => {
       successMessage: 'switchedWorkspace:{"account":"Workspace Org"}',
     });
     expect(listCoworkersMock).not.toHaveBeenCalled();
+    expect(listTaskAssigneeMemberOptionsMock).not.toHaveBeenCalled();
     expect(getAvailableAgentsWithCreditsPriceMock).not.toHaveBeenCalled();
     expect(taskEditModalMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("auto-context-switch")).toBeInTheDocument();
@@ -200,6 +208,7 @@ describe("EditTaskPage", () => {
       expect.objectContaining({
         taskId: "task_1",
         coworkerOptions: [{ value: "cow_123", label: "Coworker" }],
+        memberOptions: [],
         projectOptions: [{ id: "project_1", name: "Project" }],
         agentNameById: {
           agent_123: "Agent",
@@ -208,6 +217,7 @@ describe("EditTaskPage", () => {
           name: "Task",
           description: "Desc",
           assigneeId: "cow_123",
+          assigneeUserId: null,
           projectId: null,
           status: "READY",
           metadata: undefined,

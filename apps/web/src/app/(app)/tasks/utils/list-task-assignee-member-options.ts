@@ -23,7 +23,7 @@ export async function listTaskAssigneeMemberOptions(): Promise<
   TaskAssigneeMemberOption[]
 > {
   const session = await getSession();
-  if (!session?.user.id) {
+  if (!session?.user?.id) {
     return [];
   }
 

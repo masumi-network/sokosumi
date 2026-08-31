@@ -30,6 +30,15 @@ describe("listTaskAssigneeMemberOptions", () => {
     expect(getOrganizationMembersMock).not.toHaveBeenCalled();
   });
 
+  it("returns an empty list when the session has no user", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: null },
+    });
+
+    await expect(listTaskAssigneeMemberOptions()).resolves.toEqual([]);
+    expect(getOrganizationMembersMock).not.toHaveBeenCalled();
+  });
+
   it("returns the signed-in user in a personal workspace", async () => {
     getSessionMock.mockResolvedValue({
       user: {

@@ -146,35 +146,6 @@ export interface TaskFormLabels {
   createAnother?: string;
 }
 
-export function taskAssigneeFormLabels(t: {
-  (
-    key:
-      | "assignee"
-      | "assigneeUnassigned"
-      | "assigneePeople"
-      | "assigneeCoworkers"
-      | "assigneeSearchPlaceholder"
-      | "assigneeEmptyResults",
-  ): string;
-}): Pick<
-  TaskFormLabels,
-  | "assignee"
-  | "assigneeUnassigned"
-  | "assigneePeople"
-  | "assigneeCoworkers"
-  | "assigneeSearchPlaceholder"
-  | "assigneeEmptyResults"
-> {
-  return {
-    assignee: t("assignee"),
-    assigneeUnassigned: t("assigneeUnassigned"),
-    assigneePeople: t("assigneePeople"),
-    assigneeCoworkers: t("assigneeCoworkers"),
-    assigneeSearchPlaceholder: t("assigneeSearchPlaceholder"),
-    assigneeEmptyResults: t("assigneeEmptyResults"),
-  };
-}
-
 interface TaskFormInitialValues {
   name?: string;
   description?: string;

@@ -36,6 +36,7 @@ import { toast } from "sonner";
 
 import type { TaskAssigneeMemberOption } from "@/app/tasks/utils/task-assignee";
 import { taskAssigneeKindFromIds } from "@/app/tasks/utils/task-assignee";
+import { taskAssigneeFormLabels } from "@/app/tasks/utils/task-assignee-form-labels";
 import {
   canArchiveParkedTaskForViewer,
   canArchiveScheduledTaskForViewer,
@@ -87,7 +88,6 @@ import {
   TaskForm,
   type TaskFormInitialDesignMdAttachment,
   type TaskFormLabels,
-  taskAssigneeFormLabels,
 } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";

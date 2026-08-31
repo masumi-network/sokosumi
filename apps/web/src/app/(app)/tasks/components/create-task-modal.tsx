@@ -14,15 +14,12 @@ import { toast } from "sonner";
 
 import { loadCreateTaskModalData } from "@/app/tasks/actions";
 import type { TaskAssigneeMemberOption } from "@/app/tasks/utils/task-assignee";
+import { taskAssigneeFormLabels } from "@/app/tasks/utils/task-assignee-form-labels";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
-import {
-  TaskForm,
-  type TaskFormInitialDesignMdAttachment,
-  taskAssigneeFormLabels,
-} from "./task-form";
+import { TaskForm, type TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 
 // --- Context ---
