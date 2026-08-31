@@ -232,6 +232,26 @@ describe("evaluateScenario", () => {
     expect(check?.actual).toBe("schedule points somewhere else");
   });
 
+  it("does not accept an id that merely sits inside a longer one", () => {
+    // "task-1" appearing within "task-10" is a different task, and reporting
+    // that schedule as correct is the failure this check exists to catch.
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({
+        toolCalls: [
+          call("create_task"),
+          call("update_schedule", scheduleFor("task-10")),
+        ],
+        delegations: [{ id: "d1", taskId: "task-1", jobId: null }],
+      }),
+    );
+
+    const check = result.checks.find(
+      (c) => c.label === "Schedule names a task from this turn",
+    );
+    expect(check?.pass).toBe(false);
+  });
+
   it("fails a bare promise to follow up without a schedule", () => {
     const result = evaluateScenario(
       byId("delegate-with-daily-checkin"),

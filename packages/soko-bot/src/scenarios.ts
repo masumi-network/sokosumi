@@ -611,8 +611,16 @@ export function evaluateScenario(
           call.capability === "update_schedule",
       )
       .map((call) => JSON.stringify(call.result ?? ""));
+    // Bounded rather than a substring test: an id that merely appears inside
+    // a longer one is a different task, and matching it would report the
+    // wrong schedule as correct.
+    const namesTouchedTask = (text: string, id: string) =>
+      new RegExp(
+        `(^|[^0-9a-z-])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^0-9a-z-]|$)`,
+        "i",
+      ).test(text);
     const hit = scheduleResults.find((text) =>
-      Array.from(touchedIds).some((id) => text.includes(id)),
+      Array.from(touchedIds).some((id) => namesTouchedTask(text, id)),
     );
     checks.push({
       label: "Schedule names a task from this turn",
