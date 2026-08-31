@@ -4832,6 +4832,14 @@ export type UpdateSokoBotVersionRequest = {
     versionId: string;
 };
 
+export type SokoBotLabIngest = {
+    turnId: string;
+};
+
+export type SokoBotLabIngestRequest = {
+    beat: 'standup' | 'weekly-wrap' | 'delta';
+};
+
 export type SokoBotLabTaskEvent = {
     taskId: string;
     name: string;
@@ -32594,6 +32602,118 @@ export type UpdateMySokoBotVersionResponses = {
 
 export type UpdateMySokoBotVersionResponse = UpdateMySokoBotVersionResponses[keyof UpdateMySokoBotVersionResponses];
 
+export type RunMySokoBotLabIngestData = {
+    body?: SokoBotLabIngestRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/lab/ingest';
+};
+
+export type RunMySokoBotLabIngestErrors = {
+    /**
+     * A required account is not connected
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Soko Bot cannot take a turn right now
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RunMySokoBotLabIngestError = RunMySokoBotLabIngestErrors[keyof RunMySokoBotLabIngestErrors];
+
+export type RunMySokoBotLabIngestResponses = {
+    /**
+     * Turn started
+     */
+    200: {
+        data: SokoBotLabIngest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RunMySokoBotLabIngestResponse = RunMySokoBotLabIngestResponses[keyof RunMySokoBotLabIngestResponses];
+
 export type SimulateMySokoBotTaskEventData = {
     body?: SimulateSokoBotTaskEventRequest;
     path?: never;
@@ -32617,9 +32737,37 @@ export type SimulateMySokoBotTaskEventErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Soko Bot cannot take a turn right now
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
