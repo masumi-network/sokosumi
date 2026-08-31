@@ -161,6 +161,39 @@ describe("GET /projects/{id}/calendar", () => {
     );
   });
 
+  it("excludes archived Tasks from the Project Calendar", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: [
+                {
+                  state: TaskScheduleOccurrenceState.PLANNED,
+                  seriesTask: { is: { archivedAt: null } },
+                },
+                {
+                  state: TaskScheduleOccurrenceState.RELEASED,
+                  releasedTask: { is: { archivedAt: null } },
+                },
+                {
+                  state: TaskScheduleOccurrenceState.RELEASED,
+                  releasedTaskId: null,
+                  seriesTask: { is: { archivedAt: null } },
+                },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
+  });
+
   it("filters planned and released Project occurrences by task status", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&status=READY`,

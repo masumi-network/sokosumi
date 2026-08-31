@@ -464,13 +464,17 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          OR: [
-            {
-              effectiveScheduledAt: {
-                gt: new Date("2026-06-02T09:00:00.000Z"),
-              },
-            },
-          ],
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              OR: [
+                {
+                  effectiveScheduledAt: {
+                    gt: new Date("2026-06-02T09:00:00.000Z"),
+                  },
+                },
+              ],
+            }),
+          ]),
         }),
       }),
     );
@@ -668,17 +672,21 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          OR: [
-            {
-              effectiveScheduledAt: {
-                gt: new Date("2026-06-02T09:00:00.000Z"),
-              },
-            },
-            {
-              effectiveScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
-              id: { gt: "00000000-0000-7000-8000-000000000002" },
-            },
-          ],
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              OR: [
+                {
+                  effectiveScheduledAt: {
+                    gt: new Date("2026-06-02T09:00:00.000Z"),
+                  },
+                },
+                {
+                  effectiveScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+                  id: { gt: "00000000-0000-7000-8000-000000000002" },
+                },
+              ],
+            }),
+          ]),
         }),
       }),
     );

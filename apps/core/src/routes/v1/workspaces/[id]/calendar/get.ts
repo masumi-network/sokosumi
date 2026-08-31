@@ -229,6 +229,7 @@ export async function readWorkspaceCalendar(
   const { cursor, from, to } = query;
   const maxCandidates = query.limit + 1;
   const taskFilters: Prisma.TaskWhereInput[] = [
+    { archivedAt: null },
     ...(options.taskWhere ? [options.taskWhere] : []),
     ...(query.scope === "owned" || query.assigneeId || query.status
       ? [
