@@ -984,7 +984,8 @@ model CreditBucket {
   sourceTransaction   Transaction @relation("CreditBucketSource", fields: [sourceTransactionId], references: [id], onDelete: Cascade)
 
   // Owner XOR: personal (userId set, organizationId null) or organization
-  // (organizationId set, userId null). SQL CHECK credit_bucket_owner_xor_check.
+  // (organizationId set, userId null). SQL CHECK credit_bucket_owner_xor_check
+  // (20260831154500). Do not drop that constraint from a schema-generated diff.
   // ON DELETE CASCADE: SET NULL would violate the CHECK.
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
