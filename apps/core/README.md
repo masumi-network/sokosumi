@@ -269,7 +269,7 @@ pnpm approve-builds @sentry/profiling-node
 
 Core’s [`vercel.json`](./vercel.json) sets:
 
-- `installCommand` to `pnpm install --frozen-lockfile --filter @sokosumi/core...` so only Core and its workspace deps (including `@sokosumi/database`) are installed — not the web app or unrelated packages
+- `installCommand` to [`scripts/vercel-pnpm-install.mjs`](../../scripts/vercel-pnpm-install.mjs) with `--filter @sokosumi/core...` so only Core and its workspace deps (including `@sokosumi/database`) are installed — not the web app or unrelated packages. The helper npm-installs the pinned pnpm 12 CLI (Vercel’s PATH pnpm 9/10 cannot install this lockfile without Corepack).
 - `buildCommand` to `pnpm vercel-build`, which:
 
 1. Runs `pnpm run build` (`tsup`; workspace packages emit `dist` via their `prepare` scripts during install)
