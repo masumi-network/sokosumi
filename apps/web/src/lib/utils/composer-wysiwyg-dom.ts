@@ -93,5 +93,73 @@ export interface ComposerCaretScrollBox {
  * padding-bottom after max-height and look like the caret stopped following.
  */
 export function composerCaretScrollDelta(box: ComposerCaretScrollBox): number {
+  if (box.caretBottom > box.visibleBottom) {
+    return box.caretBottom - box.visibleBottom;
+  }
+  if (box.caretTop < box.visibleTop) {
+    return box.caretTop - box.visibleTop;
+  }
   return 0;
+}
+
+function collapsedCaretRect(range: Range): DOMRect | null {
+  const clientRects = range.getClientRects();
+  if (clientRects.length > 0) {
+    return clientRects[clientRects.length - 1] ?? null;
+  }
+
+  const bounding = range.getBoundingClientRect();
+  if (bounding.height > 0 || bounding.width > 0) {
+    return bounding;
+  }
+
+  const node = range.startContainer;
+  const offset = range.startOffset;
+  if (node.nodeType === Node.TEXT_NODE && offset > 0) {
+    const probe = document.createRange();
+    probe.setStart(node, offset - 1);
+    probe.setEnd(node, offset);
+    const glyph = probe.getBoundingClientRect();
+    if (glyph.height > 0 || glyph.width > 0) {
+      return glyph;
+    }
+  }
+
+  if (node instanceof HTMLElement) {
+    return node.getBoundingClientRect();
+  }
+  if (node.parentElement) {
+    return node.parentElement.getBoundingClientRect();
+  }
+  return null;
+}
+
+/**
+ * Keep the caret inside the editor content box. Adjusts `scrollTop` only.
+ * Do not set scroll-margin on this overflowing host (mouse selection jumps).
+ */
+export function scrollComposerCaretIntoView(editor: HTMLElement): void {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+
+  const range = selection.getRangeAt(0);
+  const endContainer: Node = range.endContainer;
+  if (!editor.contains(endContainer)) return;
+
+  const caret = collapsedCaretRect(range);
+  if (!caret) return;
+
+  const box = editor.getBoundingClientRect();
+  const style = getComputedStyle(editor);
+  const padTop = Number.parseFloat(style.paddingTop) || 0;
+  const padBottom = Number.parseFloat(style.paddingBottom) || 0;
+  const delta = composerCaretScrollDelta({
+    caretTop: caret.top,
+    caretBottom: caret.bottom,
+    visibleTop: box.top + padTop,
+    visibleBottom: box.bottom - padBottom,
+  });
+  if (delta !== 0) {
+    editor.scrollTop += delta;
+  }
 }
