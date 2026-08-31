@@ -109,6 +109,7 @@ const USER_RECORD = {
   role: "user",
   marketingOptIn: true,
   notificationsOptIn: false,
+  pushOptIn: false,
 };
 
 const BARE_COWORKER: AuthenticationContext = {
@@ -245,6 +246,7 @@ describe("coworker user route allowlist", () => {
     expect(body.data).toEqual({
       marketingOptIn: true,
       notificationsOptIn: false,
+      pushOptIn: false,
     });
   });
 });
