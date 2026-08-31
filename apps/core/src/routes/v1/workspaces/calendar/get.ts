@@ -54,6 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceContext.workspaceId,
       userContext.userId,
       calendarQuery,
+      c.var.authContext,
     );
 
     return ok(c, items, pagination);
