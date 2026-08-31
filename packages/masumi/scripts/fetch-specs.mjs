@@ -6,6 +6,10 @@
  *
  * Refuses to overwrite a snapshot with a LOWER info.version (a deployment
  * lagging behind the pinned spec); pass FORCE=1 to override.
+ *
+ * CHECK=1 reports drift instead of writing, exiting non-zero when a pinned
+ * snapshot no longer matches its deployment. A snapshot is stale by design,
+ * and info.version does not move on every release, so nothing else notices.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -94,6 +98,35 @@ export function findMissingSpecLandmarks(
   ];
 }
 
+/**
+ * Paths in `spec` that `pinned` does not have, and the reverse.
+ *
+ * Path membership is the readable half of the report. A path added upstream
+ * is a client method Soko cannot call; a path only in the pin is an endpoint
+ * the deployment has retired, which is how `GET /x402/budgets` outlived the
+ * node that served it.
+ */
+export function diffSpecPaths(spec, pinned) {
+  const live = Object.keys(spec?.paths ?? {});
+  const held = Object.keys(pinned?.paths ?? {});
+  return {
+    added: live.filter((path) => !held.includes(path)).sort(),
+    removed: held.filter((path) => !live.includes(path)).sort(),
+  };
+}
+
+/**
+ * Whether the fetched spec differs from the pinned one at all.
+ *
+ * Compares the serialization this script writes, so "no drift" means exactly
+ * "re-running fetch:specs would change nothing". Prose-only edits count as
+ * drift on purpose: they still reach the generated client, and the remedy is
+ * the same refresh either way.
+ */
+export function hasSpecDrift(spec, pinned) {
+  return JSON.stringify(spec) !== JSON.stringify(pinned);
+}
+
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
@@ -141,6 +174,50 @@ async function main() {
       continue;
     }
     const spec = await response.json();
+
+    if (process.env.CHECK === "1") {
+      let pinned;
+      try {
+        pinned = JSON.parse(await readFile(source.outFile, "utf8"));
+      } catch {
+        console.error(
+          `[fetch-specs] ${source.name}: no readable pinned snapshot at ${source.outFile}`,
+        );
+        process.exitCode = 1;
+        continue;
+      }
+      if (!hasSpecDrift(spec, pinned)) {
+        console.info(
+          `[fetch-specs] ${source.name}: pinned snapshot matches ${source.url} (version ${spec?.info?.version ?? "unknown"})`,
+        );
+        continue;
+      }
+      const { added, removed } = diffSpecPaths(spec, pinned);
+      console.error(
+        `[fetch-specs] ${source.name}: pinned snapshot is STALE against ${source.url}`,
+      );
+      console.error(
+        `  version: pinned ${pinned?.info?.version ?? "unknown"} vs deployed ${spec?.info?.version ?? "unknown"}`,
+      );
+      console.error(
+        `  paths: pinned ${Object.keys(pinned?.paths ?? {}).length} vs deployed ${Object.keys(spec?.paths ?? {}).length}`,
+      );
+      for (const path of added) {
+        console.error(`  + ${path} (deployed, missing from the client)`);
+      }
+      for (const path of removed) {
+        console.error(`  - ${path} (retired upstream, still generated)`);
+      }
+      if (added.length === 0 && removed.length === 0) {
+        console.error("  no path changes; the drift is inside operations");
+      }
+      console.error(
+        "  fix: pnpm --filter @sokosumi/masumi fetch:specs && pnpm --filter @sokosumi/masumi generate:api, then update spec/SPEC_SOURCES.md",
+      );
+      process.exitCode = 1;
+      continue;
+    }
+
     const missingLandmarks = findMissingSpecLandmarks(spec, source);
     if (process.env.FORCE !== "1" && missingLandmarks.length > 0) {
       console.error(
@@ -176,11 +253,14 @@ async function main() {
     );
   }
 
-  if (process.exitCode !== 1) {
-    console.info(
-      "[fetch-specs] done — update spec/SPEC_SOURCES.md provenance and run `pnpm generate:api`",
-    );
+  if (process.exitCode === 1) {
+    return;
   }
+  console.info(
+    process.env.CHECK === "1"
+      ? "[fetch-specs] done: every pinned snapshot matches its deployment"
+      : "[fetch-specs] done: update spec/SPEC_SOURCES.md provenance and run `pnpm generate:api`",
+  );
 }
 
 const isMain =
