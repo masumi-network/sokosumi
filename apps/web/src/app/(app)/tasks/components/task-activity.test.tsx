@@ -706,6 +706,7 @@ describe("TaskActivitySection", () => {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
+          avatarImageUrl: null,
           owner: {
             id: "user-1",
             name: "Ada Lovelace",
@@ -742,6 +743,7 @@ describe("TaskActivitySection", () => {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: null,
+          avatarImageUrl: null,
           owner: {
             id: "user-1",
             name: "Ada Lovelace",
@@ -779,6 +781,7 @@ describe("TaskActivitySection", () => {
             id: "orch-1",
             name: "Hermes",
             avatarSeed: "orb:jewel-sky:user_123",
+            avatarImageUrl: null,
             owner: {
               id: "user-1",
               name: "Ada Lovelace",
@@ -799,6 +802,7 @@ describe("TaskActivitySection", () => {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
+          avatarImageUrl: null,
           owner: {
             id: "user-1",
             name: "Ada Lovelace",

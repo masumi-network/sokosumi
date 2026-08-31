@@ -140,6 +140,7 @@ describe("TaskMetadata", () => {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Hermes",
               avatarSeed: null,
+              avatarImageUrl: null,
               owner: {
                 id: "user_2",
                 name: "Ada Lovelace",
@@ -212,6 +213,7 @@ describe("TaskMetadata", () => {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Ada Lovelace's personal assistant",
               avatarSeed: null,
+              avatarImageUrl: null,
               owner: { id: "user_2", name: "Ada Lovelace", image: null },
             },
           },
