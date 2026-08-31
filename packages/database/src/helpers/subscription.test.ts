@@ -557,19 +557,9 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     );
   });
 
-  it("creates the initial organization free subscription period from createdAt and current members", async () => {
-    const {
-      createSubscriptionMock,
-      createTransactionMock,
-      findManyMembersMock,
-      tx,
-    } = createTransactionClient({
-      members: [
-        { role: "MEMBER", userId: "member-1" },
-        { role: "OWNER", userId: "owner-1" },
-        { role: "MEMBER", userId: "assigned-1" },
-      ],
-    });
+  it("creates the initial organization free subscription period from createdAt", async () => {
+    const { createSubscriptionMock, createTransactionMock, tx } =
+      createTransactionClient();
 
     const result = await ensureInitialLocalFreeSubscriptionPeriod(
       {
@@ -585,16 +575,6 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       grantsCreated: 1,
       subscriptionCreated: true,
       subscriptionId: "subscription-local-free",
-    });
-    assert.equal(findManyMembersMock.mock.calls.length, 1);
-    assert.deepEqual(findManyMembersMock.mock.calls[0]?.[0], {
-      select: {
-        userId: true,
-      },
-      where: {
-        organizationId: "org-1",
-      },
-      orderBy: [{ userId: "asc" }],
     });
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
     const createdOrganizationSubscription =
@@ -616,14 +596,10 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
   });
 
   it("creates the initial organization free subscription period with no members", async () => {
-    const {
-      createSubscriptionMock,
-      createTransactionMock,
-      findManyMembersMock,
-      tx,
-    } = createTransactionClient({
-      members: [],
-    });
+    const { createSubscriptionMock, createTransactionMock, tx } =
+      createTransactionClient({
+        members: [],
+      });
 
     const result = await ensureInitialLocalFreeSubscriptionPeriod(
       {
@@ -640,7 +616,6 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
       subscriptionCreated: true,
       subscriptionId: "subscription-local-free",
     });
-    assert.equal(findManyMembersMock.mock.calls.length, 1);
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
     assert.equal(createTransactionMock.mock.calls.length, 1);
     assert.equal(createTransactionMock.mock.calls[0]?.[0].data.userId, null);
@@ -745,11 +720,9 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
     const {
       createSubscriptionMock,
       createTransactionMock,
-      findManyMembersMock,
       tx,
       updateSubscriptionMock,
     } = createTransitionClient({
-      members: [{ userId: "assigned-1" }, { userId: "unassigned-1" }],
       organization: { id: "org-1" },
       user: null,
     });
@@ -772,11 +745,6 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
       tx,
     );
 
-    assert.deepEqual(findManyMembersMock.mock.calls[0]?.[0], {
-      orderBy: [{ userId: "asc" }],
-      select: { userId: true },
-      where: { organizationId: "org-1" },
-    });
     assert.equal(createSubscriptionMock.mock.calls.length, 1);
     assert.equal(createTransactionMock.mock.calls.length, 1);
     assert.equal(
