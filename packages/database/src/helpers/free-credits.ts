@@ -52,6 +52,21 @@ export async function grantFreeCredits(
     );
   }
 
+  if (params.targetType === "user" && params.transactionUserId === null) {
+    throw new GrantFreeCreditsError(
+      "User free credits require a transaction actor user id",
+    );
+  }
+
+  if (
+    params.targetType === "organization" &&
+    params.transactionUserId !== null
+  ) {
+    throw new GrantFreeCreditsError(
+      "Organization free credits must not stamp a transaction actor",
+    );
+  }
+
   const referenceId = buildFreeCreditReferenceId({
     grantId: params.grantId,
     targetId: params.targetId,

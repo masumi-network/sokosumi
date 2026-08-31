@@ -3135,7 +3135,8 @@ model TaskX402PaymentAction {
 
   /// User.id charged by the payment (the spend Transaction's userId) — the
   /// subject of the refund, which the operator is not. Spend rows still stamp
-  /// the spender; Transaction.userId is optional only for org grants.
+  /// the spender; Transaction.userId is null for org grant/transfer/refund/
+  /// sentinel rows.
   chargedUserId String
 
   /// Organization.id charged by the payment, when the debit belonged to an

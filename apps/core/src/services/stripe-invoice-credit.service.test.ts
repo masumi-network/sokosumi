@@ -385,6 +385,39 @@ describe("handleInvoicePaidEvent", () => {
     expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
+  it("grants organization subscription cycle credits with no members", async () => {
+    mockOrganizationInvoiceContext([]);
+    mockSubscriptionCatalog();
+
+    const { handleInvoicePaidEvent } = await import(
+      "./stripe-invoice-credit.service"
+    );
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_org_cycle_empty",
+        lines: [{ productId: "prod_starter", quantity: 1 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const orgCall = getTransactionCallsByReferenceId().get(
+      buildOrganizationInvoiceCreditReferenceId(
+        "org-1",
+        "in_org_cycle_empty",
+        "subscription",
+      ),
+    );
+
+    expect(orgCall?.data.organizationId).toBe("org-1");
+    expect(orgCall?.data.userId).toBeNull();
+    expect(orgCall?.data.user).toBeUndefined();
+    expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
+    expect(orgCall?.data.amount).toBe(BigInt("17500000000000"));
+  });
+
   it("keeps organization invoice grants stable on retry when membership changes", async () => {
     mockOrganizationInvoiceContext([
       { role: "member", userId: "member-1" },
