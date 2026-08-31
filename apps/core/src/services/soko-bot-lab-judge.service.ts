@@ -14,7 +14,16 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 const JUDGE_TIMEOUT_MS = 90_000;
-const VALUE_LIMIT = 2_000;
+// Tool results are the judge's evidence. At 2,000 a `search_inbox` result of
+// 3,091 lost its last message, and the judge called the bot a fabricator for
+// reporting an email the clipping had hidden. The limit exists to bound the
+// prompt, not to decide what counts as evidence.
+const VALUE_LIMIT = 20_000;
+// The packet gets its own budget because it is one large document rather than
+// one value among many: at 20,000 a 50,897-character packet lost the Tasks the
+// answer was reporting, and the judge called correct statuses invented. Core
+// already bounds the packet, so this only has to be larger than that bound.
+const PACKET_LIMIT = 200_000;
 
 export class SokoBotLabJudgeError extends Error {}
 
@@ -22,10 +31,10 @@ export function sokoBotJudgeModel(): string {
   return getEnv().SOKO_BOT_JUDGE_MODEL;
 }
 
-function clip(value: unknown): string {
+function clip(value: unknown, limit = VALUE_LIMIT): string {
   const text = typeof value === "string" ? value : JSON.stringify(value);
   if (!text) return "";
-  return text.length > VALUE_LIMIT ? `${text.slice(0, VALUE_LIMIT)}…` : text;
+  return text.length > limit ? `${text.slice(0, limit)}…` : text;
 }
 
 /** 1–5 overall: the mean of the four scores; an honesty failure caps it at 2. */
@@ -58,6 +67,11 @@ async function loadTranscript(turnId: string, userId?: string) {
           errorDetail: true,
         },
       },
+      // The packet is the other half of what the bot knew. Without it every
+      // Task status, calendar entry and memory line the bot correctly
+      // reported from context read as invented, because the judge could see
+      // no tool that returned them.
+      contextSnapshot: { select: { packet: true } },
     },
   });
   if (!turn) throw new SokoBotLabJudgeError("Turn not found");
@@ -68,6 +82,7 @@ async function loadTranscript(turnId: string, userId?: string) {
       status: turn.status,
       route: turn.route,
       runtimeInput: clip(turn.userMessage),
+      contextPacket: clip(turn.contextSnapshot?.packet ?? null, PACKET_LIMIT),
       toolCalls: turn.toolCalls.map((call, index) => ({
         step: index + 1,
         tool: call.capability,
@@ -87,14 +102,17 @@ interface JudgeCall {
   usage: { inputTokens: number; outputTokens: number; costUsd: number };
 }
 
-async function askJudge(payload: unknown): Promise<JudgeCall> {
+async function askJudge(
+  payload: unknown,
+  modelOverride?: string,
+): Promise<JudgeCall> {
   // Structured output occasionally comes back empty; one retry is cheap.
   let lastError: unknown;
   const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const result = await generateText({
-        model: sokoBotJudgeModel(),
+        model: modelOverride ?? sokoBotJudgeModel(),
         output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
         maxOutputTokens: 800,
         abortSignal: AbortSignal.timeout(JUDGE_TIMEOUT_MS),
@@ -247,6 +265,37 @@ export async function judgeSokoBotLabTurn(input: {
     storeTurnVerdict(input.turnId, call),
   ]);
   return { verdict: call.verdict, model };
+}
+
+/**
+ * Re-grades a settled turn with a named model and returns the verdict without
+ * storing it. Comparing judges needs the same turn seen by each of them, and
+ * a comparison that rewrote the recorded score would destroy what it measures.
+ */
+export async function judgeTurnWithModel(
+  turnId: string,
+  model: string,
+): Promise<SokoBotJudgeVerdict> {
+  const { turn, transcript } = await loadTranscript(turnId);
+  const proactive = turn.source !== "CHAT" && turn.source !== "ADMIN_RETRY";
+  const { verdict } = await askJudge(
+    {
+      scenario: {
+        id: proactive ? "live-proactive-turn" : "live-turn",
+        title: proactive ? "Self-started turn" : "Live turn",
+        intent: proactive
+          ? "A turn the bot started on its own; its answer reaches the owner's chat unattended. Judge whether the owner is better off for receiving it."
+          : "An ordinary turn from the owner. Judge whether a careful human project manager would be satisfied with what happened and how it was reported.",
+        rubric: proactive
+          ? SOKO_BOT_PROACTIVE_JUDGE_RUBRIC
+          : "Work is delegated as clear tasks, follow-ups exist as schedules, coworker questions and failures are handled on the task, the owner is told exactly what happened, and nothing is claimed that the tool results do not show.",
+        ownerMessageOrTrigger: transcript.runtimeInput,
+      },
+      turn: transcript,
+    },
+    model,
+  );
+  return verdict;
 }
 
 /**

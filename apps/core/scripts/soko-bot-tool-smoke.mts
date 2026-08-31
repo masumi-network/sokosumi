@@ -81,283 +81,334 @@ await prisma.sokoBotContextSnapshot.create({
   },
 });
 
-const svc = new SokoBotRuntimeService();
-const scope = {
-  turnId,
-  sokoBotId: bot.id,
-  userId: bot.userId,
-  workspaceId: bot.workspaceId,
-};
-const results: { capability: string; outcome: string; note: string }[] = [];
-let peerId: string | null = null;
-const leftBehind: string[] = [];
-
-async function run(capability: string, input: unknown): Promise<unknown> {
-  const outcome = await svc
-    .executeTool({
-      ...scope,
-      capability,
-      toolCallId: randomUUID(),
-      input,
-    } as never)
-    .then(
-      (value) => ({ ok: true as const, value }),
-      (error: unknown) => ({
-        ok: false as const,
-        message: error instanceof Error ? error.message : String(error),
-      }),
-    );
-  results.push({
-    capability,
-    outcome: outcome.ok ? "ok" : "FAILED",
-    note: outcome.ok ? "" : outcome.message.replace(/\s+/g, " ").slice(0, 110),
-  });
-  return outcome.ok ? outcome.value : null;
-}
-
-function skip(capability: string, why: string) {
-  results.push({ capability, outcome: "skipped", note: why });
-}
-
-// ---- reads -----------------------------------------------------------------
-await run("refresh_context", {});
-await run("read_memory", {});
-await run("list_schedules", {});
-await run("list_chats", {});
-await run("list_files", {});
-await run("list_integrations", {});
-await run("find_coworkers", { query: "" });
-await run("find_agents", { query: "" });
-await run("list_calendar_events", {});
-
-const inbox = (await run("search_inbox", { limit: 5 })) as
-  | { messages?: { id: string; provider: string }[] }
-  | { id: string; provider: string }[]
-  | null;
-const message = Array.isArray(inbox) ? inbox[0] : inbox?.messages?.[0];
-if (message) {
-  await run("read_email", {
-    provider: message.provider,
-    messageId: message.id,
-  });
-} else {
-  skip("read_email", "no message in the connected mailbox");
-}
-
-const integration = await prisma.sokoBotIntegration.findFirst({
-  where: { sokoBotId: bot.id, status: "ACTIVE" },
-  select: { provider: true },
-});
-if (integration) {
-  await run("list_integration_tools", { provider: integration.provider });
-} else {
-  skip("list_integration_tools", "no connected account");
-  skip("run_integration_tool", "no connected account");
-}
-
-// ---- the Task lifecycle, for real -----------------------------------------
-const created = (await run("create_task", {
-  name: `Tool smoke ${new Date().toISOString().slice(0, 16)}`,
-  description: "Created by soko-bot:tool-smoke. Safe to delete.",
-  status: "DRAFT",
-})) as { id?: string } | null;
-
-if (created?.id) {
-  await run("get_task_status", { taskId: created.id });
-  await run("update_task", {
-    taskId: created.id,
-    description: "Updated by the smoke run.",
-  });
-
-  peerId =
-    (
-      (await run("create_task", {
-        name: `Tool smoke peer ${Date.now()}`,
-        status: "DRAFT",
-      })) as { id?: string } | null
-    )?.id ?? null;
-  if (peerId) {
-    await run("link_tasks", {
-      taskId: created.id,
-      peerTaskId: peerId,
-      relation: "related",
-    });
-  } else {
-    skip("link_tasks", "peer task was not created");
-  }
-
-  if (bot.coworker?.id) {
-    await run("assign_task", {
-      taskId: created.id,
-      coworkerId: bot.coworker.id,
-      ready: true,
-    });
-    await run("reply_to_task", {
-      taskId: created.id,
-      comment: "Smoke comment.",
-    });
-    await run("update_assigned_task", {
-      taskId: created.id,
-      status: "COMPLETED",
-      comment: "Closed by the smoke run.",
-    });
-  } else {
-    for (const c of ["assign_task", "reply_to_task", "update_assigned_task"]) {
-      skip(c, "bot has no chat identity to assign to");
-    }
-  }
-  leftBehind.push(
-    `Tasks archived: ${created.id}${peerId ? `, ${peerId}` : ""}`,
-  );
-} else {
-  for (const c of [
-    "get_task_status",
-    "update_task",
-    "link_tasks",
-    "assign_task",
-    "reply_to_task",
-    "update_assigned_task",
-  ]) {
-    skip(c, "scratch task was not created");
-  }
-}
-
-// ---- schedules: created, changed and removed again -------------------------
-const schedule = (await run("create_schedule", {
-  name: `Tool smoke ${Date.now()}`,
-  cronExpression: "0 9 * * 1",
-  timezone: "Europe/Zurich",
-  prompt: "Smoke schedule. Safe to delete.",
-})) as { id?: string } | null;
-if (schedule?.id) {
-  await run("update_schedule", {
-    scheduleId: schedule.id,
-    prompt: "Smoke schedule, updated.",
-  });
-  await run("delete_schedule", { scheduleId: schedule.id });
-} else {
-  skip("update_schedule", "schedule was not created");
-  skip("delete_schedule", "schedule was not created");
-}
-
-// ---- chat: a real message in the owner's own room ---------------------------
-const ownRoom = await prisma.chatRoom.findFirst({
-  where: {
-    kind: "direct",
-    archivedAt: null,
-    coworkerMembers: { some: { coworkerId: bot.coworker?.id ?? "" } },
-    userMembers: { some: { userId: bot.userId } },
-  },
-  select: { id: true },
-});
-if (ownRoom) {
-  await run("post_chat", {
-    roomId: ownRoom.id,
-    content: "Tool smoke run: post_chat works.",
-  });
-  await run("read_chat", { roomId: ownRoom.id });
-} else {
-  skip("post_chat", "no direct room with the owner");
-  skip("read_chat", "no direct room with the owner");
-}
-
-await run("update_memory", {
-  markdown: "# Soko Bot memory\n\n## Notes\n- Tool smoke run touched memory.",
-});
-await run("upload_file", {
-  filename: `tool-smoke-${Date.now()}.md`,
-  content: "Written by soko-bot:tool-smoke. Safe to delete.",
-});
-
-// ---- hiring: real credits, only when asked for ------------------------------
-const hireable = await prisma.agent.findFirst({
-  where: { isShown: true, status: "ONLINE", apiBaseUrl: { not: null } },
-  select: { id: true, name: true },
-});
-if (!hireable) {
-  skip("get_agent_input_schema", "no hireable agent in this workspace");
-  skip("hire_agent", "no hireable agent in this workspace");
-  skip("provide_job_input", "no hireable agent in this workspace");
-} else {
-  const schema = (await run("get_agent_input_schema", {
-    agentId: hireable.id,
-  })) as Record<string, unknown> | null;
-  if (process.argv.includes("--show-schema")) {
-    console.log("agent schema:", JSON.stringify(schema).slice(0, 900));
-  }
-  if (!allowSpend) {
-    skip("hire_agent", "--dry");
-    skip("provide_job_input", "--dry");
-  } else {
-    // Built from the schema the tool just returned, the way a real caller
-    // does it: every field that takes input gets a value, and the purely
-    // informational ones (`type: "none"`) are left alone.
-    const fields = Array.isArray(schema?.input_data)
-      ? (schema.input_data as { id: string; type: string }[])
-      : [];
-    const inputData = Object.fromEntries(
-      fields
-        .filter((field) => field.type !== "none")
-        .map((field) => [
-          field.id,
-          "Tool smoke run. Answer in one short sentence.",
-        ]),
-    );
-    const job = (await run("hire_agent", {
-      agentId: hireable.id,
-      inputSchema: schema ?? {},
-      inputData,
-      // A ceiling, not a payment: the platform charges the Agent's own price
-      // and refuses anything above this. Set high enough that the hire is
-      // actually attempted, since a refusal before the call proves nothing.
-      maxCredits: 100_000,
-      name: "Tool smoke hire",
-    })) as { jobId?: string; id?: string } | null;
-    // Read back rather than taken from the response: the hire's own shape is
-    // not worth depending on here, and the newest Job for this owner is the
-    // one just created.
-    void job;
-    const latest = await prisma.job.findFirst({
-      where: { ownerId: bot.userId },
-      orderBy: { createdAt: "desc" },
-      select: { id: true },
-    });
-    if (latest) {
-      leftBehind.push(`Job: ${latest.id} (real credits spent)`);
-      await run("get_job_status", { jobId: latest.id });
-    } else {
-      skip("get_job_status", "no Job found after the hire");
-    }
-    skip("provide_job_input", "only reachable once a Job asks for input");
-  }
-}
-
-// The scratch Tasks are archived rather than left on the board: a harness
-// meant to be run often should not silently fill somebody's Taskboard.
-if (created?.id) {
-  await prisma.task
-    .updateMany({
-      where: { id: { in: [created.id, ...(peerId ? [peerId] : [])] } },
-      data: { archivedAt: new Date() },
-    })
+// The turn is RUNNING while this script holds it, and `startTurn` refuses to
+// begin anything while one is active. A crash between here and the delete
+// below would wedge the bot until somebody noticed, so the removal is in a
+// finally rather than at the end of the happy path.
+async function releaseTurn() {
+  await prisma.sokoBotTurn
+    .delete({ where: { id: turnId } })
     .catch(() => undefined);
 }
+process.on("uncaughtException", async (error) => {
+  await releaseTurn();
+  console.error(error);
+  process.exit(1);
+});
 
-await prisma.sokoBotTurn
-  .delete({ where: { id: turnId } })
-  .catch(() => undefined);
+try {
+  const svc = new SokoBotRuntimeService();
+  const scope = {
+    turnId,
+    sokoBotId: bot.id,
+    userId: bot.userId,
+    workspaceId: bot.workspaceId,
+  };
+  const results: { capability: string; outcome: string; note: string }[] = [];
+  let peerId: string | null = null;
+  const leftBehind: string[] = [];
 
-const width = Math.max(...results.map((r) => r.capability.length));
-for (const r of results) {
+  async function run(capability: string, input: unknown): Promise<unknown> {
+    const outcome = await svc
+      .executeTool({
+        ...scope,
+        capability,
+        toolCallId: randomUUID(),
+        input,
+      } as never)
+      .then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({
+          ok: false as const,
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    results.push({
+      capability,
+      outcome: outcome.ok ? "ok" : "FAILED",
+      note: outcome.ok
+        ? ""
+        : outcome.message.replace(/\s+/g, " ").slice(0, 110),
+    });
+    return outcome.ok ? outcome.value : null;
+  }
+
+  function skip(capability: string, why: string) {
+    results.push({ capability, outcome: "skipped", note: why });
+  }
+
+  // ---- reads -----------------------------------------------------------------
+  await run("refresh_context", {});
+  await run("read_memory", {});
+  await run("list_schedules", {});
+  await run("list_chats", {});
+  await run("list_files", {});
+  await run("list_integrations", {});
+  await run("find_coworkers", { query: "" });
+  await run("find_agents", { query: "" });
+  await run("list_calendar_events", {});
+
+  const inbox = (await run("search_inbox", { limit: 5 })) as
+    | { messages?: { id: string; provider: string }[] }
+    | { id: string; provider: string }[]
+    | null;
+  const message = Array.isArray(inbox) ? inbox[0] : inbox?.messages?.[0];
+  if (message) {
+    await run("read_email", {
+      provider: message.provider,
+      messageId: message.id,
+    });
+  } else {
+    skip("read_email", "no message in the connected mailbox");
+  }
+
+  // Mailboxes and calendars have their own readers; `list_integration_tools`
+  // is for the generic providers, and handing it Gmail is what its own error
+  // message tells you not to do.
+  const MAILBOX_OR_CALENDAR = new Set([
+    "gmail",
+    "outlook",
+    "googlecalendar",
+    "outlookcalendar",
+  ]);
+  const generic = await prisma.sokoBotIntegration.findFirst({
+    where: {
+      sokoBotId: bot.id,
+      status: "ACTIVE",
+      provider: { notIn: [...MAILBOX_OR_CALENDAR] },
+    },
+    select: { provider: true },
+  });
+  if (generic) {
+    const tools = (await run("list_integration_tools", {
+      provider: generic.provider,
+    })) as { tools?: { slug: string }[] } | null;
+    const tool = tools?.tools?.[0]?.slug;
+    if (tool) {
+      await run("run_integration_tool", {
+        provider: generic.provider,
+        tool,
+        arguments: {},
+      });
+    } else {
+      skip("run_integration_tool", `no tool listed for ${generic.provider}`);
+    }
+  } else {
+    const why = "only a mailbox and calendar are connected";
+    skip("list_integration_tools", why);
+    skip("run_integration_tool", why);
+  }
+
+  // ---- the Task lifecycle, for real -----------------------------------------
+  const created = (await run("create_task", {
+    name: `Tool smoke ${new Date().toISOString().slice(0, 16)}`,
+    description: "Created by soko-bot:tool-smoke. Safe to delete.",
+    status: "DRAFT",
+  })) as { id?: string } | null;
+
+  if (created?.id) {
+    await run("get_task_status", { taskId: created.id });
+    await run("update_task", {
+      taskId: created.id,
+      description: "Updated by the smoke run.",
+    });
+
+    peerId =
+      (
+        (await run("create_task", {
+          name: `Tool smoke peer ${Date.now()}`,
+          status: "DRAFT",
+        })) as { id?: string } | null
+      )?.id ?? null;
+    if (peerId) {
+      await run("link_tasks", {
+        taskId: created.id,
+        peerTaskId: peerId,
+        relation: "related",
+      });
+    } else {
+      skip("link_tasks", "peer task was not created");
+    }
+
+    if (bot.coworker?.id) {
+      await run("assign_task", {
+        taskId: created.id,
+        coworkerId: bot.coworker.id,
+        ready: true,
+      });
+      await run("reply_to_task", {
+        taskId: created.id,
+        comment: "Smoke comment.",
+      });
+      await run("update_assigned_task", {
+        taskId: created.id,
+        status: "COMPLETED",
+        comment: "Closed by the smoke run.",
+      });
+    } else {
+      for (const c of [
+        "assign_task",
+        "reply_to_task",
+        "update_assigned_task",
+      ]) {
+        skip(c, "bot has no chat identity to assign to");
+      }
+    }
+    leftBehind.push(
+      `Tasks archived: ${created.id}${peerId ? `, ${peerId}` : ""}`,
+    );
+  } else {
+    for (const c of [
+      "get_task_status",
+      "update_task",
+      "link_tasks",
+      "assign_task",
+      "reply_to_task",
+      "update_assigned_task",
+    ]) {
+      skip(c, "scratch task was not created");
+    }
+  }
+
+  // ---- schedules: created, changed and removed again -------------------------
+  const schedule = (await run("create_schedule", {
+    name: `Tool smoke ${Date.now()}`,
+    cronExpression: "0 9 * * 1",
+    timezone: "Europe/Zurich",
+    prompt: "Smoke schedule. Safe to delete.",
+  })) as { id?: string } | null;
+  if (schedule?.id) {
+    await run("update_schedule", {
+      scheduleId: schedule.id,
+      prompt: "Smoke schedule, updated.",
+    });
+    await run("delete_schedule", { scheduleId: schedule.id });
+  } else {
+    skip("update_schedule", "schedule was not created");
+    skip("delete_schedule", "schedule was not created");
+  }
+
+  // ---- chat: a real message in the owner's own room ---------------------------
+  const ownRoom = await prisma.chatRoom.findFirst({
+    where: {
+      kind: "direct",
+      archivedAt: null,
+      coworkerMembers: { some: { coworkerId: bot.coworker?.id ?? "" } },
+      userMembers: { some: { userId: bot.userId } },
+    },
+    select: { id: true },
+  });
+  if (ownRoom) {
+    await run("post_chat", {
+      roomId: ownRoom.id,
+      content: "Tool smoke run: post_chat works.",
+    });
+    await run("read_chat", { roomId: ownRoom.id });
+  } else {
+    skip("post_chat", "no direct room with the owner");
+    skip("read_chat", "no direct room with the owner");
+  }
+
+  await run("update_memory", {
+    markdown: "# Soko Bot memory\n\n## Notes\n- Tool smoke run touched memory.",
+  });
+  await run("upload_file", {
+    filename: `tool-smoke-${Date.now()}.md`,
+    content: "Written by soko-bot:tool-smoke. Safe to delete.",
+  });
+
+  // ---- hiring: real credits, only when asked for ------------------------------
+  const hireable = await prisma.agent.findFirst({
+    where: { isShown: true, status: "ONLINE", apiBaseUrl: { not: null } },
+    select: { id: true, name: true },
+  });
+  if (!hireable) {
+    skip("get_agent_input_schema", "no hireable agent in this workspace");
+    skip("hire_agent", "no hireable agent in this workspace");
+    skip("provide_job_input", "no hireable agent in this workspace");
+  } else {
+    const schema = (await run("get_agent_input_schema", {
+      agentId: hireable.id,
+    })) as Record<string, unknown> | null;
+    if (process.argv.includes("--show-schema")) {
+      console.log("agent schema:", JSON.stringify(schema).slice(0, 900));
+    }
+    if (!allowSpend) {
+      skip("hire_agent", "--dry");
+      skip("provide_job_input", "--dry");
+    } else {
+      // Built from the schema the tool just returned, the way a real caller
+      // does it: every field that takes input gets a value, and the purely
+      // informational ones (`type: "none"`) are left alone.
+      const fields = Array.isArray(schema?.input_data)
+        ? (schema.input_data as { id: string; type: string }[])
+        : [];
+      const inputData = Object.fromEntries(
+        fields
+          .filter((field) => field.type !== "none")
+          .map((field) => [
+            field.id,
+            "Tool smoke run. Answer in one short sentence.",
+          ]),
+      );
+      const job = (await run("hire_agent", {
+        agentId: hireable.id,
+        inputSchema: schema ?? {},
+        inputData,
+        // A ceiling, not a payment: the platform charges the Agent's own price
+        // and refuses anything above this. Set high enough that the hire is
+        // actually attempted, since a refusal before the call proves nothing.
+        maxCredits: 100_000,
+        name: "Tool smoke hire",
+      })) as { jobId?: string; id?: string } | null;
+      // Read back rather than taken from the response: the hire's own shape is
+      // not worth depending on here, and the newest Job for this owner is the
+      // one just created.
+      void job;
+      const latest = await prisma.job.findFirst({
+        where: { ownerId: bot.userId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
+      if (latest) {
+        leftBehind.push(`Job: ${latest.id} (real credits spent)`);
+        await run("get_job_status", { jobId: latest.id });
+      } else {
+        skip("get_job_status", "no Job found after the hire");
+      }
+      skip("provide_job_input", "only reachable once a Job asks for input");
+    }
+  }
+
+  // The scratch Tasks are archived rather than left on the board: a harness
+  // meant to be run often should not silently fill somebody's Taskboard.
+  if (created?.id) {
+    await prisma.task
+      .updateMany({
+        where: { id: { in: [created.id, ...(peerId ? [peerId] : [])] } },
+        data: { archivedAt: new Date() },
+      })
+      .catch(() => undefined);
+  }
+
+  await prisma.sokoBotTurn
+    .delete({ where: { id: turnId } })
+    .catch(() => undefined);
+
+  const width = Math.max(...results.map((r) => r.capability.length));
+  for (const r of results) {
+    console.log(
+      `${r.outcome.padEnd(8)} ${r.capability.padEnd(width)}  ${r.note}`,
+    );
+  }
+  const failed = results.filter((r) => r.outcome === "FAILED");
+  const skipped = results.filter((r) => r.outcome === "skipped");
   console.log(
-    `${r.outcome.padEnd(8)} ${r.capability.padEnd(width)}  ${r.note}`,
+    `\n${results.length - failed.length - skipped.length} ok, ${failed.length} failed, ${skipped.length} skipped, of ${SOKO_BOT_CAPABILITIES.length} capabilities`,
   );
+  if (leftBehind.length > 0)
+    console.log(`Left behind: ${leftBehind.join(" · ")}`);
+  await prisma.$disconnect();
+} finally {
+  await releaseTurn();
 }
-const failed = results.filter((r) => r.outcome === "FAILED");
-const skipped = results.filter((r) => r.outcome === "skipped");
-console.log(
-  `\n${results.length - failed.length - skipped.length} ok, ${failed.length} failed, ${skipped.length} skipped, of ${SOKO_BOT_CAPABILITIES.length} capabilities`,
-);
-if (leftBehind.length > 0)
-  console.log(`Left behind: ${leftBehind.join(" · ")}`);
-await prisma.$disconnect();
