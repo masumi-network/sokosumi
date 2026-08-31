@@ -6,13 +6,14 @@ import {
 } from "@/app/drive/components/drive-view-layout";
 
 describe("Files grid column breakpoints", () => {
-  it("uses 2 / sm:3 / lg:4 / xl:5 for Browse item grids", () => {
+  it("uses 2 / sm:2 / lg:3 / xl:5 for Browse item grids", () => {
     const gridClass = driveItemsListClass("grid");
 
-    expect(gridClass).toContain("grid-cols-2");
-    expect(gridClass).toContain("sm:grid-cols-3");
-    expect(gridClass).toContain("lg:grid-cols-4");
-    expect(gridClass).toContain("xl:grid-cols-5");
+    expect(gridClass).toBe(
+      "grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5",
+    );
+    expect(gridClass).not.toContain("sm:grid-cols-3");
+    expect(gridClass).not.toContain("lg:grid-cols-4");
     expect(gridClass).not.toContain("md:grid-cols-4");
   });
 
@@ -25,8 +26,7 @@ describe("Files grid column breakpoints", () => {
     const recentsListClass = driveRecentsDayItemsClass("list");
 
     expect(listClass).not.toContain("grid-cols-2");
-    expect(listClass).not.toContain("sm:grid-cols-3");
-    expect(listClass).not.toContain("lg:grid-cols-4");
+    expect(listClass).not.toContain("lg:grid-cols-3");
     expect(listClass).not.toContain("xl:grid-cols-5");
     expect(recentsListClass).not.toContain("grid-cols-2");
     expect(recentsListClass).not.toBe(driveItemsListClass("grid"));
