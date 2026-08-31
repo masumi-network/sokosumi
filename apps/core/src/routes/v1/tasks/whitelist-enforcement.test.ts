@@ -59,16 +59,29 @@ const {
               slug: "organization",
             }
           : null),
-      assignee:
-        t.assignee ??
-        (t.assigneeId
-          ? {
+      assigneeUserId: (t.assigneeUserId as string | null | undefined) ?? null,
+      assignee: t.assigneeId
+        ? {
+            type: "coworker" as const,
+            id: t.assigneeId,
+            coworker: {
               id: t.assigneeId,
               name: "Coworker",
               image: null,
               slug: "coworker",
+            },
+          }
+        : t.assigneeUserId
+          ? {
+              type: "user" as const,
+              id: t.assigneeUserId,
+              user: {
+                id: t.assigneeUserId,
+                name: "User",
+                image: null,
+              },
             }
-          : null),
+          : null,
       creator: (() => {
         const creatorOrchestratorId =
           (t.creatorOrchestratorId as string | null | undefined) ?? null;

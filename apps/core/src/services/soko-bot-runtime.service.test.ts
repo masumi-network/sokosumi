@@ -146,6 +146,9 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+// task-domain → helpers/task → middleware/auth → lib/auth. Stub auth so
+// Stripe/Resend clients do not construct at import time.
+vi.mock("@/lib/auth", () => ({ auth: {} }));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: availabilityMock,
 }));
