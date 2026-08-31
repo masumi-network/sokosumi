@@ -67,6 +67,13 @@ vi.mock("next-intl", () => ({
       ) {
         return `composerTooLong ${String(values.count)}/${String(values.max)}`;
       }
+      if (
+        key === "composerCharacterCount" &&
+        values?.count != null &&
+        values.max != null
+      ) {
+        return `composerCharacterCount ${String(values.count)}/${String(values.max)}`;
+      }
       return key;
     };
   },
@@ -1814,6 +1821,36 @@ describe("ChatMessageRow", () => {
     expect(onSaveEdit).toHaveBeenCalledWith(
       "@b0user:andreas-osberghaus please look again",
     );
+  });
+
+  it("edit count uses trimmed length so trailing whitespace does not look over limit", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      isEditing: true,
+      editDraft: `${"a".repeat(10_000)}  `,
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    expect(screen.getByText("composerCharacterCount 10000/10000")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("edit over-limit uses the same trimmed length as the count", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      isEditing: true,
+      editDraft: `${"a".repeat(10_001)}  `,
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("composerTooLongHint");
+    expect(screen.getByText("composerCharacterCount 10001/10000")).toBeTruthy();
   });
 
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {

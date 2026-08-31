@@ -1548,8 +1548,10 @@ function MessageEditComposer({
     onCancel();
   }
 
-  const editOverLimit = isRoomComposerContentOverLimit(value.trim());
-  const showEditContentCount = isRoomComposerContentCountVisible(value);
+  const trimmedEditContent = value.trim();
+  const editOverLimit = isRoomComposerContentOverLimit(trimmedEditContent);
+  const showEditContentCount =
+    isRoomComposerContentCountVisible(trimmedEditContent);
 
   return (
     <div className="pt-0.5">
@@ -1604,7 +1606,7 @@ function MessageEditComposer({
               aria-live="polite"
             >
               {t("composerCharacterCount", {
-                count: value.length,
+                count: trimmedEditContent.length,
                 max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
               })}
             </span>

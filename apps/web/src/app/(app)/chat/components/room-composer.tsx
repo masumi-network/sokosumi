@@ -382,14 +382,10 @@ export function RoomComposer({
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
   const onChromeResizeRef = useRef(onChromeResize);
   onChromeResizeRef.current = onChromeResize;
-  const composedContent = useMemo(
-    () =>
-      buildRoomComposerMessageContent(
-        value,
-        attachments,
-        formatTaskAttachmentMarkdown,
-      ),
-    [attachments, value],
+  const composedContent = buildRoomComposerMessageContent(
+    value,
+    attachments,
+    formatTaskAttachmentMarkdown,
   );
   const contentOverLimit = isRoomComposerContentOverLimit(composedContent);
   const showContentCount = isRoomComposerContentCountVisible(composedContent);
