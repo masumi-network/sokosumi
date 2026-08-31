@@ -4368,7 +4368,9 @@
           "runAllVersions": "Run all {count} versions",
           "noBotTitle": "You need a Soko Bot to run the lab",
           "noBotDescription": "Runs use your own assistant.",
-          "noBotLink": "Create it here."
+          "noBotLink": "Create it here.",
+          "runsAgainst": "Every run is a real turn on {bot}, the assistant belonging to {account}.",
+          "unnamedBot": "your assistant"
         },
         "KillSwitch": {
           "title": "Feature switch",

@@ -6,6 +6,7 @@ import { waitUntil } from "@vercel/functions";
 
 import { getEnv } from "@/config/env";
 import {
+  badRequest,
   conflict,
   forbidden,
   notFound,
@@ -53,6 +54,8 @@ import {
   sokoBotInstalledSkillSchema,
   sokoBotIntegrationCatalogEntrySchema,
   sokoBotIntegrationsSchema,
+  sokoBotLabIngestRequestSchema,
+  sokoBotLabIngestSchema,
   sokoBotLabRunSchema,
   sokoBotLabTaskEventSchema,
   sokoBotLabVerdictSchema,
@@ -1214,10 +1217,69 @@ const simulateTaskEventRoute = createRoute({
   responses: {
     200: jsonSuccessResponse(sokoBotLabTaskEventSchema, "Simulated event"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     409: jsonErrorResponse("Soko Bot cannot take a turn right now"),
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
+});
+
+const labIngestRoute = createRoute({
+  method: "post",
+  path: "/me/lab/ingest",
+  operationId: "runMySokoBotLabIngest",
+  tags: ["Soko Bots"],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: sokoBotLabIngestRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(sokoBotLabIngestSchema, "Turn started"),
+    400: jsonErrorResponse("A required account is not connected"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Soko Bot cannot take a turn right now"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+// The proactive rhythms, on demand. They were CLI-only because the CLI can
+// set a process-wide fixtures env var; but the packet builders read whatever
+// the bot has connected, so nothing about them needs a terminal.
+app.openapi(labIngestRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  try {
+    const { runSokoBotLabIngest } = await import(
+      "@/services/soko-bot-lab-ingest.service"
+    );
+    const result = await runSokoBotLabIngest({
+      userId: auth.userId,
+      workspaceId: workspace.workspaceId,
+      ...c.req.valid("json"),
+    });
+    return ok(c, sokoBotLabIngestSchema.parse(result));
+  } catch (error) {
+    const {
+      SokoBotLabBusyError,
+      SokoBotLabIngestError,
+      SokoBotLabMissingIntegrationError,
+    } = await import("@/services/soko-bot-lab-ingest.service");
+    // Named separately from "not found": the scenario is runnable, the owner
+    // just has to connect the account it reads from first.
+    if (error instanceof SokoBotLabMissingIntegrationError) {
+      throw badRequest(error.message);
+    }
+    if (error instanceof SokoBotLabBusyError) throw conflict(error.message);
+    if (error instanceof SokoBotLabIngestError) throw notFound(error.message);
+    // It starts a real turn, so it can fail every way starting one can:
+    // out of credits, aborted, already working, a stale idempotency key.
+    mapControlPlaneError(error);
+  }
 });
 
 app.openapi(simulateTaskEventRoute, async (c) => {
@@ -1232,11 +1294,11 @@ app.openapi(simulateTaskEventRoute, async (c) => {
     return ok(c, sokoBotLabTaskEventSchema.parse(result));
   } catch (error) {
     if (error instanceof SokoBotLabError) throw notFound(error.message);
-    // "at its daily limit", "owner has paused unprompted work", "already
-    // working" — the reasons a wake is refused. Surfaced verbatim so the lab
-    // says which one it was instead of waiting out its timeout.
-    if (error instanceof SokoBotBusyError) throw conflict(error.message);
-    throw error;
+    // It starts a real turn now, so the reasons one can be refused — at its
+    // daily limit, unprompted work paused, already working, out of credits —
+    // are mapped the same way the turn route maps them, and reach the lab as
+    // a message rather than as a timeout.
+    mapControlPlaneError(error);
   }
 });
 

@@ -11,11 +11,7 @@ import {
   ORGANIZATION_CREDIT_REFERENCE_PREFIX,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
-import {
-  getSortedUniqueUserIds,
-  resolvePurchasedSeats,
-} from "./organization-seats.js";
-import { fetchOrganizationMemberUserIds } from "./organization-subscription-credit-audience.js";
+import { resolvePurchasedSeats } from "./organization-seats.js";
 
 export const ACTIVE_SUBSCRIPTION_STATUSES = [
   "active",
@@ -51,7 +47,7 @@ interface LocalFreeSubscriptionGrant {
   bucketUserId: string | null;
   credits: number;
   referenceId: string;
-  userId: string;
+  userId: string | null;
 }
 
 interface EnsureLocalFreeSubscriptionPeriodBaseParams {
@@ -71,7 +67,6 @@ export interface EnsureLocalFreeUserSubscriptionPeriodParams
 
 export interface EnsureLocalFreeOrganizationSubscriptionPeriodParams
   extends EnsureLocalFreeSubscriptionPeriodBaseParams {
-  memberUserIds: string[];
   organizationId: string;
   purchasedSeats?: number;
 }
@@ -215,12 +210,6 @@ export function buildLocalFreeOrganizationSubscriptionReferenceId(
   return `${ORGANIZATION_CREDIT_REFERENCE_PREFIX}${organizationId}:${LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT}${periodEnd.toISOString()}:subscription`;
 }
 
-function getOrganizationMemberUserIds(
-  params: EnsureLocalFreeOrganizationSubscriptionPeriodParams,
-): string[] {
-  return getSortedUniqueUserIds(params.memberUserIds);
-}
-
 function normalizeLocalFreeSubscriptionPeriod(
   params: EnsureLocalFreeSubscriptionPeriodParams,
 ): {
@@ -246,24 +235,18 @@ function normalizeLocalFreeSubscriptionPeriod(
     };
   }
 
-  const memberUserIds = getOrganizationMemberUserIds(params);
-  const transactionUserId = memberUserIds[0];
-
   return {
-    grants:
-      transactionUserId === undefined
-        ? []
-        : [
-            {
-              bucketUserId: null,
-              credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
-              referenceId: buildLocalFreeOrganizationSubscriptionReferenceId(
-                params.organizationId,
-                params.periodEnd,
-              ),
-              userId: transactionUserId,
-            },
-          ],
+    grants: [
+      {
+        bucketUserId: null,
+        credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
+        referenceId: buildLocalFreeOrganizationSubscriptionReferenceId(
+          params.organizationId,
+          params.periodEnd,
+        ),
+        userId: null,
+      },
+    ],
     organizationId: params.organizationId,
     seats: resolvePurchasedSeats(params.purchasedSeats),
   };
@@ -334,16 +317,10 @@ export async function ensureNextLocalFreeSubscriptionPeriod(
   });
 
   if (organization) {
-    const memberUserIds = await fetchOrganizationMemberUserIds(
-      organization.id,
-      tx,
-    );
-
     await ensureLocalFreeSubscriptionPeriod(
       {
         activatesAt,
         billingAnchorDate: subscription.createdAt,
-        memberUserIds,
         organizationId: organization.id,
         periodEnd,
         periodStart,
@@ -506,15 +483,8 @@ export async function ensureLocalFreeSubscriptionPeriod(
     await tx.transaction.create({
       data: {
         amount,
-        ...(organizationId
-          ? {
-              organization: {
-                connect: {
-                  id: organizationId,
-                },
-              },
-            }
-          : {}),
+        organizationId,
+        userId: grant.userId,
         sourceCreditBucket: {
           create: {
             activatesAt: params.activatesAt ?? null,
@@ -524,11 +494,6 @@ export async function ensureLocalFreeSubscriptionPeriod(
             referenceId: grant.referenceId,
             referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
             userId: grant.bucketUserId,
-          },
-        },
-        user: {
-          connect: {
-            id: grant.userId,
           },
         },
       },
@@ -566,15 +531,9 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
     );
   }
 
-  const memberUserIds = await fetchOrganizationMemberUserIds(
-    params.organizationId,
-    tx,
-  );
-
   return await ensureLocalFreeSubscriptionPeriod(
     {
       billingAnchorDate: params.createdAt,
-      memberUserIds,
       organizationId: params.organizationId,
       periodEnd,
       periodStart,
