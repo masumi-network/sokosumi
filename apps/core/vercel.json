@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "pnpm install --filter @sokosumi/core...",
+  "installCommand": "pnpm install --frozen-lockfile --filter @sokosumi/core...",
   "buildCommand": "pnpm vercel-build",
   "git": {
     "deploymentEnabled": false
