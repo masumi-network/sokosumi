@@ -30,10 +30,12 @@ branch named `cloud-agent-<run-id>`.
 
 ## Provision (how agents get the URL)
 
-`.cursor/environment.json` runs provision after `pnpm install`:
+`.cursor/environment.json` runs `bash scripts/cloud-agent-install.sh`, which
+activates the repo-pinned pnpm via Corepack (pnpm 12's tools-cache shim is a
+shebang-less placeholder), then `corepack pnpm install` and provision:
 
 ```bash
-pnpm install && node scripts/cloud-agent-db/provision.mjs
+bash scripts/cloud-agent-install.sh
 ```
 
 When `CURSOR_AGENT=1` and Neon secrets are present, provision:

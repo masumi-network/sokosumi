@@ -393,7 +393,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 ## Cursor Cloud specific instructions
 
-These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script runs `pnpm install` then provisions an ephemeral Neon agent database when secrets are present (see below). Node, tooling, and non-DB `.env` values may still come from the VM snapshot.
+These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script runs `bash scripts/cloud-agent-install.sh` (Corepack-activated `pnpm install`, then provision) when secrets are present (see below). Node, tooling, and non-DB `.env` values may still come from the VM snapshot. Do not invoke a snapshot `~/.local/share/pnpm/.tools/pnpm/12.x` shim directly — pnpm 12 leaves a shebang-less placeholder there (`Syntax error: ")" unexpected`); use `corepack pnpm`.
 
 ### Runtime versions
 
@@ -403,8 +403,8 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 
 Cloud agents get a **disposable Neon branch** forked from production/`main`, not a shared mutable DB and not live production writes.
 
-- **Provision:** `.cursor/environment.json` `install` runs `node scripts/cloud-agent-db/provision.mjs` after `pnpm install` when `CURSOR_AGENT=1` and `NEON_API_KEY` + `NEON_PROJECT_ID` are set (Cursor Runtime Secrets). Branch name: `cloud-agent-<CURSOR_CONVERSATION_ID>`. Parent is always `NEON_PARENT_BRANCH` (default `main`). Resume reuses the same branch and refreshes the **72h** `expires_at` TTL. Pending migrations run via `pnpm prisma:migrate:deploy` (`DATABASE_URL_UNPOOLED`). After migrate, upserts guarded auth fixtures (`admin@sokosumi.test` / `alice@sokosumi.test` / `bob@sokosumi.test` / `zero@sokosumi.test` / `Password123!`) on agent branches only — **not** a full catalog seed.
-- **Use:** Prefer `node scripts/cloud-agent-db/with-db.mjs -- <command>` so ambient/stale `DATABASE_URL` cannot win. `start` already wraps `pnpm dev`. Login shells source `.cursor/cloud-agent-db.env` via bashrc/profile.
+- **Provision:** `.cursor/environment.json` `install` is `bash scripts/cloud-agent-install.sh` (Corepack `pnpm@` from `package.json`, then `corepack pnpm install`, then `node scripts/cloud-agent-db/provision.mjs`) when `CURSOR_AGENT=1` and `NEON_API_KEY` + `NEON_PROJECT_ID` are set (Cursor Runtime Secrets). Branch name: `cloud-agent-<CURSOR_CONVERSATION_ID>`. Parent is always `NEON_PARENT_BRANCH` (default `main`). Resume reuses the same branch and refreshes the **72h** `expires_at` TTL. Pending migrations run via `pnpm prisma:migrate:deploy` (`DATABASE_URL_UNPOOLED`). After migrate, upserts guarded auth fixtures (`admin@sokosumi.test` / `alice@sokosumi.test` / `bob@sokosumi.test` / `zero@sokosumi.test` / `Password123!`) on agent branches only — **not** a full catalog seed.
+- **Use:** Prefer `node scripts/cloud-agent-db/with-db.mjs -- <command>` so ambient/stale `DATABASE_URL` cannot win. `start` already wraps `corepack pnpm dev`. Login shells source `.cursor/cloud-agent-db.env` via bashrc/profile.
 - **Teardown:** deletes only `cloud-agent-*` branches — never production/`main`. Triggers: PR merged/closed (GitHub Action parses `bc-…` from PR body), agent completes with no PR (`pnpm cloud-agent-db:teardown`), agent archived (same when possible). Idle **72h** expiry is Neon `expires_at` only (no scheduled Action GC).
 - **Do not** put a static production `DATABASE_URL` in Cursor secrets. Full runbook: [`docs/agents/cloud-agent-database.md`](./docs/agents/cloud-agent-database.md).
 
