@@ -2,9 +2,7 @@ import { CreditBucketReferenceType } from "@sokosumi/database";
 import {
   buildOrganizationInvoiceCreditReferenceId,
   buildUserInvoiceCreditReferenceId,
-  escapeStringForLike,
   getCreditExpiryDate,
-  ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
   resolveOrganizationBillingPlan,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
@@ -572,25 +570,16 @@ export async function handleInvoicePaidEvent(
     !skipOrganizationSubscriptionSplit
   ) {
     const existingOrganizationInvoiceSubscriptionBucket =
-      await prisma.creditBucket.findFirst({
+      await prisma.creditBucket.findUnique({
         where: {
-          organizationId,
-          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-          OR: [
-            {
-              referenceId: buildOrganizationInvoiceCreditReferenceId(
-                organizationId,
-                invoiceId,
-                "subscription",
-              ),
-            },
-            {
-              referenceId: {
-                startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-                endsWith: escapeStringForLike(`:${invoiceId}:subscription`),
-              },
-            },
-          ],
+          referenceId_referenceType: {
+            referenceId: buildOrganizationInvoiceCreditReferenceId(
+              organizationId,
+              invoiceId,
+              "subscription",
+            ),
+            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+          },
         },
         select: {
           id: true,
@@ -643,31 +632,6 @@ export async function handleInvoicePaidEvent(
           `✅ Bucket already exists for invoice reference ${grant.referenceId}, skipping creation`,
         );
         continue;
-      }
-
-      if (
-        organizationId &&
-        grant.referenceType ===
-          CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD &&
-        grant.bucketUserId === null
-      ) {
-        const leftoverMemberInvoiceBucket = await tx.creditBucket.findFirst({
-          where: {
-            organizationId,
-            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-            referenceId: {
-              startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-              endsWith: escapeStringForLike(`:${invoiceId}:subscription`),
-            },
-          },
-          select: { id: true },
-        });
-        if (leftoverMemberInvoiceBucket) {
-          console.log(
-            `✅ Leftover member invoice ${invoiceId} subscription grants already exist; skipping org-owned grant`,
-          );
-          continue;
-        }
       }
 
       const cents = convertCreditsToCents(grant.credits);

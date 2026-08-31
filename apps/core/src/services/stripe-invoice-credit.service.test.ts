@@ -1,7 +1,6 @@
 import {
   buildOrganizationInvoiceCreditReferenceId,
   buildUserInvoiceCreditReferenceId,
-  escapeStringForLike,
   getCreditExpiryDate,
 } from "@sokosumi/database/helpers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,7 +14,6 @@ const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const getUnassignedMemberUserIdsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const findExistingBucketMock = vi.fn();
-const findExistingLocalFreeBucketMock = vi.fn();
 const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
 const createTransactionMock = vi.fn();
 const findOutOfCreditsTasksMock = vi.fn();
@@ -26,8 +24,6 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
     creditBucket: {
       findUnique: (...args: unknown[]) => findExistingBucketMock(...args),
-      findFirst: (...args: unknown[]) =>
-        findExistingLocalFreeBucketMock(...args),
     },
     transaction: {
       create: (...args: unknown[]) => createTransactionMock(...args),
@@ -88,7 +84,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: (callback: (tx: unknown) => unknown) =>
       transactionMock(callback),
     creditBucket: {
-      findFirst: (...args: unknown[]) =>
+      findUnique: (...args: unknown[]) =>
         findExistingOrganizationInvoiceSubscriptionBucketMock(...args),
     },
   },
@@ -278,7 +274,6 @@ describe("handleInvoicePaidEvent", () => {
     getOrganizationOwnerUserIdMock.mockResolvedValue("user-1");
     getUnassignedMemberUserIdsMock.mockResolvedValue([]);
     findExistingBucketMock.mockResolvedValue(null);
-    findExistingLocalFreeBucketMock.mockResolvedValue(null);
     findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue(
       null,
     );
@@ -446,25 +441,14 @@ describe("handleInvoicePaidEvent", () => {
       findExistingOrganizationInvoiceSubscriptionBucketMock,
     ).toHaveBeenCalledWith({
       where: {
-        organizationId: "org-1",
-        referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-        OR: [
-          {
-            referenceId: buildOrganizationInvoiceCreditReferenceId(
-              "org-1",
-              "in_org_cycle_retry_membership_changed",
-              "subscription",
-            ),
-          },
-          {
-            referenceId: {
-              startsWith: "member:",
-              endsWith: escapeStringForLike(
-                ":in_org_cycle_retry_membership_changed:subscription",
-              ),
-            },
-          },
-        ],
+        referenceId_referenceType: {
+          referenceId: buildOrganizationInvoiceCreditReferenceId(
+            "org-1",
+            "in_org_cycle_retry_membership_changed",
+            "subscription",
+          ),
+          referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+        },
       },
       select: {
         id: true,
@@ -850,14 +834,11 @@ describe("handleInvoicePaidEvent", () => {
     expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
-  it("does not mint an org-owned invoice grant when leftover member invoice rows exist", async () => {
+  it("does not mint an org-owned invoice grant when the org invoice sentinel fingerprint exists", async () => {
     mockOrganizationInvoiceContext([{ role: "owner", userId: "owner-1" }]);
     mockSubscriptionCatalog();
-    findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue(
-      null,
-    );
-    findExistingLocalFreeBucketMock.mockResolvedValue({
-      id: "leftover-member-invoice",
+    findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue({
+      id: "org-invoice-sentinel",
     });
     vi.setSystemTime(new Date(1_733_011_200 * 1000));
 
@@ -868,20 +849,24 @@ describe("handleInvoicePaidEvent", () => {
     await handleInvoicePaidEvent(
       createInvoice({
         billingReason: "subscription_cycle",
-        id: "in_1Abc_leftover",
+        id: "in_1Abc_sentinel",
         lines: [{ productId: "prod_starter", quantity: 1 }],
       }) as never,
     );
 
     expect(createTransactionMock).not.toHaveBeenCalled();
-    expect(findExistingLocalFreeBucketMock).toHaveBeenCalledWith({
+    expect(
+      findExistingOrganizationInvoiceSubscriptionBucketMock,
+    ).toHaveBeenCalledWith({
       select: { id: true },
       where: {
-        organizationId: "org-1",
-        referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-        referenceId: {
-          startsWith: "member:",
-          endsWith: escapeStringForLike(`:in_1Abc_leftover:subscription`),
+        referenceId_referenceType: {
+          referenceId: buildOrganizationInvoiceCreditReferenceId(
+            "org-1",
+            "in_1Abc_sentinel",
+            "subscription",
+          ),
+          referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
         },
       },
     });
