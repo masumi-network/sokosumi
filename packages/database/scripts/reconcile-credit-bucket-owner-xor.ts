@@ -13,37 +13,11 @@ import { config as loadEnv } from "dotenv";
 
 import { createPrismaClient } from "../src/client.js";
 import { reconcileCreditBucketOwnerXor } from "../src/helpers/credit-bucket-owner-xor.js";
+import { parseCreditBucketOwnerXorArgs } from "../src/helpers/credit-bucket-owner-xor-cli.js";
 
 loadEnv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env"),
 });
-
-function parseArgs(argv: string[]): {
-  dryRun: boolean;
-  organizationId?: string;
-  verbose: boolean;
-} {
-  let dryRun = false;
-  let organizationId: string | undefined;
-  let verbose = false;
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === "--dry-run") {
-      dryRun = true;
-      continue;
-    }
-    if (arg === "--verbose" || arg === "-v") {
-      verbose = true;
-      continue;
-    }
-    if (arg === "--organization-id") {
-      organizationId = argv[index + 1];
-      index += 1;
-      continue;
-    }
-  }
-  return { dryRun, organizationId, verbose };
-}
 
 async function main(): Promise<void> {
   const databaseUrl =
@@ -55,7 +29,9 @@ async function main(): Promise<void> {
     );
   }
 
-  const { dryRun, organizationId, verbose } = parseArgs(process.argv.slice(2));
+  const { dryRun, organizationId, verbose } = parseCreditBucketOwnerXorArgs(
+    process.argv.slice(2),
+  );
   const debug = verbose
     ? (message: string) => {
         console.log(`[debug] ${message}`);
