@@ -12,15 +12,27 @@ _Avoid_: Classic agent, bot
 
 **Hire**:
 Starting a Job on an Agent.
-_Avoid_: Purchase, subscribe (billing), assign (Task → Coworker)
+_Avoid_: Purchase, subscribe (billing), assign (Task)
 
 **Job**:
 One run of an Agent for a user or workspace. Not a Task.
 _Avoid_: Task, run (unless a UI label)
 
 **Task**:
-Work assigned to a Coworker. Not a Job.
-_Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
+Work that may be assigned to a Coworker or a workspace member, or left unassigned. Not a Job.
+_Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire, requiring an assignee for Ready work
+
+**Task owner**:
+The User on a Task for access, notifications, and personal-credit attribution. Always a User. Distinct from Assignee, Task creator, and Workspace billing.
+_Avoid_: Assignee, billing owner, treating this as the doer
+
+**Task creator**:
+Who created the Task: a user, a Coworker, or Soko Bot. Immutable. Distinct from Task owner and Assignee.
+_Avoid_: Owner, assignee, originator
+
+**Assignee**:
+Who a Task is handed to for inbox and notifications: a Coworker, a workspace member, or unset. Distinct from Task owner and Task creator. Not a permission lock.
+_Avoid_: Owner, multiple assignees, treating unset Ready as invalid, treating Assignee as exclusive doer
 
 **Coworker**:
 A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
@@ -33,8 +45,8 @@ A user-owned, first-party personal project manager. It helps one user operate So
 _Avoid_: Hermes, orchestrator, Agent, Coworker, bot (when meaning a generic AI actor)
 
 **Delegation**:
-Creating, assigning, or managing a Task for a Coworker on the user's behalf. Distinct from hiring an Agent to start a Job.
-_Avoid_: Hire (Task → Coworker), execute (the Coworker executes the Task)
+Creating, assigning, or managing a Task on the user's behalf, usually to a Coworker. Distinct from hiring an Agent to start a Job.
+_Avoid_: Hire (Task), execute (the Coworker executes the Task)
 
 **Direct response**:
 A Soko Bot answer that does not create or mutate a Task or Job. Used for conversation, clarification, summaries, and advice.
@@ -140,7 +152,7 @@ _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup p
 
 **Seat**:
 A purchased place on a **paid** Organization (Stripe self-serve or enterprise) that can be assigned to one Member. Assignment is a license to use the product (Tasks, projects, files, jobs, spend). It is not a private credit grant. Purchased count is the cap on assigned Seats: if it drops, the newest seated members lose the Seat immediately and the oldest stay. On **free**, every member is seated; there is nothing to assign. Unseated members can use **chat**. Other product areas stay in the sidebar but explain that an assigned Seat is required. Owner and admin also keep settings, billing, and Seat assignment. A Task created while seated stays org work: schedule fire continues; the unseated creator cannot open it. Coworkers must check whether they can bill (usage / Task writes fail closed without a Seat).
-_Avoid_: License, slot (unless a UI label), workstation, treating a Seat as a personal credit balance, treating Task assignee as a human, unpaid seat flags, unlimited-on-free as an admin control
+_Avoid_: License, slot (unless a UI label), workstation, treating a Seat as a personal credit balance, treating Assignee as the billing party, unpaid seat flags, unlimited-on-free as an admin control
 
 **Organization credit pool**:
 Credits owned by an Organization. Free period grant is the free monthly amount (250), shared by every member. Paid self-serve period grant is purchased seats × credits per seat, spent by assigned Seats. Enterprise keeps its own shared pool. OTC/admin grants sit in the same pool. Distinct from personal credits.
