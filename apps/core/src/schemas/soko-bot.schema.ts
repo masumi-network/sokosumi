@@ -870,6 +870,8 @@ export const sokoBotLabTaskEventSchema = z
     taskId: z.string().uuid(),
     name: z.string(),
     status: z.string(),
+    /** The turn this event woke, so the lab can follow it without guessing. */
+    turnId: z.string().uuid(),
   })
   .openapi("SokoBotLabTaskEvent");
 

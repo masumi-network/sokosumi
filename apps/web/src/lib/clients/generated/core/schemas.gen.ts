@@ -16453,12 +16453,17 @@ export const SokoBotLabTaskEventSchema = {
         },
         status: {
             type: 'string'
+        },
+        turnId: {
+            type: 'string',
+            format: 'uuid'
         }
     },
     required: [
         'taskId',
         'name',
-        'status'
+        'status',
+        'turnId'
     ]
 } as const;
 
