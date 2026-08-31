@@ -4702,6 +4702,13 @@ export const OrchestratorSummarySchema = {
             ],
             example: 'orb:jewel-sky:user_123'
         },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://blob.example/mascot.png'
+        },
         owner: {
             $ref: '#/components/schemas/UserSummary'
         }
@@ -4710,6 +4717,7 @@ export const OrchestratorSummarySchema = {
         'id',
         'name',
         'avatarSeed',
+        'avatarImageUrl',
         'owner'
     ]
 } as const;
@@ -4854,6 +4862,13 @@ export const TaskEventSchema = {
                     ],
                     example: 'orb:jewel-sky:user_123'
                 },
+                avatarImageUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://blob.example/mascot.png'
+                },
                 owner: {
                     $ref: '#/components/schemas/UserSummary'
                 }
@@ -4862,6 +4877,7 @@ export const TaskEventSchema = {
                 'id',
                 'name',
                 'avatarSeed',
+                'avatarImageUrl',
                 'owner'
             ],
             deprecated: true,
@@ -16439,6 +16455,36 @@ export const UpdateSokoBotVersionRequestSchema = {
         'versionId'
     ],
     additionalProperties: false
+} as const;
+
+export const SokoBotLabIngestSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'turnId'
+    ]
+} as const;
+
+export const SokoBotLabIngestRequestSchema = {
+    type: 'object',
+    properties: {
+        beat: {
+            type: 'string',
+            enum: [
+                'standup',
+                'weekly-wrap',
+                'delta'
+            ]
+        }
+    },
+    required: [
+        'beat'
+    ]
 } as const;
 
 export const SokoBotLabTaskEventSchema = {

@@ -85,7 +85,7 @@ async function main(): Promise<void> {
       organizationId,
     });
     console.log(
-      `Org period idempotency sentinels ${dryRun ? "dry-run" : "done"} in ${Date.now() - startedAt}ms: scannedLeftovers=${result.scannedLeftovers} distinctFingerprints=${result.distinctFingerprints} created=${result.created} alreadyPresent=${result.alreadyPresent} skippedNoActor=${result.skippedNoActor} unparseable=${result.unparseable}`,
+      `Org period idempotency sentinels ${dryRun ? "dry-run" : "done"} in ${Date.now() - startedAt}ms: scannedLeftovers=${result.scannedLeftovers} distinctFingerprints=${result.distinctFingerprints} created=${result.created} alreadyPresent=${result.alreadyPresent} unparseable=${result.unparseable}`,
     );
 
     if (!dryRun) {

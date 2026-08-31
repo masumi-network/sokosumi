@@ -2,7 +2,6 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../generated/prisma/client.js";
-import { EnterpriseContractLifecycleError } from "./enterprise-contract-errors.js";
 
 export function buildEnterprisePeriodCreditReferenceId(
   periodId: string,
@@ -22,7 +21,6 @@ export interface CreateEnterprisePeriodCreditBucketParams {
   expiresAt: Date;
   organizationId: string;
   periodId: string;
-  transactionUserId: string;
 }
 
 export interface CreateEnterprisePeriodCreditBucketResult {
@@ -52,11 +50,8 @@ export async function createEnterprisePeriodCreditBucket(
   const transaction = await tx.transaction.create({
     data: {
       amount: params.amount,
-      organization: {
-        connect: {
-          id: params.organizationId,
-        },
-      },
+      organizationId: params.organizationId,
+      userId: null,
       sourceCreditBucket: {
         create: {
           activatesAt: params.activatesAt,
@@ -66,11 +61,6 @@ export async function createEnterprisePeriodCreditBucket(
           referenceId,
           referenceType: CreditBucketReferenceType.ENTERPRISE_PERIOD,
           userId: null,
-        },
-      },
-      user: {
-        connect: {
-          id: params.transactionUserId,
         },
       },
     },
@@ -95,7 +85,6 @@ export interface CreateEnterpriseTopUpCreditBucketParams {
   contractId: string;
   expiresAt: Date | null;
   organizationId: string;
-  transactionUserId: string;
 }
 
 export interface CreateEnterpriseTopUpCreditBucketResult {
@@ -125,11 +114,8 @@ export async function createEnterpriseTopUpCreditBucket(
   const transaction = await tx.transaction.create({
     data: {
       amount: params.amount,
-      organization: {
-        connect: {
-          id: params.organizationId,
-        },
-      },
+      organizationId: params.organizationId,
+      userId: null,
       sourceCreditBucket: {
         create: {
           activatesAt: params.activatesAt,
@@ -139,11 +125,6 @@ export async function createEnterpriseTopUpCreditBucket(
           referenceId,
           referenceType: CreditBucketReferenceType.ENTERPRISE_TOP_UP,
           userId: null,
-        },
-      },
-      user: {
-        connect: {
-          id: params.transactionUserId,
         },
       },
     },
@@ -191,44 +172,6 @@ export async function expireCreditBucketsNow(
   });
 
   return result.count;
-}
-
-export async function resolveOrganizationGrantTransactionUserId(
-  organizationId: string,
-  tx: Prisma.TransactionClient,
-): Promise<string> {
-  const owner = await tx.member.findFirst({
-    where: {
-      organizationId,
-      role: "owner",
-    },
-    orderBy: [{ createdAt: "asc" }],
-    select: {
-      userId: true,
-    },
-  });
-
-  if (owner) {
-    return owner.userId;
-  }
-
-  const member = await tx.member.findFirst({
-    where: {
-      organizationId,
-    },
-    orderBy: [{ createdAt: "asc" }],
-    select: {
-      userId: true,
-    },
-  });
-
-  if (!member) {
-    throw new EnterpriseContractLifecycleError(
-      `Organization ${organizationId} has no members`,
-    );
-  }
-
-  return member.userId;
 }
 
 export async function findEnterprisePeriodCreditBucket(

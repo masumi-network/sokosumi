@@ -255,7 +255,6 @@ describe("createEnterprisePeriodCreditBucket", () => {
         expiresAt,
         organizationId: ORG_ID,
         periodId: PERIOD_ID,
-        transactionUserId: OWNER_ID,
       },
       tx,
     );
@@ -263,6 +262,11 @@ describe("createEnterprisePeriodCreditBucket", () => {
     assert.equal(result.created, true);
     assert.equal(result.bucketId, "bucket-new");
     assert.equal(createTransactionMock.mock.calls.length, 1);
+    assert.equal(createTransactionMock.mock.calls[0]?.[0].data.userId, null);
+    assert.equal(
+      createTransactionMock.mock.calls[0]?.[0].data.organizationId,
+      ORG_ID,
+    );
     assert.equal(
       createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
         .userId,
@@ -292,7 +296,6 @@ describe("createEnterprisePeriodCreditBucket", () => {
         expiresAt: new Date("2026-05-31T23:59:59.999Z"),
         organizationId: ORG_ID,
         periodId: PERIOD_ID,
-        transactionUserId: OWNER_ID,
       },
       tx,
     );
@@ -316,7 +319,6 @@ describe("createEnterpriseTopUpCreditBucket", () => {
         contractId: CONTRACT_ID,
         expiresAt: null,
         organizationId: ORG_ID,
-        transactionUserId: OWNER_ID,
       },
       tx,
     );
@@ -652,22 +654,20 @@ describe("activateEnterpriseContract", () => {
     );
   });
 
-  it("rejects activation when the organization has no members", async () => {
+  it("activates and grants when the organization has no members", async () => {
     const client = createLifecycleClient();
-    client.tx.member.findFirst = vi.fn().mockResolvedValue(null);
+    client.tx.member.findMany = vi.fn().mockResolvedValue([]);
 
-    await assert.rejects(
-      () =>
-        activateEnterpriseContract(
-          CONTRACT_ID,
-          { activatedAt: new Date("2026-05-01T00:00:00.000Z") },
-          client.tx,
-        ),
-      (error: unknown) => {
-        assert.ok(error instanceof EnterpriseContractLifecycleError);
-        assert.match(error.message, /Organization org-1 has no members/);
-        return true;
-      },
+    const result = await activateEnterpriseContract(
+      CONTRACT_ID,
+      { activatedAt: new Date("2026-05-01T00:00:00.000Z") },
+      client.tx,
+    );
+
+    assert.equal(result.periodBucketCreated, true);
+    assert.equal(
+      client.grantClient.createTransactionMock.mock.calls[0]?.[0].data.userId,
+      null,
     );
   });
 

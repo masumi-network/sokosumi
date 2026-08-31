@@ -180,8 +180,10 @@ describe("task payment claims", () => {
     expect(update.where).toEqual({ id: "claim-1" });
     const refund = update.data.refundTransaction.create;
     expect(refund.amount).toBe(500n);
-    expect(refund.user.connect.id).toBe("user-1");
-    expect(refund.organization.connect.id).toBe("organization-1");
+    expect(refund.user).toBeUndefined();
+    expect(refund.userId).toBeNull();
+    expect(refund.organizationId).toBe("organization-1");
+    expect(refund.organization).toBeUndefined();
     expect(refund.sourceCreditBucket.create).toMatchObject({
       amount: 500n,
       referenceId: "task-payment:claim-1",
@@ -212,8 +214,8 @@ describe("task payment claims", () => {
 
     const refund =
       claimUpdateMock.mock.calls[0]?.[0].data.refundTransaction.create;
-    expect(refund.user.connect.id).toBe("user-1");
-    expect(refund.organization).toBeUndefined();
+    expect(refund.userId).toBe("user-1");
+    expect(refund.organizationId).toBeNull();
     expect(refund.sourceCreditBucket.create.userId).toBe("user-1");
     expect(refund.sourceCreditBucket.create.organizationId).toBeNull();
   });

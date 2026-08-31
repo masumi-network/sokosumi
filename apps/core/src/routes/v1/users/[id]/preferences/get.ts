@@ -12,6 +12,8 @@ import {
 } from "@/routes/v1/users/user-route-context";
 import { userPreferencesResponseSchema } from "@/schemas/user.schema";
 
+import { USER_PREFERENCES_SELECT } from "./preferences-select.js";
+
 const params = z.object({
   id: usersRoutePathUserIdSchema,
 });
@@ -31,6 +33,7 @@ const route = createRoute({
         data: {
           marketingOptIn: true,
           notificationsOptIn: true,
+          pushOptIn: false,
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -53,10 +56,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const preferences = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: resolvedUserId },
-        select: {
-          marketingOptIn: true,
-          notificationsOptIn: true,
-        },
+        select: USER_PREFERENCES_SELECT,
       });
 
       if (!user) {

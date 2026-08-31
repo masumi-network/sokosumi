@@ -7,10 +7,20 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { authClient } from "@/lib/auth/auth.client";
+import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
-export function WorkspaceGateSignOut() {
+interface WorkspaceGateSignOutProps {
+  /**
+   * Handed down from the page rather than read with `useSession`. This route
+   * is under `(flows)`, which mounts no `AuthSessionHydrator`, so the hook
+   * starts empty: a click landing before its fetch would have released no push
+   * device at all. The page already awaits the session.
+   */
+  userId: string;
+}
+
+export function WorkspaceGateSignOut({ userId }: WorkspaceGateSignOutProps) {
   const t = useTranslations("WorkspaceGate");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -18,7 +28,7 @@ export function WorkspaceGateSignOut() {
   async function handleSignOut() {
     setLoading(true);
     try {
-      await authClient.signOut({
+      await signOutWithPushRelease(userId, {
         fetchOptions: {
           onError: () => {
             toast.error(t("signOutError"));

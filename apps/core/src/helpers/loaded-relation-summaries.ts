@@ -96,6 +96,7 @@ interface OrchestratorLoadedRelation {
   id: string;
   name: string | null;
   avatarSeed: string | null;
+  avatarImageUrl: string | null;
   userId: string;
   user: UserSummaryFields | null;
 }
@@ -104,6 +105,7 @@ export interface OrchestratorSummaryFields {
   id: string;
   name: string | null;
   avatarSeed: string | null;
+  avatarImageUrl: string | null;
   owner: UserSummaryFields;
 }
 
@@ -130,6 +132,9 @@ export function orchestratorSummaryFromLoadedRelation(
     id: orchestrator.id,
     name: orchestrator.name,
     avatarSeed: orchestrator.avatarSeed,
+    // Claiming a mascot writes both this and the coworker's image, which is
+    // why one showed in chat and not here: only chat read the coworker.
+    avatarImageUrl: orchestrator.avatarImageUrl,
     owner: userSummaryFromLoadedRelation(
       `${context} orchestrator owner`,
       orchestrator.userId,

@@ -865,6 +865,16 @@ export const simulateSokoBotTaskEventRequestSchema = z
   .strict()
   .openapi("SimulateSokoBotTaskEventRequest");
 
+export const sokoBotLabIngestRequestSchema = z
+  .object({
+    beat: z.enum(["standup", "weekly-wrap", "delta"]),
+  })
+  .openapi("SokoBotLabIngestRequest");
+
+export const sokoBotLabIngestSchema = z
+  .object({ turnId: z.string().uuid() })
+  .openapi("SokoBotLabIngest");
+
 export const sokoBotLabTaskEventSchema = z
   .object({
     taskId: z.string().uuid(),

@@ -1135,6 +1135,7 @@ export type OrchestratorSummary = {
     id: string;
     name: string | null;
     avatarSeed: string | null;
+    avatarImageUrl: string | null;
     owner: UserSummary;
 };
 
@@ -1192,6 +1193,7 @@ export type TaskEvent = {
         id: string;
         name: string | null;
         avatarSeed: string | null;
+        avatarImageUrl: string | null;
         owner: UserSummary;
     } | null;
     transactionId?: string | null;
@@ -4830,6 +4832,14 @@ export type UpdateSokoBotBoardFollowingRequest = {
 
 export type UpdateSokoBotVersionRequest = {
     versionId: string;
+};
+
+export type SokoBotLabIngest = {
+    turnId: string;
+};
+
+export type SokoBotLabIngestRequest = {
+    beat: 'standup' | 'weekly-wrap' | 'delta';
 };
 
 export type SokoBotLabTaskEvent = {
@@ -22074,6 +22084,10 @@ export type GetUsersByIdPreferencesResponses = {
              * Whether the user wants to receive job status notifications
              */
             notificationsOptIn: boolean;
+            /**
+             * Whether the user wants OS banners while Sokosumi is closed (push)
+             */
+            pushOptIn: boolean;
         };
         meta: {
             timestamp: Date;
@@ -22095,6 +22109,10 @@ export type PatchUsersByIdPreferencesData = {
          * Whether the user wants to receive job status notifications
          */
         notificationsOptIn?: boolean;
+        /**
+         * Whether the user wants OS banners while Sokosumi is closed (push)
+         */
+        pushOptIn?: boolean;
     };
     path: {
         /**
@@ -22181,6 +22199,10 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether the user wants to receive job status notifications
              */
             notificationsOptIn: boolean;
+            /**
+             * Whether the user wants OS banners while Sokosumi is closed (push)
+             */
+            pushOptIn: boolean;
         };
         meta: {
             timestamp: Date;
@@ -32594,6 +32616,118 @@ export type UpdateMySokoBotVersionResponses = {
 
 export type UpdateMySokoBotVersionResponse = UpdateMySokoBotVersionResponses[keyof UpdateMySokoBotVersionResponses];
 
+export type RunMySokoBotLabIngestData = {
+    body?: SokoBotLabIngestRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/lab/ingest';
+};
+
+export type RunMySokoBotLabIngestErrors = {
+    /**
+     * A required account is not connected
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Soko Bot cannot take a turn right now
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RunMySokoBotLabIngestError = RunMySokoBotLabIngestErrors[keyof RunMySokoBotLabIngestErrors];
+
+export type RunMySokoBotLabIngestResponses = {
+    /**
+     * Turn started
+     */
+    200: {
+        data: SokoBotLabIngest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RunMySokoBotLabIngestResponse = RunMySokoBotLabIngestResponses[keyof RunMySokoBotLabIngestResponses];
+
 export type SimulateMySokoBotTaskEventData = {
     body?: SimulateSokoBotTaskEventRequest;
     path?: never;
@@ -32617,9 +32751,37 @@ export type SimulateMySokoBotTaskEventErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Soko Bot cannot take a turn right now
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

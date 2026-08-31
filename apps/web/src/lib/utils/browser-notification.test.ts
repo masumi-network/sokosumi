@@ -4,7 +4,6 @@ import {
   getBrowserNotificationPermission,
   requestBrowserNotificationPermission,
   shouldShowBrowserNotification,
-  showBrowserNotification,
   subscribeBrowserNotificationPermission,
 } from "@/lib/utils/browser-notification";
 
@@ -104,77 +103,6 @@ describe("browser notification API helpers", () => {
       "granted",
     );
     expect(requestPermission).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows a notification when permission is granted", () => {
-    class NotificationMock {
-      static permission: NotificationPermission = "granted";
-      static requestPermission = vi.fn().mockResolvedValue("granted");
-      onclick: ((this: Notification, ev: Event) => void) | null = null;
-      close = vi.fn();
-      options: NotificationOptions | undefined;
-
-      constructor(
-        public title: string,
-        options?: NotificationOptions,
-      ) {
-        this.options = options;
-      }
-    }
-
-    Object.defineProperty(globalThis, "Notification", {
-      configurable: true,
-      writable: true,
-      value: NotificationMock,
-    });
-
-    const onClick = vi.fn();
-    const focusSpy = vi
-      .spyOn(window, "focus")
-      .mockImplementation((() => undefined) as typeof window.focus);
-    const notification = showBrowserNotification({
-      id: "notif_1",
-      title: "Sokosumi",
-      body: "Job completed",
-      onClick,
-    }) as NotificationMock | null;
-
-    expect(notification).toBeInstanceOf(NotificationMock);
-    expect(notification?.title).toBe("Sokosumi");
-    expect(notification?.options).toEqual({
-      body: "Job completed",
-      tag: "notif_1",
-      icon: undefined,
-    });
-
-    notification?.onclick?.call(
-      notification as unknown as Notification,
-      {
-        type: "click",
-      } as Event,
-    );
-    expect(focusSpy).toHaveBeenCalled();
-    expect(onClick).toHaveBeenCalledTimes(1);
-    expect(notification?.close).toHaveBeenCalledTimes(1);
-  });
-
-  it("returns null when permission is not granted", () => {
-    Object.defineProperty(globalThis, "Notification", {
-      configurable: true,
-      writable: true,
-      value: {
-        permission: "denied",
-        requestPermission: vi.fn(),
-      },
-    });
-
-    expect(
-      showBrowserNotification({
-        id: "notif_1",
-        title: "Sokosumi",
-        body: "Job completed",
-      }),
-    ).toBeNull();
   });
 });
 

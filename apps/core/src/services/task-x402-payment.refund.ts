@@ -75,9 +75,16 @@ interface RefundablePayment {
   id: string;
   transaction: {
     amount: bigint;
-    userId: string;
+    userId: string | null;
     organizationId: string | null;
   };
+}
+
+function requireSpendUserId(userId: string | null, context: string): string {
+  if (userId === null) {
+    throw new Error(`${context} spend transaction is missing userId`);
+  }
+  return userId;
 }
 
 /**
@@ -159,7 +166,10 @@ async function writePaymentOutcomeAudit(
     caip2Network: payment.caip2Network,
     taskId: payment.taskId,
     agentId: payment.agentId,
-    chargedUserId: payment.transaction.userId,
+    chargedUserId: requireSpendUserId(
+      payment.transaction.userId,
+      `Task x402 payment ${payment.id}`,
+    ),
     chargedOrganizationId: payment.transaction.organizationId,
     chargeTransactionId: payment.transactionId,
     refundTransactionId,
@@ -216,7 +226,10 @@ async function attachCompensatingRefund(
       refundTransaction: {
         create: buildCompensatingRefundTransactionCreate({
           amount: refundAmount,
-          actorUserId: payment.transaction.userId,
+          actorUserId: requireSpendUserId(
+            payment.transaction.userId,
+            `Task x402 payment ${payment.id}`,
+          ),
           organizationId: payment.transaction.organizationId,
           referenceId: `task-x402-payment:${payment.id}`,
         }),

@@ -14,6 +14,7 @@ import type {
   SokoBotInstalledSkill,
   SokoBotIntegrationCatalogEntry,
   SokoBotIntegrations,
+  SokoBotLabIngestRequest,
   SokoBotLabRun,
   SokoBotLabTaskEvent,
   SokoBotLabVerdict,
@@ -119,6 +120,16 @@ export const sokoBotService = {
       enabled,
     });
     return response.data;
+  },
+
+  /**
+   * Behaviour lab: run one proactive rhythm now, the way the cron would.
+   * Rejects with the Core message when the beat reads an account the bot has
+   * not connected.
+   */
+  async runLabIngest(beat: SokoBotLabIngestRequest["beat"]): Promise<string> {
+    const response = await coreClient.runMySokoBotLabIngest({ beat });
+    return response.data.turnId;
   },
 
   async setVersion(versionId: string): Promise<SokoBot> {
