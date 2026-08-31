@@ -8,6 +8,10 @@ const { projectServiceMock, projectsViewMock } = vi.hoisted(() => ({
   projectsViewMock: vi.fn(),
 }));
 
+vi.mock("next/server", () => ({
+  connection: vi.fn(async () => undefined),
+}));
+
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
     `${namespace}.${key}`,
@@ -85,10 +89,10 @@ describe("ProjectsPage", () => {
       },
     });
 
-    const { default: ProjectsPage } = await import("./page");
+    const { ProjectsPageContent } = await import("./page");
 
     render(
-      await ProjectsPage({
+      await ProjectsPageContent({
         searchParams: Promise.resolve({ create: "true" }),
       }),
     );

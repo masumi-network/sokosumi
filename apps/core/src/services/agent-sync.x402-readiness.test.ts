@@ -29,6 +29,8 @@ const {
       | "preview"
       | "development"
       | undefined,
+    VERCEL_URL: undefined as string | undefined,
+    VERCEL_BRANCH_URL: undefined as string | undefined,
   },
   getX402AvailableNetworksMock: vi.fn(),
   getX402KeySpendCapsMock: vi.fn(),
@@ -71,6 +73,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 import {
   boundCheckErrorForLogging,
+  isX402ReadinessPreviewDeploy,
   syncX402BuySideReadiness,
 } from "./agent-sync.x402-readiness";
 import {
@@ -89,6 +92,8 @@ describe("syncX402BuySideReadiness", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     envState.VERCEL_ENV = undefined;
+    envState.VERCEL_URL = undefined;
+    envState.VERCEL_BRANCH_URL = undefined;
     syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     syncMetadataFindUniqueMock.mockResolvedValue(null);
@@ -288,40 +293,27 @@ describe("syncX402BuySideReadiness", () => {
     );
   });
 
-  it("pages when payable pairs are recorded on an uncapped key", async () => {
-    // The gap this closes. A usageLimited key with no eip155 credit row is
-    // grandfathered uncapped by the node, so these pairs really are payable,
-    // with no ceiling, while the operator believes a cap is on. The
-    // zero-pairs page cannot cover it: there ARE ready pairs.
+  it("records no payable pair for a usage-limited key with no credit rows", async () => {
+    // Was the opposite assertion. The node used to grandfather such a key to
+    // uncapped x402 spend, so these pairs really were payable and readiness
+    // listed them and paged about the missing ceiling. The node now refuses
+    // every payment the key makes, so listing the pair would advertise agents
+    // that cannot be hired.
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
     getX402KeySpendCapsMock.mockResolvedValue(
-      ok(keySpendCaps({ usageLimited: true, grandfatheredUncapped: true })),
+      ok(keySpendCaps({ usageLimited: true })),
     );
 
     await expect(syncX402BuySideReadiness()).resolves.toBe(true);
 
-    expect(captureMessageMock).toHaveBeenCalledTimes(1);
-    expect(captureMessageMock.mock.calls[0][0]).toContain("UNCAPPED");
-    expect(captureMessageMock.mock.calls[0][1]).toBe("warning");
-    consoleWarnSpy.mockRestore();
-  });
-
-  it("does not page for an uncapped key on a Vercel preview", async () => {
-    // Preview runs a deliberately non-admin key (SOK-860). Paging from there
-    // is the noise that alert suppression exists to stop.
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    envState.VERCEL_ENV = "preview";
-    getX402KeySpendCapsMock.mockResolvedValue(
-      ok(keySpendCaps({ usageLimited: true, grandfatheredUncapped: true })),
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { key: X402_BUY_SIDE_READINESS_KEY },
+        update: expect.objectContaining({ cursorId: "[]" }),
+      }),
     );
-
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
-
-    expect(captureMessageMock).not.toHaveBeenCalled();
     consoleWarnSpy.mockRestore();
   });
 
@@ -333,26 +325,6 @@ describe("syncX402BuySideReadiness", () => {
     await expect(syncX402BuySideReadiness()).resolves.toBe(true);
 
     expect(captureMessageMock).not.toHaveBeenCalled();
-  });
-
-  it("does not re-page for an uncapped key when readiness did not change", async () => {
-    // Latched on the transition like the zero-pairs page, so a lasting
-    // misconfiguration does not spam. The per-pair warn log still repeats.
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    getX402KeySpendCapsMock.mockResolvedValue(
-      ok(keySpendCaps({ usageLimited: true, grandfatheredUncapped: true })),
-    );
-    syncMetadataFindUniqueMock.mockResolvedValue({
-      cursorId: JSON.stringify([READY_SOURCE]),
-      lastSyncedAt: new Date(),
-    });
-
-    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
-
-    expect(captureMessageMock).not.toHaveBeenCalled();
-    consoleWarnSpy.mockRestore();
   });
 
   it("reports no change when the cache holds the same pair set", async () => {
@@ -396,7 +368,6 @@ describe("syncX402BuySideReadiness", () => {
           },
         ],
         usageLimited: false,
-        grandfatheredUncapped: false,
         creditUnits: [],
         purchasingWalletCount: 0,
         purchasingWalletNetworks: [],
@@ -410,6 +381,76 @@ describe("syncX402BuySideReadiness", () => {
       lastSyncedAt: new Date(),
     });
     await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+    expect(captureMessageMock).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not page for zero ready pairs on a Vercel preview", async () => {
+    // A preview cron runs a deliberately non-admin key (SOK-860), so zero
+    // ready pairs is the EXPECTED result there. Paging on it floods CORE-39.
+    // The warn and the cache write stay, so fail-closed listing is unchanged.
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    envState.VERCEL_ENV = "preview";
+    getX402PurchasingWalletsMock.mockResolvedValue(ok([]));
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: JSON.stringify([READY_SOURCE]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+
+    expect(captureMessageMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { key: X402_BUY_SIDE_READINESS_KEY },
+        update: expect.objectContaining({ cursorId: "[]" }),
+      }),
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not page for zero ready pairs on a preview HOST that claims production", async () => {
+    // The reason the host is checked at all: CORE-37 kept paging from
+    // sokosumi-core-mainnet-*.preview.sokosumi.com on a release that already
+    // gated on VERCEL_ENV alone.
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    envState.VERCEL_ENV = "production";
+    envState.VERCEL_URL =
+      "https://sokosumi-core-mainnet-e99rlf2xt.preview.sokosumi.com";
+    getX402PurchasingWalletsMock.mockResolvedValue(ok([]));
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: JSON.stringify([READY_SOURCE]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+
+    expect(captureMessageMock).not.toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("still pages for zero ready pairs on a real production host", async () => {
+    // The guard above must not swallow the alert it exists to deliver.
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    envState.VERCEL_ENV = "production";
+    envState.VERCEL_URL = "https://core.sokosumi.com";
+    getX402PurchasingWalletsMock.mockResolvedValue(ok([]));
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: JSON.stringify([READY_SOURCE]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+
     expect(captureMessageMock).toHaveBeenCalledTimes(1);
 
     consoleWarnSpy.mockRestore();
@@ -785,5 +826,61 @@ describe("syncX402BuySideReadiness", () => {
       expect.anything(),
       expect.objectContaining({ signal }),
     );
+  });
+});
+
+describe("isX402ReadinessPreviewDeploy", () => {
+  beforeEach(() => {
+    envState.VERCEL_ENV = undefined;
+    envState.VERCEL_URL = undefined;
+    envState.VERCEL_BRANCH_URL = undefined;
+  });
+
+  it("matches VERCEL_ENV preview with no host set", () => {
+    envState.VERCEL_ENV = "preview";
+
+    expect(isX402ReadinessPreviewDeploy()).toBe(true);
+  });
+
+  it("matches the branch alias, which carries the suffix before VERCEL_URL does", () => {
+    envState.VERCEL_ENV = "production";
+    envState.VERCEL_BRANCH_URL =
+      "sokosumi-core-mainnet-git-main.preview.sokosumi.com";
+
+    expect(isX402ReadinessPreviewDeploy()).toBe(true);
+  });
+
+  it("does not match a host that merely ends in sokosumi.com", () => {
+    // core.sokosumi.com is production. Matching the bare apex would silence
+    // every real alert, which is the opposite of the bug being fixed.
+    envState.VERCEL_ENV = "production";
+    envState.VERCEL_URL = "https://core.sokosumi.com";
+
+    expect(isX402ReadinessPreviewDeploy()).toBe(false);
+  });
+
+  it("does not match a lookalike host that only contains the suffix", () => {
+    // Parsing the URL, rather than a substring test on the raw value, is what
+    // keeps a path or a subdomain-shaped tail from reading as the suffix.
+    envState.VERCEL_ENV = "production";
+    envState.VERCEL_URL = "https://core.sokosumi.com/x.preview.sokosumi.com";
+
+    expect(isX402ReadinessPreviewDeploy()).toBe(false);
+
+    envState.VERCEL_URL = "https://notpreview.sokosumi.com";
+
+    expect(isX402ReadinessPreviewDeploy()).toBe(false);
+  });
+
+  it("treats an unparsable or absent host as not preview", () => {
+    // Fail toward paging. A malformed VERCEL_URL must never buy silence.
+    envState.VERCEL_ENV = "production";
+    envState.VERCEL_URL = "::::";
+
+    expect(isX402ReadinessPreviewDeploy()).toBe(false);
+
+    envState.VERCEL_URL = undefined;
+
+    expect(isX402ReadinessPreviewDeploy()).toBe(false);
   });
 });

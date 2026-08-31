@@ -6193,7 +6193,9 @@
       "recentsEmptyTitle": "No recent files",
       "recentsEmptyDescription": "Files you upload or receive from tasks will appear here",
       "loadRecentsError": "Failed to load recent files",
-      "loadMoreRecentsError": "Failed to load more recent files"
+      "loadMoreRecentsError": "Failed to load more recent files",
+      "viewList": "List",
+      "viewGrid": "Grid"
     },
     "SokoBot": {
       "Metadata": {

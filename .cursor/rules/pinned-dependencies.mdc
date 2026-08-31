@@ -15,7 +15,7 @@ All **external** npm dependencies in workspace `package.json` files must use **e
 ### Exceptions
 
 - **Workspace packages**: `"@sokosumi/database": "workspace:*"` (and other `workspace:*` links) are allowed for monorepo-internal dependencies.
-- **`packageManager`** in the root `package.json` (e.g. `pnpm@11.23.0`) follows pnpm’s required format.
+- **`packageManager`** in the root `package.json` (e.g. `pnpm@12.1.0`) follows pnpm’s required format.
 
 ### When adding or updating dependencies
 

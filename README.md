@@ -8,7 +8,8 @@ Sokosumi is a marketplace platform. This monorepo is the web app, the Core API, 
 sokosumi/
 ├── apps/
 │   ├── web/         # Next.js 16 web app (TypeScript, Tailwind, Shadcn UI)
-│   └── core/        # Hono API — owns all Postgres/Prisma access
+│   ├── core/        # Hono API — owns all Postgres/Prisma access
+│   └── cli/         # Developer CLI — VISION.md only until specced
 ├── packages/
 │   ├── database/    # @sokosumi/database — Prisma client, helpers, repositories
 │   ├── masumi/      # @sokosumi/masumi — protocol clients, hash, schemas
@@ -16,8 +17,10 @@ sokosumi/
 │   ├── net/         # @sokosumi/net — SSRF-safe fetch
 │   ├── email/       # @sokosumi/email — renderers and locales
 │   ├── chat/        # @sokosumi/chat — chat types
-│   └── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
+│   ├── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
+│   └── soko-bot/    # @sokosumi/soko-bot — Soko Bot contracts (runtime is in Core)
 ├── docs/            # Agent, domain, coworker, and design docs
+├── scripts/         # local-env, cloud-agent-db, CI helpers
 ├── skills/          # First-party agent skill sources
 ├── biome.jsonc      # Root Biome configuration
 ├── package.json     # Monorepo root config
@@ -32,7 +35,7 @@ sokosumi/
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) 24.x
-- [pnpm](https://pnpm.io/) (monorepo package manager)
+- [pnpm](https://pnpm.io/) 12 (monorepo package manager; pin is `packageManager` in the root `package.json`)
 
 ### Clone and Install
 
@@ -100,7 +103,7 @@ Other available scripts:
 
 - **Staging:** All changes merged to `main` are auto-deployed to staging.
 - **Production:** Maintainers create a GitHub Release (semantic versioning, e.g., `v1.0.0`) to trigger production deployment.
-- **Database migrations:** The Core Vercel build (`pnpm vercel-build`) runs `prisma migrate deploy` **after** a successful app build and before the deployment activates (Production and Preview). With the Vercel Neon integration, each Preview gets its own database branch; Preview builds require `DATABASE_URL_UNPOOLED` so migrate cannot silently target a shared/production URL. Migrate prefers `DATABASE_URL_UNPOOLED`, otherwise `DATABASE_URL`. Web does not run migrations and its Vercel install is filtered (`pnpm install --filter web...`) so `@sokosumi/database` is not installed or built. See [apps/core/README.md](./apps/core/README.md#deployment-vercel) for the Neon checklist.
+- **Database migrations:** The Core Vercel build (`pnpm vercel-build`) runs `prisma migrate deploy` **after** a successful app build and before the deployment activates (Production and Preview). With the Vercel Neon integration, each Preview gets its own database branch; Preview builds require `DATABASE_URL_UNPOOLED` so migrate cannot silently target a shared/production URL. Migrate prefers `DATABASE_URL_UNPOOLED`, otherwise `DATABASE_URL`. Web does not run migrations and its Vercel install is filtered (`pnpm install --frozen-lockfile --filter web...`) so `@sokosumi/database` is not installed or built. See [apps/core/README.md](./apps/core/README.md#deployment-vercel) for the Neon checklist.
 
 ## Contributing
 
