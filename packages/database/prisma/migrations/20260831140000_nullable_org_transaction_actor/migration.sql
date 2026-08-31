@@ -12,10 +12,13 @@ WHERE cb."sourceTransactionId" = t.id
   AND cb."userId" IS NULL
   AND t."userId" IS NOT NULL;
 
--- Negative txs that drained leftover member: period buckets (transfer +
--- sentinel drains). Leaving a member actor lets user delete undo the drain
--- via CreditConsumption cascade while CreditBucket.userId SetNulls into
--- org shared scope, doubling spendable balance beside the migrated pool.
+-- Negative txs that drained leftover member: period buckets (transfer) or
+-- org: SOK-905 sentinel face buckets. Leaving a member actor lets user
+-- delete undo the drain via CreditConsumption cascade; for member: rows
+-- CreditBucket.userId also SetNulls into org shared scope, doubling
+-- spendable balance beside the migrated pool. Sentinel grants are already
+-- covered by the source-transaction UPDATE above; drains consume org:
+-- buckets and need this branch (referenceNote discriminator).
 UPDATE "Transaction" AS t
 SET "userId" = NULL
 WHERE t."organizationId" IS NOT NULL
@@ -27,5 +30,8 @@ WHERE t."organizationId" IS NOT NULL
     INNER JOIN "credit_bucket" AS cb ON cb.id = cc."bucketId"
     WHERE cc."transactionId" = t.id
       AND cb."referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD'
-      AND cb."referenceId" LIKE 'member:%'
+      AND (
+        cb."referenceId" LIKE 'member:%'
+        OR cb."referenceNote" = 'SOK-905 idempotency sentinel'
+      )
   );
