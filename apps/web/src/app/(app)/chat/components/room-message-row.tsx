@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   type ChannelLinkTarget,
   getExtensionFromUrl,
   unfurlCardHasPreviewContent,
@@ -31,6 +32,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import {
   CoworkerFailedThoughtSparkle,
   CoworkerLiveThought,
@@ -55,6 +57,7 @@ import {
   outboundPendingAgeMs,
   readClientTurnId,
   readOutboundDeliveryStatus,
+  readOutboundErrorMessage,
   shouldShowOutboundPendingSpinner,
 } from "@/app/chat/utils/outbound-room-message";
 import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
@@ -123,6 +126,9 @@ import {
   type ChatParticipantHoverProfile,
   composerMentionDisplayNames,
   formatMessageTime,
+  formatRoomComposerTooLongFailure,
+  isRoomComposerContentCountVisible,
+  isRoomComposerContentOverLimit,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
@@ -1526,12 +1532,26 @@ function MessageEditComposer({
     const markdown = liveMarkdown();
     const liveTrimmed = markdown.trim();
     const originalTrimmed = originalContent.trim();
+    if (isRoomComposerContentOverLimit(liveTrimmed)) {
+      toast.error(
+        t("composerTooLong", {
+          count: liveTrimmed.length,
+          max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+        }),
+      );
+      return;
+    }
     if (liveTrimmed.length > 0 && liveTrimmed !== originalTrimmed) {
       onSave(markdown);
       return;
     }
     onCancel();
   }
+
+  const trimmedEditContent = value.trim();
+  const editOverLimit = isRoomComposerContentOverLimit(trimmedEditContent);
+  const showEditContentCount =
+    isRoomComposerContentCountVisible(trimmedEditContent);
 
   return (
     <div className="pt-0.5">
@@ -1568,6 +1588,31 @@ function MessageEditComposer({
           className="min-h-10 max-h-40 overflow-y-auto px-3 py-2.5 leading-6"
         />
       </div>
+      {editOverLimit || showEditContentCount ? (
+        <div className="flex items-start justify-between gap-2 pt-1">
+          {editOverLimit ? (
+            <p className="text-destructive text-xs" role="alert">
+              {t("composerTooLongHint")}
+            </p>
+          ) : (
+            <span />
+          )}
+          {showEditContentCount ? (
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                editOverLimit ? "text-destructive" : "text-muted-foreground",
+              )}
+              aria-live="polite"
+            >
+              {t("composerCharacterCount", {
+                count: trimmedEditContent.length,
+                max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+              })}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1651,12 +1696,16 @@ function MessageTimeOrOutboundStatus({
   className,
   /** Header next to name (true) vs continuation left gutter (false). */
   reserveHeaderWidth = true,
+  outboundErrorMessage,
+  outboundContentLength = 0,
 }: {
   createdAt: Date | string;
   outboundStatus: OutboundDeliveryStatus | null;
   showSentTick?: boolean;
   className?: string;
   reserveHeaderWidth?: boolean;
+  outboundErrorMessage?: string | null;
+  outboundContentLength?: number;
 }) {
   const t = useTranslations("App.Channels");
   const [sentFading, setSentFading] = useState(false);
@@ -1731,13 +1780,18 @@ function MessageTimeOrOutboundStatus({
   }
 
   if (outboundStatus === "failed") {
+    const failedLabel = formatRoomComposerTooLongFailure(
+      outboundErrorMessage,
+      outboundContentLength,
+      t,
+    );
     return (
       <span
         className={cn(markClass, "text-destructive", className)}
         role="img"
         data-testid="outbound-delivery-failed-icon"
-        title={t("Outbound.failed")}
-        aria-label={t("Outbound.failed")}
+        title={failedLabel}
+        aria-label={failedLabel}
       >
         <AlertCircle
           className={cn(iconClass, "text-destructive")}
@@ -1812,13 +1866,18 @@ function OutboundFailedActions({
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
 }) {
   const t = useTranslations("App.Channels");
+  const failedLabel = formatRoomComposerTooLongFailure(
+    readOutboundErrorMessage(message),
+    message.content.length,
+    t,
+  );
   return (
     <div
       className="text-muted-foreground flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
       data-testid="outbound-delivery-failed"
     >
-      <span className="text-destructive" title={t("Outbound.failed")}>
-        {t("Outbound.failed")}
+      <span className="text-destructive" title={failedLabel}>
+        {failedLabel}
       </span>
       {onRetryOutbound ? (
         <button
@@ -2135,6 +2194,8 @@ export function ChatMessageRow({
               outboundStatus={outboundStatus}
               showSentTick={showDeliveryTick}
               reserveHeaderWidth={false}
+              outboundErrorMessage={readOutboundErrorMessage(message)}
+              outboundContentLength={message.content.length}
               className="text-muted-foreground leading-none"
             />
           ) : null}
@@ -2207,6 +2268,8 @@ export function ChatMessageRow({
               outboundStatus={outboundStatus}
               showSentTick={showDeliveryTick}
               reserveHeaderWidth
+              outboundErrorMessage={readOutboundErrorMessage(message)}
+              outboundContentLength={message.content.length}
               className="text-muted-foreground text-xs leading-none"
             />
             {showEdited && editedAt != null ? (

@@ -1,3 +1,4 @@
+import { CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
@@ -17,6 +18,7 @@ import {
   outboundPendingAgeMs,
   readClientTurnId,
   readOutboundDeliveryStatus,
+  readOutboundErrorMessage,
   removeOutboundMessage,
   shouldFlashOutboundSentCheck,
   shouldShowOutboundPendingSpinner,
@@ -151,14 +153,22 @@ describe("outbound room message", () => {
       senderUser,
     });
 
-    const failed = failOutboundMessage([pending], "turn-1");
+    const failed = failOutboundMessage(
+      [pending],
+      "turn-1",
+      CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+    );
     expect(readOutboundDeliveryStatus(failed[0]!)).toBe("failed");
     expect(failed[0]?.metadata?.[OUTBOUND_DELIVERY_STATUS_METADATA_KEY]).toBe(
       "failed",
     );
+    expect(readOutboundErrorMessage(failed[0]!)).toBe(
+      CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+    );
 
     const retried = markOutboundMessagePending(failed, "turn-1");
     expect(readOutboundDeliveryStatus(retried[0]!)).toBe("pending");
+    expect(readOutboundErrorMessage(retried[0]!)).toBeNull();
   });
 
   it("removes a failed send shell", () => {

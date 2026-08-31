@@ -5734,6 +5734,10 @@
       "directMessages": "Direct Messages",
       "loading": "Cargando...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
+      "composerTooLong": "El mensaje es demasiado largo ({count}/{max}). Acórtalo para enviarlo.",
+      "composerTooLongHint": "Demasiado largo para enviar como texto",
+      "composerCharacterCount": "{count}/{max}",
+      "composerConvertToFile": "Convertir a archivo",
       "NoOrganization": {
         "title": "Canales próximamente",
         "description": "Los canales están en fase de prueba para espacios de organización. El uso personal llegará pronto."
