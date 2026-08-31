@@ -6191,7 +6191,9 @@
       "recentsEmptyTitle": "No hay archivos recientes",
       "recentsEmptyDescription": "Los archivos que subas o recibas de tareas aparecerán aquí",
       "loadRecentsError": "No se pudieron cargar los archivos recientes",
-      "loadMoreRecentsError": "No se pudieron cargar más archivos recientes"
+      "loadMoreRecentsError": "No se pudieron cargar más archivos recientes",
+      "viewList": "Lista",
+      "viewGrid": "Cuadrícula"
     },
     "SokoBot": {
       "Metadata": {
