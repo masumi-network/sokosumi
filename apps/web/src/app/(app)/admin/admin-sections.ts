@@ -1,12 +1,14 @@
 import {
   Bot,
   BotMessageSquare,
+  BrainCircuit,
   Building,
   Building2,
   Coins,
   LifeBuoy,
   ListTodo,
   type LucideIcon,
+  MessagesSquare,
   Store,
   Users,
   WalletCards,
@@ -101,9 +103,21 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     group: "operations",
   },
   {
+    key: "matchedChannels",
+    href: "/admin/matched-channels",
+    Icon: MessagesSquare,
+    group: "operations",
+  },
+  {
     key: "x402Payments",
     href: "/admin/x402-payments",
     Icon: WalletCards,
+    group: "operations",
+  },
+  {
+    key: "sokoBots",
+    href: "/admin/soko-bots",
+    Icon: BrainCircuit,
     group: "operations",
   },
 ];

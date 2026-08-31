@@ -38,7 +38,7 @@ const route = withGlobalHeaderParameters(
     method: "delete",
     path: "/{id}/members/me",
     description:
-      "Leave an organization chat room. Removes only the caller's membership and read marker; the room and its messages are untouched for everyone else. Any member can leave. The last remaining member cannot leave (ask an organization owner/admin to archive instead), and direct rooms cannot be left.",
+      "Leave a chat room. Removes only the caller's membership and read marker; the room and its messages are untouched for everyone else. Any member can leave. The last remaining member cannot leave: ask an organization owner or admin to archive an organization room, or ask a platform admin to remove you from an org-less matched channel roster. Direct rooms cannot be left.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -104,11 +104,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       // Nobody left to archive it afterwards: the room would linger with an
       // empty roster, invisible to every user yet still holding its slug.
-      // Last member cannot leave — an organization owner/admin (who must also
-      // be members under current access rules) must archive instead.
+      // Host-org rooms: last member asks an org owner/admin to archive.
+      // Org-less matched rooms cannot be archived that way — platform admin
+      // removes via the matched-channels hub (SOK-908 covers leave/archive).
       if (remainingUserMemberCount === 0) {
         throw badRequest(
-          "You are the last member of this room. Ask an organization owner or admin to archive it.",
+          existing.organizationId == null
+            ? "You are the last member of this room. Ask a platform admin to remove you from the matched channel roster."
+            : "You are the last member of this room. Ask an organization owner or admin to archive it.",
         );
       }
 

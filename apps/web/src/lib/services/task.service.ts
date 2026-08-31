@@ -3,6 +3,7 @@ import "server-only";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreateTaskContext,
+  GetWorkspacesCalendarData,
   JobSummary,
   Task,
   TaskActivitySummary,
@@ -11,6 +12,8 @@ import type {
   TaskLinkDeleted,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
+  WorkspaceCalendarItem,
+  WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { AgentJobStatus } from "@/lib/types/core-dto";
@@ -62,6 +65,16 @@ interface CreateTaskLinkInput {
   note?: string | null;
 }
 
+export interface WorkspaceCalendarPage {
+  items: WorkspaceCalendarItem[];
+  pagination: {
+    cursor: string | null;
+    limit: number;
+    total: number;
+    nextCursor: string | null;
+  } | null;
+}
+
 export const taskService = (() => {
   async function listTasks(params: ListTasksParams = {}) {
     const result = await coreClient.getTasks({
@@ -83,6 +96,24 @@ export const taskService = (() => {
       tasks: result.data ?? [],
       pagination: result.meta?.pagination ?? null,
     };
+  }
+
+  async function getWorkspaceCalendar(
+    query: GetWorkspacesCalendarData["query"],
+  ): Promise<WorkspaceCalendarPage> {
+    const result = await coreClient.getWorkspaceCalendar(query);
+
+    return {
+      items: result.data,
+      pagination: result.meta?.pagination ?? null,
+    };
+  }
+
+  async function getWorkspaceCalendarSources(): Promise<
+    WorkspaceCalendarSource[]
+  > {
+    const result = await coreClient.getWorkspaceCalendarSources();
+    return result.data;
   }
 
   async function listJobs(params: ListJobsParams = {}): Promise<{
@@ -245,6 +276,8 @@ export const taskService = (() => {
 
   return {
     getActivitySummary,
+    getWorkspaceCalendar,
+    getWorkspaceCalendarSources,
     listJobs,
     listTasks,
     getTaskById,

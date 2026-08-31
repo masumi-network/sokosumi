@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import agentsRouter from "./agents/index.js";
 import chatRoomsRouter from "./chats/rooms/index.js";
-import hermesRouter from "./hermes/index.js";
 import tasksRouter from "./tasks/index.js";
 import usersRouter from "./users/index.js";
 
@@ -41,15 +40,8 @@ function hasCoworkerContextHeaders(refs: string[]): boolean {
   );
 }
 
-function hasOrchestratorContextHeaders(refs: string[]): boolean {
-  return (
-    refs.includes("#/components/parameters/OrchestratorContextUserId") &&
-    refs.includes("#/components/parameters/OrchestratorContextOrganizationId")
-  );
-}
-
 function hasAnyContextHeader(refs: string[]): boolean {
-  return hasCoworkerContextHeaders(refs) || hasOrchestratorContextHeaders(refs);
+  return hasCoworkerContextHeaders(refs);
 }
 
 const openApiInfo = {
@@ -62,14 +54,12 @@ describe("OpenAPI X-Context-* header documentation", () => {
     const doc = tasksRouter.getOpenAPI31Document(openApiInfo);
     const refs = operationParameterRefs(doc, "/", "post");
     expect(hasCoworkerContextHeaders(refs)).toBe(true);
-    expect(hasOrchestratorContextHeaders(refs)).toBe(false);
   });
 
   it("documents coworker context headers on user credits", () => {
     const doc = usersRouter.getOpenAPI31Document(openApiInfo);
     const refs = operationParameterRefs(doc, "/{id}/credits", "get");
     expect(hasCoworkerContextHeaders(refs)).toBe(true);
-    expect(hasOrchestratorContextHeaders(refs)).toBe(false);
   });
 
   it("documents coworker context headers on user profile", () => {
@@ -102,20 +92,12 @@ describe("OpenAPI X-Context-* header documentation", () => {
       "get",
     );
     expect(hasCoworkerContextHeaders(refs)).toBe(false);
-    expect(hasOrchestratorContextHeaders(refs)).toBe(false);
   });
 
-  it("documents orchestrator-only context headers on user billing details", () => {
+  it("omits context headers on user billing details", () => {
     const doc = usersRouter.getOpenAPI31Document(openApiInfo);
     const refs = operationParameterRefs(doc, "/{id}/billing-details", "get");
-    expect(hasOrchestratorContextHeaders(refs)).toBe(true);
     expect(hasCoworkerContextHeaders(refs)).toBe(false);
-  });
-
-  it("omits context headers on hermes product chat (session-only)", () => {
-    const doc = hermesRouter.getOpenAPI31Document(openApiInfo);
-    const refs = operationParameterRefs(doc, "/chat", "post");
-    expect(hasAnyContextHeader(refs)).toBe(false);
     expect(refs).toContain("#/components/parameters/OrganizationSlug");
   });
 
@@ -131,11 +113,11 @@ describe("OpenAPI X-Context-* header documentation", () => {
     expect(hasCoworkerContextHeaders(refs)).toBe(true);
   });
 
-  it("documents orchestrator-only context headers on agent job create (coworker rejected)", () => {
+  it("omits context headers on agent job create (coworker rejected)", () => {
     const doc = agentsRouter.getOpenAPI31Document(openApiInfo);
     const refs = operationParameterRefs(doc, "/{id}/jobs", "post");
-    expect(hasOrchestratorContextHeaders(refs)).toBe(true);
     expect(hasCoworkerContextHeaders(refs)).toBe(false);
+    expect(refs).toContain("#/components/parameters/OrganizationSlug");
   });
 
   it("omits context headers on chat rooms list (session-only)", () => {

@@ -7,7 +7,7 @@ import prisma from "@/lib/db/prisma";
 import { uploadDesignMdContent } from "@/lib/design-md-blob";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -27,7 +27,7 @@ const paramsSchema = z.object({
     }),
 });
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "put",
     path: "/{id}/design-md",

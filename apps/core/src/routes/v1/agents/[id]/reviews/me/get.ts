@@ -29,7 +29,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/{id}/reviews/me",
     description:
-      "Get the authenticated caller's own review for an agent. Session user or orchestrator/coworker with context headers.",
+      "Get the authenticated caller's own review for an agent. Session user or coworker with authorized context headers.",
     tags: ["Agents"],
     request: {
       params,

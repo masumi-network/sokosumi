@@ -15,13 +15,36 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { prismaTransactionMock, requireTaskOwnershipMock } = vi.hoisted(() => ({
+const {
+  prismaTransactionMock,
+  requireTaskOwnershipMock,
+  lockCalendarScopeMock,
+  lockTaskRowsMock,
+  quarantineFindUniqueMock,
+  removeTaskSchedulePlannedOccurrencesMock,
+  taskUpdateMock,
+} = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
+  lockCalendarScopeMock: vi.fn(),
+  lockTaskRowsMock: vi.fn(),
+  quarantineFindUniqueMock: vi.fn(),
+  removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
+  taskUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: requireTaskOwnershipMock,
+}));
+
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: lockCalendarScopeMock,
+  lockTaskRows: lockTaskRowsMock,
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  removeTaskSchedulePlannedOccurrences:
+    removeTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -31,6 +54,58 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
+
+function createUpdatedTask() {
+  const owner = { id: "user_123", name: "Owner", image: null };
+  return {
+    id: "tsk_123",
+    createdAt: new Date("2026-06-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-06-01T00:00:00.000Z"),
+    ownerId: owner.id,
+    owner,
+    organizationId: "org_123",
+    organization: {
+      id: "org_123",
+      name: "Organization",
+      slug: "organization",
+      logo: null,
+    },
+    projectId: null,
+    assigneeId: null,
+    assignee: null,
+    creatorUserId: owner.id,
+    creatorUser: owner,
+    creatorCoworkerId: null,
+    creatorCoworker: null,
+    creatorOrchestratorId: null,
+    creatorOrchestrator: null,
+    name: "Scheduled task",
+    description: null,
+    status: TaskStatus.DRAFT,
+    grantResumeStatus: null,
+    pendingVendorGrantId: null,
+    metadata: null,
+    nextRunAt: null,
+    scheduleRevision: 0,
+    events: [],
+    jobs: [],
+    files: [],
+    linksFrom: [],
+    linksTo: [],
+    share: null,
+    workspace: {
+      id: WORKSPACE_ID,
+      userId: null,
+      organizationId: "org_123",
+      organization: {
+        id: "org_123",
+        name: "Organization",
+        slug: "organization",
+        logo: null,
+      },
+    },
+  };
+}
 
 function createApp(
   authContext: AuthenticationContext = {
@@ -66,7 +141,18 @@ describe("DELETE /tasks/{id}/schedule", () => {
       id: "tsk_123",
       status: TaskStatus.READY,
       workspaceId: WORKSPACE_ID,
+      projectId: null,
     });
+    lockCalendarScopeMock.mockResolvedValue(true);
+    lockTaskRowsMock.mockResolvedValue(true);
+    quarantineFindUniqueMock.mockResolvedValue(null);
+    taskUpdateMock.mockResolvedValue(createUpdatedTask());
+    prismaTransactionMock.mockImplementation(async (callback) =>
+      callback({
+        taskScheduleQuarantine: { findUnique: quarantineFindUniqueMock },
+        task: { update: taskUpdateMock },
+      }),
+    );
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
@@ -84,5 +170,36 @@ describe("DELETE /tasks/{id}/schedule", () => {
     expect(response.status).toBe(403);
     expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("requires audited operator removal for a quarantined schedule", async () => {
+    quarantineFindUniqueMock.mockResolvedValue({ id: "quarantine-1" });
+    const app = createApp();
+
+    const response = await app.request("http://localhost/tsk_123/schedule", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(409);
+    expect(lockCalendarScopeMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      WORKSPACE_ID,
+      [null],
+    );
+  });
+
+  it("removes only planned occurrence index rows with the schedule", async () => {
+    const response = await createApp().request(
+      "http://localhost/tsk_123/schedule",
+      {
+        method: "DELETE",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "tsk_123",
+    );
   });
 });

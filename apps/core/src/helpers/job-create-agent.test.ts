@@ -20,6 +20,7 @@ const {
   getAgentCostMock,
   getCardanoV2ReadySourcesMock,
   getCreditCostsOrThrowMock,
+  getCentsMock,
   projectFindFirstMock,
   prismaTransactionMock,
   sentryCaptureExceptionMock,
@@ -35,6 +36,7 @@ const {
   getAgentCostMock: vi.fn(),
   getCardanoV2ReadySourcesMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
+  getCentsMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   sentryCaptureExceptionMock: vi.fn(),
@@ -112,7 +114,7 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 }));
 
 vi.mock("@/helpers/user", () => ({
-  getCents: vi.fn(),
+  getCents: getCentsMock,
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
@@ -245,6 +247,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getCreditCostsOrThrowMock.mockResolvedValue([{ unit: "lovelace" }]);
+    getCentsMock.mockResolvedValue(BigInt(1_000_000));
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
     getCardanoV2ReadySourcesMock.mockResolvedValue([
       {
@@ -285,10 +288,97 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
   it("rejects when cost exceeds maxAcceptedCents", async () => {
     getAgentCostMock.mockReturnValue({ cents: BigInt(11) });
+    const beforeSellerStart = vi.fn();
+
+    await expect(
+      createAgentJobForUser(createInput({ beforeSellerStart })),
+    ).rejects.toThrow("Credit cost exceeds maximum accepted credits");
+    expect(beforeSellerStart).not.toHaveBeenCalled();
+  });
+
+  it("crosses the retry fence immediately before seller execution", async () => {
+    const callOrder: string[] = [];
+    const startFreeAgentJob = vi.fn(async () => {
+      callOrder.push("seller");
+      return ok({ id: "agent_job_1" });
+    });
+    createAgentClientMock.mockReturnValue({ startFreeAgentJob });
+
+    await createAgentJobForUser(
+      createInput({
+        beforeSellerStart: vi.fn(async () => {
+          callOrder.push("fence");
+        }),
+      }),
+    );
+
+    expect(callOrder).toEqual(["fence", "seller"]);
+  });
+
+  it("runs the local Job callback inside its creation transaction", async () => {
+    let insideLocalTransaction = false;
+    const transactionClient = {
+      job: { create: txJobCreateMock },
+      agent: { update: txAgentUpdateMock },
+    };
+    prismaTransactionMock.mockImplementation(async (operation: unknown) => {
+      if (Array.isArray(operation)) {
+        return await Promise.all(operation);
+      }
+      insideLocalTransaction = true;
+      try {
+        return await (
+          operation as (tx: typeof transactionClient) => Promise<unknown>
+        )(transactionClient);
+      } finally {
+        insideLocalTransaction = false;
+      }
+    });
+    const afterLocalJobCreate = vi.fn(
+      async (job: { id: string }, tx: typeof transactionClient) => {
+        expect(insideLocalTransaction).toBe(true);
+        expect(job.id).toBe("job_1");
+        expect(tx).toBe(transactionClient);
+        expect(txJobCreateMock).toHaveBeenCalledOnce();
+      },
+    );
+
+    await createAgentJobForUser(createInput({ afterLocalJobCreate }));
+
+    expect(afterLocalJobCreate).toHaveBeenCalledOnce();
+    expect(insideLocalTransaction).toBe(false);
+  });
+
+  it("rejects insufficient balance before paid seller dispatch", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+    getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+    getCentsMock.mockResolvedValue(BigInt(4));
+    const startPaidAgentJob = sellerResponding(paidV1JobResponse);
+    createAgentClientMock.mockReturnValue({ startPaidAgentJob });
 
     await expect(createAgentJobForUser(createInput())).rejects.toThrow(
-      "Credit cost exceeds maximum accepted credits",
+      "Insufficient balance",
     );
+
+    expect(startPaidAgentJob).not.toHaveBeenCalled();
+  });
+
+  it("resolves generated Job name before seller dispatch", async () => {
+    const startFreeAgentJob = vi
+      .fn()
+      .mockResolvedValue(ok({ id: "agent_job_1" }));
+    createAgentClientMock.mockReturnValue({ startFreeAgentJob });
+    generateJobNameMock.mockRejectedValue(new Error("name model unavailable"));
+
+    await expect(
+      createAgentJobForUser(
+        createInput({
+          agentInput: { ...createInput().agentInput, name: undefined },
+        }),
+      ),
+    ).rejects.toThrow("name model unavailable");
+
+    expect(startFreeAgentJob).not.toHaveBeenCalled();
   });
 
   it("does not call start_job when the owner has no assigned organization seat", async () => {

@@ -73,7 +73,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List chat rooms visible to the current user: active-org membership rooms, personal human Directs (`organizationId` null, no coworkers), and external channels where the caller is a guest. With no active organization, lists personal Directs (`organizationId` null) and guest rooms. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
+      "List chat rooms visible to the current user: active-org membership rooms, personal human Directs (`organizationId` null, no coworkers), org-less matched channels where the caller is a member, and external channels where the caller is a guest. With no active organization, lists personal Directs, matched-channel memberships, and guest rooms. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -116,7 +116,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Active: membership of caller AND (active-org rooms ∪ guest rooms ∪
-    // personal human Directs). No active org: personal Directs ∪ guest rooms.
+    // personal human Directs ∪ org-less matched channels). No active org:
+    // personal Directs ∪ guest rooms ∪ matched-channel memberships.
     // Archived rooms are always org channels, so personal workspace returns
     // empty for status=archived. Archived list is OWNER/ADMIN only.
     const canManageAnyArchived =
@@ -162,6 +163,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                     kind: "direct" as const,
                     coworkerMembers: { none: {} },
                   },
+                  {
+                    organizationId: null,
+                    kind: "channel" as const,
+                    discoverability: "matched" as const,
+                  },
                 ]
               : [
                   { organizationId: null, kind: "direct" as const },
@@ -169,6 +175,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                     userMembers: {
                       some: { userId, access: "guest" as const },
                     },
+                  },
+                  {
+                    organizationId: null,
+                    kind: "channel" as const,
+                    discoverability: "matched" as const,
                   },
                 ],
           };

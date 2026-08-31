@@ -24,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "Get a user: path `me` for the session user, or a user id when the session user matches that id, a session admin requests any user, or orchestrator/coworker with matching `X-Context-User-Id`.",
+      "Get a user: path `me` for the session user, or a user id when the session user matches that id, a session admin requests any user, or a coworker supplies matching authorized `X-Context-User-Id`.",
     tags: ["Users"],
     request: { params },
     responses: {

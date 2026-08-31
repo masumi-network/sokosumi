@@ -75,6 +75,9 @@ const CREATED_PROJECT = {
   designMd: null,
   contextMd: null,
   contextMdUpdating: false,
+  projectRevision: 0,
+  closingAt: null,
+  closedAt: null,
   memoryEnabled: false,
   memoryModel: {
     id: "mistral/mistral-medium-3.5",

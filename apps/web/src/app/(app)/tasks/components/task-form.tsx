@@ -28,6 +28,7 @@ import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { formatTaskScheduleSelectionLabel } from "@/components/schedules/format";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
+  type CreateTaskResult,
   createTask,
   type TaskContextSelectionInput,
   updateTask,
@@ -167,7 +169,7 @@ interface TaskFormProps {
     context: TaskContextSelectionInput;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
     schedule?: TaskScheduleSelection;
-  }) => Promise<{ taskId: string; name?: string }>;
+  }) => Promise<CreateTaskResult>;
   showCancel?: boolean;
   onSubmittingChange?: (isSubmitting: boolean) => void;
   onCreatedChange?: (created: boolean) => void;
@@ -194,6 +196,7 @@ export function TaskForm({
   onCreatedChange,
 }: TaskFormProps) {
   const router = useRouter();
+  const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
   const isModal = variant === "modal";
@@ -470,6 +473,11 @@ export function TaskForm({
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
             schedule: scheduleSelection,
           });
+          if (!result.ok) {
+            showCalendarClientUpgradeModal();
+            return;
+          }
+          const createdTask = result.value;
           // In the modal, confirm success in place and let the user choose when
           // to navigate — the redirect target is prefetched so it lands fast.
           if (isModal) {
@@ -480,10 +488,10 @@ export function TaskForm({
                 : desiredStatus === TaskStatus.DRAFT
                   ? "DRAFT"
                   : "READY";
-            router.prefetch(`/tasks/${result.taskId}`);
+            router.prefetch(`/tasks/${createdTask.taskId}`);
             setCreatedTask({
-              id: result.taskId,
-              name: result.name?.trim() || "Untitled task",
+              id: createdTask.taskId,
+              name: createdTask.name.trim() || "Untitled task",
               status: createdStatus,
               statusLabel:
                 createdStatus === "QUEUED"
@@ -496,14 +504,14 @@ export function TaskForm({
                   ? (scheduleLabel ?? undefined)
                   : undefined,
             });
-            onCreated?.(result.taskId);
+            onCreated?.(createdTask.taskId);
             return;
           }
           if (onSuccess) {
-            onSuccess(result.taskId);
+            onSuccess(createdTask.taskId);
             return;
           }
-          router.push(`/tasks/${result.taskId}`);
+          router.push(`/tasks/${createdTask.taskId}`);
           return;
         }
 
@@ -512,7 +520,7 @@ export function TaskForm({
         }
 
         const trimmedName = name.trim();
-        await updateTask({
+        const result = await updateTask({
           taskId,
           name: trimmedName,
           description: trimmedDescription,
@@ -524,6 +532,10 @@ export function TaskForm({
           hadSchedule,
           originalSchedule: originalScheduleSelection.current,
         });
+        if (!result.ok) {
+          showCalendarClientUpgradeModal();
+          return;
+        }
         if (onSuccess) {
           onSuccess(taskId);
           return;
@@ -555,6 +567,7 @@ export function TaskForm({
       onSuccess,
       onCreated,
       onCreateTask,
+      showCalendarClientUpgradeModal,
       scheduleSelection,
       scheduleLabel,
       hadSchedule,

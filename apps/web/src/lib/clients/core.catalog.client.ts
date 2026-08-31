@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/clients/generated/core/client";
+import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
 import { createCoreClient } from "./core.shared";
@@ -14,7 +15,7 @@ import { createCoreClient } from "./core.shared";
 function createCatalogGeneratedClient() {
   return createClient({
     baseUrl: getServerCoreApiBaseUrl(),
-    headers: {},
+    headers: buildCalendarClientVersionHeaders(),
   });
 }
 

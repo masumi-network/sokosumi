@@ -1,15 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import {
-  CreditBucketReferenceType,
-  type Prisma,
-  TaskPaymentClaimStatus,
-} from "@sokosumi/database";
+import { type Prisma, TaskPaymentClaimStatus } from "@sokosumi/database";
 import type { MasumiTaskPurchaseInput } from "@sokosumi/masumi/clients";
 import { v4 as uuidv4 } from "uuid";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { getEnv } from "@/config/env";
+import { buildCompensatingRefundTransactionCreate } from "@/helpers/compensating-refund";
 import prisma from "@/lib/db/prisma";
 
 const MAX_FAILURE_REASON_LENGTH = 2_000;
@@ -224,38 +221,12 @@ export async function refundFailedTaskPaymentClaim(
       where: { id: claim.id },
       data: {
         refundTransaction: {
-          create: {
+          create: buildCompensatingRefundTransactionCreate({
             amount: refundAmount,
-            user: { connect: { id: claim.transaction.userId } },
-            ...(claim.transaction.organizationId
-              ? {
-                  organization: {
-                    connect: { id: claim.transaction.organizationId },
-                  },
-                }
-              : {}),
-            sourceCreditBucket: {
-              create: {
-                amount: refundAmount,
-                referenceId: `task-payment:${claim.id}`,
-                referenceType: CreditBucketReferenceType.REFUND,
-                user: { connect: { id: claim.transaction.userId } },
-                // Non-expiring, matching how job refunds compensate
-                // (services/job-refund.ts). The debit may have consumed
-                // expiring buckets, so this can extend the credits' lifetime —
-                // deliberate: a payment Sokosumi failed to place must not cost
-                // the user credits that expire before they can be spent again.
-                expiresAt: null,
-                ...(claim.transaction.organizationId
-                  ? {
-                      organization: {
-                        connect: { id: claim.transaction.organizationId },
-                      },
-                    }
-                  : {}),
-              },
-            },
-          } satisfies Prisma.TransactionCreateInput,
+            actorUserId: claim.transaction.userId,
+            organizationId: claim.transaction.organizationId,
+            referenceId: `task-payment:${claim.id}`,
+          }),
         },
       },
     });

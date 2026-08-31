@@ -60,7 +60,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    // Session-only owner/admin read: coworker/orchestrator keys must not list
+    // Session-only owner/admin read: coworker keys must not list
     // org invite links on behalf of an impersonated user.
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");

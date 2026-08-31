@@ -183,5 +183,4 @@ describe("domain enum schemas", () => {
  * Sokosumi Postgres enums. Tighten in a follow-up only if the source contracts
  * become closed sets:
  *   - user.schema.ts: role (platform Better Auth role)
- *   - hermes.schema.ts: role, kind (external Hermes API strings)
  */

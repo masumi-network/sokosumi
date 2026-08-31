@@ -36,8 +36,47 @@ describe("serializableTransaction", () => {
     });
   });
 
+  it("retries a serialization failure before succeeding", async () => {
+    prismaTransactionMock
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+      )
+      .mockRejectedValueOnce(
+        Object.assign(
+          new Error(
+            "Invalid `prisma.$queryRaw()` invocation: driverAdapterError: DriverAdapterError: TransactionWriteConflict",
+          ),
+          { name: "PrismaClientKnownRequestError" },
+        ),
+      )
+      .mockResolvedValueOnce("result");
+
+    await expect(
+      serializableTransaction(vi.fn(), "Conflict message"),
+    ).resolves.toBe("result");
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries a raw-query SQLSTATE 40001 serialization failure", async () => {
+    prismaTransactionMock
+      .mockRejectedValueOnce(
+        Object.assign(
+          new Error(
+            "Invalid `prisma.$queryRaw()` invocation: Raw query failed. Code: `40001`. Message: `could not serialize access due to concurrent update`",
+          ),
+          { name: "PrismaClientKnownRequestError", code: "P2010" },
+        ),
+      )
+      .mockResolvedValueOnce("result");
+
+    await expect(
+      serializableTransaction(vi.fn(), "Conflict message"),
+    ).resolves.toBe("result");
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(2);
+  });
+
   it("maps P2034 serialization failures to a 409 conflict", async () => {
-    prismaTransactionMock.mockRejectedValueOnce(
+    prismaTransactionMock.mockRejectedValue(
       Object.assign(new Error("Transaction failed"), { code: "P2034" }),
     );
 
@@ -55,7 +94,7 @@ describe("serializableTransaction", () => {
   });
 
   it("maps DriverAdapterError write conflicts to a 409 conflict", async () => {
-    prismaTransactionMock.mockRejectedValueOnce(
+    prismaTransactionMock.mockRejectedValue(
       Object.assign(new Error("TransactionWriteConflict"), {
         name: "DriverAdapterError",
       }),

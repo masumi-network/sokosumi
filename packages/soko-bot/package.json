@@ -1,0 +1,41 @@
+{
+  "name": "@sokosumi/soko-bot",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist && rm -f tsconfig.tsbuildinfo",
+    "prepare": "pnpm build",
+    "lint": "biome lint .",
+    "check": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "test:ci": "vitest run"
+  },
+  "dependencies": {
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@typescript/typescript6": "6.0.2",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}

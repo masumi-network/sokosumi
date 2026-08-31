@@ -1,27 +1,14 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-
 import { Toaster } from "@/components/ui/sonner";
 import {
   APP_HEADER_HEIGHT_PX,
   NOTIFICATION_TOASTER_ID,
   TOAST_GAP_BELOW_HEADER_PX,
-  TOAST_TOP_WITHOUT_HEADER_PX,
 } from "@/lib/constants/notification-toaster";
 
-function isHermesRoute(pathname: string | null) {
-  return (
-    pathname === "/personal-assistant" ||
-    pathname?.startsWith("/personal-assistant/")
-  );
-}
-
 export function NotificationToaster() {
-  const pathname = usePathname();
-  const topOffset = isHermesRoute(pathname)
-    ? TOAST_TOP_WITHOUT_HEADER_PX
-    : APP_HEADER_HEIGHT_PX + TOAST_GAP_BELOW_HEADER_PX;
+  const topOffset = APP_HEADER_HEIGHT_PX + TOAST_GAP_BELOW_HEADER_PX;
 
   return (
     <Toaster

@@ -34,6 +34,7 @@ const {
   requireTaskCommentAccessMock,
   requireTaskCollaborationMock,
   requireTaskCancelAccessMock,
+  removeTaskSchedulePlannedOccurrencesMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
@@ -61,6 +62,7 @@ const {
   requireTaskCommentAccessMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
   requireTaskCancelAccessMock: vi.fn(),
+  removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
@@ -72,6 +74,11 @@ vi.mock("@/helpers/access-control", () => ({
 
 vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  removeTaskSchedulePlannedOccurrences:
+    removeTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/helpers/task-credits", async (importOriginal) => {
@@ -468,7 +475,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("returns 409 when the serializable transaction hits a write conflict", async () => {
-    prismaTransactionMock.mockRejectedValueOnce(
+    prismaTransactionMock.mockRejectedValue(
       Object.assign(new Error("Transaction failed"), { code: "P2034" }),
     );
 
@@ -493,7 +500,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("returns 409 when the pg adapter reports a write conflict", async () => {
-    prismaTransactionMock.mockRejectedValueOnce(
+    prismaTransactionMock.mockRejectedValue(
       Object.assign(new Error("TransactionWriteConflict"), {
         name: "DriverAdapterError",
       }),
@@ -1325,197 +1332,6 @@ describe("POST /{id}/events", () => {
         slug: "task-coworker",
       },
     });
-  });
-
-  it("attributes orchestrator DRAFT → READY status to orchestratorId only", async () => {
-    const ORCHESTRATOR_ID = "01960001-0001-7001-8001-000000000099";
-    const tx: TransactionMock = {
-      taskEvent: {
-        create: vi.fn().mockResolvedValue(
-          createTaskEvent({
-            status: TaskStatus.READY,
-            comment: null,
-            userId: null,
-            coworkerId: null,
-            orchestratorId: ORCHESTRATOR_ID,
-          }),
-        ),
-      },
-      task: {
-        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-      },
-    };
-
-    mockTransaction(tx);
-    requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.DRAFT }),
-    );
-    orchestratorFindFirstMock.mockResolvedValue({
-      id: ORCHESTRATOR_ID,
-      userId: USER_ID,
-      archivedAt: null,
-    });
-
-    const app = createApp({
-      actor: "orchestrator",
-      orchestratorId: ORCHESTRATOR_ID,
-      context: {
-        userId: USER_ID,
-        organizationId: null,
-      },
-    });
-
-    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: TaskStatus.READY,
-      }),
-    });
-
-    expect(response.status).toBe(201);
-    expect(tx.taskEvent.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: TaskStatus.READY,
-          userId: null,
-          coworkerId: null,
-          orchestratorId: ORCHESTRATOR_ID,
-        }),
-      }),
-    );
-
-    const body = await response.json();
-    expect(body.data.actor).toEqual({
-      type: "orchestrator",
-      id: ORCHESTRATOR_ID,
-      orchestrator: {
-        id: ORCHESTRATOR_ID,
-        name: "Task orchestrator",
-        avatarSeed: null,
-        owner: { id: USER_ID, name: "Task user", image: null },
-      },
-    });
-  });
-
-  it("rejects orchestrator status events when orchestratorId is unbound", async () => {
-    const tx: TransactionMock = {
-      taskEvent: {
-        create: vi.fn(),
-      },
-      task: {
-        updateMany: vi.fn(),
-      },
-    };
-
-    mockTransaction(tx);
-    requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.DRAFT }),
-    );
-
-    // Service token + context user, but no active per-user instance bound
-    // (archived / never activated). Same fail-closed rule as task create.
-    const app = createApp({
-      actor: "orchestrator",
-      context: {
-        userId: USER_ID,
-        organizationId: null,
-      },
-    });
-
-    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: TaskStatus.READY,
-      }),
-    });
-
-    expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "No active orchestrator instance for context user",
-    );
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
-    expect(tx.task.updateMany).not.toHaveBeenCalled();
-  });
-
-  it("rejects orchestrator status when middleware snapshot is stale after purge", async () => {
-    const ORCHESTRATOR_ID = "01960001-0001-7001-8001-000000000099";
-    const tx: TransactionMock = {
-      taskEvent: {
-        create: vi.fn(),
-      },
-      task: {
-        updateMany: vi.fn(),
-      },
-    };
-
-    mockTransaction(tx);
-    requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.DRAFT }),
-    );
-    orchestratorFindFirstMock.mockResolvedValue(null);
-
-    const app = createApp({
-      actor: "orchestrator",
-      orchestratorId: ORCHESTRATOR_ID,
-      context: {
-        userId: USER_ID,
-        organizationId: null,
-      },
-    });
-
-    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: TaskStatus.READY,
-      }),
-    });
-
-    expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "No active orchestrator instance for context user",
-    );
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
-  });
-
-  it("rejects orchestrator comment events when orchestratorId is unbound", async () => {
-    const tx: TransactionMock = {
-      taskEvent: {
-        create: vi.fn(),
-      },
-      task: {
-        updateMany: vi.fn(),
-      },
-    };
-
-    mockTransaction(tx);
-    requireTaskCommentAccessMock.mockResolvedValue(
-      createTask({ status: TaskStatus.DRAFT }),
-    );
-
-    const app = createApp({
-      actor: "orchestrator",
-      context: {
-        userId: USER_ID,
-        organizationId: null,
-      },
-    });
-
-    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        comment: "still trying after purge",
-      }),
-    });
-
-    expect(response.status).toBe(400);
-    expect(await response.text()).toBe(
-      "No active orchestrator instance for context user",
-    );
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
   it("rejects agent COMPLETED → READY (agent reopen is to RUNNING only)", async () => {
@@ -3333,6 +3149,59 @@ describe("POST /{id}/events", () => {
       }),
     );
     expect(tx.taskLink?.findMany).toHaveBeenCalled();
+    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      tx,
+      TASK_ID,
+    );
+  });
+
+  it("clears schedule fields when a queued task becomes ready", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.QUEUED }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.READY,
+            userId: USER_ID,
+            coworkerId: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction(tx);
+
+    const response = await createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    }).request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: TaskStatus.READY }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.task.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: TASK_ID, status: TaskStatus.QUEUED },
+        data: {
+          status: TaskStatus.READY,
+          metadata: null,
+          nextRunAt: null,
+        },
+      }),
+    );
+    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      tx,
+      TASK_ID,
+    );
   });
 
   it("cascades cancel to non-terminal SCHEDULE runs", async () => {

@@ -57,6 +57,8 @@ export type ChatParticipantHoverProfile =
       caption: string | null;
       image: string | null;
       presence: ChatRoomPresence;
+      /** Generative avatar seed when the coworker is a Soko Bot. */
+      sokoBotAvatarSeed?: string | null;
     };
 
 export type RoomParticipantPreview = ChatParticipantHoverProfile;
@@ -381,6 +383,7 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
       caption: coworker.caption,
       image: coworker.image,
       presence: coworker.presence,
+      sokoBotAvatarSeed: coworker.sokoBotAvatarSeed ?? null,
     };
   }
   return {
@@ -520,11 +523,18 @@ export function getDirectRoomParticipants(
 export function isCoworkerOnlyDirectRoom(room: {
   kind: string;
   userMembers: { id?: string; userId?: string }[];
-  coworkerMembers: { id?: string; coworkerId?: string }[];
+  coworkerMembers: {
+    id?: string;
+    coworkerId?: string;
+    sokoBotId?: string | null;
+  }[];
 }): boolean {
   return (
     room.kind === "direct" &&
     room.coworkerMembers.length === 1 &&
+    // A Soko Bot direct answers through Core turns (message POST + mention),
+    // never the coworker stream.
+    room.coworkerMembers[0]?.sokoBotId == null &&
     room.userMembers.length === 1
   );
 }

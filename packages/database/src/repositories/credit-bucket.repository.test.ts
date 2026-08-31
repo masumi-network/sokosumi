@@ -6,22 +6,10 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../generated/prisma/client.js";
-import { getOrganizationMemberSubscriptionReferencePrefix } from "../helpers/credit.js";
-import {
-  buildCreditBucketScopeWhere,
-  type CreditBucketScopeContext,
-} from "../helpers/credit-bucket-scope.js";
 import {
   creditBucketRepository,
   InsufficientBalanceError,
 } from "./credit-bucket.repository.js";
-
-const defaultScopeContext: CreditBucketScopeContext = {
-  userId: "user-1",
-  organizationId: "org-1",
-  canAccessOrganizationSharedCredits: true,
-  canAccessEnterprisePool: false,
-};
 
 vi.mock("../helpers/credit-bucket-scope.js", async () => {
   const actual = await vi.importActual<
@@ -31,18 +19,29 @@ vi.mock("../helpers/credit-bucket-scope.js", async () => {
   return {
     ...actual,
     resolveCreditBucketScopeContext: vi.fn(
-      async (userId: string, organizationId: string | null) => ({
-        ...defaultScopeContext,
-        userId,
-        organizationId,
-        canAccessOrganizationSharedCredits: organizationId != null,
-        canAccessEnterprisePool: false,
-      }),
+      async (userId: string, organizationId: string | null) => {
+        if (organizationId == null) {
+          return {
+            workspace: "personal" as const,
+            userId,
+          };
+        }
+
+        return {
+          workspace: "organization" as const,
+          userId,
+          organizationId,
+          poolAccess: "shared" as const,
+        };
+      },
     ),
   };
 });
 
-function extractNestedSqlValues(args: unknown[]): unknown[] {
+function extractNestedSql(args: unknown[]): {
+  values: unknown[];
+  text: string;
+} {
   const sqlArg = args.find((arg) => {
     return (
       arg &&
@@ -52,16 +51,28 @@ function extractNestedSqlValues(args: unknown[]): unknown[] {
     );
   });
 
-  if (!sqlArg || typeof sqlArg !== "object" || !("values" in sqlArg)) {
-    return [];
+  if (!sqlArg || typeof sqlArg !== "object") {
+    return { values: [], text: "" };
   }
 
-  const values = (sqlArg as { values: unknown[] }).values;
-  if (Array.isArray(values)) {
-    return values;
-  }
+  const values =
+    "values" in sqlArg && Array.isArray(sqlArg.values) ? sqlArg.values : [];
+  const text =
+    "strings" in sqlArg && Array.isArray(sqlArg.strings)
+      ? sqlArg.strings.join("")
+      : "";
 
-  return [];
+  return { values, text };
+}
+
+function extractNestedSqlValues(args: unknown[]): unknown[] {
+  return extractNestedSql(args).values;
+}
+
+function hasMemberPrefixValue(values: unknown[]): boolean {
+  return values.some(
+    (value) => typeof value === "string" && value.includes("member:"),
+  );
 }
 
 describe("creditBucketRepository.prepareConsumption (personal)", () => {
@@ -190,7 +201,7 @@ describe("creditBucketRepository.getBalance (organization)", () => {
     assert.equal(balance, 90n);
   });
 
-  it("scopes organization balance to shared non-subscription and member subscription buckets", async () => {
+  it("scopes organization balance to shared org-owned buckets without leftover member: matching", async () => {
     let queryArgs: unknown[] = [];
     const tx = {
       $queryRaw: async (...rawArgs: unknown[]) => {
@@ -211,22 +222,20 @@ describe("creditBucketRepository.getBalance (organization)", () => {
 
     await creditBucketRepository.getBalance("user-1", "org-1", tx);
 
-    const values = extractNestedSqlValues(queryArgs);
+    const { values, text } = extractNestedSql(queryArgs);
     assert.ok(values.includes("org-1"));
-    assert.ok(values.includes("user-1"));
-    assert.ok(
-      values.includes(
-        `${getOrganizationMemberSubscriptionReferencePrefix("user-1")}%`,
-      ),
-    );
+    assert.ok(!values.includes("user-1"));
+    assert.equal(hasMemberPrefixValue(values), false);
     assert.ok(
       values.includes(CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD),
     );
     const sqlText = JSON.stringify(queryArgs);
     assert.ok(sqlText.includes("activatesAt"));
+    assert.ok(text.includes('cb."userId" IS NULL'));
+    assert.ok(!sqlText.includes("member:user-1:%"));
   });
 
-  it("escapes LIKE wildcards in organization member reference scope", async () => {
+  it("does not bind leftover member: LIKE patterns for organization balance", async () => {
     let queryArgs: unknown[] = [];
     const tx = {
       $queryRaw: async (...rawArgs: unknown[]) => {
@@ -248,10 +257,12 @@ describe("creditBucketRepository.getBalance (organization)", () => {
     await creditBucketRepository.getBalance("user_1", "org_1", tx);
 
     const values = extractNestedSqlValues(queryArgs);
-    assert.ok(values.includes("member:user\\_1:%"));
+    assert.ok(!values.includes("member:user\\_1:%"));
+    assert.equal(hasMemberPrefixValue(values), false);
+    assert.ok(!values.includes("user_1"));
   });
 
-  it("escapes LIKE wildcards in prepareConsumption for organization member scope", async () => {
+  it("does not bind leftover member: LIKE patterns in prepareConsumption", async () => {
     let queryArgs: unknown[] = [];
     const tx = {
       $queryRaw: async (...rawArgs: unknown[]) => {
@@ -280,12 +291,14 @@ describe("creditBucketRepository.getBalance (organization)", () => {
     assert.deepEqual(consumptions, [{ bucketId: "bucket-1", amount: 5n }]);
 
     const values = extractNestedSqlValues(queryArgs);
-    assert.ok(values.includes("member:user\\_1:%"));
+    assert.ok(!values.includes("member:user\\_1:%"));
+    assert.equal(hasMemberPrefixValue(values), false);
+    assert.ok(!values.includes("user_1"));
   });
 });
 
 describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
-  it("uses member-scoped subscription filters and shared non-subscription filters", async () => {
+  it("uses shared org-owned filters without leftover member: startsWith", async () => {
     let args: Prisma.CreditBucketFindManyArgs | undefined;
     const tx = {
       creditBucket: {
@@ -321,20 +334,34 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
       OR?: Array<Record<string, unknown>>;
     };
     assert.equal(scopeWhere.organizationId, "org-1");
-    assert.deepEqual(
-      scopeWhere.OR,
-      buildCreditBucketScopeWhere({
-        userId: "user-1",
-        organizationId: "org-1",
-        canAccessOrganizationSharedCredits: true,
-        canAccessEnterprisePool: false,
-      }).OR,
+    const branches = scopeWhere.OR ?? [];
+    assert.equal(
+      branches.some((branch) => {
+        const referenceId = branch.referenceId;
+        return (
+          typeof referenceId === "object" &&
+          referenceId !== null &&
+          "startsWith" in referenceId &&
+          String((referenceId as { startsWith: string }).startsWith).startsWith(
+            "member:",
+          )
+        );
+      }),
+      false,
+    );
+    assert.ok(
+      branches.some(
+        (branch) =>
+          branch.referenceType ===
+            CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD &&
+          branch.userId === null,
+      ),
     );
     const activationWhere = andClause[1] as { OR?: unknown[] };
     assert.ok(Array.isArray(activationWhere.OR));
   });
 
-  it("uses escaped prefix for startsWith when userId contains LIKE wildcards", async () => {
+  it("does not use leftover member: startsWith when userId contains LIKE wildcards", async () => {
     let args: Prisma.CreditBucketFindManyArgs | undefined;
     const tx = {
       creditBucket: {
@@ -362,18 +389,62 @@ describe("creditBucketRepository.getUnexpiredBuckets (organization)", () => {
     const scopeWhere = andClauseWildcard[0] as {
       OR?: Array<Record<string, unknown>>;
     };
-    const subscriptionBranch = (
-      scopeWhere.OR as Array<Record<string, unknown>>
-    ).find(
-      (o) =>
-        o.referenceType ===
+    const leftoverBranch = (scopeWhere.OR ?? []).find((branch) => {
+      const referenceId = branch.referenceId;
+      return (
+        typeof referenceId === "object" &&
+        referenceId !== null &&
+        "startsWith" in referenceId
+      );
+    });
+    assert.equal(leftoverBranch, undefined);
+    const subscriptionBranch = (scopeWhere.OR ?? []).find(
+      (branch) =>
+        branch.referenceType ===
         CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
     );
     assert.ok(subscriptionBranch);
-    assert.equal(
-      (subscriptionBranch.referenceId as { startsWith: string }).startsWith,
-      "member:user\\_1:",
+    assert.equal(subscriptionBranch.userId, null);
+    assert.equal(subscriptionBranch.referenceId, undefined);
+  });
+});
+
+describe("creditBucketRepository.sumOrganizationOwnedCreditBalances", () => {
+  it("returns remaining cents from the raw query", async () => {
+    const tx = {
+      $queryRaw: async () => [{ totalCents: 200n, remainingCents: 90n }],
+    } as unknown as Prisma.TransactionClient;
+
+    const balances =
+      await creditBucketRepository.sumOrganizationOwnedCreditBalances(
+        "org-1",
+        tx,
+      );
+
+    assert.deepEqual(balances, { totalCents: 200n, remainingCents: 90n });
+  });
+
+  it("scopes to org-owned non-enterprise buckets without an actor userId", async () => {
+    let queryArgs: unknown[] = [];
+    const tx = {
+      $queryRaw: async (...rawArgs: unknown[]) => {
+        queryArgs = rawArgs;
+        return [{ totalCents: 0n, remainingCents: 0n }];
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await creditBucketRepository.sumOrganizationOwnedCreditBalances(
+      "org-1",
+      tx,
     );
+
+    const sqlText = JSON.stringify(queryArgs);
+    assert.ok(sqlText.includes("org-1"));
+    assert.ok(sqlText.includes(CreditBucketReferenceType.ENTERPRISE_PERIOD));
+    assert.ok(sqlText.includes(CreditBucketReferenceType.ENTERPRISE_TOP_UP));
+    assert.ok(sqlText.includes("userId"));
+    assert.ok(!sqlText.includes("user-1"));
+    assert.ok(!sqlText.includes("user_owner"));
   });
 });
 
@@ -416,7 +487,7 @@ describe("creditBucketRepository.listAvailableBucketsWithBalances", () => {
     ]);
   });
 
-  it("scopes organization listing to member subscription pattern", async () => {
+  it("scopes organization listing without leftover member: matching", async () => {
     let queryArgs: unknown[] = [];
     const tx = {
       $queryRaw: async (...rawArgs: unknown[]) => {
@@ -433,12 +504,8 @@ describe("creditBucketRepository.listAvailableBucketsWithBalances", () => {
 
     const values = extractNestedSqlValues(queryArgs);
     assert.ok(values.includes("org-1"));
-    assert.ok(values.includes("user-1"));
-    assert.ok(
-      values.includes(
-        `${getOrganizationMemberSubscriptionReferencePrefix("user-1")}%`,
-      ),
-    );
+    assert.ok(!values.includes("user-1"));
+    assert.equal(hasMemberPrefixValue(values), false);
     assert.ok(
       values.includes(CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD),
     );
@@ -446,7 +513,7 @@ describe("creditBucketRepository.listAvailableBucketsWithBalances", () => {
 });
 
 describe("creditBucketRepository.prepareConsumption (organization scope SQL)", () => {
-  it("filters organization subscription consumption to member-prefixed references", async () => {
+  it("filters organization consumption without leftover member: matching", async () => {
     let queryArgs: unknown[] = [];
     const tx = {
       $queryRaw: async (...rawArgs: unknown[]) => {
@@ -459,12 +526,8 @@ describe("creditBucketRepository.prepareConsumption (organization scope SQL)", (
 
     const values = extractNestedSqlValues(queryArgs);
     assert.ok(values.includes("org-1"));
-    assert.ok(values.includes("user-1"));
-    assert.ok(
-      values.includes(
-        `${getOrganizationMemberSubscriptionReferencePrefix("user-1")}%`,
-      ),
-    );
+    assert.ok(!values.includes("user-1"));
+    assert.equal(hasMemberPrefixValue(values), false);
     assert.ok(
       values.includes(CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD),
     );

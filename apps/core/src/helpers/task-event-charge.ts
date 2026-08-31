@@ -46,7 +46,13 @@ export async function applyGuardedTaskStatusUpdate(params: {
 }): Promise<void> {
   const updateResult = await params.tx.task.updateMany({
     where: { id: params.taskId, status: params.expectedStatus },
-    data: getTaskStatusUpdateDataForEvent(params.eventStatus),
+    data: {
+      ...getTaskStatusUpdateDataForEvent(params.eventStatus),
+      ...(params.expectedStatus === TaskStatus.QUEUED &&
+      params.eventStatus !== TaskStatus.QUEUED
+        ? { metadata: null, nextRunAt: null }
+        : {}),
+    },
   });
   if (updateResult.count !== 1) {
     throw conflict("Task status was changed by another request");

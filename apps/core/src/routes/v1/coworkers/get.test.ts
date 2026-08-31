@@ -1,5 +1,5 @@
-import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { coworkerInclude } from "@/helpers/coworker";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -53,20 +53,8 @@ const sampleVendor = {
   logoDark: null,
 };
 
-const usableInWorkspaceWhere = {
-  archivedAt: null,
-  OR: [
-    { isWhitelisted: true },
-    {
-      workspaceAccess: {
-        some: {
-          workspaceId: personalWorkspaceId,
-          status: CoworkerWorkspaceAccessStatus.GRANTED,
-        },
-      },
-    },
-  ],
-};
+const usableInWorkspaceWhere =
+  buildCoworkerUsableInWorkspaceWhere(personalWorkspaceId);
 
 function createApp(
   authContext: AuthenticationContext = {

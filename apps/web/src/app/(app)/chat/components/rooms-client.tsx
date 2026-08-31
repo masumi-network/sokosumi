@@ -325,7 +325,7 @@ function RoomParticipantStack({
           className="relative inline-flex size-6 shrink-0 md:size-7"
           style={{ zIndex: visibleParticipants.length - index }}
         >
-          <Avatar className="border-background ring-border/60 size-full border-2 shadow-xs ring-1">
+          <Avatar className="ring-border/60 size-full shadow-xs ring-1">
             <AvatarImage src={participant.image ?? undefined} alt="" />
             <AvatarFallback
               className={cn(
@@ -348,7 +348,7 @@ function RoomParticipantStack({
       ))}
       {remainingCount > 0 ? (
         <span
-          className="border-background bg-muted text-muted-foreground ring-border/60 relative inline-flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
+          className="bg-muted text-muted-foreground ring-border/60 relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
           style={{ zIndex: 0 }}
           aria-hidden
         >
@@ -920,6 +920,8 @@ export function RoomsClient({
     setRosterOpen(false);
   }
   const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
+  // Matched channels are roster-managed only from the admin hub.
+  const isMatchedChannel = selectedRoom?.discoverability === "matched";
   const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
     kind: selectedRoom?.kind,
     discoverability: selectedRoom?.discoverability,
@@ -931,16 +933,20 @@ export function RoomsClient({
   )?.role;
   const isOrgOwnerOrAdmin =
     currentMemberRole === "owner" || currentMemberRole === "admin";
-  // Host-org channel members rewrite roster; guests cannot.
+  // Host-org channel members rewrite roster; guests and matched cannot.
   const canEditSelectedRoomMembers = Boolean(
-    selectedRoom && !isDirectRoom && !isGuestInSelectedRoom,
+    selectedRoom &&
+      !isDirectRoom &&
+      !isGuestInSelectedRoom &&
+      !isMatchedChannel,
   );
   // Name/topic/discoverability and archive: organization owner/admin only.
-  // Guests never manage host channel settings.
+  // Guests and matched members never manage host channel settings.
   const canManageSelectedRoomSettings = Boolean(
     selectedRoom &&
       !isDirectRoom &&
       !isGuestInSelectedRoom &&
+      !isMatchedChannel &&
       isOrgOwnerOrAdmin,
   );
   const canArchiveSelectedRoom = canManageSelectedRoomSettings;

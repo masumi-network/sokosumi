@@ -282,6 +282,11 @@ describe("GET /chats/rooms", () => {
           kind: "direct",
           coworkerMembers: { none: {} },
         },
+        {
+          organizationId: null,
+          kind: "channel",
+          discoverability: "matched",
+        },
       ],
     });
     expect(where).not.toHaveProperty("createdByUserId");
@@ -327,6 +332,11 @@ describe("GET /chats/rooms", () => {
       OR: [
         { organizationId: null, kind: "direct" },
         { userMembers: { some: { userId: USER_ID, access: "guest" } } },
+        {
+          organizationId: null,
+          kind: "channel",
+          discoverability: "matched",
+        },
       ],
     });
   });
@@ -386,6 +396,11 @@ describe("GET /chats/rooms", () => {
       OR: [
         { organizationId: null, kind: "direct" },
         { userMembers: { some: { userId: USER_ID, access: "guest" } } },
+        {
+          organizationId: null,
+          kind: "channel",
+          discoverability: "matched",
+        },
       ],
     });
   });

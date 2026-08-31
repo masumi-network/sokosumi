@@ -37,6 +37,7 @@ const breadcrumbMessages = {
   users: "Users",
   agents: "Agents",
   account: "Account",
+  calendar: "Schedules",
   editor: "Editor",
   chat: "Chat",
 };
@@ -128,6 +129,19 @@ describe("BreadcrumbNavigationClient", () => {
     );
 
     expect(screen.getByText("Research Copilot")).toBeInTheDocument();
+  });
+
+  it("uses the translated label for the calendar route", () => {
+    usePathnameMock.mockReturnValue("/calendar");
+
+    render(
+      <BreadcrumbNavigationClient
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+      />,
+    );
+
+    expect(screen.getByText("Schedules")).toBeInTheDocument();
   });
 
   it("shows selected chat room under Chat breadcrumbs", () => {

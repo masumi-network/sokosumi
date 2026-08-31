@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/node";
 import type {
   X402AvailableNetwork,
-  X402Budget,
+  X402KeySpendCaps,
   X402Wallet,
 } from "@sokosumi/masumi";
 
@@ -12,11 +12,12 @@ import {
   X402_BUY_SIDE_READINESS_KEY,
 } from "@/helpers/x402-readiness";
 import prisma from "@/lib/db/prisma";
+import { getEnvSecrets, redactSecrets } from "@/lib/secret-redaction";
 
 import {
-  type AdminPurchasingWalletWithBalances,
   composeX402ReadySources,
   computeEnabledPricedNetworks,
+  type PurchasingWalletWithBalances,
 } from "./agent-sync.x402-readiness.compose";
 
 /**
@@ -37,8 +38,13 @@ const MAX_CHECK_ERROR_TOTAL_LENGTH = 2_000;
  * (three endpoint errors item-capped cannot exceed it), so it is pinned here.
  */
 export function boundCheckErrorForLogging(errors: readonly string[]): string {
+  // Redact BEFORE the slice. Truncating first can cut a key in half and leave
+  // the leading half in the log, which is still key material.
+  const secrets = getEnvSecrets();
   return errors
-    .map((error) => error.slice(0, MAX_CHECK_ERROR_ITEM_LENGTH))
+    .map((error) =>
+      redactSecrets(error, secrets).slice(0, MAX_CHECK_ERROR_ITEM_LENGTH),
+    )
     .join("; ")
     .slice(0, MAX_CHECK_ERROR_TOTAL_LENGTH);
 }
@@ -46,19 +52,16 @@ export function boundCheckErrorForLogging(errors: readonly string[]): string {
 /**
  * Safe operator context for a successful node check that composes to zero
  * ready pairs. Never log API-key ids, RPC URLs, or facilitator credentials
- * anywhere in this service. Wallet ids are opaque node infrastructure
- * identifiers, not key material: compose's per-budget warns name one
- * deliberately because their remediation is "re-point THIS budget" — but
- * this Sentry-bound summary still reduces them to `hasWallet` booleans, both
- * to stay minimal and because Sentry retains context far longer than
- * operator logs. The remaining fields are public chain/asset identifiers and
- * coarse readiness facts needed to distinguish missing scale from missing or
- * exhausted budget.
+ * anywhere in this service. Credit UNITS are logged in full because a unit is
+ * `eip155:<chainId>:<asset>`: two public chain identifiers and nothing about
+ * the key that holds it. The unit is exactly what an operator must top
+ * up. Amounts are reduced to a boolean: the balance is not needed to act, and
+ * Sentry retains context far longer than operator logs.
  */
 function summarizeEmptyX402Readiness(
   networks: readonly X402AvailableNetwork[],
-  budgets: readonly X402Budget[],
-  adminPurchasingWallets: readonly X402Wallet[],
+  spendCaps: X402KeySpendCaps | null,
+  purchasingWallets: readonly X402Wallet[],
 ) {
   return {
     networkCount: networks.length,
@@ -68,23 +71,19 @@ function summarizeEmptyX402Readiness(
       defaultAsset: network.defaultAsset,
       defaultAssetDecimals: network.defaultAssetDecimals,
     })),
-    budgetCount: budgets.length,
-    budgets: budgets.slice(0, 20).map((budget) => ({
-      caip2Network: budget.caip2Network,
-      asset: budget.asset,
-      hasWallet: Boolean(budget.evmWalletId),
-      hasRemainingAmount:
-        /^\d+$/.test(budget.remainingAmount) &&
-        BigInt(budget.remainingAmount) > 0n,
-    })),
-    adminPurchasingWalletCount: adminPurchasingWallets.length,
-    adminPurchasingWalletNetworks: adminPurchasingWallets
+    usageLimited: spendCaps?.usageLimited ?? null,
+    grandfatheredUncapped: spendCaps?.grandfatheredUncapped ?? null,
+    creditUnits: Array.from(spendCaps?.creditsByUnit ?? [])
+      .slice(0, 20)
+      .map(([unit, amount]) => ({ unit, hasRemaining: amount > 0n })),
+    purchasingWalletCount: purchasingWallets.length,
+    purchasingWalletNetworks: purchasingWallets
       .slice(0, 20)
       .map((wallet) => wallet.caip2Network),
     truncated:
       networks.length > 20 ||
-      budgets.length > 20 ||
-      adminPurchasingWallets.length > 20,
+      (spendCaps?.creditsByUnit.size ?? 0) > 20 ||
+      purchasingWallets.length > 20,
   };
 }
 
@@ -115,29 +114,22 @@ function summarizeEmptyX402Readiness(
 export async function syncX402BuySideReadiness(
   options: { signal?: AbortSignal } = {},
 ): Promise<boolean> {
-  // ONE client instance for the whole cycle: budgets and admin wallets both
-  // resolve the caller's key via `GET /api-key-status`, and the client
-  // memoizes that resolution per instance — separate instances would each
-  // fetch it again.
+  // ONE client instance for the whole cycle: the spend caps read IS the
+  // memoized `GET /api-key-status` the client already resolves, so this
+  // costs one request, not two, because separate instances each fetch it.
   const nodeClient = paymentClient();
-  const [networksResult, budgetsResult, adminWalletsResult] = await Promise.all(
-    [
-      nodeClient.getX402AvailableNetworks({ signal: options.signal }),
-      nodeClient.getX402Budgets({ signal: options.signal }),
-      nodeClient.getX402AdminPurchasingWallets({ signal: options.signal }),
-    ],
-  );
+  const [networksResult, spendCapsResult, walletsResult] = await Promise.all([
+    nodeClient.getX402AvailableNetworks({ signal: options.signal }),
+    nodeClient.getX402KeySpendCaps({ signal: options.signal }),
+    nodeClient.getX402PurchasingWallets({ signal: options.signal }),
+  ]);
 
   const availableNetworks = networksResult.isOk() ? networksResult.value : [];
-  const availableBudgets = budgetsResult.isOk() ? budgetsResult.value : [];
+  const keySpendCaps = spendCapsResult.isOk() ? spendCapsResult.value : null;
 
-  const adminWalletsWithBalances: AdminPurchasingWalletWithBalances[] = [];
-  const adminWalletBalanceErrors: string[] = [];
-  if (
-    networksResult.isOk() &&
-    budgetsResult.isOk() &&
-    adminWalletsResult.isOk()
-  ) {
+  const walletsWithBalances: PurchasingWalletWithBalances[] = [];
+  const walletBalanceErrors: string[] = [];
+  if (networksResult.isOk() && spendCapsResult.isOk() && walletsResult.isOk()) {
     // EXACTLY the chains compose can turn into ready pairs — same helper,
     // not a hand-copied gate. A chain compose would refuse (untrusted
     // default asset, contradictory rows) must not have its wallets
@@ -149,7 +141,7 @@ export async function syncX402BuySideReadiness(
         .filter(([, pricedAsset]) => pricedAsset !== null)
         .map(([caip2Network]) => caip2Network),
     );
-    const balanceEligibleWallets = adminWalletsResult.value.filter(
+    const balanceEligibleWallets = walletsResult.value.filter(
       (wallet) =>
         wallet.type === "Purchasing" &&
         balanceEligibleNetworks.has(wallet.caip2Network?.toLowerCase()),
@@ -169,18 +161,18 @@ export async function syncX402BuySideReadiness(
     );
     for (const { wallet, result } of balanceResults) {
       if (result.isErr()) {
-        adminWalletBalanceErrors.push(result.error);
+        walletBalanceErrors.push(result.error);
       } else {
-        adminWalletsWithBalances.push({ wallet, balances: result.value });
+        walletsWithBalances.push({ wallet, balances: result.value });
       }
     }
   }
 
   const checkErrors = [
     ...(networksResult.isErr() ? [networksResult.error] : []),
-    ...(budgetsResult.isErr() ? [budgetsResult.error] : []),
-    ...(adminWalletsResult.isErr() ? [adminWalletsResult.error] : []),
-    ...adminWalletBalanceErrors,
+    ...(spendCapsResult.isErr() ? [spendCapsResult.error] : []),
+    ...(walletsResult.isErr() ? [walletsResult.error] : []),
+    ...walletBalanceErrors,
   ];
   if (checkErrors.length > 0) {
     const checkError = boundCheckErrorForLogging(checkErrors);
@@ -256,14 +248,12 @@ export async function syncX402BuySideReadiness(
     return false;
   }
 
-  const adminPurchasingWallets = adminWalletsResult.isOk()
-    ? adminWalletsResult.value
-    : [];
+  const purchasingWallets = walletsResult.isOk() ? walletsResult.value : [];
   const readySources = composeX402ReadySources(
     availableNetworks,
-    availableBudgets,
+    keySpendCaps,
     getEnv().NETWORK,
-    adminWalletsWithBalances,
+    walletsWithBalances,
   );
   const serializedReadySources = JSON.stringify(readySources);
   let readinessChanged: boolean;
@@ -316,6 +306,25 @@ export async function syncX402BuySideReadiness(
     });
   }
 
+  if (readySources.length > 0 && keySpendCaps?.grandfatheredUncapped) {
+    // The node grandfathers a usageLimited key that holds no eip155 credit
+    // row: it enforces NO x402 spend cap at all, so every pair recorded above
+    // is payable without a ceiling while the operator believes a cap is on.
+    // compose warns per pair, but a warn line is not a signal anyone watches,
+    // and the zero-pairs page below cannot cover this by construction: the
+    // whole point of this state is that there ARE ready pairs.
+    //
+    // Latched on the transition like that page, so a lasting misconfiguration
+    // does not spam; the per-pair warn log repeats every cycle regardless.
+    // Preview runs a deliberately non-admin key (SOK-860) and must not page.
+    if (readinessChanged && getEnv().VERCEL_ENV !== "preview") {
+      Sentry.captureMessage(
+        "x402 buy-side readiness recorded payable pairs on an UNCAPPED payment-node API key. The key is usageLimited but holds no eip155 credit row, so the node grandfathers it and enforces no x402 spend cap: Soko will sign x402 payments with no ceiling. Grant credits for the listed units with PATCH /api/v1/api-key to make the intended cap real, or clear usageLimited on the key if uncapped is deliberate. The sync warn log names every affected pair",
+        "warning",
+      );
+    }
+  }
+
   if (readySources.length === 0) {
     console.warn(
       "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents stay unlisted and dynamic agents remain visible as non-payable previews",
@@ -324,8 +333,8 @@ export async function syncX402BuySideReadiness(
       "[sync/agents] Empty x402 readiness inputs:",
       summarizeEmptyX402Readiness(
         availableNetworks,
-        availableBudgets,
-        adminPurchasingWallets,
+        keySpendCaps,
+        purchasingWallets,
       ),
     );
     // A successful check reporting ZERO ready pairs hides every payable x402
@@ -338,7 +347,7 @@ export async function syncX402BuySideReadiness(
         // The likeliest new cause is an operator one, not an outage: a chain
         // whose `defaultAssetDecimals` is still null publishes no scale, and
         // an unpriceable asset is deliberately not recorded ready.
-        "x402 buy-side readiness reports no payable (network, asset) pair; fixed-price x402 agents are hidden and dynamic agents are preview-only. Check that each enabled chain has exactly one funded Purchasing wallet with native gas, that every configured x402 budget references a listed funded Purchasing wallet AND retains remaining spend — a budget bound to an absent or unfunded wallet, or spent to zero, blocks BOTH the budget path and the admin fallback even when another funded wallet is listed (the sync warn log names the unbindable or exhausted budget and the empty-listing case) — that the node publishes a confirmed defaultAssetDecimals for the chain, and that the chain is in this environment's CAIP-2 allowlist with its priced asset in X402_TRUSTED_EXACT_EVM_DOMAINS (both in apps/core/src/helpers/x402-readiness.ts; the sync warn log names any untrusted pair). A non-admin payment-node API key does not reach this state — the node admin-gates GET /x402/budgets, so it surfaces earlier as a failed readiness check",
+        "x402 buy-side readiness reports no payable (network, asset) pair. Fixed-price x402 agents are hidden and dynamic agents are preview-only. Check four things. 1) The node publishes a confirmed defaultAssetDecimals for each enabled chain. 2) The chain is in this environment's CAIP-2 allowlist and its priced asset is in X402_TRUSTED_EXACT_EVM_DOMAINS (both in apps/core/src/helpers/x402-readiness.ts; the sync warn log names any untrusted pair). 3) Soko's key carries pay or admin permission and the node lists at least one Purchasing wallet it can reach on that chain, funded with native gas and the priced token (the sync warn log names the chain when the listing is empty or every wallet is unfunded). A read-only key can read the wallet listing but can never sign a payment, so Soko treats it as having no wallets at all. 4) If Soko's key is usage limited, it holds remaining credits for unit <caip2Network>:<asset> on that chain; grant them with PATCH /api/v1/api-key. A usage-limited key with NO eip155 credit row at all is grandfathered uncapped by the node and stays payable, so an operator who expected a cap there has not set one",
         "error",
       );
     }

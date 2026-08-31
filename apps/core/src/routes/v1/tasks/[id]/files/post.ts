@@ -22,7 +22,6 @@ import {
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
   isUserAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
@@ -119,10 +118,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const displayName = clampTaskFileName(body.filename || "file");
 
-    const uploadedByUserId =
-      isUserAuthContext(authContext) || isOrchestratorAuthContext(authContext)
-        ? requireUserContext(authContext).userId
-        : null;
+    const uploadedByUserId = isUserAuthContext(authContext)
+      ? requireUserContext(authContext).userId
+      : null;
     const uploadedByCoworkerId = isCoworkerAuthContext(authContext)
       ? authContext.coworkerId
       : null;

@@ -16,128 +16,138 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { prismaTransactionMock, requireTaskArchiveAccessMock, mapTaskMock } =
-  vi.hoisted(() => ({
-    prismaTransactionMock: vi.fn(),
-    requireTaskArchiveAccessMock: vi.fn(),
-    mapTaskMock: vi.fn((task: unknown) => {
-      const t = task as Record<string, unknown>;
-      const status = t.status as string | undefined;
-      return {
-        ...t,
-        grantResumeStatus:
-          status === TaskStatus.GRANT_PENDING
-            ? ((t.grantResumeStatus as string | null) ?? TaskStatus.DRAFT)
-            : null,
-        pendingVendorGrantId:
-          status === TaskStatus.GRANT_PENDING
-            ? ((t.pendingVendorGrantId as string | null) ?? null)
-            : null,
-        owner: t.owner ?? {
-          id: t.ownerId,
-          name: "Task owner",
-          image: null,
-        },
-        organization:
-          t.organization ??
-          (t.organizationId
-            ? {
-                id: t.organizationId,
-                name: "Organization",
-                slug: "organization",
-              }
-            : null),
-        assignee:
-          t.assignee ??
-          (t.assigneeId
-            ? {
-                id: t.assigneeId,
-                name: "Coworker",
-                image: null,
-                slug: "coworker",
-              }
-            : null),
-        creator: (() => {
-          const creatorOrchestratorId =
-            (t.creatorOrchestratorId as string | null | undefined) ?? null;
-          if (creatorOrchestratorId != null) {
-            return {
-              type: "orchestrator" as const,
-              id: creatorOrchestratorId,
-              orchestrator: (t.creatorOrchestrator as
-                | object
-                | null
-                | undefined) ?? {
-                id: creatorOrchestratorId,
-                name: "Orchestrator",
-                slug: "orchestrator",
-              },
-            };
-          }
-
-          const creatorCoworkerId =
-            (t.creatorCoworkerId as string | null | undefined) ?? null;
-          if (creatorCoworkerId != null) {
-            return {
-              type: "coworker" as const,
-              id: creatorCoworkerId,
-              coworker: (t.creatorCoworker as object | null | undefined) ?? {
-                id: creatorCoworkerId,
-                name: "Coworker",
-                image: null,
-                slug: "coworker",
-              },
-            };
-          }
-
-          const creatorUserId =
-            (t.creatorUserId as string | null | undefined) ??
-            (t.ownerId as string);
-          return {
-            type: "user" as const,
-            id: creatorUserId,
-            user: (t.creatorUser as object | null | undefined) ?? {
-              id: creatorUserId,
-              name: "Task owner",
+const {
+  mapTaskMock,
+  prismaTransactionMock,
+  removeTaskSchedulePlannedOccurrencesMock,
+  requireTaskArchiveAccessMock,
+} = vi.hoisted(() => ({
+  prismaTransactionMock: vi.fn(),
+  requireTaskArchiveAccessMock: vi.fn(),
+  removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
+  mapTaskMock: vi.fn((task: unknown) => {
+    const t = task as Record<string, unknown>;
+    const status = t.status as string | undefined;
+    return {
+      ...t,
+      grantResumeStatus:
+        status === TaskStatus.GRANT_PENDING
+          ? ((t.grantResumeStatus as string | null) ?? TaskStatus.DRAFT)
+          : null,
+      pendingVendorGrantId:
+        status === TaskStatus.GRANT_PENDING
+          ? ((t.pendingVendorGrantId as string | null) ?? null)
+          : null,
+      owner: t.owner ?? {
+        id: t.ownerId,
+        name: "Task owner",
+        image: null,
+      },
+      organization:
+        t.organization ??
+        (t.organizationId
+          ? {
+              id: t.organizationId,
+              name: "Organization",
+              slug: "organization",
+            }
+          : null),
+      assignee:
+        t.assignee ??
+        (t.assigneeId
+          ? {
+              id: t.assigneeId,
+              name: "Coworker",
               image: null,
+              slug: "coworker",
+            }
+          : null),
+      creator: (() => {
+        const creatorOrchestratorId =
+          (t.creatorOrchestratorId as string | null | undefined) ?? null;
+        if (creatorOrchestratorId != null) {
+          return {
+            type: "orchestrator" as const,
+            id: creatorOrchestratorId,
+            orchestrator: (t.creatorOrchestrator as
+              | object
+              | null
+              | undefined) ?? {
+              id: creatorOrchestratorId,
+              name: "Orchestrator",
+              slug: "orchestrator",
             },
           };
-        })(),
-        userId: t.ownerId as string,
-        user: (t.owner as object | undefined) ?? {
-          id: t.ownerId,
-          name: "Task owner",
-          image: null,
-        },
-        coworkerId:
-          (t.coworkerId as string | null | undefined) ??
-          (t.assigneeId as string | null | undefined) ??
-          null,
-        coworker:
-          (t.coworker as object | null | undefined) ??
-          (t.assignee as object | null | undefined) ??
-          (t.assigneeId
-            ? {
-                id: t.assigneeId,
-                name: "Coworker",
-                image: null,
-                slug: "coworker",
-              }
-            : null),
-        orchestratorId:
-          (t.orchestratorId as string | null | undefined) ??
-          (t.creatorOrchestratorId as string | null | undefined) ??
-          null,
-        orchestrator:
-          (t.orchestrator as object | null | undefined) ??
-          (t.creatorOrchestrator as object | null | undefined) ??
-          null,
-      };
-    }),
-  }));
+        }
+
+        const creatorCoworkerId =
+          (t.creatorCoworkerId as string | null | undefined) ?? null;
+        if (creatorCoworkerId != null) {
+          return {
+            type: "coworker" as const,
+            id: creatorCoworkerId,
+            coworker: (t.creatorCoworker as object | null | undefined) ?? {
+              id: creatorCoworkerId,
+              name: "Coworker",
+              image: null,
+              slug: "coworker",
+            },
+          };
+        }
+
+        const creatorUserId =
+          (t.creatorUserId as string | null | undefined) ??
+          (t.ownerId as string);
+        return {
+          type: "user" as const,
+          id: creatorUserId,
+          user: (t.creatorUser as object | null | undefined) ?? {
+            id: creatorUserId,
+            name: "Task owner",
+            image: null,
+          },
+        };
+      })(),
+      userId: t.ownerId as string,
+      user: (t.owner as object | undefined) ?? {
+        id: t.ownerId,
+        name: "Task owner",
+        image: null,
+      },
+      coworkerId:
+        (t.coworkerId as string | null | undefined) ??
+        (t.assigneeId as string | null | undefined) ??
+        null,
+      coworker:
+        (t.coworker as object | null | undefined) ??
+        (t.assignee as object | null | undefined) ??
+        (t.assigneeId
+          ? {
+              id: t.assigneeId,
+              name: "Coworker",
+              image: null,
+              slug: "coworker",
+            }
+          : null),
+      orchestratorId:
+        (t.orchestratorId as string | null | undefined) ??
+        (t.creatorOrchestratorId as string | null | undefined) ??
+        null,
+      orchestrator:
+        (t.orchestrator as object | null | undefined) ??
+        (t.creatorOrchestrator as object | null | undefined) ??
+        null,
+    };
+  }),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskArchiveAccess: requireTaskArchiveAccessMock,
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  removeTaskSchedulePlannedOccurrences:
+    removeTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -267,6 +277,10 @@ describe("DELETE /tasks/{id}", () => {
           archivedAt: expect.any(Date),
         }),
       }),
+    );
+    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "tsk_123",
     );
     expect(findFirstOrThrowMock).toHaveBeenCalledWith(
       expect.objectContaining({

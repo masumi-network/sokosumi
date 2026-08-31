@@ -131,12 +131,6 @@ const SESSION_USER: AuthenticationContext = {
   role: "user",
 };
 
-const CONTEXT_ORCHESTRATOR: AuthenticationContext = {
-  actor: "orchestrator",
-  orchestratorId: "orch_123",
-  context: { userId: "user_123", organizationId: null },
-};
-
 function createUserRouteApp(
   authContext: AuthenticationContext,
 ): OpenAPIHonoWithAuth {
@@ -245,17 +239,6 @@ describe("coworker user route allowlist", () => {
 
   it("lets session users reach non-allowlisted preferences", async () => {
     const app = createUserRouteApp(SESSION_USER);
-    const response = await app.request("http://localhost/me/preferences");
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data).toEqual({
-      marketingOptIn: true,
-      notificationsOptIn: false,
-    });
-  });
-
-  it("lets orchestrator with context reach non-allowlisted preferences", async () => {
-    const app = createUserRouteApp(CONTEXT_ORCHESTRATOR);
     const response = await app.request("http://localhost/me/preferences");
     expect(response.status).toBe(200);
     const body = await response.json();
