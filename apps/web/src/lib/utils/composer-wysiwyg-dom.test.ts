@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  composerCaretScrollDelta,
   isInsideComposerProtectedContext,
   replaceComposerTextRange,
+  scrollComposerCaretIntoView,
 } from "@/lib/utils/composer-wysiwyg-dom";
 
 describe("isInsideComposerProtectedContext", () => {
@@ -99,6 +101,174 @@ describe("replaceComposerTextRange", () => {
     expect(editor.textContent).toContain("😄");
     expect(editor.textContent).not.toContain(":D");
 
+    document.body.removeChild(editor);
+  });
+});
+
+describe("composerCaretScrollDelta", () => {
+  it("scrolls down when the caret sits below the content box", () => {
+    expect(
+      composerCaretScrollDelta({
+        caretTop: 183,
+        caretBottom: 200,
+        visibleTop: 14,
+        visibleBottom: 150,
+      }),
+    ).toBe(50);
+  });
+
+  it("scrolls up when the caret sits above the content box", () => {
+    expect(
+      composerCaretScrollDelta({
+        caretTop: 0,
+        caretBottom: 17,
+        visibleTop: 14,
+        visibleBottom: 150,
+      }),
+    ).toBe(-14);
+  });
+
+  it("does not scroll when the caret is fully inside the content box", () => {
+    expect(
+      composerCaretScrollDelta({
+        caretTop: 40,
+        caretBottom: 57,
+        visibleTop: 14,
+        visibleBottom: 150,
+      }),
+    ).toBe(0);
+  });
+
+  it("does not scroll when the caret is flush with the content bottom", () => {
+    expect(
+      composerCaretScrollDelta({
+        caretTop: 133,
+        caretBottom: 150,
+        visibleTop: 14,
+        visibleBottom: 150,
+      }),
+    ).toBe(0);
+  });
+});
+
+describe("scrollComposerCaretIntoView", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function rect(top: number, bottom: number): DOMRect {
+    return {
+      top,
+      bottom,
+      left: 0,
+      right: 100,
+      width: 100,
+      height: bottom - top,
+      x: 0,
+      y: top,
+      toJSON() {
+        return {};
+      },
+    };
+  }
+
+  it("increases scrollTop when the caret sits below the content box", () => {
+    const editor = document.createElement("div");
+    editor.textContent = "hello";
+    document.body.appendChild(editor);
+    Object.defineProperty(editor, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+
+    const text = editor.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(text, text.length);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    vi.spyOn(editor, "getBoundingClientRect").mockReturnValue(rect(0, 160));
+    vi.spyOn(Range.prototype, "getClientRects").mockReturnValue([
+      rect(183, 200),
+    ] as unknown as DOMRectList);
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      paddingTop: "14px",
+      paddingBottom: "10px",
+    } as CSSStyleDeclaration);
+
+    scrollComposerCaretIntoView(editor);
+
+    expect(editor.scrollTop).toBe(50);
+    document.body.removeChild(editor);
+  });
+
+  it("does not mutate the editor when the caret is already in view", () => {
+    const editor = document.createElement("div");
+    editor.textContent = "hello";
+    document.body.appendChild(editor);
+    Object.defineProperty(editor, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 12,
+    });
+
+    const text = editor.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(text, text.length);
+    range.collapse(true);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+
+    vi.spyOn(editor, "getBoundingClientRect").mockReturnValue(rect(0, 160));
+    vi.spyOn(Range.prototype, "getClientRects").mockReturnValue([
+      rect(40, 57),
+    ] as unknown as DOMRectList);
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      paddingTop: "14px",
+      paddingBottom: "10px",
+    } as CSSStyleDeclaration);
+
+    const htmlBefore = editor.innerHTML;
+    scrollComposerCaretIntoView(editor);
+
+    expect(editor.scrollTop).toBe(12);
+    expect(editor.innerHTML).toBe(htmlBefore);
+    document.body.removeChild(editor);
+  });
+
+  it("does not change scrollTop when the selection is a range", () => {
+    const editor = document.createElement("div");
+    editor.textContent = "hello";
+    document.body.appendChild(editor);
+    Object.defineProperty(editor, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 8,
+    });
+
+    const text = editor.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, text.length);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+    expect(window.getSelection()?.isCollapsed).toBe(false);
+
+    vi.spyOn(editor, "getBoundingClientRect").mockReturnValue(rect(0, 160));
+    vi.spyOn(Range.prototype, "getClientRects").mockReturnValue([
+      rect(183, 200),
+    ] as unknown as DOMRectList);
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      paddingTop: "14px",
+      paddingBottom: "10px",
+    } as CSSStyleDeclaration);
+
+    scrollComposerCaretIntoView(editor);
+
+    expect(editor.scrollTop).toBe(8);
     document.body.removeChild(editor);
   });
 });
