@@ -729,6 +729,34 @@ describe("createPurchase failure classification", () => {
   // A `permanent` verdict is terminal on the task-payment rail: it refunds the
   // claim, drops it out of PENDING and the unique index blocks resubmission.
   // Credential/routing failures must therefore stay retryable.
+  it("classifies node 400 Insufficient funds as ambiguous, not a payload refusal", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { status: "error", error: { message: "Insufficient funds" } },
+      response: { status: 400 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "ambiguous",
+      status: 400,
+      message:
+        "Failed to create purchase request (status 400): Insufficient funds",
+    });
+  });
+
   it.each([401, 403, 404])(
     "classifies %i as ambiguous, not a permanent rejection",
     async (status: number) => {
@@ -1156,6 +1184,74 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
     expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalledTimes(
       1,
     );
+  });
+
+  it("classifies node 400 Insufficient funds as ambiguous, not a payload refusal", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Insufficient funds" } },
+      response: { status: 400 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchaseFromMasumiTaskPayment({
+      blockchainIdentifier: "chain1",
+      agentIdentifier: "agent1",
+      sellerVkey: "vkey1",
+      submitResultTime: "1775681853000",
+      payByTime: "1775737949000",
+      unlockTime: "1775763149000",
+      externalDisputeUnlockTime: "1775784749000",
+      inputHash: "abc",
+      Amounts: [{ amount: "1000000", unit: "" }],
+      identifierFromPurchaser: "aabbccddeeff00112233",
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "ambiguous",
+      status: 400,
+      message:
+        "Failed to create purchase request (status 400): Insufficient funds",
+    });
+  });
+
+  it("classifies node 400 Buyer has insufficient funds as permanent", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: {
+        error: { message: "Buyer has insufficient funds. Missing: ada" },
+      },
+      response: { status: 400 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchaseFromMasumiTaskPayment({
+      blockchainIdentifier: "chain1",
+      agentIdentifier: "agent1",
+      sellerVkey: "vkey1",
+      submitResultTime: "1775681853000",
+      payByTime: "1775737949000",
+      unlockTime: "1775763149000",
+      externalDisputeUnlockTime: "1775784749000",
+      inputHash: "abc",
+      Amounts: [{ amount: "1000000", unit: "" }],
+      identifierFromPurchaser: "aabbccddeeff00112233",
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "permanent",
+      status: 400,
+    });
   });
 
   it("classifies node 400 as a permanent task purchase failure", async () => {
