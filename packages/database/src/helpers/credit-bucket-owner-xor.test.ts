@@ -194,22 +194,53 @@ describe("classifyCreditBucketOwner", () => {
 
 describe("credit_bucket_owner_xor migration SQL", () => {
   const sql = readFileSync(MIGRATION_SQL_PATH, "utf8");
+  const memberLike = `LIKE '${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}%'`;
+  const memberNotLike = `NOT LIKE '${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}%'`;
 
-  it("drains leftover member: period remaining before any userId null, and never mints", () => {
-    const memberLike = `LIKE '${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}%'`;
-    const drainIdx = sql.indexOf(memberLike);
-    const firstNullIdx = sql.indexOf('SET "userId" = NULL');
-    assert.notEqual(drainIdx, -1);
-    assert.notEqual(firstNullIdx, -1);
-    assert.ok(drainIdx < firstNullIdx);
-    assert.equal(sql.includes("INSERT INTO credit_bucket"), false);
-    assert.ok(sql.includes("AS MATERIALIZED"));
-    assert.ok(sql.includes("credit_bucket_owner_xor_check"));
-    assert.ok(sql.includes("ON DELETE CASCADE"));
-    assert.ok(
-      sql.includes("refuse to invent an owner") ||
-        sql.includes("both userId and organizationId null"),
+  function mustIndex(needle: string): number {
+    const index = sql.indexOf(needle);
+    assert.notEqual(index, -1, `missing ${JSON.stringify(needle)}`);
+    return index;
+  }
+
+  it("pins the classify-table order: drain leftover member:, delete, then null, fail-closed, CHECK, CASCADE", () => {
+    const drainTxIdx = mustIndex(
+      'INSERT INTO "Transaction" (id, "createdAt", "updatedAt", amount, "userId", "organizationId")',
     );
+    const drainUserIdx = mustIndex("    user_id,\n    organization_id");
+    const leftoverDeleteIdx = mustIndex(
+      `DELETE FROM credit_bucket\nWHERE "userId" IS NOT NULL\n  AND "organizationId" IS NOT NULL\n  AND "referenceType" = 'STRIPE_SUBSCRIPTION_PERIOD'::"CreditBucketReferenceType"\n  AND "referenceId" LIKE '${ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX}%';`,
+    );
+    const firstNullIdx = mustIndex('SET "userId" = NULL');
+    const nonPeriodNullIdx = mustIndex(
+      `"referenceType" IS DISTINCT FROM 'STRIPE_SUBSCRIPTION_PERIOD'::"CreditBucketReferenceType"`,
+    );
+    const orgPeriodNotMemberIdx = mustIndex(memberNotLike);
+    const raiseIdx = mustIndex("refuse to invent an owner");
+    const bothNullDeleteIdx = mustIndex(
+      `DELETE FROM credit_bucket\nWHERE "userId" IS NULL\n  AND "organizationId" IS NULL;`,
+    );
+    const xorAssertIdx = mustIndex("still violate owner XOR");
+    const checkIdx = mustIndex("credit_bucket_owner_xor_check");
+    const cascadeIdx = sql.lastIndexOf("ON DELETE CASCADE");
+
+    assert.ok(sql.includes(memberLike));
+    assert.ok(sql.includes("AS MATERIALIZED"));
+    assert.equal(sql.includes("INSERT INTO credit_bucket"), false);
+    assert.ok(sql.includes("-remaining"));
+    assert.ok(drainTxIdx < leftoverDeleteIdx);
+    assert.ok(drainUserIdx < leftoverDeleteIdx);
+    assert.ok(leftoverDeleteIdx < firstNullIdx);
+    assert.ok(
+      firstNullIdx < nonPeriodNullIdx || firstNullIdx === nonPeriodNullIdx,
+    );
+    assert.ok(nonPeriodNullIdx < orgPeriodNotMemberIdx);
+    assert.ok(orgPeriodNotMemberIdx < raiseIdx);
+    assert.ok(raiseIdx < bothNullDeleteIdx);
+    assert.ok(bothNullDeleteIdx < xorAssertIdx);
+    assert.ok(xorAssertIdx < checkIdx);
+    assert.ok(checkIdx < cascadeIdx);
+    assert.ok(cascadeIdx !== -1);
   });
 });
 
