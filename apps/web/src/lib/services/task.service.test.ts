@@ -78,6 +78,7 @@ describe("task.service", () => {
     const result = await taskService.listTasks({
       status: TaskStatus.READY,
       assigneeId: "cow-1",
+      assigneeUserId: "user-9",
       q: "alpha",
       cursor: "task-1",
       limit: 20,
@@ -86,6 +87,7 @@ describe("task.service", () => {
     expect(coreClientMock.getTasks).toHaveBeenCalledWith({
       status: [TaskStatus.READY],
       assigneeId: "cow-1",
+      assigneeUserId: "user-9",
       q: "alpha",
       cursor: "task-1",
       limit: 20,
@@ -436,6 +438,7 @@ describe("task.service", () => {
       name: "Test task",
       description: null,
       assigneeId: null,
+      assigneeUserId: "user-9",
       context: {
         brand: true,
         brandSource: "project",
@@ -453,6 +456,7 @@ describe("task.service", () => {
       name: "Test task",
       description: null,
       assigneeId: null,
+      assigneeUserId: "user-9",
       context: {
         brand: true,
         brandSource: "project",

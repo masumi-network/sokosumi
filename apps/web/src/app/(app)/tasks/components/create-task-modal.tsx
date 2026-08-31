@@ -13,11 +13,16 @@ import {
 import { toast } from "sonner";
 
 import { loadCreateTaskModalData } from "@/app/tasks/actions";
+import type { TaskAssigneeMemberOption } from "@/app/tasks/utils/task-assignee";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
-import { TaskForm, type TaskFormInitialDesignMdAttachment } from "./task-form";
+import {
+  TaskForm,
+  type TaskFormInitialDesignMdAttachment,
+  taskAssigneeFormLabels,
+} from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 
 // --- Context ---
@@ -135,6 +140,7 @@ export function CreateTaskModalProvider({
 
 interface CreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
+  memberOptions?: TaskAssigneeMemberOption[];
   /** Omit to hide the project picker (e.g. when opened from the agents page). */
   projectOptions?: ProjectFilterOption[];
   defaultProjectId?: string | null;
@@ -145,6 +151,7 @@ interface CreateTaskModalProps {
 
 export function CreateTaskModal({
   coworkerOptions,
+  memberOptions = [],
   projectOptions,
   defaultProjectId = null,
   agentNameById: initialAgentNameById,
@@ -263,6 +270,7 @@ export function CreateTaskModal({
           projectCreateNamed: t.raw("projectCreateNamed") as string,
           coworker: t("coworker"),
           coworkerDescription: t("coworkerDescription"),
+          ...taskAssigneeFormLabels(t),
           chooseAgent: t("chooseAgent"),
           chooseAgentDescription: t("chooseAgentDescription"),
           defaultBadge: t("defaultBadge"),
@@ -324,6 +332,7 @@ export function CreateTaskModal({
           createAnother: t("createAnother"),
         }}
         coworkerOptions={coworkerOptions}
+        memberOptions={memberOptions}
         projectOptions={projectOptions}
         agentNameById={agentNameById}
         initialDesignMdAttachment={initialDesignMdAttachment}

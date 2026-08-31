@@ -17,6 +17,7 @@ import {
   parseJobsListFilters,
   sanitizeJobAgentIdForPersistedFilter,
 } from "@/app/tasks/utils/jobs-filters";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/list-task-assignee-member-options";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
   firstQueryString,
@@ -73,6 +74,7 @@ async function loadTasksPageData() {
   return await Promise.all([
     coworkerService.listCoworkers("tasks").catch(() => []),
     projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+    listTaskAssigneeMemberOptions(),
   ]);
 }
 
@@ -115,7 +117,8 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
     "normal";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [taskCoworkers, projectsPage] = await loadTasksPageData();
+  const [taskCoworkers, projectsPage, memberOptions] =
+    await loadTasksPageData();
   const filters = parseTasksFilters(
     { scope, assigneeId, coworkerId: legacyCoworkerId, status, projectId },
     activeOrganizationId,
@@ -282,6 +285,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         columnNextCursorById={columnNextCursorById}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
+        memberOptions={memberOptions}
         projectOptions={projectOptions}
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}

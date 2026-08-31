@@ -21,8 +21,10 @@ import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendo
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/list-task-assignee-member-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
+import { coworkerNameFromCoreAssignee } from "@/app/tasks/utils/task-assignee";
 import {
   canCancelTaskForViewer,
   canCommentOnTaskForViewer,
@@ -328,7 +330,7 @@ async function TaskVendorGrantApprovalBannerSlot({
   if (!canApprove) {
     return (
       <TaskVendorGrantPendingInfoBanner
-        coworkerName={task.assignee?.name ?? null}
+        coworkerName={coworkerNameFromCoreAssignee(task.assignee)}
       />
     );
   }
@@ -345,7 +347,7 @@ async function TaskVendorGrantApprovalBannerSlot({
   return (
     <TaskVendorGrantApprovalBanner
       grantId={grantId}
-      coworkerName={task.assignee?.name ?? null}
+      coworkerName={coworkerNameFromCoreAssignee(task.assignee)}
       organizationId={orgId}
       reviewHref={reviewHref}
     />
@@ -411,7 +413,7 @@ async function TaskOverviewSection({
           organization: t("organization"),
           personalWorkspace: t("personalWorkspace"),
           project: t("project"),
-          coworker: t("coworker"),
+          assignee: t("assignee"),
           credits: t("credits"),
           created: t("created"),
           updated: t("updated"),
@@ -456,6 +458,7 @@ async function TaskDetailActionsSlot({
     hasAssignedSeat,
     t,
     tMembersTableHeader,
+    memberOptions,
   ] = await Promise.all([
     coworkersPromise,
     agentsPromise,
@@ -465,6 +468,7 @@ async function TaskDetailActionsSlot({
     hasAssignedSeatPromise,
     getTranslations("App.Tasks.Detail"),
     getTranslations("Components.MembersTable.Header"),
+    listTaskAssigneeMemberOptions(),
   ]);
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
@@ -509,8 +513,10 @@ async function TaskDetailActionsSlot({
       jobsCount={taskWithCoworker.jobsCount}
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}
+      memberOptions={memberOptions}
       agentNameById={agentNameById}
       defaultAssigneeId={task.assigneeId}
+      defaultAssigneeUserId={task.assigneeUserId}
       initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
@@ -540,6 +546,10 @@ async function TaskDetailActionsSlot({
         reopenToReadyCommentRequired: t("actions.reopenToReadyCommentRequired"),
         reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
         revertToDraft: t("actions.revertToDraft"),
+        revertToReady: t("actions.revertToReady"),
+        start: t("actions.start"),
+        complete: t("actions.complete"),
+        waitForExternal: t("actions.waitForExternal"),
         cancel: t("actions.cancel"),
         share: t("actions.share"),
       }}

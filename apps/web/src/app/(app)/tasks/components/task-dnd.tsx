@@ -60,20 +60,18 @@ export function statusForColumn(columnId: KanbanColumnId): TaskStatus | null {
 }
 
 /**
- * Whether a task card may start a board/list drag. Terminal done tasks are
- * only draggable when they can reopen to READY (completed/canceled + coworker).
- * Scheduled backlog tasks must not be dragged; clearing the schedule is required first.
+ * Whether a task card may start a board/list drag. Terminal done tasks can
+ * reopen to READY without a coworker (human/unset path). Scheduled backlog
+ * tasks must not be dragged; clearing the schedule is required first.
  */
 export function isTaskDnDDraggable(
-  task: Pick<TaskWithCoworker, "status" | "metadata" | "nextRunAt"> & {
-    assignee?: { id: string } | null;
-  },
+  task: Pick<TaskWithCoworker, "status" | "metadata" | "nextRunAt">,
 ): boolean {
   if (
     task.status === TaskStatus.COMPLETED ||
     task.status === TaskStatus.CANCELED
   ) {
-    return Boolean(task.assignee?.id);
+    return true;
   }
 
   if (task.status === TaskStatus.FAILED) {

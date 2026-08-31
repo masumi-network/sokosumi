@@ -21,10 +21,15 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
-import { AgentDetail } from "@/app/tasks/new/components/agent-detail";
 import { AgentSpotlight } from "@/app/tasks/new/components/agent-spotlight";
-import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
+import {
+  decodeTaskAssigneeValue,
+  defaultTaskAssigneeValue,
+  encodeTaskAssigneeValue,
+  type TaskAssigneeMemberOption,
+  taskAssigneeIdsFromSelection,
+} from "@/app/tasks/utils/task-assignee";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
@@ -61,6 +66,7 @@ import {
 } from "@/lib/utils/task-attachments";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
+import { TaskAssigneeSelect } from "./task-assignee-select";
 import {
   getDefaultTaskContextSelection,
   TaskContextAttachmentsField,
@@ -87,6 +93,12 @@ export interface TaskFormLabels {
   projectCreateNamed?: string;
   coworker: string;
   coworkerDescription: string;
+  assignee: string;
+  assigneeUnassigned: string;
+  assigneePeople: string;
+  assigneeCoworkers: string;
+  assigneeSearchPlaceholder: string;
+  assigneeEmptyResults: string;
   chooseAgent?: string;
   chooseAgentDescription?: string;
   defaultBadge?: string;
@@ -134,10 +146,40 @@ export interface TaskFormLabels {
   createAnother?: string;
 }
 
+export function taskAssigneeFormLabels(t: {
+  (
+    key:
+      | "assignee"
+      | "assigneeUnassigned"
+      | "assigneePeople"
+      | "assigneeCoworkers"
+      | "assigneeSearchPlaceholder"
+      | "assigneeEmptyResults",
+  ): string;
+}): Pick<
+  TaskFormLabels,
+  | "assignee"
+  | "assigneeUnassigned"
+  | "assigneePeople"
+  | "assigneeCoworkers"
+  | "assigneeSearchPlaceholder"
+  | "assigneeEmptyResults"
+> {
+  return {
+    assignee: t("assignee"),
+    assigneeUnassigned: t("assigneeUnassigned"),
+    assigneePeople: t("assigneePeople"),
+    assigneeCoworkers: t("assigneeCoworkers"),
+    assigneeSearchPlaceholder: t("assigneeSearchPlaceholder"),
+    assigneeEmptyResults: t("assigneeEmptyResults"),
+  };
+}
+
 interface TaskFormInitialValues {
   name?: string;
   description?: string;
   assigneeId?: string | null;
+  assigneeUserId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
   metadata?: string | null;
@@ -150,6 +192,7 @@ interface TaskFormProps {
   mode: "create" | "edit";
   labels: TaskFormLabels;
   coworkerOptions: CoworkerOption[];
+  memberOptions?: TaskAssigneeMemberOption[];
   agentNameById?: Map<string, string>;
   taskId?: string;
   initialValues?: TaskFormInitialValues;
@@ -165,6 +208,7 @@ interface TaskFormProps {
   onCreateTask?: (input: {
     description: string;
     assigneeId: string | null;
+    assigneeUserId: string | null;
     projectId?: string | null;
     context: TaskContextSelectionInput;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -179,6 +223,7 @@ export function TaskForm({
   mode,
   labels,
   coworkerOptions,
+  memberOptions = [],
   agentNameById = EMPTY_AGENT_NAME_MAP,
   taskId,
   initialValues,
@@ -230,31 +275,34 @@ export function TaskForm({
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] =
     useState(false);
   const [createProjectQuery, setCreateProjectQuery] = useState("");
-  const defaultAssigneeId = useMemo(() => {
-    // Default to Elena on first open. Match by slug or name (case-insensitive)
-    // so it works across environments (dev seed + mainnet) where the slug may
-    // differ; fall back to the highest-priority coworker.
-    const elenaCoworker = coworkerOptions.find(
-      (option) =>
-        option.slug.trim().toLowerCase() === "elena" ||
-        option.name.trim().toLowerCase() === "elena",
-    );
-
-    return (
-      initialValues?.assigneeId ??
-      elenaCoworker?.id ??
-      coworkerOptions[0]?.id ??
-      ""
-    );
-  }, [coworkerOptions, initialValues?.assigneeId]);
+  const defaultAssigneeValue = useMemo(
+    () =>
+      defaultTaskAssigneeValue({
+        mode,
+        assigneeId: initialValues?.assigneeId,
+        assigneeUserId: initialValues?.assigneeUserId,
+        coworkerOptions,
+      }),
+    [
+      coworkerOptions,
+      initialValues?.assigneeId,
+      initialValues?.assigneeUserId,
+      mode,
+    ],
+  );
 
   const coworkerTouchedRef = useRef(false);
-  const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
+  const [assigneeValue, setAssigneeValue] = useState(defaultAssigneeValue);
 
   useLayoutEffect(() => {
     if (coworkerTouchedRef.current) return;
-    setAssigneeId(defaultAssigneeId);
-  }, [defaultAssigneeId]);
+    setAssigneeValue(defaultAssigneeValue);
+  }, [defaultAssigneeValue]);
+
+  const assigneeSelection = decodeTaskAssigneeValue(assigneeValue);
+  const { assigneeId, assigneeUserId } =
+    taskAssigneeIdsFromSelection(assigneeSelection);
+  const hasCoworkerAssignee = assigneeSelection.kind === "coworker";
 
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [scheduleSelection, setScheduleSelection] =
@@ -300,7 +348,19 @@ export function TaskForm({
 
   const handleCoworkerSelect = useCallback((id: string) => {
     coworkerTouchedRef.current = true;
-    setAssigneeId(id);
+    setAssigneeValue(encodeTaskAssigneeValue({ kind: "coworker", id }));
+  }, []);
+
+  const handleAssigneeChange = useCallback((nextValue: string) => {
+    coworkerTouchedRef.current = true;
+    const nextSelection = decodeTaskAssigneeValue(nextValue);
+    setAssigneeValue(nextValue);
+    if (nextSelection.kind !== "coworker") {
+      setScheduleSelection((current) => ({
+        mode: "none",
+        timezone: current.timezone,
+      }));
+    }
   }, []);
 
   const handleCreateProject = useCallback((searchQuery: string) => {
@@ -408,15 +468,16 @@ export function TaskForm({
     isUploadingAttachments;
 
   // Two-step create flow: 1 = spotlight (pick a coworker + a ready-to-run task,
-  // or start from scratch), 2 = compose. Skip the wizard only when a coworker
-  // is prefilled (gallery offer, agents-page deep link). A prompt alone does not
-  // skip step 1 — otherwise a bad coworker slug would land on compose with the
-  // default assignee.
-  const hasPrefilledAssignee = Boolean(initialValues?.assigneeId);
+  // or start from scratch), 2 = compose. Skip the wizard only when an assignee
+  // is prefilled (gallery offer, agents-page deep link, related-task human).
+  // A prompt alone does not skip step 1 — otherwise a bad coworker slug would
+  // land on compose with the default assignee.
+  const hasPrefilledAssignee = Boolean(
+    initialValues?.assigneeId || initialValues?.assigneeUserId,
+  );
   const useWizard = isModal && mode === "create" && !hasPrefilledAssignee;
   const [step, setStep] = useState<1 | 2>(hasPrefilledAssignee ? 2 : 1);
   const showTaskStep = !useWizard || step === 2;
-  const showCoworkerGrid = mode === "create" && !isModal;
   const useComposeLayout = isModal && mode === "create" && showTaskStep;
   const useModalShellLayout = isModal;
   const useModalScrollFill = isModal;
@@ -453,11 +514,18 @@ export function TaskForm({
       try {
         const trimmedDescription = description.trim();
         const desiredStatus = overrideStatus ?? status;
+        const scheduleForSave = hasCoworkerAssignee
+          ? scheduleSelection
+          : {
+              mode: "none" as const,
+              timezone: scheduleSelection.timezone,
+            };
         if (mode === "create" && ["DRAFT", "READY"].includes(desiredStatus)) {
           const createTaskHandler = onCreateTask ?? createTask;
           const result = await createTaskHandler({
             description: trimmedDescription,
             assigneeId,
+            assigneeUserId,
             context: {
               brand: {
                 enabled: contextSelection.brand.enabled,
@@ -471,7 +539,7 @@ export function TaskForm({
             },
             ...(shouldShowProjectSelect ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
-            schedule: scheduleSelection,
+            schedule: scheduleForSave,
           });
           if (!result.ok) {
             showCalendarClientUpgradeModal();
@@ -482,7 +550,7 @@ export function TaskForm({
           // to navigate — the redirect target is prefetched so it lands fast.
           if (isModal) {
             const createdStatus =
-              scheduleSelection.mode !== "none" &&
+              scheduleForSave.mode !== "none" &&
               desiredStatus !== TaskStatus.DRAFT
                 ? "QUEUED"
                 : desiredStatus === TaskStatus.DRAFT
@@ -525,10 +593,11 @@ export function TaskForm({
           name: trimmedName,
           description: trimmedDescription,
           assigneeId,
+          assigneeUserId,
           ...(shouldShowProjectSelect ? { projectId } : {}),
           currentStatus: originalStatus,
           desiredStatus,
-          schedule: scheduleSelection,
+          schedule: scheduleForSave,
           hadSchedule,
           originalSchedule: originalScheduleSelection.current,
         });
@@ -558,6 +627,8 @@ export function TaskForm({
       useWizard,
       name,
       assigneeId,
+      assigneeUserId,
+      hasCoworkerAssignee,
       projectId,
       shouldShowProjectSelect,
       originalStatus,
@@ -662,9 +733,6 @@ export function TaskForm({
     }),
     [labels.defaultBadge, labels.modelLabel, labels.hostingLabel],
   );
-  const chooseAgentLabel = labels.chooseAgent ?? labels.coworker;
-  const examplesTitle = labels.examplesTitle ?? "What {name} can do";
-
   const handleCancel = () => {
     abortActiveUploads();
     if (onCancel) {
@@ -767,7 +835,7 @@ export function TaskForm({
             <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8">
               <AgentSpotlight
                 options={coworkerOptions}
-                selectedId={assigneeId}
+                selectedId={assigneeId ?? ""}
                 onSelect={handleCoworkerSelect}
                 onPickOffer={(offer) => {
                   setDescription(offer.prompt);
@@ -893,6 +961,22 @@ export function TaskForm({
                 </div>
               ) : null}
 
+              <div className="space-y-2">
+                <Label>{labels.assignee}</Label>
+                <TaskAssigneeSelect
+                  coworkerOptions={coworkerOptions}
+                  memberOptions={memberOptions}
+                  value={assigneeValue}
+                  onChange={handleAssigneeChange}
+                  assignee={labels.assignee}
+                  unassigned={labels.assigneeUnassigned}
+                  people={labels.assigneePeople}
+                  coworkers={labels.assigneeCoworkers}
+                  searchPlaceholder={labels.assigneeSearchPlaceholder}
+                  emptyResults={labels.assigneeEmptyResults}
+                />
+              </div>
+
               <div
                 className={cn(
                   "space-y-2",
@@ -976,39 +1060,6 @@ export function TaskForm({
               </div>
             </div>
           ) : null}
-
-          {showCoworkerGrid ? (
-            <div className="space-y-4 border-t px-6 py-6 md:px-8">
-              <div className="space-y-1">
-                <Label className="text-sm font-medium">
-                  {chooseAgentLabel}
-                </Label>
-                {labels.chooseAgentDescription ? (
-                  <p className="text-muted-foreground text-xs">
-                    {labels.chooseAgentDescription}
-                  </p>
-                ) : null}
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {coworkerOptions.map((option) => (
-                  <CoworkerCard
-                    key={option.id}
-                    option={option}
-                    isSelected={assigneeId === option.id}
-                    isDefault={option.slug === "elena"}
-                    onSelect={() => handleCoworkerSelect(option.id)}
-                    labels={cardLabels}
-                  />
-                ))}
-              </div>
-              {selectedOption ? (
-                <AgentDetail
-                  option={selectedOption}
-                  examplesTitle={examplesTitle}
-                />
-              ) : null}
-            </div>
-          ) : null}
         </div>
 
         {showTaskStep ? (
@@ -1051,7 +1102,7 @@ export function TaskForm({
                     type="button"
                     variant="outline"
                     size="icon"
-                    disabled={createdTask !== null}
+                    disabled={createdTask !== null || !hasCoworkerAssignee}
                     aria-label={labels.openSchedule}
                     aria-pressed={hasSchedule}
                     onClick={() => setIsScheduleModalOpen(true)}
@@ -1108,7 +1159,7 @@ export function TaskForm({
                     type="button"
                     variant="outline"
                     size="icon"
-                    disabled={createdTask !== null}
+                    disabled={createdTask !== null || !hasCoworkerAssignee}
                     aria-label={labels.openSchedule}
                     aria-pressed={hasSchedule}
                     onClick={() => setIsScheduleModalOpen(true)}

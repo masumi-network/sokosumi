@@ -53,12 +53,6 @@ describe("task-dnd", () => {
     const scheduledMetadata = JSON.stringify({
       schedule: { mode: "daily", timezone: "UTC" },
     });
-    const assignee = {
-      id: "cow-1",
-      name: "Elena",
-      slug: "elena",
-      image: null,
-    };
 
     it("allows draft backlog tasks", () => {
       expect(
@@ -66,7 +60,6 @@ describe("task-dnd", () => {
           status: TaskStatus.DRAFT,
           metadata: null,
           nextRunAt: null,
-          assignee: null,
         }),
       ).toBe(true);
     });
@@ -77,7 +70,6 @@ describe("task-dnd", () => {
           status: TaskStatus.QUEUED,
           metadata: scheduledMetadata,
           nextRunAt: "2026-06-25T09:00:00.000Z",
-          assignee,
         }),
       ).toBe(false);
     });
@@ -88,18 +80,16 @@ describe("task-dnd", () => {
           status: TaskStatus.QUEUED,
           metadata: null,
           nextRunAt: null,
-          assignee,
         }),
       ).toBe(true);
     });
 
-    it("allows completed and canceled tasks with a coworker for reopen", () => {
+    it("allows completed and canceled tasks to reopen without a coworker", () => {
       expect(
         isTaskDnDDraggable({
           status: TaskStatus.COMPLETED,
           metadata: null,
           nextRunAt: null,
-          assignee,
         }),
       ).toBe(true);
       expect(
@@ -107,20 +97,18 @@ describe("task-dnd", () => {
           status: TaskStatus.CANCELED,
           metadata: null,
           nextRunAt: null,
-          assignee,
         }),
       ).toBe(true);
     });
 
-    it("disallows terminal done tasks without a coworker", () => {
+    it("allows terminal done tasks without a coworker", () => {
       expect(
         isTaskDnDDraggable({
           status: TaskStatus.COMPLETED,
           metadata: null,
           nextRunAt: null,
-          assignee: null,
         }),
-      ).toBe(false);
+      ).toBe(true);
     });
 
     it("disallows failed tasks", () => {
@@ -129,7 +117,6 @@ describe("task-dnd", () => {
           status: TaskStatus.FAILED,
           metadata: null,
           nextRunAt: null,
-          assignee,
         }),
       ).toBe(false);
     });

@@ -144,7 +144,11 @@ export function buildTaskActivityActors(
   addUserActor(userById, task.owner);
 
   if (task.assignee) {
-    addCoworkerActor(coworkerById, task.assignee);
+    if (task.assignee.type === "user") {
+      addUserActor(userById, task.assignee.user);
+    } else {
+      addCoworkerActor(coworkerById, task.assignee.coworker);
+    }
   }
 
   switch (task.creator.type) {

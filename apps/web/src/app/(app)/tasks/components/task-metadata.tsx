@@ -21,7 +21,7 @@ interface TaskMetadataLabels {
   organization: string;
   personalWorkspace: string;
   project: string;
-  coworker: string;
+  assignee: string;
   credits: string;
   created: string;
   updated: string;
@@ -117,6 +117,28 @@ function resolveTaskCreatorDisplay(
   }
 }
 
+function resolveTaskAssigneeDisplay(
+  assignee: TaskMetadataTask["assignee"],
+): { name: string; image: string | null } | null {
+  if (!assignee) {
+    return null;
+  }
+
+  if (assignee.type === "coworker") {
+    return {
+      name: assignee.coworker.name,
+      image: getCoworkerImage(assignee.coworker),
+    };
+  }
+
+  return {
+    name: assignee.user.name,
+    image: assignee.user.image
+      ? resolveIpfsOrHttpUrl(assignee.user.image)
+      : null,
+  };
+}
+
 interface TaskMetadataProps {
   task: TaskMetadataTask;
   project: { id: string; name: string } | null;
@@ -135,7 +157,7 @@ export function TaskMetadata({
   const ownerImage = task.owner.image
     ? resolveIpfsOrHttpUrl(task.owner.image)
     : null;
-  const assigneeImage = getCoworkerImage(task.assignee);
+  const assigneeDisplay = resolveTaskAssigneeDisplay(task.assignee);
   const creator = resolveTaskCreatorDisplay(
     task,
     labels.formatOrchestratorRole,
@@ -202,23 +224,23 @@ export function TaskMetadata({
 
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-sm">
-            {labels.coworker}
+            {labels.assignee}
           </span>
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="size-5">
-              {assigneeImage ? (
+              {assigneeDisplay?.image ? (
                 <AvatarImage
-                  src={assigneeImage}
-                  alt={task.assignee?.name ?? "Coworker"}
+                  src={assigneeDisplay.image}
+                  alt={assigneeDisplay.name}
                   className="object-cover"
                 />
               ) : null}
               <AvatarFallback className="bg-muted text-[0.625rem]">
-                {task.assignee?.name?.slice(0, 1).toUpperCase() ?? "?"}
+                {assigneeDisplay?.name.slice(0, 1).toUpperCase() ?? "?"}
               </AvatarFallback>
             </Avatar>
             <span className="truncate text-right text-sm font-medium">
-              {task.assignee?.name ?? "—"}
+              {assigneeDisplay?.name ?? "—"}
             </span>
           </div>
         </div>

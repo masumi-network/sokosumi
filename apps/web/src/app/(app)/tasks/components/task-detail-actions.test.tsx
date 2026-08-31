@@ -61,6 +61,10 @@ vi.mock("next-intl", () => ({
       const translations: Record<string, string> = {
         moveToWorkspace: "Move to workspace",
         markAs: "Mark as",
+        start: "Start",
+        complete: "Complete",
+        waitForExternal: "Waiting on external",
+        revertToReady: "Revert to Ready",
         createRelated: "Create related",
         removeRelated: "Remove related",
         removeParent: "Remove parent",
@@ -378,13 +382,24 @@ vi.mock("@/app/tasks/components/task-share-button", () => ({
 }));
 
 vi.mock("@/app/tasks/components/task-form", () => ({
+  taskAssigneeFormLabels: (t: (key: string) => string) => ({
+    assignee: t("assignee"),
+    assigneeUnassigned: t("assigneeUnassigned"),
+    assigneePeople: t("assigneePeople"),
+    assigneeCoworkers: t("assigneeCoworkers"),
+    assigneeSearchPlaceholder: t("assigneeSearchPlaceholder"),
+    assigneeEmptyResults: t("assigneeEmptyResults"),
+  }),
   TaskForm: ({
     initialValues,
     initialDesignMdAttachment,
     onCreateTask,
     onSuccess,
   }: {
-    initialValues?: { assigneeId?: string | null };
+    initialValues?: {
+      assigneeId?: string | null;
+      assigneeUserId?: string | null;
+    };
     initialDesignMdAttachment?: {
       label: string;
       url: string;
@@ -393,6 +408,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
     onCreateTask?: (input: {
       description: string;
       assigneeId: string | null;
+      assigneeUserId: string | null;
       status: TaskStatus;
       context: {
         brand: {
@@ -420,6 +436,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
           const result = await onCreateTask({
             description: "Created related task",
             assigneeId: initialValues?.assigneeId ?? null,
+            assigneeUserId: initialValues?.assigneeUserId ?? null,
             status: TaskStatus.READY,
             context: {
               brand: { enabled: true, source: "default", custom: null },
@@ -501,6 +518,10 @@ const labels = {
   reopenToReadyCommentRequired: "A comment is required to reopen this task",
   reopenToReadyConfirm: "Reopen to Ready",
   revertToDraft: "Revert to Draft",
+  revertToReady: "Revert to Ready",
+  start: "Start",
+  complete: "Complete",
+  waitForExternal: "Waiting on external",
   cancel: "Cancel",
   share: "Share",
 };
@@ -1033,7 +1054,7 @@ describe("TaskDetailActions", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides reopen when a canceled task has no coworker", async () => {
+  it("shows reopen when a canceled task has no coworker", async () => {
     const user = userEvent.setup();
     renderActions({
       status: TaskStatus.CANCELED,
@@ -1044,10 +1065,57 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
     expect(
-      screen.queryByRole("menuitem", { name: labels.reopenToReady }),
-    ).toBeNull();
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers Start for a human-assigned ready task", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.READY,
+      defaultAssigneeId: null,
+      defaultAssigneeUserId: "user-1",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.start }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.revertToDraft }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancel }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers in-progress actions for an unset running task", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.RUNNING,
+      defaultAssigneeId: null,
+      defaultAssigneeUserId: null,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.complete }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.waitForExternal }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.revertToReady }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancel }),
     ).toBeInTheDocument();
   });
 
@@ -1399,6 +1467,7 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         description: "Created related task",
         assigneeId: "coworker-1",
+        assigneeUserId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {
@@ -1451,6 +1520,7 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         description: "Created related task",
         assigneeId: "coworker-1",
+        assigneeUserId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {
@@ -1748,6 +1818,7 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         description: "Created related task",
         assigneeId: "coworker-1",
+        assigneeUserId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {

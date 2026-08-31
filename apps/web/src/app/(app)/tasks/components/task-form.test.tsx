@@ -285,6 +285,12 @@ const baseLabels = {
   projectCreate: "Create project...",
   coworker: "Coworker",
   coworkerDescription: "Pick a coworker",
+  assignee: "Assignee",
+  assigneeUnassigned: "Unassigned",
+  assigneePeople: "People",
+  assigneeCoworkers: "Coworkers",
+  assigneeSearchPlaceholder: "Search assignees...",
+  assigneeEmptyResults: "No assignees found.",
   status: "Status",
   statusDescription: "Pick status",
   statusDraft: "Draft",
@@ -320,6 +326,11 @@ const coworkerOptions = [
     slug: "elena",
     name: "Elena",
   }),
+];
+
+const memberOptions = [
+  { id: "user-1", name: "Ada", image: null },
+  { id: "user-2", name: "Grace", image: null },
 ];
 
 const projectOptions = [
@@ -806,10 +817,9 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.getByText("Soko")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Soko/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("combobox", { name: "Assignee" }),
+    ).toHaveTextContent("Soko");
 
     await user.click(screen.getByRole("button", { name: "Mark as Ready" }));
     expect(
@@ -861,10 +871,9 @@ describe("TaskForm", () => {
       />,
     );
 
-    const elenaButton = screen.getByRole("button", { name: /Elena/i });
-    const sokoButton = screen.getByRole("button", { name: /Soko/i });
-    expect(elenaButton).toHaveAttribute("aria-pressed", "true");
-    expect(sokoButton).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByRole("combobox", { name: "Assignee" }),
+    ).toHaveTextContent("Elena");
   });
 
   it("selects initialValues.projectId when project options are provided", () => {
@@ -1098,6 +1107,7 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith({
       description: "Build landing page",
       assigneeId: "coworker-2",
+      assigneeUserId: null,
       context: {
         brand: { enabled: true, source: "default", custom: null },
         briefingEnabled: true,
@@ -1143,6 +1153,7 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith({
       description: "Build landing page",
       assigneeId: "coworker-2",
+      assigneeUserId: null,
       context: {
         brand: { enabled: false, source: "default", custom: null },
         briefingEnabled: true,
@@ -1190,6 +1201,7 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith({
       description: "Build landing page",
       assigneeId: "coworker-2",
+      assigneeUserId: null,
       context: {
         brand: {
           enabled: true,
@@ -1368,6 +1380,114 @@ describe("TaskForm", () => {
     for (const button of screen.getAllByRole("button", { name: /Soko/ })) {
       expect(button).toHaveAttribute("aria-pressed", "false");
     }
+  });
+
+  it("submits a human assignee on create", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        variant="page"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        memberOptions={memberOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Assignee" }));
+    await user.click(screen.getByRole("option", { name: /Ada/ }));
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeId: null,
+        assigneeUserId: "user-1",
+        status: TaskStatus.READY,
+      }),
+    );
+  });
+
+  it("keeps a human assignee when editing instead of defaulting to Elena", () => {
+    render(
+      <TaskForm
+        variant="page"
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        memberOptions={memberOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeUserId: "user-1",
+          status: TaskStatus.READY,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: "Assignee" }),
+    ).toHaveTextContent("Ada");
+  });
+
+  it("keeps an unset assignee when editing instead of defaulting to Elena", () => {
+    render(
+      <TaskForm
+        variant="page"
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        memberOptions={memberOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: null,
+          assigneeUserId: null,
+          status: TaskStatus.READY,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: "Assignee" }),
+    ).toHaveTextContent("Unassigned");
+  });
+
+  it("disables schedule setup when the assignee is not a coworker", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        memberOptions={memberOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Set schedule" })).toBeDisabled();
+
+    await user.click(screen.getByRole("combobox", { name: "Assignee" }));
+    await user.click(screen.getByRole("option", { name: /Elena/ }));
+
+    expect(
+      screen.getByRole("button", { name: "Set schedule" }),
+    ).not.toBeDisabled();
   });
 
   it("passes agent mention options to MarkdownEditor", () => {
@@ -1809,6 +1929,7 @@ describe("TaskForm", () => {
     expect(onCreateTask).toHaveBeenCalledWith({
       description: "Write docs",
       assigneeId: "coworker-2",
+      assigneeUserId: null,
       context: {
         brand: { enabled: true, source: "default", custom: null },
         briefingEnabled: true,

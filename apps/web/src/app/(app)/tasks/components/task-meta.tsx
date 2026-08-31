@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { Calendar, MessageSquare, UserCog } from "lucide-react";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
@@ -27,7 +28,12 @@ function AssigneeAvatar({
   assignee: TaskWithCoworker["assignee"];
   size?: "sm" | "md";
 }) {
-  const image = getCoworkerImage(assignee);
+  const image =
+    assignee?.kind === "coworker"
+      ? getCoworkerImage(assignee)
+      : assignee?.image
+        ? resolveIpfsOrHttpUrl(assignee.image)
+        : null;
   const sizeClass = size === "sm" ? "size-5" : "size-6";
 
   return (
@@ -35,7 +41,7 @@ function AssigneeAvatar({
       {image ? (
         <AvatarImage
           src={image}
-          alt={assignee?.name ?? "Coworker"}
+          alt={assignee?.name ?? "Assignee"}
           className="object-cover"
           onError={(event) => {
             event.currentTarget.style.display = "none";

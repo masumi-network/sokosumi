@@ -1,9 +1,13 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
-import { TaskForm } from "@/app/tasks/components/task-form";
+import {
+  TaskForm,
+  taskAssigneeFormLabels,
+} from "@/app/tasks/components/task-form";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/list-task-assignee-member-options";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -16,10 +20,11 @@ export const metadata = {
 
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
-  const [taskCoworkers, agents, session] = await Promise.all([
+  const [taskCoworkers, agents, session, memberOptions] = await Promise.all([
     coworkerService.listCoworkers("tasks").catch(() => []),
     agentService.getAvailableAgentsWithCreditsPrice(),
     getSession(),
+    listTaskAssigneeMemberOptions(),
   ]);
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
@@ -50,6 +55,7 @@ export default async function NewTaskPage() {
             projectEmptyResults: t("projectEmptyResults"),
             coworker: t("coworker"),
             coworkerDescription: t("coworkerDescription"),
+            ...taskAssigneeFormLabels(t),
             status: t("status"),
             statusDescription: t("statusDescription"),
             statusDraft: t("statusDraft"),
@@ -76,6 +82,7 @@ export default async function NewTaskPage() {
             ctrl: t("ctrl"),
           }}
           coworkerOptions={coworkerOptions}
+          memberOptions={memberOptions}
           agentNameById={agentNameById}
           initialDesignMdAttachment={initialDesignMdAttachment}
         />

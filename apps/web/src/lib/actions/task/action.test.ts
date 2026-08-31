@@ -205,6 +205,7 @@ describe("task link actions", () => {
     expect(taskServiceMock.createTask).toHaveBeenCalledWith({
       description: "Created related task",
       assigneeId: null,
+      assigneeUserId: null,
       projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       context: {
         brand: true,
@@ -216,6 +217,28 @@ describe("task link actions", () => {
     });
     expect(taskServiceMock.createTask.mock.calls[0][0]).not.toHaveProperty(
       "name",
+    );
+  });
+
+  it("passes a human assignee on create", async () => {
+    taskServiceMock.createTask.mockResolvedValue(buildTask());
+
+    const { createTask } = await import("./action");
+
+    await createTask({
+      description: "Human task",
+      assigneeId: null,
+      assigneeUserId: "user-9",
+      status: TaskStatus.READY,
+    });
+
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Human task",
+        assigneeId: null,
+        assigneeUserId: "user-9",
+        status: TaskStatus.READY,
+      }),
     );
   });
 

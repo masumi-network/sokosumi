@@ -58,6 +58,8 @@ import {
   mergeTopPageJobsWithListFilters,
 } from "@/app/tasks/utils/jobs-filters";
 import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-server-refresh";
+import type { TaskAssigneeMemberOption } from "@/app/tasks/utils/task-assignee";
+import { taskAssigneeKindFromBoardAssignee } from "@/app/tasks/utils/task-assignee";
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
@@ -251,6 +253,7 @@ interface TasksViewProps {
   columnNextCursorById: Record<KanbanColumnId, string | null>;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
+  memberOptions?: TaskAssigneeMemberOption[];
   projectOptions: ProjectFilterOption[];
   userId?: string | null;
   activeOrganizationId: string | null;
@@ -335,6 +338,7 @@ export function TasksView({
   columnNextCursorById: initialColumnNextCursorById,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
+  memberOptions = [],
   projectOptions,
   userId,
   activeOrganizationId,
@@ -780,7 +784,13 @@ export function TasksView({
 
     const desiredStatus = statusForColumn(toColumn);
     if (!desiredStatus) return;
-    if (!canUserTransitionTaskStatus(draggedTask.status, desiredStatus)) {
+    if (
+      !canUserTransitionTaskStatus(
+        draggedTask.status,
+        desiredStatus,
+        taskAssigneeKindFromBoardAssignee(draggedTask.assignee),
+      )
+    ) {
       return;
     }
 
@@ -1507,6 +1517,7 @@ export function TasksView({
       ) : null}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}
+        memberOptions={memberOptions}
         projectOptions={resolvedProjectOptions}
         defaultProjectId={defaultProjectId}
         initialCreateTaskOpen={initialCreateTaskOpen}

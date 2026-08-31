@@ -1,10 +1,18 @@
-import type { Coworker } from "@/lib/clients/generated/core";
 import type {
   TaskEvent,
   TaskShare,
   UserSummary,
 } from "@/lib/clients/generated/core/types.gen";
 import type { CoreAgentDto, TaskStatus } from "@/lib/types/core-dto";
+
+/** Board/list assignee. Do not treat `id` as a coworker id when `kind` is `user`. */
+export interface TaskBoardAssignee {
+  kind: "coworker" | "user";
+  id: string;
+  name: string;
+  image?: string | null;
+  slug?: string;
+}
 
 /**
  * Tasks board view model — Core `Task` / `TaskListItem` plus UI joins
@@ -20,7 +28,7 @@ export interface TaskWithCoworker {
   createdAt: string;
   updatedAt: string;
   jobsCount: number;
-  assignee?: Coworker | null;
+  assignee?: TaskBoardAssignee | null;
   share?: TaskShare | null;
   commentsCount: number;
   columnId: KanbanColumnId;

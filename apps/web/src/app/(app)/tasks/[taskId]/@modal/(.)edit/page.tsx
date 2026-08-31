@@ -4,8 +4,10 @@ import { getTranslations } from "next-intl/server";
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
+import { taskAssigneeFormLabels } from "@/app/tasks/components/task-form";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/list-task-assignee-member-options";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
@@ -62,11 +64,13 @@ export default async function TaskEditModalPage({
     );
   }
 
-  const [taskCoworkers, agents, projectsPage] = await Promise.all([
-    coworkerService.listCoworkers("tasks").catch(() => []),
-    agentService.getAvailableAgentsWithCreditsPrice(),
-    projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
-  ]);
+  const [taskCoworkers, agents, projectsPage, memberOptions] =
+    await Promise.all([
+      coworkerService.listCoworkers("tasks").catch(() => []),
+      agentService.getAvailableAgentsWithCreditsPrice(),
+      projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+      listTaskAssigneeMemberOptions(),
+    ]);
 
   const coworkerOptions = getCoworkerOptions(taskCoworkers);
   const projectOptions = await buildProjectOptions(
@@ -98,6 +102,7 @@ export default async function TaskEditModalPage({
         projectCreateNamed: tEdit.raw("projectCreateNamed") as string,
         coworker: tEdit("coworker"),
         coworkerDescription: tEdit("coworkerDescription"),
+        ...taskAssigneeFormLabels(tEdit),
         status: tEdit("status"),
         statusDescription: tEdit("statusDescription"),
         statusDraft: tEdit("statusDraft"),
@@ -122,12 +127,14 @@ export default async function TaskEditModalPage({
         ctrl: tEdit("ctrl"),
       }}
       coworkerOptions={coworkerOptions}
+      memberOptions={memberOptions}
       projectOptions={projectOptions}
       agentNameById={agentNameById}
       initialValues={{
         name: taskResult.name,
         description: taskResult.description ?? "",
         assigneeId: taskResult.assigneeId ?? "",
+        assigneeUserId: taskResult.assigneeUserId ?? null,
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
         metadata: taskResult.metadata,

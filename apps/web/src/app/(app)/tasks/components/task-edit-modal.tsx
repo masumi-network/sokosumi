@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import type { TaskAssigneeMemberOption } from "@/app/tasks/utils/task-assignee";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -17,12 +18,14 @@ interface TaskEditModalProps {
     name: string;
     description: string;
     assigneeId: string;
+    assigneeUserId?: string | null;
     projectId?: string | null;
     status: TaskStatus;
     metadata?: string | null;
     nextRunAt?: string | null;
   };
   coworkerOptions: CoworkerOption[];
+  memberOptions?: TaskAssigneeMemberOption[];
   projectOptions: ProjectFilterOption[];
   agentNameById: Map<string, string>;
   labels: TaskFormLabels;
@@ -33,6 +36,7 @@ export function TaskEditModal({
   title,
   initialValues,
   coworkerOptions,
+  memberOptions = [],
   projectOptions,
   agentNameById,
   labels,
@@ -62,6 +66,7 @@ export function TaskEditModal({
         showCancel={false}
         labels={labels}
         coworkerOptions={coworkerOptions}
+        memberOptions={memberOptions}
         projectOptions={projectOptions}
         agentNameById={agentNameById}
         taskId={taskId}

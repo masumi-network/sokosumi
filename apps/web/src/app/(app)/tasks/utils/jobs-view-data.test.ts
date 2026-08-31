@@ -66,6 +66,7 @@ describe("mapJobsToTasksViewData", () => {
       [
         "coworker-1",
         {
+          kind: "coworker" as const,
           id: "coworker-1",
           name: "Seeded Coworker",
           image: null,
@@ -108,6 +109,7 @@ describe("mapJobsToTasksViewData", () => {
       [
         "coworker-1",
         {
+          kind: "coworker" as const,
           id: "coworker-1",
           name: "Seeded Coworker",
           image: null,

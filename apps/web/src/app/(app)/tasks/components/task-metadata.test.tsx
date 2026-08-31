@@ -22,7 +22,7 @@ const baseLabels = {
   organization: "Organization",
   personalWorkspace: "Personal",
   project: "Project",
-  coworker: "Coworker",
+  assignee: "Assignee",
   credits: "Credits",
   created: "Created",
   updated: "Updated",
@@ -61,10 +61,14 @@ function createTask(
       overrides.assigneeName === null
         ? null
         : {
+            type: "coworker" as const,
             id: "cw_1",
-            name: overrides.assigneeName ?? "Hepha",
-            image: null,
-            slug: "hepha",
+            coworker: {
+              id: "cw_1",
+              name: overrides.assigneeName ?? "Hepha",
+              image: null,
+              slug: "hepha",
+            },
           },
     credits: overrides.credits ?? 0,
     metadata: null,
@@ -84,7 +88,7 @@ describe("TaskMetadata", () => {
       />,
     );
 
-    expect(screen.getByText("Coworker")).toBeInTheDocument();
+    expect(screen.getByText("Assignee")).toBeInTheDocument();
     expect(screen.getByText("Credits")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
   });

@@ -22,9 +22,10 @@ function buildTask(
     user: { id: "user-1", name: "Test User", image: null },
     organization: null,
     assigneeId: null,
+    assigneeUserId: null,
     assignee: null,
     coworkerId: null,
-    coworker: null,
+    coworker: null as unknown as TaskListItem["coworker"],
     creator: {
       type: "user",
       id: "user-1",
@@ -169,5 +170,52 @@ describe("mapTaskToTaskWithCoworker", () => {
 
     expect(mapped.owner).toEqual(task.owner);
     expect(mapped.ownerId).toBe("user-2");
+  });
+
+  it("maps a human assignee from the Core DTO", () => {
+    const task = buildTask(TaskStatus.READY, {
+      assigneeId: null,
+      assigneeUserId: "user-9",
+      assignee: {
+        type: "user",
+        id: "user-9",
+        user: { id: "user-9", name: "Ada Lovelace", image: null },
+      },
+    });
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.assignee).toEqual({
+      kind: "user",
+      id: "user-9",
+      name: "Ada Lovelace",
+      image: null,
+    });
+  });
+
+  it("maps a coworker assignee from the Core DTO", () => {
+    const task = buildTask(TaskStatus.READY, {
+      assigneeId: "cow-1",
+      assignee: {
+        type: "coworker",
+        id: "cow-1",
+        coworker: {
+          id: "cow-1",
+          name: "Elena",
+          image: null,
+          slug: "elena",
+        },
+      },
+    });
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.assignee).toEqual({
+      kind: "coworker",
+      id: "cow-1",
+      name: "Elena",
+      image: null,
+      slug: "elena",
+    });
   });
 });

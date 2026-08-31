@@ -4296,10 +4296,18 @@ export const TaskSchema = {
                 'null'
             ],
             example: 'cow_123',
-            description: 'Marketplace coworker assignee. Never an orchestrator.'
+            description: 'Coworker assignee id. Null when assigned to a user or unset. Prefer `assignee`.'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'user_123',
+            description: 'Workspace-member assignee id. Null when assigned to a coworker or unset. Prefer `assignee`.'
         },
         assignee: {
-            $ref: '#/components/schemas/CoworkerSummary'
+            $ref: '#/components/schemas/TaskAssignee'
         },
         coworkerId: {
             type: [
@@ -4316,8 +4324,12 @@ export const TaskSchema = {
                     $ref: '#/components/schemas/CoworkerSummary'
                 },
                 {
+                    type: [
+                        'object',
+                        'null'
+                    ],
                     deprecated: true,
-                    description: 'Deprecated. Use assignee instead.'
+                    description: 'Deprecated. Prefer assignee when type is coworker. Null when assigned to a user or unset.'
                 }
             ]
         },
@@ -4477,6 +4489,7 @@ export const TaskSchema = {
         'organization',
         'projectId',
         'assigneeId',
+        'assigneeUserId',
         'assignee',
         'coworkerId',
         'coworker',
@@ -4551,11 +4564,71 @@ export const OrganizationSummarySchema = {
     ]
 } as const;
 
-export const CoworkerSummarySchema = {
-    type: [
-        'object',
-        'null'
+export const TaskAssigneeSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/TaskAssigneeUser'
+        },
+        {
+            $ref: '#/components/schemas/TaskAssigneeCoworker'
+        },
+        {
+            type: 'null'
+        }
     ],
+    description: 'Who the Task is handed to: a coworker, a workspace member, or unset.'
+} as const;
+
+export const TaskAssigneeUserSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'user'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'user'
+    ]
+} as const;
+
+export const TaskAssigneeCoworkerSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'coworker'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        coworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'coworker'
+    ]
+} as const;
+
+export const CoworkerSummarySchema = {
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -15586,7 +15659,10 @@ export const PublicSharedTaskSchema = {
                     example: 'Ops Agent'
                 },
                 slug: {
-                    type: 'string',
+                    type: [
+                        'string',
+                        'null'
+                    ],
                     example: 'ops-agent'
                 },
                 image: {
@@ -15599,8 +15675,7 @@ export const PublicSharedTaskSchema = {
             },
             required: [
                 'id',
-                'name',
-                'slug'
+                'name'
             ],
             deprecated: true,
             description: 'Deprecated. Use assignee instead.'
@@ -15654,7 +15729,10 @@ export const PublicSharedTaskAssigneeSchema = {
             example: 'Ops Agent'
         },
         slug: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
             example: 'ops-agent'
         },
         image: {
@@ -15667,8 +15745,7 @@ export const PublicSharedTaskAssigneeSchema = {
     },
     required: [
         'id',
-        'name',
-        'slug'
+        'name'
     ]
 } as const;
 
@@ -17767,10 +17844,18 @@ export const TaskListItemSchema = {
                 'null'
             ],
             example: 'cow_123',
-            description: 'Marketplace coworker assignee. Never an orchestrator.'
+            description: 'Coworker assignee id. Null when assigned to a user or unset. Prefer `assignee`.'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'user_123',
+            description: 'Workspace-member assignee id. Null when assigned to a coworker or unset. Prefer `assignee`.'
         },
         assignee: {
-            $ref: '#/components/schemas/CoworkerSummary'
+            $ref: '#/components/schemas/TaskAssignee'
         },
         coworkerId: {
             type: [
@@ -17787,8 +17872,12 @@ export const TaskListItemSchema = {
                     $ref: '#/components/schemas/CoworkerSummary'
                 },
                 {
+                    type: [
+                        'object',
+                        'null'
+                    ],
                     deprecated: true,
-                    description: 'Deprecated. Use assignee instead.'
+                    description: 'Deprecated. Prefer assignee when type is coworker. Null when assigned to a user or unset.'
                 }
             ]
         },
@@ -17914,6 +18003,7 @@ export const TaskListItemSchema = {
         'organization',
         'projectId',
         'assigneeId',
+        'assigneeUserId',
         'assignee',
         'coworkerId',
         'coworker',

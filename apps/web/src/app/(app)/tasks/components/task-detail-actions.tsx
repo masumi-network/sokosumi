@@ -3,6 +3,7 @@
 import {
   isTaskArchivableStatus,
   isTaskEditableStatus,
+  type TaskAssigneeKind,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
@@ -12,6 +13,7 @@ import {
   Ban,
   CheckCircle2,
   ChevronDown,
+  Clock,
   Ellipsis,
   FlagTriangleRight,
   ListX,
@@ -19,6 +21,7 @@ import {
   LucideSquareMousePointer,
   OctagonMinus,
   Pencil,
+  Play,
   RotateCcw,
   SquareArrowRightExit,
   SquareMinus,
@@ -31,6 +34,8 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import type { TaskAssigneeMemberOption } from "@/app/tasks/utils/task-assignee";
+import { taskAssigneeKindFromIds } from "@/app/tasks/utils/task-assignee";
 import {
   canArchiveParkedTaskForViewer,
   canArchiveScheduledTaskForViewer,
@@ -82,6 +87,7 @@ import {
   TaskForm,
   type TaskFormInitialDesignMdAttachment,
   type TaskFormLabels,
+  taskAssigneeFormLabels,
 } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
@@ -108,6 +114,10 @@ interface TaskDetailActionsLabels {
   reopenToReadyCommentRequired: string;
   reopenToReadyConfirm: string;
   revertToDraft: string;
+  revertToReady: string;
+  start: string;
+  complete: string;
+  waitForExternal: string;
   cancel: string;
   share: string;
 }
@@ -127,6 +137,8 @@ interface TaskDetailActionsProps {
   coworkerOptions: CoworkerOption[];
   agentNameById: Map<string, string>;
   defaultAssigneeId?: string | null;
+  defaultAssigneeUserId?: string | null;
+  memberOptions?: TaskAssigneeMemberOption[];
   /** Resolved DESIGN.md for create-related flow (same picker as new task). */
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
@@ -152,6 +164,8 @@ export function TaskDetailActions({
   coworkerOptions,
   agentNameById,
   defaultAssigneeId,
+  defaultAssigneeUserId,
+  memberOptions = [],
   initialDesignMdAttachment = null,
   actionsMenuLabel,
   labels,
@@ -208,8 +222,12 @@ export function TaskDetailActions({
   );
 
   const canMutateTask = !isReadOnly;
+  const assigneeKind = taskAssigneeKindFromIds(
+    defaultAssigneeId,
+    defaultAssigneeUserId,
+  );
   const availableStatusActions = getTaskStatusActions(status, labels, {
-    hasCoworker: Boolean(defaultAssigneeId),
+    assigneeKind,
   });
   const statusActions = canMutateTask
     ? availableStatusActions
@@ -295,6 +313,7 @@ export function TaskDetailActions({
     projectEmptyResults: tNewTask("projectEmptyResults"),
     coworker: tNewTask("coworker"),
     coworkerDescription: tNewTask("coworkerDescription"),
+    ...taskAssigneeFormLabels(tNewTask),
     status: tNewTask("status"),
     statusDescription: tNewTask("statusDescription"),
     statusDraft: tNewTask("statusDraft"),
@@ -961,14 +980,19 @@ export function TaskDetailActions({
             showCancel={false}
             labels={createTaskLabels}
             coworkerOptions={coworkerOptions}
+            memberOptions={memberOptions}
             agentNameById={agentNameById}
             initialDesignMdAttachment={initialDesignMdAttachment}
-            initialValues={
-              defaultAssigneeId ? { assigneeId: defaultAssigneeId } : undefined
-            }
+            initialValues={{
+              ...(defaultAssigneeId ? { assigneeId: defaultAssigneeId } : {}),
+              ...(defaultAssigneeUserId
+                ? { assigneeUserId: defaultAssigneeUserId }
+                : {}),
+            }}
             onCreateTask={async ({
               description,
               assigneeId,
+              assigneeUserId,
               projectId,
               status,
               schedule,
@@ -978,6 +1002,7 @@ export function TaskDetailActions({
                 taskId,
                 description,
                 assigneeId,
+                assigneeUserId,
                 projectId,
                 status,
                 schedule,
@@ -1025,6 +1050,12 @@ function getStatusActionMenuIcon(target: TaskStatus): LucideIcon {
       return RotateCcw;
     case TaskStatus.READY:
       return CheckCircle2;
+    case TaskStatus.RUNNING:
+      return Play;
+    case TaskStatus.AWAITING_EXTERNAL:
+      return Clock;
+    case TaskStatus.COMPLETED:
+      return CheckCircle2;
     case TaskStatus.CANCELED:
       return Ban;
     default:
@@ -1035,8 +1066,12 @@ function getStatusActionMenuIcon(target: TaskStatus): LucideIcon {
 function getTaskStatusActions(
   status: TaskStatus,
   labels: TaskDetailActionsLabels,
-  options: { hasCoworker: boolean },
+  options: { assigneeKind: TaskAssigneeKind },
 ): TaskStatusAction[] {
+  if (options.assigneeKind !== "coworker") {
+    return getHumanTaskStatusActions(status, labels);
+  }
+
   if (status === TaskStatus.DRAFT) {
     return [{ label: labels.markAsReady, target: TaskStatus.READY }];
   }
@@ -1063,12 +1098,72 @@ function getTaskStatusActions(
     ];
   }
 
-  // READY still requires a coworker assignment in Core; terminal tasks without
-  // a coworker cannot be patched while canceled/completed, so hide reopen.
+  if (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED) {
+    return [
+      {
+        label: labels.reopenToReady,
+        target: TaskStatus.READY,
+        requiresComment: true,
+      },
+    ];
+  }
+
+  return [];
+}
+
+function getHumanTaskStatusActions(
+  status: TaskStatus,
+  labels: TaskDetailActionsLabels,
+): TaskStatusAction[] {
+  if (status === TaskStatus.DRAFT) {
+    return [
+      { label: labels.markAsReady, target: TaskStatus.READY },
+      { label: labels.cancel, target: TaskStatus.CANCELED },
+    ];
+  }
+
+  if (status === TaskStatus.READY) {
+    return [
+      { label: labels.revertToDraft, target: TaskStatus.DRAFT },
+      { label: labels.start, target: TaskStatus.RUNNING },
+      { label: labels.cancel, target: TaskStatus.CANCELED },
+    ];
+  }
+
+  if (status === TaskStatus.RUNNING) {
+    return [
+      { label: labels.revertToReady, target: TaskStatus.READY },
+      { label: labels.waitForExternal, target: TaskStatus.AWAITING_EXTERNAL },
+      { label: labels.complete, target: TaskStatus.COMPLETED },
+      { label: labels.cancel, target: TaskStatus.CANCELED },
+    ];
+  }
+
+  if (status === TaskStatus.AWAITING_EXTERNAL) {
+    return [
+      { label: labels.start, target: TaskStatus.RUNNING },
+      { label: labels.revertToReady, target: TaskStatus.READY },
+      { label: labels.complete, target: TaskStatus.COMPLETED },
+      { label: labels.cancel, target: TaskStatus.CANCELED },
+    ];
+  }
+
   if (
-    (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED) &&
-    options.hasCoworker
+    status === TaskStatus.INPUT_REQUIRED ||
+    status === TaskStatus.APPROVAL_REQUIRED ||
+    status === TaskStatus.AUTHENTICATION_REQUIRED ||
+    status === TaskStatus.OUT_OF_CREDITS ||
+    status === TaskStatus.CREDITS_TOPPED_UP
   ) {
+    return [
+      {
+        label: labels.cancel,
+        target: TaskStatus.CANCELED,
+      },
+    ];
+  }
+
+  if (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED) {
     return [
       {
         label: labels.reopenToReady,

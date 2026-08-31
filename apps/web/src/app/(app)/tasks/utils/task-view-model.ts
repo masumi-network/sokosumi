@@ -1,4 +1,5 @@
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
+import { mapCoreAssigneeToBoardAssignee } from "@/app/tasks/utils/task-assignee";
 import { getColumnId } from "@/app/tasks/utils/task-column";
 import type { Coworker } from "@/lib/clients/generated/core";
 import type {
@@ -76,9 +77,19 @@ export function mapTaskToTaskWithCoworker(
   coworkersById: Map<string, Coworker>,
   agentsById: Map<string, CoreAgentDto>,
 ): TaskWithCoworker {
-  const assignee = task.assigneeId
-    ? (coworkersById.get(task.assigneeId) ?? null)
-    : null;
+  let assignee = mapCoreAssigneeToBoardAssignee(task.assignee);
+  if (!assignee && task.assigneeId) {
+    const coworker = coworkersById.get(task.assigneeId);
+    if (coworker) {
+      assignee = {
+        kind: "coworker",
+        id: coworker.id,
+        name: coworker.name,
+        image: coworker.image ?? null,
+        slug: coworker.slug,
+      };
+    }
+  }
   const agentIds = parseAgentMentions(task.description, agentsById);
   const agents = agentIds
     .map((id) => agentsById.get(id))
