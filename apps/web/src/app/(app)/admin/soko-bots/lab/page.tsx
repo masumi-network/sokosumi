@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { ScenarioLab } from "@/components/admin/soko-bots/scenario-lab.client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 export const instant = false;
@@ -19,8 +20,9 @@ export const metadata: Metadata = {
  * per version for the quality overview.
  */
 export default async function AdminSokoBotLabPage() {
-  const [t, bot, versions] = await Promise.all([
+  const [t, session, bot, versions] = await Promise.all([
     getTranslations("App.Admin.SokoBots.Lab"),
+    getSessionOrRedirect(),
     sokoBotService.getMine(),
     sokoBotService.listVersions(),
   ]);
@@ -33,6 +35,16 @@ export default async function AdminSokoBotLabPage() {
             {t("title")}
           </h1>
           <p className="text-muted-foreground text-sm">{t("description")}</p>
+          {/* Every run is a real turn on this bot: its Tasks, its credits.
+              Which account that is should never be something to work out. */}
+          {bot ? (
+            <p className="text-muted-foreground text-xs">
+              {t("runsAgainst", {
+                bot: bot.name ?? t("unnamedBot"),
+                account: session.user.email,
+              })}
+            </p>
+          ) : null}
         </div>
         {bot ? (
           <section className="bg-background rounded-lg border p-4">

@@ -18,7 +18,6 @@ import {
 const CENTS_PER_MONTH = 600_000_000_000_000n;
 const ORG_ID = "org-1";
 const PERIOD_ID = "01900000-0000-7000-8000-000000000201";
-const OWNER_ID = "owner-1";
 
 function createScheduledPeriod(overrides?: {
   id?: string;
@@ -49,12 +48,10 @@ function createGrantClient() {
     sourceCreditBucket: { id: "bucket-new" },
   });
   const updatePeriodMock = vi.fn().mockResolvedValue({});
-  const findMemberMock = vi.fn().mockResolvedValue({ userId: OWNER_ID });
 
   return {
     createTransactionMock,
     findUniqueBucketMock,
-    findMemberMock,
     updatePeriodMock,
     tx: {
       creditBucket: {
@@ -62,9 +59,6 @@ function createGrantClient() {
       },
       enterpriseContractPeriod: {
         update: updatePeriodMock,
-      },
-      member: {
-        findFirst: findMemberMock,
       },
       transaction: {
         create: createTransactionMock,

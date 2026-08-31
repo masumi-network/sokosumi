@@ -26,9 +26,6 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
           remaining: 50n,
         },
       ]),
-      member: {
-        findFirst: vi.fn().mockResolvedValue({ userId: "owner-1" }),
-      },
       transaction: {
         create: createTransactionMock,
       },
@@ -43,8 +40,12 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
     assert.equal(result.organizations, 1);
     assert.equal(result.bucketsDrained, 2);
     assert.equal(result.centsTransferred, 110n);
-    assert.equal(result.skippedNoActor, 0);
     assert.equal(createTransactionMock.mock.calls.length, 4);
+    for (const [arg] of createTransactionMock.mock.calls as Array<
+      [{ data: { userId: string | null } }]
+    >) {
+      assert.equal(arg.data.userId, null);
+    }
 
     interface MigratedGrant {
       activatesAt: Date | null;
@@ -178,9 +179,6 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
           remaining: 250n,
         },
       ]),
-      member: {
-        findFirst: vi.fn().mockResolvedValue({ userId: "owner-1" }),
-      },
       transaction: {
         create: createTransactionMock,
       },
@@ -203,7 +201,7 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
     assert.equal(grant?.userId, null);
   });
 
-  it("skips leftover remaining when the organization has no members", async () => {
+  it("transfers leftover remaining when the organization has no members", async () => {
     const createTransactionMock = vi.fn();
     const tx = {
       $queryRaw: vi.fn().mockResolvedValue([
@@ -216,9 +214,6 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
           remaining: 50n,
         },
       ]),
-      member: {
-        findFirst: vi.fn().mockResolvedValue(null),
-      },
       transaction: {
         create: createTransactionMock,
       },
@@ -230,18 +225,18 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
       new Date("2026-07-01T00:00:00.000Z"),
     );
 
-    assert.equal(result.skippedNoActor, 1);
-    assert.equal(result.bucketsDrained, 0);
-    assert.equal(createTransactionMock.mock.calls.length, 0);
+    assert.equal(result.organizations, 1);
+    assert.equal(result.bucketsDrained, 1);
+    assert.equal(result.centsTransferred, 50n);
+    assert.equal(createTransactionMock.mock.calls.length, 2);
+    assert.equal(createTransactionMock.mock.calls[0]?.[0].data.userId, null);
+    assert.equal(createTransactionMock.mock.calls[1]?.[0].data.userId, null);
   });
 
   it("queries leftover member-period remaining without deleting old rows", async () => {
     const queryRawMock = vi.fn().mockResolvedValue([]);
     const tx = {
       $queryRaw: queryRawMock,
-      member: {
-        findFirst: vi.fn(),
-      },
       transaction: {
         create: vi.fn(),
       },
@@ -274,9 +269,6 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
     const createTransactionMock = vi.fn();
     const tx = {
       $queryRaw: vi.fn().mockResolvedValue([]),
-      member: {
-        findFirst: vi.fn().mockResolvedValue({ userId: "owner-1" }),
-      },
       transaction: {
         create: createTransactionMock,
       },

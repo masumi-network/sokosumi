@@ -107,7 +107,7 @@ export function AccountSummaryMenu({
 
   function handleLogout() {
     onRequestClose();
-    showLogoutModal(sessionUser.email);
+    showLogoutModal({ id: sessionUser.id, email: sessionUser.email });
   }
 
   function handleDrive() {

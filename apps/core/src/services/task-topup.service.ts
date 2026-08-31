@@ -18,13 +18,21 @@ function isPrismaRecordNotFoundError(error: unknown): boolean {
 export async function markOutOfCreditsTasksAsToppedUp(params: {
   organizationId: string | null;
   tx: Prisma.TransactionClient;
-  userId: string;
+  userId: string | null;
 }): Promise<void> {
+  let taskWhere: { organizationId: string } | { ownerId: string };
+  if (params.organizationId) {
+    taskWhere = { organizationId: params.organizationId };
+  } else {
+    if (params.userId === null) {
+      throw new Error("Personal credit top-up requires a user id");
+    }
+    taskWhere = { ownerId: params.userId };
+  }
+
   const tasks = await params.tx.task.findMany({
     where: {
-      ...(params.organizationId
-        ? { organizationId: params.organizationId }
-        : { ownerId: params.userId }),
+      ...taskWhere,
       status: TaskStatus.OUT_OF_CREDITS,
     },
     select: {

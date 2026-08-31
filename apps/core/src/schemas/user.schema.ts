@@ -124,6 +124,11 @@ export const userPreferencesResponseSchema = z.object({
     description: "Whether the user wants to receive job status notifications",
     example: true,
   }),
+  pushOptIn: z.boolean().openapi({
+    description:
+      "Whether the user wants OS banners while Sokosumi is closed (push)",
+    example: false,
+  }),
 });
 
 export const utmAttributionRequestSchema = z

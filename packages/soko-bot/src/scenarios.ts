@@ -72,6 +72,12 @@ export interface SokoBotScenario {
     asksQuestion?: boolean;
     /** The answer must not promise a later check without a schedule. */
     noEmptyPromise?: boolean;
+    /**
+     * A schedule the turn created or updated must name a Task the same turn
+     * touched. Without it "called a schedule tool" passes a bot that pointed
+     * the owner's daily check at whatever it happened to be watching before.
+     */
+    scheduleTargetsTouchedTask?: boolean;
     /** Every UUID in the answer must appear in a tool result or delegation. */
     noInventedIds?: boolean;
     /** Must answer the Coworker (reply_to_task) or ask the owner one question. */
@@ -101,7 +107,16 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       "Create a task for a one-page research brief on the top 5 EU AI-agent marketplaces (pricing, positioning, funding), due end of next week, and assign it to whoever on the team handles research (leave it unassigned and tell me if nobody fits). Then check on it every weekday at 9:00 Europe/Berlin and nudge me if it is not moving.",
     expect: {
       routes: ["DELEGATE_TASK", "MIXED"],
-      tools: ["create_task", "create_schedule"],
+      tools: ["create_task"],
+      // The intent is a real follow-up rather than a promise of one. Pointing
+      // an existing daily schedule at the new Task does that as well as
+      // creating a second one does — better, in fact — so demanding
+      // `create_schedule` marked the bot down for the tidier answer.
+      anyTools: ["create_schedule", "update_schedule"],
+      // Either tool is fine, but the schedule has to point at the Task this
+      // turn made — reusing one that still watches something else is not a
+      // follow-up on the brief.
+      scheduleTargetsTouchedTask: true,
       forbiddenTools: ["hire_agent"],
       minDelegations: 1,
       noEmptyPromise: true,
@@ -539,28 +554,37 @@ export function evaluateScenario(
   checks.push({
     label: "No failed tool calls",
     pass: failedTools.length === 0,
+    // A bare tool name under a "no failed calls" label reads as the answer to
+    // the label rather than as the thing that broke. Say which verb applies.
     actual:
       failedTools.length === 0
         ? "clean"
-        : failedTools.map((c) => c.capability).join(", "),
+        : `${list(failedTools.map((c) => c.capability))} failed`,
   });
   checks.push({
     label: `Route ∈ ${expect.routes.join(" | ")}`,
     pass: turn.route !== null && expect.routes.includes(turn.route),
     actual: turn.route ?? "UNCLASSIFIED",
   });
+  // A failing "Calls X" used to print the whole tool list and leave the reader
+  // to notice X was absent from it. Lead with the verdict; the list is the
+  // evidence behind it, not the finding.
   for (const tool of expect.tools ?? []) {
     checks.push({
       label: `Calls ${tool}`,
       pass: tools.has(tool),
-      actual: list(tools),
+      actual: tools.has(tool) ? "called" : `never called — used ${list(tools)}`,
     });
   }
   if (expect.anyTools?.length) {
+    const used = expect.anyTools.filter((tool) => tools.has(tool));
     checks.push({
       label: `Calls one of ${expect.anyTools.join(", ")}`,
-      pass: expect.anyTools.some((tool) => tools.has(tool)),
-      actual: list(tools),
+      pass: used.length > 0,
+      actual:
+        used.length > 0
+          ? `called ${list(used)}`
+          : `none called — used ${list(tools)}`,
     });
   }
   if (expect.forbiddenTools?.length) {
@@ -571,13 +595,46 @@ export function evaluateScenario(
       actual: violated.length > 0 ? `called ${list(violated)}` : "clean",
     });
   }
-  if (expect.minDelegations !== undefined) {
-    // A READY task becomes an approval instead of a delegation; both count
-    // as work the turn set in motion.
-    const touched = new Set([
+  // A READY task becomes an approval instead of a delegation; both count as
+  // work the turn set in motion.
+  const touchedIds = new Set(
+    [
       ...turn.delegations.map((d) => d.taskId ?? d.jobId ?? d.id),
       ...turn.decisions.map((d) => d.resultingEntityId ?? d.id),
-    ]).size;
+    ].filter((id): id is string => Boolean(id)),
+  );
+  if (expect.scheduleTargetsTouchedTask) {
+    const scheduleResults = turn.toolCalls
+      .filter(
+        (call) =>
+          call.capability === "create_schedule" ||
+          call.capability === "update_schedule",
+      )
+      .map((call) => JSON.stringify(call.result ?? ""));
+    // Bounded rather than a substring test: an id that merely appears inside
+    // a longer one is a different task, and matching it would report the
+    // wrong schedule as correct.
+    const namesTouchedTask = (text: string, id: string) =>
+      new RegExp(
+        `(^|[^0-9a-z-])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^0-9a-z-]|$)`,
+        "i",
+      ).test(text);
+    const hit = scheduleResults.find((text) =>
+      Array.from(touchedIds).some((id) => namesTouchedTask(text, id)),
+    );
+    checks.push({
+      label: "Schedule names a task from this turn",
+      pass: Boolean(hit),
+      actual:
+        scheduleResults.length === 0
+          ? "no schedule touched"
+          : hit
+            ? "names it"
+            : "schedule points somewhere else",
+    });
+  }
+  if (expect.minDelegations !== undefined) {
+    const touched = touchedIds.size;
     checks.push({
       label: `≥ ${expect.minDelegations} tasks/jobs touched`,
       pass: touched >= expect.minDelegations,
@@ -658,7 +715,10 @@ export function evaluateScenario(
   }
   if (expect.noEmptyPromise) {
     const promised = EMPTY_PROMISE.test(answer);
-    const scheduled = tools.has("create_schedule");
+    // Updating an existing schedule keeps the promise as well as creating one
+    // does; counting only creation failed the bot for the tidier answer.
+    const scheduled =
+      tools.has("create_schedule") || tools.has("update_schedule");
     checks.push({
       label: "No follow-up promise without a schedule",
       pass: !promised || scheduled,
