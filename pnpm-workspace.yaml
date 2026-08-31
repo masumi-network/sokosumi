@@ -10,43 +10,13 @@ fetchRetryMaxtimeout: 120000
 networkConcurrency: 8
 
 overrides:
-  docx: "9.7.1"
-  lodash: 4.18.1
-  zod: 4.4.3
-  samlify: 2.13.1
-  # Force-patch vulnerable transitive copies (direct deps already safe):
-  # postcss <8.5.10 (XSS in CSS stringify) pulled by next.
-  postcss@<8.5.10: ">=8.5.10"
-  # @hono/node-server <1.19.13 (serveStatic middleware bypass) pinned at 1.19.11
-  # by @prisma/dev. Patch within the 1.x line (fix backported to 1.19.13) rather
-  # than forcing @prisma/dev onto a major bump.
-  "@hono/node-server@<1.19.13": ">=1.19.13 <2"
-  # ws GHSA-96hv-2xvq-fx4p (memory exhaustion DoS) — react-email > socket.io still
-  # resolves ws@8.20.x. Force all ws 8.x below 8.21.0 to the patched line.
-  "ws@>=8.0.0 <8.21.0": "8.21.0"
-  # js-yaml GHSA-52cp-r559-cp3m (quadratic CPU via merge-key chains) — @hey-api/openapi-ts dev chain.
-  "js-yaml@<4.3.0": "4.3.0"
-  # brace-expansion GHSA-3jxr-9vmj-r5cp (DoS via {} groups) — lighthouse > @sentry/node > minimatch.
-  "brace-expansion@>=2.0.0 <2.1.2": "2.1.2"
-  # @opentelemetry/core GHSA-8988-4f7v-96qf (unbounded baggage memory) — @sentry/* and
-  # lighthouse dev chain. Pin to the patched 2.8 line.
-  "@opentelemetry/core@<2.8.0": "2.8.0"
-  # esbuild GHSA-gv7w-rqvm-qjhr (RCE in Deno via NPM_CONFIG_REGISTRY) and
-  # GHSA-g7r4-m6w7-qqqr (Windows dev-server arbitrary file read) — transitive
-  # via vite@8.0.16 (esbuild@0.27.7) and tsup@8.5.1. Force all resolving copies
-  # below the patched line to 0.28.1.
+  # js-yaml GHSA-52cp-r559-cp3m (quadratic CPU via merge-key chains) and
+  # GHSA-5p4m-2wfm-xmqj (quadratic CPU in !!omap resolution, CVE-2026-59870).
+  # @hey-api/openapi-ts still resolves 4.2.0 without this pin.
+  "js-yaml@<4.3.1": "4.3.1"
+  # esbuild GHSA-gv7w-rqvm-qjhr and GHSA-g7r4-m6w7-qqqr — vite still resolves
+  # esbuild@0.27.7. Force copies below the patched line onto 0.28.1.
   "esbuild@<0.28.1": "0.28.1"
-  # undici GHSA-vxpw-j846-p89q (WebSocket DoS), GHSA-p88m-4jfj-68fv (Set-Cookie
-  # header injection), GHSA-35p6-xmwp-9g52 (keep-alive poisoning),
-  # GHSA-g8m3-5g58-fq7m (SameSite downgrade) — @vercel/blob@2.5.0 still resolves
-  # undici@6.26.0. Force patched 6.27 line (direct blob HTTP client path).
-  "undici@<6.27.0": "6.27.0"
-  # fast-uri GHSA-4c8g-83qw-93j6 / GHSA-v2hh-gcrm-f6hx (host confusion) — prisma
-  # dev > ajv > fast-uri@3.1.2. Dev-tooling transitive; force patched 3.1.4 line.
-  "fast-uri@<3.1.4": "3.1.4"
-  # sharp GHSA-f88m-g3jw-g9cj (libvips CVEs) — next optional dep still resolves
-  # sharp@0.34.5. Force patched 0.35 line (image optimization runtime path).
-  "sharp@<0.35.0": "0.35.3"
 
 allowBuilds:
   # pnpm 11+: workspace prepare scripts are blocked unless listed (strictDepBuilds).
