@@ -49,12 +49,6 @@ export interface X402KeySpendCaps {
    * debit path does.
    */
   creditsByUnit: ReadonlyMap<string, bigint>;
-  /**
-   * The key is `usageLimited` but holds NO `eip155:` row at all, so the node
-   * grandfathers it to uncapped x402 spend and warns per payment. Distinct
-   * from "capped at zero": this key can pay, a zero-credit one cannot.
-   */
-  grandfatheredUncapped: boolean;
 }
 
 /** One managed EVM wallet visible to the calling key (`GET /x402/wallets`). */
@@ -112,11 +106,10 @@ const x402AvailableNetworkSchema: z.ZodType<X402AvailableNetwork> = z.object({
  * One `RemainingUsageCredits` row from `GET /api-key-status`.
  *
  * Shape only. The node really can hold an `amount` that is not a base-unit
- * integer, and such a row is judged per unit below (it ends grandfathering
- * but adds nothing to its unit's sum) rather than failing the whole read, so
- * the digit check deliberately stays out of this schema. Validating the shape
- * here is what keeps an absent or version-skewed array from reading as "this
- * key holds no credits".
+ * integer, and such a row adds nothing to its unit's sum below rather than
+ * failing the whole read, so the digit check deliberately stays out of this
+ * schema. Validating the shape here is what keeps an absent or version-skewed
+ * array from reading as "this key holds no credits".
  */
 const apiKeyUsageCreditSchema = z.object({
   unit: z.string(),
@@ -502,9 +495,9 @@ export function createX402PaymentMethods(
         // Zod, like every other node read here, and for the same reason the
         // flag above is guarded: `RemainingUsageCredits` is required, so an
         // absent or malformed array is version skew, never "this key holds no
-        // credits". Reading it as an empty list would set
-        // `grandfatheredUncapped` on a usageLimited key and mark every pair
-        // ready that the node would then refuse with a 402.
+        // credits". Erroring keeps the two apart. Reading skew as an empty list
+        // would delist every x402 pair on a usageLimited key and report it as a
+        // funding problem the operator does not have.
         const creditRows = z
           .array(apiKeyUsageCreditSchema)
           .max(MAX_USAGE_CREDIT_ROWS)
@@ -515,17 +508,11 @@ export function createX402PaymentMethods(
           );
         }
         const creditsByUnit = new Map<string, bigint>();
-        let sawEvmRow = false;
         for (const row of creditRows.data) {
           const unit = row.unit.toLowerCase();
           if (!unit.startsWith("eip155:")) {
             continue;
           }
-          // Any eip155 row at all ends grandfathering on the node, including
-          // one this loop then drops as unparsable: the node COUNTS those
-          // rows, it does not parse them. Reading that as still-grandfathered
-          // would call a hard-capped key uncapped.
-          sawEvmRow = true;
           // Length first: an over-long amount is dropped exactly like an
           // unparsable one, so its unit reads as zero and the pair delists.
           // Checking before BigInt is the point, since that is the
@@ -541,11 +528,7 @@ export function createX402PaymentMethods(
             (creditsByUnit.get(unit) ?? 0n) + BigInt(row.amount),
           );
         }
-        return ok({
-          usageLimited: status.usageLimited,
-          creditsByUnit,
-          grandfatheredUncapped: status.usageLimited && !sawEvmRow,
-        });
+        return ok({ usageLimited: status.usageLimited, creditsByUnit });
       } catch (error) {
         return err(String(error) || "Failed to get x402 key spend caps");
       }
