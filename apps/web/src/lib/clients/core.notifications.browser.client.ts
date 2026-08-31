@@ -15,6 +15,7 @@ import type {
   PatchNotificationsReadAllResponse,
   PatchNotificationsReadAllResponses,
 } from "@/lib/clients/generated/core/types.gen";
+import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 import { attachCoreRequestIdInterceptor } from "@/lib/clients/utils/core-request-id";
 import { executeCoreOperation } from "./core.request";
@@ -26,6 +27,7 @@ function getNotificationsGeneratedClient() {
     createClient({
       baseUrl: getBrowserCoreApiBaseUrl(),
       credentials: "include",
+      headers: buildCalendarClientVersionHeaders(),
     }),
   );
 

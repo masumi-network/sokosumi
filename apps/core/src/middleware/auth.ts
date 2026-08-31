@@ -9,7 +9,6 @@ import { auth } from "@/lib/auth";
 import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import { attachAuthToLogger } from "@/lib/evlog";
-import { isOrchestratorServiceToken } from "@/lib/orchestrator-service-token";
 
 const DEFAULT_USER_ROLE = "user";
 
@@ -24,8 +23,7 @@ export interface UserAuthenticationContext {
 }
 
 /**
- * Optional user/org workspace scope for coworker keys / orchestrator service
- * token via `X-Context-*` headers. Shared by both actors — not coworker-specific.
+ * Optional user/org workspace scope for coworker keys via `X-Context-*` headers.
  */
 export interface WorkspaceActorRequestContext {
   userId: string;
@@ -39,20 +37,9 @@ export interface CoworkerAuthenticationContext {
   context?: WorkspaceActorRequestContext;
 }
 
-export interface OrchestratorAuthenticationContext {
-  actor: "orchestrator";
-  /**
-   * Per-user orchestrator row id when user scope is known (context headers
-   * or resolved from body). Absent after bare service-token auth.
-   */
-  orchestratorId?: string;
-  context?: WorkspaceActorRequestContext;
-}
-
 export type AuthenticationContext =
   | UserAuthenticationContext
-  | CoworkerAuthenticationContext
-  | OrchestratorAuthenticationContext;
+  | CoworkerAuthenticationContext;
 
 export type AuthVariables = {
   isAuthenticated: boolean;
@@ -76,25 +63,6 @@ function syncSentryUser(context: AuthVariables) {
       id: context.authContext.userId,
       organizationId: context.authContext.organizationId || undefined,
     });
-    return;
-  }
-
-  if (context.authContext.actor === "orchestrator") {
-    const orchestrator = context.authContext;
-    scope.setUser({
-      id: orchestrator.orchestratorId
-        ? `orchestrator:${orchestrator.orchestratorId}`
-        : "orchestrator:service",
-      ...(orchestrator.orchestratorId
-        ? { orchestratorId: orchestrator.orchestratorId }
-        : {}),
-    });
-    if (orchestrator.context) {
-      scope.setContext("orchestratorContext", {
-        userId: orchestrator.context.userId,
-        organizationId: orchestrator.context.organizationId,
-      });
-    }
     return;
   }
 
@@ -124,16 +92,6 @@ function syncRequestLogger(context: AuthVariables) {
       actor: "user",
       userId: authContext.userId,
       organizationId: authContext.organizationId,
-    });
-    return;
-  }
-
-  if (isOrchestratorAuthContext(authContext)) {
-    attachAuthToLogger({
-      actor: "orchestrator",
-      orchestratorId: authContext.orchestratorId,
-      contextUserId: authContext.context?.userId,
-      contextOrganizationId: authContext.context?.organizationId,
     });
     return;
   }
@@ -171,12 +129,6 @@ export function isCoworkerAuthContext(
   return authContext.actor === "coworker";
 }
 
-export function isOrchestratorAuthContext(
-  authContext: AuthenticationContext,
-): authContext is OrchestratorAuthenticationContext {
-  return authContext.actor === "orchestrator";
-}
-
 /**
  * True only for a coworker acting as itself — the agent, with no context headers.
  * A coworker that supplies workspace context acts in that user's workspace, so this
@@ -197,17 +149,17 @@ export function isCoworkerAgentContext(
 
 /**
  * Effective user context for a handler: either a Better Auth session (`source: "session"`)
- * or a coworker key / orchestrator service token with context headers
+ * or a coworker key with context headers
  * (`source: "context"`).
  *
  * ## Handler actor menu (pick one helper — do not branch on `actor` in routes)
  *
  * | Helper | Who | When |
  * | --- | --- | --- |
- * | {@link requireUserContext} | Session, orchestrator+context, **or coworker+context (unbound)** | Task/job grant-gated flows only (e.g. first-contact delegated create → `GRANT_PENDING`). Does **not** check vendor grants. |
- * | `requireAuthorizedUserContext` (`@/helpers/coworker-user-context-binding`) | Session, orchestrator+context, or coworker+context **after** grant/baseline binding | Default for **user-scoped** reads/writes (profile, credits, projects, org metadata, …). DENIED/REVOKED grants win over assignment. |
- * | {@link requireOwnerUserContext} | Session or orchestrator+context only | Human/owner surfaces: notifications, history, billing, member lists, … **No coworker.** |
- * | {@link requireUserAuthContext} | Interactive session only | Must be the real session user (admin role check, consent, …). Rejects coworker **and** orchestrator. |
+ * | {@link requireUserContext} | Session or **coworker+context (unbound)** | Task/job grant-gated flows only (e.g. first-contact delegated create → `GRANT_PENDING`). Does **not** check vendor grants. |
+ * | `requireAuthorizedUserContext` (`@/helpers/coworker-user-context-binding`) | Session or coworker+context **after** grant/baseline binding | Default for **user-scoped** reads/writes (profile, credits, projects, org metadata, …). DENIED/REVOKED grants win over assignment. |
+ * | {@link requireOwnerUserContext} | Session only | Human/owner surfaces: notifications, history, billing, member lists, … **No coworker.** |
+ * | {@link requireUserAuthContext} | Interactive session only | Must be the real session user (admin role check, consent, …). Rejects coworker. |
  *
  * Middleware (`coworkerContextMiddleware`) only **attaches** validated
  * `X-Context-*` headers. Policy lives in these helpers — not per-handler
@@ -223,7 +175,7 @@ export type UserContext =
 
 /**
  * Resolves the effective user context for this request (session user or
- * coworker/orchestrator with workspace context). Contextual actors must send
+ * coworker with workspace context). Contextual actors must send
  * `X-Context-User-Id` (and optional org header validated in middleware).
  *
  * **No vendor-grant check.** Prefer `requireAuthorizedUserContext` (see
@@ -240,10 +192,7 @@ export function requireUserContext(
     return { source: "session", ...authContext };
   }
 
-  if (
-    isCoworkerAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isCoworkerAuthContext(authContext)) {
     const context = authContext.context;
     if (!context) {
       throw forbidden(
@@ -262,12 +211,12 @@ export function requireUserContext(
 }
 
 /**
- * Requires an interactive user session (Better Auth). Rejects coworker and
- * orchestrator keys, including contextual ones — use for PII, session-bound
+ * Requires an interactive user session (Better Auth). Rejects coworker keys,
+ * including contextual ones — use for PII, session-bound
  * operations, and any handler that must read the real session user (e.g.
  * before an admin-role check).
  *
- * For the effective user (session or contextual coworker/orchestrator), use
+ * For the effective user (session or contextual coworker), use
  * {@link requireUserContext}, `requireAuthorizedUserContext`, or
  * {@link requireOwnerUserContext} per the handler actor menu on {@link UserContext}.
  */
@@ -284,8 +233,7 @@ export function requireUserAuthContext(
 /**
  * Rejects coworker actors (bare or contextual). Use on owner-only mutations
  * where {@link requireUserContext} would otherwise treat `X-Context-User-Id` as
- * the resource owner (task owner, org owner/admin, etc.). Orchestrator with
- * workspace context remains allowed.
+ * the resource owner (task owner, org owner/admin, etc.).
  */
 export function forbidCoworkerActor(
   authContext: AuthenticationContext,
@@ -297,8 +245,8 @@ export function forbidCoworkerActor(
 }
 
 /**
- * Owner-mutation / human-only user context: session user, or orchestrator with
- * workspace context. Rejects coworker actors (bare or contextual) so
+ * Owner-mutation / human-only user context: session user. Rejects coworker
+ * actors (bare or contextual) so
  * `X-Context-User-Id` cannot impersonate the resource owner.
  *
  * Use for notifications, history, billing, org member lists, and similar
@@ -317,16 +265,6 @@ export function requireCoworkerAuthContext(
 ): CoworkerAuthenticationContext {
   if (!isCoworkerAuthContext(authContext)) {
     throw forbidden("Coworker authentication required");
-  }
-
-  return authContext;
-}
-
-export function requireOrchestratorAuthContext(
-  authContext: AuthenticationContext,
-): OrchestratorAuthenticationContext {
-  if (!isOrchestratorAuthContext(authContext)) {
-    throw forbidden("Orchestrator authentication required");
   }
 
   return authContext;
@@ -351,18 +289,14 @@ export function requireAdminAuthContext(
   return userAuthContext;
 }
 
-/**
- * Requires a browser-backed interactive admin session for money-moving actions.
- * Generic user API keys and OAuth access tokens deliberately remain valid for
- * ordinary admin reads, but cannot mint refunds or resolve held charges.
- */
+/** Requires a browser-backed interactive admin session for sensitive actions. */
 export function requireInteractiveAdminAuthContext(
   authContext: AuthenticationContext,
 ): UserAuthenticationContext {
   const userAuthContext = requireAdminAuthContext(authContext);
 
   if (userAuthContext.authenticationMethod !== "session") {
-    throw forbidden("Interactive admin session required for this money action");
+    throw forbidden("Interactive admin session required for this action");
   }
 
   return userAuthContext;
@@ -458,27 +392,6 @@ async function verifyCoworkerApiKey(
       actor: "coworker",
       coworkerId: coworkerApiKey.coworkerId,
       vendorId: coworkerApiKey.coworker.vendorId,
-    },
-  });
-  return true;
-}
-
-/**
- * Verifies the global orchestrator service token (env) and sets actor context.
- * Per-user `orchestratorId` is bound later from user scope (context/body).
- */
-function verifyOrchestratorServiceToken(
-  token: string,
-  c: Context<AuthEnv>,
-): boolean {
-  if (!isOrchestratorServiceToken(token)) {
-    return false;
-  }
-
-  setAuthContext(c, {
-    isAuthenticated: true,
-    authContext: {
-      actor: "orchestrator",
     },
   });
   return true;
@@ -605,18 +518,13 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
       throw unauthorized("Invalid or expired coworker token");
     }
 
-    // Check 2: Global orchestrator service token (Hermes → Core)
-    if (verifyOrchestratorServiceToken(token, c)) {
-      return true;
-    }
-
-    // Check 3: Better Auth API key
+    // Check 2: Better Auth API key
     const apiKeyValid = await verifyApiKey(token, c);
     if (apiKeyValid) {
       return true;
     }
 
-    // Check 4: OAuth Access Token
+    // Check 3: OAuth Access Token
     const oauthTokenValid = await verifyOAuthToken(token, c);
     if (oauthTokenValid) {
       return true;

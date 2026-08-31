@@ -6,7 +6,6 @@ const {
   syncCardanoV2RailReadinessMock,
   syncEnterpriseContractRenewalMock,
   syncFreeSubscriptionRenewalMock,
-  syncHermesInboxMock,
   releaseLockMock,
   syncAgentSummariesMock,
   syncJobsMock,
@@ -16,12 +15,14 @@ const {
   syncX402BuySideReadinessMock,
   expireStaleGuestInvitationsMock,
   purgeExpiredTaskX402PaymentHeadersMock,
+  syncDueTaskSchedulesMock,
+  reconcileScheduleHistoryMock,
+  validateActiveSchedulesMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
   syncEnterpriseContractRenewalMock: vi.fn(),
   syncFreeSubscriptionRenewalMock: vi.fn(),
-  syncHermesInboxMock: vi.fn(),
   releaseLockMock: vi.fn(),
   syncAgentSummariesMock: vi.fn(),
   syncJobsMock: vi.fn(),
@@ -31,6 +32,9 @@ const {
   syncX402BuySideReadinessMock: vi.fn(),
   expireStaleGuestInvitationsMock: vi.fn(),
   purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
+  syncDueTaskSchedulesMock: vi.fn(),
+  reconcileScheduleHistoryMock: vi.fn(),
+  validateActiveSchedulesMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -80,12 +84,6 @@ vi.mock("@/services/free-subscription-sync.service", () => ({
   },
 }));
 
-vi.mock("@/services/hermes-inbox-sync.service", () => ({
-  hermesInboxSyncService: {
-    pollInboxes: syncHermesInboxMock,
-  },
-}));
-
 vi.mock("@/services/job-sync.service", () => ({
   jobSyncService: {
     syncUnfinishedJobs: syncJobsMock,
@@ -107,6 +105,24 @@ vi.mock("@/services/chat-room-guest-invitation-sync.service", () => ({
 vi.mock("@/services/task-x402-payment.purge", () => ({
   taskX402PaymentPurgeService: {
     purgeExpiredTaskX402PaymentHeaders: purgeExpiredTaskX402PaymentHeadersMock,
+  },
+}));
+
+vi.mock("@/services/task-schedules-sync", () => ({
+  taskSchedulesSyncService: {
+    syncDueSchedules: syncDueTaskSchedulesMock,
+  },
+}));
+
+vi.mock("@/services/task-schedule-reconciliation.service", () => ({
+  taskScheduleReconciliationService: {
+    reconcileScheduleHistory: reconcileScheduleHistoryMock,
+  },
+}));
+
+vi.mock("@/services/task-schedule-validation.service", () => ({
+  taskScheduleValidationService: {
+    validateActiveSchedules: validateActiveSchedulesMock,
   },
 }));
 
@@ -168,21 +184,26 @@ describe("sync routes", () => {
       expiredPeriods: 0,
       preCreated: 0,
     });
-    syncHermesInboxMock.mockResolvedValue({
-      status: "ok",
-      polled: 0,
-      totalMessages: 0,
-      breakdown: {
-        messages: 0,
-        no_messages: 0,
-        skipped_not_implemented: 0,
-        skipped_not_pollable: 0,
-        skipped_instance_missing: 0,
-        error: 0,
-      },
-    });
     syncStripeCustomersMock.mockResolvedValue(undefined);
     expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 0 });
+    syncDueTaskSchedulesMock.mockResolvedValue({
+      promoted: 0,
+      cloned: 0,
+      durationMs: 0,
+    });
+    reconcileScheduleHistoryMock.mockResolvedValue({
+      scanned: 0,
+      created: 0,
+      finalMissing: 0,
+      initialComplete: true,
+      replayComplete: true,
+      finalComplete: true,
+    });
+    validateActiveSchedulesMock.mockResolvedValue({
+      scanned: 0,
+      quarantined: 0,
+      passComplete: true,
+    });
   });
 
   it("returns 401 for missing cron auth", async () => {
@@ -247,35 +268,6 @@ describe("sync routes", () => {
     expect(syncJobsMock).not.toHaveBeenCalled();
   });
 
-  it("returns 401 for missing cron auth on Hermes inbox sync", async () => {
-    const app = await createApp();
-
-    const response = await app.request(
-      "http://localhost/sync/hermes/poll-inboxes",
-    );
-
-    expect(response.status).toBe(401);
-    expect(acquireLockMock).not.toHaveBeenCalled();
-    expect(syncHermesInboxMock).not.toHaveBeenCalled();
-  });
-
-  it("returns 401 for invalid cron auth on Hermes inbox sync", async () => {
-    const app = await createApp();
-
-    const response = await app.request(
-      "http://localhost/sync/hermes/poll-inboxes",
-      {
-        headers: {
-          Authorization: "Bearer invalid",
-        },
-      },
-    );
-
-    expect(response.status).toBe(401);
-    expect(acquireLockMock).not.toHaveBeenCalled();
-    expect(syncHermesInboxMock).not.toHaveBeenCalled();
-  });
-
   it("returns 409 when jobs sync lock is already held", async () => {
     acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
     const app = await createApp();
@@ -290,21 +282,38 @@ describe("sync routes", () => {
     expect(syncJobsMock).not.toHaveBeenCalled();
   });
 
-  it("returns 409 when Hermes inbox sync lock is already held", async () => {
-    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+  it("runs due schedules, validation, and reconciliation within one deadline", async () => {
     const app = await createApp();
 
-    const response = await app.request(
-      "http://localhost/sync/hermes/poll-inboxes",
-      {
-        headers: {
-          Authorization: "Bearer test-cron-secret",
-        },
+    const response = await app.request("http://localhost/sync/task-schedules", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
       },
-    );
+    });
 
-    expect(response.status).toBe(409);
-    expect(syncHermesInboxMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncDueTaskSchedulesMock).toHaveBeenCalledTimes(1);
+    expect(syncDueTaskSchedulesMock).toHaveBeenCalledWith({
+      abortSignal: expect.any(AbortSignal),
+      deadlineMs: expect.any(Number),
+      shouldContinue: expect.any(Function),
+    });
+    expect(validateActiveSchedulesMock).toHaveBeenCalledTimes(1);
+    expect(validateActiveSchedulesMock).toHaveBeenCalledWith({
+      shouldContinue: expect.any(Function),
+    });
+    expect(reconcileScheduleHistoryMock).toHaveBeenCalledTimes(1);
+    expect(reconcileScheduleHistoryMock).toHaveBeenCalledWith({
+      shouldContinue: expect.any(Function),
+    });
+    expect(syncDueTaskSchedulesMock.mock.invocationCallOrder[0]).toBeLessThan(
+      validateActiveSchedulesMock.mock.invocationCallOrder[0],
+    );
+    expect(
+      validateActiveSchedulesMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(reconcileScheduleHistoryMock.mock.invocationCallOrder[0]);
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
   it("returns 200 and starts registry sync exactly once in background", async () => {
@@ -519,32 +528,6 @@ describe("sync routes", () => {
       expect.objectContaining({
         deadlineMs: expect.any(Number),
         msRemaining: expect.any(Function),
-        shouldContinue: expect.any(Function),
-      }),
-    );
-  });
-
-  it("returns 200 and starts Hermes inbox sync exactly once in background", async () => {
-    const app = await createApp();
-
-    const response = await app.request(
-      "http://localhost/sync/hermes/poll-inboxes",
-      {
-        headers: {
-          Authorization: "Bearer test-cron-secret",
-        },
-      },
-    );
-
-    expect(response.status).toBe(200);
-    expect(acquireLockMock).toHaveBeenCalledWith("hermes-poll-inboxes-sync");
-
-    await flushMicrotasks();
-    expect(syncHermesInboxMock).toHaveBeenCalledTimes(1);
-    expect(syncHermesInboxMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        abortSignal: expect.any(Object),
-        deadlineMs: expect.any(Number),
         shouldContinue: expect.any(Function),
       }),
     );

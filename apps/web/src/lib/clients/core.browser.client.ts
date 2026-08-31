@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/clients/generated/core/client";
+import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 import { attachCoreRequestIdInterceptor } from "@/lib/clients/utils/core-request-id";
 import { createCoreClient } from "./core.shared";
@@ -22,6 +23,7 @@ function getBrowserGeneratedClient() {
     createClient({
       baseUrl: getBrowserCoreApiBaseUrl(),
       credentials: "include",
+      headers: buildCalendarClientVersionHeaders(),
     }),
   );
 

@@ -66,6 +66,7 @@ import {
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
+import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
@@ -349,6 +350,7 @@ export function TasksView({
   labels,
 }: TasksViewProps) {
   const router = useRouter();
+  const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const searchParams = useSearchParams();
   const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(
     [],
@@ -811,32 +813,41 @@ export function TasksView({
       return;
     }
 
+    const rollbackMove = () => {
+      const pendingVersion =
+        pendingMoveVersionByTaskIdRef.current.get(activeId);
+      if (pendingVersion !== moveVersion) return;
+
+      pendingMoveVersionByTaskIdRef.current.delete(activeId);
+      setItems((prev) =>
+        prev.map((task) =>
+          task.id === activeId &&
+          task.columnId === toColumn &&
+          task.status === desiredStatus
+            ? { ...task, status: previousStatus, columnId: fromColumn }
+            : task,
+        ),
+      );
+    };
+
     startTransition(async () => {
       try {
-        await setTaskStatusFromDrag({
+        const result = await setTaskStatusFromDrag({
           taskId: activeId,
           desiredStatus,
         });
+        if (!result.ok) {
+          rollbackMove();
+          showCalendarClientUpgradeModal();
+          return;
+        }
         if (
           pendingMoveVersionByTaskIdRef.current.get(activeId) === moveVersion
         ) {
           pendingMoveVersionByTaskIdRef.current.delete(activeId);
         }
       } catch {
-        const pendingVersion =
-          pendingMoveVersionByTaskIdRef.current.get(activeId);
-        if (pendingVersion !== moveVersion) return;
-
-        pendingMoveVersionByTaskIdRef.current.delete(activeId);
-        setItems((prev) =>
-          prev.map((task) =>
-            task.id === activeId &&
-            task.columnId === toColumn &&
-            task.status === desiredStatus
-              ? { ...task, status: previousStatus, columnId: fromColumn }
-              : task,
-          ),
-        );
+        rollbackMove();
         toast.error(labels.dragError);
       }
     });
@@ -886,11 +897,18 @@ export function TasksView({
     const pending = pendingBoardReopen;
     startReopenTransition(async () => {
       try {
-        await setTaskStatusFromDrag({
+        const result = await setTaskStatusFromDrag({
           taskId: pending.taskId,
           desiredStatus: pending.desiredStatus,
           comment: trimmedComment,
         });
+        if (!result.ok) {
+          rollbackBoardReopen(pending);
+          setPendingBoardReopen(null);
+          setReopenComment("");
+          showCalendarClientUpgradeModal();
+          return;
+        }
         if (
           pendingMoveVersionByTaskIdRef.current.get(pending.taskId) ===
           pending.moveVersion

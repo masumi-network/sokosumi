@@ -54,7 +54,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    // Session-only owner/admin action: a coworker/orchestrator key must not be
+    // Session-only owner/admin action: a coworker key must not be
     // able to mint org invite links on behalf of an impersonated user.
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");

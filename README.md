@@ -8,7 +8,8 @@ Sokosumi is a marketplace platform. This monorepo is the web app, the Core API, 
 sokosumi/
 ├── apps/
 │   ├── web/         # Next.js 16 web app (TypeScript, Tailwind, Shadcn UI)
-│   └── core/        # Hono API — owns all Postgres/Prisma access
+│   ├── core/        # Hono API — owns all Postgres/Prisma access
+│   └── cli/         # Developer CLI — VISION.md only until specced
 ├── packages/
 │   ├── database/    # @sokosumi/database — Prisma client, helpers, repositories
 │   ├── masumi/      # @sokosumi/masumi — protocol clients, hash, schemas
@@ -16,8 +17,10 @@ sokosumi/
 │   ├── net/         # @sokosumi/net — SSRF-safe fetch
 │   ├── email/       # @sokosumi/email — renderers and locales
 │   ├── chat/        # @sokosumi/chat — chat types
-│   └── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
+│   ├── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
+│   └── soko-bot/    # @sokosumi/soko-bot — Soko Bot contracts (runtime is in Core)
 ├── docs/            # Agent, domain, coworker, and design docs
+├── scripts/         # local-env, cloud-agent-db, CI helpers
 ├── skills/          # First-party agent skill sources
 ├── biome.jsonc      # Root Biome configuration
 ├── package.json     # Monorepo root config

@@ -21,8 +21,8 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
-vi.mock("@/lib/hermes/beta-access", () => ({
-  isHermesBetaAccessEmail: () => false,
+vi.mock("@/lib/beta-access", () => ({
+  isBetaAccessEmail: () => false,
 }));
 
 vi.mock("@/app/components/private-sidebar-cache", () => ({

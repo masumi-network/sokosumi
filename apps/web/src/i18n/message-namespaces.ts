@@ -1,6 +1,6 @@
 import en from "../../messages/en.json";
 
-const APP_FEATURE_EXCLUSIONS = new Set(["Hermes", "Admin"]);
+const APP_FEATURE_EXCLUSIONS = new Set(["SokoBot", "Admin"]);
 
 function appMessagePathsExcluding(exclusions: ReadonlySet<string>): string[] {
   const app = (en as { App?: Record<string, unknown> }).App ?? {};
@@ -33,13 +33,13 @@ export const AUTH_MESSAGE_PATHS = [
 ] as const;
 
 /**
- * App shell chrome for nested Hermes/Admin providers.
+ * App shell chrome for nested Soko Bot/Admin providers.
  * Widened beyond the minimal sketch where sidebar/header overlays need keys.
  */
 export const APP_SHELL_MESSAGE_PATHS = [
   "Components",
   "Library",
-  // Account Legal drill reopens the banner; nested app/Hermes/Admin
+  // Account Legal drill reopens the banner; nested app/Soko Bot/Admin
   // boundaries replace the global bag, so CookieConsent must travel with them.
   "CookieConsent",
   // Header switcher create dialog reuses WorkspaceGate.Identity cards.
@@ -69,7 +69,7 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "App.Tasks.Detail",
 ] as const;
 
-/** Default authenticated app bag — all App.* except Hermes/Admin. */
+/** Default authenticated app bag — all App.* except SokoBot/Admin. */
 export const APP_MESSAGE_PATHS = [
   "Components",
   "Library",
@@ -79,9 +79,9 @@ export const APP_MESSAGE_PATHS = [
   ...appMessagePathsExcluding(APP_FEATURE_EXCLUSIONS),
 ] as const;
 
-export const HERMES_MESSAGE_PATHS = [
+export const SOKO_BOT_MESSAGE_PATHS = [
   ...APP_SHELL_MESSAGE_PATHS,
-  "App.Hermes",
+  "App.SokoBot",
 ] as const;
 
 export const ADMIN_MESSAGE_PATHS = [

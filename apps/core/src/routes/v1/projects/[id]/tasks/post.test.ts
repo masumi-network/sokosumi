@@ -7,13 +7,37 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
-const { projectFindFirstMock, taskFindFirstMock, taskUpdateMock } = vi.hoisted(
-  () => ({
-    projectFindFirstMock: vi.fn(),
-    taskFindFirstMock: vi.fn(),
-    taskUpdateMock: vi.fn(),
-  }),
-);
+const {
+  projectFindFirstMock,
+  lockCalendarScopeMock,
+  lockTaskRowsMock,
+  prismaTransactionMock,
+  refreshTaskSchedulePlannedOccurrencesMock,
+  taskFindFirstMock,
+  taskFindUniqueMock,
+  taskUpdateManyMock,
+  taskUpdateMock,
+} = vi.hoisted(() => ({
+  projectFindFirstMock: vi.fn(),
+  lockCalendarScopeMock: vi.fn(),
+  lockTaskRowsMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
+  taskFindUniqueMock: vi.fn(),
+  taskUpdateManyMock: vi.fn(),
+  taskUpdateMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  refreshTaskSchedulePlannedOccurrences:
+    refreshTaskSchedulePlannedOccurrencesMock,
+}));
+
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: lockCalendarScopeMock,
+  lockTaskRows: lockTaskRowsMock,
+}));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -46,9 +70,12 @@ vi.mock("@/middleware/workspace", async (importOriginal) => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: prismaTransactionMock,
     project: { findFirst: projectFindFirstMock },
     task: {
       findFirst: taskFindFirstMock,
+      findUnique: taskFindUniqueMock,
+      updateMany: taskUpdateManyMock,
       update: taskUpdateMock,
     },
   },
@@ -124,13 +151,35 @@ describe("POST /projects/{id}/tasks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     projectFindFirstMock.mockResolvedValue(sampleProject);
-    taskUpdateMock.mockResolvedValue({});
+    lockCalendarScopeMock.mockResolvedValue(true);
+    lockTaskRowsMock.mockResolvedValue(true);
+    prismaTransactionMock.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findUnique: taskFindUniqueMock,
+          updateMany: taskUpdateManyMock,
+        },
+      }),
+    );
+    taskFindUniqueMock.mockResolvedValue({
+      id: TASK_ID,
+      projectId: PROJECT_ID,
+      status: TaskStatus.DRAFT,
+      metadata: null,
+      nextRunAt: null,
+      workspaceId: WORKSPACE_ID,
+    });
+    taskUpdateManyMock.mockResolvedValue({ count: 1 });
   });
 
   it("links a workspace task to the project without requiring ownership", async () => {
     taskFindFirstMock.mockResolvedValue({
       projectId: null,
       pendingVendorGrantId: null,
+      status: TaskStatus.DRAFT,
+      metadata: null,
+      nextRunAt: null,
+      workspaceId: WORKSPACE_ID,
     });
 
     const response = await createApp().request(
@@ -143,13 +192,29 @@ describe("POST /projects/{id}/tasks", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(taskUpdateMock).toHaveBeenCalledWith({
-      where: { id: TASK_ID },
+    expect(taskUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: TASK_ID,
+        archivedAt: null,
+        workspaceId: WORKSPACE_ID,
+        projectId: null,
+      },
       data: {
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
       },
     });
+    expect(refreshTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        id: TASK_ID,
+        projectId: PROJECT_ID,
+        status: TaskStatus.DRAFT,
+        metadata: null,
+        nextRunAt: null,
+        workspaceId: WORKSPACE_ID,
+      }),
+    );
   });
 
   it("returns 403 when the task is parked", async () => {

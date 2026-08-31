@@ -89,7 +89,7 @@ export async function assertCoworkerUserContextBinding(
 /**
  * Effective user for user-scoped (non-task) operations.
  *
- * - Session users and orchestrator-with-context: pass through.
+ * - Session users: pass through.
  * - Coworkers: {@link assertCoworkerUserContextBinding} (DENIED/REVOKED →
  *   GRANTED → baseline → reject).
  *

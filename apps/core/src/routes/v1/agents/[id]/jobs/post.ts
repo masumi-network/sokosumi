@@ -5,7 +5,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -19,12 +19,12 @@ const params = z.object({
   }),
 });
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "post",
     path: "/{id}/jobs",
     description:
-      "Create a new job for an agent. Session user or orchestrator with context headers; coworker keys are rejected (assigned coworkers use POST /tasks/{id}/jobs).",
+      "Create a new job for an agent. Session users only; assigned coworkers use POST /tasks/{id}/jobs.",
     tags: ["Agents"],
     request: {
       params,

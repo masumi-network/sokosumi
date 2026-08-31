@@ -1,46 +1,33 @@
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+
 import { OrganizationProductSeatRequired } from "@/components/billing/organization-product-seat-required";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
-import { HERMES_MESSAGE_PATHS } from "@/i18n/message-namespaces";
+import { SOKO_BOT_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationProductLocked } from "@/lib/auth/is-organization-product-locked";
-import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-
-import FullscreenEffect from "./components/fullscreen-effect";
+import { hasSokoBotBetaAccess } from "@/lib/beta-access";
 
 export const instant = false;
 
-interface HermesLayoutProps {
+interface SokoBotLayoutProps {
   children: ReactNode;
 }
 
-export default async function HermesLayout({ children }: HermesLayoutProps) {
-  // Hermes beta gate: outside the whitelisted email domains the whole route
-  // does not exist — same 404 a made-up path would get, so nothing leaks.
+export default async function SokoBotLayout({ children }: SokoBotLayoutProps) {
+  // Beta gate, inherited from Hermes: outside the whitelisted email domains
+  // the whole route does not exist — the same 404 a made-up path would get, so
+  // nothing about the feature leaks before it is opened up.
   const session = await getSession();
-  if (!isHermesBetaAccessEmail(session?.user.email)) {
+  if (!hasSokoBotBetaAccess(session?.user ?? null)) {
     notFound();
   }
   if (await isOrganizationProductLocked()) {
     return <OrganizationProductSeatRequired />;
   }
 
-  // We DON'T use `data-agent-fullbleed` here even though it nicely zeros
-  // main's p-4 padding. That helper also sets `overflow: visible` on
-  // main + every ancestor up to the app shell, which delegates scrolling
-  // to the document body. Setup screens (OnboardingProgress / Provisioning)
-  // are slightly taller than viewport on some sizes and end up with a
-  // useless body-level scroll into empty space.
-  //
-  // Padding-zero is handled by our own CSS rule keyed off the body's
-  // `data-hermes-fullscreen` attribute (see globals.css). That rule keeps
-  // main's `overflow-y-auto` so any scroll is contained inside main —
-  // long pages (EmptyState) scroll normally; short pages (setup loaders)
-  // don't get a phantom body scroll.
   return (
-    <ClientMessageBoundary paths={HERMES_MESSAGE_PATHS}>
-      <FullscreenEffect />
+    <ClientMessageBoundary paths={SOKO_BOT_MESSAGE_PATHS}>
       {children}
     </ClientMessageBoundary>
   );

@@ -24,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/{id}/ratings/eligibility",
     description:
-      "Check whether the authenticated caller is eligible to rate an agent (has finished at least one job with it). Session user or orchestrator/coworker with context headers.",
+      "Check whether the authenticated caller is eligible to rate an agent (has finished at least one job with it). Session user or coworker with authorized context headers.",
     tags: ["Agents"],
     request: {
       params,

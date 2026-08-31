@@ -24,6 +24,9 @@ const {
   requireTaskAssignableCoworkerMock,
   requireTaskOwnershipMock,
   mapTaskMock,
+  lockCalendarScopeMock,
+  lockTaskRowsMock,
+  refreshTaskSchedulePlannedOccurrencesMock,
   validateTaskAssigneeAssignmentMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
@@ -144,6 +147,9 @@ const {
         null,
     };
   }),
+  lockCalendarScopeMock: vi.fn(),
+  lockTaskRowsMock: vi.fn(),
+  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   validateTaskAssigneeAssignmentMock: vi.fn(),
 }));
 
@@ -157,6 +163,16 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskOwnership: requireTaskOwnershipMock,
   requireMutableTaskOwnership: requireTaskOwnershipMock,
+}));
+
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: lockCalendarScopeMock,
+  lockTaskRows: lockTaskRowsMock,
+}));
+
+vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
+  refreshTaskSchedulePlannedOccurrences:
+    refreshTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/helpers/task", () => ({
@@ -193,6 +209,9 @@ function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
 describe("task coworker whitelist enforcement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    lockCalendarScopeMock.mockResolvedValue(true);
+    lockTaskRowsMock.mockResolvedValue(true);
+    refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
   });
 
   it("rejects task creation when coworker is not whitelisted", async () => {
@@ -229,6 +248,10 @@ describe("task coworker whitelist enforcement", () => {
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
       "99999999-9999-7999-8999-999999999999",
+      expect.anything(),
+      // Only the owner may put work on their own Soko Bot; the assigner has to
+      // reach the check for that rule to apply.
+      { kind: "user", userId: expect.any(String) },
     );
     expect(tx.task.create).not.toHaveBeenCalled();
   });
@@ -390,6 +413,10 @@ describe("task coworker whitelist enforcement", () => {
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
       "99999999-9999-7999-8999-999999999999",
+      expect.anything(),
+      // Only the owner may put work on their own Soko Bot; the assigner has to
+      // reach the check for that rule to apply.
+      { kind: "user", userId: expect.any(String) },
     );
     expect(tx.task.create).not.toHaveBeenCalled();
   });

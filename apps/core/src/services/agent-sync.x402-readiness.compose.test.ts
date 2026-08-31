@@ -1,5 +1,5 @@
 import type { CreditCost } from "@sokosumi/database";
-import type { X402AvailableNetwork, X402Budget } from "@sokosumi/masumi";
+import type { X402AvailableNetwork, X402KeySpendCaps } from "@sokosumi/masumi";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it, vi } from "vitest";
 
@@ -8,56 +8,73 @@ import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
 
 import { composeX402ReadySources as composeReadySourcesUnchecked } from "./agent-sync.x402-readiness.compose";
 import {
-  ADMIN_WALLET_ADDRESS,
   availableNetwork,
   BASE_MAINNET_USDC,
-  budget,
+  cappedWith,
   fundedWalletBalances,
-  mainnetBudget,
+  fundedWalletStateFor,
+  keySpendCaps,
   mainnetNetwork,
+  PURCHASING_WALLET_ADDRESS,
   purchasingWallet,
   READY_SOURCE,
   USDC_BASE_SEPOLIA,
-  walletStateForBudget,
 } from "./agent-sync.x402-readiness.fixtures";
+
+const MAINNET_READY_SOURCE = {
+  caip2Network: "eip155:8453",
+  asset: BASE_MAINNET_USDC,
+  evmWalletId: "wallet_mainnet",
+  evmWalletAddress: PURCHASING_WALLET_ADDRESS,
+  decimals: 6,
+};
 
 /**
  * NOT the real export — this wrapper SHADOWS `composeX402ReadySources` and
- * FABRICATES a funded, asset-matching Purchasing-wallet state for every
- * budget before delegating to the real function (imported above as
- * `composeReadySourcesUnchecked`). Against the real default
- * (`adminPurchasingWallets = []`) most tests below would return `[]`.
- * Tests exercising the budget-to-wallet binding itself must pass explicit
- * `walletStates` (or call `composeReadySourcesUnchecked` directly), or the
- * fabrication masks the very path under test.
+ * supplies the two gates most tests below are not about: an UNCAPPED key, and
+ * one funded Purchasing wallet per enabled chain. Against the real defaults
+ * (`spendCaps` null, `purchasingWallets = []`) every network-shaped test would
+ * return `[]` for the wrong reason.
+ *
+ * Tests exercising the cap gate or the wallet binding itself pass `caps` /
+ * `walletStates` explicitly, or call `composeReadySourcesUnchecked` directly,
+ * or the fabrication masks the very path under test.
  */
 function composeX402ReadySources(
   networks: readonly X402AvailableNetwork[],
-  budgets: readonly X402Budget[],
   environment: "Preprod" | "Mainnet",
-  walletStates?: Parameters<typeof composeReadySourcesUnchecked>[3],
+  options: {
+    caps?: X402KeySpendCaps | null;
+    walletStates?: Parameters<typeof composeReadySourcesUnchecked>[3];
+  } = {},
 ) {
-  const generatedWalletStates = Array.from(
-    new Map(
-      budgets.map((budgetRow) => [
-        budgetRow.evmWalletId,
-        walletStateForBudget(budgetRow, networks),
-      ]),
+  // Keyed by wallet id: a network the node lists twice would otherwise
+  // generate the SAME wallet id twice, which the real compose treats as a
+  // malformed listing and poisons.
+  const generatedWalletStates = [
+    ...new Map(
+      networks.map((network) => {
+        const walletId =
+          network.caip2Id.toLowerCase() === "eip155:8453"
+            ? "wallet_mainnet"
+            : "wallet_admin";
+        return [walletId, fundedWalletStateFor(network, { id: walletId })];
+      }),
     ).values(),
-  );
+  ];
   return composeReadySourcesUnchecked(
     networks,
-    budgets,
+    options.caps === undefined ? keySpendCaps() : options.caps,
     environment,
-    walletStates ?? generatedWalletStates,
+    options.walletStates ?? generatedWalletStates,
   );
 }
 
 describe("composeX402ReadySources", () => {
-  it("pairs an enabled network with a funded budget", () => {
-    expect(
-      composeX402ReadySources([availableNetwork()], [budget()], "Preprod"),
-    ).toEqual([READY_SOURCE]);
+  it("pairs an enabled network with a funded Purchasing wallet", () => {
+    expect(composeX402ReadySources([availableNetwork()], "Preprod")).toEqual([
+      READY_SOURCE,
+    ]);
   });
 
   it("drops a funded node-default asset without trusted EIP-712 metadata and names the gap", () => {
@@ -68,7 +85,6 @@ describe("composeX402ReadySources", () => {
     expect(
       composeX402ReadySources(
         [availableNetwork({ defaultAsset: unknownAsset })],
-        [budget({ asset: unknownAsset })],
         "Preprod",
       ),
     ).toEqual([]);
@@ -85,422 +101,376 @@ describe("composeX402ReadySources", () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it("fails closed when a funded budget has no matching Purchasing wallet", () => {
-    // This input also fires the empty-wallet-listing warn (pinned in its own
-    // test below); the spy keeps the suite's output clean.
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    expect(
-      composeReadySourcesUnchecked(
-        [availableNetwork()],
-        [budget()],
-        "Preprod",
-        [],
-      ),
-    ).toEqual([]);
-    consoleWarnSpy.mockRestore();
-  });
+  describe("the key's spend cap", () => {
+    it("composes nothing when the caps could not be read", () => {
+      // Fail closed. A cycle that could not read the cap must never compose a
+      // pair as payable.
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          caps: null,
+        }),
+      ).toEqual([]);
+    });
 
-  it("names the empty-wallet-listing trap when funded budgets cannot bind", () => {
-    // Enabled priced chain + funded budget + zero usable Purchasing wallets:
-    // the operator created none (or only Selling-type ones), or version skew
-    // withheld `canAdmin` and emptied the client's listing. A plain
-    // non-admin key never reaches compose — the node admin-gates
-    // GET /x402/budgets, so the sync fails its check step first. Fail-closed
-    // is correct (budget readiness must verify live wallet balances) — but
-    // it must say so, or the operator debugs green node checks and an empty
-    // cache.
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    expect(
-      composeReadySourcesUnchecked(
-        [availableNetwork()],
-        [budget()],
-        "Preprod",
-        [],
-      ),
-    ).toEqual([]);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "create and confirm exactly one funded Purchasing wallet per enabled chain",
-      ),
-    );
-    // Exactly one warn: the per-budget binding warn is gated on a non-empty
-    // listing, so the empty-listing case never double-reports.
-    expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
-    consoleWarnSpy.mockRestore();
-  });
+    it("marks the pair ready for an uncapped key", () => {
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          caps: keySpendCaps({ usageLimited: false }),
+        }),
+      ).toEqual([READY_SOURCE]);
+    });
 
-  it("keeps the wallet-listing warn silent when a budget binds to a wallet", () => {
-    // Kills the mutant that fires the warn whenever ANY input is imperfect:
-    // with a bindable wallet the pair composes and the warn must stay down.
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    expect(
-      composeX402ReadySources([availableNetwork()], [budget()], "Preprod"),
-    ).toEqual([READY_SOURCE]);
-    expect(consoleWarnSpy).not.toHaveBeenCalled();
-    consoleWarnSpy.mockRestore();
-  });
+    it("marks the pair ready for a capped key holding credits for its unit", () => {
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          caps: cappedWith(1n),
+        }),
+      ).toEqual([READY_SOURCE]);
+    });
 
-  it("keeps the wallet-listing warn silent when no budget survives the gates", () => {
-    // Kills the mutant that drops the `configuredBudgetPairs.size > 0`
-    // conjunct: an empty wallet listing WITHOUT any bindable budget is the
-    // ordinary no-budget deployment, not the trap.
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    expect(
-      composeReadySourcesUnchecked([availableNetwork()], [], "Preprod", []),
-    ).toEqual([]);
-    expect(consoleWarnSpy).not.toHaveBeenCalled();
-    consoleWarnSpy.mockRestore();
-  });
-
-  it("fails closed when budget and Purchasing wallet addresses differ", () => {
-    // The failed binding also fires the per-budget warn (pinned in its own
-    // test below); the spy keeps the suite's output clean.
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    expect(
-      composeReadySourcesUnchecked(
-        [availableNetwork()],
-        [budget()],
-        "Preprod",
-        [
-          {
-            wallet: purchasingWallet({ id: "wallet_1" }),
-            balances: fundedWalletBalances(),
-          },
-        ],
-      ),
-    ).toEqual([]);
-    consoleWarnSpy.mockRestore();
-  });
-
-  it.each([
-    ["native gas", { native: { symbol: "ETH", decimals: 18, amount: "0" } }],
-    [
-      "matching token",
-      {
-        asset: {
-          asset: USDC_BASE_SEPOLIA,
-          symbol: "USDC",
-          decimals: 6,
-          amount: "0",
-        },
-      },
-    ],
-    [
-      "matching asset",
-      {
-        asset: {
-          asset: "0x1111111111111111111111111111111111111111",
-          symbol: "OTHER",
-          decimals: 6,
-          amount: "1000000",
-        },
-      },
-    ],
-  ])(
-    "requires positive %s balance for budget readiness",
-    (_label, overrides) => {
-      // The unfunded binding also fires the per-budget warn (pinned in its
-      // own test below); the spy keeps the suite's output clean.
+    it("drops the pair and names the unit when the credits are spent to zero", () => {
+      // A zero-credit key passes every wallet-side checklist item. The wallet
+      // is listed and funded, so without this warn it is a silent zero-pairs
+      // deployment.
       const consoleWarnSpy = vi
         .spyOn(console, "warn")
         .mockImplementation(() => undefined);
-      const budgetRow = budget();
       expect(
-        composeReadySourcesUnchecked(
-          [availableNetwork()],
-          [budgetRow],
-          "Preprod",
-          [
-            {
-              wallet: purchasingWallet({
-                id: budgetRow.evmWalletId,
-                address: budgetRow.evmWalletAddress,
-              }),
-              balances: fundedWalletBalances(overrides),
-            },
-          ],
-        ),
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          caps: cappedWith(0n),
+        }),
       ).toEqual([]);
-      consoleWarnSpy.mockRestore();
-    },
-  );
-
-  it.each(["absent", "non-Purchasing"])(
-    "does not bypass a configured budget whose wallet is %s via admin fallback",
-    (walletState) => {
-      const states = [
-        {
-          wallet: purchasingWallet(),
-          balances: fundedWalletBalances(),
-        },
-        ...(walletState === "non-Purchasing"
-          ? [
-              {
-                wallet: purchasingWallet({
-                  id: "wallet_1",
-                  address: budget().evmWalletAddress,
-                  type: "Selling",
-                }),
-                balances: fundedWalletBalances(),
-              },
-            ]
-          : []),
-      ];
-      const consoleWarnSpy = vi
-        .spyOn(console, "warn")
-        .mockImplementation(() => undefined);
-
-      expect(
-        composeReadySourcesUnchecked(
-          [availableNetwork()],
-          [budget()],
-          "Preprod",
-          states,
-        ),
-      ).toEqual([]);
-      // This is the state the empty-listing warn CANNOT cover: a funded
-      // Purchasing wallet IS listed on the chain, so the operator's "one
-      // funded wallet exists" checklist passes while the budget's own
-      // binding fails and blocks both paths. The per-budget warn is the
-      // only diagnostic — exactly one, naming the remediation.
       expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "re-point or delete the budget, or fund its wallet",
-        ),
+        expect.stringContaining(`eip155:84532:${USDC_BASE_SEPOLIA}`),
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("PATCH /api/v1/api-key"),
       );
       consoleWarnSpy.mockRestore();
-    },
-  );
+    });
 
-  it("uses a unique admin purchasing wallet without requiring a budget", () => {
-    expect(
-      composeX402ReadySources([availableNetwork()], [], "Preprod", [
-        { wallet: purchasingWallet(), balances: fundedWalletBalances() },
-      ]),
-    ).toEqual([
-      {
-        ...READY_SOURCE,
-        evmWalletId: "wallet_admin",
-        evmWalletAddress: ADMIN_WALLET_ADDRESS,
-      },
-    ]);
-  });
-
-  it("composes nothing without a budget or an admin Purchasing wallet", () => {
-    // No budget and an empty wallet listing (what the client returns when
-    // `canAdmin !== true`): neither path has anything to bind, so no pair.
-    expect(
-      composeX402ReadySources([availableNetwork()], [], "Preprod", []),
-    ).toEqual([]);
-  });
-
-  it("fails closed when admin has multiple purchasing wallets on one chain", () => {
-    expect(
-      composeX402ReadySources([availableNetwork()], [], "Preprod", [
-        {
-          wallet: purchasingWallet({ id: "wallet_a" }),
-          balances: fundedWalletBalances(),
-        },
-        {
-          wallet: purchasingWallet({ id: "wallet_b" }),
-          balances: fundedWalletBalances(),
-        },
-      ]),
-    ).toEqual([]);
-  });
-
-  it("does not bypass an exhausted admin budget on the selected wallet", () => {
-    expect(
-      composeX402ReadySources(
-        [availableNetwork()],
-        [
-          budget({
-            evmWalletId: "wallet_admin",
-            remainingAmount: "0",
-          }),
-        ],
-        "Preprod",
-        [
-          {
-            wallet: purchasingWallet(),
-            balances: fundedWalletBalances(),
-          },
-        ],
-      ),
-    ).toEqual([]);
-  });
-
-  it("drops budgets on disabled or unknown networks", () => {
-    expect(
-      composeX402ReadySources(
-        [availableNetwork({ isEnabled: false })],
-        [budget()],
-        "Preprod",
-      ),
-    ).toEqual([]);
-    expect(
-      composeX402ReadySources(
-        [availableNetwork()],
-        [budget({ caip2Network: "eip155:8453" })],
-        "Preprod",
-      ),
-    ).toEqual([]);
-  });
-
-  it("drops exhausted and malformed budgets", () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    expect(
-      composeX402ReadySources(
-        [availableNetwork()],
-        [
-          budget({ remainingAmount: "0" }),
-          budget({ remainingAmount: "-5" }),
-          budget({ remainingAmount: "not-a-number" }),
-          budget({ asset: "USDC" }),
-          // Without a backing wallet id the pay route cannot sign — the
-          // pair must not be recorded ready.
-          budget({ evmWalletId: "" }),
-          budget({ evmWalletId: "   " }),
-        ],
-        "Preprod",
-      ),
-    ).toEqual([]);
-    // Warn content is pinned separately (the wrapper's last-wins wallet
-    // fabrication makes several of these rows unbindable rather than
-    // exhausted); the spy only keeps the suite's output clean here.
-    consoleWarnSpy.mockRestore();
-  });
-
-  it("trims surrounding whitespace from the recorded wallet id", () => {
-    expect(
-      composeX402ReadySources(
-        [availableNetwork()],
-        [budget({ evmWalletId: "  wallet_1  " })],
-        "Preprod",
-      ),
-    ).toEqual([READY_SOURCE]);
-  });
-
-  it("preserves mixed-case wallet ids on the recorded pair", () => {
-    expect(
-      composeX402ReadySources(
-        [availableNetwork()],
-        [budget({ evmWalletId: "Wallet_1" })],
-        "Preprod",
-      ),
-    ).toEqual([{ ...READY_SOURCE, evmWalletId: "Wallet_1" }]);
-  });
-
-  it("names the exhausted budget when it is the pair's only backing", () => {
-    // A spent budget passes every wallet-side checklist item — the wallet is
-    // listed, funded, and correctly referenced — so without its own warn
-    // this is a silent zero-pairs deployment (the exhausted budget also
-    // blocks the admin fallback via `configuredBudgetPairs`).
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    const budgetRow = budget({ remainingAmount: "0" });
-    expect(
-      composeReadySourcesUnchecked(
-        [availableNetwork()],
-        [budgetRow],
-        "Preprod",
-        [
-          {
-            wallet: purchasingWallet({
-              id: budgetRow.evmWalletId,
-              address: budgetRow.evmWalletAddress,
-            }),
-            balances: fundedWalletBalances(),
-          },
-        ],
-      ),
-    ).toEqual([]);
-    expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("top up or delete the budget"),
-    );
-    consoleWarnSpy.mockRestore();
-  });
-
-  it.each(["before", "after"])(
-    "keeps budget warns silent when a sibling row binds the pair (stale row %s)",
-    (staleOrder) => {
-      // Several budgets may back one pair, and the most-funded wallet wins —
-      // a stale second row (retired wallet, or spent to zero) on a HEALTHY
-      // deployment must not warn that the pair "cannot be buy-side ready"
-      // while the pair is listed and payable. Kills the mutant that warns at
-      // row level instead of pair level, in both row orders.
+    it("drops the pair when the key holds credits only for ANOTHER chain", () => {
+      // The cap is per (chain, asset) unit, not one pooled EVM budget, so
+      // mainnet credits must not unlock a testnet pair.
       const consoleWarnSpy = vi
         .spyOn(console, "warn")
         .mockImplementation(() => undefined);
-      const bindingRow = budget();
-      const staleRows = [
-        budget({ evmWalletId: "wallet_retired" }),
-        budget({ remainingAmount: "0" }),
-      ];
-      const rows =
-        staleOrder === "before"
-          ? [...staleRows, bindingRow]
-          : [bindingRow, ...staleRows];
       expect(
-        composeReadySourcesUnchecked([availableNetwork()], rows, "Preprod", [
-          {
-            wallet: purchasingWallet({
-              id: bindingRow.evmWalletId,
-              address: bindingRow.evmWalletAddress,
-            }),
-            balances: fundedWalletBalances(),
-          },
-        ]),
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          caps: keySpendCaps({
+            usageLimited: true,
+            creditsByUnit: new Map([
+              [`eip155:8453:${BASE_MAINNET_USDC}`, 9_000_000n],
+            ]),
+          }),
+        }),
+      ).toEqual([]);
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("drops the pair when the key holds no eip155 credit row at all", () => {
+      // Was the opposite assertion: the node used to grandfather such a key to
+      // uncapped spend, so this gate let it through and warned instead. The
+      // node now refuses every payment it makes, so the pair is not payable
+      // and must not be listed.
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          caps: keySpendCaps({ usageLimited: true }),
+        }),
+      ).toEqual([]);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("has no remaining usage credits"),
+      );
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("keeps the cap warns silent for an ordinary funded capped key", () => {
+      // Kills the mutant that warns whenever the key is usageLimited at all.
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          caps: cappedWith(1_000_000n),
+        }),
       ).toEqual([READY_SOURCE]);
       expect(consoleWarnSpy).not.toHaveBeenCalled();
       consoleWarnSpy.mockRestore();
-    },
-  );
-
-  it("records the most-funded wallet when several budgets back one pair", () => {
-    const result = composeX402ReadySources(
-      [availableNetwork()],
-      [
-        budget({ id: "b1", evmWalletId: "wallet_small", remainingAmount: "5" }),
-        budget({
-          id: "b2",
-          evmWalletId: "wallet_large",
-          remainingAmount: "9000000",
-        }),
-        budget({ id: "b3", evmWalletId: "wallet_1", remainingAmount: "100" }),
-      ],
-      "Preprod",
-    );
-
-    expect(result).toEqual([{ ...READY_SOURCE, evmWalletId: "wallet_large" }]);
+    });
   });
 
-  it("tie-breaks equal budgets on the wallet id deterministically", () => {
-    const result = composeX402ReadySources(
-      [availableNetwork()],
-      [
-        budget({ id: "b1", evmWalletId: "wallet_b", remainingAmount: "100" }),
-        budget({ id: "b2", evmWalletId: "wallet_a", remainingAmount: "100" }),
-      ],
-      "Preprod",
-    );
+  describe("choosing the signing wallet", () => {
+    it("fails closed and names the chain when no Purchasing wallet is listed", () => {
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          walletStates: [],
+        }),
+      ).toEqual([]);
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("no usable Purchasing wallet"),
+      );
+      consoleWarnSpy.mockRestore();
+    });
 
-    expect(result).toEqual([{ ...READY_SOURCE, evmWalletId: "wallet_a" }]);
+    it("keeps the wallet warn silent when a wallet backs the pair", () => {
+      // Kills the mutant that fires the warn whenever ANY input is imperfect.
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      expect(composeX402ReadySources([availableNetwork()], "Preprod")).toEqual([
+        READY_SOURCE,
+      ]);
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+    });
+
+    it.each([
+      ["native gas", { native: { symbol: "ETH", decimals: 18, amount: "0" } }],
+      [
+        "matching token",
+        {
+          asset: {
+            asset: USDC_BASE_SEPOLIA,
+            symbol: "USDC",
+            decimals: 6,
+            amount: "0",
+          },
+        },
+      ],
+      [
+        "matching asset",
+        {
+          asset: {
+            asset: "0x1111111111111111111111111111111111111111",
+            symbol: "OTHER",
+            decimals: 6,
+            amount: "1000000",
+          },
+        },
+      ],
+      [
+        "agreeing scale",
+        {
+          asset: {
+            asset: USDC_BASE_SEPOLIA,
+            symbol: "USDC",
+            decimals: 18,
+            amount: "1000000",
+          },
+        },
+      ],
+    ])("requires a positive %s balance", (_label, overrides) => {
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          walletStates: [
+            {
+              wallet: purchasingWallet(),
+              balances: fundedWalletBalances(overrides),
+            },
+          ],
+        }),
+      ).toEqual([]);
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("ignores a Selling wallet and a wallet on another chain", () => {
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          walletStates: [
+            {
+              wallet: purchasingWallet({ type: "Selling" }),
+              balances: fundedWalletBalances(),
+            },
+            {
+              wallet: purchasingWallet({
+                id: "wallet_elsewhere",
+                caip2Network: "eip155:8453",
+              }),
+              balances: fundedWalletBalances(),
+            },
+          ],
+        }),
+      ).toEqual([]);
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("records the most-funded wallet when several back one chain", () => {
+      // With the cap moved onto the API key nothing binds a chain to one
+      // wallet, so several funded wallets is a healthy deployment, not an
+      // ambiguity to fail on. The richest is likeliest to cover a demand.
+      const result = composeX402ReadySources([availableNetwork()], "Preprod", {
+        walletStates: [
+          {
+            wallet: purchasingWallet({ id: "wallet_small" }),
+            balances: fundedWalletBalances({
+              asset: {
+                asset: USDC_BASE_SEPOLIA,
+                symbol: "USDC",
+                decimals: 6,
+                amount: "5",
+              },
+            }),
+          },
+          {
+            wallet: purchasingWallet({ id: "wallet_large" }),
+            balances: fundedWalletBalances({
+              asset: {
+                asset: USDC_BASE_SEPOLIA,
+                symbol: "USDC",
+                decimals: 6,
+                amount: "9000000",
+              },
+            }),
+          },
+        ],
+      });
+
+      expect(result).toEqual([
+        { ...READY_SOURCE, evmWalletId: "wallet_large" },
+      ]);
+    });
+
+    it("tie-breaks equally funded wallets on the wallet id deterministically", () => {
+      // The recorded pair feeds the serialized change-detection key, so an
+      // unstable winner would page on every cycle with no readiness change.
+      const result = composeX402ReadySources([availableNetwork()], "Preprod", {
+        walletStates: [
+          {
+            wallet: purchasingWallet({ id: "wallet_b" }),
+            balances: fundedWalletBalances(),
+          },
+          {
+            wallet: purchasingWallet({ id: "wallet_a" }),
+            balances: fundedWalletBalances(),
+          },
+        ],
+      });
+
+      expect(result).toEqual([{ ...READY_SOURCE, evmWalletId: "wallet_a" }]);
+    });
+
+    it("trims surrounding whitespace from the recorded wallet id", () => {
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          walletStates: [
+            {
+              wallet: purchasingWallet({ id: "  wallet_admin  " }),
+              balances: fundedWalletBalances(),
+            },
+          ],
+        }),
+      ).toEqual([READY_SOURCE]);
+    });
+
+    it("preserves mixed-case wallet ids on the recorded pair", () => {
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          walletStates: [
+            {
+              wallet: purchasingWallet({ id: "Wallet_Admin" }),
+              balances: fundedWalletBalances(),
+            },
+          ],
+        }),
+      ).toEqual([{ ...READY_SOURCE, evmWalletId: "Wallet_Admin" }]);
+    });
+
+    it("poisons a wallet id the node lists twice", () => {
+      // A wallet id is the node's primary key, so a duplicate is malformed.
+      // The recorded pair carries the id AND the address the pay path binds
+      // the signed payer to, so taking them from an arbitrary row can pair an
+      // id with the wrong address and fail every payment on that pair.
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          walletStates: [
+            {
+              wallet: purchasingWallet({ id: "wallet_dup" }),
+              balances: fundedWalletBalances(),
+            },
+            {
+              wallet: purchasingWallet({
+                id: "wallet_dup",
+                address: "0x1111111111111111111111111111111111111111",
+              }),
+              balances: fundedWalletBalances(),
+            },
+          ],
+        }),
+      ).toEqual([]);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("no usable Purchasing wallet"),
+      );
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("keeps a distinct sibling usable when another id is poisoned", () => {
+      // Kills the mutant that drops the whole chain on any duplicate.
+      expect(
+        composeX402ReadySources([availableNetwork()], "Preprod", {
+          walletStates: [
+            {
+              wallet: purchasingWallet({ id: "wallet_dup" }),
+              balances: fundedWalletBalances(),
+            },
+            {
+              wallet: purchasingWallet({ id: "wallet_dup" }),
+              balances: fundedWalletBalances(),
+            },
+            {
+              wallet: purchasingWallet({ id: "wallet_admin" }),
+              balances: fundedWalletBalances(),
+            },
+          ],
+        }),
+      ).toEqual([READY_SOURCE]);
+    });
+
+    it("drops a wallet whose id is blank or whitespace only", () => {
+      // Without a signable id the pay route cannot sign, so the pair must not
+      // be recorded ready.
+      const consoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      for (const id of ["", "   "]) {
+        expect(
+          composeX402ReadySources([availableNetwork()], "Preprod", {
+            walletStates: [
+              {
+                wallet: purchasingWallet({ id }),
+                balances: fundedWalletBalances(),
+              },
+            ],
+          }),
+        ).toEqual([]);
+      }
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  it("drops a pair on a disabled network", () => {
+    expect(
+      composeX402ReadySources(
+        [availableNetwork({ isEnabled: false })],
+        "Preprod",
+      ),
+    ).toEqual([]);
   });
 
   it("drops a mainnet pair on Preprod even when the node offers it", () => {
@@ -510,68 +480,36 @@ describe("composeX402ReadySources", () => {
     // Preprod readiness cache.
     const result = composeX402ReadySources(
       [availableNetwork({ caip2Id: "EIP155:84532" }), mainnetNetwork()],
-      [
-        budget({
-          asset: USDC_BASE_SEPOLIA.toUpperCase().replace("0X", "0x"),
-        }),
-        budget({ id: "x402budget_2" }),
-        mainnetBudget(),
-      ],
       "Preprod",
     );
 
-    // Casing normalized, duplicates collapsed, mainnet gone.
+    // Casing normalized, mainnet gone.
     expect(result).toEqual([READY_SOURCE]);
   });
 
   it("drops a testnet pair on Mainnet and keeps the mainnet one", () => {
     const result = composeX402ReadySources(
       [availableNetwork(), mainnetNetwork()],
-      [budget(), mainnetBudget()],
       "Mainnet",
     );
 
-    expect(result).toEqual([
-      {
-        caip2Network: "eip155:8453",
-        asset: BASE_MAINNET_USDC,
-        evmWalletId: "wallet_mainnet",
-        evmWalletAddress: budget().evmWalletAddress.toLowerCase(),
-        decimals: 6,
-      },
-    ]);
-  });
-
-  it("drops a funded budget in an asset the node publishes no decimals for", () => {
-    // The node publishes decimals for its DEFAULT asset only, so a budget in
-    // any other asset has no trustworthy scale anywhere — the only other
-    // source is the agent's own registry entry, which is exactly the input
-    // this pair stops trusting. Pricing needs the scale (`cents = amount x
-    // centsPerUnit / 10^decimals`), so an asset without one is not payable.
-    const usdt = "0xdac17f958d2ee523a2206206994597c13d831ec7";
-    const result = composeX402ReadySources(
-      [mainnetNetwork()],
-      [mainnetBudget({ id: "x402budget_usdt", asset: usdt }), mainnetBudget()],
-      "Mainnet",
-    );
-
-    expect(result.map((source) => source.asset)).toEqual([BASE_MAINNET_USDC]);
+    expect(result).toEqual([MAINNET_READY_SOURCE]);
   });
 
   it("carries the node's decimals onto the recorded pair", () => {
     expect(
       composeX402ReadySources(
         [availableNetwork({ defaultAssetDecimals: 8 })],
-        [budget()],
         "Preprod",
       ),
     ).toEqual([{ ...READY_SOURCE, decimals: 8 }]);
   });
 
   it("matches the node's default asset canonically, not by raw spelling", () => {
-    // The node may serve a checksummed address while the budget is lowercase
-    // (or the reverse). Both sides are canonicalized before comparing, or a
-    // spelling difference would silently unlist the one payable pair.
+    // The node may serve a checksummed address while the balance row is
+    // lowercase (or the reverse). Both sides are canonicalized before
+    // comparing, or a spelling difference would silently unlist the one
+    // payable pair.
     expect(
       composeX402ReadySources(
         [
@@ -579,7 +517,6 @@ describe("composeX402ReadySources", () => {
             defaultAsset: USDC_BASE_SEPOLIA.toUpperCase().replace("0X", "0x"),
           }),
         ],
-        [budget()],
         "Preprod",
       ),
     ).toEqual([READY_SOURCE]);
@@ -594,7 +531,6 @@ describe("composeX402ReadySources", () => {
       expect(
         composeX402ReadySources(
           [availableNetwork({ defaultAssetDecimals })],
-          [budget()],
           "Preprod",
         ),
       ).toEqual([]);
@@ -602,14 +538,12 @@ describe("composeX402ReadySources", () => {
     expect(
       composeX402ReadySources(
         [availableNetwork({ defaultAsset: null })],
-        [budget()],
         "Preprod",
       ),
     ).toEqual([]);
     expect(
       composeX402ReadySources(
         [availableNetwork({ defaultAsset: "USDC" })],
-        [budget()],
         "Preprod",
       ),
     ).toEqual([]);
@@ -621,7 +555,6 @@ describe("composeX402ReadySources", () => {
     expect(
       composeX402ReadySources(
         [availableNetwork(), availableNetwork({ defaultAssetDecimals: 18 })],
-        [budget()],
         "Preprod",
       ),
     ).toEqual([]);
@@ -629,7 +562,6 @@ describe("composeX402ReadySources", () => {
     expect(
       composeX402ReadySources(
         [availableNetwork(), availableNetwork({ id: "x402net_dup" })],
-        [budget()],
         "Preprod",
       ),
     ).toEqual([READY_SOURCE]);
@@ -642,14 +574,12 @@ describe("composeX402ReadySources", () => {
     expect(
       composeX402ReadySources(
         [availableNetwork({ isEnabled: false }), availableNetwork()],
-        [budget()],
         "Preprod",
       ),
     ).toEqual([]);
     expect(
       composeX402ReadySources(
         [availableNetwork(), availableNetwork({ isEnabled: false })],
-        [budget()],
         "Preprod",
       ),
     ).toEqual([]);
@@ -661,11 +591,7 @@ describe("composeX402ReadySources", () => {
     // USDC on Base Sepolia with decimals 18 (true value 6) makes a demand for
     // 1 whole USDC price at the platform floor while Soko's managed wallet
     // signs away a real USDC.
-    const [source] = composeX402ReadySources(
-      [availableNetwork()],
-      [budget()],
-      "Preprod",
-    );
+    const [source] = composeX402ReadySources([availableNetwork()], "Preprod");
     if (!source) {
       expect.unreachable("the funded pair must be recorded");
     }
@@ -713,7 +639,6 @@ describe("composeX402ReadySources", () => {
     expect(
       composeX402ReadySources(
         [availableNetwork({ canSettle: false })],
-        [budget()],
         "Preprod",
       ),
     ).toEqual([READY_SOURCE]);

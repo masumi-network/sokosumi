@@ -20,7 +20,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/workspace",
   description:
-    "Resolve a task id to its workspace and organization id. Session user or orchestrator/coworker with context headers.",
+    "Resolve a task id to its workspace and organization id. Session user or coworker with authorized context headers.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,

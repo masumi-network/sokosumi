@@ -25,19 +25,12 @@ describe("resolveOrganizationProductSeatUser", () => {
     ).toBeNull();
   });
 
-  it("skips coworker and orchestrator actors so in-flight work can continue", () => {
+  it("skips coworker actors so in-flight work can continue", () => {
     expect(
       resolveOrganizationProductSeatUser({
         actor: "coworker",
         coworkerId: "cow-1",
         vendorId: "vendor-1",
-        context: { userId: "user-1", organizationId: "org-1" },
-      }),
-    ).toBeNull();
-    expect(
-      resolveOrganizationProductSeatUser({
-        actor: "orchestrator",
-        orchestratorId: "orch-1",
         context: { userId: "user-1", organizationId: "org-1" },
       }),
     ).toBeNull();

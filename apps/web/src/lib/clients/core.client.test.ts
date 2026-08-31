@@ -99,7 +99,10 @@ describe("core.client", () => {
 
     expect(createClientMock).toHaveBeenCalledWith({
       baseUrl: "http://localhost:8787/v1",
-      headers: { cookie: "session=abc" },
+      headers: {
+        cookie: "session=abc",
+        "x-sokosumi-web-build-version": "1",
+      },
     });
     expect(getChatRoomsMock).toHaveBeenCalledWith({
       cache: "no-store",
@@ -109,6 +112,7 @@ describe("core.client", () => {
       | Record<string, string>
       | undefined;
     expect(forwardedHeaders?.cookie).toBe("session=abc");
+    expect(forwardedHeaders?.["x-sokosumi-web-build-version"]).toBe("1");
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-02-19T12:00:00.000Z"),
     );

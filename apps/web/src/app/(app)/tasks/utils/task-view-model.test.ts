@@ -38,6 +38,7 @@ function buildTask(
     status,
     metadata: null,
     nextRunAt: null,
+    scheduleRevision: 0,
     commentsCount: 0,
     jobsCount: 0,
     grantResumeStatus: null,

@@ -26,7 +26,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrchestratorContextHeaderParameters,
+  withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import {
@@ -68,12 +68,12 @@ const query = z
   })
   .extend(cursorPaginationQuerySchema.shape);
 
-const route = withOrchestratorContextHeaderParameters(
+const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
     path: "/",
     description:
-      "List in-app notification-center items for the effective user (session user, or orchestrator with context headers) with cursor pagination. CHAT kind is excluded (browser OS alerts + room attention only).",
+      "List in-app notification-center items for the interactive session user with cursor pagination. CHAT kind is excluded (browser OS alerts + room attention only).",
     tags: ["Notifications"],
     request: {
       query,

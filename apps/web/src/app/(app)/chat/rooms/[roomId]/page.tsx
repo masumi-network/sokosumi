@@ -27,6 +27,21 @@ interface ChatRoomShellProps {
 
 const ROOM_UNAVAILABLE_HREF = "/?notice=room-unavailable";
 
+/** Org-less matched channels open via roster membership, not host-org context. */
+function isMatchedMemberChannel(
+  room: Pick<
+    ChatRoom,
+    "organizationId" | "kind" | "discoverability" | "myAccess"
+  >,
+): boolean {
+  return (
+    room.organizationId === null &&
+    room.kind === "channel" &&
+    room.discoverability === "matched" &&
+    room.myAccess === "member"
+  );
+}
+
 function NoOrganizationCard({
   title,
   description,
@@ -118,8 +133,9 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     const isPersonalDirect =
       selectedRoom.organizationId === null && selectedRoom.kind === "direct";
     const isGuestRoom = selectedRoom.myAccess === "guest";
+    const isMatchedRoom = isMatchedMemberChannel(selectedRoom);
 
-    if (!isPersonalDirect && !isGuestRoom) {
+    if (!isPersonalDirect && !isGuestRoom && !isMatchedRoom) {
       return (
         <NoOrganizationCard
           title={t("NoOrganization.title")}
@@ -152,7 +168,8 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     selectedRoom.organizationId === null &&
     selectedRoom.kind === "direct" &&
     selectedRoom.coworkerMembers.length === 0;
-  if (!isHostOrgRoom && !isGuestRoom && !isPersonalDirect) {
+  const isMatchedRoom = isMatchedMemberChannel(selectedRoom);
+  if (!isHostOrgRoom && !isGuestRoom && !isPersonalDirect && !isMatchedRoom) {
     redirect(ROOM_UNAVAILABLE_HREF);
   }
 

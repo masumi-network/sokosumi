@@ -102,6 +102,18 @@ Sandro answered as node authority; each verified against masumi-payment-service
 `main` source (`packages/payment-source-x402/src/pay.ts`, `attempt-filters.ts`,
 `src/routes/api/x402/index.ts`, `rail-readiness/service.ts`).
 
+> **Superseded in part on 2026-08-28 by masumi ADR 0016.** These answers were
+> correct for the node as it stood on 2026-08-11; the node then removed
+> per-wallet budgets. Read every "budget" below as the API key's per-unit
+> usage credits (`eip155:<chainId>:<asset>`, gated by `usageLimited`).
+> Specifically: answer 2's "decrements budget" is now a credit debit at
+> signing, and answer 5's `/x402/budgets` is now `/api-key-status` plus
+> `/x402/wallets` (no admin permission required). Answer 1 is **unchanged**.
+> The status codes and the "a documented non-200 plus envelope proves this
+> call issued no header" contract still hold, which matters because
+> `packages/masumi/src/clients/masumi-payment-x402.ts` cites this item as the
+> reason a 500 is a refusal and not an ambiguous outcome.
+
 1. **Error contract:** 400 = deterministic pre-sign rejection (bad accepts, no
    ChainIdLimit match, network disabled, requirements drift, identifier not
    advertised); 402 = budget/balance refusal; 500 = config/signing failure.

@@ -29,7 +29,7 @@
       "source": "vercel/next.js",
       "sourceType": "github",
       "skillPath": "skills/next-cache-components-optimizer/SKILL.md",
-      "computedHash": "58eb0a6ec29604f460861f6a9daf5d9b370f575958144e860f79f97885e69ede"
+      "computedHash": "894d00267e8793b218eaa9c5b157ad1a57419a975baf4d9959e9633cfdd7cf49"
     },
     "next-dev-loop": {
       "source": "vercel/next.js",
@@ -41,7 +41,7 @@
       "source": "vercel/next.js",
       "sourceType": "github",
       "skillPath": "skills/next-partial-prefetching-adoption/SKILL.md",
-      "computedHash": "7e0e9ea2a13c88fbdfbee1f0c6050377e1c1b7a3587501cc3e267bd74e1abc1d"
+      "computedHash": "b6373f5d9e18c4fcb9e1ce8b63dd76de62e7e3b6bad53961e5d6de4753a08c0c"
     },
     "next-upgrade": {
       "source": "vercel-labs/openreview",
@@ -65,7 +65,7 @@
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-view-transitions/SKILL.md",
-      "computedHash": "b1be40dfc6e714612020c7583b574cc4c92a1b5bc185a7dd3eea5c0123653d1c"
+      "computedHash": "2033ef20681c90d4f93deee719e55e019c254e496d9bf80381c27cc539292001"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

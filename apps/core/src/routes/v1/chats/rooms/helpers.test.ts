@@ -1,11 +1,7 @@
-import {
-  CoworkerWorkspaceAccessStatus,
-  MemberRole,
-  NotificationKind,
-  type Prisma,
-} from "@sokosumi/database";
+import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 
 import {
   assertChatRoomPatchAuth,
@@ -149,18 +145,7 @@ describe("validateChatCoworkerIds", () => {
     expect(coworkerFindManyMock).toHaveBeenCalledWith({
       where: {
         id: { in: ["cow_1"] },
-        archivedAt: null,
-        OR: [
-          { isWhitelisted: true },
-          {
-            workspaceAccess: {
-              some: {
-                workspaceId,
-                status: CoworkerWorkspaceAccessStatus.GRANTED,
-              },
-            },
-          },
-        ],
+        ...buildCoworkerUsableInWorkspaceWhere(workspaceId),
         AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
         capabilities: { has: "chat" },
       },
@@ -690,6 +675,8 @@ describe("mapChatRoomMessage quote", () => {
         slug: "hannah",
         caption: null,
         image: null,
+        sokoBotId: null,
+        sokoBot: null,
       },
       mentionsAsSource: [],
       reactions: [],
@@ -1269,13 +1256,23 @@ describe("mapChatRoom guest-aware DTO fields", () => {
     expect(mapped.organizationName).toBeNull();
   });
 
-  it("maps private for non-public non-external channel discoverability", () => {
+  it("maps private for non-public non-external non-matched channel discoverability", () => {
     const room = createExternalRoom(
       [createRoomMembership(MEMBER_ID, "member")],
       { discoverability: "private" },
     );
     expect(mapChatRoom(room as never, MEMBER_ID).discoverability).toBe(
       "private",
+    );
+  });
+
+  it("maps matched discoverability for org-less matched channels", () => {
+    const room = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      { discoverability: "matched", organizationId: null },
+    );
+    expect(mapChatRoom(room as never, MEMBER_ID).discoverability).toBe(
+      "matched",
     );
   });
 

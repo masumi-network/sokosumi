@@ -16,8 +16,8 @@ describe("pickMessages", () => {
       Account: {
         title: "Account",
       },
-      Hermes: {
-        title: "Hermes",
+      SokoBot: {
+        title: "Soko Bot",
       },
       Tasks: {
         Detail: {

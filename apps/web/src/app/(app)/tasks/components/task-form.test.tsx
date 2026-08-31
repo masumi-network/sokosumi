@@ -13,12 +13,14 @@ const {
   toastCustomMock,
   toastDismissMock,
   toastErrorMock,
+  showCalendarClientUpgradeModalMock,
 } = vi.hoisted(() => ({
   markdownEditorPropsSpy: vi.fn(),
   uploadUserFileDirectMock: vi.fn(),
   toastCustomMock: vi.fn(),
   toastDismissMock: vi.fn(),
   toastErrorMock: vi.fn(),
+  showCalendarClientUpgradeModalMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -38,6 +40,12 @@ vi.mock("@/hooks/use-os-detection", () => ({
 vi.mock("@/lib/actions/task/action", () => ({
   createTask: vi.fn(),
   updateTask: vi.fn(),
+}));
+
+vi.mock("@/components/modals/global-modals-context", () => ({
+  useGlobalModalsContext: () => ({
+    showCalendarClientUpgradeModal: showCalendarClientUpgradeModalMock,
+  }),
 }));
 
 vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
@@ -332,6 +340,14 @@ const projectOptions = [
   },
 ];
 
+function createTaskSuccess(taskId: string, name: string) {
+  return { ok: true as const, value: { taskId, name } };
+}
+
+function updateTaskSuccess(taskId: string) {
+  return { ok: true as const, value: { taskId } };
+}
+
 describe("TaskForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -403,7 +419,7 @@ describe("TaskForm", () => {
 
   it("does not create a task from Ctrl+Enter on wizard step 1", async () => {
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -439,7 +455,7 @@ describe("TaskForm", () => {
   it("submits as draft from create modal actions", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -466,7 +482,7 @@ describe("TaskForm", () => {
   it("submits as ready from create modal actions", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -516,7 +532,7 @@ describe("TaskForm", () => {
   it("changes the primary action to schedule task when a schedule is set", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -554,13 +570,39 @@ describe("TaskForm", () => {
     );
   });
 
-  it("shows a queued celebration after creating a scheduled task", async () => {
+  it("opens the required-upgrade modal instead of showing a generic error", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue({
-      taskId: "task-scheduled",
-      name: "Scheduled docs",
+      ok: false,
+      error: { kind: "calendar_client_upgrade_required" },
     });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(showCalendarClientUpgradeModalMock).toHaveBeenCalledOnce();
+    expect(toastErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("shows a queued celebration after creating a scheduled task", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(
+      createTaskSuccess("task-scheduled", "Scheduled docs"),
+    );
 
     render(
       <TaskForm
@@ -587,7 +629,7 @@ describe("TaskForm", () => {
   it("clears a configured schedule from the schedule modal", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -635,7 +677,7 @@ describe("TaskForm", () => {
     const onSuccess = vi.fn();
     const onCreateAnother = vi.fn();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -744,7 +786,7 @@ describe("TaskForm", () => {
   it("toggles status in edit modal and keeps the toggled status on save", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);
-    updateTaskMock.mockResolvedValue({ taskId: "task-1" });
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
 
     render(
       <TaskForm
@@ -1028,7 +1070,7 @@ describe("TaskForm", () => {
   it("attaches the resolved DESIGN.md by default when creating a task", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -1072,7 +1114,7 @@ describe("TaskForm", () => {
   it("skips the DESIGN.md attachment once its checkbox is unchecked", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -1117,7 +1159,7 @@ describe("TaskForm", () => {
   it("passes a custom DESIGN.md override when branding is swapped", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -1170,7 +1212,7 @@ describe("TaskForm", () => {
   it("passes projectId when creating a task from the project picker", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -1203,7 +1245,7 @@ describe("TaskForm", () => {
   it("passes unchecked project-file choices to task creation", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm
@@ -1237,7 +1279,7 @@ describe("TaskForm", () => {
   it("passes projectId when updating a task from the project picker", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);
-    updateTaskMock.mockResolvedValue({ taskId: "task-1" });
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
 
     render(
       <TaskForm
@@ -1272,7 +1314,7 @@ describe("TaskForm", () => {
   it("passes null when clearing the selected project", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);
-    updateTaskMock.mockResolvedValue({ taskId: "task-1" });
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
 
     render(
       <TaskForm
@@ -1744,10 +1786,9 @@ describe("TaskForm", () => {
   it("uses a custom create handler when provided", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    const onCreateTask = vi.fn().mockResolvedValue({
-      taskId: "linked-task-1",
-      name: "Linked task",
-    });
+    const onCreateTask = vi
+      .fn()
+      .mockResolvedValue(createTaskSuccess("linked-task-1", "Linked task"));
 
     render(
       <TaskForm
@@ -1786,7 +1827,7 @@ describe("TaskForm", () => {
   it("does not create a duplicate task when Ctrl+Enter is pressed on the success step", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
     render(
       <TaskForm

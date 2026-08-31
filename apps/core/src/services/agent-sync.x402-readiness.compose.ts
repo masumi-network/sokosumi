@@ -1,6 +1,6 @@
 import type {
   X402AvailableNetwork,
-  X402Budget,
+  X402KeySpendCaps,
   X402Wallet,
   X402WalletBalance,
 } from "@sokosumi/masumi";
@@ -25,7 +25,7 @@ interface PricedNetworkAsset {
   decimals: number;
 }
 
-export interface AdminPurchasingWalletWithBalances {
+export interface PurchasingWalletWithBalances {
   wallet: X402Wallet;
   balances: readonly X402WalletBalance[];
 }
@@ -36,26 +36,42 @@ function hasPositiveBaseUnitBalance(amount: unknown): boolean {
   );
 }
 
-function hasRequiredWalletBalances(
-  walletState: AdminPurchasingWalletWithBalances,
+/**
+ * The wallet's spendable balance of the chain's priced token, or null when it
+ * cannot back a payment at all.
+ *
+ * Returns the amount rather than a boolean because the caller now picks the
+ * most-funded wallet: with the spend cap moved onto the API key, nothing
+ * binds a chain to one wallet, so "which wallet" is a ranking, not a lookup.
+ *
+ * Null covers every unusable shape: no balance row for the chain, more than
+ * one (ambiguous, so fail closed), a fetch that errored, no native gas (token
+ * funds cannot settle without it), a different asset, a scale disagreeing
+ * with the node's published one, or a zero token balance.
+ */
+function readPricedTokenBalance(
+  walletState: PurchasingWalletWithBalances,
   caip2Network: string,
   pricedAsset: PricedNetworkAsset,
-): boolean {
+): bigint | null {
   const matchingBalances = walletState.balances.filter(
     (candidate) =>
       candidate.caip2Network.toLowerCase() === caip2Network &&
       candidate.error === null,
   );
   if (matchingBalances.length !== 1) {
-    return false;
+    return null;
   }
   const [balance] = matchingBalances;
-  return (
-    hasPositiveBaseUnitBalance(balance.native?.amount) &&
-    balance.asset?.asset.toLowerCase() === pricedAsset.asset &&
-    balance.asset.decimals === pricedAsset.decimals &&
-    hasPositiveBaseUnitBalance(balance.asset.amount)
-  );
+  if (
+    !hasPositiveBaseUnitBalance(balance.native?.amount) ||
+    balance.asset?.asset.toLowerCase() !== pricedAsset.asset ||
+    balance.asset.decimals !== pricedAsset.decimals ||
+    !hasPositiveBaseUnitBalance(balance.asset.amount)
+  ) {
+    return null;
+  }
+  return BigInt(balance.asset.amount);
 }
 
 /**
@@ -180,337 +196,191 @@ export function computeEnabledPricedNetworks(
 }
 
 /**
- * Composes per-network x402 buy-side readiness from the node's
- * `GET /x402/networks/available`, `GET /x402/budgets`, and — for a confirmed
- * admin key only — `GET /x402/wallets` plus
- * `GET /x402/wallets/balance` (ticket 011 Q5). A (network, asset)
- * pair is ready when the chain is enabled for x402, the node publishes a
- * usable scale for that asset, and its selected Purchasing wallet has native
- * gas plus a positive matching-token balance. A budget path additionally
- * needs remaining spend; an uncapped admin fallback additionally needs one
- * unambiguous Purchasing wallet on the chain.
+ * The (network, asset) pairs the payment node can pay on RIGHT NOW.
  *
- * BOTH inputs are admin-gated on the payment node, so a non-admin key never
- * reaches this compose at all: `GET /x402/budgets` rejects a plain pay key
- * outright (see the client doc on `getX402Budgets`), the readiness sync
- * fails its check step, and the deployment surfaces as "readiness check
- * failed" — not as an empty cache. The wallet binding below is money-safety,
- * not admin detection: a budget row alone never marks a pair ready — it must
- * bind to a listed Purchasing wallet and that wallet's live balances. The
- * reachable failures this leaves are a listing with no usable Purchasing
- * wallet at all, and a configured budget that cannot back its pair — an
- * unbindable wallet reference, or a budget spent to zero — with no sibling
- * budget covering the pair; the per-pair warns after the budget loop and the
- * empty-listing warn name them.
- * The budget rows are
- * already scoped to Soko's own API key by `getX402Budgets` (the node's
- * admin-gated list is otherwise unscoped, and `POST /x402/pay` only draws
- * on the calling key's budgets — a foreign key's budget must never mark a
- * pair ready). Each pair records the `evmWalletId` of its backing budget so
- * the pay route can sign without a per-payment budgets fetch; when several
- * budgets back a pair, the most-funded wallet wins. `canSettle` is
- * deliberately ignored — outbound (buy) wallets do not require a
- * facilitator, and gating the buy side on inbound settlement would hide
- * payable agents for no reason.
+ * Inputs: `GET /x402/networks/available`, the calling key's spend caps from
+ * `GET /api-key-status`, and `GET /x402/wallets` with each candidate wallet's
+ * live balances.
  *
- * Each pair also records the node's `defaultAssetDecimals` as the asset's
- * scale. That is the whole point of reading the networks response for more
- * than `isEnabled`: `decimals` scales the charge INVERSELY, and the only
- * other copy of it lives on the agent's own registry entry. Because the node
- * vouches for its DEFAULT asset only, a budget in any other asset is dropped
- * — unpriceable is unpayable (see the budget loop). One pair per chain is
- * therefore the ceiling today.
+ * A pair is ready only when all four hold.
  *
- * `environment` is a parameter rather than a `getEnv()` read so this stays
- * pure. It applies the per-environment EVM allowlist
- * (`isX402NetworkAllowed`): Preprod may record testnet chains only,
- * production mainnet chains only. Without it, environment separation would
- * rest entirely on the node honouring `GET /x402/networks/available`'s
- * `query: { isTestnet }` — a node that ignores or misreads that filter would
- * put a real-funds mainnet pair into the Preprod cache. The pay path enforces
- * the same allowlist again in `verifyX402DemandAgainstAgentSources`; this is
- * listing correctness plus defence in depth.
+ * 1. The chain is enabled, allowed in this environment's CAIP-2 allowlist,
+ *    and the node publishes a usable `defaultAssetDecimals` for its default
+ *    asset. The node vouches for its DEFAULT asset only, so no other asset
+ *    has a trustworthy scale anywhere: unpriceable is unpayable.
+ * 2. Its priced asset has a trusted EIP-712 domain. Resource-server `extra`
+ *    is attacker-authored and must never define the domain Soko signs under.
+ * 3. Some Purchasing wallet the key can reach on that chain holds native gas
+ *    AND the priced token.
+ * 4. The key's spend cap allows it.
+ *
+ * On (4), masumi ADR 0016: the node caps x402 spend on the API KEY, not on a
+ * wallet. `usageLimited` off means uncapped. On, it requires a positive
+ * balance for unit `<caip2Network>:<asset>`, byte-identical to this pair
+ * key, which is why the gate is a map lookup. There is no exception for a key
+ * holding no `eip155:` row at all. The node used to grandfather such a key to
+ * uncapped spend, which is why this gate once let it through; the node now
+ * refuses its payments, so listing the pair would advertise an agent that
+ * cannot be hired.
+ * The gate asks whether the unit holds credit, never whether it holds enough:
+ * no price exists at sync time, so a nearly exhausted unit stays listed and
+ * the node refuses the charge with a 402 instead.
+ *
+ * On (3), any funded wallet is an equally valid signer now that the cap is
+ * key-global: nothing binds a chain's spend to one wallet any more. The
+ * most-funded wallet wins as the likeliest to cover a demand at pay time,
+ * with the wallet id as a deterministic tie-break so the recorded set is
+ * stable across syncs. Code-unit comparison, not localeCompare: the recorded
+ * pair feeds the serialized change-detection key, and locale/ICU differences
+ * between instances must not flip which wallet wins and page on every cycle.
+ *
+ * Fails closed everywhere. Absent spend caps, an empty wallet listing, an
+ * unfunded wallet, and an exhausted credit unit each drop the pair, and the
+ * per-chain warns name which one it was.
+ *
+ * There is deliberately no check of the key's own CAIP-2 chain limit. The
+ * node applies that limit to `GET /x402/networks/available` itself (the same
+ * `caip2NetworkLimit` its pay handler applies), so a chain the key may not
+ * touch never reaches this function's input at all.
+ *
+ * The environment allowlist is enforced again on the pay path in
+ * `verifyX402DemandAgainstAgentSources`; this is listing correctness plus
+ * defence in depth, so a real-funds mainnet pair cannot enter a Preprod
+ * cache.
  */
 export function composeX402ReadySources(
   networks: readonly X402AvailableNetwork[],
-  budgets: readonly X402Budget[],
+  spendCaps: X402KeySpendCaps | null,
   environment: "Preprod" | "Mainnet",
-  adminPurchasingWallets: readonly AdminPurchasingWalletWithBalances[] = [],
+  purchasingWallets: readonly PurchasingWalletWithBalances[] = [],
 ): X402ReadySource[] {
   const enabledNetworks = computeEnabledPricedNetworks(networks, environment);
 
-  const readySources = new Map<
-    string,
-    { pair: X402ReadySource; remainingAmount: bigint }
-  >();
-  // Budget readiness must bind to a real Purchasing wallet returned by the
-  // node and to that wallet's live balances. Duplicate ids are ambiguous and
-  // poisoned rather than letting response order choose the signer.
-  const walletStatesById = new Map<
-    string,
-    AdminPurchasingWalletWithBalances | null
-  >();
-  for (const walletState of adminPurchasingWallets) {
-    const { wallet } = walletState;
+  // A wallet id is the node's primary key, so two rows sharing one is a
+  // malformed listing. It matters because the recorded pair carries an id AND
+  // the address the pay path binds the signed payer to: taking those from an
+  // arbitrary one of two rows can pair the id with the other row's address,
+  // and every payment on that pair then fails the payer check. Poison the id
+  // rather than picking.
+  const idCounts = new Map<string, number>();
+  for (const { wallet } of purchasingWallets) {
     const walletId = trimEvmWalletId(wallet.id);
-    if (wallet.type !== "Purchasing" || !walletId) {
-      continue;
-    }
-    walletStatesById.set(
-      walletId,
-      walletStatesById.has(walletId) ? null : walletState,
-    );
-  }
-  // An existing budget is binding even for an admin: payment-node semantics
-  // reject an underfunded configured budget instead of falling through to
-  // uncapped owner access. Track presence separately from positive balance so
-  // the admin fallback below cannot bypass an exhausted cap.
-  const configuredBudgetPairs = new Set<string>();
-  // Budget rows that could not back their pair, warned AFTER the loop and
-  // only when the pair ends unready: several budgets may back one pair, so a
-  // row-level warn would cry wolf on a healthy deployment that still carries
-  // a stale or spent second row.
-  const budgetRowIssues: {
-    pairKey: string;
-    caip2Network: string;
-    asset: string;
-    evmWalletId: string;
-    issue: "unbindable" | "exhausted";
-  }[] = [];
-  for (const budget of budgets) {
-    const caip2Network = budget.caip2Network?.toLowerCase();
-    const asset = budget.asset?.toLowerCase();
-    // Opaque and case-sensitive — trim only. Whitespace-only cannot sign.
-    const evmWalletId = trimEvmWalletId(budget.evmWalletId ?? "");
-    const evmWalletAddress = budget.evmWalletAddress?.toLowerCase();
-    if (
-      !caip2Network ||
-      !asset ||
-      !evmWalletId ||
-      !evmWalletAddress ||
-      !EVM_ADDRESS_PATTERN.test(evmWalletAddress) ||
-      !EVM_ADDRESS_PATTERN.test(asset)
-    ) {
-      continue;
-    }
-    // Covers both "the chain is not enabled and allowed here" and "the node
-    // vouches for no scale on it". The node publishes `defaultAssetDecimals`
-    // for its DEFAULT asset only, so a budget in any OTHER asset has no
-    // trustworthy `decimals` anywhere — the only other copy is on the agent's
-    // own registry entry, which is exactly the input this field stops
-    // trusting. An asset that cannot be priced safely is not buy-side ready,
-    // so it drops. Today that costs nothing: each allowed chain lists exactly
-    // the one USDC contract Soko pays in. The day a second asset is wanted,
-    // the node has to publish ITS decimals — Soko must not guess them here.
-    const pricedAsset = enabledNetworks.get(caip2Network);
-    if (!pricedAsset || pricedAsset.asset !== asset) {
-      continue;
-    }
-    // Any configured budget binds this pair. If its referenced wallet is
-    // absent, retired, non-Purchasing, or unfunded, do not silently switch to
-    // another wallet's uncapped admin path.
-    configuredBudgetPairs.add(`${caip2Network}:${asset}`);
-    const walletState = walletStatesById.get(evmWalletId);
-    if (
-      !walletState ||
-      walletState.wallet.caip2Network.toLowerCase() !== caip2Network ||
-      walletState.wallet.address.toLowerCase() !== evmWalletAddress ||
-      !hasRequiredWalletBalances(walletState, caip2Network, pricedAsset)
-    ) {
-      // The empty-listing warn below covers `walletStatesById.size === 0`;
-      // this row is only worth naming when the listing HAS usable wallets,
-      // just not the one this budget is bound to (absent or retired,
-      // duplicate id, mismatched chain or address, or unfunded).
-      if (walletStatesById.size > 0) {
-        budgetRowIssues.push({
-          pairKey: `${caip2Network}:${asset}`,
-          caip2Network,
-          asset,
-          evmWalletId,
-          issue: "unbindable",
-        });
-      }
-      continue;
-    }
-    if (!/^\d+$/.test(budget.remainingAmount)) {
-      // Unreachable through the client (its zod schema requires /^\d+$/ on
-      // remainingAmount), kept as a silent belt-and-braces gate.
-      continue;
-    }
-    const remainingAmount = BigInt(budget.remainingAmount);
-    if (remainingAmount <= 0n) {
-      // An exhausted budget cannot sign — the pair is not payable NOW,
-      // which is exactly what listed ⇒ payable promises. Named after the
-      // loop when no sibling covers the pair: a spent budget passes every
-      // wallet-side checklist item, so without the warn it is a silent
-      // zero-pairs state.
-      budgetRowIssues.push({
-        pairKey: `${caip2Network}:${asset}`,
-        caip2Network,
-        asset,
-        evmWalletId,
-        issue: "exhausted",
-      });
-      continue;
-    }
-    // Several budgets (wallets) can back one (network, asset) pair. Record
-    // the one with the most remaining spend — the wallet most likely to
-    // cover a demand at pay time — with the wallet id as a deterministic
-    // tie-break so the recorded set is stable across syncs. Code-unit
-    // comparison, not localeCompare: the recorded pair feeds the serialized
-    // change-detection key, and locale/ICU differences between instances
-    // must not flip which wallet wins.
-    const key = `${caip2Network}:${asset}`;
-    const current = readySources.get(key);
-    if (
-      !current ||
-      remainingAmount > current.remainingAmount ||
-      (remainingAmount === current.remainingAmount &&
-        evmWalletId < current.pair.evmWalletId)
-    ) {
-      readySources.set(key, {
-        pair: {
-          caip2Network,
-          asset,
-          evmWalletId,
-          evmWalletAddress,
-          decimals: pricedAsset.decimals,
-        },
-        remainingAmount,
-      });
+    if (walletId) {
+      idCounts.set(walletId, (idCounts.get(walletId) ?? 0) + 1);
     }
   }
 
-  // Deferred to pair level: a failing row matters only if NO sibling budget
-  // row backed its pair. The admin fallback below cannot rescue these pairs
-  // (`configuredBudgetPairs` blocks it), so an unready pair here is final —
-  // the pair-level claim in each warn is true by construction.
-  for (const rowIssue of budgetRowIssues) {
-    if (readySources.has(rowIssue.pairKey)) {
-      continue;
-    }
-    const pairLabel = `${rowIssue.caip2Network}:${rowIssue.asset}`;
-    if (rowIssue.issue === "unbindable") {
-      console.warn(
-        `[sync/agents] x402 budget for ${pairLabel} references Purchasing wallet ${rowIssue.evmWalletId}, which the node's listing does not usably expose (absent or retired, duplicate id, mismatched chain or address, or unfunded); no other budget backs the pair, so it cannot be buy-side ready and the configured budget also blocks the admin fallback — re-point or delete the budget, or fund its wallet`,
-      );
-    } else {
-      console.warn(
-        `[sync/agents] x402 budget for ${pairLabel} on Purchasing wallet ${rowIssue.evmWalletId} is spent to zero; no other budget backs the pair, so it cannot be buy-side ready and the exhausted budget also blocks the admin fallback — top up or delete the budget`,
-      );
-    }
-  }
-
-  // Reachable only with a key the node granted budgets access to (a plain
-  // non-admin key fails the budgets check before compose runs — the node
-  // admin-gates `GET /x402/budgets`). The trap this names: budgets are funded
-  // on an enabled, priced chain, but the wallet listing yielded no usable
-  // Purchasing wallet AT ALL — none created, only Selling-type wallets, or
-  // (rare skew) a node that serves budgets while `api-key-status` withholds
-  // `canAdmin`, emptying the client's listing. (A listed wallet with a
-  // missing id cannot land here: the client's zod schema rejects the row and
-  // the sync fails its check step instead.) The listed-but-unbindable and
-  // exhausted cases get their own per-budget warns above. Without the names,
-  // the operator debugs green node checks and an empty cache.
-  if (configuredBudgetPairs.size > 0 && walletStatesById.size === 0) {
-    console.warn(
-      "[sync/agents] x402 budgets exist for enabled, priced chains but the node's wallet listing yielded no usable Purchasing wallet to verify them against (none created, only Selling-type wallets, or api-key-status withheld canAdmin), so NO budget can bind and no pair is buy-side ready — create and confirm exactly one funded Purchasing wallet per enabled chain",
-    );
-  }
-
-  // Admins have unrestricted owner access in the payment node and may take
-  // its uncapped path when no budget exists. The client returns wallets here
-  // ONLY after a strict `canAdmin === true` status check — defence in depth
-  // for version skew: a node that serves budgets while `api-key-status`
-  // omits `canAdmin` must not enable this uncapped fallback by accident.
-  // Require exactly one Purchasing wallet per chain: with several, Core has
-  // no principled way to choose which balance should back payments, so
-  // ambiguity fails closed.
-  const adminWalletsByNetwork = new Map<
-    string,
-    AdminPurchasingWalletWithBalances[]
-  >();
-  for (const walletState of adminPurchasingWallets) {
+  const walletsByNetwork = new Map<string, PurchasingWalletWithBalances[]>();
+  for (const walletState of purchasingWallets) {
     const { wallet } = walletState;
     const caip2Network = wallet.caip2Network?.toLowerCase();
+    const walletId = trimEvmWalletId(wallet.id);
     if (
       wallet.type !== "Purchasing" ||
-      !wallet.id ||
       !caip2Network ||
-      !enabledNetworks.get(caip2Network)
+      !walletId ||
+      (idCounts.get(walletId) ?? 0) > 1
     ) {
       continue;
     }
-    const wallets = adminWalletsByNetwork.get(caip2Network) ?? [];
+    const wallets = walletsByNetwork.get(caip2Network) ?? [];
     wallets.push(walletState);
-    adminWalletsByNetwork.set(caip2Network, wallets);
+    walletsByNetwork.set(caip2Network, wallets);
   }
+
+  const readySources: X402ReadySource[] = [];
   for (const [caip2Network, pricedAsset] of enabledNetworks) {
     if (!pricedAsset) {
       continue;
     }
-    const key = `${caip2Network}:${pricedAsset.asset}`;
-    if (readySources.has(key)) {
+    const pairLabel = `${caip2Network}:${pricedAsset.asset}`;
+
+    // Fail closed: a cycle that could not read the cap must not compose a
+    // pair as payable. The sync already fails its check step on this, so
+    // reaching here means a caller composed without caps.
+    if (!spendCaps) {
       continue;
     }
-    const wallets = adminWalletsByNetwork.get(caip2Network) ?? [];
-    if (wallets.length !== 1) {
-      continue;
+    if (spendCaps.usageLimited) {
+      // Presence, not sufficiency. The node debits by comparing the SUM of
+      // the unit's credit rows against the payment amount, while readiness
+      // runs before any price is known. A unit holding one base unit still
+      // lists the pair, and the node can still refuse the charge with a 402.
+      // Listing cannot close that gap: a post-charge 402 on a listed pair
+      // is the expected shape of an almost-empty credit unit.
+      const remaining = spendCaps.creditsByUnit.get(pairLabel) ?? 0n;
+      if (remaining <= 0n) {
+        console.warn(
+          `[sync/agents] x402 pair ${pairLabel} has no remaining usage credits on Soko's payment-node API key, so it cannot be buy-side ready. Grant credits for unit ${pairLabel} with PATCH /api/v1/api-key, or clear usageLimited on the key`,
+        );
+        continue;
+      }
     }
-    const [{ wallet, balances }] = wallets;
-    if (configuredBudgetPairs.has(key)) {
-      continue;
-    }
-    const evmWalletId = trimEvmWalletId(wallet.id);
-    if (!evmWalletId) {
-      continue;
-    }
-    const evmWalletAddress = wallet.address.toLowerCase();
-    if (
-      !EVM_ADDRESS_PATTERN.test(evmWalletAddress) ||
-      !hasRequiredWalletBalances(
-        { wallet, balances },
+
+    let best: {
+      evmWalletId: string;
+      evmWalletAddress: string;
+      amount: bigint;
+    } | null = null;
+    for (const walletState of walletsByNetwork.get(caip2Network) ?? []) {
+      const amount = readPricedTokenBalance(
+        walletState,
         caip2Network,
         pricedAsset,
-      )
-    ) {
+      );
+      if (amount === null) {
+        continue;
+      }
+      // Opaque and case-sensitive, so trim only. Whitespace-only cannot sign.
+      const evmWalletId = trimEvmWalletId(walletState.wallet.id);
+      const evmWalletAddress = walletState.wallet.address?.toLowerCase() ?? "";
+      if (!evmWalletId || !EVM_ADDRESS_PATTERN.test(evmWalletAddress)) {
+        continue;
+      }
+      if (
+        !best ||
+        amount > best.amount ||
+        (amount === best.amount && evmWalletId < best.evmWalletId)
+      ) {
+        best = { evmWalletId, evmWalletAddress, amount };
+      }
+    }
+    if (!best) {
+      console.warn(
+        `[sync/agents] x402 pair ${pairLabel} has no usable Purchasing wallet, so it cannot be buy-side ready. The node's listing exposes none that Soko's key can reach on this chain, or none holding both native gas and the priced token; create, scope, and fund one`,
+      );
       continue;
     }
-    readySources.set(key, {
-      pair: {
-        caip2Network,
-        asset: pricedAsset.asset,
-        evmWalletId,
-        evmWalletAddress,
-        decimals: pricedAsset.decimals,
-      },
-      remainingAmount: 0n,
+
+    readySources.push({
+      caip2Network,
+      asset: pricedAsset.asset,
+      evmWalletId: best.evmWalletId,
+      evmWalletAddress: best.evmWalletAddress,
+      decimals: pricedAsset.decimals,
     });
   }
 
   // At most one pair survives per allowed chain (only the node's default
   // asset is priceable), and each environment allows one chain today, so this
   // sort is a no-op right now. It stays because the allowlists are meant to
-  // grow: the serialized array IS the change-detection key, so an order that
-  // followed the node's budget order would flip the cache — and page — with
-  // no readiness change behind it. Code-unit order, not localeCompare, for
-  // the same reason: localeCompare depends on the host's ICU build and
-  // default locale, so two Core instances could disagree on the order and
-  // alternately rewrite the cache every cycle.
+  // grow: the serialized array IS the change-detection key, so an unstable
+  // order would flip the cache, and the page with it, on no readiness change
+  // it. Code-unit order, not localeCompare, for the same reason: localeCompare
+  // depends on the host's ICU build and default locale, so two Core instances
+  // could disagree and alternately rewrite the cache every cycle.
   //
-  // NOTE: multi-pair output is untestable today — compose refuses every
-  // chain outside the one-entry allowlist, so no input reaches this
-  // comparator with two pairs. Whoever grows the allowlist must add
-  // multi-pair compose/sort tests in the same change.
-  return Array.from(readySources.values())
-    .map(({ pair }) => pair)
-    .sort((left, right) => {
-      if (left.caip2Network !== right.caip2Network) {
-        return left.caip2Network < right.caip2Network ? -1 : 1;
-      }
-      if (left.asset !== right.asset) {
-        return left.asset < right.asset ? -1 : 1;
-      }
-      return 0;
-    });
+  // NOTE: multi-pair output is untestable today, because compose refuses every chain
+  // outside the one-entry allowlist, so no input reaches this comparator with
+  // two pairs. Whoever grows the allowlist must add multi-pair compose/sort
+  // tests in the same change.
+  return readySources.sort((left, right) => {
+    if (left.caip2Network !== right.caip2Network) {
+      return left.caip2Network < right.caip2Network ? -1 : 1;
+    }
+    if (left.asset !== right.asset) {
+      return left.asset < right.asset ? -1 : 1;
+    }
+    return 0;
+  });
 }

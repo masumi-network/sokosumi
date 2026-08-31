@@ -30,6 +30,10 @@ export type {
   SessionUser,
 } from "./better-auth-types.js";
 export {
+  CALENDAR_CLIENT_VERSION,
+  CALENDAR_CLIENT_VERSION_HEADER,
+} from "./calendar-client-version.js";
+export {
   CHANNEL_SLUG_MAX_LENGTH,
   channelNameFromSlug,
   liveSanitizeChannelSlug,
@@ -224,6 +228,7 @@ export {
   serializeMetadataRecord,
   stringifyMetadataRecord,
 } from "./metadata-record.js";
+export { isNmkrEmail } from "./nmkr-email.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   type BrowserOnlyNotificationKind,
@@ -335,7 +340,21 @@ export {
   TASK_FILE_MAX_NAME_LENGTH,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
-export { hasActiveTaskSchedule } from "./task-schedule.js";
+export {
+  hasActiveTaskSchedule,
+  hasReachedTaskScheduleReleaseTarget,
+  parseTaskScheduleMetadata,
+  type TaskScheduleMetadata,
+  type TaskScheduleMetadataV1,
+  type TaskScheduleMetadataV2,
+  taskScheduleMetadataSchema,
+  taskScheduleMetadataV1Schema,
+  taskScheduleMetadataV2Schema,
+  taskScheduleOnceMetadataV1Schema,
+  taskScheduleOnceMetadataV2Schema,
+  taskScheduleRecurringMetadataV1Schema,
+  taskScheduleRecurringMetadataV2Schema,
+} from "./task-schedule.js";
 export {
   canUserTransitionTaskStatus,
   type UserTransitionTaskStatus,

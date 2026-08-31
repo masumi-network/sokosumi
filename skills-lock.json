@@ -25,89 +25,95 @@
       "skillPath": "skills/brainstorming/SKILL.md",
       "computedHash": "b58d55b64742ecd37923985ec7bdfbe678ffbcb9895562abd28c0a32dcacd7fb"
     },
+    "branch-bugbot-gate": {
+      "source": ".",
+      "sourceType": "local",
+      "skillPath": "skills/branch-bugbot-gate/SKILL.md",
+      "computedHash": "fb38caa6dda7a1fa9df0cf664f3016f541373566e866e802f2385dc3e2405c80"
+    },
     "cavecrew": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/cavecrew/SKILL.md",
-      "computedHash": "7bccdb8d49f41bcb480481cd4f8381b054f69847bed67fb003d83249dd6f0030"
+      "computedHash": "32d5320fb7c8b717e8c434e250ac987bebf48f553d0444afbe8215ea38ae5c09"
     },
     "caveman": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman/SKILL.md",
-      "computedHash": "2bc96f7c5d3c82f76714d9ec5027ef72518ede527b009a4cab6afd6db339ada9"
+      "computedHash": "1a41e7f3543c4a969c040c34a96925f8a3f82a6179a3f1002692b37957f7140b"
     },
     "caveman-commit": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-commit/SKILL.md",
-      "computedHash": "790a4eeace0be35c6691faf923518ba5bd50f1f1305d1101d09dd4971be94e00"
+      "computedHash": "b416cf134b0f33ddadeca7977aebdbb2d3db79a166d0fce2e1aabeec98132766"
     },
     "caveman-compress": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-compress/SKILL.md",
-      "computedHash": "771c3407d970fff5df512abb5026402d2431abecdd3e8f264f9142fec8198674"
+      "computedHash": "1b22b22d8621e5b1148dc785f8b7682bfba67a5d8e076cecd3fb0df5d9cd8910"
     },
     "caveman-discover": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-discover/SKILL.md",
-      "computedHash": "8e8a2f12e7609891721c31ee79a2d89669658c38c9fe23d28ad02c3be4902b22"
+      "computedHash": "6850e0ca7bd7a35a1f447cbd342f91b76ece1fb2e3473ad894e51e69746df8a2"
     },
     "caveman-evidence-review": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-evidence-review/SKILL.md",
-      "computedHash": "40bbecf3b951f6cdecab7204a696be7267084041d876d73c8ca9eecd25bdd1c6"
+      "computedHash": "6a2db0191082500739416c87ff896a7894f98aa867f15c70fe932e4d72edd327"
     },
     "caveman-explore": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-explore/SKILL.md",
-      "computedHash": "946ec2ef671939fabcb857de0fbff9a76d2af07a974fd44b8d38ed4da871ddbd"
+      "computedHash": "e22fc4edb9feb5046809c74d969b06092b8d7db851aa8502a53a185bba27c57a"
     },
     "caveman-help": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-help/SKILL.md",
-      "computedHash": "dd85267e76baad76995157e7b9f762dfa557cd58951ee92af0c283f48aa26537"
+      "computedHash": "845394fef650bb63b44e2e28391de704505f881c6f968ebfdfb0278343ecbd7c"
     },
     "caveman-learn": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-learn/SKILL.md",
-      "computedHash": "1f27235fab30d24587a91d0ce65d3b25a2fa482baf5c1e763b9824b532ede74d"
+      "computedHash": "d25fd3ece9b571e1cffd93ca2594ab1919471b27b9c1589fc1c8b7e9c7d6071b"
     },
     "caveman-manage": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-manage/SKILL.md",
-      "computedHash": "fa77c71e35182d034291386a0cdc30c2ba858cf4ff7c0f920d95ec649dd73d33"
+      "computedHash": "fdd3834941a8a576cae0ac96a38dfec6ac4bd26ef209ba9997468ca11aaf19f4"
     },
     "caveman-optimize": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-optimize/SKILL.md",
-      "computedHash": "2d4c31992efca5f51d8714ac6e204e28a3637a0514d5d107e49cd17623a0c377"
+      "computedHash": "5e859a3a8305b5559b2f528616f634324449a426054704d43ef0b6ec8c1d9807"
     },
     "caveman-review": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-review/SKILL.md",
-      "computedHash": "fb7214a1c5793bae6ba8b1be4329e2e6f40dbec6dd911dfb335ad29f09c316a1"
+      "computedHash": "36a4007c5c0c6b90b5accfee1cd769a86e4963b651dece2ce5f17a223a0abb4b"
     },
     "caveman-setup": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-setup/SKILL.md",
-      "computedHash": "66da8df44278508e519cc54ce79f8fc6bc614c8f255b47210ccd3c46f84e9676"
+      "computedHash": "b12b9f8f3fe6b499334a4b319ae1a16aa2da5c2d11e5bc85efd3236eac5213aa"
     },
     "caveman-stats": {
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-stats/SKILL.md",
-      "computedHash": "57c7db449641379e2afd1389fdb17cec8f33d9c8e25b1d28093937b4431895e8"
+      "computedHash": "5aba475d0e43a26d7448e6537902e3137beca3024663dfdecf1009cbe16bc299"
     },
     "claude-handoff": {
       "source": "mattpocock/skills",
@@ -167,7 +173,7 @@
       "source": "github/gh-stack",
       "sourceType": "github",
       "skillPath": "skills/gh-stack/SKILL.md",
-      "computedHash": "213d3fe0b3dc87b453912b5a5947fd189a884e4a82ce41fe8ce6c16fb93cd8b3"
+      "computedHash": "28d42250d52f33424b807add6fbdec75736e835f98752311db321ab51733fea6"
     },
     "git-guardrails-claude-code": {
       "source": "mattpocock/skills",
@@ -262,7 +268,7 @@
       "source": "vercel-labs/portless",
       "sourceType": "github",
       "skillPath": "skills/portless/SKILL.md",
-      "computedHash": "6cf90b3cfe12f98878065f2feab6a2b040e2ef07c0f7a120814f44861034f9d5"
+      "computedHash": "cd93aa3d65f55d8ce528232bd1731c9d18d387ee5869614aa3832f925bc8617a"
     },
     "prototype": {
       "source": "mattpocock/skills",
@@ -399,7 +405,7 @@
       "source": "vercel/turborepo",
       "sourceType": "github",
       "skillPath": "skills/turborepo/SKILL.md",
-      "computedHash": "eb988d5153a0483bee1e50e0accf39ce57690e55686f3cf25d3b960d672ca703"
+      "computedHash": "799ac3cf9ec94f14c37be76f0be14c896727c968c2d49501cd77713d724d1e33"
     },
     "using-ably": {
       "source": "ably/agent-skills",

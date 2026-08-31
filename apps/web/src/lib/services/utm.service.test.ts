@@ -72,7 +72,10 @@ describe("utmService.handleUTMConversion", () => {
 
     expect(createClientMock).toHaveBeenCalledWith({
       baseUrl: "http://localhost:8787/v1",
-      headers: { cookie: COOKIE_HEADER },
+      headers: {
+        cookie: COOKIE_HEADER,
+        "x-sokosumi-web-build-version": "1",
+      },
     });
     expect(postUsersByIdUtmAttributionMock).toHaveBeenCalledWith(
       expect.objectContaining({

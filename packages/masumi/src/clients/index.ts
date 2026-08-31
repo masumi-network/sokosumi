@@ -1,5 +1,6 @@
 export type {
   AgentClientConfig,
+  AgentJobInputFailure,
   AgentJobStartFailure,
 } from "./agent.client.js";
 export { createAgentClient } from "./agent.client.js";
@@ -10,7 +11,7 @@ export {
 } from "./masumi-payment.client.js";
 export type {
   X402AvailableNetwork,
-  X402Budget,
+  X402KeySpendCaps,
   X402PayFailure,
   X402PayInput,
   X402SignedPayment,

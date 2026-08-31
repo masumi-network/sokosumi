@@ -20,23 +20,36 @@ export const chatRoomPresenceSchema = z
  * consumer type (including discoverable list rows).
  */
 export const chatRoomDiscoverabilitySchema = z
-  .enum(["public", "private", "external"])
+  .enum(["public", "private", "external", "matched"])
   .openapi("ChatRoomDiscoverability", {
     description:
-      'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), or `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests).',
+      'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests), or `"matched"` (org-less, roster-only; never in org discoverable lists).',
+    example: "public",
+  });
+
+/**
+ * Org-scoped channel create/update discoverability. Excludes `"matched"` —
+ * matched channels are admin-created org-less rooms, not org channel writes.
+ */
+export const orgChannelDiscoverabilitySchema = z
+  .enum(["public", "private", "external"])
+  .openapi("OrgChannelDiscoverability", {
+    description:
+      'Org channel discoverability: `"public"`, `"private"`, or `"external"`. Not `"matched"`.',
     example: "public",
   });
 
 /**
  * Discoverable-list row discoverability. Always non-null.
  * Private rows only appear for organization owners/admins; external rows
- * appear for every org member (same as public).
+ * appear for every org member (same as public). Matched is excluded —
+ * org-less matched channels never appear in org discoverable lists.
  */
 export const discoverableChannelDiscoverabilitySchema = z
   .enum(["public", "private", "external"])
   .openapi("DiscoverableChannelDiscoverability", {
     description:
-      '`"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.',
+      '`"public"` and `"external"` for every org member; `"private"` only for organization owners and admins. Never `"matched"`.',
     example: "public",
   });
 
@@ -83,6 +96,10 @@ export const chatRoomCoworkerParticipantSchema = z
       .nullable()
       .openapi({ example: "https://example.com/coworker.png" }),
     presence: chatRoomPresenceSchema.openapi({ example: "online" }),
+    /** Set when this coworker is a user's first-party Soko Bot. */
+    sokoBotId: z.string().nullable().optional(),
+    /** Generative orb seed for Soko Bot participants (no image). */
+    sokoBotAvatarSeed: z.string().nullable().optional(),
   })
   .openapi("ChatRoomCoworkerParticipant");
 
@@ -94,7 +111,7 @@ export const chatRoomSchema = z
     }),
     organizationId: z.string().nullable().openapi({
       description:
-        "Organization that owns the room. Null for Personal Directs (human 1:1 from an External channel, and coworker 1:1 created with no active organization).",
+        "Organization that owns the room. Null for Personal Directs and for org-less matched channels (`discoverability=matched`).",
       example: "org_123",
     }),
     organizationName: z.string().nullable().openapi({
@@ -117,11 +134,11 @@ export const chatRoomSchema = z
     // Inline nullable enum — do not use chatRoomDiscoverabilitySchema.nullable()
     // or the shared ChatRoomDiscoverability component gains null.
     discoverability: z
-      .enum(["public", "private", "external"])
+      .enum(["public", "private", "external", "matched"])
       .nullable()
       .openapi({
         description:
-          'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), or `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests). Null for direct rooms.',
+          'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests), or `"matched"` (org-less, roster-only). Null for direct rooms.',
         example: "public",
       }),
     createdByUserId: z.string().openapi({ example: "user_123" }),
@@ -241,7 +258,7 @@ export const createChatRoomRequestSchema = z
       topic: z.string().trim().max(200).optional().openapi({
         example: "Launch planning with design and AI research partners",
       }),
-      discoverability: chatRoomDiscoverabilitySchema
+      discoverability: orgChannelDiscoverabilitySchema
         .default("public")
         .optional()
         .openapi({
@@ -277,7 +294,7 @@ export const updateChatRoomRequestSchema = z
     topic: z.string().trim().max(200).nullable().optional().openapi({
       example: "Launch planning with design and AI research partners",
     }),
-    discoverability: chatRoomDiscoverabilitySchema.optional().openapi({
+    discoverability: orgChannelDiscoverabilitySchema.optional().openapi({
       description:
         'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.',
       example: "private",

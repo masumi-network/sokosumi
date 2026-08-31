@@ -1,5 +1,6 @@
 "use client";
 
+import { parseTaskScheduleMetadata } from "@sokosumi/utils";
 import { useFormatter, useTranslations } from "next-intl";
 
 import {
@@ -8,7 +9,6 @@ import {
 } from "@/components/schedules/format";
 import { cn } from "@/lib/utils";
 import { getScheduleIcon } from "@/lib/utils/schedule-icon";
-import { parseTaskScheduleMetadata } from "@/lib/utils/task-schedule";
 
 interface TaskScheduleDisplayProps {
   metadata: string | null | undefined;

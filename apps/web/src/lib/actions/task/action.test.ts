@@ -628,6 +628,40 @@ describe("task link actions", () => {
     );
     expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
   });
+
+  it("returns a client-upgrade result when related-task scheduling is gated", async () => {
+    taskServiceMock.createTask.mockResolvedValue(
+      buildTask({ status: TaskStatus.DRAFT }),
+    );
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    taskScheduleServiceMock.setSchedule.mockRejectedValue(
+      new CoreApiRequestError("Reload required", {
+        status: 426,
+        kind: "calendar_client_upgrade_required",
+      }),
+    );
+    const { createTaskAndLink } = await import("./action");
+
+    const result = await createTaskAndLink({
+      taskId: "task-1",
+      description: "Related scheduled task",
+      assigneeId: null,
+      status: TaskStatus.READY,
+      schedule: {
+        mode: "recurring",
+        timezone: "UTC",
+        cron: "0 9 * * *",
+      },
+      relation: TaskLinkRelation.RELATED,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { kind: "calendar_client_upgrade_required" },
+    });
+    expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
+    expect(taskServiceMock.createTaskLink).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateTask schedule status", () => {
@@ -878,6 +912,36 @@ describe("setTaskStatusFromDrag", () => {
     );
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
+
+  it("returns a client-upgrade result when schedule clearing is gated", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({
+        id: "task-1",
+        status: TaskStatus.QUEUED,
+        metadata: scheduledMetadata,
+        nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
+      }),
+    );
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    taskScheduleServiceMock.clearSchedule.mockRejectedValue(
+      new CoreApiRequestError("Reload required", {
+        status: 426,
+        kind: "calendar_client_upgrade_required",
+      }),
+    );
+    const { setTaskStatusFromDrag } = await import("./action");
+
+    const result = await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.READY,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { kind: "calendar_client_upgrade_required" },
+    });
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
 });
 
 describe("createTask schedule", () => {
@@ -932,5 +996,33 @@ describe("createTask schedule", () => {
     });
 
     expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
+  });
+
+  it("returns a client-upgrade outcome for the exact Calendar 426 error", async () => {
+    taskServiceMock.createTask.mockResolvedValue(
+      buildTask({ status: TaskStatus.DRAFT }),
+    );
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    taskScheduleServiceMock.setSchedule.mockRejectedValue(
+      new CoreApiRequestError("Reload required", {
+        status: 426,
+        kind: "calendar_client_upgrade_required",
+      }),
+    );
+
+    const { createTask } = await import("./action");
+    const result = await createTask({
+      description: "Scheduled task",
+      assigneeId: null,
+      status: TaskStatus.READY,
+      schedule: recurringSchedule,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { kind: "calendar_client_upgrade_required" },
+    });
+    expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
+    expect(toCoreApiActionErrorMock).not.toHaveBeenCalled();
   });
 });

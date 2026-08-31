@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPaymentClient } from "./masumi-payment.client.js";
 
 const getX402NetworksAvailableMock = vi.fn();
-const getX402BudgetsMock = vi.fn();
 const getX402WalletsMock = vi.fn();
 const getX402WalletsBalanceMock = vi.fn();
 const getApiKeyStatusMock = vi.fn();
@@ -12,7 +11,6 @@ const postX402PayMock = vi.fn();
 vi.mock("./openapi/generated/payment/index.js", () => ({
   getX402NetworksAvailable: (...args: unknown[]) =>
     getX402NetworksAvailableMock(...args),
-  getX402Budgets: (...args: unknown[]) => getX402BudgetsMock(...args),
   getX402Wallets: (...args: unknown[]) => getX402WalletsMock(...args),
   getX402WalletsBalance: (...args: unknown[]) =>
     getX402WalletsBalanceMock(...args),
@@ -36,20 +34,22 @@ function availableNetwork(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function budget(overrides: Record<string, unknown> = {}) {
+function keyStatus(overrides: Record<string, unknown> = {}) {
   return {
-    id: "x402budget_1",
-    apiKeyId: "apikey_1",
-    evmWalletId: "wallet_1",
-    evmWalletAddress: "0x52E29e0d2Aa49bfBfC548C0A9F2196F4aa51f3ea",
-    caip2Network: "eip155:84532",
-    asset: USDC_BASE_SEPOLIA,
-    remainingAmount: "1000000",
-    spentAmount: "0",
-    createdById: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    id: "apikey_own",
+    canAdmin: true,
+    canPay: true,
+    usageLimited: false,
+    RemainingUsageCredits: [] as { unit: string; amount: string }[],
     ...overrides,
+  };
+}
+
+function statusResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    data: { status: "success", data: keyStatus(overrides) },
+    error: undefined,
+    response: { status: 200 },
   };
 }
 
@@ -195,230 +195,228 @@ describe("getX402AvailableNetworks", () => {
   });
 });
 
-describe("getX402Budgets", () => {
+describe("getX402KeySpendCaps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("sums credits per eip155 unit and lowercases the unit", async () => {
+    // Nothing on the node enforces one row per (key, unit), and its own debit
+    // path judges the SUM, so a split ledger must not read as the first row.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: "400000" },
+          {
+            unit: `eip155:84532:${USDC_BASE_SEPOLIA.toLowerCase()}`,
+            amount: "600000",
+          },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isOk()).toBe(true);
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.usageLimited).toBe(true);
+    expect(
+      caps?.creditsByUnit.get(
+        `eip155:84532:${USDC_BASE_SEPOLIA.toLowerCase()}`,
+      ),
+    ).toBe(1000000n);
+  });
+
+  it("drops the Cardano rail's rows from the same shared ledger", async () => {
+    // lovelace and native-asset units live on the SAME UnitValue ledger. A
+    // Cardano-funded key must never make an EVM pair look payable.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: "lovelace", amount: "5000000" },
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: "1" },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.creditsByUnit.size).toBe(1);
+    expect(caps?.creditsByUnit.has("lovelace")).toBe(false);
+  });
+
+  it("reports no EVM credit for a key funded only on the Cardano rail", async () => {
+    // The node refuses every x402 payment such a key makes. It once
+    // grandfathered it to uncapped spend instead, which is why this case has
+    // its own test.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [{ unit: "lovelace", amount: "5000000" }],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.usageLimited).toBe(true);
+    expect(caps?.creditsByUnit.size).toBe(0);
+  });
+
+  it("drops an eip155 row it cannot parse", async () => {
+    // An unparsable amount adds nothing to its unit's sum, so the unit reads
+    // zero and the pair delists. Treating it as credit would list a pair the
+    // node refuses.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: "not-a-number" },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.creditsByUnit.size).toBe(0);
+  });
+
+  it("drops an eip155 row whose amount is longer than any real balance", async () => {
+    // 200 digits cannot be a uint256 balance, and BigInt() is superlinear in
+    // digit count. Dropping the row costs the sync worker nothing, so the unit
+    // reads zero and the pair delists.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          {
+            unit: `eip155:84532:${USDC_BASE_SEPOLIA}`,
+            amount: "9".repeat(200),
+          },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.creditsByUnit.size).toBe(0);
+  });
+
+  it("fails closed when the node returns more credit rows than a key can hold", async () => {
+    // A real key holds one row per unit it has credit in, so thousands is
+    // version skew or a node fault. Every row costs a BigInt parse.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: Array.from({ length: 1001 }, (_, index) => ({
+          unit: `eip155:84532:${USDC_BASE_SEPOLIA}${index}`,
+          amount: "1",
+        })),
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("RemainingUsageCredits");
+  });
+
+  it("reports an unlimited key as uncapped", async () => {
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({ usageLimited: false }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.usageLimited).toBe(false);
+    expect(caps?.creditsByUnit.size).toBe(0);
+  });
+
+  it("fails closed when the node answers 200 without the credit rows", async () => {
+    // RemainingUsageCredits is required, so an absent array is version skew,
+    // never "this key holds no credits". Reading it as empty would delist
+    // every x402 pair and report a funding problem the operator does not have.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: undefined,
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("RemainingUsageCredits");
+  });
+
+  it("fails closed when a credit row has the wrong shape", async () => {
+    // Distinct from an unparsable AMOUNT, which is a string the node can
+    // really hold and is judged per unit. A row whose amount is not even a
+    // string is a contract break, and guessing at it could hide a real cap.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({
+        usageLimited: true,
+        RemainingUsageCredits: [
+          { unit: `eip155:84532:${USDC_BASE_SEPOLIA}`, amount: 1000 },
+        ],
+      }),
+    );
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("RemainingUsageCredits");
+  });
+
+  it("fails closed when the node answers 200 without the usageLimited flag", async () => {
+    // Version skew must not read as "uncapped" and mark pairs ready that a
+    // capped key cannot actually pay.
     getApiKeyStatusMock.mockResolvedValue({
       data: { status: "success", data: { id: "apikey_own" } },
       error: undefined,
       response: { status: 200 },
     });
+
+    const result = await createClient().getX402KeySpendCaps();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toContain("usageLimited");
   });
 
-  it("returns the node's budget rows on success", async () => {
-    const budgets = [budget({ apiKeyId: "apikey_own" })];
-    getX402BudgetsMock.mockResolvedValue({
-      data: { status: "success", data: { Budgets: budgets } },
-      error: undefined,
-      response: { status: 200 },
-    });
-
-    const result = await createClient().getX402Budgets();
-
-    expect(result.isOk()).toBe(true);
-    expect(result.isOk() && result.value).toEqual(budgets);
-  });
-
-  it("asks the node to scope the admin-only list to its own API key", async () => {
-    // GET /x402/budgets is admin-only and returns EVERY key's rows unless
-    // filtered — but POST /x402/pay only draws on budgets granted to the
-    // calling key, so an unfiltered read would mark pairs ready off budgets
-    // this key can never spend. Passing the filter is only the REQUEST half;
-    // the response is re-filtered below, because a node that renames or
-    // ignores this parameter fails open.
-    getX402BudgetsMock.mockResolvedValue({
-      data: { status: "success", data: { Budgets: [] } },
-      error: undefined,
-      response: { status: 200 },
-    });
-
-    await createClient().getX402Budgets();
-
-    expect(getX402BudgetsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ query: { apiKeyId: "apikey_own" } }),
-    );
-  });
-
-  it("drops rows belonging to another API key even when the node returns them", async () => {
-    // A node that renames, drops, or ignores the apiKeyId query parameter
-    // answers 200 with every key's rows. Trusting that response marks a
-    // (network, asset) pair buy-side ready off a budget this key cannot
-    // spend, and records an evmWalletId POST /x402/pay will refuse — a
-    // post-charge 402.
-    const ownBudget = budget({ id: "own", apiKeyId: "apikey_own" });
-    getX402BudgetsMock.mockResolvedValue({
-      data: {
-        status: "success",
-        data: {
-          Budgets: [
-            budget({ id: "foreign", apiKeyId: "apikey_someone_else" }),
-            ownBudget,
-          ],
-        },
-      },
-      error: undefined,
-      response: { status: 200 },
-    });
-
-    const result = await createClient().getX402Budgets();
-
-    expect(result.isOk()).toBe(true);
-    expect(result.isOk() && result.value).toEqual([ownBudget]);
-  });
-
-  it("fails when the own-key lookup fails instead of reading unscoped", async () => {
+  it("propagates a failed key-status resolution", async () => {
     getApiKeyStatusMock.mockResolvedValue({
       data: undefined,
       error: { error: { message: "unauthorized" } },
       response: { status: 401 },
     });
 
-    const result = await createClient().getX402Budgets();
+    const result = await createClient().getX402KeySpendCaps();
 
     expect(result.isErr()).toBe(true);
-    expect(result.isErr() && result.error).toBe(
-      "api-key-status 401: unauthorized",
-    );
-    expect(getX402BudgetsMock).not.toHaveBeenCalled();
-  });
-
-  it("refuses the unscoped read when the key id is missing or empty", async () => {
-    // A version-skewed node can answer 200 with no id. The hey-api query
-    // serializer silently DROPS an undefined apiKeyId param, which would turn
-    // the call into exactly the unscoped admin read the resolution prevents.
-    for (const data of [{}, { id: "" }]) {
-      getX402BudgetsMock.mockClear();
-      getApiKeyStatusMock.mockResolvedValue({
-        data: { status: "success", data },
-        error: undefined,
-        response: { status: 200 },
-      });
-
-      const result = await createClient().getX402Budgets();
-
-      expect(result.isErr()).toBe(true);
-      expect(result.isErr() && result.error).toContain(
-        "refusing unscoped budgets read",
-      );
-      expect(getX402BudgetsMock).not.toHaveBeenCalled();
-    }
-  });
-
-  it("errors on a 200 whose body has no Budgets array", async () => {
-    getX402BudgetsMock.mockResolvedValue({
-      data: { status: "success", data: {} },
-      error: undefined,
-      response: { status: 200 },
-    });
-
-    const result = await createClient().getX402Budgets();
-
-    expect(result.isErr()).toBe(true);
-    expect(result.isErr() && result.error).toContain("no Budgets array");
-  });
-
-  it("fails closed when any budget row is malformed", async () => {
-    getX402BudgetsMock.mockResolvedValue({
-      data: {
-        status: "success",
-        data: {
-          Budgets: [
-            budget({ apiKeyId: "apikey_own" }),
-            budget({ id: "malformed", apiKeyId: undefined }),
-          ],
-        },
-      },
-      error: undefined,
-      response: { status: 200 },
-    });
-
-    const result = await createClient().getX402Budgets();
-
-    expect(result.isErr() && result.error).toContain("malformed row");
-  });
-
-  it("forwards the abort signal to the budgets fetch, not the shared status fetch", async () => {
-    getX402BudgetsMock.mockResolvedValue({
-      data: { status: "success", data: { Budgets: [] } },
-      error: undefined,
-      response: { status: 200 },
-    });
-    const signal = new AbortController().signal;
-
-    await createClient().getX402Budgets({ signal });
-
-    expect(getX402BudgetsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ signal }),
-    );
-    // The api-key-status fetch is deliberately signal-LESS: it is shared by
-    // whichever callers race into it, and one caller's abort must not fail
-    // the others. The caller still honors its own signal — the memoization
-    // describe pins that an abort returns an error to the aborting caller.
-    expect(getApiKeyStatusMock).toHaveBeenCalledWith({
-      client: expect.anything(),
-    });
-  });
-
-  it("an already-aborted signal fails the call before any request", async () => {
-    const controller = new AbortController();
-    controller.abort();
-
-    const result = await createClient().getX402Budgets({
-      signal: controller.signal,
-    });
-
-    expect(result.isErr()).toBe(true);
-    // Neither request fires: not the budgets read, and not the SHARED
-    // api-key-status fetch either — a caller that is already gone must not
-    // warm the memo with a request it explicitly asked not to make.
-    expect(getX402BudgetsMock).not.toHaveBeenCalled();
-    expect(getApiKeyStatusMock).not.toHaveBeenCalled();
-  });
-
-  it("returns an error with the node status and message on failure", async () => {
-    getX402BudgetsMock.mockResolvedValue({
-      data: undefined,
-      error: { error: { message: "budget backend down" } },
-      response: { status: 500 },
-    });
-
-    const result = await createClient().getX402Budgets();
-
-    expect(result.isErr()).toBe(true);
-    expect(result.isErr() && result.error).toBe(
-      "x402 budgets 500: budget backend down",
-    );
-  });
-
-  it("returns an error when the request throws", async () => {
-    getX402BudgetsMock.mockRejectedValue(new Error("socket hang up"));
-
-    const result = await createClient().getX402Budgets();
-
-    expect(result.isErr()).toBe(true);
-    expect(result.isErr() && result.error).toMatch(/socket hang up/);
   });
 });
 
-describe("getX402AdminPurchasingWallets", () => {
+describe("getX402PurchasingWallets", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns purchasing wallets for an admin key", async () => {
+  it("returns the purchasing wallets the node scopes to this key", async () => {
     const wallets = [purchasingWallet()];
-    getApiKeyStatusMock.mockResolvedValue({
-      data: { status: "success", data: { id: "apikey_own", canAdmin: true } },
-      error: undefined,
-      response: { status: 200 },
-    });
+    getApiKeyStatusMock.mockResolvedValue(statusResponse());
     getX402WalletsMock.mockResolvedValue({
       data: { status: "success", data: { Wallets: wallets } },
       error: undefined,
       response: { status: 200 },
     });
 
-    const result = await createClient().getX402AdminPurchasingWallets();
+    const result = await createClient().getX402PurchasingWallets();
 
     expect(result.isOk() && result.value).toEqual(wallets);
     expect(getX402WalletsMock).toHaveBeenCalledWith(
@@ -426,23 +424,77 @@ describe("getX402AdminPurchasingWallets", () => {
     );
   });
 
-  it("keeps non-admin keys budget-only and never lists wallets", async () => {
-    getApiKeyStatusMock.mockResolvedValue({
-      data: {
-        status: "success",
-        data: { id: "apikey_own", canAdmin: false },
-      },
+  it("lists wallets for a scoped non-admin key", async () => {
+    // masumi ADR 0016 removed per-wallet budgets, so a scoped non-admin key
+    // is a first-class signer: the node returns the wallets it created plus
+    // any an admin assigned to it. Gating on canAdmin here would delist every
+    // chain for exactly the keys Soko is meant to run as.
+    const wallets = [purchasingWallet()];
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({ canAdmin: false, canPay: true }),
+    );
+    getX402WalletsMock.mockResolvedValue({
+      data: { status: "success", data: { Wallets: wallets } },
       error: undefined,
       response: { status: 200 },
     });
 
-    const result = await createClient().getX402AdminPurchasingWallets();
+    const result = await createClient().getX402PurchasingWallets();
+
+    expect(result.isOk() && result.value).toEqual(wallets);
+    expect(getX402WalletsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists nothing for a read-only key, which could never sign", async () => {
+    // The node reads and pays at DIFFERENT permission tiers: GET /x402/wallets
+    // is read-authenticated, POST /x402/pay is pay-authenticated. Listing a
+    // read-only key's wallets would compose ready pairs whose every charge
+    // 401s, and the pay path reads a 401 as ambiguous, so the record is held
+    // instead of refunded. Never ask the node for that listing at all.
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({ canAdmin: false, canPay: false }),
+    );
+
+    const result = await createClient().getX402PurchasingWallets();
 
     expect(result.isOk() && result.value).toEqual([]);
     expect(getX402WalletsMock).not.toHaveBeenCalled();
   });
 
-  it("fails closed when an admin wallet response is malformed", async () => {
+  it("lists wallets for an admin key that carries no explicit pay flag", async () => {
+    // The node's own hasPermission returns true for any admin key before it
+    // looks at the required flags, so admin IS pay. Gating on canPay alone
+    // would delist every chain for an admin key.
+    const wallets = [purchasingWallet()];
+    getApiKeyStatusMock.mockResolvedValue(
+      statusResponse({ canAdmin: true, canPay: false }),
+    );
+    getX402WalletsMock.mockResolvedValue({
+      data: { status: "success", data: { Wallets: wallets } },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const result = await createClient().getX402PurchasingWallets();
+
+    expect(result.isOk() && result.value).toEqual(wallets);
+  });
+
+  it("lists nothing when the node reports neither permission flag", async () => {
+    // Version skew: absent flags must not read as permitted.
+    getApiKeyStatusMock.mockResolvedValue({
+      data: { status: "success", data: { id: "apikey_own" } },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const result = await createClient().getX402PurchasingWallets();
+
+    expect(result.isOk() && result.value).toEqual([]);
+    expect(getX402WalletsMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the wallet response is malformed", async () => {
     getApiKeyStatusMock.mockResolvedValue({
       data: { status: "success", data: { id: "apikey_own", canAdmin: true } },
       error: undefined,
@@ -454,13 +506,13 @@ describe("getX402AdminPurchasingWallets", () => {
       response: { status: 200 },
     });
 
-    const result = await createClient().getX402AdminPurchasingWallets();
+    const result = await createClient().getX402PurchasingWallets();
 
     expect(result.isErr()).toBe(true);
     expect(result.isErr() && result.error).toContain("no Wallets array");
   });
 
-  it("fails closed when any admin wallet row is malformed", async () => {
+  it("fails closed when any wallet row is malformed", async () => {
     getApiKeyStatusMock.mockResolvedValue({
       data: { status: "success", data: { id: "apikey_own", canAdmin: true } },
       error: undefined,
@@ -480,7 +532,7 @@ describe("getX402AdminPurchasingWallets", () => {
       response: { status: 200 },
     });
 
-    const result = await createClient().getX402AdminPurchasingWallets();
+    const result = await createClient().getX402PurchasingWallets();
 
     expect(result.isErr() && result.error).toContain("malformed row");
   });
@@ -491,44 +543,33 @@ describe("api-key-status memoization", () => {
     vi.clearAllMocks();
   });
 
-  it("resolves the key once per client instance across budgets and admin wallets", async () => {
-    getApiKeyStatusMock.mockResolvedValue({
-      data: { status: "success", data: { id: "apikey_own", canAdmin: true } },
-      error: undefined,
-      response: { status: 200 },
-    });
-    getX402BudgetsMock.mockResolvedValue({
-      data: { status: "success", data: { Budgets: [] } },
-      error: undefined,
-      response: { status: 200 },
-    });
-    getX402WalletsMock.mockResolvedValue({
-      data: { status: "success", data: { Wallets: [] } },
-      error: undefined,
-      response: { status: 200 },
-    });
+  it("resolves the key once per client instance, concurrently or not", async () => {
+    // Deliberately NOT paired with the wallet listing: that method no longer
+    // resolves the key at all, so using it as the second caller would satisfy
+    // this count without exercising the memo.
+    getApiKeyStatusMock.mockResolvedValue(statusResponse());
 
     const client = createClient();
-    // Concurrent, as the readiness sync fires them: the in-flight promise is
-    // shared, so even the racing pair costs one status request.
+    // Concurrent first: the in-flight promise is shared, so a racing pair
+    // costs one status request, not two.
     await Promise.all([
-      client.getX402Budgets(),
-      client.getX402AdminPurchasingWallets(),
+      client.getX402KeySpendCaps(),
+      client.getX402KeySpendCaps(),
     ]);
-    await client.getX402Budgets();
+    // And once settled, the resolved value is reused rather than refetched.
+    await client.getX402KeySpendCaps();
 
     expect(getApiKeyStatusMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not share the resolution across client instances", async () => {
-    getApiKeyStatusMock.mockResolvedValue({
-      data: { status: "success", data: { id: "apikey_own", canAdmin: false } },
-      error: undefined,
-      response: { status: 200 },
-    });
+    getApiKeyStatusMock.mockResolvedValue(statusResponse({ canAdmin: false }));
 
-    await createClient().getX402AdminPurchasingWallets();
-    await createClient().getX402AdminPurchasingWallets();
+    // Spend caps, not the wallet listing: dropping the canAdmin gate left the
+    // listing with no reason to resolve the key at all, so it no longer
+    // exercises the memo (and now costs one request instead of two).
+    await createClient().getX402KeySpendCaps();
+    await createClient().getX402KeySpendCaps();
 
     expect(getApiKeyStatusMock).toHaveBeenCalledTimes(2);
   });
@@ -539,22 +580,13 @@ describe("api-key-status memoization", () => {
       error: { error: { message: "unauthorized" } },
       response: { status: 401 },
     });
-    getApiKeyStatusMock.mockResolvedValue({
-      data: { status: "success", data: { id: "apikey_own" } },
-      error: undefined,
-      response: { status: 200 },
-    });
-    getX402BudgetsMock.mockResolvedValue({
-      data: { status: "success", data: { Budgets: [] } },
-      error: undefined,
-      response: { status: 200 },
-    });
+    getApiKeyStatusMock.mockResolvedValue(statusResponse());
 
     const client = createClient();
-    const first = await client.getX402Budgets();
+    const first = await client.getX402KeySpendCaps();
     expect(first.isErr()).toBe(true);
 
-    const second = await client.getX402Budgets();
+    const second = await client.getX402KeySpendCaps();
     expect(second.isOk()).toBe(true);
     expect(getApiKeyStatusMock).toHaveBeenCalledTimes(2);
   });
@@ -570,49 +602,37 @@ describe("api-key-status memoization", () => {
         resolveStatus = resolve;
       }),
     );
-    getX402BudgetsMock.mockResolvedValue({
-      data: { status: "success", data: { Budgets: [] } },
-      error: undefined,
-      response: { status: 200 },
-    });
 
     const client = createClient();
-    const abortedCall = client.getX402Budgets({ signal: controller.signal });
-    const unaffectedCall = client.getX402AdminPurchasingWallets();
+    const abortedCall = client.getX402KeySpendCaps({
+      signal: controller.signal,
+    });
+    // Both callers must be ones that actually await the shared resolution:
+    // the wallet listing no longer does, so it would pass this vacuously.
+    const unaffectedCall = client.getX402KeySpendCaps();
     controller.abort();
 
     const abortedResult = await abortedCall;
     expect(abortedResult.isErr()).toBe(true);
 
-    resolveStatus({
-      data: { status: "success", data: { id: "apikey_own", canAdmin: false } },
-      error: undefined,
-      response: { status: 200 },
-    });
+    resolveStatus(statusResponse({ usageLimited: false }));
     const unaffectedResult = await unaffectedCall;
     expect(unaffectedResult.isOk()).toBe(true);
-    expect(unaffectedResult.isOk() && unaffectedResult.value).toEqual([]);
+    expect(unaffectedResult.isOk() && unaffectedResult.value.usageLimited).toBe(
+      false,
+    );
     expect(getApiKeyStatusMock).toHaveBeenCalledTimes(1);
   });
 
   it("never memoizes a thrown resolution either", async () => {
     getApiKeyStatusMock.mockRejectedValueOnce(new Error("socket hang up"));
-    getApiKeyStatusMock.mockResolvedValue({
-      data: { status: "success", data: { id: "apikey_own" } },
-      error: undefined,
-      response: { status: 200 },
-    });
-    getX402BudgetsMock.mockResolvedValue({
-      data: { status: "success", data: { Budgets: [] } },
-      error: undefined,
-      response: { status: 200 },
-    });
+    getApiKeyStatusMock.mockResolvedValue(statusResponse());
 
     const client = createClient();
-    const first = await client.getX402Budgets();
+    const first = await client.getX402KeySpendCaps();
     expect(first.isErr()).toBe(true);
 
-    const second = await client.getX402Budgets();
+    const second = await client.getX402KeySpendCaps();
     expect(second.isOk()).toBe(true);
     expect(getApiKeyStatusMock).toHaveBeenCalledTimes(2);
   });
@@ -688,6 +708,35 @@ describe("getX402WalletBalances", () => {
           Balances: [
             walletBalance(),
             walletBalance({ native: { amount: -1 } }),
+          ],
+        },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const result = await createClient().getX402WalletBalances({
+      evmWalletId: "wallet_1",
+      evmWalletAddress: purchasingWallet().address,
+      caip2Network: "eip155:84532",
+    });
+
+    expect(result.isErr() && result.error).toContain("malformed row");
+  });
+
+  it("fails closed when a balance amount is longer than any real balance", async () => {
+    // Max uint256 is 78 digits. A longer amount is not a balance, and the
+    // bound keeps an unbounded digit string off the BigInt path.
+    getX402WalletsBalanceMock.mockResolvedValue({
+      data: {
+        status: "success",
+        data: {
+          evmWalletId: "wallet_1",
+          address: purchasingWallet().address,
+          Balances: [
+            walletBalance({
+              native: { symbol: "ETH", decimals: 18, amount: "9".repeat(200) },
+            }),
           ],
         },
       },
