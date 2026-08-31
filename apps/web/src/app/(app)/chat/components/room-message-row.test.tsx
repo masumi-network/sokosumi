@@ -1,3 +1,4 @@
+import { CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
@@ -58,6 +59,20 @@ vi.mock("next-intl", () => ({
       }
       if (key === "Edit.editedAt" && values?.when != null) {
         return `Edited ${String(values.when)}`;
+      }
+      if (
+        key === "composerTooLong" &&
+        values?.count != null &&
+        values.max != null
+      ) {
+        return `composerTooLong ${String(values.count)}/${String(values.max)}`;
+      }
+      if (
+        key === "composerCharacterCount" &&
+        values?.count != null &&
+        values.max != null
+      ) {
+        return `composerCharacterCount ${String(values.count)}/${String(values.max)}`;
       }
       return key;
     };
@@ -1808,6 +1823,36 @@ describe("ChatMessageRow", () => {
     );
   });
 
+  it("edit count uses trimmed length so trailing whitespace does not look over limit", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      isEditing: true,
+      editDraft: `${"a".repeat(10_000)}  `,
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    expect(screen.getByText("composerCharacterCount 10000/10000")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("edit over-limit uses the same trimmed length as the count", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      isEditing: true,
+      editDraft: `${"a".repeat(10_001)}  `,
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("composerTooLongHint");
+    expect(screen.getByText("composerCharacterCount 10001/10000")).toBeTruthy();
+  });
+
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();
@@ -2756,5 +2801,34 @@ describe("ChatMessageRow outbound delivery", () => {
     expect(onRetryOutbound).toHaveBeenCalledWith(message);
     await user.click(screen.getByRole("button", { name: "Outbound.remove" }));
     expect(onRemoveOutbound).toHaveBeenCalledWith(message);
+  });
+
+  it("shows the send failure reason on a failed outbound bubble", () => {
+    const message = userMessage({
+      id: "pending:turn-1",
+      content: "on the train",
+      metadata: {
+        client_message_id: "turn-1",
+        outbound_delivery_status: "failed",
+        outbound_error: CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+      },
+    });
+
+    renderRow({
+      currentUserId: "user-1",
+      message,
+    });
+
+    const tooLongLabel = `composerTooLong ${message.content.length}/10000`;
+    expect(screen.getByTestId("outbound-delivery-failed")).toHaveTextContent(
+      tooLongLabel,
+    );
+    expect(
+      screen.getByTestId("outbound-delivery-failed"),
+    ).not.toHaveTextContent("Could not send message");
+    expect(screen.getByTestId("outbound-delivery-failed-icon")).toHaveAttribute(
+      "aria-label",
+      tooLongLabel,
+    );
   });
 });

@@ -89,6 +89,10 @@ interface RoomMessageComposerProps {
   className?: string;
   /** Extra row between editor and toolbar (chips, image-gen, etc.). */
   belowEditor?: ReactNode;
+  /**
+   * Clustered with Send on the toolbar's trailing edge (character count).
+   */
+  toolbarEnd?: ReactNode;
   sendButtonTestId?: string;
 }
 
@@ -114,6 +118,7 @@ export function RoomMessageComposer({
   formRef,
   className,
   belowEditor,
+  toolbarEnd,
   sendButtonTestId,
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
@@ -191,25 +196,28 @@ export function RoomMessageComposer({
             <div className="text-muted-foreground flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
               {toolbarStart}
             </div>
-            {submitControl ?? (
-              <Button
-                type="button"
-                variant="primary"
-                size="icon"
-                className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-                disabled={sendBlocked}
-                aria-label={sendAriaLabel}
-                data-testid={sendButtonTestId}
-                onPointerDown={handleSendPointerDown}
-                onClick={handleSendClick}
-              >
-                {isSending ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <ArrowUp className="size-4" aria-hidden />
-                )}
-              </Button>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {toolbarEnd}
+              {submitControl ?? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="icon"
+                  className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                  disabled={sendBlocked}
+                  aria-label={sendAriaLabel}
+                  data-testid={sendButtonTestId}
+                  onPointerDown={handleSendPointerDown}
+                  onClick={handleSendClick}
+                >
+                  {isSending ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <ArrowUp className="size-4" aria-hidden />
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -100,7 +100,7 @@ Artifacts land under `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.
 
 Harness: **agent-browser** (see `.agents/skills/agent-browser/SKILL.md` and `apps/web/AGENTS.md` Browser Automation). No Playwright/Cypress in this repo.
 
-Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply**. Prefer agent-browser / `verify-sokosumi sign-in`. Computer-use pitfalls (live-proved): Magic Link’s email field sits above the password form; JS `value=` does not satisfy react-hook-form (type keys); Chrome “Save password?” after login steals clicks — dismiss it. Full recipe in [sign-in.md](./features/sign-in.md).
+Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply** (`VERIFY_SOKOSUMI_EMAIL` / `VERIFY_SOKOSUMI_PASSWORD`). Prefer agent-browser / `verify-sokosumi sign-in`. Computer-use pitfalls (live-proved): Magic Link’s email field sits above the password form; JS `value=` does not satisfy react-hook-form (type keys); Chrome “Save password?” after login steals clicks — dismiss it. Full recipe in [sign-in.md](./features/sign-in.md).
 
 Session reuse:
 
@@ -170,7 +170,7 @@ Executable: `.cursor/skills/verify-sokosumi/bin/verify-sokosumi`
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi cleanup
 ```
 
-Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `pnpm portless:url web` / `core`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `VERIFY_SOKOSUMI_VAULT_PROFILE`. `AGENT_BROWSER_SESSION_NAME` (preferred `sokosumi`) is aliased to `AGENT_BROWSER_SESSION` when the latter is unset.
+Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `pnpm portless:url web` / `core`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD` (unset VERIFY_* copies `login_email` / `login_pwd` when those runtime secrets exist), `VERIFY_SOKOSUMI_VAULT_PROFILE`. `AGENT_BROWSER_SESSION_NAME` (preferred `sokosumi`) is aliased to `AGENT_BROWSER_SESSION` when the latter is unset.
 
 `sign-in` / doctor UI paths auto-export `AGENT_BROWSER_ARGS=--ignore-certificate-errors` for HTTPS named URLs when unset (Chromium on Linux often rejects the portless CA). Override with your own `AGENT_BROWSER_ARGS` if needed — the helper appends the flag when missing.
 
