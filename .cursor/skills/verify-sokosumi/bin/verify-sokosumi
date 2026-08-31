@@ -53,6 +53,8 @@ Env overrides:
   VERIFY_SOKOSUMI_EMAIL / VERIFY_SOKOSUMI_PASSWORD  fixture credentials for sign-in
   VERIFY_SOKOSUMI_VAULT_PROFILE  default sokosumi (agent-browser auth profile)
   AGENT_BROWSER_SESSION_NAME  preferred: sokosumi (session cookie reuse)
+  AGENT_BROWSER_SESSION        agent-browser 0.35+ session id; harness aliases
+                               SESSION_NAME → SESSION when SESSION is unset
   AGENT_BROWSER_ARGS  Chrome flags; HTTPS named URLs auto-add --ignore-certificate-errors
 EOF
 }
@@ -318,6 +320,15 @@ function ensure_agent_browser_tls_args() {
   fi
 }
 
+function ensure_agent_browser_session() {
+  # agent-browser 0.35+ isolates via AGENT_BROWSER_SESSION. SESSION_NAME is
+  # legacy restore-state only; recipes still export SESSION_NAME=sokosumi.
+  export AGENT_BROWSER_SESSION_NAME="${AGENT_BROWSER_SESSION_NAME:-sokosumi}"
+  if [[ -z "${AGENT_BROWSER_SESSION:-}" ]]; then
+    export AGENT_BROWSER_SESSION="$AGENT_BROWSER_SESSION_NAME"
+  fi
+}
+
 function require_agent_browser() {
   if ! command -v agent-browser >/dev/null 2>&1; then
     echo "error: agent-browser not on PATH." >&2
@@ -326,6 +337,7 @@ function require_agent_browser() {
     return 1
   fi
   ensure_agent_browser_tls_args
+  ensure_agent_browser_session
   return 0
 }
 
@@ -825,6 +837,8 @@ function doctor() {
 
   if command -v agent-browser >/dev/null 2>&1; then
     echo "agent_browser=$(command -v agent-browser)"
+    ensure_agent_browser_session
+    echo "agent_browser_session=${AGENT_BROWSER_SESSION}"
     local vp ve
     vp="$(vault_profile)"
     if vault_profile_exists "$vp"; then
