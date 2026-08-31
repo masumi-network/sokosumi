@@ -43,7 +43,7 @@ export async function simulateSokoBotTaskEvent(input: {
       task: { workspaceId: input.workspaceId, archivedAt: null },
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, taskId: true },
+    select: { id: true, taskId: true, lastSeenStatus: true },
   });
   const taskId = delegation?.taskId;
   if (!taskId) throw new SokoBotLabError("No delegated Task to simulate on");
@@ -76,10 +76,10 @@ export async function simulateSokoBotTaskEvent(input: {
       data: { lastSeenStatus: input.status },
     });
     return {
+      previousStatus: task.status,
       taskId: updated.id,
       name: updated.name,
       status: updated.status,
-      previousStatus: task.status,
       delegationId: delegation.id,
     };
   }, "Soko Bot lab event collided with another action");
@@ -113,7 +113,10 @@ export async function simulateSokoBotTaskEvent(input: {
     await prisma.sokoBotDelegation
       .update({
         where: { id: simulated.delegationId },
-        data: { lastSeenStatus: simulated.previousStatus },
+        // The cursor this delegation actually held, not the Task's previous
+        // status: the two are only sometimes the same, and writing the wrong
+        // one would either lose the retry or replay an older transition.
+        data: { lastSeenStatus: delegation.lastSeenStatus },
       })
       .catch(() => undefined);
     throw error;

@@ -1214,6 +1214,7 @@ const simulateTaskEventRoute = createRoute({
   responses: {
     200: jsonSuccessResponse(sokoBotLabTaskEventSchema, "Simulated event"),
     401: jsonErrorResponse("Unauthorized"),
+    409: jsonErrorResponse("Soko Bot cannot take a turn right now"),
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },

@@ -57,6 +57,8 @@ describe("simulateSokoBotTaskEvent", () => {
     delegationFindFirstMock.mockResolvedValue({
       id: "del_1",
       taskId: "01960001-0001-7001-8001-000000000001",
+      // What the cursor actually held, which is not the Task's status.
+      lastSeenStatus: "READY",
     });
     taskFindFirstMock.mockResolvedValue({
       id: "01960001-0001-7001-8001-000000000001",
@@ -127,7 +129,7 @@ describe("simulateSokoBotTaskEvent", () => {
 
     expect(delegationUpdateMock).toHaveBeenLastCalledWith({
       where: { id: "del_1" },
-      data: { lastSeenStatus: "RUNNING" },
+      data: { lastSeenStatus: "READY" },
     });
   });
 });
