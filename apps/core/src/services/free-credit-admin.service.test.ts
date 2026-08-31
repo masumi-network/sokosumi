@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUserByIdMock = vi.fn();
 const getOrganizationWithRelationsByIdMock = vi.fn();
-const getOrganizationOwnerUserIdMock = vi.fn();
 const grantFreeCreditsMock = vi.fn();
 const getCreditExpiryDateMock = vi.fn();
 const markOutOfCreditsTasksAsToppedUpMock = vi.fn();
@@ -18,10 +17,6 @@ vi.mock("@sokosumi/database/helpers", () => ({
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getOrganizationOwnerUserId: (...args: unknown[]) =>
-      getOrganizationOwnerUserIdMock(...args),
-  },
   organizationRepository: {
     getOrganizationWithRelationsById: (...args: unknown[]) =>
       getOrganizationWithRelationsByIdMock(...args),
@@ -102,12 +97,11 @@ describe("freeCreditAdminService.grantFreeCredits", () => {
     });
   });
 
-  it("grants organization free credits against the owner user", async () => {
+  it("grants organization free credits without requiring an owner", async () => {
     getOrganizationWithRelationsByIdMock.mockResolvedValue({
       id: "org-1",
       name: "Acme",
     });
-    getOrganizationOwnerUserIdMock.mockResolvedValue("owner-1");
 
     const grant = await freeCreditAdminService.grantFreeCredits({
       target: { targetType: "organization", targetId: "org-1" },
@@ -122,14 +116,14 @@ describe("freeCreditAdminService.grantFreeCredits", () => {
       expect.objectContaining({
         organizationId: "org-1",
         targetType: "organization",
-        transactionUserId: "owner-1",
+        transactionUserId: null,
       }),
       expect.anything(),
     );
     expect(markOutOfCreditsTasksAsToppedUpMock).toHaveBeenCalledWith({
       organizationId: "org-1",
       tx: expect.anything(),
-      userId: "owner-1",
+      userId: null,
     });
   });
 
@@ -160,23 +154,6 @@ describe("freeCreditAdminService.grantFreeCredits", () => {
         referenceNote: null,
       }),
     ).rejects.toThrow("Organization not found");
-  });
-
-  it("throws when the organization has no owner", async () => {
-    getOrganizationWithRelationsByIdMock.mockResolvedValue({
-      id: "org-1",
-      name: "Acme",
-    });
-    getOrganizationOwnerUserIdMock.mockResolvedValue(null);
-
-    await expect(
-      freeCreditAdminService.grantFreeCredits({
-        target: { targetType: "organization", targetId: "org-1" },
-        credits: 100,
-        ttlDays: null,
-        referenceNote: null,
-      }),
-    ).rejects.toThrow("Organization has no owner");
   });
 
   it("throws for invalid credits before opening a transaction", async () => {

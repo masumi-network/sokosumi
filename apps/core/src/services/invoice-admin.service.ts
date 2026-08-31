@@ -443,18 +443,18 @@ export const invoiceAdminService = (() => {
           }
         : { organizationId: target.id, referenceId: expectedReferenceId };
 
-    // handleInvoicePaidEvent can return early without granting (e.g. the
-    // organization has no owner/members), leaving the invoice paid but no
-    // credits issued. Verify the grant landed instead of reporting false
-    // success; granting is idempotent, so a retry after fixing the cause
-    // completes it.
+    // handleInvoicePaidEvent can return early without granting (no line
+    // items, nothing grantable for the billing reason), leaving the invoice
+    // paid but no credits issued. Verify the grant landed instead of
+    // reporting false success; granting is idempotent, so a retry after
+    // fixing the cause completes it.
     const grantedBucket = await prisma.creditBucket.findFirst({
       where: grantedBucketWhere,
       select: { id: true },
     });
     if (!grantedBucket) {
       throw new InvoiceValidationError(
-        "Invoice was paid but credits were not granted (the organization may have no owner). Resolve the issue and mark it paid again to retry.",
+        "Invoice was paid but credits were not granted. Resolve the issue and mark it paid again to retry.",
       );
     }
   }

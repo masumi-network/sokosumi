@@ -31,7 +31,6 @@ export type SentinelKind = "invoice_subscription" | "local_free_subscription";
 export type OrgPeriodIdempotencyReferenceId = string;
 
 export interface OrgPeriodSentinelSpec {
-  actorUserId: string;
   activatesAt: Date | null;
   expiresAt: Date | null;
   kind: SentinelKind;
@@ -45,7 +44,6 @@ export interface SentinelBackfillResult {
   created: number;
   distinctFingerprints: number;
   scannedLeftovers: number;
-  skippedNoActor: number;
   unparseable: number;
 }
 
@@ -204,29 +202,6 @@ async function listLeftoverMemberPeriodRows(
   `;
 }
 
-async function resolveOrgMemberActorUserId(
-  prisma: PrismaClient | Prisma.TransactionClient,
-  organizationId: string,
-): Promise<string | null> {
-  const owner = await prisma.member.findFirst({
-    where: {
-      organizationId,
-      role: "owner",
-    },
-    select: { userId: true },
-  });
-  if (owner) {
-    return owner.userId;
-  }
-
-  const member = await prisma.member.findFirst({
-    where: { organizationId },
-    orderBy: { createdAt: "asc" },
-    select: { userId: true },
-  });
-  return member?.userId ?? null;
-}
-
 export async function collectOrgPeriodSentinelSpecs(
   prisma: PrismaClient | Prisma.TransactionClient,
   params: { debug?: SentinelDebugLog; organizationId?: string } = {},
@@ -272,7 +247,6 @@ export async function collectOrgPeriodSentinelSpecs(
     }
 
     byReferenceId.set(parsed.value.orgReferenceId, {
-      actorUserId: leftover.userId,
       activatesAt: leftover.activatesAt,
       expiresAt: leftover.expiresAt,
       kind: parsed.value.kind,
@@ -281,7 +255,7 @@ export async function collectOrgPeriodSentinelSpecs(
       sourceBucketId: leftover.id,
     });
     debug?.(
-      `collect: fingerprint kind=${parsed.value.kind} organizationId=${leftover.organizationId} referenceId=${parsed.value.orgReferenceId} sourceBucketId=${leftover.id} actorUserId=${leftover.userId}`,
+      `collect: fingerprint kind=${parsed.value.kind} organizationId=${leftover.organizationId} referenceId=${parsed.value.orgReferenceId} sourceBucketId=${leftover.id}`,
     );
   }
 
@@ -393,7 +367,7 @@ export async function ensureOrgPeriodIdempotencySentinel(
       data: {
         amount: SENTINEL_FACE_CENTS,
         organizationId: spec.organizationId,
-        userId: spec.actorUserId,
+        userId: null,
         sourceCreditBucket: {
           create: {
             activatesAt: spec.activatesAt,
@@ -425,7 +399,7 @@ export async function ensureOrgPeriodIdempotencySentinel(
       data: {
         amount: SENTINEL_FACE_CENTS * -1n,
         organizationId: spec.organizationId,
-        userId: spec.actorUserId,
+        userId: null,
         creditConsumptions: {
           create: {
             amount: SENTINEL_FACE_CENTS,
@@ -457,39 +431,17 @@ export async function backfillOrgPeriodIdempotencySentinels(
 
   let created = 0;
   let alreadyPresent = 0;
-  let skippedNoActor = 0;
-
-  const specsWithActor: OrgPeriodSentinelSpec[] = [];
-  for (const [index, spec] of specs.entries()) {
-    const step = `${index + 1}/${specs.length}`;
-    let actorUserId = spec.actorUserId;
-    if (!actorUserId) {
-      actorUserId =
-        (await resolveOrgMemberActorUserId(prisma, spec.organizationId)) ?? "";
-      debug?.(
-        `backfill [${step}] resolved actor organizationId=${spec.organizationId} actorUserId=${actorUserId || "(none)"}`,
-      );
-    }
-    if (!actorUserId) {
-      skippedNoActor += 1;
-      debug?.(
-        `backfill [${step}] skippedNoActor organizationId=${spec.organizationId} referenceId=${spec.referenceId} kind=${spec.kind}`,
-      );
-      continue;
-    }
-    specsWithActor.push({ ...spec, actorUserId });
-  }
 
   const existingFingerprints = await listExistingOrgPeriodFingerprints(
     prisma,
-    specsWithActor.map((spec) => spec.referenceId),
+    specs.map((spec) => spec.referenceId),
   );
   debug?.(
-    `backfill: existingFingerprints=${existingFingerprints.size} of ${specsWithActor.length} candidate(s)`,
+    `backfill: existingFingerprints=${existingFingerprints.size} of ${specs.length} candidate(s)`,
   );
 
   const toCreate: OrgPeriodSentinelSpec[] = [];
-  for (const spec of specsWithActor) {
+  for (const spec of specs) {
     if (existingFingerprints.has(spec.referenceId)) {
       alreadyPresent += 1;
       debug?.(`backfill alreadyPresent referenceId=${spec.referenceId}`);
@@ -502,7 +454,7 @@ export async function backfillOrgPeriodIdempotencySentinels(
     created = toCreate.length;
     for (const spec of toCreate) {
       debug?.(
-        `backfill dry-run wouldCreate referenceId=${spec.referenceId} kind=${spec.kind} organizationId=${spec.organizationId} actorUserId=${spec.actorUserId}`,
+        `backfill dry-run wouldCreate referenceId=${spec.referenceId} kind=${spec.kind} organizationId=${spec.organizationId}`,
       );
     }
   } else {
@@ -516,7 +468,7 @@ export async function backfillOrgPeriodIdempotencySentinels(
         );
         if (outcome === "created") {
           debug?.(
-            `backfill [${step}] created referenceId=${spec.referenceId} kind=${spec.kind} organizationId=${spec.organizationId} actorUserId=${spec.actorUserId}`,
+            `backfill [${step}] created referenceId=${spec.referenceId} kind=${spec.kind} organizationId=${spec.organizationId}`,
           );
         } else {
           debug?.(
@@ -536,7 +488,7 @@ export async function backfillOrgPeriodIdempotencySentinels(
   }
 
   debug?.(
-    `backfill done: scannedLeftovers=${scannedLeftovers} distinctFingerprints=${specs.length} created=${created} alreadyPresent=${alreadyPresent} skippedNoActor=${skippedNoActor} unparseable=${unparseable} dryRun=${Boolean(params.dryRun)}`,
+    `backfill done: scannedLeftovers=${scannedLeftovers} distinctFingerprints=${specs.length} created=${created} alreadyPresent=${alreadyPresent} unparseable=${unparseable} dryRun=${Boolean(params.dryRun)}`,
   );
 
   return {
@@ -544,7 +496,6 @@ export async function backfillOrgPeriodIdempotencySentinels(
     created,
     distinctFingerprints: specs.length,
     scannedLeftovers,
-    skippedNoActor,
     unparseable,
   };
 }

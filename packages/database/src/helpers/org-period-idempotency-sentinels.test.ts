@@ -97,7 +97,6 @@ describe("ensureOrgPeriodIdempotencySentinel", () => {
         transaction: { create: createTransactionMock },
       } as never,
       {
-        actorUserId: "owner-1",
         activatesAt: null,
         expiresAt: new Date("2026-09-01T00:00:00.000Z"),
         kind: "invoice_subscription",
@@ -116,7 +115,7 @@ describe("ensureOrgPeriodIdempotencySentinel", () => {
 
     const grant = createTransactionMock.mock.calls[0]?.[0].data;
     assert.equal(grant.amount, SENTINEL_FACE_CENTS);
-    assert.equal(grant.userId, "owner-1");
+    assert.equal(grant.userId, null);
     assert.equal(grant.organizationId, "org-1");
     assert.equal(grant.sourceCreditBucket.create.amount, SENTINEL_FACE_CENTS);
     assert.equal(grant.sourceCreditBucket.create.userId, null);
@@ -131,6 +130,7 @@ describe("ensureOrgPeriodIdempotencySentinel", () => {
 
     const drain = createTransactionMock.mock.calls[1]?.[0].data;
     assert.equal(drain.amount, SENTINEL_FACE_CENTS * -1n);
+    assert.equal(drain.userId, null);
     assert.deepEqual(drain.creditConsumptions.create, {
       amount: SENTINEL_FACE_CENTS,
       bucketId: "sentinel-bucket",
@@ -147,7 +147,6 @@ describe("ensureOrgPeriodIdempotencySentinel", () => {
         transaction: { create: createTransactionMock },
       } as never,
       {
-        actorUserId: "owner-1",
         activatesAt: null,
         expiresAt: null,
         kind: "invoice_subscription",
@@ -178,7 +177,6 @@ describe("ensureOrgPeriodIdempotencySentinel", () => {
         },
       } as never,
       {
-        actorUserId: "owner-1",
         activatesAt: null,
         expiresAt: null,
         kind: "local_free_subscription",
@@ -205,7 +203,6 @@ describe("ensureOrgPeriodIdempotencySentinel", () => {
         transaction: { create: createTransactionMock },
       } as never,
       {
-        actorUserId: "owner-1",
         activatesAt: null,
         expiresAt: null,
         kind: "invoice_subscription",
@@ -271,7 +268,6 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
         }),
       ),
       creditBucket: { findUnique: findUniqueMock, findMany: findManyMock },
-      member: { findFirst: vi.fn() },
     };
 
     const result = await backfillOrgPeriodIdempotencySentinels(
@@ -314,7 +310,6 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
         findMany: vi.fn().mockResolvedValue([{ referenceId }]),
         findUnique: vi.fn().mockResolvedValue({ id: "live" }),
       },
-      member: { findFirst: vi.fn() },
     };
 
     const result = await backfillOrgPeriodIdempotencySentinels(
@@ -347,7 +342,6 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
         findMany: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn().mockResolvedValue(null),
       },
-      member: { findFirst: vi.fn() },
       transaction: { create: createTransactionMock },
     };
 
@@ -380,7 +374,6 @@ describe("backfillOrgPeriodIdempotencySentinels", () => {
         findMany: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn().mockResolvedValue(null),
       },
-      member: { findFirst: vi.fn() },
       transaction: { create: vi.fn() },
     };
 
