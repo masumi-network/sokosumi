@@ -4,4 +4,6 @@ Self-serve organization subscription credits are an **organization credit pool**
 
 **Idempotency after SOK-905 / SOK-912:** backfill exact org period fingerprints (`org:…:{invoiceId}:subscription`, `org:…:local-free:{periodEnd}:subscription`) as live grants or non-spendable sentinel buckets (1¢ face value, fully consumed). Mint paths skip solely on those exact org period keys. Leftover `member:` existence probes were removed after covered remaining-0 tombstones were deleted. Do not treat `migrated-member-period` alone as invoice/local-free coverage. Run sentinel backfill before relying on org keys alone.
 
+**Ownership after SOK-906:** leftover dual-owned `member:` period rows are drained (write-off remaining, not pooled into the org pot) then removed. `CreditBucket` ownership is XOR via SQL CHECK `credit_bucket_owner_xor_check`: personal (`userId` set, `organizationId` null) or org (`organizationId` set, `userId` null). Dual-owned org period / non-period rows null `userId`; both-null remaining>0 fails closed.
+
 Rejected: keep granting onto assigned members; share leftover member buckets without consolidating (billing would still look per-member); inject unused-seat credits at migration (double-grant if on-assign still fires).

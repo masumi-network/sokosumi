@@ -56,6 +56,7 @@ model User {
 
   // Notifications
   notificationsOptIn Boolean @default(true) // Whether the user wants to receive notifications
+  pushOptIn          Boolean @default(false) // Whether the user wants OS banners while Sokosumi is closed
 
   // UTM Attribution
   utmAttribution UTMAttribution?
@@ -983,12 +984,15 @@ model CreditBucket {
   sourceTransactionId String      @unique
   sourceTransaction   Transaction @relation("CreditBucketSource", fields: [sourceTransactionId], references: [id], onDelete: Cascade)
 
-  // User/Organization ownership
+  // Owner XOR: personal (userId set, organizationId null) or organization
+  // (organizationId set, userId null). SQL CHECK credit_bucket_owner_xor_check
+  // (20260831154500). Do not drop that constraint from a schema-generated diff.
+  // ON DELETE CASCADE: SET NULL would violate the CHECK.
   userId String?
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   // Track which transactions consumed from this bucket
   consumptions CreditConsumption[]

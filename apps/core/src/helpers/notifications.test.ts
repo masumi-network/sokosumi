@@ -1,5 +1,5 @@
 import { type Notification, NotificationKind } from "@sokosumi/database";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type prisma from "@/lib/db/prisma";
 
@@ -14,12 +14,21 @@ import {
   deletePendingVendorGrantNotifications,
 } from "./notifications";
 
-const { publishNotificationEventMock } = vi.hoisted(() => ({
+const { publishNotificationEventMock, userFindUniqueMock } = vi.hoisted(() => ({
   publishNotificationEventMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
   publishNotificationEvent: publishNotificationEventMock,
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    user: {
+      findUnique: userFindUniqueMock,
+    },
+  },
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -108,6 +117,7 @@ describe("createNotification", () => {
       },
     });
     expect(publishNotificationEventMock).toHaveBeenCalledWith({
+      push: false,
       userId: notification.userId,
       notification: {
         id: notification.id,
@@ -222,6 +232,148 @@ describe("createNotification", () => {
     expect(publishNotificationEventMock).not.toHaveBeenCalled();
     expect(prismaMock.notification.update).not.toHaveBeenCalled();
     expect(prismaMock.notification.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("createNotification push gating", () => {
+  beforeEach(() => {
+    // mockReset, not mockClear: these cases arm rejections and differing
+    // resolved values, so a leftover implementation would leak forward and
+    // let a later case pass on the previous case's publish.
+    userFindUniqueMock.mockReset();
+    publishNotificationEventMock.mockReset();
+    publishNotificationEventMock.mockResolvedValue(undefined);
+  });
+
+  const chatInput: CreateNotificationInput = {
+    ...notificationInput,
+    kind: NotificationKind.CHAT,
+    referenceId: "room_123",
+    eventId: "chat_message_123",
+    messageKey: "Notifications.Chat.mentioned",
+    messageParams: { senderName: "Alice", roomName: "General" },
+    metadata: { roomId: "room_123" },
+  };
+
+  function createChatRecord(): Notification {
+    return createNotificationRecord({
+      kind: chatInput.kind,
+      referenceId: chatInput.referenceId,
+      eventId: chatInput.eventId,
+      messageKey: chatInput.messageKey,
+      messageParams: JSON.stringify(chatInput.messageParams),
+      metadata: JSON.stringify(chatInput.metadata),
+    });
+  }
+
+  it("pushes a chat notification when the user opted in", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(createChatRecord());
+    userFindUniqueMock.mockResolvedValue({ pushOptIn: true });
+
+    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+
+    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ push: true }),
+    );
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: chatInput.userId },
+      select: { pushOptIn: true },
+    });
+  });
+
+  it("does not push a chat notification when the user did not opt in", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(createChatRecord());
+    userFindUniqueMock.mockResolvedValue({ pushOptIn: false });
+
+    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+
+    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ push: false }),
+    );
+  });
+
+  it("does not push non-chat kinds, and skips the opt-in read entirely", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(
+      createNotificationRecord(),
+    );
+    userFindUniqueMock.mockResolvedValue({ pushOptIn: true });
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ push: false }),
+    );
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("does not push when the user row is missing", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(createChatRecord());
+    userFindUniqueMock.mockResolvedValue(null);
+
+    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+
+    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ push: false }),
+    );
+  });
+
+  it("reads opt-in off the global client, never the caller's transaction client", async () => {
+    // Shaped like a Prisma.TransactionClient handed in by a caller mid-transaction.
+    // A read on this client that fails would abort the transaction and lose the
+    // row we just created, so the opt-in read must not touch it at all.
+    const txMock = {
+      notification: {
+        create: vi.fn().mockResolvedValue(createChatRecord()),
+        findUnique: vi.fn(),
+      },
+    };
+    userFindUniqueMock.mockResolvedValue({ pushOptIn: true });
+
+    const result = await createNotification(
+      chatInput,
+      txMock as unknown as typeof prisma,
+    );
+
+    expect(result.created).toBe(true);
+    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ push: true }),
+    );
+    expect(userFindUniqueMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the notification row when the push-gated publish fails", async () => {
+    publishNotificationEventMock.mockRejectedValue(new Error("ably down"));
+    const notification = createChatRecord();
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(notification);
+    userFindUniqueMock.mockResolvedValue({ pushOptIn: true });
+
+    await expect(
+      createNotification(chatInput, prismaMock as unknown as typeof prisma),
+    ).resolves.toEqual({ notification, created: true });
+  });
+
+  it("still publishes in-app, with push off, when the opt-in read fails", async () => {
+    const notification = createChatRecord();
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(notification);
+    userFindUniqueMock.mockRejectedValue(new Error("db down"));
+
+    await expect(
+      createNotification(chatInput, prismaMock as unknown as typeof prisma),
+    ).resolves.toEqual({ notification, created: true });
+    // Push is additive: a consent-read failure must not cost the in-app toast
+    // or the live Notification Center event (ADR-0022).
+    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ push: false }),
+    );
   });
 });
 

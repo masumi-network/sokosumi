@@ -1135,6 +1135,7 @@ export type OrchestratorSummary = {
     id: string;
     name: string | null;
     avatarSeed: string | null;
+    avatarImageUrl: string | null;
     owner: UserSummary;
 };
 
@@ -1192,6 +1193,7 @@ export type TaskEvent = {
         id: string;
         name: string | null;
         avatarSeed: string | null;
+        avatarImageUrl: string | null;
         owner: UserSummary;
     } | null;
     transactionId?: string | null;
@@ -22082,6 +22084,10 @@ export type GetUsersByIdPreferencesResponses = {
              * Whether the user wants to receive job status notifications
              */
             notificationsOptIn: boolean;
+            /**
+             * Whether the user wants OS banners while Sokosumi is closed (push)
+             */
+            pushOptIn: boolean;
         };
         meta: {
             timestamp: Date;
@@ -22103,6 +22109,10 @@ export type PatchUsersByIdPreferencesData = {
          * Whether the user wants to receive job status notifications
          */
         notificationsOptIn?: boolean;
+        /**
+         * Whether the user wants OS banners while Sokosumi is closed (push)
+         */
+        pushOptIn?: boolean;
     };
     path: {
         /**
@@ -22189,6 +22199,10 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether the user wants to receive job status notifications
              */
             notificationsOptIn: boolean;
+            /**
+             * Whether the user wants OS banners while Sokosumi is closed (push)
+             */
+            pushOptIn: boolean;
         };
         meta: {
             timestamp: Date;

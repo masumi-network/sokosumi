@@ -269,7 +269,12 @@ describe("SidebarAccountChip", () => {
     openChip();
     fireEvent.click(screen.getByRole("button", { name: "logout" }));
 
-    expect(showLogoutModalMock).toHaveBeenCalledWith("patrick@example.com");
+    // The id travels with the email so the modal can release this browser's
+    // push device without subscribing to the session on every route.
+    expect(showLogoutModalMock).toHaveBeenCalledWith({
+      id: "user_1",
+      email: "patrick@example.com",
+    });
   });
 
   it("reports subscription usage and renewal once the period has credits", () => {

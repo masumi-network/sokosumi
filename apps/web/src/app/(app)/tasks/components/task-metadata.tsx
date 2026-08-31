@@ -90,17 +90,24 @@ function resolveTaskCreatorDisplay(
       // assistant did it, or on whose behalf.
       const assistantName = orchestrator.name ?? "Assistant";
       const role = formatOrchestratorRole({ owner: orchestrator.owner.name });
+      // A claimed mascot is the bot's face everywhere else, so the orb is the
+      // fallback, not the rule. Claiming writes the coworker's image too,
+      // which is why chat showed the picture and this showed a blank disc.
+      const claimed = orchestrator.avatarImageUrl
+        ? resolveIpfsOrHttpUrl(orchestrator.avatarImageUrl)
+        : null;
       return {
         name: assistantName,
         // A bot named "Ada's personal assistant" would otherwise print the
         // same sentence twice.
         role: role.toLowerCase() === assistantName.toLowerCase() ? null : role,
-        image: null,
+        image: claimed,
         // Same fallback the sidebar and the Soko Bots page use. `avatarSeed`
         // is null for every bot, and passing that through rendered a different
         // face here than the one the owner sees everywhere else.
-        avatarSeed:
-          orchestrator.avatarSeed ?? defaultOrbSeed(orchestrator.owner.id),
+        avatarSeed: claimed
+          ? null
+          : (orchestrator.avatarSeed ?? defaultOrbSeed(orchestrator.owner.id)),
       };
     }
     default: {
@@ -285,7 +292,7 @@ function MetadataAvatarValue({
     <div className="flex items-center justify-between gap-4">
       <span className="text-muted-foreground text-sm">{label}</span>
       <div className="flex min-w-0 items-center gap-2">
-        {avatarSeed !== undefined ? (
+        {avatarSeed ? (
           <AssistantOrb
             seed={avatarSeed}
             // Resting eyes so the creator chip reads as the assistant's

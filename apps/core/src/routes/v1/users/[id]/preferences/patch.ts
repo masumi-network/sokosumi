@@ -10,6 +10,8 @@ import {
 } from "@/routes/v1/users/user-route-context";
 import { userPreferencesResponseSchema } from "@/schemas/user.schema";
 
+import { USER_PREFERENCES_SELECT } from "./preferences-select.js";
+
 const params = z.object({
   id: usersRoutePathUserIdSchema,
 });
@@ -24,17 +26,23 @@ const requestBodySchema = z
       description: "Whether the user wants to receive job status notifications",
       example: true,
     }),
+    pushOptIn: z.boolean().optional().openapi({
+      description:
+        "Whether the user wants OS banners while Sokosumi is closed (push)",
+      example: false,
+    }),
   })
   .refine(
     (data) => {
       return (
         data.marketingOptIn !== undefined ||
-        data.notificationsOptIn !== undefined
+        data.notificationsOptIn !== undefined ||
+        data.pushOptIn !== undefined
       );
     },
     {
       message: "At least one field must be provided",
-      path: ["marketingOptIn", "notificationsOptIn"],
+      path: ["marketingOptIn", "notificationsOptIn", "pushOptIn"],
     },
   );
 
@@ -62,6 +70,7 @@ const route = createRoute({
         data: {
           marketingOptIn: true,
           notificationsOptIn: true,
+          pushOptIn: false,
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -92,11 +101,11 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
           ...(body.notificationsOptIn !== undefined && {
             notificationsOptIn: body.notificationsOptIn,
           }),
+          ...(body.pushOptIn !== undefined && {
+            pushOptIn: body.pushOptIn,
+          }),
         },
-        select: {
-          marketingOptIn: true,
-          notificationsOptIn: true,
-        },
+        select: USER_PREFERENCES_SELECT,
       });
 
       return updatedUser;

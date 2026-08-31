@@ -65,6 +65,7 @@
     "data-migration:member-period-credit-pool": "tsx scripts/transfer-member-period-credit-pool.ts",
     "data-migration:org-period-idempotency-sentinels": "tsx scripts/backfill-org-period-idempotency-sentinels.ts",
     "data-migration:delete-member-period-tombstones": "tsx scripts/delete-covered-member-period-tombstones.ts",
+    "data-migration:credit-bucket-owner-xor": "tsx scripts/reconcile-credit-bucket-owner-xor.ts",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest"
