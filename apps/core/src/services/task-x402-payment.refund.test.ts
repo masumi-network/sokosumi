@@ -188,8 +188,8 @@ describe("refundRefusedTaskX402Payment", () => {
         refundTransaction: {
           create: {
             amount: bigint;
-            organization?: { connect: { id: string } };
-            user: { connect: { id: string } };
+            organizationId?: string | null;
+            userId?: string | null;
             sourceCreditBucket: {
               create: {
                 amount: bigint;
@@ -197,7 +197,6 @@ describe("refundRefusedTaskX402Payment", () => {
                 organizationId?: string | null;
                 referenceId: string;
                 referenceType: CreditBucketReferenceType;
-                user?: { connect: { id: string } };
                 userId?: string | null;
               };
             };
@@ -206,9 +205,8 @@ describe("refundRefusedTaskX402Payment", () => {
       };
     };
     expect(updateArg.data.refundTransaction.create.amount).toBe(500n);
-    expect(updateArg.data.refundTransaction.create.user.connect.id).toBe(
-      USER_ID,
-    );
+    expect(updateArg.data.refundTransaction.create.userId).toBe(USER_ID);
+    expect(updateArg.data.refundTransaction.create.organizationId).toBeNull();
     const bucket =
       updateArg.data.refundTransaction.create.sourceCreditBucket.create;
     expect(bucket.referenceId).toBe(`task-x402-payment:${PAYMENT_ID}`);
@@ -216,7 +214,6 @@ describe("refundRefusedTaskX402Payment", () => {
     expect(bucket.expiresAt).toBeNull();
     expect(bucket.userId).toBe(USER_ID);
     expect(bucket.organizationId).toBeNull();
-    expect(bucket.user).toBeUndefined();
     // Labelled at the mint, in the same update: an automated node-refusal
     // refund is never an operator quality signal.
     expect(refundKindWritten()).toBe("NODE_REFUSAL");
@@ -364,7 +361,9 @@ describe("refundVerifiedTaskX402Payment", () => {
           create: {
             amount: bigint;
             organization?: { connect: { id: string } };
-            user: { connect: { id: string } };
+            organizationId?: string | null;
+            user?: { connect: { id: string } };
+            userId?: string | null;
             sourceCreditBucket: {
               create: {
                 organizationId?: string | null;
@@ -377,12 +376,14 @@ describe("refundVerifiedTaskX402Payment", () => {
       };
     };
     expect(updateArg.data.refundTransaction.create.amount).toBe(500n);
-    expect(updateArg.data.refundTransaction.create.user.connect.id).toBe(
-      USER_ID,
+    expect(updateArg.data.refundTransaction.create.user).toBeUndefined();
+    expect(updateArg.data.refundTransaction.create.userId).toBeNull();
+    expect(updateArg.data.refundTransaction.create.organizationId).toBe(
+      ORGANIZATION_ID,
     );
     expect(
-      updateArg.data.refundTransaction.create.organization?.connect.id,
-    ).toBe(ORGANIZATION_ID);
+      updateArg.data.refundTransaction.create.organization,
+    ).toBeUndefined();
     expect(
       updateArg.data.refundTransaction.create.sourceCreditBucket.create.userId,
     ).toBeNull();
@@ -633,7 +634,9 @@ describe("resolvePendingTaskX402Payment", () => {
           create: {
             amount: bigint;
             organization?: { connect: { id: string } };
-            user: { connect: { id: string } };
+            organizationId?: string | null;
+            user?: { connect: { id: string } };
+            userId?: string | null;
             sourceCreditBucket: {
               create: {
                 amount: bigint;
@@ -650,12 +653,14 @@ describe("resolvePendingTaskX402Payment", () => {
       };
     };
     expect(updateArg.data.refundTransaction.create.amount).toBe(500n);
-    expect(updateArg.data.refundTransaction.create.user.connect.id).toBe(
-      USER_ID,
+    expect(updateArg.data.refundTransaction.create.user).toBeUndefined();
+    expect(updateArg.data.refundTransaction.create.userId).toBeNull();
+    expect(updateArg.data.refundTransaction.create.organizationId).toBe(
+      ORGANIZATION_ID,
     );
     expect(
-      updateArg.data.refundTransaction.create.organization?.connect.id,
-    ).toBe(ORGANIZATION_ID);
+      updateArg.data.refundTransaction.create.organization,
+    ).toBeUndefined();
     const bucket =
       updateArg.data.refundTransaction.create.sourceCreditBucket.create;
     expect(bucket.referenceId).toBe(`task-x402-payment:${PAYMENT_ID}`);

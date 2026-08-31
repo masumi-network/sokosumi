@@ -11,7 +11,6 @@ export interface MemberPeriodPoolTransferResult {
   organizations: number;
   bucketsDrained: number;
   centsTransferred: bigint;
-  skippedNoActor: number;
 }
 
 interface LeftoverMemberPeriodBucket {
@@ -91,29 +90,6 @@ async function listLeftoverMemberPeriodBucketsWithRemaining(
   `;
 }
 
-async function resolveTransferActorUserId(
-  tx: Prisma.TransactionClient,
-  organizationId: string,
-): Promise<string | null> {
-  const owner = await tx.member.findFirst({
-    where: {
-      organizationId,
-      role: "owner",
-    },
-    select: { userId: true },
-  });
-  if (owner) {
-    return owner.userId;
-  }
-
-  const member = await tx.member.findFirst({
-    where: { organizationId },
-    orderBy: { createdAt: "asc" },
-    select: { userId: true },
-  });
-  return member?.userId ?? null;
-}
-
 export async function transferMemberPeriodBucketsToOrganizationPool(
   tx: Prisma.TransactionClient,
   organizationId?: string,
@@ -146,29 +122,11 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
     byOrganizationAndSchedule.set(key, group);
   }
 
-  const actorByOrganization = new Map<string, string>();
-  const skippedOrganizations = new Set<string>();
-  for (const organization of new Set(
-    buckets.map((bucket) => bucket.organizationId),
-  )) {
-    const actorUserId = await resolveTransferActorUserId(tx, organization);
-    if (actorUserId) {
-      actorByOrganization.set(organization, actorUserId);
-    } else {
-      skippedOrganizations.add(organization);
-    }
-  }
-
   let bucketsDrained = 0;
   let centsTransferred = 0n;
   const transferredOrganizations = new Set<string>();
 
   for (const group of byOrganizationAndSchedule.values()) {
-    const actorUserId = actorByOrganization.get(group.organizationId);
-    if (!actorUserId) {
-      continue;
-    }
-
     const totalRemaining = group.buckets.reduce(
       (sum, bucket) => sum + bucket.remaining,
       0n,
@@ -182,7 +140,7 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
       data: {
         amount: totalRemaining * -1n,
         organizationId: group.organizationId,
-        userId: actorUserId,
+        userId: null,
         creditConsumptions: {
           createMany: {
             data: group.buckets.map((bucket) => ({
@@ -198,7 +156,7 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
       data: {
         amount: totalRemaining,
         organizationId: group.organizationId,
-        userId: actorUserId,
+        userId: null,
         sourceCreditBucket: {
           create: {
             activatesAt: group.activatesAt,
@@ -227,6 +185,5 @@ export async function transferMemberPeriodBucketsToOrganizationPool(
     organizations: transferredOrganizations.size,
     bucketsDrained,
     centsTransferred,
-    skippedNoActor: skippedOrganizations.size,
   };
 }

@@ -502,6 +502,26 @@ interface SimulateTaskEventParams extends AuthenticatedRequest {
   input: unknown;
 }
 
+const labIngestSchema = z.object({
+  beat: z.enum(["standup", "weekly-wrap", "delta"]),
+});
+
+/** Behaviour lab only: run one proactive rhythm now. */
+export const runSokoBotLabIngestAction = withSession<
+  SimulateTaskEventParams,
+  ActionResultDto<{ turnId: string }, ActionError>
+>(async ({ input }) => {
+  const parsed = labIngestSchema.safeParse(input);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  try {
+    return toActionResult(
+      ok({ turnId: await sokoBotService.runLabIngest(parsed.data.beat) }),
+    );
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
 /** Behaviour lab only: pretend a Coworker moved a delegated Task. */
 export const simulateSokoBotTaskEventAction = withSession<
   SimulateTaskEventParams,
