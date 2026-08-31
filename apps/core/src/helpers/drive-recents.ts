@@ -2,8 +2,13 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { isDriveFolderMarker } from "@sokosumi/utils";
 import type { ListBlobResult } from "@vercel/blob";
 import { list } from "@vercel/blob";
+import {
+  driveFileTypeFamily,
+  driveFileTypeFamilyRank,
+} from "@/helpers/drive-file-type-family";
 import type { DriveTaskOutputRecentsRow } from "@/helpers/drive-task-output-catalog";
 import { badRequest } from "@/helpers/error";
+import type { DriveListSort } from "@/schemas/drive-list-sort.schema";
 import type { DriveRecentsItem } from "@/schemas/drive-recents.schema";
 
 const RECENTS_CURSOR_VERSION = 3;
@@ -18,6 +23,58 @@ interface RecentsCursorPayload {
 export interface DriveRecentsCursorBinding {
   prefix: string;
   searchQuery: string;
+  /** Fingerprint of sort so cursors cannot continue under a different order. */
+  sortFingerprint: string;
+}
+
+export interface DriveRecentsSortOptions {
+  /** Primary activityAt direction. Default desc. */
+  activityOrder: "asc" | "desc";
+  /** Secondary key when UI asks for name/type. Null keeps kind+id ties. */
+  secondary: "name" | "type" | null;
+  secondaryOrder: "asc" | "desc";
+}
+
+export const DEFAULT_DRIVE_RECENTS_SORT: DriveRecentsSortOptions = {
+  activityOrder: "desc",
+  secondary: null,
+  secondaryOrder: "asc",
+};
+
+export function driveRecentsSortFingerprint(
+  options: DriveRecentsSortOptions,
+): string {
+  return [
+    options.activityOrder,
+    options.secondary ?? "none",
+    options.secondaryOrder,
+  ].join(":");
+}
+
+/**
+ * Map shared Files sort vocabulary onto Recents rules:
+ * activityAt always primary; name/type are secondary only.
+ */
+export function resolveDriveRecentsSort(
+  sort: DriveListSort | null,
+): DriveRecentsSortOptions {
+  if (!sort) {
+    return DEFAULT_DRIVE_RECENTS_SORT;
+  }
+
+  if (sort.sortBy === "date") {
+    return {
+      activityOrder: sort.sortOrder,
+      secondary: null,
+      secondaryOrder: "asc",
+    };
+  }
+
+  return {
+    activityOrder: "desc",
+    secondary: sort.sortBy,
+    secondaryOrder: sort.sortOrder,
+  };
 }
 
 export interface DriveRecentsPageState {
@@ -55,10 +112,33 @@ export function driveRecentsDriveFileNameMatchesSearch(
 export function compareDriveRecentsItems(
   left: DriveRecentsItem,
   right: DriveRecentsItem,
+  options: DriveRecentsSortOptions = DEFAULT_DRIVE_RECENTS_SORT,
 ): number {
-  const timeDiff = Date.parse(right.activityAt) - Date.parse(left.activityAt);
-  if (timeDiff !== 0) {
-    return timeDiff;
+  const leftTime = Date.parse(left.activityAt);
+  const rightTime = Date.parse(right.activityAt);
+  if (leftTime !== rightTime) {
+    return options.activityOrder === "desc"
+      ? rightTime - leftTime
+      : leftTime - rightTime;
+  }
+
+  if (options.secondary === "name") {
+    const byName = left.name.localeCompare(right.name);
+    if (byName !== 0) {
+      return options.secondaryOrder === "asc" ? byName : -byName;
+    }
+  } else if (options.secondary === "type") {
+    const leftRank = driveFileTypeFamilyRank(driveFileTypeFamily(left.name));
+    const rightRank = driveFileTypeFamilyRank(driveFileTypeFamily(right.name));
+    if (leftRank !== rightRank) {
+      return options.secondaryOrder === "asc"
+        ? leftRank - rightRank
+        : rightRank - leftRank;
+    }
+    const byName = left.name.localeCompare(right.name);
+    if (byName !== 0) {
+      return byName;
+    }
   }
 
   if (left.kind !== right.kind) {
@@ -71,8 +151,9 @@ export function compareDriveRecentsItems(
 export function isRecentsItemOlderThanCursor(
   item: DriveRecentsItem,
   cursorItem: DriveRecentsItem,
+  options: DriveRecentsSortOptions = DEFAULT_DRIVE_RECENTS_SORT,
 ): boolean {
-  return compareDriveRecentsItems(item, cursorItem) > 0;
+  return compareDriveRecentsItems(item, cursorItem, options) > 0;
 }
 
 function signRecentsCursorEnvelope(
@@ -312,10 +393,6 @@ async function fetchDriveBlobRecentsBatch(input: {
   };
 }
 
-/**
- * Always exhaust pathname-ordered blob pages into a newest-first pool of
- * size `limit + 1`. The signed cursor stores only the page boundary.
- */
 export async function fetchDriveRecentsPage(input: {
   prefix: string;
   token: string;
@@ -324,6 +401,7 @@ export async function fetchDriveRecentsPage(input: {
   searchQuery?: string;
   cursorSecret: string;
   cursorBinding: DriveRecentsCursorBinding;
+  sort?: DriveRecentsSortOptions;
   fetchTaskOutputs: (options: { cursor?: string; take: number }) => Promise<{
     rows: DriveTaskOutputRecentsRow[];
     hasMore: boolean;
@@ -331,9 +409,11 @@ export async function fetchDriveRecentsPage(input: {
   }>;
 }): Promise<DriveRecentsPageResult> {
   const searchQuery = input.searchQuery?.trim() ?? "";
+  const sort = input.sort ?? DEFAULT_DRIVE_RECENTS_SORT;
   const cursorBinding: DriveRecentsCursorBinding = {
     prefix: input.cursorBinding.prefix,
     searchQuery,
+    sortFingerprint: driveRecentsSortFingerprint(sort),
   };
 
   let pageState: DriveRecentsPageState = {
@@ -359,7 +439,7 @@ export async function fetchDriveRecentsPage(input: {
   function shouldIncludeItem(item: DriveRecentsItem): boolean {
     if (
       pageState.lastItem &&
-      !isRecentsItemOlderThanCursor(item, pageState.lastItem)
+      !isRecentsItemOlderThanCursor(item, pageState.lastItem, sort)
     ) {
       return false;
     }
@@ -377,7 +457,7 @@ export async function fetchDriveRecentsPage(input: {
     if (pool.length <= poolCap) {
       return;
     }
-    pool.sort(compareDriveRecentsItems);
+    pool.sort((a, b) => compareDriveRecentsItems(a, b, sort));
     const removed = pool.splice(poolCap);
     for (const item of removed) {
       poolItemIds.delete(recentsItemId(item));
@@ -396,9 +476,12 @@ export async function fetchDriveRecentsPage(input: {
       }
 
       if (pool.length >= poolCap) {
-        pool.sort(compareDriveRecentsItems);
+        pool.sort((a, b) => compareDriveRecentsItems(a, b, sort));
         const oldestKept = pool[pool.length - 1];
-        if (oldestKept && compareDriveRecentsItems(item, oldestKept) >= 0) {
+        if (
+          oldestKept &&
+          compareDriveRecentsItems(item, oldestKept, sort) >= 0
+        ) {
           continue;
         }
       }
@@ -454,7 +537,7 @@ export async function fetchDriveRecentsPage(input: {
     taskFileCursor = taskBatch.nextCursor;
   }
 
-  pool.sort(compareDriveRecentsItems);
+  pool.sort((a, b) => compareDriveRecentsItems(a, b, sort));
 
   const hasMore = pool.length > input.limit;
   const items = pool.slice(0, input.limit);

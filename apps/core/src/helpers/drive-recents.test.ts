@@ -20,7 +20,11 @@ vi.mock("@vercel/blob", () => ({
 
 const CURSOR_SECRET = "test-cursor-secret";
 const PREFIX = "drive/users/u/";
-const CURSOR_BINDING = { prefix: PREFIX, searchQuery: "" };
+const CURSOR_BINDING = {
+  prefix: PREFIX,
+  searchQuery: "",
+  sortFingerprint: "desc:none:asc",
+};
 
 function driveFile(pathname: string, activityAt: string): DriveRecentsItem {
   return {
@@ -84,6 +88,45 @@ describe("compareDriveRecentsItems", () => {
     expect(compareDriveRecentsItems(drive, task)).not.toBe(0);
     expect(compareDriveRecentsItems(task, drive)).not.toBe(0);
   });
+
+  it("keeps activityAt primary when secondary is name", () => {
+    const newerB = driveFile("drive/users/u/b.pdf", "2026-08-20T10:00:00.000Z");
+    const olderA = driveFile("drive/users/u/a.pdf", "2026-08-19T10:00:00.000Z");
+
+    expect(
+      compareDriveRecentsItems(newerB, olderA, {
+        activityOrder: "desc",
+        secondary: "name",
+        secondaryOrder: "asc",
+      }),
+    ).toBeLessThan(0);
+  });
+
+  it("applies name secondary within equal activityAt", () => {
+    const a = driveFile("drive/users/u/a.pdf", "2026-08-20T10:00:00.000Z");
+    const b = driveFile("drive/users/u/b.pdf", "2026-08-20T10:00:00.000Z");
+
+    expect(
+      compareDriveRecentsItems(a, b, {
+        activityOrder: "desc",
+        secondary: "name",
+        secondaryOrder: "asc",
+      }),
+    ).toBeLessThan(0);
+  });
+
+  it("flips activityAt with sortOrder asc", () => {
+    const newer = driveFile("drive/users/u/a.pdf", "2026-08-20T10:00:00.000Z");
+    const older = driveFile("drive/users/u/b.pdf", "2026-08-19T10:00:00.000Z");
+
+    expect(
+      compareDriveRecentsItems(older, newer, {
+        activityOrder: "asc",
+        secondary: null,
+        secondaryOrder: "asc",
+      }),
+    ).toBeLessThan(0);
+  });
 });
 
 describe("drive recents cursor", () => {
@@ -128,6 +171,7 @@ describe("drive recents cursor", () => {
         cursorBinding: {
           prefix: "drive/users/other/",
           searchQuery: "",
+          sortFingerprint: "desc:none:asc",
         },
       }),
     ).toThrow("Invalid pagination cursor");

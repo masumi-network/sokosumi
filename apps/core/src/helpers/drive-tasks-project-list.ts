@@ -2,6 +2,7 @@ import { TaskFileOrigin, TaskFileStatus, TaskStatus } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 
 import prisma from "@/lib/db/prisma";
+import type { DriveListSort } from "@/schemas/drive-list-sort.schema";
 
 export interface DriveProjectTaskRow {
   id: string;
@@ -137,9 +138,14 @@ export async function fetchProjectTasksPage(params: {
   coworkerAccess?: CoworkerTaskAccessSqlParams;
   cursor?: string;
   take: number;
+  sort?: DriveListSort | null;
 }): Promise<FetchProjectTasksPageResult> {
   const takePlusOne = params.take + 1;
   const filters = buildProjectTaskFilters(params);
+  const sort = params.sort ?? null;
+  // type falls back to name at task level
+  const sortKey = !sort || sort.sortBy === "date" ? "date" : "name";
+  const sortOrder = sort?.sortOrder ?? "desc";
 
   let cursorFilter = PrismaRaw.empty;
   if (params.cursor) {
@@ -154,16 +160,70 @@ export async function fetchProjectTasksPage(params: {
       return { ok: false, reason: "invalid_cursor" };
     }
 
-    cursorFilter = PrismaRaw.sql`
-      AND (
-        lf."latestFileUpdatedAt" < ${cursorSortKey.latestFileUpdatedAt}
-        OR (
-          lf."latestFileUpdatedAt" = ${cursorSortKey.latestFileUpdatedAt}
-          AND t.id < ${cursorSortKey.id}
-        )
-      )
-    `;
+    if (sortKey === "name") {
+      const cursorNameRows = await prisma.$queryRaw<Array<{ name: string }>>`
+        SELECT t.name
+        ${filters.baseWhere}
+          AND t.id = ${params.cursor}
+        LIMIT 1
+      `;
+      const cursorName = cursorNameRows[0]?.name;
+      if (!cursorName) {
+        return { ok: false, reason: "invalid_cursor" };
+      }
+
+      cursorFilter =
+        sortOrder === "desc"
+          ? PrismaRaw.sql`
+              AND (
+                t.name < ${cursorName}
+                OR (
+                  t.name = ${cursorName}
+                  AND t.id < ${cursorSortKey.id}
+                )
+              )
+            `
+          : PrismaRaw.sql`
+              AND (
+                t.name > ${cursorName}
+                OR (
+                  t.name = ${cursorName}
+                  AND t.id > ${cursorSortKey.id}
+                )
+              )
+            `;
+    } else {
+      cursorFilter =
+        sortOrder === "desc"
+          ? PrismaRaw.sql`
+              AND (
+                lf."latestFileUpdatedAt" < ${cursorSortKey.latestFileUpdatedAt}
+                OR (
+                  lf."latestFileUpdatedAt" = ${cursorSortKey.latestFileUpdatedAt}
+                  AND t.id < ${cursorSortKey.id}
+                )
+              )
+            `
+          : PrismaRaw.sql`
+              AND (
+                lf."latestFileUpdatedAt" > ${cursorSortKey.latestFileUpdatedAt}
+                OR (
+                  lf."latestFileUpdatedAt" = ${cursorSortKey.latestFileUpdatedAt}
+                  AND t.id > ${cursorSortKey.id}
+                )
+              )
+            `;
+    }
   }
+
+  const orderBySql =
+    sortKey === "name"
+      ? sortOrder === "desc"
+        ? PrismaRaw.sql`ORDER BY t.name DESC, t.id DESC`
+        : PrismaRaw.sql`ORDER BY t.name ASC, t.id ASC`
+      : sortOrder === "desc"
+        ? PrismaRaw.sql`ORDER BY lf."latestFileUpdatedAt" DESC, t.id DESC`
+        : PrismaRaw.sql`ORDER BY lf."latestFileUpdatedAt" ASC, t.id ASC`;
 
   const [rows, countRows] = await Promise.all([
     prisma.$queryRaw<
@@ -175,7 +235,7 @@ export async function fetchProjectTasksPage(params: {
         lf."latestFileUpdatedAt"
       ${filters.baseWhere}
       ${cursorFilter}
-      ORDER BY lf."latestFileUpdatedAt" DESC, t.id DESC
+      ${orderBySql}
       LIMIT ${takePlusOne}
     `,
     prisma.$queryRaw<Array<{ count: bigint }>>`
