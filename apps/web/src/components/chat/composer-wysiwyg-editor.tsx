@@ -64,6 +64,10 @@ import {
   stripComposerInlineTextColors,
 } from "@/lib/utils/composer-paste-sanitize";
 import { tryExitComposerInlineFormatOnArrow } from "@/lib/utils/composer-wysiwyg-arrow-exit";
+import {
+  toggleComposerBlockquote,
+  tryExitComposerBlockquoteOnEmptyLine,
+} from "@/lib/utils/composer-wysiwyg-blockquote";
 import { toggleComposerInlineCode } from "@/lib/utils/composer-wysiwyg-code-format";
 import { replaceComposerTextRange } from "@/lib/utils/composer-wysiwyg-dom";
 import {
@@ -884,9 +888,16 @@ export function ComposerWysiwygEditor<TData = unknown>({
           insertHtml(`<pre><code>${escapedText}</code></pre>`);
           return;
         }
-        case "quote":
-          execCommand("formatBlock", "blockquote");
+        case "quote": {
+          if (!editorRef.current) return;
+          editorRef.current.focus();
+          toggleComposerBlockquote(editorRef.current);
+          handleInput();
+          requestAnimationFrame(() => {
+            publishActiveFormats();
+          });
           return;
+        }
         case "bulletList":
           execCommand("insertUnorderedList");
           return;
@@ -1209,6 +1220,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
         }
 
         if (editorRef.current) {
+          if (tryExitComposerBlockquoteOnEmptyLine(editorRef.current)) {
+            handleInput();
+            requestAnimationFrame(() => {
+              publishActiveFormats();
+            });
+            return;
+          }
           insertLineBreak(editorRef.current);
           handleInput();
         }
@@ -1230,6 +1248,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       onEscape,
       onLinkShortcut,
       onSubmitShortcut,
+      publishActiveFormats,
       selectableMentions,
       setActiveSuggestionIndex,
       suggestionKind,
