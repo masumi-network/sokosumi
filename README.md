@@ -103,7 +103,7 @@ Other available scripts:
 
 - **Staging:** All changes merged to `main` are auto-deployed to staging.
 - **Production:** Maintainers create a GitHub Release (semantic versioning, e.g., `v1.0.0`) to trigger production deployment.
-- **Database migrations:** The Core Vercel build (`pnpm vercel-build`) runs `prisma migrate deploy` **after** a successful app build and before the deployment activates (Production and Preview). With the Vercel Neon integration, each Preview gets its own database branch; Preview builds require `DATABASE_URL_UNPOOLED` so migrate cannot silently target a shared/production URL. Migrate prefers `DATABASE_URL_UNPOOLED`, otherwise `DATABASE_URL`. Web does not run migrations and its Vercel install is filtered (`node ../../scripts/vercel-pnpm-install.mjs web...`) so `@sokosumi/database` is not installed or built. See [apps/core/README.md](./apps/core/README.md#deployment-vercel) for the Neon checklist.
+- **Database migrations:** The Core Vercel build (`pnpm vercel-build`) runs `prisma migrate deploy` **after** a successful app build and before the deployment activates (Production and Preview). With the Vercel Neon integration, each Preview gets its own database branch; Preview builds require `DATABASE_URL_UNPOOLED` so migrate cannot silently target a shared/production URL. Migrate prefers `DATABASE_URL_UNPOOLED`, otherwise `DATABASE_URL`. Web does not run migrations and its Vercel install is filtered (`pnpm install --frozen-lockfile --filter web...`) so `@sokosumi/database` is not installed or built. See [apps/core/README.md](./apps/core/README.md#deployment-vercel) for the Neon checklist.
 
 ## Contributing
 

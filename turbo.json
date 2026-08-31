@@ -38,8 +38,7 @@
     "MICROSOFT_CLIENT_ID",
     "MICROSOFT_CLIENT_SECRET",
     "TURBO_TOKEN",
-    "TURBO_TEAM",
-    "COREPACK_HOME"
+    "TURBO_TEAM"
   ],
   "tasks": {
     "prisma:generate": {
