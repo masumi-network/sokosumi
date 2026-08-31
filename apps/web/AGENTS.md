@@ -429,7 +429,7 @@ agent-browser auth save sokosumi \
   --password-selector '[data-testid="auth-field-currentPassword"]'
 ```
 
-Prefer `verify-sokosumi sign-in` (fixtures, then this vault). Manual recipe:
+Prefer `verify-sokosumi sign-in` (runtime secrets `login_email`/`login_pwd` when set, else fixtures, then this vault). Cloud Agent computer-use uses those same runtime secrets as the default login. Manual recipe:
 
 ```bash
 WEB_URL="$(pnpm portless:url web)"

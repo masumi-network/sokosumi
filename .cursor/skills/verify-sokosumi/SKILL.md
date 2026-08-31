@@ -67,7 +67,7 @@ For Cursor background shells, kill those shell PIDs (or stop the terminal jobs) 
 
 Require `doctor ok`. If `owned_by_verify=no`, do **read-only** checks only — never mutate a foreign instance. If ports already answer before `launch`, the helper refuses (no double-drive).
 
-Doctor also prints `fixture_auth=ok|fail` (Core `POST /auth/sign-in/email` for `alice@sokosumi.test`), `vault_profile=…` when `agent-browser auth list` has the coworker profile, and whether `agent-browser` is on `PATH`. Fixture failure is a **warn** (local/shared DB may lack seeds) — not a doctor fail. On cloud-agent Neon branches, expect `fixture_auth=ok` before driving. On a coworker machine or shared Neon, expect `fixture_auth=fail` and use the vault — do **not** seed Alice onto that database.
+Doctor also prints `login_source=runtime_secret|verify_env|fixture` and `fixture_auth=ok|fail` (Core `POST /auth/sign-in/email` for the resolved default credentials), `vault_profile=…` when `agent-browser auth list` has the coworker profile, and whether `agent-browser` is on `PATH`. Fixture failure is a **warn** (local/shared DB may lack seeds) — not a doctor fail. On cloud-agent Neon branches, expect `fixture_auth=ok` before driving when using Alice fixtures. Runtime-secret accounts must already exist on that database. On a coworker machine or shared Neon, expect `fixture_auth=fail` for Alice and use the vault — do **not** seed Alice onto that database.
 
 Optional Core-only smoke:
 
@@ -79,7 +79,7 @@ Optional Core-only smoke:
 
 Prefer the helper over hand-rolled browser clicks. `auto` (default):
 
-1. Probe Core email sign-in for the fixture (`alice@sokosumi.test` unless overridden).
+1. Probe Core email sign-in for the default credentials (`login_email` / `login_pwd` when set, else `alice@sokosumi.test`).
 2. If the fixture works: UI Enter-submit, then Core cookie bootstrap.
 3. If the fixture fails: coworker vault `agent-browser auth login sokosumi` with `[data-testid="auth-field-email"]` / `[data-testid="auth-field-currentPassword"]`. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
 
@@ -100,7 +100,11 @@ Artifacts land under `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.
 
 Harness: **agent-browser** (see `.agents/skills/agent-browser/SKILL.md` and `apps/web/AGENTS.md` Browser Automation). No Playwright/Cypress in this repo.
 
-Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply**. Prefer agent-browser / `verify-sokosumi sign-in`. Computer-use pitfalls (live-proved): Magic Link’s email field sits above the password form; JS `value=` does not satisfy react-hook-form (type keys); Chrome “Save password?” after login steals clicks — dismiss it. Full recipe in [sign-in.md](./features/sign-in.md).
+Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply**. Prefer agent-browser / `verify-sokosumi sign-in`.
+
+**Computer-use default credentials:** when runtime secrets `login_email` and `login_pwd` are set (injected as those env names; `LOGIN_EMAIL` / `LOGIN_PWD` also accepted), type those into the password form. Pass the values into the computer-use prompt; do **not** echo or log the password. Explicit `VERIFY_SOKOSUMI_EMAIL` / `VERIFY_SOKOSUMI_PASSWORD` still override. Fall back to `alice@sokosumi.test` / `Password123!` only when those secrets are unset. Doctor prints `login_source=runtime_secret|verify_env|fixture`.
+
+Computer-use pitfalls (live-proved): Magic Link’s email field sits above the password form; JS `value=` does not satisfy react-hook-form (type keys); Chrome “Save password?” after login steals clicks — dismiss it. Full recipe in [sign-in.md](./features/sign-in.md).
 
 Session reuse:
 
@@ -122,7 +126,8 @@ Credentials (pick one):
 
 | Source | Email | Password | When |
 | --- | --- | --- | --- |
-| Cloud-agent fixtures | `alice@sokosumi.test` | `Password123!` | Neon `cloud-agent-*` branches after migrate/seed (owns org `alice-fixture`) |
+| Runtime secrets | `$login_email` / `$LOGIN_EMAIL` | `$login_pwd` / `$LOGIN_PWD` | Cursor Cloud secrets — **default for computer-use** when both are set |
+| Cloud-agent fixtures | `alice@sokosumi.test` | `Password123!` | Neon `cloud-agent-*` branches after migrate/seed (owns org `alice-fixture`); used when runtime secrets are unset |
 | Cloud-agent admin | `admin@sokosumi.test` | `Password123!` | Admin UI `/admin` (owns org `admin-fixture`) |
 | Cloud-agent bob | `bob@sokosumi.test` | `Password123!` | Second user (owns org `bob-fixture`) |
 | Coworker vault | `agent-browser auth save sokosumi …` | machine-local | Shared/preprod Neon or local DB — never seed Alice here |
@@ -166,11 +171,12 @@ Executable: `.cursor/skills/verify-sokosumi/bin/verify-sokosumi`
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi launch
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi doctor
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in
+.cursor/skills/verify-sokosumi/bin/verify-sokosumi login-source
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi core-smoke
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi cleanup
 ```
 
-Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `pnpm portless:url web` / `core`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `VERIFY_SOKOSUMI_VAULT_PROFILE`. `AGENT_BROWSER_SESSION_NAME` (preferred `sokosumi`) is aliased to `AGENT_BROWSER_SESSION` when the latter is unset.
+Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `pnpm portless:url web` / `core`), `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `login_email` / `login_pwd` (Cursor runtime secrets; `LOGIN_EMAIL` / `LOGIN_PWD` aliases), `VERIFY_SOKOSUMI_VAULT_PROFILE`. `AGENT_BROWSER_SESSION_NAME` (preferred `sokosumi`) is aliased to `AGENT_BROWSER_SESSION` when the latter is unset.
 
 `sign-in` / doctor UI paths auto-export `AGENT_BROWSER_ARGS=--ignore-certificate-errors` for HTTPS named URLs when unset (Chromium on Linux often rejects the portless CA). Override with your own `AGENT_BROWSER_ARGS` if needed — the helper appends the flag when missing.
 

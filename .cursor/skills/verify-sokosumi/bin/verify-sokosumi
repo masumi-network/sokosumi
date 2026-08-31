@@ -20,8 +20,38 @@ CORE_URL="${VERIFY_SOKOSUMI_CORE_URL:-${CORE_URL:-}}"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR" "$ARTIFACT_ROOT"
 
-DEFAULT_FIXTURE_EMAIL="${VERIFY_SOKOSUMI_EMAIL:-alice@sokosumi.test}"
-DEFAULT_FIXTURE_PASSWORD="${VERIFY_SOKOSUMI_PASSWORD:-Password123!}"
+# Default email/password for doctor probe, sign-in, and computer-use.
+# Order: explicit VERIFY_SOKOSUMI_* → Cursor runtime secrets login_email/login_pwd
+# (LOGIN_EMAIL/LOGIN_PWD aliases) → Alice fixtures. Never echo password values.
+DEFAULT_FIXTURE_EMAIL=""
+DEFAULT_FIXTURE_PASSWORD=""
+DEFAULT_LOGIN_SOURCE=""
+
+function resolve_default_credentials() {
+  if [[ -n "${VERIFY_SOKOSUMI_EMAIL:-}" && -n "${VERIFY_SOKOSUMI_PASSWORD:-}" ]]; then
+    DEFAULT_FIXTURE_EMAIL="$VERIFY_SOKOSUMI_EMAIL"
+    DEFAULT_FIXTURE_PASSWORD="$VERIFY_SOKOSUMI_PASSWORD"
+    DEFAULT_LOGIN_SOURCE="verify_env"
+    return 0
+  fi
+  if [[ -n "${login_email:-}" && -n "${login_pwd:-}" ]]; then
+    DEFAULT_FIXTURE_EMAIL="$login_email"
+    DEFAULT_FIXTURE_PASSWORD="$login_pwd"
+    DEFAULT_LOGIN_SOURCE="runtime_secret"
+    return 0
+  fi
+  if [[ -n "${LOGIN_EMAIL:-}" && -n "${LOGIN_PWD:-}" ]]; then
+    DEFAULT_FIXTURE_EMAIL="$LOGIN_EMAIL"
+    DEFAULT_FIXTURE_PASSWORD="$LOGIN_PWD"
+    DEFAULT_LOGIN_SOURCE="runtime_secret"
+    return 0
+  fi
+  DEFAULT_FIXTURE_EMAIL="alice@sokosumi.test"
+  DEFAULT_FIXTURE_PASSWORD="Password123!"
+  DEFAULT_LOGIN_SOURCE="fixture"
+}
+
+resolve_default_credentials
 AUTH_EMAIL_SELECTOR='[data-testid="auth-field-email"]'
 AUTH_PASSWORD_SELECTOR='[data-testid="auth-field-currentPassword"]'
 
@@ -35,12 +65,13 @@ Commands:
              Uses with-db.mjs when .cursor/cloud-agent-db.env exists.
   doctor     Read-only health check (named URLs, OpenAPI, sign-in page, fixture probe).
   sign-in    Authenticate into agent-browser (fixtures, then coworker vault).
+  login-source  Print login_source= and whether default creds are set (no secret values).
   cleanup    Stop processes started by launch (keeps proof artifacts).
   core-smoke GET Core OpenAPI JSON; exit 0 if HTTP 200.
 
 sign-in options:
-  --email <email>       default alice@sokosumi.test (or VERIFY_SOKOSUMI_EMAIL)
-  --password <pass>     default Password123! (or VERIFY_SOKOSUMI_PASSWORD)
+  --email <email>       default: VERIFY_SOKOSUMI_EMAIL, else login_email / LOGIN_EMAIL, else alice@sokosumi.test
+  --password <pass>     default: VERIFY_SOKOSUMI_PASSWORD, else login_pwd / LOGIN_PWD, else Password123!
   --method ui|cookie|auto|vault   default auto
   --admin               shorthand for admin@sokosumi.test
   --vault               shorthand for --method vault
@@ -50,7 +81,8 @@ Env overrides:
   VERIFY_SOKOSUMI_CORE_URL  default: pnpm portless:url core
   VERIFY_SOKOSUMI_STATE_DIR state/pids/logs directory
   VERIFY_SOKOSUMI_ARTIFACT_ROOT proof artifact root
-  VERIFY_SOKOSUMI_EMAIL / VERIFY_SOKOSUMI_PASSWORD  fixture credentials for sign-in
+  VERIFY_SOKOSUMI_EMAIL / VERIFY_SOKOSUMI_PASSWORD  explicit sign-in override
+  login_email / login_pwd  Cursor runtime secrets (LOGIN_EMAIL / LOGIN_PWD aliases)
   VERIFY_SOKOSUMI_VAULT_PROFILE  default sokosumi (agent-browser auth profile)
   AGENT_BROWSER_SESSION_NAME  preferred: sokosumi (session cookie reuse)
   AGENT_BROWSER_SESSION        agent-browser 0.35+ session id; harness aliases
@@ -828,6 +860,8 @@ function doctor() {
     echo "warn: no pid file — do not mutate a foreign instance; read-only checks only"
   fi
 
+  echo "login_source=$DEFAULT_LOGIN_SOURCE"
+
   # Fixture probe when Core is up — warn-only (local DB may lack fixtures).
   if [[ "$core_code" =~ ^[23] ]]; then
     fixture_probe "$DEFAULT_FIXTURE_EMAIL" "$DEFAULT_FIXTURE_PASSWORD" || true
@@ -873,6 +907,21 @@ function cleanup() {
   echo "cleanup ok (artifacts kept under $ARTIFACT_ROOT)"
 }
 
+function login_source() {
+  resolve_default_credentials
+  echo "login_source=$DEFAULT_LOGIN_SOURCE"
+  if [[ -n "$DEFAULT_FIXTURE_EMAIL" ]]; then
+    echo "login_email_set=yes"
+  else
+    echo "login_email_set=no"
+  fi
+  if [[ -n "$DEFAULT_FIXTURE_PASSWORD" ]]; then
+    echo "login_password_set=yes"
+  else
+    echo "login_password_set=no"
+  fi
+}
+
 function core_smoke() {
   local code
   resolve_stack_urls
@@ -888,6 +937,7 @@ case "${1:-}" in
     shift
     sign_in "$@"
     ;;
+  login-source) login_source ;;
   cleanup) cleanup ;;
   core-smoke) core_smoke ;;
   run_dev_core) run_dev_core ;;

@@ -21,7 +21,7 @@ Preconditions:
 - `verify-sokosumi doctor` reports `doctor ok` and `owned_by_verify=yes`.
 - Cloud-agent Neon: doctor should show `fixture_auth=ok` for `alice@sokosumi.test`. If it fails, re-run `node scripts/cloud-agent-db/provision.mjs` (or seed auth fixtures) — only on `cloud-agent-*` branches.
 - Coworker / shared Neon: doctor will show `fixture_auth=fail`. Use the vault (`sign-in --method vault` or `auto` fallback). Do **not** seed Alice onto that database. If there is no vault profile, create a disposable user via [Sign up](./sign-up.md).
-- Credentials available: fixture `alice@sokosumi.test` / `Password123!`, coworker vault `agent-browser auth login sokosumi`, or a user created via [Sign up](./sign-up.md).
+- Credentials available: `$login_email` / `$login_pwd` when those Cursor runtime secrets are set (computer-use default), fixture `alice@sokosumi.test` / `Password123!`, coworker vault `agent-browser auth login sokosumi`, or a user created via [Sign up](./sign-up.md).
 - `AGENT_BROWSER_SESSION_NAME=sokosumi` is set (harness aliases it to `AGENT_BROWSER_SESSION` when that env is unset).
 - `agent-browser` on `PATH` (`npm i -g agent-browser && agent-browser install`).
 
@@ -75,8 +75,9 @@ is host-scoped on `localhost`.
 
 **API bootstrap alone is not UI sign-in proof** — only unlocks the rest of the map after a failed UI path; record that the UI path failed and why (`method=cookie` in artifacts).
 
-Computer-use notes (live-proved with `alice@sokosumi.test`):
+Computer-use notes:
 
+- **Default credentials:** type `$login_email` and `$login_pwd` (or `$LOGIN_EMAIL` / `$LOGIN_PWD`) when both are set. Pass those env values into the computer-use prompt; never echo the password. `VERIFY_SOKOSUMI_EMAIL` / `VERIFY_SOKOSUMI_PASSWORD` override. Fall back to `alice@sokosumi.test` / `Password123!` only when those secrets are unset.
 - Scroll past Google / Microsoft / Passkey / Magic Link. Magic Link also has its **own** email field + “Send me a Magic Link” — do **not** type there. Target fields under the password divider (**or sign in with password** / locale equivalent) only.
 - **Type** email and password with real keystrokes (or the GUI type tool). Setting `input.value` via JS / paste-without-events often leaves react-hook-form empty so zod blocks submit (Login stays enabled — it only disables while `isSubmitting` or `isLeaving`).
 - Submit with **Enter** (or the purple **Login** button under the password form).
