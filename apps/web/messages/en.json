@@ -4370,7 +4370,8 @@
           "noBotDescription": "Runs use your own assistant.",
           "noBotLink": "Create it here.",
           "runsAgainst": "Every run is a real turn on {bot}, the assistant belonging to {account}.",
-          "unnamedBot": "your assistant"
+          "unnamedBot": "your assistant",
+          "failedChecks": "Failed: {labels}"
         },
         "KillSwitch": {
           "title": "Feature switch",

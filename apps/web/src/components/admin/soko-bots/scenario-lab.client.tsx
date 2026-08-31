@@ -524,32 +524,46 @@ function ScenarioRow({
                   ) : null}
                 </div>
               ) : null}
+              {/* Failures first. Nine rows of mostly ticks buries the two that
+                  matter, and the reader should not have to hunt for them. */}
+              {latest.checks.some((check) => !check.pass) ? (
+                <p className="text-semantic-destructive text-xs font-medium">
+                  {t("failedChecks", {
+                    labels: latest.checks
+                      .filter((check) => !check.pass)
+                      .map((check) => check.label)
+                      .join(", "),
+                  })}
+                </p>
+              ) : null}
               <ul className="space-y-1">
-                {latest.checks.map((check) => (
-                  <li
-                    key={check.label}
-                    className="flex items-start gap-2 text-xs"
-                  >
-                    {check.pass ? (
-                      <Check
-                        aria-hidden
-                        className="text-semantic-success mt-0.5 size-3.5 shrink-0"
-                      />
-                    ) : (
-                      <X
-                        aria-hidden
-                        className="text-semantic-destructive mt-0.5 size-3.5 shrink-0"
-                      />
-                    )}
-                    <span className="min-w-0">
-                      <span className="font-medium">{check.label}</span>
-                      <span className="text-muted-foreground">
-                        {" — "}
-                        {check.actual}
+                {[...latest.checks]
+                  .sort((a, b) => Number(a.pass) - Number(b.pass))
+                  .map((check) => (
+                    <li
+                      key={check.label}
+                      className="flex items-start gap-2 text-xs"
+                    >
+                      {check.pass ? (
+                        <Check
+                          aria-hidden
+                          className="text-semantic-success mt-0.5 size-3.5 shrink-0"
+                        />
+                      ) : (
+                        <X
+                          aria-hidden
+                          className="text-semantic-destructive mt-0.5 size-3.5 shrink-0"
+                        />
+                      )}
+                      <span className="min-w-0">
+                        <span className="font-medium">{check.label}</span>
+                        <span className="text-muted-foreground">
+                          {" — "}
+                          {check.actual}
+                        </span>
                       </span>
-                    </span>
-                  </li>
-                ))}
+                    </li>
+                  ))}
               </ul>
             </div>
           ) : (
