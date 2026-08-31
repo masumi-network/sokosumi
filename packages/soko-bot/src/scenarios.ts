@@ -72,6 +72,12 @@ export interface SokoBotScenario {
     asksQuestion?: boolean;
     /** The answer must not promise a later check without a schedule. */
     noEmptyPromise?: boolean;
+    /**
+     * A schedule the turn created or updated must name a Task the same turn
+     * touched. Without it "called a schedule tool" passes a bot that pointed
+     * the owner's daily check at whatever it happened to be watching before.
+     */
+    scheduleTargetsTouchedTask?: boolean;
     /** Every UUID in the answer must appear in a tool result or delegation. */
     noInventedIds?: boolean;
     /** Must answer the Coworker (reply_to_task) or ask the owner one question. */
@@ -107,6 +113,10 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       // creating a second one does — better, in fact — so demanding
       // `create_schedule` marked the bot down for the tidier answer.
       anyTools: ["create_schedule", "update_schedule"],
+      // Either tool is fine, but the schedule has to point at the Task this
+      // turn made — reusing one that still watches something else is not a
+      // follow-up on the brief.
+      scheduleTargetsTouchedTask: true,
       forbiddenTools: ["hire_agent"],
       minDelegations: 1,
       noEmptyPromise: true,
@@ -585,13 +595,38 @@ export function evaluateScenario(
       actual: violated.length > 0 ? `called ${list(violated)}` : "clean",
     });
   }
-  if (expect.minDelegations !== undefined) {
-    // A READY task becomes an approval instead of a delegation; both count
-    // as work the turn set in motion.
-    const touched = new Set([
+  // A READY task becomes an approval instead of a delegation; both count as
+  // work the turn set in motion.
+  const touchedIds = new Set(
+    [
       ...turn.delegations.map((d) => d.taskId ?? d.jobId ?? d.id),
       ...turn.decisions.map((d) => d.resultingEntityId ?? d.id),
-    ]).size;
+    ].filter((id): id is string => Boolean(id)),
+  );
+  if (expect.scheduleTargetsTouchedTask) {
+    const scheduleResults = turn.toolCalls
+      .filter(
+        (call) =>
+          call.capability === "create_schedule" ||
+          call.capability === "update_schedule",
+      )
+      .map((call) => JSON.stringify(call.result ?? ""));
+    const hit = scheduleResults.find((text) =>
+      Array.from(touchedIds).some((id) => text.includes(id)),
+    );
+    checks.push({
+      label: "Schedule names a task from this turn",
+      pass: Boolean(hit),
+      actual:
+        scheduleResults.length === 0
+          ? "no schedule touched"
+          : hit
+            ? "names it"
+            : "schedule points somewhere else",
+    });
+  }
+  if (expect.minDelegations !== undefined) {
+    const touched = touchedIds.size;
     checks.push({
       label: `≥ ${expect.minDelegations} tasks/jobs touched`,
       pass: touched >= expect.minDelegations,
@@ -672,7 +707,10 @@ export function evaluateScenario(
   }
   if (expect.noEmptyPromise) {
     const promised = EMPTY_PROMISE.test(answer);
-    const scheduled = tools.has("create_schedule");
+    // Updating an existing schedule keeps the promise as well as creating one
+    // does; counting only creation failed the bot for the tidier answer.
+    const scheduled =
+      tools.has("create_schedule") || tools.has("update_schedule");
     checks.push({
       label: "No follow-up promise without a schedule",
       pass: !promised || scheduled,

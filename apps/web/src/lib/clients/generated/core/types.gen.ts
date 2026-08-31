@@ -1135,6 +1135,7 @@ export type OrchestratorSummary = {
     id: string;
     name: string | null;
     avatarSeed: string | null;
+    avatarImageUrl: string | null;
     owner: UserSummary;
 };
 
@@ -1192,6 +1193,7 @@ export type TaskEvent = {
         id: string;
         name: string | null;
         avatarSeed: string | null;
+        avatarImageUrl: string | null;
         owner: UserSummary;
     } | null;
     transactionId?: string | null;
