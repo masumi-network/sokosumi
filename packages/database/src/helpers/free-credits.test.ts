@@ -77,6 +77,7 @@ describe("grantFreeCredits", () => {
         .organizationId,
       null,
     );
+    assert.equal(createMock.mock.calls[0]?.[0].data.userId, "user-1");
   });
 
   it("creates an organization-scoped free credit bucket", async () => {
@@ -96,7 +97,7 @@ describe("grantFreeCredits", () => {
         referenceNote: null,
         targetId: "org-1",
         targetType: "organization",
-        transactionUserId: "owner-1",
+        transactionUserId: null,
       },
       tx as never,
     );
@@ -115,7 +116,8 @@ describe("grantFreeCredits", () => {
         .organizationId,
       "org-1",
     );
-    assert.equal(createMock.mock.calls[0]?.[0].data.user.connect.id, "owner-1");
+    assert.equal(createMock.mock.calls[0]?.[0].data.userId, null);
+    assert.equal(createMock.mock.calls[0]?.[0].data.organizationId, "org-1");
   });
 
   it("rejects non-positive credits", async () => {
@@ -140,5 +142,57 @@ describe("grantFreeCredits", () => {
         ),
       /Free credits must be a positive integer/,
     );
+  });
+
+  it("rejects user grants without a transaction actor", async () => {
+    const createMock = vi.fn();
+    const tx = {
+      transaction: { create: createMock },
+    };
+
+    await assert.rejects(
+      () =>
+        grantFreeCredits(
+          {
+            credits: 100,
+            expiresAt: null,
+            grantId: "grant-1",
+            organizationId: null,
+            referenceNote: null,
+            targetId: "user-1",
+            targetType: "user",
+            transactionUserId: null,
+          },
+          tx as never,
+        ),
+      /User free credits require a transaction actor user id/,
+    );
+    assert.equal(createMock.mock.calls.length, 0);
+  });
+
+  it("rejects organization grants that stamp a transaction actor", async () => {
+    const createMock = vi.fn();
+    const tx = {
+      transaction: { create: createMock },
+    };
+
+    await assert.rejects(
+      () =>
+        grantFreeCredits(
+          {
+            credits: 100,
+            expiresAt: null,
+            grantId: "grant-org",
+            organizationId: "org-1",
+            referenceNote: null,
+            targetId: "org-1",
+            targetType: "organization",
+            transactionUserId: "user-1",
+          },
+          tx as never,
+        ),
+      /Organization free credits must not stamp a transaction actor/,
+    );
+    assert.equal(createMock.mock.calls.length, 0);
   });
 });

@@ -2,14 +2,11 @@ import { CreditBucketReferenceType } from "@sokosumi/database";
 import {
   buildOrganizationInvoiceCreditReferenceId,
   buildUserInvoiceCreditReferenceId,
-  escapeStringForLike,
   getCreditExpiryDate,
-  ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
   resolveOrganizationBillingPlan,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import {
-  memberRepository,
   organizationRepository,
   subscriptionRepository,
   userRepository,
@@ -43,7 +40,7 @@ interface InvoiceCreditGrant {
   expiresAt: Date | null;
   referenceId: string;
   referenceType: CreditBucketReferenceType;
-  userId: string;
+  userId: string | null;
 }
 
 interface SubscriptionLine {
@@ -73,7 +70,7 @@ interface BuildInvoiceCreditGrantsParams {
   skipOrganizationSubscriptionSplit: boolean;
   subscriptionCredits: number;
   subscriptionCreditsExpiry: Date | null;
-  userId: string;
+  userId: string | null;
   invoiceId: string;
 }
 
@@ -319,26 +316,38 @@ function buildInvoiceCreditGrants(
   const creditGrants: InvoiceCreditGrant[] = [];
 
   if (params.oneTimeTopUpCredits > 0) {
-    const topUpReferenceId = params.organizationId
-      ? buildOrganizationInvoiceCreditReferenceId(
+    if (params.organizationId) {
+      creditGrants.push({
+        bucketUserId: null,
+        credits: params.oneTimeTopUpCredits,
+        expiresAt: params.oneTimeTopUpExpiresAt,
+        referenceId: buildOrganizationInvoiceCreditReferenceId(
           params.organizationId,
           params.invoiceId,
           "topup",
-        )
-      : buildUserInvoiceCreditReferenceId(
+        ),
+        referenceType: params.oneTimeTopUpReferenceType,
+        userId: null,
+      });
+    } else {
+      if (params.userId === null) {
+        throw new Error(
+          `Missing user for personal invoice ${params.invoiceId}`,
+        );
+      }
+      creditGrants.push({
+        bucketUserId: params.userId,
+        credits: params.oneTimeTopUpCredits,
+        expiresAt: params.oneTimeTopUpExpiresAt,
+        referenceId: buildUserInvoiceCreditReferenceId(
           params.userId,
           params.invoiceId,
           "topup",
-        );
-
-    creditGrants.push({
-      bucketUserId: params.organizationId ? null : params.userId,
-      credits: params.oneTimeTopUpCredits,
-      expiresAt: params.oneTimeTopUpExpiresAt,
-      referenceId: topUpReferenceId,
-      referenceType: params.oneTimeTopUpReferenceType,
-      userId: params.userId,
-    });
+        ),
+        referenceType: params.oneTimeTopUpReferenceType,
+        userId: params.userId,
+      });
+    }
   }
 
   if (params.subscriptionCredits <= 0) {
@@ -346,6 +355,9 @@ function buildInvoiceCreditGrants(
   }
 
   if (!params.organizationId) {
+    if (params.userId === null) {
+      throw new Error(`Missing user for personal invoice ${params.invoiceId}`);
+    }
     creditGrants.push({
       bucketUserId: params.userId,
       credits: params.subscriptionCredits,
@@ -376,7 +388,7 @@ function buildInvoiceCreditGrants(
       "subscription",
     ),
     referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-    userId: params.userId,
+    userId: null,
   });
 
   return creditGrants;
@@ -409,7 +421,7 @@ export async function handleInvoicePaidEvent(
       : invoice.customer.id;
 
   // Look up the user or organization by stripeCustomerId
-  let userId: string;
+  let userId: string | null = null;
   let organizationId: string | null = null;
   let purchasedSeats = 1;
 
@@ -431,34 +443,15 @@ export async function handleInvoicePaidEvent(
       );
 
     if (organization) {
-      // This is an organization purchase
       organizationId = organization.id;
 
-      const [members, subscription] = await Promise.all([
-        memberRepository.getMembersByOrganizationId(organizationId, prisma),
-        subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+      const subscription =
+        await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
           organizationId,
           prisma,
-        ),
-      ]);
-
-      if (members.length === 0) {
-        console.log(`No members found for organization ${organizationId}`);
-        return;
-      }
+        );
 
       purchasedSeats = resolvePurchasedSeats(subscription?.seats);
-
-      const ownerUserId = await memberRepository.getOrganizationOwnerUserId(
-        organizationId,
-        prisma,
-      );
-
-      if (!ownerUserId) {
-        console.log(`No owner found for organization ${organizationId}`);
-        return;
-      }
-      userId = ownerUserId;
     } else {
       // Unlike the web handler, throw so the webhook responds 5xx and Stripe
       // retries — a silent 200 permanently drops the credits when the
@@ -572,25 +565,16 @@ export async function handleInvoicePaidEvent(
     !skipOrganizationSubscriptionSplit
   ) {
     const existingOrganizationInvoiceSubscriptionBucket =
-      await prisma.creditBucket.findFirst({
+      await prisma.creditBucket.findUnique({
         where: {
-          organizationId,
-          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-          OR: [
-            {
-              referenceId: buildOrganizationInvoiceCreditReferenceId(
-                organizationId,
-                invoiceId,
-                "subscription",
-              ),
-            },
-            {
-              referenceId: {
-                startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-                endsWith: escapeStringForLike(`:${invoiceId}:subscription`),
-              },
-            },
-          ],
+          referenceId_referenceType: {
+            referenceId: buildOrganizationInvoiceCreditReferenceId(
+              organizationId,
+              invoiceId,
+              "subscription",
+            ),
+            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+          },
         },
         select: {
           id: true,
@@ -645,56 +629,53 @@ export async function handleInvoicePaidEvent(
         continue;
       }
 
-      if (
-        organizationId &&
-        grant.referenceType ===
-          CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD &&
-        grant.bucketUserId === null
-      ) {
-        const leftoverMemberInvoiceBucket = await tx.creditBucket.findFirst({
-          where: {
-            organizationId,
-            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-            referenceId: {
-              startsWith: ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX,
-              endsWith: escapeStringForLike(`:${invoiceId}:subscription`),
-            },
-          },
-          select: { id: true },
-        });
-        if (leftoverMemberInvoiceBucket) {
-          console.log(
-            `✅ Leftover member invoice ${invoiceId} subscription grants already exist; skipping org-owned grant`,
-          );
-          continue;
-        }
-      }
-
       const cents = convertCreditsToCents(grant.credits);
-      await tx.transaction.create({
-        data: {
-          amount: cents,
-          user: { connect: { id: grant.userId } },
-          ...(organizationId && {
-            organization: { connect: { id: organizationId } },
-          }),
-          sourceCreditBucket: {
-            create: {
-              amount: cents,
-              expiresAt: grant.expiresAt,
-              referenceId: grant.referenceId,
-              referenceType: grant.referenceType,
-              userId: grant.bucketUserId,
-              organizationId,
+      if (organizationId) {
+        await tx.transaction.create({
+          data: {
+            amount: cents,
+            organizationId,
+            userId: null,
+            sourceCreditBucket: {
+              create: {
+                amount: cents,
+                expiresAt: grant.expiresAt,
+                referenceId: grant.referenceId,
+                referenceType: grant.referenceType,
+                userId: grant.bucketUserId,
+                organizationId,
+              },
             },
           },
-        },
-      });
+        });
+      } else {
+        if (grant.userId === null) {
+          throw new Error(
+            `Missing user for personal invoice grant ${grant.referenceId}`,
+          );
+        }
+        await tx.transaction.create({
+          data: {
+            amount: cents,
+            user: { connect: { id: grant.userId } },
+            sourceCreditBucket: {
+              create: {
+                amount: cents,
+                expiresAt: grant.expiresAt,
+                referenceId: grant.referenceId,
+                referenceType: grant.referenceType,
+                userId: grant.bucketUserId,
+                organizationId,
+              },
+            },
+          },
+        });
+      }
 
       creditsGranted = true;
 
       console.log(
-        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId} member ${grant.userId}` : `user ${grant.userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
+        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${grant.userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
       );
     }
 

@@ -84,7 +84,6 @@ async function main(): Promise<void> {
     let organizations = 0;
     let bucketsDrained = 0;
     let centsTransferred = 0n;
-    let skippedNoActor = 0;
 
     for (const [index, organizationId] of organizationIds.entries()) {
       const step = `${index + 1}/${organizationIds.length}`;
@@ -98,20 +97,15 @@ async function main(): Promise<void> {
       organizations += result.organizations;
       bucketsDrained += result.bucketsDrained;
       centsTransferred += result.centsTransferred;
-      skippedNoActor += result.skippedNoActor;
       const outcome =
-        result.skippedNoActor > 0
-          ? "skipped (no member to stamp the ledger)"
-          : result.bucketsDrained === 0
-            ? "skipped (no remaining)"
-            : "transferred";
+        result.bucketsDrained === 0 ? "skipped (no remaining)" : "transferred";
       console.log(
         `[${step}] ${organizationId} ${outcome} in ${Date.now() - orgStartedAt}ms bucketsDrained=${result.bucketsDrained} centsTransferred=${result.centsTransferred.toString()}`,
       );
     }
 
     console.log(
-      `Member period pool transfer done: organizationsTransferred=${organizations} bucketsDrained=${bucketsDrained} centsTransferred=${centsTransferred.toString()} skippedNoActor=${skippedNoActor}`,
+      `Member period pool transfer done: organizationsTransferred=${organizations} bucketsDrained=${bucketsDrained} centsTransferred=${centsTransferred.toString()}`,
     );
   } finally {
     await prisma.$disconnect();

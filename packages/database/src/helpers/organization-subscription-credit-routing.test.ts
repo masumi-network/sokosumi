@@ -73,7 +73,6 @@ const LOCAL_FREE_PERIOD_GRANT_MATRIX: LocalFreePeriodGrantMatrixCase[] = [
     name: "org local free — one org-owned 250 bucket for the pool",
     params: {
       billingAnchorDate: PERIOD_START,
-      memberUserIds: ["assigned-1", "unassigned-1"],
       organizationId: "org-1",
       periodEnd: PERIOD_END,
       periodStart: PERIOD_START,

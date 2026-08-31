@@ -20,6 +20,7 @@ describe("resolveTaskEventActorKind", () => {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
+          avatarImageUrl: null,
         },
       },
       userId: "user-1",
@@ -88,6 +89,7 @@ describe("getEventActorInfo", () => {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
+          avatarImageUrl: null,
           owner: {
             id: "user-1",
             name: "Ada Lovelace",
@@ -128,6 +130,7 @@ describe("buildTaskActivityActors", () => {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
+          avatarImageUrl: null,
           owner: {
             id: "user-1",
             name: "Ada Lovelace",
@@ -214,6 +217,7 @@ describe("buildTaskActivityActors", () => {
               id: "orch-2",
               name: "Athena",
               avatarSeed: null,
+              avatarImageUrl: null,
               owner: {
                 id: "user-3",
                 name: "Grace Hopper",
@@ -230,6 +234,7 @@ describe("buildTaskActivityActors", () => {
             id: "orch-2",
             name: "Athena",
             avatarSeed: null,
+            avatarImageUrl: null,
             owner: {
               id: "user-3",
               name: "Grace Hopper",

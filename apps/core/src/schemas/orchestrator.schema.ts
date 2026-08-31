@@ -11,6 +11,10 @@ export const orchestratorSummarySchema = z
     avatarSeed: z.string().nullable().openapi({
       example: "orb:jewel-sky:user_123",
     }),
+    /** A claimed mascot. When set it is the bot's face; the orb is the fallback. */
+    avatarImageUrl: z.string().nullable().openapi({
+      example: "https://blob.example/mascot.png",
+    }),
     owner: userSummarySchema,
   })
   .openapi("OrchestratorSummary");

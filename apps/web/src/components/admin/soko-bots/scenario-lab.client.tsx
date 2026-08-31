@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import {
   judgeSokoBotLabTurnAction,
   listSokoBotLabRunsAction,
+  runSokoBotLabIngestAction,
   setSokoBotVersionAction,
   simulateSokoBotTaskEventAction,
   startSokoBotTurnAction,
@@ -190,16 +191,22 @@ export function ScenarioLab({
     try {
       let turnId: string | null;
       if (scenario.trigger?.kind === "ingest") {
-        // Needs the bot's connected mail/calendar or recordings; the CLI
-        // runner (`soko-bot:lab --replay`) drives these.
-        setFailures((current) => ({
-          ...current,
-          [scenario.id]:
-            "Run from the CLI lab runner (mail/calendar scenario).",
-        }));
-        return;
-      }
-      if (scenario.trigger?.kind === "task_event") {
+        // Core builds the same packet the cron would and starts the turn. It
+        // answers with what to connect when the beat reads an account the bot
+        // has not linked, which is far more use than the terminal this used
+        // to point at.
+        const ingest = await runSokoBotLabIngestAction({
+          input: { beat: scenario.trigger.beat },
+        });
+        if (!ingest.ok) {
+          setFailures((current) => ({
+            ...current,
+            [scenario.id]: ingest.error.message ?? t("startError"),
+          }));
+          return;
+        }
+        turnId = ingest.value.turnId;
+      } else if (scenario.trigger?.kind === "task_event") {
         const simulated = await simulateSokoBotTaskEventAction({
           input: {
             status: scenario.trigger.status,
@@ -517,32 +524,46 @@ function ScenarioRow({
                   ) : null}
                 </div>
               ) : null}
+              {/* Failures first. Nine rows of mostly ticks buries the two that
+                  matter, and the reader should not have to hunt for them. */}
+              {latest.checks.some((check) => !check.pass) ? (
+                <p className="text-semantic-destructive text-xs font-medium">
+                  {t("failedChecks", {
+                    labels: latest.checks
+                      .filter((check) => !check.pass)
+                      .map((check) => check.label)
+                      .join(", "),
+                  })}
+                </p>
+              ) : null}
               <ul className="space-y-1">
-                {latest.checks.map((check) => (
-                  <li
-                    key={check.label}
-                    className="flex items-start gap-2 text-xs"
-                  >
-                    {check.pass ? (
-                      <Check
-                        aria-hidden
-                        className="text-semantic-success mt-0.5 size-3.5 shrink-0"
-                      />
-                    ) : (
-                      <X
-                        aria-hidden
-                        className="text-semantic-destructive mt-0.5 size-3.5 shrink-0"
-                      />
-                    )}
-                    <span className="min-w-0">
-                      <span className="font-medium">{check.label}</span>
-                      <span className="text-muted-foreground">
-                        {" — "}
-                        {check.actual}
+                {[...latest.checks]
+                  .sort((a, b) => Number(a.pass) - Number(b.pass))
+                  .map((check) => (
+                    <li
+                      key={check.label}
+                      className="flex items-start gap-2 text-xs"
+                    >
+                      {check.pass ? (
+                        <Check
+                          aria-hidden
+                          className="text-semantic-success mt-0.5 size-3.5 shrink-0"
+                        />
+                      ) : (
+                        <X
+                          aria-hidden
+                          className="text-semantic-destructive mt-0.5 size-3.5 shrink-0"
+                        />
+                      )}
+                      <span className="min-w-0">
+                        <span className="font-medium">{check.label}</span>
+                        <span className="text-muted-foreground">
+                          {" — "}
+                          {check.actual}
+                        </span>
                       </span>
-                    </span>
-                  </li>
-                ))}
+                    </li>
+                  ))}
               </ul>
             </div>
           ) : (

@@ -140,6 +140,7 @@ describe("TaskMetadata", () => {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Hermes",
               avatarSeed: null,
+              avatarImageUrl: null,
               owner: {
                 id: "user_2",
                 name: "Ada Lovelace",
@@ -169,6 +170,38 @@ describe("TaskMetadata", () => {
     );
   });
 
+  it("shows the mascot the bot claimed, not a generated orb", () => {
+    // Claiming writes the coworker's image too, so the picture appeared in
+    // chat and the sidebar while a Task showed a blank disc for the same bot.
+    render(
+      <TaskMetadata
+        task={createTask({
+          creator: {
+            type: "orchestrator",
+            id: "01960001-0001-7001-8001-000000000099",
+            orchestrator: {
+              id: "01960001-0001-7001-8001-000000000099",
+              name: "Joseph",
+              avatarSeed: null,
+              avatarImageUrl: "https://blob.example/cat.png",
+              owner: { id: "user_2", name: "Ada Lovelace", image: null },
+            },
+          },
+        })}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    // Radix only swaps in the <img> once it loads, which never happens in
+    // jsdom, so the regression itself is the assertion: no orb stands in for
+    // a bot that has a face of its own.
+    expect(screen.queryByTestId("assistant-orb")).not.toBeInTheDocument();
+    expect(screen.getByText("Joseph")).toBeInTheDocument();
+  });
+
   it("does not print the role twice when the bot is named after it", () => {
     render(
       <TaskMetadata
@@ -180,6 +213,7 @@ describe("TaskMetadata", () => {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Ada Lovelace's personal assistant",
               avatarSeed: null,
+              avatarImageUrl: null,
               owner: { id: "user_2", name: "Ada Lovelace", image: null },
             },
           },

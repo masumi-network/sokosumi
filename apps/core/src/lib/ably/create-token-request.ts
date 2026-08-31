@@ -62,12 +62,8 @@ export async function createAblyClientTokenRequest({
     organizationIds,
   });
 
-  // Ably TokenParams.capability uses a narrow capabilityOp union; our map is
-  // built only from allowed ops (subscribe | presence).
   return client.auth.createTokenRequest({
     clientId: buildAblyPresenceClientId(userId, clientInstanceId),
-    capability: capability as {
-      [key: string]: Array<"subscribe" | "presence">;
-    },
+    capability,
   }) as Promise<TokenRequest>;
 }

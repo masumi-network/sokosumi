@@ -133,7 +133,7 @@ export default async function WorkspaceGatePage() {
           data-workspace-gate-actions
         >
           <WorkspaceGateRetry />
-          <WorkspaceGateSignOut />
+          <WorkspaceGateSignOut userId={session.user.id} />
         </CardFooter>
       ) : null}
     </Card>
