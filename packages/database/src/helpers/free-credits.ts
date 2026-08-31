@@ -21,7 +21,7 @@ export interface GrantFreeCreditsParams {
   referenceNote: string | null;
   targetId: string;
   targetType: "user" | "organization";
-  transactionUserId: string;
+  transactionUserId: string | null;
 }
 
 export interface GrantFreeCreditsResult {
@@ -63,13 +63,8 @@ export async function grantFreeCredits(
   const transaction = await tx.transaction.create({
     data: {
       amount,
-      ...(params.organizationId && {
-        organization: {
-          connect: {
-            id: params.organizationId,
-          },
-        },
-      }),
+      organizationId: params.organizationId,
+      userId: params.transactionUserId,
       sourceCreditBucket: {
         create: {
           amount,
@@ -79,11 +74,6 @@ export async function grantFreeCredits(
           referenceNote: params.referenceNote,
           referenceType: CreditBucketReferenceType.FREE,
           userId: bucketUserId,
-        },
-      },
-      user: {
-        connect: {
-          id: params.transactionUserId,
         },
       },
     },

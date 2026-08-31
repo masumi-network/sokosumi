@@ -943,8 +943,8 @@ model Transaction {
 
   amount BigInt // positive is always a credit topup and negative is always a credit spend; 1_000_000_000_000 = 1 credit (10^10)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -3133,9 +3133,9 @@ model TaskX402PaymentAction {
   taskId  String
   agentId String
 
-  /// User.id charged by the payment (the charge Transaction's userId) — the
-  /// subject of the refund, which the operator is not. Always available:
-  /// Transaction.userId is non-nullable.
+  /// User.id charged by the payment (the spend Transaction's userId) — the
+  /// subject of the refund, which the operator is not. Spend rows still stamp
+  /// the spender; Transaction.userId is optional only for org grants.
   chargedUserId String
 
   /// Organization.id charged by the payment, when the debit belonged to an

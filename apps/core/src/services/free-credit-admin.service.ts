@@ -7,7 +7,6 @@ import {
   grantFreeCredits as grantFreeCreditsInDatabase,
 } from "@sokosumi/database/helpers";
 import {
-  memberRepository,
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
@@ -46,7 +45,7 @@ function isPositiveIntegerCredits(credits: number): boolean {
 async function resolveTarget(
   target: FreeCreditTarget,
   tx: Prisma.TransactionClient,
-): Promise<{ id: string; name: string; transactionUserId: string }> {
+): Promise<{ id: string; name: string; transactionUserId: string | null }> {
   if (target.targetType === "user") {
     const user = await userRepository.getUserById(target.targetId, tx);
     if (!user) {
@@ -69,18 +68,10 @@ async function resolveTarget(
     throw new FreeCreditValidationError("Organization not found");
   }
 
-  const ownerUserId = await memberRepository.getOrganizationOwnerUserId(
-    organization.id,
-    tx,
-  );
-  if (!ownerUserId) {
-    throw new FreeCreditValidationError("Organization has no owner");
-  }
-
   return {
     id: organization.id,
     name: organization.name,
-    transactionUserId: ownerUserId,
+    transactionUserId: null,
   };
 }
 

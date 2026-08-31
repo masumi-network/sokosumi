@@ -7,11 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getUserByStripeCustomerIdMock = vi.fn();
 const getOrganizationByStripeCustomerIdMock = vi.fn();
-const getMembersByOrganizationIdMock = vi.fn();
-const getOrganizationOwnerUserIdMock = vi.fn();
-const getAssignedMemberUserIdsMock = vi.fn();
 const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
-const getUnassignedMemberUserIdsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const findExistingBucketMock = vi.fn();
 const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
@@ -55,16 +51,6 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 });
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getAssignedMemberUserIds: (...args: unknown[]) =>
-      getAssignedMemberUserIdsMock(...args),
-    getUnassignedMemberUserIds: (...args: unknown[]) =>
-      getUnassignedMemberUserIdsMock(...args),
-    getMembersByOrganizationId: (...args: unknown[]) =>
-      getMembersByOrganizationIdMock(...args),
-    getOrganizationOwnerUserId: (...args: unknown[]) =>
-      getOrganizationOwnerUserIdMock(...args),
-  },
   organizationRepository: {
     getOrganizationByStripeCustomerId: (...args: unknown[]) =>
       getOrganizationByStripeCustomerIdMock(...args),
@@ -130,16 +116,18 @@ interface CreatedTransactionCall {
         userId?: string | null;
       };
     };
-    organization: {
+    organization?: {
       connect: {
         id: string;
       };
     };
-    user: {
+    organizationId?: string | null;
+    user?: {
       connect: {
         id: string;
       };
     };
+    userId?: string | null;
   };
 }
 
@@ -164,30 +152,17 @@ function mockOrganizationInvoiceContext(
   members: OrganizationMemberFixture[],
   organizationId = "org-1",
   assignedMemberUserIds?: string[],
-  unassignedMemberUserIds?: string[],
 ): void {
   mockSelfServeOrganizationBillingPlan();
   getUserByStripeCustomerIdMock.mockResolvedValue(null);
   getOrganizationByStripeCustomerIdMock.mockResolvedValue({
     id: organizationId,
   });
-  getMembersByOrganizationIdMock.mockResolvedValue(members);
-  getOrganizationOwnerUserIdMock.mockResolvedValue(
-    members.find((member) => member.role === "owner")?.userId ?? null,
-  );
   const assigned =
     assignedMemberUserIds ?? members.map((member) => member.userId).toSorted();
-  getAssignedMemberUserIdsMock.mockResolvedValue(assigned);
   resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
     seats: assigned.length || 1,
   });
-  getUnassignedMemberUserIdsMock.mockResolvedValue(
-    unassignedMemberUserIds ??
-      members
-        .map((member) => member.userId)
-        .filter((memberUserId) => !assigned.includes(memberUserId))
-        .toSorted(),
-  );
 }
 
 function getTransactionCallsByReferenceId(): Map<
@@ -268,11 +243,6 @@ describe("handleInvoicePaidEvent", () => {
       id: "user-1",
     });
     getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
-    getMembersByOrganizationIdMock.mockResolvedValue([
-      { role: "owner", userId: "user-1" },
-    ]);
-    getOrganizationOwnerUserIdMock.mockResolvedValue("user-1");
-    getUnassignedMemberUserIdsMock.mockResolvedValue([]);
     findExistingBucketMock.mockResolvedValue(null);
     findExistingOrganizationInvoiceSubscriptionBucketMock.mockResolvedValue(
       null,
@@ -409,8 +379,9 @@ describe("handleInvoicePaidEvent", () => {
     expect(orgCall?.data.sourceCreditBucket.create.expiresAt).toEqual(
       new Date(1_735_689_600 * 1000),
     );
-    expect(orgCall?.data.organization.connect.id).toBe("org-1");
-    expect(orgCall?.data.user.connect.id).toBe("user-b");
+    expect(orgCall?.data.organizationId).toBe("org-1");
+    expect(orgCall?.data.userId).toBeNull();
+    expect(orgCall?.data.user).toBeUndefined();
     expect(orgCall?.data.sourceCreditBucket.create.userId).toBeNull();
   });
 
@@ -480,8 +451,9 @@ describe("handleInvoicePaidEvent", () => {
     const createCall = createTransactionMock.mock
       .calls[0][0] as CreatedTransactionCall;
 
-    expect(createCall.data.organization.connect.id).toBe("org-1");
-    expect(createCall.data.user.connect.id).toBe("owner-2");
+    expect(createCall.data.organizationId).toBe("org-1");
+    expect(createCall.data.userId).toBeNull();
+    expect(createCall.data.user).toBeUndefined();
     expect(createCall.data.amount).toBe(BigInt("1000000000000"));
     expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
       buildOrganizationInvoiceCreditReferenceId(

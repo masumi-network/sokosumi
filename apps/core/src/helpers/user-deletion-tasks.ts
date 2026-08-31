@@ -353,6 +353,14 @@ export async function prepareTasksForUserDeletion(
           },
         });
         if (foreignChargePayment) {
+          const chargedUserId = foreignChargePayment.transaction.userId;
+          if (chargedUserId === null) {
+            throw new APIError("BAD_REQUEST", {
+              code: "TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH",
+              message:
+                "A task payment has inconsistent billing ownership; contact support to repair it, then delete your account again.",
+            });
+          }
           Sentry.captureMessage(
             "Account deletion would remove a task x402 payment charged to another user",
             {
@@ -362,7 +370,7 @@ export async function prepareTasksForUserDeletion(
                 userId,
                 taskX402PaymentId: foreignChargePayment.id,
                 taskId: foreignChargePayment.taskId,
-                chargedUserId: foreignChargePayment.transaction.userId,
+                chargedUserId,
                 // The admin refund/resolve levers do NOT clear this condition —
                 // they only move status, and every terminal status stays inside
                 // the detector's predicate. Spell that out for whoever this

@@ -7,7 +7,6 @@ import { ENTERPRISE_CONTRACT_PRECREATE_LOOKAHEAD_MS } from "./enterprise-contrac
 import {
   createEnterprisePeriodCreditBucket,
   findEnterprisePeriodCreditBucket,
-  resolveOrganizationGrantTransactionUserId,
 } from "./enterprise-contract-grants.js";
 import { completeEnterpriseContractsAfterLastPeriod } from "./enterprise-contract-lifecycle.js";
 
@@ -67,11 +66,6 @@ export async function grantEnterpriseScheduledPeriod(
 
   let bucketCreated = false;
   if (!existingBucket) {
-    const transactionUserId = await resolveOrganizationGrantTransactionUserId(
-      period.contract.organizationId,
-      tx,
-    );
-
     const grantResult = await createEnterprisePeriodCreditBucket(
       {
         activatesAt,
@@ -79,7 +73,6 @@ export async function grantEnterpriseScheduledPeriod(
         expiresAt: period.periodEnd,
         organizationId: period.contract.organizationId,
         periodId: period.id,
-        transactionUserId,
       },
       tx,
     );

@@ -77,6 +77,7 @@ describe("grantFreeCredits", () => {
         .organizationId,
       null,
     );
+    assert.equal(createMock.mock.calls[0]?.[0].data.userId, "user-1");
   });
 
   it("creates an organization-scoped free credit bucket", async () => {
@@ -96,7 +97,7 @@ describe("grantFreeCredits", () => {
         referenceNote: null,
         targetId: "org-1",
         targetType: "organization",
-        transactionUserId: "owner-1",
+        transactionUserId: null,
       },
       tx as never,
     );
@@ -115,7 +116,8 @@ describe("grantFreeCredits", () => {
         .organizationId,
       "org-1",
     );
-    assert.equal(createMock.mock.calls[0]?.[0].data.user.connect.id, "owner-1");
+    assert.equal(createMock.mock.calls[0]?.[0].data.userId, null);
+    assert.equal(createMock.mock.calls[0]?.[0].data.organizationId, "org-1");
   });
 
   it("rejects non-positive credits", async () => {

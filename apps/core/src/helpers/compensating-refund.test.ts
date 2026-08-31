@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { buildCompensatingRefundTransactionCreate } from "./compensating-refund";
 
 describe("buildCompensatingRefundTransactionCreate", () => {
-  it("stamps an org refund bucket as org-owned and keeps the actor on the transaction", () => {
+  it("stamps an org refund bucket as org-owned and leaves the transaction without an actor", () => {
     const create = buildCompensatingRefundTransactionCreate({
       amount: 500n,
       actorUserId: "user-1",
@@ -13,8 +13,11 @@ describe("buildCompensatingRefundTransactionCreate", () => {
     });
 
     expect(create.amount).toBe(500n);
-    expect(create.user).toEqual({ connect: { id: "user-1" } });
-    expect(create.organization).toEqual({ connect: { id: "org-1" } });
+    expect("user" in create ? create.user : undefined).toBeUndefined();
+    expect("userId" in create ? create.userId : undefined).toBeNull();
+    expect("organizationId" in create ? create.organizationId : undefined).toBe(
+      "org-1",
+    );
     expect(create.sourceCreditBucket).toEqual({
       create: {
         amount: 500n,
@@ -36,8 +39,12 @@ describe("buildCompensatingRefundTransactionCreate", () => {
     });
 
     expect(create.amount).toBe(250n);
-    expect(create.user).toEqual({ connect: { id: "user-1" } });
-    expect(create.organization).toBeUndefined();
+    expect("user" in create ? create.user : undefined).toEqual({
+      connect: { id: "user-1" },
+    });
+    expect(
+      "organization" in create ? create.organization : undefined,
+    ).toBeUndefined();
     expect(create.sourceCreditBucket).toEqual({
       create: {
         amount: 250n,

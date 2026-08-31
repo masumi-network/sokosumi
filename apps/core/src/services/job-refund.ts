@@ -29,13 +29,17 @@ export async function refundJob(
   }
 
   const amount = transaction.amount * BigInt(-1);
+  const actorUserId = transaction.userId;
+  if (actorUserId === null) {
+    throw new Error("Spend transaction is missing userId");
+  }
   await tx.job.update({
     where: { id: jobId },
     data: {
       refundedTransaction: {
         create: buildCompensatingRefundTransactionCreate({
           amount,
-          actorUserId: transaction.userId,
+          actorUserId,
           organizationId: transaction.organizationId,
           referenceId: jobId,
         }),
