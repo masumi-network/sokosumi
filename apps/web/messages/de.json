@@ -4337,7 +4337,9 @@
           "runAllVersions": "Alle {count} Versionen ausführen",
           "noBotTitle": "Für das Labor brauchst du einen Soko Bot",
           "noBotDescription": "Läufe nutzen deinen eigenen Assistenten.",
-          "noBotLink": "Hier erstellen."
+          "noBotLink": "Hier erstellen.",
+          "runsAgainst": "Jeder Lauf ist ein echter Durchlauf von {bot}, dem Assistenten von {account}.",
+          "unnamedBot": "deinem Assistenten"
         },
         "KillSwitch": {
           "title": "Funktionsschalter",

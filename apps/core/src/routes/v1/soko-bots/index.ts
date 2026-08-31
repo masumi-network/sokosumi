@@ -6,6 +6,7 @@ import { waitUntil } from "@vercel/functions";
 
 import { getEnv } from "@/config/env";
 import {
+  badRequest,
   conflict,
   forbidden,
   notFound,
@@ -53,6 +54,8 @@ import {
   sokoBotInstalledSkillSchema,
   sokoBotIntegrationCatalogEntrySchema,
   sokoBotIntegrationsSchema,
+  sokoBotLabIngestRequestSchema,
+  sokoBotLabIngestSchema,
   sokoBotLabRunSchema,
   sokoBotLabTaskEventSchema,
   sokoBotLabVerdictSchema,
@@ -1218,6 +1221,57 @@ const simulateTaskEventRoute = createRoute({
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
+});
+
+const labIngestRoute = createRoute({
+  method: "post",
+  path: "/me/lab/ingest",
+  operationId: "runMySokoBotLabIngest",
+  tags: ["Soko Bots"],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: sokoBotLabIngestRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(sokoBotLabIngestSchema, "Turn started"),
+    400: jsonErrorResponse("A required account is not connected"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Soko Bot cannot take a turn right now"),
+  },
+});
+
+// The proactive rhythms, on demand. They were CLI-only because the CLI can
+// set a process-wide fixtures env var; but the packet builders read whatever
+// the bot has connected, so nothing about them needs a terminal.
+app.openapi(labIngestRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  try {
+    const { runSokoBotLabIngest } = await import(
+      "@/services/soko-bot-lab-ingest.service"
+    );
+    const result = await runSokoBotLabIngest({
+      userId: auth.userId,
+      workspaceId: workspace.workspaceId,
+      ...c.req.valid("json"),
+    });
+    return ok(c, sokoBotLabIngestSchema.parse(result));
+  } catch (error) {
+    const { SokoBotLabIngestError, SokoBotLabMissingIntegrationError } =
+      await import("@/services/soko-bot-lab-ingest.service");
+    // Named separately from "not found": the scenario is runnable, the owner
+    // just has to connect the account it reads from first.
+    if (error instanceof SokoBotLabMissingIntegrationError) {
+      throw badRequest(error.message);
+    }
+    if (error instanceof SokoBotLabIngestError) throw notFound(error.message);
+    if (error instanceof SokoBotBusyError) throw conflict(error.message);
+    throw error;
+  }
 });
 
 app.openapi(simulateTaskEventRoute, async (c) => {
