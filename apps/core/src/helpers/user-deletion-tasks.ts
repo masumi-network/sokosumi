@@ -352,15 +352,17 @@ export async function prepareTasksForUserDeletion(
             transaction: { select: { userId: true } },
           },
         });
-        if (foreignChargePayment) {
-          const chargedUserId = foreignChargePayment.transaction.userId;
-          if (chargedUserId === null) {
-            throw new APIError("BAD_REQUEST", {
-              code: "TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH",
-              message:
-                "A task payment has inconsistent billing ownership; contact support to repair it, then delete your account again.",
-            });
-          }
+        // Same narrowing as deletion-evaluate: `userId: { not: userId }`
+        // excludes SQL NULL, so a matched charge always has a string actor.
+        const foreignCharge =
+          foreignChargePayment?.transaction.userId != null
+            ? {
+                id: foreignChargePayment.id,
+                taskId: foreignChargePayment.taskId,
+                chargedUserId: foreignChargePayment.transaction.userId,
+              }
+            : null;
+        if (foreignCharge) {
           Sentry.captureMessage(
             "Account deletion would remove a task x402 payment charged to another user",
             {
@@ -368,9 +370,9 @@ export async function prepareTasksForUserDeletion(
               tags: { error_type: "user_deletion_x402_payment_foreign_charge" },
               extra: {
                 userId,
-                taskX402PaymentId: foreignChargePayment.id,
-                taskId: foreignChargePayment.taskId,
-                chargedUserId,
+                taskX402PaymentId: foreignCharge.id,
+                taskId: foreignCharge.taskId,
+                chargedUserId: foreignCharge.chargedUserId,
                 // The admin refund/resolve levers do NOT clear this condition —
                 // they only move status, and every terminal status stays inside
                 // the detector's predicate. Spell that out for whoever this

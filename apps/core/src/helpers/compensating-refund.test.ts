@@ -12,20 +12,19 @@ describe("buildCompensatingRefundTransactionCreate", () => {
       referenceId: "job-1",
     });
 
-    expect(create.amount).toBe(500n);
-    expect("user" in create ? create.user : undefined).toBeUndefined();
-    expect("userId" in create ? create.userId : undefined).toBeNull();
-    expect("organizationId" in create ? create.organizationId : undefined).toBe(
-      "org-1",
-    );
-    expect(create.sourceCreditBucket).toEqual({
-      create: {
-        amount: 500n,
-        referenceId: "job-1",
-        referenceType: CreditBucketReferenceType.REFUND,
-        expiresAt: null,
-        userId: null,
-        organizationId: "org-1",
+    expect(create).toEqual({
+      amount: 500n,
+      organizationId: "org-1",
+      userId: null,
+      sourceCreditBucket: {
+        create: {
+          amount: 500n,
+          referenceId: "job-1",
+          referenceType: CreditBucketReferenceType.REFUND,
+          expiresAt: null,
+          userId: null,
+          organizationId: "org-1",
+        },
       },
     });
   });
@@ -38,21 +37,19 @@ describe("buildCompensatingRefundTransactionCreate", () => {
       referenceId: "task-payment:claim-1",
     });
 
-    expect(create.amount).toBe(250n);
-    expect("user" in create ? create.user : undefined).toEqual({
-      connect: { id: "user-1" },
-    });
-    expect(
-      "organization" in create ? create.organization : undefined,
-    ).toBeUndefined();
-    expect(create.sourceCreditBucket).toEqual({
-      create: {
-        amount: 250n,
-        referenceId: "task-payment:claim-1",
-        referenceType: CreditBucketReferenceType.REFUND,
-        expiresAt: null,
-        userId: "user-1",
-        organizationId: null,
+    expect(create).toEqual({
+      amount: 250n,
+      organizationId: null,
+      userId: "user-1",
+      sourceCreditBucket: {
+        create: {
+          amount: 250n,
+          referenceId: "task-payment:claim-1",
+          referenceType: CreditBucketReferenceType.REFUND,
+          expiresAt: null,
+          userId: "user-1",
+          organizationId: null,
+        },
       },
     });
   });

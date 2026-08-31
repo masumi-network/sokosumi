@@ -214,8 +214,8 @@ describe("task payment claims", () => {
 
     const refund =
       claimUpdateMock.mock.calls[0]?.[0].data.refundTransaction.create;
-    expect(refund.user.connect.id).toBe("user-1");
-    expect(refund.organization).toBeUndefined();
+    expect(refund.userId).toBe("user-1");
+    expect(refund.organizationId).toBeNull();
     expect(refund.sourceCreditBucket.create.userId).toBe("user-1");
     expect(refund.sourceCreditBucket.create.organizationId).toBeNull();
   });
