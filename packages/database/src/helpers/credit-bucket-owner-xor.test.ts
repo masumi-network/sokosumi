@@ -281,6 +281,38 @@ describe("inventoryCreditBucketOwnerXor", () => {
   });
 });
 
+describe("listDualOwnedCreditBuckets", () => {
+  it("returns dual-owned rows and excludes both-null", async () => {
+    const prisma = createPrismaMock({
+      rows: [
+        {
+          id: "dual-1",
+          organizationId: "org-1",
+          referenceId: "member:user-1:in_1:subscription",
+          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+          remaining: 5n,
+          userId: "user-1",
+        },
+        {
+          id: "both-null-0",
+          organizationId: null,
+          referenceId: null,
+          referenceType: null,
+          remaining: 0n,
+          userId: null,
+        },
+      ],
+    });
+
+    const rows = await listDualOwnedCreditBuckets(prisma as never);
+
+    assert.deepEqual(
+      rows.map((row) => row.id),
+      ["dual-1"],
+    );
+  });
+});
+
 describe("reconcileCreditBucketOwnerXor", () => {
   it("dry-run drains leftover remaining on paper and writes nothing", async () => {
     const createTransaction = vi.fn();
