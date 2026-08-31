@@ -442,6 +442,25 @@ export function DriveRecentsPanel({
                                 className="h-8 flex-1"
                                 autoFocus
                               />
+                            ) : viewMode === "grid" ? (
+                              <>
+                                {nameEl}
+                                <div
+                                  className={driveItemMetaMobileClass(viewMode)}
+                                >
+                                  <span>{formatBytes(item.size)}</span>
+                                  <span>{activityLabel}</span>
+                                </div>
+                                <div
+                                  className={driveItemMetaDesktopClass(
+                                    viewMode,
+                                  )}
+                                >
+                                  <span>{formatBytes(item.size)}</span>
+                                  <span>{activityLabel}</span>
+                                </div>
+                                {viewers}
+                              </>
                             ) : (
                               <>
                                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -550,18 +569,32 @@ export function DriveRecentsPanel({
                               <FileTypeIcon extension={extension || "file"} />
                             </div>
                           </div>
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            {nameEl}
-                            {searchContext && viewMode !== "grid" ? (
-                              <p className="text-muted-foreground/70 line-clamp-1 text-xs">
-                                {searchContext}
-                              </p>
-                            ) : null}
-                            <div className={driveItemMetaMobileClass(viewMode)}>
-                              <span>{sizeLabel}</span>
-                              <span>{activityLabel}</span>
+                          {viewMode === "grid" ? (
+                            <>
+                              {nameEl}
+                              <div
+                                className={driveItemMetaMobileClass(viewMode)}
+                              >
+                                <span>{sizeLabel}</span>
+                                <span>{activityLabel}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              {nameEl}
+                              {searchContext ? (
+                                <p className="text-muted-foreground/70 line-clamp-1 text-xs">
+                                  {searchContext}
+                                </p>
+                              ) : null}
+                              <div
+                                className={driveItemMetaMobileClass(viewMode)}
+                              >
+                                <span>{sizeLabel}</span>
+                                <span>{activityLabel}</span>
+                              </div>
                             </div>
-                          </div>
+                          )}
                           <div className={driveItemMetaDesktopClass(viewMode)}>
                             <span>{sizeLabel}</span>
                             <span>{activityLabel}</span>
