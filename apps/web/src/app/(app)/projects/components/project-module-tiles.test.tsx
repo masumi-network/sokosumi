@@ -80,11 +80,8 @@ describe("ProjectModuleTiles", () => {
       disabledTiles.every((tile) => !tile.className.includes("rounded-none")),
     ).toBe(true);
 
-    expect(
-      screen.queryByRole("link", { name: /SEO/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /Social Media/i }),
-    ).not.toBeInTheDocument();
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toBe(fileBrowserLink);
   });
 });
