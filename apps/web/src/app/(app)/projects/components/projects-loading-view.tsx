@@ -1,7 +1,10 @@
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
+  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
+  PROJECTS_PAGE_SHELL_CLASS,
 } from "@/app/projects/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -13,7 +16,7 @@ import { cn } from "@/lib/utils";
  */
 export function ProjectsPageSkeleton() {
   return (
-    <div className="w-full px-2">
+    <div className={PROJECTS_PAGE_SHELL_CLASS}>
       <ProjectsLoadingView />
     </div>
   );
@@ -33,17 +36,15 @@ export function ProjectsLoadingView() {
         <Skeleton className="h-8 w-[7.25rem] rounded-md" />
       </div>
 
-      {/* min-h matches empty/list cards so Instant / empty swap does not thrash CLS. */}
+      {/* min-h matches empty/browse so Instant / empty swap does not thrash CLS. */}
       <div
+        data-testid="projects-loading-browse"
         className={cn(
-          "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+          PROJECTS_BROWSE_LAYOUT_CLASS,
           PROJECTS_LIST_CARD_MIN_H_CLASS,
         )}
       >
-        <div
-          data-testid="projects-loading-list"
-          className="divide-border/50 divide-y px-2"
-        >
+        <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
           {Array.from({ length: 4 }, (_, index) => (
             <ProjectListItemSkeleton key={index} />
           ))}
@@ -59,14 +60,10 @@ export function ProjectsLoadingView() {
  */
 function ProjectListItemSkeleton() {
   return (
-    <article
-      className={cn(
-        "-mx-2 flex items-center gap-1 rounded-lg px-2",
-        PROJECTS_LIST_ROW_LAYOUT_CLASS,
-      )}
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-2 px-2 py-3 sm:flex-row sm:items-center sm:gap-4">
+    <article className={PROJECTS_LIST_ROW_LAYOUT_CLASS}>
+      <div className="flex min-w-0 flex-row items-center gap-4 rounded-none px-2 py-3 md:rounded-lg">
         <div className="flex min-w-0 flex-1 items-center gap-3">
+          <Skeleton className="size-8 shrink-0 rounded-lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <Skeleton className="h-4 w-48 max-w-full" />
             <Skeleton className="h-3 w-64 max-w-full" />
@@ -77,10 +74,6 @@ function ProjectListItemSkeleton() {
           <Skeleton className="h-5 w-10 rounded-full" />
           <Skeleton className="h-5 w-10 rounded-full" />
         </div>
-      </div>
-
-      <div className="shrink-0 pl-2">
-        <Skeleton className="size-8 rounded-md" />
       </div>
     </article>
   );

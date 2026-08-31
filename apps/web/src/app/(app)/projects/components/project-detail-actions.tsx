@@ -66,39 +66,37 @@ export function ProjectDetailActions({
 
   return (
     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-      <div className="flex items-center gap-1">
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/projects/${projectId}/edit`}>
-            <Pencil className="size-4" aria-hidden />
-            {labels.edit}
-          </Link>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-9"
-              aria-label={labels.moreActions}
-            >
-              <MoreHorizontal className="size-4" aria-hidden />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={(event) => {
-                event.preventDefault();
-                setIsDeleteDialogOpen(true);
-              }}
-            >
-              <Trash2 className="size-4" aria-hidden />
-              {labels.delete}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-9"
+            aria-label={labels.moreActions}
+          >
+            <MoreHorizontal className="size-4" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/projects/${projectId}/edit`}>
+              <Pencil className="size-4" aria-hidden />
+              {labels.edit}
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={(event) => {
+              event.preventDefault();
+              setIsDeleteDialogOpen(true);
+            }}
+          >
+            <Trash2 className="size-4" aria-hidden />
+            {labels.delete}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <AlertDialogContent>
         <AlertDialogHeader>
