@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 
@@ -26,13 +27,8 @@ const baseLabels = {
   created: "Created",
   updated: "Updated",
   schedule: "Schedule",
-  formatOrchestratorActorName: ({
-    assistant,
-    owner,
-  }: {
-    assistant: string;
-    owner: string;
-  }) => `${assistant} · ${owner}`,
+  formatOrchestratorRole: ({ owner }: { owner: string }) =>
+    `${owner}'s personal assistant`,
 };
 
 function createTask(
@@ -133,7 +129,7 @@ describe("TaskMetadata", () => {
     expect(screen.getByText("Creator Coworker")).toBeInTheDocument();
   });
 
-  it("shows orchestrator creator with owner name", () => {
+  it("says whose personal assistant created the task", () => {
     render(
       <TaskMetadata
         task={createTask({
@@ -160,10 +156,43 @@ describe("TaskMetadata", () => {
     );
 
     expect(screen.getByText("Creator")).toBeInTheDocument();
-    expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
+    // The assistant's name reads as a person's, so the role line underneath is
+    // the only thing telling the reader what made this Task and for whom.
+    expect(screen.getByText("Hermes")).toBeInTheDocument();
+    expect(
+      screen.getByText("Ada Lovelace's personal assistant"),
+    ).toBeInTheDocument();
+    // Same fallback the sidebar uses, so the bot wears one face everywhere.
     expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
       "data-seed",
-      "",
+      defaultOrbSeed("user_2"),
     );
+  });
+
+  it("does not print the role twice when the bot is named after it", () => {
+    render(
+      <TaskMetadata
+        task={createTask({
+          creator: {
+            type: "orchestrator",
+            id: "01960001-0001-7001-8001-000000000099",
+            orchestrator: {
+              id: "01960001-0001-7001-8001-000000000099",
+              name: "Ada Lovelace's personal assistant",
+              avatarSeed: null,
+              owner: { id: "user_2", name: "Ada Lovelace", image: null },
+            },
+          },
+        })}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    expect(
+      screen.getAllByText("Ada Lovelace's personal assistant"),
+    ).toHaveLength(1);
   });
 });

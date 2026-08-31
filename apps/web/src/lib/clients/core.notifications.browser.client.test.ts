@@ -78,6 +78,7 @@ describe("core.notifications.browser.client", () => {
     expect(createClientMock).toHaveBeenCalledWith({
       baseUrl: "https://api.sokosumi.com/v1",
       credentials: "include",
+      headers: { "x-sokosumi-web-build-version": "1" },
     });
     expect(getMock).toHaveBeenCalledWith(
       expect.objectContaining({

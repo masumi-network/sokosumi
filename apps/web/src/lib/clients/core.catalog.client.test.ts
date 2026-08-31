@@ -61,7 +61,7 @@ describe("core.catalog.client", () => {
     expect(headersMock).not.toHaveBeenCalled();
     expect(createClientMock).toHaveBeenCalledWith({
       baseUrl: "http://localhost:8787/v1",
-      headers: {},
+      headers: { "x-sokosumi-web-build-version": "1" },
     });
     expect(getAgentsMock).toHaveBeenCalledWith({
       cache: "no-store",

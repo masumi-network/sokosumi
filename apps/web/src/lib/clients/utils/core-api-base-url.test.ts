@@ -56,17 +56,17 @@ describe("getCoreApiBaseUrl", () => {
   it("joinCoreApiPath matches OpenAPI client base + path joining", async () => {
     const { joinCoreApiPath } = await import("./core-api-base-url.shared");
 
-    expect(joinCoreApiPath("http://localhost:8787/v1", "/hermes/chat")).toBe(
-      "http://localhost:8787/v1/hermes/chat",
+    expect(joinCoreApiPath("http://localhost:8787/v1", "/soko-bots/me")).toBe(
+      "http://localhost:8787/v1/soko-bots/me",
     );
-    expect(joinCoreApiPath("http://localhost:8787/v1/", "/hermes/chat")).toBe(
-      "http://localhost:8787/v1/hermes/chat",
+    expect(joinCoreApiPath("http://localhost:8787/v1/", "/soko-bots/me")).toBe(
+      "http://localhost:8787/v1/soko-bots/me",
     );
-    expect(joinCoreApiPath("http://localhost:8787/v1///", "/hermes/chat")).toBe(
-      "http://localhost:8787/v1/hermes/chat",
-    );
-    expect(joinCoreApiPath("http://localhost:8787/v1", "hermes/chat")).toBe(
-      "http://localhost:8787/v1/hermes/chat",
+    expect(
+      joinCoreApiPath("http://localhost:8787/v1///", "/soko-bots/me"),
+    ).toBe("http://localhost:8787/v1/soko-bots/me");
+    expect(joinCoreApiPath("http://localhost:8787/v1", "soko-bots/me")).toBe(
+      "http://localhost:8787/v1/soko-bots/me",
     );
   });
 

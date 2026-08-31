@@ -11,7 +11,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
-  OrchestratorAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -1464,6 +1463,7 @@ describe("buildCoworkerUsableInWorkspaceWhere", () => {
             },
           },
         },
+        { sokoBot: { archivedAt: null, workspaceId } },
       ],
     });
   });
@@ -1512,18 +1512,7 @@ describe("buildCoworkerVisibleToUserOr", () => {
 });
 
 const usableInWorkspaceWhere = {
-  archivedAt: null,
-  OR: [
-    { isWhitelisted: true },
-    {
-      workspaceAccess: {
-        some: {
-          workspaceId,
-          status: CoworkerWorkspaceAccessStatus.GRANTED,
-        },
-      },
-    },
-  ],
+  ...buildCoworkerUsableInWorkspaceWhere(workspaceId),
   capabilities: {
     has: "tasks" as const,
   },
@@ -1580,6 +1569,77 @@ describe("requireTaskAssignableCoworker", () => {
         baseURL: true,
       },
     });
+  });
+
+  it("queries the Soko Bot through its coworker relation", async () => {
+    // SokoBot has no `coworkerId` column — the FK lives on Coworker. Passing
+    // `{ coworkerId }` here threw a Prisma validation error at run time and
+    // broke every create_task and assign_task the assistant attempted.
+    const sokoBotFindFirst = vi.fn().mockResolvedValue(null);
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "cow_123",
+          slug: "soko-bot",
+          baseURL: null,
+        }),
+      },
+      sokoBot: { findFirst: sokoBotFindFirst },
+    } as unknown as Prisma.TransactionClient;
+
+    await requireTaskAssignableCoworker("cow_123", workspaceId, tx, {
+      kind: "user",
+      userId: "user_1",
+    });
+
+    expect(sokoBotFindFirst).toHaveBeenCalledWith({
+      where: { coworker: { id: "cow_123" }, archivedAt: null },
+      select: { id: true, userId: true },
+    });
+  });
+
+  it("lets the owner assign work to their own Soko Bot", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "cow_123",
+          slug: "soko-bot",
+          baseURL: null,
+        }),
+      },
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({ id: "bot_1", userId: "user_1" }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      requireTaskAssignableCoworker("cow_123", workspaceId, tx, {
+        kind: "user",
+        userId: "user_1",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("refuses a teammate assigning work to someone else's Soko Bot", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "cow_123",
+          slug: "soko-bot",
+          baseURL: null,
+        }),
+      },
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({ id: "bot_1", userId: "owner" }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      requireTaskAssignableCoworker("cow_123", workspaceId, tx, {
+        kind: "user",
+        userId: "teammate",
+      }),
+    ).rejects.toThrow("Only the owner can assign work to this Soko Bot");
   });
 
   it("rejects when no usable coworker matches (PENDING/DENIED/REVOKED/wrong workspace/archived/no tasks)", async () => {
@@ -1675,18 +1735,7 @@ describe("requireCoworkerChatCapabilityInWorkspace", () => {
     expect(tx.coworker.findFirst).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
-        archivedAt: null,
-        OR: [
-          { isWhitelisted: true },
-          {
-            workspaceAccess: {
-              some: {
-                workspaceId,
-                status: CoworkerWorkspaceAccessStatus.GRANTED,
-              },
-            },
-          },
-        ],
+        ...buildCoworkerUsableInWorkspaceWhere(workspaceId),
         capabilities: {
           has: "chat",
         },
@@ -1841,33 +1890,6 @@ describe("requireConversationCoworkerAccess", () => {
     await requireConversationCoworkerAccess(userAuthContext, null, tx);
 
     expect(tx.coworker.findFirst).not.toHaveBeenCalled();
-  });
-
-  it("is a no-op for orchestrator with context (acts as context user)", async () => {
-    const tx = createTransactionClient();
-    const orchestratorContext: OrchestratorAuthenticationContext = {
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-      context: { userId: "user_123", organizationId: null },
-    };
-
-    await requireConversationCoworkerAccess(orchestratorContext, null, tx);
-
-    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
-  });
-
-  it("rejects bare orchestrator without context headers", async () => {
-    const tx = createTransactionClient();
-    const bareOrchestrator: OrchestratorAuthenticationContext = {
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-    };
-
-    await expect(
-      requireConversationCoworkerAccess(bareOrchestrator, null, tx),
-    ).rejects.toThrow(
-      "Context headers (X-Context-User-Id) are required for this resource",
-    );
   });
 
   it("allows a delegated coworker on its own conversation (coworker_id)", async () => {
@@ -2269,5 +2291,31 @@ describe("requireJobCollaboration", () => {
     ).rejects.toThrow("Context headers");
 
     expect(tx.job.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildCoworkerUsableInWorkspaceWhere", () => {
+  it("lets a Soko Bot join rooms in the workspace it lives in", () => {
+    // What makes a group chat with an assistant possible at all: without this
+    // clause a first-party bot is neither whitelisted nor granted workspace
+    // access, so it could never be added to a channel.
+    const where = buildCoworkerUsableInWorkspaceWhere("workspace_1");
+
+    expect(where.OR).toContainEqual({
+      sokoBot: { archivedAt: null, workspaceId: "workspace_1" },
+    });
+    expect(where.archivedAt).toBeNull();
+  });
+
+  it("does not reach a bot living in another workspace", () => {
+    // Two colleagues' bots share a channel only when both bots live in the
+    // organization workspace the room belongs to.
+    const where = buildCoworkerUsableInWorkspaceWhere("workspace_1");
+
+    expect(where.OR).not.toContainEqual(
+      expect.objectContaining({
+        sokoBot: expect.objectContaining({ workspaceId: "workspace_2" }),
+      }),
+    );
   });
 });

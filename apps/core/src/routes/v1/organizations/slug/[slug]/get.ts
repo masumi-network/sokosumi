@@ -20,7 +20,7 @@ const route = createRoute({
   path: "/slug/{slug}",
   operationId: "getOrganizationBySlug",
   description:
-    "Get the raw organization record by slug for the effective user when they are a member (session user, or orchestrator/coworker with authorized context headers (coworker requires workspace grant or baseline task binding))",
+    "Get the raw organization record by slug for the effective user when they are a member (session user or coworker with authorized context headers; coworker requires workspace grant or baseline task binding)",
   tags: ["Organizations"],
   request: {
     params,

@@ -24,7 +24,6 @@ import debugRouter from "@/routes/debug/index";
 import syncRouter from "@/routes/sync/index";
 import apiV1 from "@/routes/v1/index";
 import wellKnownRouter from "@/routes/well-known/index";
-import { hermesInboxSyncService } from "@/services/hermes-inbox-sync.service";
 
 validateEnv();
 initSentry();
@@ -137,59 +136,3 @@ serve(
     console.log(`Server is running on http://${host}:${info.port}`);
   },
 );
-
-/**
- * Dev-only inbox poll loop.
- *
- * In production, Vercel cron pings /sync/hermes/poll-inboxes. There's no cron
- * locally, so welcome messages and any other orchestrator-pushed inbox traffic
- * never lands in our DB unless someone hits the route by hand. Wire a simple
- * interval that calls the service directly when running in dev with polling
- * enabled, so the local Hermes flow matches production behaviour.
- *
- * Gated on NODE_ENV === "development" so this never accidentally runs in prod
- * alongside the cron and double-polls.
- */
-if (
-  getEnv().NODE_ENV === "development" &&
-  getEnv().HERMES_INBOX_POLLING_ENABLED
-) {
-  const INTERVAL_MS = 30_000;
-  const RUN_BUDGET_MS = 20_000;
-  let running = false;
-
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    const controller = new AbortController();
-    const deadline = Date.now() + RUN_BUDGET_MS;
-    // Hard-abort the poll if it exceeds its budget — `shouldContinue` only
-    // gates iterations between requests, so a single stuck HTTP call would
-    // otherwise leave `running` pinned forever and silently disable the dev
-    // poller until process restart.
-    const watchdog = setTimeout(() => controller.abort(), RUN_BUDGET_MS);
-    try {
-      const summary = await hermesInboxSyncService.pollInboxes({
-        abortSignal: controller.signal,
-        deadlineMs: deadline,
-        shouldContinue: () => Date.now() < deadline,
-      });
-      if (summary.polled > 0 || summary.totalMessages > 0) {
-        console.log(
-          `[dev/inbox-poll] polled=${summary.polled} messages=${summary.totalMessages}`,
-        );
-      }
-    } catch (error) {
-      console.warn("[dev/inbox-poll] failed", (error as Error)?.message);
-    } finally {
-      clearTimeout(watchdog);
-      running = false;
-    }
-  };
-
-  setTimeout(() => void tick(), 5_000);
-  setInterval(() => void tick(), INTERVAL_MS);
-  console.log(
-    `[dev/inbox-poll] enabled — polling every ${INTERVAL_MS / 1000}s`,
-  );
-}

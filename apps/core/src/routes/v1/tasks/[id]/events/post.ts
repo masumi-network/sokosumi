@@ -24,14 +24,12 @@ import {
 } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import {
-  badRequest,
   conflict,
   errorResponseWithExtensionsSchema,
   unprocessableEntity,
 } from "@/helpers/error";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
@@ -48,6 +46,7 @@ import {
   chargeTaskCreditsOrMarkOutOfCredits,
 } from "@/helpers/task-event-charge";
 import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
+import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -55,7 +54,6 @@ import {
   type AuthenticationContext,
   isCoworkerAgentContext,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
   isUserAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
@@ -76,40 +74,13 @@ const paramsSchema = z.object({
   }),
 });
 
-/**
- * Orchestrator status/comment attribution uses only `orchestratorId`.
- * Context userId is workspace scope, not a second actor FK.
- * Fail closed when the service token has context but no active instance
- * (same rule as task create). Re-reads at write time so concurrent purge
- * cannot attribute via a stale middleware snapshot.
- */
-async function getOrchestratorEventActorData(
-  authContext: AuthenticationContext,
-) {
-  if (!isOrchestratorAuthContext(authContext)) {
-    throw badRequest(
-      "Active orchestrator instance required (bind X-Context-User-Id)",
-    );
-  }
-
-  return {
-    userId: null,
-    coworkerId: null,
-    orchestratorId: await requireOrchestratorIdForAttribution(authContext),
-  };
-}
-
-async function getStatusEventActorData(authContext: AuthenticationContext) {
+function getStatusEventActorData(authContext: AuthenticationContext) {
   if (isUserAuthContext(authContext)) {
     return {
       userId: authContext.userId,
       coworkerId: null,
       orchestratorId: null,
     };
-  }
-
-  if (isOrchestratorAuthContext(authContext)) {
-    return getOrchestratorEventActorData(authContext);
   }
 
   // Status transitions from a delegated coworker are attributed to the acting
@@ -121,17 +92,13 @@ async function getStatusEventActorData(authContext: AuthenticationContext) {
   };
 }
 
-async function getCommentEventActorData(authContext: AuthenticationContext) {
+function getCommentEventActorData(authContext: AuthenticationContext) {
   if (isUserAuthContext(authContext)) {
     return {
       userId: authContext.userId,
       coworkerId: null,
       orchestratorId: null,
     };
-  }
-
-  if (isOrchestratorAuthContext(authContext)) {
-    return getOrchestratorEventActorData(authContext);
   }
 
   // Coworker comments are shown by coworkerId in the UI; userId is not used.
@@ -541,6 +508,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           expectedStatus: task.status,
           eventStatus,
         });
+
+        if (
+          task.status === TaskStatus.QUEUED &&
+          eventStatus !== TaskStatus.QUEUED
+        ) {
+          await removeTaskSchedulePlannedOccurrences(tx, taskId);
+        }
 
         if (eventStatus === TaskStatus.CANCELED) {
           cascadedChildren = await cascadeCancelNonTerminalScheduleRuns({

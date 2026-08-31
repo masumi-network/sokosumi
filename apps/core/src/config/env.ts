@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from "uuid";
  * Environment variables schema for Core API
  * This ensures the app isn't built with invalid env vars.
  */
-const envSchema = z.object({
+const baseEnvSchema = z.object({
   NETWORK: z.enum(["Preprod", "Mainnet"]).default("Preprod"),
 
   // Environment
@@ -89,18 +89,27 @@ const envSchema = z.object({
 
   // Project memory (Vercel AI Gateway, Mistral EU provider only)
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+  /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
+  GITHUB_TOKEN: z.string().min(1).optional(),
+  /** Judge model for lab runs and per-turn quality scores (AI Gateway id). */
+  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
+  /** Score every completed turn with the judge model. */
+  SOKO_BOT_TURN_JUDGE_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  /** fal.ai key for Soko Bot avatar generation; the pool cannot top up without it. */
+  FAL_KEY: z.string().min(1).optional(),
   PROJECT_MEMORY_MODEL: z
     .string()
     .startsWith("mistral/")
     .default("mistral/mistral-medium-3.5"),
 
-  // Hermes Orchestrator (Core → Hermes outbound)
-  HERMES_ORCH_BASE_URL: z.url(),
-  HERMES_ORCH_TOKEN: z.string().min(1),
-  HERMES_INBOX_POLLING_ENABLED: z
+  // First-party Soko Bot control plane and Eve runtime.
+  SOKO_BOT_ENABLED: z
     .string()
     .default("false")
-    .transform((val: string) => val.trim().toLowerCase() === "true"),
+    .transform((value) => value.trim().toLowerCase() === "true"),
 
   // Temporary overlay (ADR 0010): org-first membership also gets a personal
   // workspace. Default false is ADR 0005 (personal optional).
@@ -109,27 +118,27 @@ const envSchema = z.object({
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
 
-  // Hermes → Core service auth (shared secret; not a per-user DB key).
-  // Min 32 matches `openssl rand -hex 16` (16 bytes → 32 hex chars).
-  // Must not use coworker_/orch_ prefixes: bearer middleware routes those
-  // to coworker API-key verification and never reaches the orch compare.
-  ORCHESTRATOR_SERVICE_TOKEN: z
+  /** Platform-wide kill switch for everything Soko Bots start on their own. */
+  SOKO_BOT_PROACTIVE_PAUSED: z
     .string()
-    .min(32)
-    .refine(
-      (v) => !v.startsWith("coworker_") && !v.startsWith("orch_"),
-      "must not start with coworker_ or orch_ (reserved bearer prefixes)",
-    ),
-
-  // skills.sh marketplace (browse/search/audit for Hermes skills). The OIDC
-  // token is injected by the Vercel runtime; optional so local/non-Vercel
-  // envs degrade to an empty catalog instead of failing to boot.
-  SKILLS_SH_BASE_URL: z.url().default("https://skills.sh/api/v1"),
-  VERCEL_OIDC_TOKEN: z.string().min(1).optional(),
-
-  // Composio (managed OAuth + MCP broker for Hermes integrations)
-  COMPOSIO_API_KEY: z.string().startsWith("ak_").optional(),
-  COMPOSIO_API_BASE_URL: z.url().default("https://backend.composio.dev"),
+    .default("false")
+    .transform((value) => value.trim().toLowerCase() === "true"),
+  /** Composio brokers OAuth for Soko Bot integrations (Gmail, Outlook, …). */
+  COMPOSIO_API_KEY: z.string().min(1).optional(),
+  COMPOSIO_API_BASE_URL: z.url().optional(),
+  SOKO_BOT_RUNTIME_ADAPTER: z
+    .enum(["in-memory", "in-process"])
+    .default("in-process"),
+  SOKO_BOT_CLASSIFIER_MODE: z
+    .enum(["deterministic", "model"])
+    .default("deterministic"),
+  SOKO_BOT_CREDITS_PER_USD: z.coerce.number().positive().default(100),
+  SOKO_BOT_MIN_TURN_CREDITS: z.coerce.number().positive().default(0.1),
+  /** Most credits one hire may commit on a turn no owner asked for. */
+  SOKO_BOT_UNATTENDED_MAX_HIRE_CREDITS: z.coerce
+    .number()
+    .positive()
+    .default(50),
 
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),
@@ -216,6 +225,31 @@ const envSchema = z.object({
     )
     .pipe(z.array(z.email())),
   JOB_FAILURE_WEBHOOK_URL: z.url().optional(),
+});
+
+function isDeployedSokoBotEnvironment(
+  value: z.infer<typeof baseEnvSchema>,
+): boolean {
+  return (
+    value.NODE_ENV === "production" ||
+    value.VERCEL_ENV === "production" ||
+    value.VERCEL_ENV === "preview"
+  );
+}
+
+const envSchema = baseEnvSchema.superRefine((value, context) => {
+  if (!value.SOKO_BOT_ENABLED) return;
+  // The agent runs inside Core, so enabling it needs no runtime deployment,
+  // signing key, or allowlist — only a real adapter in a deployed environment.
+  if (!isDeployedSokoBotEnvironment(value)) return;
+  if (value.SOKO_BOT_RUNTIME_ADAPTER !== "in-process") {
+    context.addIssue({
+      code: "custom",
+      path: ["SOKO_BOT_RUNTIME_ADAPTER"],
+      message:
+        "SOKO_BOT_RUNTIME_ADAPTER must be in-process when Soko Bot is enabled in a deployed environment",
+    });
+  }
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -352,20 +386,4 @@ export function getBetterAuthPublicBaseUrl(): string {
     vercelProductionUrl: env.VERCEL_PROJECT_PRODUCTION_URL,
     fallbackUrl: env.BETTER_AUTH_URL,
   });
-}
-
-/**
- * Resolve which Sokosumi env label to pass to the Hermes orchestrator.
- *
- *   - NETWORK === "Mainnet" → "mainnet"
- *   - otherwise (Preprod, also the default when unset) → "preprod"
- *
- * Local dev with default NETWORK=Preprod still reports "preprod" so the
- * orchestrator's sokosumi_sync step exercises the same path as Vercel preprod.
- *
- * The orchestrator uses this to pick the Sokosumi API base + coworker key.
- */
-export function resolveSokosumiEnvForOrchestrator(): "preprod" | "mainnet" {
-  const env = getEnv();
-  return env.NETWORK === "Mainnet" ? "mainnet" : "preprod";
 }

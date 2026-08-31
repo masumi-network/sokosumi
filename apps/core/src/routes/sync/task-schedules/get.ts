@@ -1,5 +1,7 @@
 import type { Hono } from "hono";
 
+import { taskScheduleReconciliationService } from "@/services/task-schedule-reconciliation.service";
+import { taskScheduleValidationService } from "@/services/task-schedule-validation.service";
 import { taskSchedulesSyncService } from "@/services/task-schedules-sync";
 
 import { handleSyncRequest } from "../handler.js";
@@ -18,7 +20,22 @@ export default function mount(app: Hono) {
           shouldContinue: context.shouldContinue,
         });
 
-        console.info("[sync/task-schedules] Completed sync", result);
+        const validation = context.shouldContinue()
+          ? await taskScheduleValidationService.validateActiveSchedules({
+              shouldContinue: context.shouldContinue,
+            })
+          : null;
+        const reconciliation = context.shouldContinue()
+          ? await taskScheduleReconciliationService.reconcileScheduleHistory({
+              shouldContinue: context.shouldContinue,
+            })
+          : null;
+
+        console.info("[sync/task-schedules] Completed sync", {
+          ...result,
+          validation,
+          reconciliation,
+        });
       },
     );
   });

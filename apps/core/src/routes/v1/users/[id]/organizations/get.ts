@@ -23,7 +23,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/organizations",
     description:
-      "Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user, or orchestrator/coworker with matching `X-Context-User-Id`.",
+      "Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user or coworker with matching authorized `X-Context-User-Id`.",
     tags: ["Users"],
     request: { params },
     responses: {

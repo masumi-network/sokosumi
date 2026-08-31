@@ -1,3 +1,4 @@
+import { parseTaskScheduleMetadata } from "@sokosumi/utils";
 import { CronExpressionParser as cronParser } from "cron-parser";
 import type { PutTaskScheduleRequest } from "@/lib/clients/generated/core/types.gen";
 import { DOW, type Dow, parseCron } from "@/lib/schedules/cron";
@@ -10,30 +11,6 @@ import {
   TaskScheduleEndsMode,
   type TaskScheduleSelection,
 } from "@/lib/types/task-schedule";
-
-interface TaskScheduleMetadataOnce {
-  version: 1;
-  mode: "once";
-  scheduledAt: string;
-  runAt: string;
-}
-
-interface TaskScheduleMetadataRecurring {
-  version: 1;
-  mode: "recurring";
-  scheduledAt: string;
-  expr: string;
-  timezone: string;
-  endsMode: "never" | "on" | "after";
-  endsOn?: string;
-  occurrences?: number;
-  intervalDays?: number;
-  anchorAt?: string;
-}
-
-type TaskScheduleMetadata =
-  | TaskScheduleMetadataOnce
-  | TaskScheduleMetadataRecurring;
 
 function pad2(value: number): string {
   return String(value).padStart(2, "0");
@@ -136,21 +113,6 @@ function deriveBuilderStateFromCron(cron: string): {
   return null;
 }
 
-export function parseTaskScheduleMetadata(
-  metadata: string | null | undefined,
-): TaskScheduleMetadata | null {
-  if (!metadata) return null;
-
-  try {
-    const parsed = JSON.parse(metadata) as TaskScheduleMetadata;
-    if (parsed.version !== 1) return null;
-    if (parsed.mode !== "once" && parsed.mode !== "recurring") return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
 export function metadataToSelection(
   metadata: string | null | undefined,
   defaultTimezone: string,
@@ -161,23 +123,28 @@ export function metadataToSelection(
   }
 
   if (parsed.mode === "once") {
+    const timezone = parsed.version === 2 ? parsed.timezone : defaultTimezone;
+    const runAt = parsed.version === 2 ? parsed.effectiveRunAt : parsed.runAt;
     return {
       mode: "once",
-      timezone: defaultTimezone,
-      oneTimeLocalIso: utcToDateTimeLocalInTimezone(
-        new Date(parsed.runAt),
-        defaultTimezone,
-      ),
+      timezone,
+      oneTimeLocalIso: utcToDateTimeLocalInTimezone(new Date(runAt), timezone),
     };
   }
 
   const derivedPreset = derivePresetFromCron(parsed.expr);
+  const remainingOccurrences =
+    parsed.version === 1
+      ? parsed.occurrences
+      : parsed.targetReleaseCount == null
+        ? undefined
+        : Math.max(parsed.targetReleaseCount - parsed.epochReleaseCount, 0);
   const selection: TaskScheduleSelection = {
     mode: "recurring",
     timezone: parsed.timezone,
     cron: parsed.expr,
     endsMode: parsed.endsMode,
-    endAfterOccurrences: parsed.occurrences,
+    endAfterOccurrences: remainingOccurrences,
     ...(parsed.intervalDays != null && parsed.intervalDays > 1
       ? { intervalDays: parsed.intervalDays }
       : {}),

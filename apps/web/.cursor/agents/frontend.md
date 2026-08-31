@@ -25,6 +25,7 @@ Key directories:
 - `src/app/` - App Router routes, layouts, and pages
 - `src/app/(app)/` - Protected authenticated routes
 - `src/app/(auth)/` - Public authentication routes
+- `src/proxy.ts` - Next.js 16 request interceptor (`proxy()`), not `middleware.ts`
 - `src/components/` - Shared UI components
 - `src/lib/services/` - Business logic coordination
 - `src/lib/actions/` - Server mutations

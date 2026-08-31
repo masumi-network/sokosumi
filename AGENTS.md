@@ -29,7 +29,8 @@ sokosumi/
 │   ├── net/                   # @sokosumi/net — `src/`
 │   ├── email/                 # @sokosumi/email — `src/`
 │   ├── chat/                  # @sokosumi/chat — `src/`
-│   └── ai-provider/           # @sokosumi/ai-provider — `src/`
+│   ├── ai-provider/           # @sokosumi/ai-provider — `src/`
+│   └── soko-bot/              # @sokosumi/soko-bot — `src/`; exports in package.json
 ├── docs/                      # Agent, domain, coworker, and design docs
 ├── scripts/                   # local-env, cloud-agent-db, CI helpers
 ├── skills/                    # First-party skill sources (installed into `.agents/skills/`)
@@ -334,6 +335,10 @@ Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](./apps
 
 Main engineering flow. See [`.agents/skills/ask-matt/`](.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
 
+### Branch Bugbot gate
+
+Optional standalone skill: [`branch-bugbot-gate`](./skills/branch-bugbot-gate/). Run on demand after a PR exists for local verify, CI green, and Bugbot (fix High; Medium for human review).
+
 ### Caveman
 
 When the caveman skill is present, follow it for all replies. Off: "stop caveman" / "normal mode". See [`.agents/skills/caveman/`](.agents/skills/caveman/).
@@ -368,7 +373,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 **Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds. [`docs/coworker/coworker-workspace-access-api.md`](./docs/coworker/coworker-workspace-access-api.md) — coworker early access (per-workspace pilot, not VendorGrant).
 
-**Orchestrator (Hermes):** [`docs/orchestrator/hermes-orchestrator-actor.md`](./docs/orchestrator/hermes-orchestrator-actor.md) — first-party orchestrator actor (`ORCHESTRATOR_SERVICE_TOKEN`), DRAFT access, DRAFT↔READY status, usage/purge.
+**Soko Bot:** contracts in [`packages/soko-bot`](./packages/soko-bot) (`@sokosumi/soko-bot`); in-process runtime in Core (`apps/core/src/lib/soko-bot/`). See [`docs/soko-bot/implementation-plan.md`](./docs/soko-bot/implementation-plan.md) and [`docs/adr/0007-soko-bot-eve-runtime.md`](./docs/adr/0007-soko-bot-eve-runtime.md) — first-party personal project manager running inside Core, capability-scoped tools, context packets, memory, schedules, and admin operations. There is no `apps/soko-bot` deployable.
 
 ## Additional Rules
 
@@ -392,7 +397,7 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 
 ### Runtime versions
 
-- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.23.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.24.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
 
 ### Database (Cloud agent Neon branch)
 
@@ -413,7 +418,7 @@ When Neon secrets are absent, provision skips and local Postgres remains the fal
 
 ### `.env` files (gitignored, snapshot-persisted)
 
-`apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost` (overwritten by agent DB provision when Neon secrets are present); `HERMES_ORCH_BASE_URL` set to a valid dummy URL (`RESEND_FROM_EMAIL` defaults to `noreply@sokosumi.com`); invalid placeholders removed (`COMPOSIO_API_KEY`, `AGENT_HIRED_WEBHOOK`); `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`; web `APP_SIGNING_SECRET` set equal to Core `BETTER_AUTH_SECRET` (required to match).
+`apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost` (overwritten by agent DB provision when Neon secrets are present); `RESEND_FROM_EMAIL` defaults to `noreply@sokosumi.com`; invalid `AGENT_HIRED_WEBHOOK` placeholder removed; `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`; web `APP_SIGNING_SECRET` set equal to Core `BETTER_AUTH_SECRET` (required to match).
 
 ### Running & known local gotchas
 

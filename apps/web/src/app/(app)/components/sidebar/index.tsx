@@ -13,7 +13,7 @@ import type { CreditUsage } from "@/lib/types/credit";
 import AnnouncementCards from "./components/announcement-cards";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
-import PersonalAssistantNav from "./components/personal-assistant-nav.client";
+import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
 
 export type SidebarCreditsData = GetUsersByIdCreditsResponse["data"]["credits"];
@@ -82,13 +82,13 @@ export function mapAccountCreditsChrome(
 interface SidebarProps {
   accountFooter: ReactNode;
   chatList: ReactNode;
-  hermesMenuEnabled: boolean;
+  sokoBotMenuEnabled: boolean;
 }
 
 export default function Sidebar({
   accountFooter,
   chatList,
-  hermesMenuEnabled,
+  sokoBotMenuEnabled,
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
@@ -105,9 +105,9 @@ export default function Sidebar({
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
         <div className="flex w-full flex-col gap-0">
-          <PersonalAssistantNav enabled={hermesMenuEnabled} />
-          {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
-          <MenuItems />
+          <PersonalAssistantNav enabled={sokoBotMenuEnabled} />
+          {sokoBotMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+          <MenuItems calendarMenuEnabled={sokoBotMenuEnabled} />
           <SidebarSeparator />
           {chatList}
         </div>

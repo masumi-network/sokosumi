@@ -245,29 +245,4 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
     expect(unassignSeatMock).not.toHaveBeenCalled();
   });
-
-  it("allows orchestrator with context headers as the context user", async () => {
-    setMembership("owner");
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      periodEnd: new Date("2026-06-01T00:00:00.000Z"),
-      plan: "starter",
-      status: "active",
-      stripeSubscriptionId: "sub_123",
-    });
-
-    const response = await unassignSeat("org_123", "member_456", {
-      actor: "orchestrator",
-      orchestratorId: "orch_1",
-      context: { userId: "user_123", organizationId: "org_123" },
-    });
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.data).toEqual({ memberId: "member_456" });
-    expect(unassignSeatMock).toHaveBeenCalledWith(
-      "member_456",
-      "org_123",
-      expect.anything(),
-    );
-  });
 });

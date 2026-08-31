@@ -22,6 +22,7 @@
     "ai-provider:build": "pnpm --filter @sokosumi/ai-provider build",
     "ai-provider:typecheck": "pnpm --filter @sokosumi/ai-provider typecheck",
     "masumi:build": "pnpm --filter @sokosumi/masumi build",
+    "soko-bot:build": "pnpm --filter @sokosumi/soko-bot build",
     "net:build": "pnpm --filter @sokosumi/net build",
     "packages:build": "pnpm --filter \"./packages/*\" run build",
     "typecheck": "turbo run typecheck",
@@ -30,6 +31,7 @@
     "database:typecheck": "pnpm --filter @sokosumi/database typecheck",
     "chat:typecheck": "pnpm --filter @sokosumi/chat typecheck",
     "masumi:typecheck": "pnpm --filter @sokosumi/masumi typecheck",
+    "soko-bot:typecheck": "pnpm --filter @sokosumi/soko-bot typecheck",
     "email:typecheck": "pnpm --filter @sokosumi/email typecheck",
     "utils:typecheck": "pnpm --filter @sokosumi/utils typecheck",
     "net:typecheck": "pnpm --filter @sokosumi/net typecheck",
@@ -106,7 +108,7 @@
     "husky": "9.1.7",
     "lighthouse": "13.4.1",
     "portless": "0.15.6",
-    "tsx": "4.23.12",
+    "tsx": "4.23.13",
     "turbo": "2.10.12"
   }
 }

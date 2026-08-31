@@ -1,0 +1,16 @@
+-- What a turn cost beyond the part that is billed.
+--
+-- `usage` and `costUsdMicros` metered the agent loop alone. Two further model
+-- calls surround every turn -- the classifier that routes it and the judge
+-- that scores it -- and both discarded their usage at the call site, so a
+-- bot's real consumption was never visible anywhere.
+--
+-- Their tokens now go into `usage`, which the drain already seeds from this
+-- row, so that column becomes every token the turn spent. Only the money is
+-- split out here, because only the money is billed: `sokoBotUsageCents` reads
+-- `costUsdMicros`, and folding overhead into it would silently raise what
+-- every owner pays.
+--
+-- Existing rows keep 0. The discarded usage is not recoverable, and inventing
+-- a number would be worse than an honest floor.
+ALTER TABLE "soko_bot_turn" ADD COLUMN "overheadCostUsdMicros" BIGINT NOT NULL DEFAULT 0;

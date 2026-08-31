@@ -568,7 +568,7 @@ function CoworkerGallerySectionInner({
                   <CoworkerAvatar
                     key={coworker.id}
                     coworker={coworker}
-                    className="ring-background size-7 rounded-full ring-2"
+                    className="size-7 rounded-full"
                     sizes="28px"
                   />
                 ))}

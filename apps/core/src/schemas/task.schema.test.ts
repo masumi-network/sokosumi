@@ -1,4 +1,4 @@
-import { Channel, TaskStatus } from "@sokosumi/database";
+import { Channel, TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import { taskEventSchema } from "./task.schema";
@@ -66,6 +66,27 @@ describe("taskEventWithTaskIdSchema", () => {
     });
 
     expect(result.actor).toBeNull();
+  });
+
+  it("exposes optional schedule activity fields", () => {
+    const result = taskEventSchema.parse({
+      id: "evt_schedule",
+      taskId: "tsk_123",
+      createdAt: new Date("2026-08-26T12:00:00.000Z"),
+      updatedAt: new Date("2026-08-26T12:00:00.000Z"),
+      actor: null,
+      channel: Channel.SOKOSUMI,
+      origin: Channel.SOKOSUMI,
+      scheduleKind: TaskScheduleEventKind.OCCURRENCE_SKIPPED,
+      schedulePayload: { occurrenceKey: "occurrence-key" },
+      scheduleOperationId: "123e4567-e89b-42d3-a456-426614174000",
+    });
+
+    expect(result).toMatchObject({
+      scheduleKind: TaskScheduleEventKind.OCCURRENCE_SKIPPED,
+      schedulePayload: { occurrenceKey: "occurrence-key" },
+      scheduleOperationId: "123e4567-e89b-42d3-a456-426614174000",
+    });
   });
 
   it("fails when taskId is missing", () => {

@@ -144,6 +144,18 @@ export const projectSchema = z
       example: null,
     }),
     contextMdUpdating: z.boolean().openapi({ example: false }),
+    projectRevision: z.number().int().nonnegative().default(0).openapi({
+      description: "Revision used for optimistic Project mutations",
+      example: 0,
+    }),
+    closingAt: dateTimeSchema.nullable().default(null).openapi({
+      description: "Exclusive release cutoff while the Project is closing",
+      example: null,
+    }),
+    closedAt: dateTimeSchema.nullable().default(null).openapi({
+      description: "When the Project reached its terminal closed state",
+      example: null,
+    }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -354,6 +366,9 @@ export function mapProjectForApi(
     contextMdUpdating:
       updatingSinceMs !== undefined &&
       now.getTime() - updatingSinceMs < PROJECT_MEMORY_UPDATING_WINDOW_MS,
+    projectRevision: project.projectRevision ?? 0,
+    closingAt: project.closingAt ?? null,
+    closedAt: project.closedAt ?? null,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
   });

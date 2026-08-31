@@ -19,7 +19,7 @@ import AuthBackground from "./components/auth-background";
 
 // Instant Nav prerenders a Cache Components shell that Vercel serves for
 // POST/RSC to /signin|/signup as 405 (Method Not Allowed). Auth entry must
-// stay fully dynamic — same opt-out as admin / Hermes must-block gates.
+// stay fully dynamic — same opt-out as admin must-block gates.
 export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {

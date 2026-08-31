@@ -72,7 +72,7 @@
     "@sokosumi/net": "workspace:*",
     "json-canonicalize": "3.0.0",
     "neverthrow": "8.2.0",
-    "zod": "4.4.3"
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.99.0",

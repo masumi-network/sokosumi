@@ -120,30 +120,6 @@ describe("GET /tasks/{id}/workspace", () => {
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
   });
 
-  it("allows orchestrator with context headers as the context user", async () => {
-    const response = await createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-      context: {
-        userId: "user_123",
-        organizationId: "org_123",
-      },
-    }).request("/tsk_123/workspace");
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body.data).toEqual({
-      name: "Research competitor pricing",
-      workspaceId: "11111111-1111-7111-8111-111111111111",
-      organizationId: "org_123",
-    });
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
-      id: "org_123",
-      userId: "user_123",
-      tx: expect.any(Object),
-    });
-  });
-
   it("allows coworker with context headers as the context user", async () => {
     const response = await createApp({
       actor: "coworker",
@@ -163,20 +139,6 @@ describe("GET /tasks/{id}/workspace", () => {
       userId: "user_123",
       tx: expect.any(Object),
     });
-  });
-
-  it("returns 403 for bare orchestrator without context headers", async () => {
-    const response = await createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_123",
-    }).request("/tsk_123/workspace");
-    const body = await response.json();
-
-    expect(response.status).toBe(403);
-    expect(body.message).toBe(
-      "Context headers (X-Context-User-Id) are required for this resource",
-    );
-    expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for bare coworker without context headers", async () => {

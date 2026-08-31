@@ -5,8 +5,6 @@ import prisma from "@/lib/db/prisma";
 import {
   type AuthEnv,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
-  type OrchestratorAuthenticationContext,
   setAuthContext,
 } from "@/middleware/auth";
 
@@ -43,7 +41,7 @@ function readContextHeaders(c: {
 }
 
 /**
- * For coworker/orchestrator bearer authentication: reads optional workspace
+ * For coworker bearer authentication: reads optional workspace
  * context headers and attaches `context` without changing `actor`.
  *
  * Canonical headers: `X-Context-User-Id`, `X-Context-Organization-Id`.
@@ -60,11 +58,7 @@ export const coworkerContextMiddleware = createMiddleware<AuthEnv>(
   async (c, next) => {
     const { isAuthenticated, authContext } = c.var;
 
-    if (
-      !isAuthenticated ||
-      (!isCoworkerAuthContext(authContext) &&
-        !isOrchestratorAuthContext(authContext))
-    ) {
+    if (!isAuthenticated || !isCoworkerAuthContext(authContext)) {
       return await next();
     }
 
@@ -111,34 +105,14 @@ export const coworkerContextMiddleware = createMiddleware<AuthEnv>(
       organizationId: organizationIdTrimmed ? organizationIdTrimmed : null,
     };
 
-    if (isCoworkerAuthContext(authContext)) {
-      setAuthContext(c, {
-        isAuthenticated,
-        authContext: {
-          actor: "coworker",
-          coworkerId: authContext.coworkerId,
-          vendorId: authContext.vendorId,
-          context,
-        },
-      });
-      return await next();
-    }
-
-    // Bind per-user orchestrator id from context user (active instance only).
-    const orchestrator = await prisma.orchestrator.findFirst({
-      where: { userId, archivedAt: null },
-      select: { id: true },
-    });
-
-    const nextAuthContext: OrchestratorAuthenticationContext = {
-      actor: "orchestrator",
-      orchestratorId: orchestrator?.id,
-      context,
-    };
-
     setAuthContext(c, {
       isAuthenticated,
-      authContext: nextAuthContext,
+      authContext: {
+        actor: "coworker",
+        coworkerId: authContext.coworkerId,
+        vendorId: authContext.vendorId,
+        context,
+      },
     });
 
     return await next();

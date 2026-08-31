@@ -244,30 +244,4 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
     expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
   });
-
-  it("allows orchestrator with context headers as the context user", async () => {
-    vendorGrantUpsertMock.mockResolvedValue(baseGrant());
-
-    const response = await createApp({
-      actor: "orchestrator",
-      orchestratorId: "orch_1",
-      context: { userId: "user_123", organizationId: orgId },
-    }).request(`http://localhost/${orgId}/vendor-grants`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vendorId }),
-    });
-
-    expect(response.status).toBe(201);
-    expect(notificationDeleteManyMock).toHaveBeenCalledWith({
-      where: {
-        referenceId: grantId,
-        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
-        kind: NotificationKind.SYSTEM,
-      },
-    });
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user_123", id: orgId }),
-    );
-  });
 });

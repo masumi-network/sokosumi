@@ -1,5 +1,6 @@
 import { CoworkerWorkspaceAccessStatus, MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 
 import { forbidden } from "@/helpers/error";
 
@@ -1224,18 +1225,7 @@ describe("coworker-workspace-access helpers", () => {
       expect(coworkerFindFirst).toHaveBeenCalledWith({
         where: {
           id: "coworker-1",
-          archivedAt: null,
-          OR: [
-            { isWhitelisted: true },
-            {
-              workspaceAccess: {
-                some: {
-                  workspaceId: "workspace-1",
-                  status: CoworkerWorkspaceAccessStatus.GRANTED,
-                },
-              },
-            },
-          ],
+          ...buildCoworkerUsableInWorkspaceWhere("workspace-1"),
         },
         select: { id: true },
       });
