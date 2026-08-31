@@ -1,7 +1,10 @@
 import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
 
 import prisma from "@/lib/db/prisma";
-import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
+import {
+  ACTIVE_TURN_STATUSES,
+  sokoBotControlPlane,
+} from "@/services/soko-bot-control-plane.service";
 import { buildIngestDeltaMessageForBot } from "@/services/soko-bot-ingest.service";
 import { activeIntegrationsForBot } from "@/services/soko-bot-integrations.service";
 import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
@@ -9,6 +12,9 @@ import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
 export type SokoBotLabBeat = "standup" | "weekly-wrap" | "delta";
 
 export class SokoBotLabIngestError extends Error {}
+
+/** The bot cannot take a turn right now; nothing was read or spent. */
+export class SokoBotLabBusyError extends SokoBotLabIngestError {}
 
 /** Names the connection a beat cannot be built without. */
 export class SokoBotLabMissingIntegrationError extends SokoBotLabIngestError {
@@ -23,9 +29,19 @@ export class SokoBotLabMissingIntegrationError extends SokoBotLabIngestError {
  * why it used to be sent to the CLI for no reason at all.
  */
 const REQUIRED: Record<SokoBotLabBeat, readonly ("email" | "calendar")[]> = {
+  // Either is enough. `buildSystemBeatMessage` treats both as optional and
+  // still builds a brief from the board, the attention items and memory, so
+  // demanding both would refuse a run the real schedule would have made.
   standup: ["calendar", "email"],
   delta: ["email"],
   "weekly-wrap": [],
+};
+
+/** `standup` reads two accounts but needs only one of them to say anything. */
+const NEEDS_ALL: Record<SokoBotLabBeat, boolean> = {
+  standup: false,
+  delta: true,
+  "weekly-wrap": true,
 };
 
 /**
@@ -58,12 +74,27 @@ export async function runSokoBotLabIngest(input: {
   });
   if (!bot) throw new SokoBotLabIngestError("Soko Bot not found");
 
+  // Before the packet: the reads below are up to four sequential Composio
+  // calls, and discovering afterwards that the bot was already working means
+  // having made all of them for a turn that was never going to start.
+  const active = await prisma.sokoBotTurn.findFirst({
+    where: { sokoBotId: bot.id, status: { in: [...ACTIVE_TURN_STATUSES] } },
+    select: { id: true },
+  });
+  if (active) {
+    throw new SokoBotLabBusyError("Soko Bot is already working");
+  }
+
+  const required = REQUIRED[input.beat];
   const missing: ("email" | "calendar")[] = [];
-  for (const kind of REQUIRED[input.beat]) {
+  for (const kind of required) {
     const connected = await activeIntegrationsForBot(bot.id, kind);
     if (connected.length === 0) missing.push(kind);
   }
-  if (missing.length > 0) throw new SokoBotLabMissingIntegrationError(missing);
+  const unsatisfied = NEEDS_ALL[input.beat]
+    ? missing.length > 0
+    : missing.length === required.length && required.length > 0;
+  if (unsatisfied) throw new SokoBotLabMissingIntegrationError(missing);
 
   const message =
     input.beat === "delta"
@@ -85,6 +116,10 @@ export async function runSokoBotLabIngest(input: {
           })
         ).message;
 
+  // Deliberately not stamping what the cron stamps — nudge keys, the ingest
+  // cursor. A lab run marking them would suppress the real beat that follows,
+  // which is worse than the duplicate it avoids: a repeated nudge is noise,
+  // a swallowed one is work nobody hears about.
   const started = await sokoBotControlPlane.startTurn({
     userId: input.userId,
     workspaceId: input.workspaceId,

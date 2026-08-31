@@ -4,23 +4,29 @@ const {
   botFindFirstMock,
   activeIntegrationsMock,
   startTurnMock,
+  activeTurnMock,
   deltaMessageMock,
   beatMessageMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   activeIntegrationsMock: vi.fn(),
   startTurnMock: vi.fn(),
+  activeTurnMock: vi.fn(),
   deltaMessageMock: vi.fn(),
   beatMessageMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { sokoBot: { findFirst: botFindFirstMock } },
+  default: {
+    sokoBot: { findFirst: botFindFirstMock },
+    sokoBotTurn: { findFirst: activeTurnMock },
+  },
 }));
 vi.mock("@/services/soko-bot-integrations.service", () => ({
   activeIntegrationsForBot: activeIntegrationsMock,
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  ACTIVE_TURN_STATUSES: ["STARTING", "RUNNING"],
   sokoBotControlPlane: { startTurn: startTurnMock },
 }));
 vi.mock("@/services/soko-bot-ingest.service", () => ({
@@ -32,6 +38,7 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
 
 import {
   runSokoBotLabIngest,
+  SokoBotLabBusyError,
   SokoBotLabMissingIntegrationError,
 } from "@/services/soko-bot-lab-ingest.service";
 
@@ -48,6 +55,7 @@ describe("runSokoBotLabIngest", () => {
       coworker: { id: "cow_1" },
     });
     activeIntegrationsMock.mockResolvedValue([{ id: "int_1" }]);
+    activeTurnMock.mockResolvedValue(null);
     deltaMessageMock.mockResolvedValue("## Unread mail");
     beatMessageMock.mockResolvedValue({ message: "Daily stand-up." });
     startTurnMock.mockResolvedValue({ turnId: "turn_1" });
@@ -86,6 +94,31 @@ describe("runSokoBotLabIngest", () => {
     startTurnMock.mockClear();
     await runSokoBotLabIngest({ ...SCOPE, beat: "standup" });
     expect(startTurnMock.mock.calls[0]![0].source).toBe("SCHEDULE");
+  });
+
+  it("runs the stand-up on a calendar alone", async () => {
+    // The builder treats both accounts as optional and still writes a brief
+    // from the board and memory, so demanding both would refuse a run the
+    // real schedule would have made.
+    activeIntegrationsMock.mockImplementation(
+      async (_id: string, kind: string) =>
+        kind === "calendar" ? [{ id: "int_1" }] : [],
+    );
+
+    await expect(
+      runSokoBotLabIngest({ ...SCOPE, beat: "standup" }),
+    ).resolves.toEqual({ turnId: "turn_1" });
+  });
+
+  it("refuses before reading anything when the bot is mid-turn", async () => {
+    // The stand-up makes up to four sequential Composio calls; finding out
+    // afterwards means having made all of them for nothing.
+    activeTurnMock.mockResolvedValue({ id: "turn_busy" });
+
+    await expect(
+      runSokoBotLabIngest({ ...SCOPE, beat: "standup" }),
+    ).rejects.toBeInstanceOf(SokoBotLabBusyError);
+    expect(activeIntegrationsMock).not.toHaveBeenCalled();
   });
 
   it("keeps the run out of the owner's proactive allowance", async () => {

@@ -1264,13 +1264,17 @@ app.openapi(labIngestRoute, async (c) => {
     });
     return ok(c, sokoBotLabIngestSchema.parse(result));
   } catch (error) {
-    const { SokoBotLabIngestError, SokoBotLabMissingIntegrationError } =
-      await import("@/services/soko-bot-lab-ingest.service");
+    const {
+      SokoBotLabBusyError,
+      SokoBotLabIngestError,
+      SokoBotLabMissingIntegrationError,
+    } = await import("@/services/soko-bot-lab-ingest.service");
     // Named separately from "not found": the scenario is runnable, the owner
     // just has to connect the account it reads from first.
     if (error instanceof SokoBotLabMissingIntegrationError) {
       throw badRequest(error.message);
     }
+    if (error instanceof SokoBotLabBusyError) throw conflict(error.message);
     if (error instanceof SokoBotLabIngestError) throw notFound(error.message);
     // It starts a real turn, so it can fail every way starting one can:
     // out of credits, aborted, already working, a stale idempotency key.
