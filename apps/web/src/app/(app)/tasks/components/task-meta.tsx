@@ -31,7 +31,7 @@ function AssigneeAvatar({
   const sizeClass = size === "sm" ? "size-5" : "size-6";
 
   return (
-    <Avatar className={`${sizeClass} ring-background shrink-0 ring-2`}>
+    <Avatar className={`${sizeClass} shrink-0`}>
       {image ? (
         <AvatarImage
           src={image}

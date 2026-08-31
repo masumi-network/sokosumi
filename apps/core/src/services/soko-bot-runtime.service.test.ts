@@ -8,6 +8,7 @@ const {
   botFindUniqueMock,
   chatRoomFindFirstMock,
   chatRoomDeleteManyMock,
+  chatRoomUserMemberFindFirstMock,
   workspaceFindUniqueMock,
   chatRoomFindManyMock,
   chatMessageFindManyMock,
@@ -77,6 +78,7 @@ const {
   botFindUniqueMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
   chatRoomDeleteManyMock: vi.fn(),
+  chatRoomUserMemberFindFirstMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   chatRoomFindManyMock: vi.fn(),
   chatMessageFindManyMock: vi.fn(),
@@ -160,6 +162,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: chatRoomFindManyMock,
       deleteMany: chatRoomDeleteManyMock,
     },
+    chatRoomUserMember: { findFirst: chatRoomUserMemberFindFirstMock },
     chatRoomMessage: {
       findMany: chatMessageFindManyMock,
       count: chatMessageCountMock,
@@ -1145,43 +1148,6 @@ describe("SokoBotRuntimeService authorization", () => {
       .errorDetail as string;
     expect(Buffer.byteLength(detail, "utf8")).toBeLessThanOrEqual(1_000);
     expect(detail).toBe("[Sensitive value removed]");
-  });
-
-  it("rejects mutation when stored user message contains negative imperative", async () => {
-    turnFindUniqueMock.mockResolvedValue({
-      id: SCOPE.turnId,
-      sokoBotId: SCOPE.sokoBotId,
-      userId: SCOPE.userId,
-      workspaceId: SCOPE.workspaceId,
-      capabilityNames: ["create_task"],
-      contextSnapshot: {
-        id: "01960001-0001-7001-8001-000000000004",
-        packet: { memory: { version: 1 } },
-      },
-      eveSessionId: SCOPE.sessionId,
-      userMessage: "Don't create a task yet",
-      classification: { confidence: 1 },
-      status: "RUNNING",
-      deadlineAt: new Date(Date.now() + 60_000),
-      leaseExpiresAt: new Date(Date.now() + 60_000),
-      sokoBot: {
-        archivedAt: null,
-        status: "RUNNING",
-      },
-    });
-    toolCallFindUniqueMock.mockResolvedValue(null);
-
-    await expect(
-      new SokoBotRuntimeService().executeTool({
-        ...SCOPE,
-        capability: "create_task",
-        toolCallId: "call_negated",
-        input: { name: "Forbidden", status: "DRAFT" },
-      }),
-    ).rejects.toThrow("explicitly asked for this not to");
-
-    expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
-    expect(transactionTaskCreateMock).not.toHaveBeenCalled();
   });
 
   it("creates Task through shared domain operation with Soko Bot attribution", async () => {
@@ -2398,7 +2364,11 @@ describe("post_chat chain depth", () => {
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     botFindUniqueMock.mockResolvedValue({ coworker: { id: "cow_self" } });
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
-    chatRoomFindFirstMock.mockResolvedValue({ id: "room_1", name: "Launch" });
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_1",
+      name: "Launch",
+      kind: "channel",
+    });
     // Where the chain was started, for the origin-room check on depth > 0.
     turnFindUniqueMock.mockResolvedValue({
       userMessage: "Check the tasks",
@@ -2432,6 +2402,64 @@ describe("post_chat chain depth", () => {
     );
     return { turn: { ...SCOPE_TURN, chainDepth } } as never;
   }
+
+  it("refuses an unattended post into a colleague's direct", async () => {
+    // Nobody can leave a direct, so being in one must not become a standing
+    // licence to write in it: one instruction to reach Nina would otherwise
+    // let every later stand-up reach her again with nobody asking.
+    armPostChat(0);
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_direct",
+      name: "Nina",
+      kind: "direct",
+    });
+    chatRoomUserMemberFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotRuntimeService()["postChat"](
+        { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
+        { roomId: "room_direct", content: "Morning, any update?" },
+      ),
+    ).rejects.toThrow(/turns your owner asked for/i);
+    expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("still briefs the owner in their own direct unprompted", async () => {
+    // The whole point of a scheduled turn, so the owner's room is exempt.
+    armPostChat(0);
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_owner",
+      name: "Ada",
+      kind: "direct",
+    });
+    chatRoomUserMemberFindFirstMock.mockResolvedValue({ id: "member_1" });
+
+    await new SokoBotRuntimeService()["postChat"](
+      { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
+      { roomId: "room_owner", content: "Here is your stand-up." },
+    );
+
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+  });
+
+  it("leaves channels alone on an unattended turn", async () => {
+    // A person can leave or mute a channel, and a bot added to a project room
+    // is expected to speak in it.
+    armPostChat(0);
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_1",
+      name: "Launch",
+      kind: "channel",
+    });
+
+    await new SokoBotRuntimeService()["postChat"](
+      { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
+      { roomId: "room_1", content: "Nightly digest." },
+    );
+
+    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+    expect(chatRoomUserMemberFindFirstMock).not.toHaveBeenCalled();
+  });
 
   it("summons the bot it addresses, one hop deeper", async () => {
     const authorized = armPostChat(0);

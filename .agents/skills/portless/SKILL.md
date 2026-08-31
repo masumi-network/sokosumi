@@ -415,7 +415,7 @@ portless hosts sync    # Adds current routes to /etc/hosts
 portless hosts clean   # Remove entries later
 ```
 
-Auto-syncs `/etc/hosts` for route hostnames by default. Set `PORTLESS_SYNC_HOSTS=0` to disable.
+Auto-syncs `/etc/hosts` for route hostnames by default. Set `PORTLESS_SYNC_HOSTS=0` to disable. If a route hostname will not resolve, the command that registered it warns and points you to `portless hosts sync`.
 
 ### Browser shows certificate warning with --https
 

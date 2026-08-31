@@ -31,19 +31,6 @@ describe("Soko Bot turn classifier", () => {
     expect(classifyDeterministically(message)?.route).toBe(route);
   });
 
-  it.each([
-    "Don't create a task yet",
-    "Do not assign this to a coworker",
-    "Not yet hire an agent",
-    "Please don't book an AI agent",
-  ])("keeps negative imperative read-only: %s", (message) => {
-    const classification = classifyDeterministically(message);
-
-    expect(classification?.route).toBe("DIRECT_RESPONSE");
-    expect(classification?.requiresApproval).toBe(false);
-    expect(classification?.requiresClarification).toBe(false);
-  });
-
   it("fails closed when model classification is disabled", async () => {
     const classifier = new ExternalTurnClassifier(false);
     const result = await classifier.classify(
@@ -53,6 +40,29 @@ describe("Soko Bot turn classifier", () => {
 
     expect(result.classification.route).toBe("CLARIFY");
     expect(result.classification.requiresClarification).toBe(true);
+  });
+});
+
+describe("classifier usage", () => {
+  it("reports no usage when the deterministic rules answer", async () => {
+    // With the model enabled, so this proves the deterministic path answered
+    // rather than passing through the disabled-model branch.
+    const result = await new ExternalTurnClassifier(true).classify(
+      "Create a task and assign it to a coworker",
+      EMPTY_CONTEXT,
+    );
+
+    expect(result.model).toBeNull();
+    expect(result.usage).toBeNull();
+  });
+
+  it("reports no usage when the model is switched off", async () => {
+    const result = await new ExternalTurnClassifier(false).classify(
+      "the quarterly thing, you know the one",
+      EMPTY_CONTEXT,
+    );
+
+    expect(result.usage).toBeNull();
   });
 });
 

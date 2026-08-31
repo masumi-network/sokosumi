@@ -91,11 +91,12 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
   // behind Advanced, which is off by default. Fetching them on every load cost
   // four Core round-trips nobody was waiting to see.
   const wantsAdvanced = params.view === "advanced";
-  const [versions, installedSkills, stats, integrations, catalog] =
+  const [versions, installedSkills, stats, usage, integrations, catalog] =
     await Promise.all([
       wantsAdvanced ? sokoBotService.listVersions().catch(() => []) : [],
       wantsAdvanced ? sokoBotService.listSkills().catch(() => []) : [],
       sokoBotService.getStats().catch(() => null),
+      sokoBotService.getMyUsage().catch(() => null),
       wantsAdvanced
         ? sokoBotService.listIntegrations().catch(() => null)
         : null,
@@ -115,6 +116,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       version={version}
       installedSkills={installedSkills}
       stats={stats}
+      usage={usage}
       integrations={integrations}
       catalog={catalog}
       integrationOutcome={integrationOutcome}

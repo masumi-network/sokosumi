@@ -6,6 +6,8 @@ import {
   ProjectsPageSkeleton,
 } from "@/app/projects/components/projects-loading-view";
 import {
+  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
 } from "@/app/projects/constants";
@@ -15,9 +17,10 @@ describe("ProjectsPageSkeleton", () => {
     const { container } = render(<ProjectsPageSkeleton />);
 
     expect(container.firstElementChild?.className).toContain("w-full");
-    expect(container.firstElementChild?.className).toContain("px-2");
+    expect(container.firstElementChild?.className).not.toContain("px-2");
+    expect(container.firstElementChild?.className).not.toContain("-mx-4");
     expect(screen.getByTestId("projects-loading")).toBeTruthy();
-    expect(screen.getByTestId("projects-loading-list")).toBeTruthy();
+    expect(screen.getByTestId("projects-loading-browse")).toBeTruthy();
     expect(container.textContent?.trim()).toBe("");
   });
 
@@ -46,24 +49,42 @@ describe("ProjectsLoadingView", () => {
     expect(container.firstElementChild?.className).toContain("md:pb-0");
   });
 
-  it("reserves list chrome and stable row size to limit Instant swap CLS", () => {
+  it("reserves browse chrome and stable item size to limit Instant swap CLS", () => {
     const { container } = render(<ProjectsLoadingView />);
 
-    const list = screen.getByTestId("projects-loading-list");
-    expect(list.className).toContain("divide-y");
+    const browse = screen.getByTestId("projects-loading-browse");
+    for (const token of PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/)) {
+      expect(browse.className).toContain(token);
+    }
+    expect(browse.className).toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
+    expect(browse.className).not.toContain("grid-cols-2");
+    expect(browse.className).toContain("rounded-none");
+    expect(browse.className).toContain("md:rounded-xl");
 
-    const rows = list.querySelectorAll("article");
-    expect(rows.length).toBe(4);
-
-    for (const row of rows) {
-      for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
-        expect(row.className).toContain(token);
-      }
+    const divide = browse.firstElementChild;
+    for (const token of PROJECTS_BROWSE_DIVIDE_CLASS.split(/\s+/)) {
+      expect(divide?.className).toContain(token);
     }
 
-    // List card min-height tracks empty-state / live list chrome.
-    const listCard = list.parentElement;
-    expect(listCard?.className).toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
+    const items = browse.querySelectorAll("article");
+    expect(items.length).toBe(4);
+
+    for (const item of items) {
+      const row = item.firstElementChild;
+      expect(row?.className).toContain("flex-row");
+      expect(row?.className).toContain("items-center");
+      expect(row?.className).toContain("gap-4");
+      expect(row?.className).toContain("rounded-none");
+      expect(row?.className).not.toContain("-mx-2");
+      expect(row?.className).not.toContain("border-border/50");
+      expect(row?.className).not.toContain("bg-background/60");
+      expect(row?.className.split(/\s+/)).not.toContain("border");
+      // Avatar + name + briefing + two count pills; no overflow actions column.
+      expect(item.querySelectorAll('[data-slot="skeleton"]').length).toBe(5);
+      for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
+        expect(item.className).toContain(token);
+      }
+    }
 
     // Outer shell matches ProjectsView flex column + FAB clearance.
     expect(container.firstElementChild?.className).toContain("flex");

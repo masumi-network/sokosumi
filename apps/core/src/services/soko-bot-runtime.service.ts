@@ -15,11 +15,9 @@ import {
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotDecisionInputSchema as decisionInputSchema,
   exceedsUnattendedHireBudget,
-  hasSokoBotNegatedMutationIntent,
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
-  isSokoBotNegatableWrite,
   sokoBotJobIdInputSchema as jobIdInputSchema,
   sokoBotLinkTasksInputSchema as linkTasksInputSchema,
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
@@ -247,7 +245,6 @@ export interface SokoBotActionContext {
     chainDepth: number;
   };
   classificationConfidence: number;
-  hasNegatedMutationIntent: boolean;
 }
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
@@ -672,9 +669,6 @@ export class SokoBotRuntimeService {
         typeof turn.classification.confidence === "number"
           ? turn.classification.confidence
           : 1,
-      hasNegatedMutationIntent: hasSokoBotNegatedMutationIntent(
-        turn.userMessage,
-      ),
     };
   }
 
@@ -831,7 +825,12 @@ export class SokoBotRuntimeService {
   private async requireChatMembership(
     authorized: AuthorizedSokoBotRuntime,
     roomId: string,
-  ): Promise<{ id: string; name: string; coworkerId: string }> {
+  ): Promise<{
+    id: string;
+    name: string;
+    kind: string;
+    coworkerId: string;
+  }> {
     const coworkerId = await this.chatCoworkerId(authorized);
     const room = coworkerId
       ? await prisma.chatRoom.findFirst({
@@ -839,7 +838,7 @@ export class SokoBotRuntimeService {
             ...(await this.chatRoomScope(authorized, coworkerId)),
             id: roomId,
           },
-          select: { id: true, name: true },
+          select: { id: true, name: true, kind: true },
         })
       : null;
     if (!room || !coworkerId) {
@@ -847,7 +846,7 @@ export class SokoBotRuntimeService {
         "You are not a member of that chat room",
       );
     }
-    return { id: room.id, name: room.name, coworkerId };
+    return { id: room.id, name: room.name, kind: room.kind, coworkerId };
   }
 
   /**
@@ -1034,6 +1033,39 @@ export class SokoBotRuntimeService {
     };
   }
 
+  /**
+   * A direct room is permanent — nobody can leave or archive one — so being in
+   * it must not become standing permission to write in it.
+   *
+   * `open_direct_chat` is deliberately limited to turns the owner asked for.
+   * The room it leaves behind outlived that limit: every later schedule,
+   * ingest or event turn found the room through `list_chats` and could reach
+   * that colleague again with nobody having asked for it. One instruction to
+   * write to Nina became a standing licence to keep writing to her.
+   *
+   * The owner's own direct is exempt, because briefing them there unprompted
+   * is the entire point of a scheduled turn. Channels are exempt too: a person
+   * can leave or mute one, and a bot added to a project room is expected to
+   * speak in it.
+   */
+  private async requireUnattendedPostIsAllowed(
+    authorized: AuthorizedSokoBotRuntime,
+    room: { id: string; kind: string },
+  ) {
+    if (authorized.turn.source === "CHAT" || room.kind !== "direct") {
+      return;
+    }
+    const ownerIsMember = await prisma.chatRoomUserMember.findFirst({
+      where: { roomId: room.id, userId: authorized.turn.userId },
+      select: { id: true },
+    });
+    if (!ownerIsMember) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Writing to a colleague is for turns your owner asked for. Raise it in your owner's chat instead.",
+      );
+    }
+  }
+
   /** Post into a room the bot belongs to, as the bot's coworker identity. */
   private async postChat(
     authorized: AuthorizedSokoBotRuntime,
@@ -1060,6 +1092,7 @@ export class SokoBotRuntimeService {
       }
     }
     const room = await this.requireChatMembership(authorized, input.roomId);
+    await this.requireUnattendedPostIsAllowed(authorized, room);
     // Who this post summons. A bot may address another bot, but every hop is
     // counted: past the ceiling the message still posts and simply stops being
     // a summons, so an unattended exchange cannot run for ever.
@@ -2104,16 +2137,6 @@ export class SokoBotRuntimeService {
     input: ExecuteSokoBotToolInput,
   ): Promise<unknown> {
     const authorized = await this.authorize(input);
-    if (
-      authorized.hasNegatedMutationIntent &&
-      (isSokoBotDecisionTarget(input.capability) ||
-        input.capability === "request_user_decision" ||
-        isSokoBotNegatableWrite(input.capability))
-    ) {
-      throw new SokoBotRuntimeAuthorizationError(
-        "User explicitly asked for this not to happen yet",
-      );
-    }
     switch (input.capability) {
       case "refresh_context":
         return this.getContext(input);
@@ -3077,7 +3100,6 @@ export class SokoBotRuntimeService {
             chainDepth: decision.turn.chainDepth,
           },
           classificationConfidence: 1,
-          hasNegatedMutationIntent: false,
         };
         const task = await this.createTask(
           authorized,
@@ -3100,7 +3122,6 @@ export class SokoBotRuntimeService {
               chainDepth: decision.turn.chainDepth,
             },
             classificationConfidence: 1,
-            hasNegatedMutationIntent: false,
           },
           proposal,
           `decision:${decision.id}`,
@@ -3121,7 +3142,6 @@ export class SokoBotRuntimeService {
               chainDepth: decision.turn.chainDepth,
             },
             classificationConfidence: 1,
-            hasNegatedMutationIntent: false,
           },
           proposal,
           `decision:${decision.id}`,

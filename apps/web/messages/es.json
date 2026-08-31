@@ -1781,7 +1781,8 @@
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
         "actorOrchestrator": "Orquestador",
-        "actorOrchestratorWithOwner": "{assistant} · {owner}",
+        "actorOrchestratorWithOwner": "{assistant} · asistente de {owner}",
+        "actorOrchestratorRole": "Asistente personal de {owner}",
         "actorSystem": "Sistema",
         "originFromApp": "de {appName}",
         "channelApp": {
@@ -4009,7 +4010,11 @@
           "healthUnknown": "Salud desconocida",
           "checkedAt": "comprobado",
           "healthRuntimeVersion": "Runtime del chequeo",
-          "sessionStatus": "Estado de sesión"
+          "sessionStatus": "Estado de sesión",
+          "usageCredits": "Créditos gastados",
+          "usageTurns": "Turnos",
+          "usageTokens": "Tokens (entrada / salida)",
+          "usageModelCost": "Coste del modelo"
         },
         "Turns": {
           "title": "Turnos",
@@ -4317,7 +4322,8 @@
           "neverRun": "Aún no ejecutado.",
           "score": "{passed}/{total} comprobaciones superadas",
           "startError": "No se pudo iniciar el turno.",
-          "timeout": "El turno no terminó en 5 minutos.",
+          "timeout": "El turno no terminó en 5 minutos. Turno {turnId}: revisa sus eventos en la página de administración del bot.",
+          "noTurn": "No se inició ningún turno. El bot puede estar pausado o haber alcanzado su límite diario.",
           "version": "Versión",
           "overviewModel": "Modelo",
           "overviewSkills": "Skills",
@@ -6185,7 +6191,9 @@
       "recentsEmptyTitle": "No hay archivos recientes",
       "recentsEmptyDescription": "Los archivos que subas o recibas de tareas aparecerán aquí",
       "loadRecentsError": "No se pudieron cargar los archivos recientes",
-      "loadMoreRecentsError": "No se pudieron cargar más archivos recientes"
+      "loadMoreRecentsError": "No se pudieron cargar más archivos recientes",
+      "viewList": "Lista",
+      "viewGrid": "Cuadrícula"
     },
     "SokoBot": {
       "Metadata": {
@@ -6519,6 +6527,16 @@
           "ran": "se ejecutó {when}",
           "due": "toca {when}",
           "overdue": "atrasada desde {when}"
+        },
+        "Usage": {
+          "title": "Uso",
+          "description": "Todo lo que este asistente ha gastado desde que lo creaste.",
+          "credits": "Créditos gastados",
+          "turns": "en {count, plural, one {# turno} other {# turnos}}",
+          "tokens": "Tokens",
+          "tokenSplit": "{input} entrada · {output} salida",
+          "modelCost": "Coste del modelo",
+          "modelCostHint": "Lo que costaron los tokens, antes del mínimo por turno"
         }
       },
       "Avatar": {

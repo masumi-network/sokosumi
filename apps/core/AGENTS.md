@@ -42,7 +42,8 @@ The live tree is `apps/core/src/`.
 | `routes/auth/`, `routes/sync/`, `routes/well-known/` | Auth, cron/sync, discovery |
 | `schemas/` | Zod / OpenAPI |
 | `helpers/` | Domain logic used by routes |
-| `lib/` | Auth, Prisma (`lib/db/prisma.ts`), Hono, blob, Sentry |
+| `lib/` | Auth, Prisma (`lib/db/prisma.ts`), Hono, blob, Sentry, evlog |
+| `lib/soko-bot/` | In-process Soko Bot runtime (contracts from `@sokosumi/soko-bot`) |
 | `clients/` | External HTTP clients |
 | `services/` | Longer-lived / legacy service modules |
 | `middleware/` | Auth, org, workspace, coworker context |
@@ -606,6 +607,7 @@ const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 
 - `@sokosumi/database` - Database layer with Prisma client, helpers, and (legacy) repositories
 - `@sokosumi/masumi` - Masumi protocol utilities (hash, agent client, schemas)
+- `@sokosumi/soko-bot` - Soko Bot contracts (capabilities, persona, memory, tools). The loop is in-process in Core (`src/lib/soko-bot/`); there is no `apps/soko-bot` deployable.
 
 **Path Aliases**: The codebase uses `@/` path aliases configured in `tsconfig.json`:
 

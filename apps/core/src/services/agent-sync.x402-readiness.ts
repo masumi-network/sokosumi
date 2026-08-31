@@ -33,6 +33,53 @@ const MAX_CHECK_ERROR_ITEM_LENGTH = 200;
 const MAX_CHECK_ERROR_TOTAL_LENGTH = 2_000;
 
 /**
+ * Vercel's Preview Deployment Suffix for this team (`apps/core/AGENTS.md`,
+ * mirrored by the `https://*.preview.sokosumi.com` trustedOrigins entry in
+ * `lib/auth.ts`). A Core host on this suffix is a preview deployment by
+ * definition, so matching it can never silence a production alert.
+ */
+const PREVIEW_DEPLOYMENT_HOST_SUFFIX = ".preview.sokosumi.com";
+
+function hasPreviewHost(candidate: string | undefined): boolean {
+  if (!candidate) {
+    return false;
+  }
+  try {
+    const href = candidate.includes("://") ? candidate : `https://${candidate}`;
+    return new URL(href).hostname.endsWith(PREVIEW_DEPLOYMENT_HOST_SUFFIX);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether this deploy must warn and write its markers but never page Sentry.
+ *
+ * Preview mainnet crons run a deliberately non-admin `PAYMENT_API_KEY`, so
+ * they report unready pairs that live mainnet does not have. Fail-closed
+ * listing and pay behavior are unchanged here; only the page is suppressed.
+ *
+ * `VERCEL_ENV` is the primary signal, never `SENTRY_ENVIRONMENT`: the mainnet
+ * project sets that one to "production" on preview hosts too.
+ *
+ * The host fallback exists because `VERCEL_ENV` alone did not hold. CORE-37
+ * kept paging from `sokosumi-core-mainnet-*.preview.sokosumi.com` on a
+ * release that already carried the VERCEL_ENV-only gate. That is REPORTED
+ * from the Sentry issue behind PR #3956 and is not reproduced by these tests,
+ * so the fallback is written to be safe whether or not it is needed: the
+ * suffix IS this team's preview deployment suffix, so production Core never
+ * answers on it.
+ */
+export function isX402ReadinessPreviewDeploy(): boolean {
+  const env = getEnv();
+  return (
+    env.VERCEL_ENV === "preview" ||
+    hasPreviewHost(env.VERCEL_URL) ||
+    hasPreviewHost(env.VERCEL_BRANCH_URL)
+  );
+}
+
+/**
  * Exported for tests only: the total cap is unreachable through the public
  * entry point without fabricating dozens of erring wallet balance fetches
  * (three endpoint errors item-capped cannot exceed it), so it is pinned here.
@@ -72,7 +119,6 @@ function summarizeEmptyX402Readiness(
       defaultAssetDecimals: network.defaultAssetDecimals,
     })),
     usageLimited: spendCaps?.usageLimited ?? null,
-    grandfatheredUncapped: spendCaps?.grandfatheredUncapped ?? null,
     creditUnits: Array.from(spendCaps?.creditsByUnit ?? [])
       .slice(0, 20)
       .map(([unit, amount]) => ({ unit, hasRemaining: amount > 0n })),
@@ -215,14 +261,11 @@ export async function syncX402BuySideReadiness(
       // recorded: silence would otherwise be indistinguishable from a
       // healthy deployment that simply has no x402 agents.
       //
-      // Preview deploys (VERCEL_ENV === "preview") still warn and write the
-      // failure marker so fail-closed listing/pay behavior is unchanged, but
-      // they must not page Sentry — preview mainnet crons with a non-admin
-      // PAYMENT_API_KEY were flooding CORE-37 while live mainnet was fine.
-      // Use VERCEL_ENV, not SENTRY_ENVIRONMENT (mainnet project sets the
-      // latter to "production" on preview hosts too).
+      // Preview deploys still warn and write the failure marker, so
+      // fail-closed listing and pay behavior is unchanged; they just must not
+      // page. See isX402ReadinessPreviewDeploy for why the host is checked.
       if (
-        getEnv().VERCEL_ENV !== "preview" &&
+        !isX402ReadinessPreviewDeploy() &&
         (marker.count > 0 || hasNeverBeenRecorded)
       ) {
         Sentry.captureException(
@@ -306,25 +349,6 @@ export async function syncX402BuySideReadiness(
     });
   }
 
-  if (readySources.length > 0 && keySpendCaps?.grandfatheredUncapped) {
-    // The node grandfathers a usageLimited key that holds no eip155 credit
-    // row: it enforces NO x402 spend cap at all, so every pair recorded above
-    // is payable without a ceiling while the operator believes a cap is on.
-    // compose warns per pair, but a warn line is not a signal anyone watches,
-    // and the zero-pairs page below cannot cover this by construction: the
-    // whole point of this state is that there ARE ready pairs.
-    //
-    // Latched on the transition like that page, so a lasting misconfiguration
-    // does not spam; the per-pair warn log repeats every cycle regardless.
-    // Preview runs a deliberately non-admin key (SOK-860) and must not page.
-    if (readinessChanged && getEnv().VERCEL_ENV !== "preview") {
-      Sentry.captureMessage(
-        "x402 buy-side readiness recorded payable pairs on an UNCAPPED payment-node API key. The key is usageLimited but holds no eip155 credit row, so the node grandfathers it and enforces no x402 spend cap: Soko will sign x402 payments with no ceiling. Grant credits for the listed units with PATCH /api/v1/api-key to make the intended cap real, or clear usageLimited on the key if uncapped is deliberate. The sync warn log names every affected pair",
-        "warning",
-      );
-    }
-  }
-
   if (readySources.length === 0) {
     console.warn(
       "[sync/agents] No x402 (network, asset) pair is buy-side ready; fixed-price x402 agents stay unlisted and dynamic agents remain visible as non-payable previews",
@@ -341,13 +365,15 @@ export async function syncX402BuySideReadiness(
     // entry just as effectively as a failed check, so it must page too.
     // Authenticated callers may still discover dynamic agents, but the listing
     // marks them non-payable until a priced ready pair returns.
-    // Page only on the transition so a lasting outage does not spam.
-    if (readinessChanged) {
+    // Page only on the transition so a lasting outage does not spam, and
+    // never from a preview deploy: its non-admin key makes zero ready pairs
+    // the EXPECTED result there, which is what flooded CORE-39.
+    if (readinessChanged && !isX402ReadinessPreviewDeploy()) {
       Sentry.captureMessage(
         // The likeliest new cause is an operator one, not an outage: a chain
         // whose `defaultAssetDecimals` is still null publishes no scale, and
         // an unpriceable asset is deliberately not recorded ready.
-        "x402 buy-side readiness reports no payable (network, asset) pair. Fixed-price x402 agents are hidden and dynamic agents are preview-only. Check four things. 1) The node publishes a confirmed defaultAssetDecimals for each enabled chain. 2) The chain is in this environment's CAIP-2 allowlist and its priced asset is in X402_TRUSTED_EXACT_EVM_DOMAINS (both in apps/core/src/helpers/x402-readiness.ts; the sync warn log names any untrusted pair). 3) Soko's key carries pay or admin permission and the node lists at least one Purchasing wallet it can reach on that chain, funded with native gas and the priced token (the sync warn log names the chain when the listing is empty or every wallet is unfunded). A read-only key can read the wallet listing but can never sign a payment, so Soko treats it as having no wallets at all. 4) If Soko's key is usage limited, it holds remaining credits for unit <caip2Network>:<asset> on that chain; grant them with PATCH /api/v1/api-key. A usage-limited key with NO eip155 credit row at all is grandfathered uncapped by the node and stays payable, so an operator who expected a cap there has not set one",
+        "x402 buy-side readiness reports no payable (network, asset) pair. Fixed-price x402 agents are hidden and dynamic agents are preview-only. Check four things. 1) The node publishes a confirmed defaultAssetDecimals for each enabled chain. 2) The chain is in this environment's CAIP-2 allowlist and its priced asset is in X402_TRUSTED_EXACT_EVM_DOMAINS (both in apps/core/src/helpers/x402-readiness.ts; the sync warn log names any untrusted pair). 3) Soko's key carries pay or admin permission and the node lists at least one Purchasing wallet it can reach on that chain, funded with native gas and the priced token (the sync warn log names the chain when the listing is empty or every wallet is unfunded). A read-only key can read the wallet listing but can never sign a payment, so Soko treats it as having no wallets at all. 4) If Soko's key is usage limited, it holds remaining credits for unit <caip2Network>:<asset> on that chain; grant them with PATCH /api/v1/api-key. A usage-limited key with NO eip155 credit row at all cannot pay on any chain: the node refuses every x402 payment it makes until one unit holds credit",
         "error",
       );
     }

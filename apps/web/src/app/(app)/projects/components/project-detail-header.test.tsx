@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 
 describe("ProjectDetailHeader", () => {
-  it("renders navigation, website, metadata, and actions", () => {
-    render(
+  it("pads on mobile, keeps desktop flex layout, and places metadata as a full-width sibling row", () => {
+    const { container } = render(
       <ProjectDetailHeader
         projectName="Example project"
         websiteUrl="https://www.example.com/about"
@@ -18,9 +18,14 @@ describe("ProjectDetailHeader", () => {
       />,
     );
 
+    const root = container.firstElementChild;
+    expect(root?.className).toContain("px-4");
+    expect(root?.className).toContain("md:px-0");
+
     const back = screen.getByRole("link", { name: "Back" });
     expect(back).toHaveAttribute("href", "/projects");
-    expect(back.className).toContain("inline-flex");
+    expect(back.className).toContain("hidden");
+    expect(back.className).toContain("md:inline-flex");
     expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
       "href",
       "https://www.example.com/about",
@@ -28,5 +33,13 @@ describe("ProjectDetailHeader", () => {
     expect(screen.getByText("Updated")).toBeInTheDocument();
     expect(screen.getByText("Today")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
+
+    const titleRow = root?.children[1];
+    const metadata = root?.querySelector("dl");
+    expect(titleRow).toBeTruthy();
+    expect(metadata).toBeTruthy();
+    expect(metadata?.className).toContain("w-full");
+    expect(titleRow?.contains(metadata!)).toBe(false);
+    expect(metadata?.previousElementSibling).toBe(titleRow);
   });
 });
