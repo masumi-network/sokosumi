@@ -238,4 +238,37 @@ describe("scrollComposerCaretIntoView", () => {
     expect(editor.innerHTML).toBe(htmlBefore);
     document.body.removeChild(editor);
   });
+
+  it("does not change scrollTop when the selection is a range", () => {
+    const editor = document.createElement("div");
+    editor.textContent = "hello";
+    document.body.appendChild(editor);
+    Object.defineProperty(editor, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 8,
+    });
+
+    const text = editor.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, text.length);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+    expect(window.getSelection()?.isCollapsed).toBe(false);
+
+    vi.spyOn(editor, "getBoundingClientRect").mockReturnValue(rect(0, 160));
+    vi.spyOn(Range.prototype, "getClientRects").mockReturnValue([
+      rect(183, 200),
+    ] as unknown as DOMRectList);
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({
+      paddingTop: "14px",
+      paddingBottom: "10px",
+    } as CSSStyleDeclaration);
+
+    scrollComposerCaretIntoView(editor);
+
+    expect(editor.scrollTop).toBe(8);
+    document.body.removeChild(editor);
+  });
 });

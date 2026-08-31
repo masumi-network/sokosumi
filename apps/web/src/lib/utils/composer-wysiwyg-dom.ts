@@ -136,11 +136,15 @@ function collapsedCaretRect(range: Range): DOMRect | null {
 
 /**
  * Keep the caret inside the editor content box. Adjusts `scrollTop` only.
+ * Skip range selections — format commands fire input while a highlight is
+ * still selected, and the last client rect is not the caret.
  * Do not set scroll-margin on this overflowing host (mouse selection jumps).
  */
 export function scrollComposerCaretIntoView(editor: HTMLElement): void {
   const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return;
+  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
+    return;
+  }
 
   const range = selection.getRangeAt(0);
   const endContainer: Node = range.endContainer;
