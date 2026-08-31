@@ -266,18 +266,27 @@ async function requireMutableTask(
     input.actor.kind === "soko_bot"
       ? sokoBotEditableStatuses(input.intent)
       : null;
+  // The status ceiling is checked after the lookup, not folded into it. Doing
+  // both at once reported a Task in the wrong state as one that does not
+  // exist: a bot that had just read the Task with `get_task_status` was told
+  // by `assign_task` that the same id was not found, so it created a
+  // duplicate rather than saying what was actually wrong.
   const task = await tx.task.findFirst({
     where: {
       id: input.taskId,
       ownerId: input.ownerId,
       archivedAt: null,
       ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-      ...(allowedSokoBotStatuses
-        ? { status: { in: [...allowedSokoBotStatuses] } }
-        : {}),
     },
   });
   if (!task) throw notFound("Task not found");
+  if (allowedSokoBotStatuses && !allowedSokoBotStatuses.includes(task.status)) {
+    throw forbidden(
+      `This Task is ${task.status}. ${
+        input.intent === "assignment" ? "Assigning" : "Updating"
+      } is possible while it is ${[...allowedSokoBotStatuses].join(" or ")}.`,
+    );
+  }
 
   requireTaskNotParked(task);
   if (input.actor.kind === "user" && !isTaskEditableStatus(task.status)) {

@@ -1349,13 +1349,51 @@ describe("SokoBotRuntimeService authorization", () => {
       }),
     ).rejects.toThrow("Task not found");
 
+    // The lookup no longer filters by status: a Task in the wrong state has
+    // to be told apart from one that does not exist, or the bot is told its
+    // own id is wrong and makes a duplicate.
     expect(transactionTaskFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          status: { in: ["DRAFT", "READY"] },
-        }),
+        where: expect.not.objectContaining({ status: expect.anything() }),
       }),
     );
+  });
+
+  it("says a Task is in the wrong state rather than calling it missing", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Assign it",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["update_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      status: "FAILED",
+      ownerId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+    });
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_task",
+        toolCallId: "call_state",
+        input: { taskId: "task_1", name: "Changed" },
+      }),
+    ).rejects.toThrow(/FAILED/);
   });
 
   it("denies a Task mutation after workspace access is revoked", async () => {
@@ -1870,11 +1908,11 @@ describe("SokoBotRuntimeService hire decisions", () => {
       ),
     ).rejects.toThrow("Task not found");
 
+    // Status is enforced after the lookup, not inside it — see the update
+    // case above for why conflating the two misled the bot.
     expect(transactionTaskFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          status: { in: ["DRAFT", "READY"] },
-        }),
+        where: expect.not.objectContaining({ status: expect.anything() }),
       }),
     );
   });

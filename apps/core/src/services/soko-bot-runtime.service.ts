@@ -2246,22 +2246,28 @@ export class SokoBotRuntimeService {
       }
       case "get_agent_input_schema": {
         const { agentId } = agentIdInputSchema.parse(input.input);
+        // Availability is checked after the lookup for the same reason the
+        // Task lookup does it that way: an agent that exists but is offline
+        // is not a missing one, and saying so sends the bot hunting for an
+        // id it already had right.
         const agent = await prisma.agent.findFirst({
-          where: {
-            id: agentId,
-            isShown: true,
-            status: "ONLINE",
-            apiBaseUrl: { not: null },
-          },
+          where: { id: agentId },
           select: {
             id: true,
             name: true,
+            isShown: true,
+            status: true,
             blockchainIdentifier: true,
             apiBaseUrl: true,
             metadataOverride: { select: { apiBaseUrl: true } },
           },
         });
         if (!agent) throw new SokoBotRuntimeValidationError("Agent not found");
+        if (!agent.isShown || agent.status !== "ONLINE" || !agent.apiBaseUrl) {
+          throw new SokoBotRuntimeValidationError(
+            `This Agent is not available to hire right now (${agent.status.toLowerCase()}). Pick another from find_agents.`,
+          );
+        }
         const result = await createAgentClient().fetchAgentInputSchema(
           toMasumiAgent(agent),
         );
