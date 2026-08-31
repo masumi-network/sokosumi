@@ -4339,7 +4339,8 @@
           "noBotDescription": "Läufe nutzen deinen eigenen Assistenten.",
           "noBotLink": "Hier erstellen.",
           "runsAgainst": "Jeder Lauf ist ein echter Durchlauf von {bot}, dem Assistenten von {account}.",
-          "unnamedBot": "deinem Assistenten"
+          "unnamedBot": "deinem Assistenten",
+          "failedChecks": "Fehlgeschlagen: {labels}"
         },
         "KillSwitch": {
           "title": "Funktionsschalter",
