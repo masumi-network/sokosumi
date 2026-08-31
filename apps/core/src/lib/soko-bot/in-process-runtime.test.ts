@@ -1,3 +1,4 @@
+import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const pendingTurns: Promise<unknown>[] = [];
@@ -225,6 +226,95 @@ describe("InProcessSokoBotRuntime", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("returns assign_task domain misses to the model instead of throwing", async () => {
+    authorizeMock.mockResolvedValue({
+      turn: { id: TURN_ID, versionId: "v11" },
+      grant: { capabilities: ["assign_task"] },
+    });
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Assign the launch task",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    const tools = generateTextMock.mock.calls[0][0].tools;
+    executeToolMock.mockRejectedValue(
+      new HTTPException(404, { message: "Task not found" }),
+    );
+
+    await expect(
+      tools.assign_task.execute(
+        { taskId: "task_1", coworkerId: "coworker_1", ready: true },
+        { toolCallId: "call_19661" },
+      ),
+    ).resolves.toEqual({ error: "Task not found" });
+
+    expect(
+      recordedEvents().some((event) => event.type === "action.result"),
+    ).toBe(true);
+  });
+
+  it("returns validation tool errors to the model instead of throwing", async () => {
+    authorizeMock.mockResolvedValue({
+      turn: { id: TURN_ID, versionId: "v11" },
+      grant: { capabilities: ["assign_task"] },
+    });
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Assign the launch task",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    const tools = generateTextMock.mock.calls[0][0].tools;
+    const validationError = new Error("Task not found");
+    validationError.name = "SokoBotRuntimeValidationError";
+    executeToolMock.mockRejectedValue(validationError);
+
+    await expect(
+      tools.assign_task.execute(
+        { taskId: "task_1", coworkerId: "coworker_1", ready: true },
+        { toolCallId: "call_19661" },
+      ),
+    ).resolves.toEqual({ error: "Task not found" });
+  });
+
+  it("still throws unexpected tool failures", async () => {
+    authorizeMock.mockResolvedValue({
+      turn: { id: TURN_ID, versionId: "v11" },
+      grant: { capabilities: ["assign_task"] },
+    });
+
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Assign the launch task",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+
+    const tools = generateTextMock.mock.calls[0][0].tools;
+    executeToolMock.mockRejectedValue(new Error("db exploded"));
+
+    await expect(
+      tools.assign_task.execute(
+        { taskId: "task_1", coworkerId: "coworker_1", ready: true },
+        { toolCallId: "call_19661" },
+      ),
+    ).rejects.toThrow("db exploded");
   });
 
   it("pins inference to the version's region", async () => {

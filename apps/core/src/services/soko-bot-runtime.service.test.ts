@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { TaskStatus } from "@sokosumi/database";
+import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -1313,6 +1314,46 @@ describe("SokoBotRuntimeService authorization", () => {
       expect.anything(),
       { kind: "soko_bot", sokoBotId: SCOPE.sokoBotId },
     );
+  });
+
+  it("maps assign_task domain misses to a model-readable validation error", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["assign_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Assign it",
+      classification: { confidence: 0.3 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionTaskFindFirstMock.mockResolvedValue(null);
+
+    const error = await new SokoBotRuntimeService()
+      .executeTool({
+        ...SCOPE,
+        capability: "assign_task",
+        toolCallId: "call_assign_missing",
+        input: {
+          taskId: "task_missing",
+          coworkerId: "coworker_1",
+          ready: true,
+        },
+      })
+      .catch((thrown: unknown) => thrown);
+
+    expect(error).toBeInstanceOf(SokoBotRuntimeValidationError);
+    expect(error).not.toBeInstanceOf(HTTPException);
+    expect((error as Error).message).toBe("Task not found");
   });
 
   it("limits Task updates to DRAFT and READY records", async () => {
