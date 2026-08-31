@@ -51,6 +51,7 @@ const {
 vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  requireTaskAssignableUser: vi.fn(),
 }));
 
 vi.mock("@/helpers/organization", () => ({

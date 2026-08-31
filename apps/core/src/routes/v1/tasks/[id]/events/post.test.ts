@@ -227,6 +227,7 @@ function createTask(
   overrides: Partial<{
     organizationId: string | null;
     assigneeId: string | null;
+    assigneeUserId: string | null;
     status: TaskStatus;
     ownerId: string;
     projectId: string | null;
@@ -236,6 +237,7 @@ function createTask(
     id: TASK_ID,
     status: TaskStatus.RUNNING,
     assigneeId: COWORKER_ID,
+    assigneeUserId: null,
     ownerId: USER_ID,
     organizationId: null,
     projectId: null,
@@ -1196,13 +1198,20 @@ describe("POST /{id}/events", () => {
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
-  it("rejects user CANCELED → READY when the task has no coworker", async () => {
+  it("reopens CANCELED → READY with a comment when the task has no coworker", async () => {
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.READY,
+            comment: "Please continue",
+            userId: USER_ID,
+            coworkerId: null,
+          }),
+        ),
       },
       task: {
-        updateMany: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
 
@@ -1227,8 +1236,12 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(422);
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(tx.task.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: TaskStatus.READY },
+      }),
+    );
   });
 
   it("rejects user CANCELED → READY with whitespace-only comment", async () => {
@@ -2783,6 +2796,58 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(422);
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("lets a user start a human-assigned READY task", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.READY,
+        assigneeId: null,
+        assigneeUserId: USER_ID,
+      }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.RUNNING,
+            userId: USER_ID,
+            coworkerId: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.RUNNING,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.RUNNING,
+          userId: USER_ID,
+        }),
+      }),
+    );
   });
 
   it("rejects credits from a delegated coworker canceling a task", async () => {

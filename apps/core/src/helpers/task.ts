@@ -110,10 +110,42 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
 interface ValidateTaskAssigneeAssignmentParams {
   status: TaskStatus;
   assigneeId: string | null | undefined;
+  assigneeUserId?: string | null | undefined;
+}
+
+export type TaskAssigneeKind = "coworker" | "human" | "unset";
+
+const COWORKER_ONLY_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  TaskStatus.QUEUED,
+  TaskStatus.GRANT_PENDING,
+  TaskStatus.INPUT_REQUIRED,
+  TaskStatus.APPROVAL_REQUIRED,
+  TaskStatus.AUTHENTICATION_REQUIRED,
+  TaskStatus.OUT_OF_CREDITS,
+  TaskStatus.CREDITS_TOPPED_UP,
+  TaskStatus.FAILED,
+]);
+
+function hasAssigneeValue(value: string | null | undefined): boolean {
+  return value !== null && value !== undefined;
+}
+
+export function taskAssigneeKind(task: {
+  assigneeId: string | null | undefined;
+  assigneeUserId?: string | null | undefined;
+}): TaskAssigneeKind {
+  if (hasAssigneeValue(task.assigneeId)) {
+    return "coworker";
+  }
+  if (hasAssigneeValue(task.assigneeUserId)) {
+    return "human";
+  }
+  return "unset";
 }
 
 function getAllowedTransitions(
   authContext: AuthenticationContext,
+  assigneeKind: TaskAssigneeKind = "coworker",
 ): Record<TaskStatus, TaskStatus[]> {
   // A coworker acting as itself (the agent) uses the agent transition table.
   // A delegated coworker acts as the user, so it falls through to the user table.
@@ -204,6 +236,39 @@ function getAllowedTransitions(
       [TaskStatus.FAILED]: [],
       // Agents may reopen CANCELED → RUNNING (SOK-581).
       [TaskStatus.CANCELED]: [TaskStatus.RUNNING],
+    };
+  }
+
+  if (assigneeKind !== "coworker") {
+    return {
+      [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
+      [TaskStatus.QUEUED]: [],
+      [TaskStatus.READY]: [
+        TaskStatus.DRAFT,
+        TaskStatus.CANCELED,
+        TaskStatus.RUNNING,
+      ],
+      [TaskStatus.GRANT_PENDING]: [],
+      [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCELED],
+      [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCELED],
+      [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCELED],
+      [TaskStatus.OUT_OF_CREDITS]: [TaskStatus.CANCELED],
+      [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCELED],
+      [TaskStatus.RUNNING]: [
+        TaskStatus.READY,
+        TaskStatus.AWAITING_EXTERNAL,
+        TaskStatus.COMPLETED,
+        TaskStatus.CANCELED,
+      ],
+      [TaskStatus.AWAITING_EXTERNAL]: [
+        TaskStatus.RUNNING,
+        TaskStatus.READY,
+        TaskStatus.COMPLETED,
+        TaskStatus.CANCELED,
+      ],
+      [TaskStatus.COMPLETED]: [TaskStatus.READY],
+      [TaskStatus.FAILED]: [],
+      [TaskStatus.CANCELED]: [TaskStatus.READY],
     };
   }
 
@@ -412,12 +477,13 @@ export function validateStatusTransition(
   authContext: AuthenticationContext,
   from: TaskStatus,
   to: TaskStatus,
+  assigneeKind: TaskAssigneeKind = "coworker",
 ): void {
   if (from === to) {
     throw unprocessableEntity("Invalid status transition: same status");
   }
 
-  const allowedTransitions = getAllowedTransitions(authContext);
+  const allowedTransitions = getAllowedTransitions(authContext, assigneeKind);
   if (!allowedTransitions[from].includes(to)) {
     throw unprocessableEntity(
       `Invalid status transition from ${from} to ${to}`,
@@ -428,14 +494,20 @@ export function validateStatusTransition(
 export function validateTaskAssigneeAssignment({
   status,
   assigneeId,
+  assigneeUserId,
 }: ValidateTaskAssigneeAssignmentParams): void {
-  const hasAssigneeId = assigneeId !== null && assigneeId !== undefined;
-  const allowsMissingAssignee =
-    status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
+  const hasCoworkerAssignee = hasAssigneeValue(assigneeId);
+  const hasUserAssignee = hasAssigneeValue(assigneeUserId);
 
-  if (!allowsMissingAssignee && !hasAssigneeId) {
+  if (hasCoworkerAssignee && hasUserAssignee) {
     throw unprocessableEntity(
-      "assigneeId is required for statuses other than draft or canceled",
+      "Task cannot be assigned to both a coworker and a user",
+    );
+  }
+
+  if (COWORKER_ONLY_TASK_STATUSES.has(status) && !hasCoworkerAssignee) {
+    throw unprocessableEntity(
+      "A Coworker assignee is required for this status",
     );
   }
 }
@@ -601,6 +673,41 @@ function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
   );
 }
 
+function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
+  if (task.assigneeId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `Task ${task.id} assignee`,
+      task.assigneeId,
+      task.assignee ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `Task ${task.id}: coworker assignee summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "coworker" as const,
+      id: task.assigneeId,
+      coworker,
+    };
+  }
+
+  if (task.assigneeUserId != null) {
+    return {
+      type: "user" as const,
+      id: task.assigneeUserId,
+      user: userSummaryFromLoadedRelation(
+        `Task ${task.id} assignee`,
+        task.assigneeUserId,
+        task.assigneeUser ?? null,
+      ),
+    };
+  }
+
+  return null;
+}
+
 function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
@@ -614,13 +721,14 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.owner,
   );
 
-  const taskAssigneeSummary = coworkerSummaryFromLoadedRelation(
+  const taskCoworkerAssigneeSummary = coworkerSummaryFromLoadedRelation(
     `Task ${task.id}`,
     task.assigneeId,
     task.assignee ?? null,
   );
 
   const creator = mapTaskCreator(task);
+  const assignee = mapTaskAssignee(task);
 
   return {
     id: task.id,
@@ -635,9 +743,10 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     projectId: task.projectId,
     organization: taskOrganizationSummary,
     assigneeId: task.assigneeId,
-    assignee: taskAssigneeSummary,
+    assigneeUserId: task.assigneeUserId ?? null,
+    assignee,
     coworkerId: task.assigneeId,
-    coworker: taskAssigneeSummary,
+    coworker: taskCoworkerAssigneeSummary,
     creator,
     // Deprecated aliases for legacy orchestrator-created tasks.
     orchestratorId: creator.type === "orchestrator" ? creator.id : null,

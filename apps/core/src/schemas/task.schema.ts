@@ -186,6 +186,29 @@ export const taskCreatorSchema = z
   ])
   .openapi("TaskCreator");
 
+const taskAssigneeUserSchema = z
+  .object({
+    type: z.literal("user"),
+    id: z.string().openapi({ example: "user_123" }),
+    user: userSummarySchema,
+  })
+  .openapi("TaskAssigneeUser");
+
+const taskAssigneeCoworkerSchema = z
+  .object({
+    type: z.literal("coworker"),
+    id: z.string().openapi({ example: "cow_123" }),
+    coworker: coworkerSummarySchema,
+  })
+  .openapi("TaskAssigneeCoworker");
+
+export const taskAssigneeSchema = z
+  .discriminatedUnion("type", [
+    taskAssigneeUserSchema,
+    taskAssigneeCoworkerSchema,
+  ])
+  .openapi("TaskAssignee");
+
 const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
@@ -213,19 +236,29 @@ const taskBaseSchema = z.object({
   }),
   assigneeId: z.string().nullable().openapi({
     example: "cow_123",
-    description: "Marketplace coworker assignee. Never an orchestrator.",
+    description:
+      "Coworker assignee id. Null when assigned to a user or unset. Prefer `assignee`.",
   }),
-  assignee: coworkerSummarySchema.nullable(),
+  assigneeUserId: z.string().nullable().openapi({
+    example: "user_123",
+    description:
+      "Workspace-member assignee id. Null when assigned to a coworker or unset. Prefer `assignee`.",
+  }),
+  assignee: taskAssigneeSchema.nullable().openapi({
+    description:
+      "Who the Task is handed to: a coworker, a workspace member, or unset.",
+  }),
   /** @deprecated Use `assigneeId`. */
   coworkerId: z.string().nullable().openapi({
     example: "cow_123",
     deprecated: true,
     description: "Deprecated. Use assigneeId instead.",
   }),
-  /** @deprecated Use `assignee`. */
+  /** @deprecated Use `assignee` when `assignee.type === "coworker"`. */
   coworker: coworkerSummarySchema.nullable().openapi({
     deprecated: true,
-    description: "Deprecated. Use assignee instead.",
+    description:
+      "Deprecated. Prefer assignee when type is coworker. Null when assigned to a user or unset.",
   }),
   creator: taskCreatorSchema.openapi({
     description:

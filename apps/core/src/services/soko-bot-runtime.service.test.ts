@@ -271,6 +271,7 @@ vi.mock("@/routes/v1/chats/rooms/helpers", async (importOriginal) => ({
 }));
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  requireTaskAssignableUser: vi.fn(),
 }));
 vi.mock("@/helpers/vendor-grants", () => ({
   isGrantDeniedOrRevoked: vi.fn(() => false),

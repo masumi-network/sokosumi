@@ -42,6 +42,35 @@ describe("canUserTransitionTaskStatus", () => {
       false,
     );
   });
+
+  it("rejects READY → RUNNING while a coworker is assigned", () => {
+    expect(canUserTransitionTaskStatus("READY", "RUNNING")).toBe(false);
+    expect(canUserTransitionTaskStatus("READY", "RUNNING", "coworker")).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ["READY", "RUNNING"],
+    ["RUNNING", "READY"],
+    ["RUNNING", "AWAITING_EXTERNAL"],
+    ["RUNNING", "COMPLETED"],
+    ["AWAITING_EXTERNAL", "READY"],
+    ["AWAITING_EXTERNAL", "COMPLETED"],
+  ] as const)("accepts human/unset %s → %s", (from, to) => {
+    expect(canUserTransitionTaskStatus(from, to, "human")).toBe(true);
+    expect(canUserTransitionTaskStatus(from, to, "unset")).toBe(true);
+  });
+
+  it("rejects human READY → COMPLETED", () => {
+    expect(canUserTransitionTaskStatus("READY", "COMPLETED", "human")).toBe(
+      false,
+    );
+  });
+
+  it("rejects human READY → QUEUED", () => {
+    expect(canUserTransitionTaskStatus("READY", "QUEUED", "human")).toBe(false);
+  });
 });
 
 describe("userTaskStatusTransitionRequiresComment", () => {

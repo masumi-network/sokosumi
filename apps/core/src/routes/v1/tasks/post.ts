@@ -28,6 +28,7 @@ import { created } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import {
   refineAssigneeIdAliasConflict,
+  refineAssigneeKindConflict,
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
 import {
@@ -35,6 +36,7 @@ import {
   resolveTaskEventChannel,
 } from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
+import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { notifyWorkspaceApproversOfPendingGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -95,6 +97,7 @@ export const createTaskRequestSchema = z
       .optional()
       .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
     assigneeId: z.string().nullish().openapi({ example: "cow_123" }),
+    assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
     /** @deprecated Use `assigneeId`. */
     coworkerId: z.string().nullish().openapi({
       example: "cow_123",
@@ -116,23 +119,20 @@ export const createTaskRequestSchema = z
   .superRefine((data, ctx) => {
     refineChannelOriginConflict(data, ctx);
     refineAssigneeIdAliasConflict(data, ctx);
-
-    const assigneeId = resolveAssigneeIdFromRequest(data);
-    const hasAssigneeId = assigneeId !== null && assigneeId !== undefined;
-
-    if (data.status !== TaskStatus.DRAFT && !hasAssigneeId) {
-      ctx.addIssue({
-        code: "custom",
-        message: "assigneeId is required when creating a non-draft task",
-        path: ["assigneeId"],
-      });
-    }
+    refineAssigneeKindConflict(
+      {
+        assigneeId: resolveAssigneeIdFromRequest(data),
+        assigneeUserId: data.assigneeUserId,
+      },
+      ctx,
+    );
   })
   .transform((data) => {
     const { coworkerId: _coworkerId, ...rest } = data;
     return {
       ...rest,
       assigneeId: resolveAssigneeIdFromRequest(data),
+      assigneeUserId: data.assigneeUserId ?? null,
       channel: resolveTaskEventChannel(data),
     };
   });
@@ -434,6 +434,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             });
           },
           assigneeId: body.assigneeId,
+          assigneeUserId: body.assigneeUserId,
           status: body.status,
           channel: body.channel,
         },
@@ -470,6 +471,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
       }
+    }
+
+    if (task.assigneeUserId) {
+      await notifyTaskHumanAssignee(task.id, task.assigneeUserId);
     }
 
     return created(c, taskSchema.parse(mapTask(task)));

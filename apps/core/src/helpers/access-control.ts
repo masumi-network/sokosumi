@@ -444,6 +444,45 @@ export async function requireTaskAssignableCoworker(
   }
 }
 
+/**
+ * Human task assign: the user must belong to the target workspace.
+ * Personal workspace: the workspace owner. Org workspace: any member.
+ */
+export async function requireTaskAssignableUser(
+  userId: string,
+  workspaceId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const workspace = await tx.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { userId: true, organizationId: true },
+  });
+
+  if (!workspace) {
+    throw notFound("User is not a member of this workspace");
+  }
+
+  if (workspace.userId === userId) {
+    return;
+  }
+
+  if (!workspace.organizationId) {
+    throw notFound("User is not a member of this workspace");
+  }
+
+  const membership = await tx.member.findFirst({
+    where: {
+      organizationId: workspace.organizationId,
+      userId,
+    },
+    select: { id: true },
+  });
+
+  if (!membership) {
+    throw notFound("User is not a member of this workspace");
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Task collaboration (user ownership or coworker on assigned task)
 // -----------------------------------------------------------------------------

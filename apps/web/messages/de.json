@@ -6919,6 +6919,7 @@
         "completed": "{coworkerName} hat {taskName} abgeschlossen",
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
         "canceled": "{taskName} wurde abgebrochen",
+        "assigned": "Dir wurde {taskName} zugewiesen",
         "scheduleRepaired": "Der Zeitplan für {taskName} wurde repariert",
         "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt"
       },

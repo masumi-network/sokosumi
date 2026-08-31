@@ -658,6 +658,57 @@ describe("validateStatusTransition", () => {
       ).toThrow();
     });
 
+    it("rejects READY → RUNNING while a coworker is assigned", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.READY,
+          TaskStatus.RUNNING,
+          "coworker",
+        ),
+      ).toThrow();
+    });
+  });
+
+  describe("user transitions when assignee is a human or unset", () => {
+    it.each([
+      [TaskStatus.DRAFT, TaskStatus.READY],
+      [TaskStatus.DRAFT, TaskStatus.CANCELED],
+      [TaskStatus.READY, TaskStatus.DRAFT],
+      [TaskStatus.READY, TaskStatus.CANCELED],
+      [TaskStatus.READY, TaskStatus.RUNNING],
+      [TaskStatus.RUNNING, TaskStatus.READY],
+      [TaskStatus.RUNNING, TaskStatus.AWAITING_EXTERNAL],
+      [TaskStatus.RUNNING, TaskStatus.COMPLETED],
+      [TaskStatus.RUNNING, TaskStatus.CANCELED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.RUNNING],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.READY],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.COMPLETED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.CANCELED],
+      [TaskStatus.COMPLETED, TaskStatus.READY],
+      [TaskStatus.CANCELED, TaskStatus.READY],
+    ])("accepts %s → %s", (from, to) => {
+      expect(() =>
+        validateStatusTransition(userContext, from, to, "human"),
+      ).not.toThrow();
+      expect(() =>
+        validateStatusTransition(userContext, from, to, "unset"),
+      ).not.toThrow();
+    });
+
+    it.each([
+      [TaskStatus.READY, TaskStatus.COMPLETED],
+      [TaskStatus.READY, TaskStatus.QUEUED],
+      [TaskStatus.DRAFT, TaskStatus.QUEUED],
+      [TaskStatus.RUNNING, TaskStatus.FAILED],
+      [TaskStatus.RUNNING, TaskStatus.INPUT_REQUIRED],
+      [TaskStatus.READY, TaskStatus.GRANT_PENDING],
+    ])("rejects %s → %s", (from, to) => {
+      expect(() =>
+        validateStatusTransition(userContext, from, to, "human"),
+      ).toThrow();
+    });
+
     it("rejects QUEUED → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
@@ -1016,13 +1067,51 @@ describe("validateTaskAssigneeAssignment", () => {
     ).not.toThrow();
   });
 
-  it("rejects non-DRAFT tasks without a coworker", () => {
+  it("allows READY tasks without an assignee", () => {
     expect(() =>
       validateTaskAssigneeAssignment({
         status: TaskStatus.READY,
         assigneeId: null,
       }),
-    ).toThrow();
+    ).not.toThrow();
+  });
+
+  it("allows COMPLETED tasks without an assignee", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.COMPLETED,
+        assigneeId: null,
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows READY tasks assigned to a workspace member", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.READY,
+        assigneeId: null,
+        assigneeUserId: "user_123",
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows RUNNING tasks assigned to a workspace member", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.RUNNING,
+        assigneeId: null,
+        assigneeUserId: "user_123",
+      }),
+    ).not.toThrow();
+  });
+
+  it("allows RUNNING tasks without an assignee", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.RUNNING,
+        assigneeId: null,
+      }),
+    ).not.toThrow();
   });
 
   it("rejects QUEUED tasks without a coworker", () => {
@@ -1030,6 +1119,46 @@ describe("validateTaskAssigneeAssignment", () => {
       validateTaskAssigneeAssignment({
         status: TaskStatus.QUEUED,
         assigneeId: null,
+      }),
+    ).toThrow();
+  });
+
+  it("rejects QUEUED tasks assigned only to a workspace member", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.QUEUED,
+        assigneeId: null,
+        assigneeUserId: "user_123",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects FAILED tasks without a coworker", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.FAILED,
+        assigneeId: null,
+        assigneeUserId: "user_123",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects INPUT_REQUIRED without a coworker", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.INPUT_REQUIRED,
+        assigneeId: null,
+        assigneeUserId: "user_123",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects assigning both a coworker and a workspace member", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.READY,
+        assigneeId: "cow_123",
+        assigneeUserId: "user_123",
       }),
     ).toThrow();
   });
@@ -1318,6 +1447,59 @@ describe("mapTask", () => {
     const result = mapTask(task);
 
     expect(result.share).toEqual(share);
+    expect(result.assignee).toEqual({
+      type: "coworker",
+      id: "cow_123",
+      coworker: defaultTaskCoworker,
+    });
+    expect(result.assigneeUserId).toBeNull();
+  });
+
+  it("maps a workspace-member assignee", () => {
+    const task = {
+      id: "tsk_123",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: null,
+      assignee: null,
+      assigneeUserId: "user_123",
+      assigneeUser: defaultTaskUser,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: null,
+      creatorOrchestrator: null,
+      name: "Human assigned task",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    const result = mapTask(task);
+
+    expect(result.assignee).toEqual({
+      type: "user",
+      id: "user_123",
+      user: defaultTaskUser,
+    });
+    expect(result.assigneeUserId).toBe("user_123");
+    expect(result.assigneeId).toBeNull();
+    expect(result.coworker).toBeNull();
   });
 
   it("exposes grant fields only while status is GRANT_PENDING", () => {

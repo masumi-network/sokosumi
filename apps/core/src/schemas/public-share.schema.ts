@@ -24,7 +24,7 @@ export const publicSharedTaskAssigneeSchema = z
   .object({
     id: z.string().openapi({ example: "cow_123" }),
     name: z.string().openapi({ example: "Ops Agent" }),
-    slug: z.string().openapi({ example: "ops-agent" }),
+    slug: z.string().nullish().openapi({ example: "ops-agent" }),
     image: z.string().nullish().openapi({
       example: "https://example.com/coworker.png",
     }),

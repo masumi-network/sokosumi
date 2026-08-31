@@ -111,6 +111,14 @@ const query = z
         description: "Filter tasks by assignee coworker ID",
         example: "cow_123",
       }),
+    assigneeUserId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "assigneeUserId", in: "query" },
+        description: "Filter tasks by assignee workspace-member ID",
+        example: "user_123",
+      }),
     /** @deprecated Use `assigneeId`. */
     coworkerId: z
       .string()
@@ -156,6 +164,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const {
       assigneeId,
+      assigneeUserId,
       projectId,
       q,
       scope,
@@ -216,6 +225,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               ? { ownerId: authContext.context.userId }
               : {}),
             ...(assigneeId ? { assigneeId } : {}),
+            ...(assigneeUserId ? { assigneeUserId } : {}),
             ...projectFilter,
             ...searchFilter,
           },
@@ -241,6 +251,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: workspaceContext.workspaceId,
           ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
           ...(assigneeId ? { assigneeId } : {}),
+          ...(assigneeUserId ? { assigneeUserId } : {}),
           ...projectFilter,
           ...searchFilter,
         },

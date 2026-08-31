@@ -69,6 +69,7 @@ model User {
 
   ownedTasks              Task[]                   @relation("TaskOwner")
   createdTasks            Task[]                   @relation("TaskCreatorUser")
+  assignedTasks           Task[]                   @relation("TaskAssigneeUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
   coworkerUsages          CoworkerUsage[]
@@ -2373,8 +2374,13 @@ model Task {
   status TaskStatus @default(DRAFT)
 
   /// Marketplace coworker assignee. Never an orchestrator.
+  /// At most one of assigneeId / assigneeUserId (SQL CHECK).
   assigneeId String?
   assignee   Coworker? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  /// Workspace-member assignee. At most one of assigneeId / assigneeUserId.
+  assigneeUserId String?
+  assigneeUser   User?   @relation("TaskAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
 
   /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
   /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
@@ -2426,6 +2432,7 @@ model Task {
   @@index([ownerId])
   @@index([ownerId, organizationId])
   @@index([assigneeId])
+  @@index([assigneeUserId])
   @@index([projectId])
   @@index([status, nextRunAt])
   @@index([pendingVendorGrantId])

@@ -20,6 +20,7 @@ const {
   projectFindFirstMock,
   refreshTaskSchedulePlannedOccurrencesMock,
   requireTaskAssignableCoworkerMock,
+  requireTaskAssignableUserMock,
   requireTaskOwnershipMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
@@ -28,12 +29,14 @@ const {
   projectFindFirstMock: vi.fn(),
   refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
+  requireTaskAssignableUserMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
   taskUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  requireTaskAssignableUser: requireTaskAssignableUserMock,
   requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
@@ -49,6 +52,10 @@ vi.mock("@/helpers/task", async (importOriginal) => {
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
   refreshTaskSchedulePlannedOccurrences:
     refreshTaskSchedulePlannedOccurrencesMock,
+}));
+
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskHumanAssignee: vi.fn(),
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -91,6 +98,7 @@ function createTaskApi(projectId: string | null = null) {
       slug: "acme-labs",
     },
     assigneeId: null,
+    assigneeUserId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -183,6 +191,23 @@ describe("patchTaskRequestSchema", () => {
       });
     }).toThrow();
   });
+
+  it("accepts assigneeUserId as the only patch field", () => {
+    const result = patchTaskRequestSchema.parse({
+      assigneeUserId: "user_123",
+    });
+
+    expect(result.assigneeUserId).toBe("user_123");
+  });
+
+  it("rejects coworker and user assignees together", () => {
+    expect(() => {
+      patchTaskRequestSchema.parse({
+        assigneeId: "cow_a",
+        assigneeUserId: "user_a",
+      });
+    }).toThrow();
+  });
 });
 
 describe("PATCH /tasks/{id}", () => {
@@ -192,6 +217,7 @@ describe("PATCH /tasks/{id}", () => {
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
+      assigneeUserId: null,
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });
@@ -247,6 +273,7 @@ describe("PATCH /tasks/{id}", () => {
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
+      assigneeUserId: null,
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
     });
@@ -330,6 +357,7 @@ describe("PATCH /tasks/{id}", () => {
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
+      assigneeUserId: null,
       projectId: OTHER_PROJECT_ID,
       workspaceId: WORKSPACE_ID,
     });
@@ -367,6 +395,7 @@ describe("PATCH /tasks/{id}", () => {
       id: "tsk_123",
       status: TaskStatus.QUEUED,
       assigneeId: "cow_123",
+      assigneeUserId: null,
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });

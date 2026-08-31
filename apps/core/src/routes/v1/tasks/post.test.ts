@@ -90,6 +90,7 @@ function buildMapTaskResponse(task: {
         }
       : null,
     assigneeId: null,
+    assigneeUserId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -139,6 +140,11 @@ function buildMapTaskResponse(task: {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  requireTaskAssignableUser: vi.fn(),
+}));
+
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskHumanAssignee: vi.fn(),
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -252,12 +258,37 @@ describe("createTaskRequestSchema", () => {
     }).toThrow();
   });
 
-  it("rejects READY status without assigneeId", () => {
+  it("accepts READY status without assigneeId", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Ready task",
+      description: null,
+      assigneeId: null,
+      status: TaskStatus.READY,
+    });
+
+    expect(result.status).toBe(TaskStatus.READY);
+    expect(result.assigneeId).toBeNull();
+    expect(result.assigneeUserId).toBeNull();
+  });
+
+  it("accepts READY status assigned to a workspace member", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Ready task",
+      description: null,
+      assigneeUserId: "user_123",
+      status: TaskStatus.READY,
+    });
+
+    expect(result.assigneeUserId).toBe("user_123");
+    expect(result.assigneeId).toBeUndefined();
+  });
+
+  it("rejects assigning both a coworker and a workspace member", () => {
     expect(() => {
       createTaskRequestSchema.parse({
         name: "Ready task",
-        description: null,
-        assigneeId: null,
+        assigneeId: "cow_123",
+        assigneeUserId: "user_123",
         status: TaskStatus.READY,
       });
     }).toThrow();

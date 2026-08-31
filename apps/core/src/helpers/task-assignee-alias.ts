@@ -3,7 +3,12 @@ interface AssigneeIdAliasInput {
   coworkerId?: string | null;
 }
 
-interface AssigneeIdAliasIssueContext {
+interface AssigneeKindInput {
+  assigneeId?: string | null;
+  assigneeUserId?: string | null;
+}
+
+interface AssigneeIssueContext {
   addIssue: (issue: {
     code: "custom";
     message: string;
@@ -28,7 +33,7 @@ export function resolveAssigneeIdFromRequest(
 
 export function refineAssigneeIdAliasConflict(
   data: AssigneeIdAliasInput,
-  ctx: AssigneeIdAliasIssueContext,
+  ctx: AssigneeIssueContext,
 ): void {
   if (
     data.assigneeId !== undefined &&
@@ -41,4 +46,45 @@ export function refineAssigneeIdAliasConflict(
       path: ["assigneeId"],
     });
   }
+}
+
+export function refineAssigneeKindConflict(
+  data: AssigneeKindInput,
+  ctx: AssigneeIssueContext,
+): void {
+  if (data.assigneeId && data.assigneeUserId) {
+    ctx.addIssue({
+      code: "custom",
+      message: "assigneeId and assigneeUserId cannot both be set",
+      path: ["assigneeUserId"],
+    });
+  }
+}
+
+export function resolveNextTaskAssignees(
+  input: AssigneeKindInput,
+  current: { assigneeId: string | null; assigneeUserId: string | null },
+): { assigneeId: string | null; assigneeUserId: string | null } {
+  if (input.assigneeUserId && input.assigneeUserId !== current.assigneeUserId) {
+    return {
+      assigneeId: input.assigneeId !== undefined ? input.assigneeId : null,
+      assigneeUserId: input.assigneeUserId,
+    };
+  }
+  if (input.assigneeId && input.assigneeId !== current.assigneeId) {
+    return {
+      assigneeId: input.assigneeId,
+      assigneeUserId:
+        input.assigneeUserId !== undefined ? input.assigneeUserId : null,
+    };
+  }
+
+  return {
+    assigneeId:
+      input.assigneeId !== undefined ? input.assigneeId : current.assigneeId,
+    assigneeUserId:
+      input.assigneeUserId !== undefined
+        ? input.assigneeUserId
+        : current.assigneeUserId,
+  };
 }

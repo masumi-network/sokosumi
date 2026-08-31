@@ -29,6 +29,7 @@ import {
   requireMutableTaskOwnership,
   requireTaskArchiveAccess,
   requireTaskAssignableCoworker,
+  requireTaskAssignableUser,
   requireTaskCancelAccess,
   requireTaskCollaboration,
   requireTaskCommentAccess,
@@ -1652,6 +1653,68 @@ describe("requireTaskAssignableCoworker", () => {
     await expect(
       requireTaskAssignableCoworker("cow_123", workspaceId, tx),
     ).rejects.toThrow("Coworker is not usable in this workspace");
+  });
+});
+
+describe("requireTaskAssignableUser", () => {
+  it("accepts the personal workspace owner", async () => {
+    const tx = {
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: "user_123",
+          organizationId: null,
+        }),
+      },
+      member: { findFirst: vi.fn() },
+    } as unknown as Prisma.TransactionClient;
+
+    await requireTaskAssignableUser("user_123", workspaceId, tx);
+
+    expect(tx.workspace.findUnique).toHaveBeenCalledWith({
+      where: { id: workspaceId },
+      select: { userId: true, organizationId: true },
+    });
+    expect(tx.member.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("accepts an organization workspace member", async () => {
+    const tx = {
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: null,
+          organizationId: "org_123",
+        }),
+      },
+      member: {
+        findFirst: vi.fn().mockResolvedValue({ id: "mem_123" }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await requireTaskAssignableUser("user_456", workspaceId, tx);
+
+    expect(tx.member.findFirst).toHaveBeenCalledWith({
+      where: {
+        organizationId: "org_123",
+        userId: "user_456",
+      },
+      select: { id: true },
+    });
+  });
+
+  it("rejects a user who is not in the workspace", async () => {
+    const tx = {
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: "owner_1",
+          organizationId: null,
+        }),
+      },
+      member: { findFirst: vi.fn() },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      requireTaskAssignableUser("user_other", workspaceId, tx),
+    ).rejects.toThrow("User is not a member of this workspace");
   });
 });
 

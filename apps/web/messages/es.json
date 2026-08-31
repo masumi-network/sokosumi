@@ -6919,6 +6919,7 @@
         "completed": "{coworkerName} completó {taskName}",
         "failed": "{coworkerName} no pudo completar {taskName}",
         "canceled": "{taskName} fue cancelado",
+        "assigned": "Te asignaron {taskName}",
         "scheduleRepaired": "Se reparó la programación de {taskName}",
         "scheduleRemovedByOperator": "Se eliminó la programación de {taskName} después de revisarla"
       },

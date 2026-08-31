@@ -6,6 +6,7 @@ import { LIMITS } from "@/config/constants";
 import {
   requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
+  requireTaskAssignableUser,
 } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, forbidden, notFound } from "@/helpers/error";
@@ -15,8 +16,11 @@ import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
   refineAssigneeIdAliasConflict,
+  refineAssigneeKindConflict,
   resolveAssigneeIdFromRequest,
+  resolveNextTaskAssignees,
 } from "@/helpers/task-assignee-alias";
+import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -46,6 +50,7 @@ export const patchTaskRequestSchema = z
       .optional()
       .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
     assigneeId: z.string().nullish().openapi({ example: "cow_123" }),
+    assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
     /** @deprecated Use `assigneeId`. */
     coworkerId: z.string().nullish().openapi({
       example: "cow_123",
@@ -55,18 +60,26 @@ export const patchTaskRequestSchema = z
   })
   .superRefine((data, ctx) => {
     refineAssigneeIdAliasConflict(data, ctx);
+    refineAssigneeKindConflict(
+      {
+        assigneeId: resolveAssigneeIdFromRequest(data),
+        assigneeUserId: data.assigneeUserId,
+      },
+      ctx,
+    );
 
     if (
       data.name === undefined &&
       data.description === undefined &&
       data.projectId === undefined &&
       data.assigneeId === undefined &&
+      data.assigneeUserId === undefined &&
       data.coworkerId === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId or assigneeId is required",
+          "At least one of name, description, projectId, assigneeId, or assigneeUserId is required",
         path: ["name"],
       });
     }
@@ -76,8 +89,6 @@ export const patchTaskRequestSchema = z
     const assigneeId = resolveAssigneeIdFromRequest(data);
     return {
       ...rest,
-      // Only set when either alias was provided so omitted patches keep the
-      // existing assignee (handler treats `undefined` as "not provided").
       ...(data.assigneeId !== undefined || data.coworkerId !== undefined
         ? { assigneeId }
         : {}),
@@ -114,9 +125,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
-    const { name, description, projectId, assigneeId } = c.req.valid("json");
+    const { name, description, projectId, assigneeId, assigneeUserId } =
+      c.req.valid("json");
 
-    const task = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskOwnership(
         userContext,
         id,
@@ -161,21 +173,42 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden("You can only update draft, queued, or ready tasks");
       }
 
-      const assigneeIdWasProvided = assigneeId !== undefined;
-      const nextAssigneeId = assigneeIdWasProvided
-        ? assigneeId
-        : task.assigneeId;
+      const assigneeWasProvided =
+        assigneeId !== undefined || assigneeUserId !== undefined;
+      const nextAssignees = resolveNextTaskAssignees(
+        { assigneeId, assigneeUserId },
+        {
+          assigneeId: task.assigneeId,
+          assigneeUserId: task.assigneeUserId,
+        },
+      );
       validateTaskAssigneeAssignment({
         status: task.status,
-        assigneeId: nextAssigneeId,
+        assigneeId: nextAssignees.assigneeId,
+        assigneeUserId: nextAssignees.assigneeUserId,
       });
 
-      if (assigneeIdWasProvided && assigneeId !== null) {
-        await requireTaskAssignableCoworker(assigneeId, task.workspaceId, tx, {
-          kind: "user",
-          userId: userContext.userId,
-        });
+      if (assigneeWasProvided && nextAssignees.assigneeId) {
+        await requireTaskAssignableCoworker(
+          nextAssignees.assigneeId,
+          task.workspaceId,
+          tx,
+          {
+            kind: "user",
+            userId: userContext.userId,
+          },
+        );
       }
+
+      if (assigneeWasProvided && nextAssignees.assigneeUserId) {
+        await requireTaskAssignableUser(
+          nextAssignees.assigneeUserId,
+          task.workspaceId,
+          tx,
+        );
+      }
+
+      const previousAssigneeUserId = task.assigneeUserId;
 
       const updatedTask = await tx.task.update({
         where: {
@@ -190,7 +223,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name,
           description,
           projectId,
-          assigneeId,
+          ...(assigneeWasProvided
+            ? {
+                assigneeId: nextAssignees.assigneeId,
+                assigneeUserId: nextAssignees.assigneeUserId,
+              }
+            : {}),
         },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });
@@ -204,9 +242,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           nextRunAt: task.nextRunAt,
         });
       }
-      return updatedTask;
+      return {
+        task: updatedTask,
+        previousAssigneeUserId,
+      };
     });
 
-    return ok(c, taskSchema.parse(mapTask(task)));
+    if (
+      result.previousAssigneeUserId !== result.task.assigneeUserId &&
+      result.task.assigneeUserId
+    ) {
+      await notifyTaskHumanAssignee(result.task.id, result.task.assigneeUserId);
+    }
+
+    return ok(c, taskSchema.parse(mapTask(result.task)));
   });
 }
