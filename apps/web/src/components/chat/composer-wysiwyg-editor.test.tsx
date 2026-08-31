@@ -493,6 +493,91 @@ describe("ComposerWysiwygEditor", () => {
     expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
   });
 
+  it("exits a quote on Shift+Enter from an empty last line", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.innerHTML = "<blockquote>quoted line<br></blockquote>";
+    const quote = editor.querySelector("blockquote");
+    expect(quote).toBeTruthy();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.setStart(quote!, quote!.childNodes.length);
+    range.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    fireEvent.keyDown(editor, { key: "Enter", shiftKey: true });
+
+    expect(editor.querySelector("blockquote")?.textContent).toContain(
+      "quoted line",
+    );
+    let node: Node | null | undefined = selection?.anchorNode;
+    let insideQuote = false;
+    while (node) {
+      if (node instanceof HTMLElement && node.tagName === "BLOCKQUOTE") {
+        insideQuote = true;
+        break;
+      }
+      node = node.parentNode;
+    }
+    expect(insideQuote).toBe(false);
+  });
+
+  it("keeps Shift+Enter inside a quote when the current line has text", () => {
+    const onSubmitShortcut = vi.fn();
+
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+          onSubmitShortcut={onSubmitShortcut}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.innerHTML = "<blockquote>quoted line</blockquote>";
+    const text = editor.querySelector("blockquote")?.firstChild;
+    expect(text).toBeTruthy();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.setStart(text!, "quoted line".length);
+    range.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    fireEvent.keyDown(editor, { key: "Enter", shiftKey: true });
+
+    expect(onSubmitShortcut).not.toHaveBeenCalled();
+    let node: Node | null | undefined = selection?.anchorNode;
+    let insideQuote = false;
+    while (node) {
+      if (node instanceof HTMLElement && node.tagName === "BLOCKQUOTE") {
+        insideQuote = true;
+        break;
+      }
+      node = node.parentNode;
+    }
+    expect(insideQuote).toBe(true);
+  });
+
   it("submits on plain Enter when the viewport is narrow", () => {
     const onSubmitShortcut = vi.fn();
     vi.stubGlobal("innerWidth", 390);
