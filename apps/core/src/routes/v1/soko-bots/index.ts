@@ -1217,6 +1217,7 @@ const simulateTaskEventRoute = createRoute({
   responses: {
     200: jsonSuccessResponse(sokoBotLabTaskEventSchema, "Simulated event"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     409: jsonErrorResponse("Soko Bot cannot take a turn right now"),
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
@@ -1239,8 +1240,10 @@ const labIngestRoute = createRoute({
     200: jsonSuccessResponse(sokoBotLabIngestSchema, "Turn started"),
     400: jsonErrorResponse("A required account is not connected"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
     409: jsonErrorResponse("Soko Bot cannot take a turn right now"),
+    422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
 
@@ -1269,8 +1272,9 @@ app.openapi(labIngestRoute, async (c) => {
       throw badRequest(error.message);
     }
     if (error instanceof SokoBotLabIngestError) throw notFound(error.message);
-    if (error instanceof SokoBotBusyError) throw conflict(error.message);
-    throw error;
+    // It starts a real turn, so it can fail every way starting one can:
+    // out of credits, aborted, already working, a stale idempotency key.
+    mapControlPlaneError(error);
   }
 });
 
@@ -1286,11 +1290,11 @@ app.openapi(simulateTaskEventRoute, async (c) => {
     return ok(c, sokoBotLabTaskEventSchema.parse(result));
   } catch (error) {
     if (error instanceof SokoBotLabError) throw notFound(error.message);
-    // "at its daily limit", "owner has paused unprompted work", "already
-    // working" — the reasons a wake is refused. Surfaced verbatim so the lab
-    // says which one it was instead of waiting out its timeout.
-    if (error instanceof SokoBotBusyError) throw conflict(error.message);
-    throw error;
+    // It starts a real turn now, so the reasons one can be refused — at its
+    // daily limit, unprompted work paused, already working, out of credits —
+    // are mapped the same way the turn route maps them, and reach the lab as
+    // a message rather than as a timeout.
+    mapControlPlaneError(error);
   }
 });
 
