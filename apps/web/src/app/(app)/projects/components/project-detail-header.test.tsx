@@ -76,4 +76,28 @@ describe("ProjectDetailHeader", () => {
       screen.queryByRole("link", { name: "Calendar" }),
     ).not.toBeInTheDocument();
   });
+
+  it("marks the Calendar link as the current view", () => {
+    render(
+      <ProjectDetailHeader
+        calendarLabel="Calendar"
+        projectName="Example project"
+        projectId="project-1"
+        backLabel="Back"
+        metadata={[]}
+        navigationLabel="Project navigation"
+        overviewLabel="Overview"
+        selectedView="calendar"
+        showCalendar
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Calendar" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
 });

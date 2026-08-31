@@ -148,6 +148,11 @@ describe("ProjectDetailPage", () => {
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: "App.Projects.Detail.navigation.calendar",
+      }),
+    ).toHaveAttribute("href", "/projects/project-1/calendar");
     expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
       "href",
       "https://example.com/about",
@@ -175,5 +180,32 @@ describe("ProjectDetailPage", () => {
       "href",
       `/drive?view=tasks&projectId=${project.id}`,
     );
+  });
+
+  it("hides the Calendar tab for non-beta sessions", async () => {
+    const project = buildProject();
+    getSessionMock.mockResolvedValue({ user: { email: "member@example.com" } });
+    projectServiceMock.getProjectById.mockResolvedValue(project);
+    projectServiceMock.listProjectJobs.mockResolvedValue({
+      jobs: [],
+      pagination: null,
+    });
+    projectServiceMock.listProjectTasks.mockResolvedValue({
+      tasks: [],
+      pagination: null,
+    });
+
+    const { default: ProjectDetailPage } = await import("./page");
+    const html = await ProjectDetailPage({
+      params: Promise.resolve({ projectId: "project-1" }),
+    });
+
+    render(html);
+
+    expect(
+      screen.queryByRole("link", {
+        name: "App.Projects.Detail.navigation.calendar",
+      }),
+    ).not.toBeInTheDocument();
   });
 });
