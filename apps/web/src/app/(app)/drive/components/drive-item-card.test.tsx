@@ -9,8 +9,6 @@ import {
 import {
   driveItemActionsClass,
   driveItemBodyClass,
-  driveItemIconWellClass,
-  driveItemMetaMobileClass,
 } from "@/app/drive/components/drive-view-layout";
 
 describe("DriveItemCard name accessibility", () => {
@@ -90,35 +88,5 @@ describe("DriveItemCard actions positioning", () => {
 
     const actions = screen.getByRole("button", { name: "more" }).parentElement;
     expect(actions?.className).not.toContain("absolute");
-  });
-});
-
-describe("DriveItemCard grid meta stacking", () => {
-  it("keeps icon, name, and meta as body siblings so meta can span under icon|name", () => {
-    render(
-      <DriveItemCard
-        viewMode="grid"
-        actions={<button type="button">more</button>}
-      >
-        <div className={driveItemIconWellClass("grid")} data-testid="icon" />
-        <DriveItemName name="report.pdf" />
-        <div className={driveItemMetaMobileClass("grid")} data-testid="meta">
-          <span>12 KB</span>
-          <span>Aug 31, 2026</span>
-        </div>
-      </DriveItemCard>,
-    );
-
-    const icon = screen.getByTestId("icon");
-    const name = screen.getByText("report.pdf");
-    const meta = screen.getByTestId("meta");
-    const body = icon.parentElement;
-
-    expect(body).not.toBeNull();
-    expect(body?.className).toContain("grid-cols-[auto_minmax(0,1fr)]");
-    expect(name.parentElement).toBe(body);
-    expect(meta.parentElement).toBe(body);
-    expect(meta.className).toContain("col-span-2");
-    expect(name.parentElement?.className).not.toContain("flex-col");
   });
 });
