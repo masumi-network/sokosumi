@@ -221,7 +221,6 @@ describe("getX402KeySpendCaps", () => {
     expect(result.isOk()).toBe(true);
     const caps = result.isOk() ? result.value : null;
     expect(caps?.usageLimited).toBe(true);
-    expect(caps?.grandfatheredUncapped).toBe(false);
     expect(
       caps?.creditsByUnit.get(
         `eip155:84532:${USDC_BASE_SEPOLIA.toLowerCase()}`,
@@ -249,9 +248,10 @@ describe("getX402KeySpendCaps", () => {
     expect(caps?.creditsByUnit.has("lovelace")).toBe(false);
   });
 
-  it("reports a usage-limited key with no eip155 row as grandfathered uncapped", async () => {
-    // The node keeps such a key payable and only warns, so calling it capped
-    // would hide agents the node would settle.
+  it("reports no EVM credit for a key funded only on the Cardano rail", async () => {
+    // The node refuses every x402 payment such a key makes. It once
+    // grandfathered it to uncapped spend instead, which is why this case has
+    // its own test.
     getApiKeyStatusMock.mockResolvedValue(
       statusResponse({
         usageLimited: true,
@@ -261,13 +261,15 @@ describe("getX402KeySpendCaps", () => {
 
     const result = await createClient().getX402KeySpendCaps();
 
-    expect(result.isOk() && result.value.grandfatheredUncapped).toBe(true);
+    const caps = result.isOk() ? result.value : null;
+    expect(caps?.usageLimited).toBe(true);
+    expect(caps?.creditsByUnit.size).toBe(0);
   });
 
-  it("ends grandfathering on an eip155 row it cannot parse", async () => {
-    // The node COUNTS eip155 rows to decide grandfathering, it does not parse
-    // them. Reading an unparsable row as "still grandfathered" would call a
-    // hard-capped key uncapped and mark an unpayable pair ready.
+  it("drops an eip155 row it cannot parse", async () => {
+    // An unparsable amount adds nothing to its unit's sum, so the unit reads
+    // zero and the pair delists. Treating it as credit would list a pair the
+    // node refuses.
     getApiKeyStatusMock.mockResolvedValue(
       statusResponse({
         usageLimited: true,
@@ -280,14 +282,13 @@ describe("getX402KeySpendCaps", () => {
     const result = await createClient().getX402KeySpendCaps();
 
     const caps = result.isOk() ? result.value : null;
-    expect(caps?.grandfatheredUncapped).toBe(false);
     expect(caps?.creditsByUnit.size).toBe(0);
   });
 
   it("drops an eip155 row whose amount is longer than any real balance", async () => {
     // 200 digits cannot be a uint256 balance, and BigInt() is superlinear in
-    // digit count. Dropping the row costs the sync worker nothing and still
-    // ends grandfathering, so the unit reads zero and the pair delists.
+    // digit count. Dropping the row costs the sync worker nothing, so the unit
+    // reads zero and the pair delists.
     getApiKeyStatusMock.mockResolvedValue(
       statusResponse({
         usageLimited: true,
@@ -303,7 +304,6 @@ describe("getX402KeySpendCaps", () => {
     const result = await createClient().getX402KeySpendCaps();
 
     const caps = result.isOk() ? result.value : null;
-    expect(caps?.grandfatheredUncapped).toBe(false);
     expect(caps?.creditsByUnit.size).toBe(0);
   });
 
@@ -326,7 +326,7 @@ describe("getX402KeySpendCaps", () => {
     expect(result.isErr() && result.error).toContain("RemainingUsageCredits");
   });
 
-  it("reports an unlimited key as uncapped and not grandfathered", async () => {
+  it("reports an unlimited key as uncapped", async () => {
     getApiKeyStatusMock.mockResolvedValue(
       statusResponse({ usageLimited: false }),
     );
@@ -335,13 +335,13 @@ describe("getX402KeySpendCaps", () => {
 
     const caps = result.isOk() ? result.value : null;
     expect(caps?.usageLimited).toBe(false);
-    expect(caps?.grandfatheredUncapped).toBe(false);
+    expect(caps?.creditsByUnit.size).toBe(0);
   });
 
   it("fails closed when the node answers 200 without the credit rows", async () => {
     // RemainingUsageCredits is required, so an absent array is version skew,
-    // never "this key holds no credits". Reading it as empty would call a
-    // usage-limited key grandfathered and mark every pair ready.
+    // never "this key holds no credits". Reading it as empty would delist
+    // every x402 pair and report a funding problem the operator does not have.
     getApiKeyStatusMock.mockResolvedValue(
       statusResponse({
         usageLimited: true,

@@ -1,12 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it, vi } from "vitest";
-import {
-  CreditBucketReferenceType,
-  type Prisma as PrismaType,
-} from "../generated/prisma/client.js";
-import { escapeStringForLike } from "./credit.js";
+import { type Prisma as PrismaType } from "../generated/prisma/client.js";
 import {
   buildLocalFreeOrganizationMemberSubscriptionReferenceId,
+  buildLocalFreeOrganizationSubscriptionReferenceId,
   buildLocalFreeUserSubscriptionReferenceId,
   ensureInitialLocalFreeSubscriptionPeriod,
   ensureLocalFreeSubscriptionPeriod,
@@ -19,7 +16,6 @@ function createTransactionClient(params?: {
   members?: Array<{ role?: string; userId: string }>;
   existingBucketReferenceIds?: string[];
   existingSubscriptionId?: null | string;
-  leftoverMemberLocalFreeExists?: boolean;
 }) {
   const findSubscriptionMock = vi.fn().mockImplementation(() =>
     Promise.resolve(
@@ -51,13 +47,6 @@ function createTransactionClient(params?: {
           : null,
       ),
   );
-  const findFirstBucketMock = vi
-    .fn()
-    .mockResolvedValue(
-      params?.leftoverMemberLocalFreeExists
-        ? { id: "leftover-member-local-free" }
-        : null,
-    );
   const createTransactionMock = vi.fn().mockResolvedValue({
     id: "tx_local_free",
   });
@@ -68,11 +57,9 @@ function createTransactionClient(params?: {
     createTransactionMock,
     findSubscriptionMock,
     findManyMembersMock,
-    findFirstBucketMock,
     findUniqueBucketMock,
     tx: {
       creditBucket: {
-        findFirst: findFirstBucketMock,
         findUnique: findUniqueBucketMock,
       },
       member: {
@@ -300,12 +287,13 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
     );
   });
 
-  it("does not mint an org-owned free period when leftover member local-free rows exist for that periodEnd", async () => {
-    const { createTransactionMock, findFirstBucketMock, tx } =
-      createTransactionClient({
-        leftoverMemberLocalFreeExists: true,
-      });
+  it("does not mint an org-owned free period when the org local-free sentinel fingerprint exists", async () => {
     const periodEnd = new Date("2026-05-01T00:00:00.000Z");
+    const sentinelReferenceId =
+      buildLocalFreeOrganizationSubscriptionReferenceId("org-1", periodEnd);
+    const { createTransactionMock, tx } = createTransactionClient({
+      existingBucketReferenceIds: [sentinelReferenceId],
+    });
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
@@ -325,24 +313,10 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
       subscriptionId: "subscription-local-free",
     });
     assert.equal(createTransactionMock.mock.calls.length, 0);
-    assert.deepEqual(findFirstBucketMock.mock.calls[0]?.[0].where, {
-      organizationId: "org-1",
-      userId: {
-        not: null,
-      },
-      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      referenceId: {
-        startsWith: "member:",
-        endsWith: escapeStringForLike(
-          `:local-free:org-1:${periodEnd.toISOString()}`,
-        ),
-      },
-    });
   });
 
-  it("still mints an org-owned free period when leftover member local-free rows are for another periodEnd", async () => {
-    const { createTransactionMock, findFirstBucketMock, tx } =
-      createTransactionClient();
+  it("still mints an org-owned free period when no org local-free fingerprint exists for that periodEnd", async () => {
+    const { createTransactionMock, tx } = createTransactionClient();
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
@@ -362,10 +336,6 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
       subscriptionId: "subscription-local-free",
     });
     assert.equal(createTransactionMock.mock.calls.length, 1);
-    assert.match(
-      findFirstBucketMock.mock.calls[0]?.[0].where.referenceId.endsWith,
-      /2026-05-01T00:00:00\.000Z/,
-    );
   });
 
   it("allows organization periods with no unassigned members", async () => {

@@ -169,23 +169,21 @@ describe("composeX402ReadySources", () => {
       consoleWarnSpy.mockRestore();
     });
 
-    it("keeps a grandfathered key payable and warns that no cap is real", () => {
-      // The node leaves such a key uncapped and settles its payments, so
-      // treating it as unready would hide agents the node would pay. It still
-      // warns: an operator who believes they set a cap has not.
+    it("drops the pair when the key holds no eip155 credit row at all", () => {
+      // Was the opposite assertion: the node used to grandfather such a key to
+      // uncapped spend, so this gate let it through and warned instead. The
+      // node now refuses every payment it makes, so the pair is not payable
+      // and must not be listed.
       const consoleWarnSpy = vi
         .spyOn(console, "warn")
         .mockImplementation(() => undefined);
       expect(
         composeX402ReadySources([availableNetwork()], "Preprod", {
-          caps: keySpendCaps({
-            usageLimited: true,
-            grandfatheredUncapped: true,
-          }),
+          caps: keySpendCaps({ usageLimited: true }),
         }),
-      ).toEqual([READY_SOURCE]);
+      ).toEqual([]);
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("UNCAPPED key"),
+        expect.stringContaining("has no remaining usage credits"),
       );
       consoleWarnSpy.mockRestore();
     });
