@@ -2757,4 +2757,30 @@ describe("ChatMessageRow outbound delivery", () => {
     await user.click(screen.getByRole("button", { name: "Outbound.remove" }));
     expect(onRemoveOutbound).toHaveBeenCalledWith(message);
   });
+
+  it("shows the send failure reason on a failed outbound bubble", () => {
+    const message = userMessage({
+      id: "pending:turn-1",
+      content: "on the train",
+      metadata: {
+        client_message_id: "turn-1",
+        outbound_delivery_status: "failed",
+        outbound_error:
+          "Message is too long (maximum 40000 characters). Shorten it to send.",
+      },
+    });
+
+    renderRow({
+      currentUserId: "user-1",
+      message,
+    });
+
+    expect(screen.getByTestId("outbound-delivery-failed")).toHaveTextContent(
+      "Message is too long (maximum 40000 characters). Shorten it to send.",
+    );
+    expect(screen.getByTestId("outbound-delivery-failed-icon")).toHaveAttribute(
+      "aria-label",
+      "Message is too long (maximum 40000 characters). Shorten it to send.",
+    );
+  });
 });

@@ -9541,7 +9541,7 @@ export const CreateChatRoomMessageRequestSchema = {
         content: {
             type: 'string',
             minLength: 1,
-            maxLength: 10000,
+            maxLength: 40000,
             example: '@coworker:elena Can you summarize this launch risk?'
         },
         mentionedCoworkerIds: {
@@ -9604,7 +9604,7 @@ export const UpdateChatRoomMessageRequestSchema = {
         content: {
             type: 'string',
             minLength: 1,
-            maxLength: 10000,
+            maxLength: 40000,
             example: 'Fixed typo in the launch summary'
         }
     },

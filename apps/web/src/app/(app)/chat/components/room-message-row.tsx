@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   type ChannelLinkTarget,
   getExtensionFromUrl,
   unfurlCardHasPreviewContent,
@@ -31,6 +32,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import {
   CoworkerFailedThoughtSparkle,
   CoworkerLiveThought,
@@ -55,6 +57,7 @@ import {
   outboundPendingAgeMs,
   readClientTurnId,
   readOutboundDeliveryStatus,
+  readOutboundErrorMessage,
   shouldShowOutboundPendingSpinner,
 } from "@/app/chat/utils/outbound-room-message";
 import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
@@ -123,6 +126,7 @@ import {
   type ChatParticipantHoverProfile,
   composerMentionDisplayNames,
   formatMessageTime,
+  isRoomComposerContentOverLimit,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
@@ -1526,6 +1530,15 @@ function MessageEditComposer({
     const markdown = liveMarkdown();
     const liveTrimmed = markdown.trim();
     const originalTrimmed = originalContent.trim();
+    if (isRoomComposerContentOverLimit(liveTrimmed)) {
+      toast.error(
+        t("composerTooLong", {
+          count: liveTrimmed.length,
+          max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+        }),
+      );
+      return;
+    }
     if (liveTrimmed.length > 0 && liveTrimmed !== originalTrimmed) {
       onSave(markdown);
       return;
@@ -1568,6 +1581,14 @@ function MessageEditComposer({
           className="min-h-10 max-h-40 overflow-y-auto px-3 py-2.5 leading-6"
         />
       </div>
+      {isRoomComposerContentOverLimit(value.trim()) ? (
+        <p className="text-destructive pt-1 text-xs" role="alert">
+          {t("composerTooLong", {
+            count: value.trim().length,
+            max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+          })}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -1651,12 +1672,14 @@ function MessageTimeOrOutboundStatus({
   className,
   /** Header next to name (true) vs continuation left gutter (false). */
   reserveHeaderWidth = true,
+  outboundErrorMessage,
 }: {
   createdAt: Date | string;
   outboundStatus: OutboundDeliveryStatus | null;
   showSentTick?: boolean;
   className?: string;
   reserveHeaderWidth?: boolean;
+  outboundErrorMessage?: string | null;
 }) {
   const t = useTranslations("App.Channels");
   const [sentFading, setSentFading] = useState(false);
@@ -1731,13 +1754,14 @@ function MessageTimeOrOutboundStatus({
   }
 
   if (outboundStatus === "failed") {
+    const failedLabel = outboundErrorMessage ?? t("Outbound.failed");
     return (
       <span
         className={cn(markClass, "text-destructive", className)}
         role="img"
         data-testid="outbound-delivery-failed-icon"
-        title={t("Outbound.failed")}
-        aria-label={t("Outbound.failed")}
+        title={failedLabel}
+        aria-label={failedLabel}
       >
         <AlertCircle
           className={cn(iconClass, "text-destructive")}
@@ -1812,13 +1836,14 @@ function OutboundFailedActions({
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
 }) {
   const t = useTranslations("App.Channels");
+  const failedLabel = readOutboundErrorMessage(message) ?? t("Outbound.failed");
   return (
     <div
       className="text-muted-foreground flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
       data-testid="outbound-delivery-failed"
     >
-      <span className="text-destructive" title={t("Outbound.failed")}>
-        {t("Outbound.failed")}
+      <span className="text-destructive" title={failedLabel}>
+        {failedLabel}
       </span>
       {onRetryOutbound ? (
         <button
@@ -2135,6 +2160,7 @@ export function ChatMessageRow({
               outboundStatus={outboundStatus}
               showSentTick={showDeliveryTick}
               reserveHeaderWidth={false}
+              outboundErrorMessage={readOutboundErrorMessage(message)}
               className="text-muted-foreground leading-none"
             />
           ) : null}
@@ -2207,6 +2233,7 @@ export function ChatMessageRow({
               outboundStatus={outboundStatus}
               showSentTick={showDeliveryTick}
               reserveHeaderWidth
+              outboundErrorMessage={readOutboundErrorMessage(message)}
               className="text-muted-foreground text-xs leading-none"
             />
             {showEdited && editedAt != null ? (

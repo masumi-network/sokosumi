@@ -5714,6 +5714,8 @@
       "directMessages": "Direct Messages",
       "loading": "Wird geladen...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
+      "composerTooLong": "Die Nachricht ist zu lang ({count}/{max}). Kürze sie, um sie zu senden.",
+      "composerAttachAsMarkdownFile": "Stattdessen als Markdown-Datei anhängen",
       "NoOrganization": {
         "title": "Channels kommen bald",
         "description": "Channels sind für Organisations-Arbeitsbereiche gerade im Test. Die Unterstützung für persönliche Nutzung folgt bald."

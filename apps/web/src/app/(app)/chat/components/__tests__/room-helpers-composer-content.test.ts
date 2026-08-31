@@ -1,7 +1,11 @@
+import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
   buildRoomComposerMessageContent,
+  createRoomComposerOverflowMarkdownFile,
+  isRoomComposerContentOverLimit,
   isRoomComposerEmpty,
+  ROOM_COMPOSER_OVERFLOW_MARKDOWN_FILENAME,
 } from "../room-helpers";
 
 function formatLink(fileName: string, url: string): string {
@@ -46,5 +50,29 @@ describe("isRoomComposerEmpty", () => {
         { fileName: "a.jpg", url: "https://blob.example/a.jpg" },
       ]),
     ).toBe(false);
+  });
+});
+
+describe("isRoomComposerContentOverLimit", () => {
+  it("allows a 11_699-character box-drawing paste", () => {
+    expect(isRoomComposerContentOverLimit("┌".repeat(11_699))).toBe(false);
+  });
+
+  it("flags content over the shared max", () => {
+    expect(
+      isRoomComposerContentOverLimit(
+        "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("createRoomComposerOverflowMarkdownFile", () => {
+  it("builds a markdown File from the over-limit draft", () => {
+    const content = "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1);
+    const file = createRoomComposerOverflowMarkdownFile(content);
+    expect(file.name).toBe(ROOM_COMPOSER_OVERFLOW_MARKDOWN_FILENAME);
+    expect(file.type).toBe("text/markdown");
+    expect(file.size).toBeGreaterThan(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH);
   });
 });

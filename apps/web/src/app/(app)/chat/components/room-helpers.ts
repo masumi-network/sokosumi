@@ -1,5 +1,6 @@
 import {
   buildRoomQuoteSnippetParts,
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   type ChannelLinkTarget,
   type ChatRoomQuoteAttachment,
   linkifyChannelLinksInMarkdown,
@@ -246,6 +247,24 @@ export function isRoomComposerEmpty(
   attachments: readonly unknown[],
 ): boolean {
   return value.trim().length === 0 && attachments.length === 0;
+}
+
+export function isRoomComposerContentOverLimit(content: string): boolean {
+  return content.length > CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH;
+}
+
+/** Filename used when the user opts in to recover an over-limit draft as a file. */
+export const ROOM_COMPOSER_OVERFLOW_MARKDOWN_FILENAME = "message.md";
+
+/**
+ * Opt-in recovery: turn the composer draft into a markdown File.
+ * Callers must not invoke this on paste or submit — only from an explicit
+ * control after the too-long error is shown.
+ */
+export function createRoomComposerOverflowMarkdownFile(content: string): File {
+  return new File([content], ROOM_COMPOSER_OVERFLOW_MARKDOWN_FILENAME, {
+    type: "text/markdown",
+  });
 }
 
 export function hasPendingCoworkerMention(

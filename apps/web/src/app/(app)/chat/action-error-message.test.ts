@@ -18,6 +18,7 @@ vi.mock("next/navigation", () => ({
   unstable_rethrow: unstableRethrowMock,
 }));
 
+import { CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE } from "@sokosumi/utils";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { actionErrorMessage } from "./action-error-message";
 
@@ -48,5 +49,17 @@ describe("actionErrorMessage", () => {
       ),
     ).toBe(message);
     expect(unstableRethrowMock).toHaveBeenCalled();
+  });
+
+  it("rewrites Core content too-long Zod copy into a sendable reason", () => {
+    expect(
+      actionErrorMessage(
+        new CoreApiRequestError(
+          "Key: content - Too big: expected string to have <=10000 characters",
+          { status: 422 },
+        ),
+        "Could not send message.",
+      ),
+    ).toBe(CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE);
   });
 });
