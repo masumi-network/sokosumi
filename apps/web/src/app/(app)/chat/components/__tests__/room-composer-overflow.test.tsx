@@ -187,7 +187,8 @@ describe("RoomComposer over-limit recovery", () => {
       />,
     );
 
-    expect(screen.getByRole("alert")).toHaveTextContent("composerTooLong");
+    expect(screen.getByRole("alert")).toHaveTextContent("composerTooLongHint");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("10001/10000");
     expect(screen.getByText("composerCharacterCount 10001/10000")).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "composerAttachAsMarkdownFile" }),
@@ -211,7 +212,8 @@ describe("RoomComposer over-limit recovery", () => {
 
     render(<OverflowHarness initialValue={TOO_LONG} onSubmit={onSubmit} />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("composerTooLong");
+    expect(screen.getByRole("alert")).toHaveTextContent("composerTooLongHint");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("10001/10000");
     const recover = screen.getByRole("button", {
       name: "composerAttachAsMarkdownFile",
     });
@@ -261,7 +263,7 @@ describe("RoomComposer over-limit recovery", () => {
       String(TOO_LONG.length),
     );
     expect(screen.getByTestId("attachment-count")).toHaveTextContent("0");
-    expect(screen.getByRole("alert")).toHaveTextContent("composerTooLong");
+    expect(screen.getByRole("alert")).toHaveTextContent("composerTooLongHint");
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });

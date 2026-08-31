@@ -8,6 +8,7 @@ import {
 import {
   ALargeSmall,
   AtSign,
+  FileText,
   Loader2,
   Paperclip,
   Users,
@@ -635,24 +636,26 @@ export function RoomComposer({
         }
         belowEditor={
           contentOverLimit ? (
-            <div className="flex flex-col items-start gap-1 px-4 pb-1">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 pb-1">
               <p className="text-destructive text-xs" role="alert">
-                {t("composerTooLong", {
-                  count: composedContent.length,
-                  max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
-                })}
+                {t("composerTooLongHint")}
               </p>
               {allowAttachments ? (
                 <Button
                   type="button"
-                  variant="link"
+                  variant="outline"
                   size="sm"
-                  className="text-foreground h-auto min-h-0 px-0 py-0 text-xs"
+                  className="h-7 gap-1.5 text-xs"
                   disabled={isUploadingFiles}
                   onClick={() => {
                     void handleAttachOverflowAsMarkdown();
                   }}
                 >
+                  {isUploadingFiles ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <FileText className="size-3.5" aria-hidden />
+                  )}
                   {t("composerAttachAsMarkdownFile")}
                 </Button>
               ) : null}

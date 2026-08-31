@@ -62,4 +62,16 @@ describe("actionErrorMessage", () => {
       ),
     ).toBe(CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE);
   });
+
+  it("rewrites the custom Core too-long copy, not the generic send fallback", () => {
+    expect(
+      actionErrorMessage(
+        new CoreApiRequestError(
+          `Key: content - ${CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE}`,
+          { status: 422 },
+        ),
+        "Could not send message.",
+      ),
+    ).toBe(CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE);
+  });
 });

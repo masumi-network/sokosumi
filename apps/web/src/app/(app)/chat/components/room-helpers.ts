@@ -2,6 +2,7 @@ import {
   buildRoomQuoteSnippetParts,
   CHAT_ROOM_MESSAGE_CONTENT_COUNT_VISIBLE_AT,
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+  CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
   type ChannelLinkTarget,
   type ChatRoomQuoteAttachment,
   linkifyChannelLinksInMarkdown,
@@ -256,6 +257,24 @@ export function isRoomComposerContentOverLimit(content: string): boolean {
 
 export function isRoomComposerContentCountVisible(content: string): boolean {
   return content.length >= CHAT_ROOM_MESSAGE_CONTENT_COUNT_VISIBLE_AT;
+}
+
+/**
+ * User-facing copy when a too-long send still hit Core (client guard missed).
+ * Maps the shared English API reason onto the i18n composer string.
+ */
+export function formatRoomComposerTooLongFailure(
+  storedError: string | null | undefined,
+  contentLength: number,
+  t: (key: string, values?: { count: number; max: number }) => string,
+): string {
+  if (storedError === CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE) {
+    return t("composerTooLong", {
+      count: contentLength,
+      max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+    });
+  }
+  return storedError?.trim() || t("Outbound.failed");
 }
 
 /** Filename used when the user opts in to recover an over-limit draft as a file. */

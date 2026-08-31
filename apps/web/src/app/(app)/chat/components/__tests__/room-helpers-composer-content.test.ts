@@ -1,8 +1,12 @@
-import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
+import {
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+  CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
   buildRoomComposerMessageContent,
   createRoomComposerOverflowMarkdownFile,
+  formatRoomComposerTooLongFailure,
   isRoomComposerContentCountVisible,
   isRoomComposerContentOverLimit,
   isRoomComposerEmpty,
@@ -84,6 +88,30 @@ describe("isRoomComposerContentCountVisible", () => {
         "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1),
       ),
     ).toBe(true);
+  });
+});
+
+describe("formatRoomComposerTooLongFailure", () => {
+  const t = (key: string, values?: { count: number; max: number }) =>
+    values ? `${key} ${values.count}/${values.max}` : key;
+
+  it("maps the Core too-long reason onto the composer copy", () => {
+    expect(
+      formatRoomComposerTooLongFailure(
+        CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+        10_001,
+        t,
+      ),
+    ).toBe("composerTooLong 10001/10000");
+  });
+
+  it("keeps other failure reasons and falls back to Outbound.failed", () => {
+    expect(formatRoomComposerTooLongFailure("network down", 12, t)).toBe(
+      "network down",
+    );
+    expect(formatRoomComposerTooLongFailure(null, 12, t)).toBe(
+      "Outbound.failed",
+    );
   });
 });
 

@@ -60,6 +60,13 @@ vi.mock("next-intl", () => ({
       if (key === "Edit.editedAt" && values?.when != null) {
         return `Edited ${String(values.when)}`;
       }
+      if (
+        key === "composerTooLong" &&
+        values?.count != null &&
+        values.max != null
+      ) {
+        return `composerTooLong ${String(values.count)}/${String(values.max)}`;
+      }
       return key;
     };
   },
@@ -2775,12 +2782,16 @@ describe("ChatMessageRow outbound delivery", () => {
       message,
     });
 
+    const tooLongLabel = `composerTooLong ${message.content.length}/10000`;
     expect(screen.getByTestId("outbound-delivery-failed")).toHaveTextContent(
-      CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+      tooLongLabel,
     );
+    expect(
+      screen.getByTestId("outbound-delivery-failed"),
+    ).not.toHaveTextContent("Could not send message");
     expect(screen.getByTestId("outbound-delivery-failed-icon")).toHaveAttribute(
       "aria-label",
-      CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+      tooLongLabel,
     );
   });
 });
