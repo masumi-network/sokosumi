@@ -158,6 +158,47 @@ describe("evaluateScenario", () => {
     expect(result.passed).toBe(result.total);
   });
 
+  it("accepts an existing daily schedule pointed at the new task", () => {
+    // Reusing the schedule the owner already has is a real follow-up, and a
+    // tidier one than a second daily check-in beside it.
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({
+        toolCalls: [call("create_task"), call("update_schedule")],
+        finalAnswer: "Created the brief and pointed your daily check at it.",
+        delegations: [{ id: "d1", taskId: "task-1", jobId: null }],
+      }),
+    );
+
+    expect(result.checks.filter((c) => !c.pass)).toEqual([]);
+  });
+
+  it("names the tool that failed rather than only listing it", () => {
+    // "No failed tool calls — assign_task" reads as an answer to the label.
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({
+        toolCalls: [
+          call("create_task"),
+          { ...call("assign_task"), status: "FAILED" },
+        ],
+      }),
+    );
+
+    const check = result.checks.find((c) => c.label === "No failed tool calls");
+    expect(check?.actual).toBe("assign_task failed");
+  });
+
+  it("says a tool was never called instead of printing the haystack", () => {
+    const result = evaluateScenario(
+      byId("delegate-with-daily-checkin"),
+      turn({ toolCalls: [call("get_task_status")] }),
+    );
+
+    const check = result.checks.find((c) => c.label === "Calls create_task");
+    expect(check?.actual).toBe("never called — used get_task_status");
+  });
+
   it("fails a bare promise to follow up without a schedule", () => {
     const result = evaluateScenario(
       byId("delegate-with-daily-checkin"),
@@ -169,7 +210,7 @@ describe("evaluateScenario", () => {
     );
     const failed = result.checks.filter((c) => !c.pass).map((c) => c.label);
     expect(failed).toEqual([
-      "Calls create_schedule",
+      "Calls one of create_schedule, update_schedule",
       "No follow-up promise without a schedule",
     ]);
   });

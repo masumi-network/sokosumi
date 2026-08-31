@@ -101,7 +101,12 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       "Create a task for a one-page research brief on the top 5 EU AI-agent marketplaces (pricing, positioning, funding), due end of next week, and assign it to whoever on the team handles research (leave it unassigned and tell me if nobody fits). Then check on it every weekday at 9:00 Europe/Berlin and nudge me if it is not moving.",
     expect: {
       routes: ["DELEGATE_TASK", "MIXED"],
-      tools: ["create_task", "create_schedule"],
+      tools: ["create_task"],
+      // The intent is a real follow-up rather than a promise of one. Pointing
+      // an existing daily schedule at the new Task does that as well as
+      // creating a second one does — better, in fact — so demanding
+      // `create_schedule` marked the bot down for the tidier answer.
+      anyTools: ["create_schedule", "update_schedule"],
       forbiddenTools: ["hire_agent"],
       minDelegations: 1,
       noEmptyPromise: true,
@@ -539,28 +544,37 @@ export function evaluateScenario(
   checks.push({
     label: "No failed tool calls",
     pass: failedTools.length === 0,
+    // A bare tool name under a "no failed calls" label reads as the answer to
+    // the label rather than as the thing that broke. Say which verb applies.
     actual:
       failedTools.length === 0
         ? "clean"
-        : failedTools.map((c) => c.capability).join(", "),
+        : `${list(failedTools.map((c) => c.capability))} failed`,
   });
   checks.push({
     label: `Route ∈ ${expect.routes.join(" | ")}`,
     pass: turn.route !== null && expect.routes.includes(turn.route),
     actual: turn.route ?? "UNCLASSIFIED",
   });
+  // A failing "Calls X" used to print the whole tool list and leave the reader
+  // to notice X was absent from it. Lead with the verdict; the list is the
+  // evidence behind it, not the finding.
   for (const tool of expect.tools ?? []) {
     checks.push({
       label: `Calls ${tool}`,
       pass: tools.has(tool),
-      actual: list(tools),
+      actual: tools.has(tool) ? "called" : `never called — used ${list(tools)}`,
     });
   }
   if (expect.anyTools?.length) {
+    const used = expect.anyTools.filter((tool) => tools.has(tool));
     checks.push({
       label: `Calls one of ${expect.anyTools.join(", ")}`,
-      pass: expect.anyTools.some((tool) => tools.has(tool)),
-      actual: list(tools),
+      pass: used.length > 0,
+      actual:
+        used.length > 0
+          ? `called ${list(used)}`
+          : `none called — used ${list(tools)}`,
     });
   }
   if (expect.forbiddenTools?.length) {
