@@ -34,7 +34,6 @@ export function keySpendCaps(
   return {
     usageLimited: false,
     creditsByUnit: new Map<string, bigint>(),
-    grandfatheredUncapped: false,
     ...overrides,
   };
 }
