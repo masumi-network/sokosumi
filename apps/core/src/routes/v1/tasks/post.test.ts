@@ -4,6 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostTask, { createTaskRequestSchema } from "./post";
@@ -505,6 +506,55 @@ describe("POST /tasks", () => {
         }),
       }),
     );
+  });
+
+  it("notifies the workspace member who becomes the assignee", async () => {
+    taskCreateMock.mockResolvedValue({
+      id: "tsk_123",
+      assigneeUserId: "user_assignee",
+    });
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Assigned Task",
+        description: null,
+        assigneeUserId: "user_assignee",
+        status: TaskStatus.READY,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(notifyTaskHumanAssignee).toHaveBeenCalledWith(
+      "tsk_123",
+      "user_assignee",
+    );
+  });
+
+  it("does not notify when create leaves the assignee unset", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Unset Task",
+        description: null,
+        assigneeId: null,
+        status: TaskStatus.READY,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(notifyTaskHumanAssignee).not.toHaveBeenCalled();
   });
 
   it("rejects create when the member has no assigned organization seat", async () => {

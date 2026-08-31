@@ -772,6 +772,34 @@ export async function requireTaskCancelAccess(
   return await requireTaskCollaboration(authContext, taskId, tx);
 }
 
+/**
+ * Status-event writes: coworker-assigned Tasks stay on
+ * {@link requireTaskCollaboration} (owner or assigned coworker). Human or
+ * unset Tasks use the same actor set as cancel — owner always, org-workspace
+ * members for a task in that workspace — so assignment is routing, not a lock.
+ */
+export async function requireTaskStatusWriteAccess(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const { authContext, workspaceContext } = vars;
+
+  if (isUserAuthContext(authContext)) {
+    const workspace = requireWorkspaceContext(workspaceContext);
+    const task = await requireTaskReadForWorkspace(workspace, taskId, tx);
+    requireTaskNotParked(task);
+
+    if (task.assigneeId === null) {
+      return await requireTaskCancelAccess(vars, taskId, tx);
+    }
+
+    return await requireTaskCollaboration(authContext, taskId, tx);
+  }
+
+  return await requireTaskCollaboration(authContext, taskId, tx);
+}
+
 // -----------------------------------------------------------------------------
 // Workspace-scoped reads (task/job in the active workspace)
 // -----------------------------------------------------------------------------

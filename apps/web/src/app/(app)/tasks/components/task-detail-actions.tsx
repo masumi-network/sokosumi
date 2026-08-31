@@ -231,11 +231,13 @@ export function TaskDetailActions({
   });
   const statusActions = canMutateTask
     ? availableStatusActions
-    : canCancel
-      ? availableStatusActions.filter(
-          (action) => action.target === TaskStatus.CANCELED,
-        )
-      : [];
+    : canCancel && assigneeKind !== "coworker"
+      ? availableStatusActions
+      : canCancel
+        ? availableStatusActions.filter(
+            (action) => action.target === TaskStatus.CANCELED,
+          )
+        : [];
 
   const canEdit = canMutateTask && isTaskEditableStatus(status);
   const canArchiveParked = canArchiveParkedTaskForViewer({

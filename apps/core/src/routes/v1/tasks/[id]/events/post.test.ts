@@ -34,6 +34,7 @@ const {
   requireTaskCommentAccessMock,
   requireTaskCollaborationMock,
   requireTaskCancelAccessMock,
+  requireTaskStatusWriteAccessMock,
   removeTaskSchedulePlannedOccurrencesMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
@@ -62,6 +63,7 @@ const {
   requireTaskCommentAccessMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
   requireTaskCancelAccessMock: vi.fn(),
+  requireTaskStatusWriteAccessMock: vi.fn(),
   removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
@@ -70,6 +72,7 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
   requireTaskCommentAccess: requireTaskCommentAccessMock,
   requireTaskCancelAccess: requireTaskCancelAccessMock,
+  requireTaskStatusWriteAccess: requireTaskStatusWriteAccessMock,
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -385,6 +388,9 @@ describe("POST /{id}/events", () => {
     requireTaskCollaborationMock.mockResolvedValue(createTask());
     requireTaskCommentAccessMock.mockResolvedValue(createTask());
     requireTaskCancelAccessMock.mockResolvedValue(createTask());
+    requireTaskStatusWriteAccessMock.mockImplementation((...args) =>
+      requireTaskCollaborationMock(...args),
+    );
   });
 
   it("rejects coworkers creating OUT_OF_CREDITS events manually", async () => {
@@ -2850,6 +2856,60 @@ describe("POST /{id}/events", () => {
     );
   });
 
+  it("lets an org workspace member start another member's human-assigned task", async () => {
+    requireTaskStatusWriteAccessMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.READY,
+        ownerId: "user_owner",
+        assigneeId: null,
+        assigneeUserId: "user_member",
+      }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.RUNNING,
+            userId: "user_member",
+            coworkerId: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.RUNNING,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(requireTaskStatusWriteAccessMock).toHaveBeenCalled();
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.RUNNING,
+          userId: "user_member",
+        }),
+      }),
+    );
+  });
+
   it("rejects credits from a delegated coworker canceling a task", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
       createTask({ status: TaskStatus.READY, assigneeId: COWORKER_ID }),
@@ -3077,6 +3137,7 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(404);
+    expect(requireTaskStatusWriteAccessMock).toHaveBeenCalled();
     expect(requireTaskCollaborationMock).toHaveBeenCalled();
     expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
   });

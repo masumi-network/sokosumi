@@ -36,6 +36,7 @@ import {
   requireTaskOwnership,
   requireTaskReadForRouteVars,
   requireTaskReadForWorkspace,
+  requireTaskStatusWriteAccess,
   resolveConversationCoworkerId,
 } from "./access-control";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
@@ -1189,6 +1190,123 @@ describe("requireTaskCancelAccess", () => {
       });
       return true;
     });
+  });
+});
+
+describe("requireTaskStatusWriteAccess", () => {
+  it("lets an org workspace member write status on a human-assigned task", async () => {
+    const tx = createTransactionClient();
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    };
+
+    vi.mocked(tx.task.findFirst).mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_owner",
+      assigneeId: null,
+      assigneeUserId: "user_member",
+      pendingVendorGrantId: null,
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: memberAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskStatusWriteAccess(vars, "tsk_123", tx);
+  });
+
+  it("lets an org workspace member write status on an unset task", async () => {
+    const tx = createTransactionClient();
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    };
+
+    vi.mocked(tx.task.findFirst).mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_owner",
+      assigneeId: null,
+      assigneeUserId: null,
+      pendingVendorGrantId: null,
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: memberAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskStatusWriteAccess(vars, "tsk_123", tx);
+  });
+
+  it("rejects a personal-workspace non-owner on a human-assigned task", async () => {
+    const tx = createTransactionClient();
+    const personalWorkspace: WorkspaceContext = {
+      workspaceId,
+      userId: "user_member",
+      organizationId: null,
+    };
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: null,
+      role: "user",
+    };
+
+    vi.mocked(tx.task.findFirst).mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_owner",
+      assigneeId: null,
+      assigneeUserId: "user_member",
+      pendingVendorGrantId: null,
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: memberAuthContext,
+      workspaceContext: personalWorkspace,
+    };
+
+    await expect(
+      requireTaskStatusWriteAccess(vars, "tsk_123", tx),
+    ).rejects.toThrow("Task not found");
+  });
+
+  it("keeps coworker-assigned status writes on ownership", async () => {
+    const tx = createTransactionClient();
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    };
+
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce({
+        id: "tsk_123",
+        ownerId: "user_owner",
+        assigneeId: "cow_123",
+        assigneeUserId: null,
+        pendingVendorGrantId: null,
+      } as never)
+      .mockResolvedValueOnce(null);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: memberAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskStatusWriteAccess(vars, "tsk_123", tx),
+    ).rejects.toThrow("Task not found");
   });
 });
 

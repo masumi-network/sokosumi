@@ -82,6 +82,29 @@ function requireAssigneeForStatus(
   });
 }
 
+function hasCoworkerAssigneeId(assigneeId: string | null | undefined): boolean {
+  return typeof assigneeId === "string" && assigneeId.trim() !== "";
+}
+
+/**
+ * GRANT_PENDING is coworker-only. A delegated create that parks for a vendor
+ * grant and omitted assigneeId still belongs to the acting coworker.
+ */
+function resolveCreateAssigneeId(
+  input: CreateTaskDomainInput,
+  pendingGrant: PendingGrantState | null,
+): string | null | undefined {
+  if (
+    pendingGrant &&
+    input.actor.kind === "coworker" &&
+    !hasCoworkerAssigneeId(input.assigneeId) &&
+    (input.assigneeUserId == null || input.assigneeUserId === "")
+  ) {
+    return input.actor.coworkerId;
+  }
+  return input.assigneeId;
+}
+
 const SOKO_BOT_UPDATE_STATUSES = [TaskStatus.DRAFT, TaskStatus.READY] as const;
 const SOKO_BOT_ASSIGN_STATUSES = SOKO_BOT_UPDATE_STATUSES;
 
@@ -221,14 +244,11 @@ export async function createTaskForActor(
   input: CreateTaskDomainInput,
   tx: Prisma.TransactionClient,
 ): Promise<Task> {
-  requireAssigneeForStatus(
-    input.status,
-    input.assigneeId,
-    input.assigneeUserId,
-  );
   await requireTaskReferences(input, tx);
   const pendingGrant = await resolvePendingGrant(input, tx);
   const status = pendingGrant ? TaskStatus.GRANT_PENDING : input.status;
+  const assigneeId = resolveCreateAssigneeId(input, pendingGrant);
+  requireAssigneeForStatus(status, assigneeId, input.assigneeUserId);
   const description =
     pendingGrant || !input.resolveDescription
       ? (input.description ?? null)
@@ -242,7 +262,7 @@ export async function createTaskForActor(
       projectId: input.projectId ?? null,
       name: input.name,
       description,
-      assigneeId: input.assigneeId ?? null,
+      assigneeId: assigneeId ?? null,
       assigneeUserId: input.assigneeUserId ?? null,
       ...creatorFields(input.actor),
       status,

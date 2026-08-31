@@ -14,8 +14,8 @@ import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
   requireTaskCancelAccess,
-  requireTaskCollaboration,
   requireTaskCommentAccess,
+  requireTaskStatusWriteAccess,
 } from "@/helpers/access-control";
 import {
   getCardanoV2ReadySources,
@@ -348,7 +348,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const task = isCancelOnlyWrite
         ? await requireTaskCancelAccess(c.var, taskId, tx)
         : hasNonCommentWrite
-          ? await requireTaskCollaboration(authContext, taskId, tx)
+          ? await requireTaskStatusWriteAccess(c.var, taskId, tx)
           : await requireTaskCommentAccess(c.var, taskId, tx);
 
       const isAgent = isCoworkerAgentContext(authContext);

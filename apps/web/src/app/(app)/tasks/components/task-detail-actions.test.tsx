@@ -1094,6 +1094,32 @@ describe("TaskDetailActions", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers Start to an org collaborator on a human-assigned ready task they do not own", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.READY,
+      defaultAssigneeId: null,
+      defaultAssigneeUserId: "user-assignee",
+      isReadOnly: true,
+      canCancel: true,
+      isTaskOwner: false,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.start }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.revertToDraft }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancel }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+  });
+
   it("offers in-progress actions for an unset running task", async () => {
     const user = userEvent.setup();
     renderActions({

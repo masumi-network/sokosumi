@@ -1133,6 +1133,16 @@ describe("validateTaskAssigneeAssignment", () => {
     ).toThrow();
   });
 
+  it("rejects GRANT_PENDING without a coworker", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.GRANT_PENDING,
+        assigneeId: null,
+        assigneeUserId: "user_123",
+      }),
+    ).toThrow();
+  });
+
   it("rejects FAILED tasks without a coworker", () => {
     expect(() =>
       validateTaskAssigneeAssignment({

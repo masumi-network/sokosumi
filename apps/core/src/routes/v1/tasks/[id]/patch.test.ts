@@ -1,6 +1,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -450,5 +451,81 @@ describe("PATCH /tasks/{id}", () => {
 
     expect(response.status).toBe(403);
     expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+  });
+
+  it("notifies when a workspace member becomes the assignee", async () => {
+    const app = createApp();
+    taskUpdateMock.mockResolvedValue({
+      ...createTaskApi(null),
+      assigneeUserId: "user_assignee",
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assigneeUserId: "user_assignee",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(notifyTaskHumanAssignee).toHaveBeenCalledWith(
+      "tsk_123",
+      "user_assignee",
+    );
+  });
+
+  it("does not notify when the human assignee is cleared", async () => {
+    const app = createApp();
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeUserId: "user_assignee",
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+    });
+    taskUpdateMock.mockResolvedValue({
+      ...createTaskApi(null),
+      assigneeUserId: null,
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assigneeUserId: null,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(notifyTaskHumanAssignee).not.toHaveBeenCalled();
+  });
+
+  it("does not notify when the task is assigned to a coworker", async () => {
+    const app = createApp();
+    taskUpdateMock.mockResolvedValue({
+      ...createTaskApi(null),
+      assigneeId: "cow_123",
+      assigneeUserId: null,
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assigneeId: "cow_123",
+        assigneeUserId: null,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(notifyTaskHumanAssignee).not.toHaveBeenCalled();
   });
 });
