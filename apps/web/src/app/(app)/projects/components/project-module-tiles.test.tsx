@@ -23,33 +23,68 @@ const LABELS = {
   },
 };
 
-describe("ProjectModuleTiles", () => {
-  it("renders all disabled modules in dashboard order", () => {
-    const { container } = render(<ProjectModuleTiles labels={LABELS} />);
+const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 
-    const tiles = [...container.querySelectorAll('[aria-disabled="true"]')];
-    expect(tiles).toHaveLength(7);
-    expect(tiles.map((tile) => tile.querySelector("h3")?.textContent)).toEqual([
+describe("ProjectModuleTiles", () => {
+  it("renders File Browser first as an active link and keeps others Coming soon", () => {
+    const { container } = render(
+      <ProjectModuleTiles labels={LABELS} projectId={PROJECT_ID} />,
+    );
+
+    const headings = [...container.querySelectorAll("h3")].map(
+      (heading) => heading.textContent,
+    );
+    expect(headings).toEqual([
+      "File Browser",
       "SEO",
       "Social Media",
       "Email",
       "Paid Advertising",
       "Content",
       "PR",
-      "File Browser",
     ]);
-    expect(screen.getAllByText("Coming soon")).toHaveLength(7);
+
+    const fileBrowserLink = screen.getByRole("link", { name: /File Browser/i });
+    expect(fileBrowserLink).toHaveAttribute(
+      "href",
+      `/drive?view=tasks&projectId=${PROJECT_ID}`,
+    );
+    expect(fileBrowserLink).not.toHaveAttribute("aria-disabled", "true");
+    expect(fileBrowserLink).not.toHaveTextContent("Coming soon");
+
+    const disabledTiles = [
+      ...container.querySelectorAll('[aria-disabled="true"]'),
+    ];
+    expect(disabledTiles).toHaveLength(6);
+    expect(
+      disabledTiles.map((tile) => tile.querySelector("h3")?.textContent),
+    ).toEqual([
+      "SEO",
+      "Social Media",
+      "Email",
+      "Paid Advertising",
+      "Content",
+      "PR",
+    ]);
+    expect(screen.getAllByText("Coming soon")).toHaveLength(6);
     expect(
       screen.getByText("Every file this project produced"),
     ).toBeInTheDocument();
     expect(
-      tiles.every((tile) => tile.className.includes("cursor-default")),
+      disabledTiles.every((tile) => tile.className.includes("cursor-default")),
     ).toBe(true);
-    expect(tiles.every((tile) => tile.className.includes("rounded-xl"))).toBe(
-      true,
-    );
     expect(
-      tiles.every((tile) => !tile.className.includes("rounded-none")),
+      disabledTiles.every((tile) => tile.className.includes("rounded-xl")),
     ).toBe(true);
+    expect(
+      disabledTiles.every((tile) => !tile.className.includes("rounded-none")),
+    ).toBe(true);
+
+    expect(
+      screen.queryByRole("link", { name: /SEO/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Social Media/i }),
+    ).not.toBeInTheDocument();
   });
 });
