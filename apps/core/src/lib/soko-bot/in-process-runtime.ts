@@ -16,6 +16,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { generateText, stepCountIs, type ToolSet, tool } from "ai";
+import { HTTPException } from "hono/http-exception";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
@@ -83,6 +84,24 @@ const TURN_RUNTIME_BUDGET_MS = 240_000;
  * fifteen-minute watchdog because nothing wrote `session.waiting`.
  */
 const TOOL_CALL_TIMEOUT_MS = 90_000;
+
+/**
+ * Expected tool failures the model can recover from. Throwing them out of
+ * `execute` makes the AI SDK emit `tool-error`, which Sentry's Vercel AI
+ * integration captures as unhandled (`auto.vercelai.channel`).
+ */
+function modelReadableToolError(error: unknown): Error | null {
+  if (error instanceof HTTPException && error.status < 500) {
+    return error;
+  }
+  if (
+    error instanceof Error &&
+    error.name === "SokoBotRuntimeValidationError"
+  ) {
+    return error;
+  }
+  return null;
+}
 
 async function withTimeout<T>(
   work: Promise<T>,
@@ -258,17 +277,24 @@ async function runTurn(
               ],
             }),
           );
-          const result = await withTimeout(
-            service.executeTool({
-              sessionId,
-              turnId: input.turnId,
+          let result: unknown;
+          try {
+            result = await withTimeout(
+              service.executeTool({
+                sessionId,
+                turnId: input.turnId,
+                capability,
+                toolCallId: callId,
+                input: toolInput,
+              }),
+              TOOL_CALL_TIMEOUT_MS,
               capability,
-              toolCallId: callId,
-              input: toolInput,
-            }),
-            TOOL_CALL_TIMEOUT_MS,
-            capability,
-          );
+            );
+          } catch (error) {
+            const readable = modelReadableToolError(error);
+            if (!readable) throw error;
+            result = { error: readable.message };
+          }
           await log.append(
             runtimeEvent("action.result", { name: capability, callId }),
           );

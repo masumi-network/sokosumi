@@ -55,6 +55,7 @@ import {
 } from "@sokosumi/utils";
 import { list, put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
+import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { toMasumiAgent } from "@/helpers/agent";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
@@ -259,7 +260,24 @@ export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
 
 export class SokoBotRuntimeAuthorizationError extends Error {}
 export class SokoBotRuntimeConflictError extends Error {}
-export class SokoBotRuntimeValidationError extends Error {}
+export class SokoBotRuntimeValidationError extends Error {
+  constructor(message?: string) {
+    super(message);
+    this.name = "SokoBotRuntimeValidationError";
+  }
+}
+
+/** Task-domain HTTP 4xx is a tool error the model can read, not a transport failure. */
+async function runTaskDomainTool<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof HTTPException && error.status < 500) {
+      throw new SokoBotRuntimeValidationError(error.message);
+    }
+    throw error;
+  }
+}
 
 /** Schedule tools never need approval; their domain errors become tool errors the model can read. */
 async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
@@ -2193,11 +2211,17 @@ export class SokoBotRuntimeService {
         });
       }
       case "create_task":
-        return this.createTask(authorized, input.input, input.toolCallId);
+        return runTaskDomainTool(() =>
+          this.createTask(authorized, input.input, input.toolCallId),
+        );
       case "update_task":
-        return this.updateTask(authorized, input.input, input.toolCallId);
+        return runTaskDomainTool(() =>
+          this.updateTask(authorized, input.input, input.toolCallId),
+        );
       case "assign_task":
-        return this.assignTask(authorized, input.input, input.toolCallId);
+        return runTaskDomainTool(() =>
+          this.assignTask(authorized, input.input, input.toolCallId),
+        );
       case "get_task_status": {
         const { taskId } = taskIdInputSchema.parse(input.input);
         return this.readTask(authorized, taskId);
