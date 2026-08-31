@@ -1,3 +1,4 @@
+import { CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
@@ -155,14 +156,14 @@ describe("outbound room message", () => {
     const failed = failOutboundMessage(
       [pending],
       "turn-1",
-      "Message is too long (maximum 40000 characters). Shorten it to send.",
+      CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
     );
     expect(readOutboundDeliveryStatus(failed[0]!)).toBe("failed");
     expect(failed[0]?.metadata?.[OUTBOUND_DELIVERY_STATUS_METADATA_KEY]).toBe(
       "failed",
     );
     expect(readOutboundErrorMessage(failed[0]!)).toBe(
-      "Message is too long (maximum 40000 characters). Shorten it to send.",
+      CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
     );
 
     const retried = markOutboundMessagePending(failed, "turn-1");

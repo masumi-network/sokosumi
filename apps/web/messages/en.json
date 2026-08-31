@@ -5716,6 +5716,7 @@
       "loading": "Loading...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Message is too long ({count}/{max}). Shorten it to send.",
+      "composerCharacterCount": "{count}/{max}",
       "composerAttachAsMarkdownFile": "Attach as a markdown file instead",
       "NoOrganization": {
         "title": "Channels coming soon",

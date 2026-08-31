@@ -225,15 +225,20 @@ describe("chat room invitation schemas", () => {
 });
 
 describe("createChatRoomMessageRequestSchema", () => {
-  it("accepts a box-drawing research paste longer than the old 10k cap", () => {
+  it("accepts content at the 10_000 max", () => {
+    const content = "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH);
+    expect(createChatRoomMessageRequestSchema.parse({ content }).content).toBe(
+      content,
+    );
+  });
+
+  it("rejects a paste over 10_000 characters", () => {
     const content = `┌${"─".repeat(40)}┐\n`.repeat(280);
-    expect(content.length).toBeGreaterThan(10_000);
-    expect(content.length).toBeLessThanOrEqual(
+    expect(content.length).toBeGreaterThan(
       CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
     );
-    expect(createChatRoomMessageRequestSchema.parse({ content }).content).toBe(
-      content.trim(),
-    );
+    const result = createChatRoomMessageRequestSchema.safeParse({ content });
+    expect(result.success).toBe(false);
   });
 
   it("rejects content over the shared max with a readable message", () => {

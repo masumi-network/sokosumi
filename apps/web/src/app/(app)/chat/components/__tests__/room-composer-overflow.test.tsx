@@ -15,7 +15,11 @@ import { ROOM_COMPOSER_OVERFLOW_MARKDOWN_FILENAME } from "../room-helpers";
 const uploadComposeAttachments = vi.hoisted(() => vi.fn());
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations:
+    () => (key: string, values?: { count?: number; max?: number }) =>
+      values?.count != null && values.max != null
+        ? `${key} ${values.count}/${values.max}`
+        : key,
   useFormatter: () => ({
     dateTime: () => "",
   }),
@@ -64,15 +68,18 @@ vi.mock("@/components/chat/room-message-composer", () => ({
   RoomComposerEmojiPicker: () => null,
   RoomMessageComposer: ({
     belowEditor,
+    toolbarEnd,
     sendDisabled,
     onSubmit,
   }: {
     belowEditor?: ReactNode;
+    toolbarEnd?: ReactNode;
     sendDisabled?: boolean;
     onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
   }) => (
     <form onSubmit={onSubmit}>
       {belowEditor}
+      {toolbarEnd}
       <button type="submit" disabled={sendDisabled}>
         send
       </button>
@@ -96,6 +103,9 @@ vi.mock("@/components/drive/attachment-submenu", () => ({
   AttachmentSubmenu: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
+const NEAR_LIMIT = "a".repeat(9_500);
+const JUST_UNDER_COUNT = "a".repeat(9_499);
+const AT_MAX = "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH);
 const TOO_LONG = "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1);
 
 function OverflowHarness({
@@ -135,6 +145,36 @@ describe("RoomComposer over-limit recovery", () => {
     uploadComposeAttachments.mockReset();
   });
 
+  it("hides the character count below 9_500", () => {
+    const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+    });
+    render(
+      <OverflowHarness initialValue={JUST_UNDER_COUNT} onSubmit={onSubmit} />,
+    );
+
+    expect(screen.queryByText(/composerCharacterCount/)).toBeNull();
+    expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
+  });
+
+  it("shows the character count from 9_500 through the 10_000 max", () => {
+    const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+    });
+    const { unmount } = render(
+      <OverflowHarness initialValue={NEAR_LIMIT} onSubmit={onSubmit} />,
+    );
+
+    expect(screen.getByText("composerCharacterCount 9500/10000")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
+    expect(screen.queryByRole("alert")).toBeNull();
+    unmount();
+
+    render(<OverflowHarness initialValue={AT_MAX} onSubmit={onSubmit} />);
+    expect(screen.getByText("composerCharacterCount 10000/10000")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "send" })).toBeEnabled();
+  });
+
   it("shows the too-long error and no file recovery when attachments are off", () => {
     const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -148,6 +188,7 @@ describe("RoomComposer over-limit recovery", () => {
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent("composerTooLong");
+    expect(screen.getByText("composerCharacterCount 10001/10000")).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "composerAttachAsMarkdownFile" }),
     ).toBeNull();
@@ -175,6 +216,7 @@ describe("RoomComposer over-limit recovery", () => {
       name: "composerAttachAsMarkdownFile",
     });
     expect(screen.getByRole("button", { name: "send" })).toBeDisabled();
+    expect(screen.getByText("composerCharacterCount 10001/10000")).toBeTruthy();
 
     await user.click(recover);
 

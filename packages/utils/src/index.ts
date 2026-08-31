@@ -71,6 +71,7 @@ export {
   isOwnedUserChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
 export {
+  CHAT_ROOM_MESSAGE_CONTENT_COUNT_VISIBLE_AT,
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
 } from "./chat-room-message-content.js";

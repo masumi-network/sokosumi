@@ -209,4 +209,28 @@ describe("RoomMessageComposer send pointer path", () => {
       scrollMarginTop: `${MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX}px`,
     });
   });
+
+  it("clusters toolbarEnd with Send on the trailing edge", () => {
+    render(
+      <RoomMessageComposer
+        onSubmit={(event) => event.preventDefault()}
+        attachments={[]}
+        onRemoveAttachment={() => undefined}
+        removeAttachmentLabel={(name) => name}
+        isSending={false}
+        sendDisabled={false}
+        sendAriaLabel="Send"
+        toolbarEnd={<span>9500/10000</span>}
+      >
+        <div role="textbox" contentEditable tabIndex={0} />
+      </RoomMessageComposer>,
+    );
+
+    const send = screen.getByRole("button", { name: "Send" });
+    const count = screen.getByText("9500/10000");
+    expect(send.parentElement).toBe(count.parentElement);
+    expect(
+      count.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });

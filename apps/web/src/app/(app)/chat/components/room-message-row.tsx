@@ -126,6 +126,7 @@ import {
   type ChatParticipantHoverProfile,
   composerMentionDisplayNames,
   formatMessageTime,
+  isRoomComposerContentCountVisible,
   isRoomComposerContentOverLimit,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
@@ -1546,6 +1547,9 @@ function MessageEditComposer({
     onCancel();
   }
 
+  const editOverLimit = isRoomComposerContentOverLimit(value.trim());
+  const showEditContentCount = isRoomComposerContentCountVisible(value);
+
   return (
     <div className="pt-0.5">
       <div
@@ -1581,13 +1585,33 @@ function MessageEditComposer({
           className="min-h-10 max-h-40 overflow-y-auto px-3 py-2.5 leading-6"
         />
       </div>
-      {isRoomComposerContentOverLimit(value.trim()) ? (
-        <p className="text-destructive pt-1 text-xs" role="alert">
-          {t("composerTooLong", {
-            count: value.trim().length,
-            max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
-          })}
-        </p>
+      {editOverLimit || showEditContentCount ? (
+        <div className="flex items-start justify-between gap-2 pt-1">
+          {editOverLimit ? (
+            <p className="text-destructive text-xs" role="alert">
+              {t("composerTooLong", {
+                count: value.trim().length,
+                max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+              })}
+            </p>
+          ) : (
+            <span />
+          )}
+          {showEditContentCount ? (
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                editOverLimit ? "text-destructive" : "text-muted-foreground",
+              )}
+              aria-live="polite"
+            >
+              {t("composerCharacterCount", {
+                count: value.length,
+                max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+              })}
+            </span>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

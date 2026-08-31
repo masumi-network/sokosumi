@@ -77,6 +77,7 @@ import {
   type ChatParticipantHoverProfile,
   composerMentionDisplayNames,
   createRoomComposerOverflowMarkdownFile,
+  isRoomComposerContentCountVisible,
   isRoomComposerContentOverLimit,
   type PendingRoomQuote,
   partitionRoomMentionSuggestions,
@@ -390,6 +391,7 @@ export function RoomComposer({
     [attachments, value],
   );
   const contentOverLimit = isRoomComposerContentOverLimit(composedContent);
+  const showContentCount = isRoomComposerContentCountVisible(composedContent);
   const composerMentions = showMentionShortcut ? mentions : {};
   const handleSelectedKeysChange = showMentionShortcut
     ? onSelectedKeysChange
@@ -615,6 +617,22 @@ export function RoomComposer({
         }
         isSending={isSending}
         sendDisabled={isUploadingFiles || sendDisabled || contentOverLimit}
+        toolbarEnd={
+          showContentCount ? (
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                contentOverLimit ? "text-destructive" : "text-muted-foreground",
+              )}
+              aria-live="polite"
+            >
+              {t("composerCharacterCount", {
+                count: composedContent.length,
+                max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+              })}
+            </span>
+          ) : undefined
+        }
         belowEditor={
           contentOverLimit ? (
             <div className="flex flex-col items-start gap-1 px-4 pb-1">

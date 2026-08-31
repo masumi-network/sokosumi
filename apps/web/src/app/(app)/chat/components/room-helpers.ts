@@ -1,5 +1,6 @@
 import {
   buildRoomQuoteSnippetParts,
+  CHAT_ROOM_MESSAGE_CONTENT_COUNT_VISIBLE_AT,
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   type ChannelLinkTarget,
   type ChatRoomQuoteAttachment,
@@ -251,6 +252,10 @@ export function isRoomComposerEmpty(
 
 export function isRoomComposerContentOverLimit(content: string): boolean {
   return content.length > CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH;
+}
+
+export function isRoomComposerContentCountVisible(content: string): boolean {
+  return content.length >= CHAT_ROOM_MESSAGE_CONTENT_COUNT_VISIBLE_AT;
 }
 
 /** Filename used when the user opts in to recover an over-limit draft as a file. */

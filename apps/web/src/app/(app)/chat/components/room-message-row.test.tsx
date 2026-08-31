@@ -1,3 +1,4 @@
+import { CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
@@ -2765,8 +2766,7 @@ describe("ChatMessageRow outbound delivery", () => {
       metadata: {
         client_message_id: "turn-1",
         outbound_delivery_status: "failed",
-        outbound_error:
-          "Message is too long (maximum 40000 characters). Shorten it to send.",
+        outbound_error: CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
       },
     });
 
@@ -2776,11 +2776,11 @@ describe("ChatMessageRow outbound delivery", () => {
     });
 
     expect(screen.getByTestId("outbound-delivery-failed")).toHaveTextContent(
-      "Message is too long (maximum 40000 characters). Shorten it to send.",
+      CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
     );
     expect(screen.getByTestId("outbound-delivery-failed-icon")).toHaveAttribute(
       "aria-label",
-      "Message is too long (maximum 40000 characters). Shorten it to send.",
+      CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
     );
   });
 });

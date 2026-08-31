@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildRoomComposerMessageContent,
   createRoomComposerOverflowMarkdownFile,
+  isRoomComposerContentCountVisible,
   isRoomComposerContentOverLimit,
   isRoomComposerEmpty,
   ROOM_COMPOSER_OVERFLOW_MARKDOWN_FILENAME,
@@ -54,13 +55,32 @@ describe("isRoomComposerEmpty", () => {
 });
 
 describe("isRoomComposerContentOverLimit", () => {
-  it("allows a 11_699-character box-drawing paste", () => {
-    expect(isRoomComposerContentOverLimit("┌".repeat(11_699))).toBe(false);
-  });
-
-  it("flags content over the shared max", () => {
+  it("allows content at the 10_000 max", () => {
     expect(
       isRoomComposerContentOverLimit(
+        "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH),
+      ),
+    ).toBe(false);
+  });
+
+  it("flags content over the 10_000 max", () => {
+    expect(
+      isRoomComposerContentOverLimit(
+        "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("isRoomComposerContentCountVisible", () => {
+  it("hides the count below 9_500 characters", () => {
+    expect(isRoomComposerContentCountVisible("a".repeat(9_499))).toBe(false);
+  });
+
+  it("shows the count from 9_500 through over-limit", () => {
+    expect(isRoomComposerContentCountVisible("a".repeat(9_500))).toBe(true);
+    expect(
+      isRoomComposerContentCountVisible(
         "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1),
       ),
     ).toBe(true);
