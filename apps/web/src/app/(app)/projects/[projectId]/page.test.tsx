@@ -160,7 +160,14 @@ describe("ProjectDetailPage", () => {
     expect(workspaceHeading.closest("section")?.className).toContain("px-4");
     expect(workspaceHeading.closest("section")?.className).toContain("md:px-0");
     expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
-      7,
+      6,
+    );
+    const fileBrowserLink = screen.getByRole("link", {
+      name: /App\.Projects\.Detail\.modules\.fileBrowser\.title/i,
+    });
+    expect(fileBrowserLink).toHaveAttribute(
+      "href",
+      `/drive?view=tasks&projectId=${project.id}`,
     );
   });
 });

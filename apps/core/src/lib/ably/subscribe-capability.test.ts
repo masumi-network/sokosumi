@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { buildAblySubscribeCapability } from "./subscribe-capability";
+import {
+  buildAblyClientCapability,
+  buildAblySubscribeCapability,
+} from "./subscribe-capability";
 
 describe("buildAblySubscribeCapability", () => {
   it("grants user task/notification channels and per-room chat channels", () => {
@@ -12,11 +15,32 @@ describe("buildAblySubscribeCapability", () => {
     expect(capability).toEqual({
       "agent_jobs:*:user_user_123": ["subscribe"],
       "tasks:all:user_user_123": ["subscribe"],
-      "notifications:all:user_user_123": ["subscribe"],
+      "notifications:all:user_user_123": ["subscribe", "push-subscribe"],
       "chat_control:user_user_123": ["subscribe"],
       "chat_rooms:room_room-a": ["subscribe"],
       "chat_rooms:room_room-b": ["subscribe"],
     });
+  });
+
+  // buildAblyClientCapability, not the buildAblySubscribeCapability wrapper:
+  // this is the function the token mint actually calls, so the grant is
+  // asserted on the path a browser token really takes.
+  it("grants push-subscribe on the notifications channel only", () => {
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: ["room-a"],
+      organizationIds: ["org_a"],
+    });
+
+    expect(capability["notifications:all:user_user_123"]).toEqual([
+      "subscribe",
+      "push-subscribe",
+    ]);
+    expect(
+      Object.entries(capability)
+        .filter(([, ops]) => ops.includes("push-subscribe"))
+        .map(([channel]) => channel),
+    ).toEqual(["notifications:all:user_user_123"]);
   });
 
   it("grants presence on each organization channel", () => {

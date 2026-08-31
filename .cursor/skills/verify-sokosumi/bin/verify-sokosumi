@@ -20,6 +20,10 @@ CORE_URL="${VERIFY_SOKOSUMI_CORE_URL:-${CORE_URL:-}}"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR" "$ARTIFACT_ROOT"
 
+# Cursor runtime secrets login_email/login_pwd fill the existing VERIFY_* defaults.
+: "${VERIFY_SOKOSUMI_EMAIL:=${login_email:-${LOGIN_EMAIL:-}}}"
+: "${VERIFY_SOKOSUMI_PASSWORD:=${login_pwd:-${LOGIN_PWD:-}}}"
+
 DEFAULT_FIXTURE_EMAIL="${VERIFY_SOKOSUMI_EMAIL:-alice@sokosumi.test}"
 DEFAULT_FIXTURE_PASSWORD="${VERIFY_SOKOSUMI_PASSWORD:-Password123!}"
 AUTH_EMAIL_SELECTOR='[data-testid="auth-field-email"]'

@@ -16,18 +16,28 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { signOut } from "@/lib/auth/auth.client";
+import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
+
+/**
+ * Who is signing out. The id rides in beside the email rather than coming
+ * from `useSession()`: this modal mounts from the root layout on every route,
+ * so subscribing here would fetch the session on `/signin` and `/signup` too.
+ */
+export interface LogoutModalUser {
+  id: string;
+  email: string;
+}
 
 interface LogoutModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  email: string;
+  user: LogoutModalUser | null;
 }
 
 export default function LogoutModal({
   open,
   onOpenChange,
-  email,
+  user,
 }: LogoutModalProps) {
   const t = useTranslations("Components.Modals.LogoutModal");
   const [loading, setLoading] = useState(false);
@@ -35,7 +45,7 @@ export default function LogoutModal({
 
   const handleLogout = async () => {
     setLoading(true);
-    await signOut({
+    await signOutWithPushRelease(user?.id, {
       fetchOptions: {
         onError: () => {
           toast.error(t("error"));
@@ -58,7 +68,7 @@ export default function LogoutModal({
             {t("title")}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-center text-base">
-            {t("description", { email })}
+            {t("description", { email: user?.email ?? "" })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="block space-y-1.5">
