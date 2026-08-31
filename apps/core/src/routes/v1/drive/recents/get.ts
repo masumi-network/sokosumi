@@ -9,6 +9,7 @@ import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import {
+  driveRecentsSortFingerprint,
   fetchDriveRecentsPage,
   resolveDriveRecentsSort,
 } from "@/helpers/drive-recents";
@@ -145,7 +146,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursorBinding: {
         prefix,
         searchQuery: searchQuery ?? "",
-        sortFingerprint: "",
+        sortFingerprint: driveRecentsSortFingerprint(sort),
       },
       sort,
       ...(searchQuery ? { searchQuery } : {}),

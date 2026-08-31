@@ -734,6 +734,48 @@ describe("Drive Tasks Routes", () => {
         expect(json.data.length).toBeGreaterThan(0);
       });
 
+      it("sorts projects by name when sortBy=name", async () => {
+        prismaTaskGroupByMock.mockResolvedValue([
+          { projectId: "prj_z" },
+          { projectId: "prj_a" },
+        ]);
+        prismaProjectFindManyMock.mockResolvedValue([
+          {
+            id: "prj_z",
+            name: "Zebra",
+            tasks: [
+              {
+                files: [{ updatedAt: new Date("2026-03-25T16:00:00.000Z") }],
+                jobs: [],
+              },
+            ],
+          },
+          {
+            id: "prj_a",
+            name: "Alpha",
+            tasks: [
+              {
+                files: [{ updatedAt: new Date("2026-03-25T10:00:00.000Z") }],
+                jobs: [],
+              },
+            ],
+          },
+        ]);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&sortBy=name&sortOrder=asc",
+        );
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.data.map((item: { name?: string }) => item.name)).toEqual([
+          "Alpha",
+          "Zebra",
+        ]);
+      });
+
       it("paginates combined list correctly", async () => {
         const projects = [
           {
