@@ -39,7 +39,7 @@ export function driveItemArticleClass(viewMode: FilesViewMode): string {
 
 export function driveItemBodyClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
-    ? "grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-0.5"
+    ? "flex min-w-0 flex-1 items-center gap-2"
     : "flex min-w-0 flex-1 items-center gap-4 py-3 px-2";
 }
 
@@ -53,10 +53,10 @@ export function driveItemIconWellClass(viewMode: FilesViewMode): string {
 export const DRIVE_FILE_TYPE_ICON_CLASS =
   "flex size-5 shrink-0 items-center justify-center [&_svg]:h-5 [&_svg]:w-auto";
 
-/** Grid: size · date on its own row under icon|name. List: mobile-only row; desktop uses driveItemMetaDesktopClass. */
+/** Grid: one-line size · date. List: mobile-only row; desktop uses `driveItemMetaDesktopClass`. */
 export function driveItemMetaMobileClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
-    ? "text-muted-foreground/70 col-span-2 flex min-w-0 items-center text-xs [&>span+span]:before:mx-1 [&>span+span]:before:content-['·']"
+    ? "text-muted-foreground/70 flex items-center text-xs [&>span+span]:before:mx-1 [&>span+span]:before:content-['·']"
     : "text-muted-foreground/70 flex items-center gap-3 text-xs md:hidden";
 }
 
@@ -71,5 +71,5 @@ export function driveItemActionsClass(viewMode: FilesViewMode): string {
 }
 
 export function driveItemNameClass(): string {
-  return "text-foreground line-clamp-1 min-w-0 text-sm font-medium";
+  return "text-foreground line-clamp-1 text-sm font-medium";
 }

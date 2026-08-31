@@ -1618,43 +1618,23 @@ function DrivePageWorkspace({
                     <div className={driveItemIconWellClass(layoutMode)}>
                       <Folder className="text-muted-foreground size-5" />
                     </div>
-                    {layoutMode === "grid" ? (
-                      <>
-                        <DriveItemName name={item.name} />
-                        <div className={driveItemMetaMobileClass(layoutMode)}>
-                          <span>
-                            {formatter.dateTime(
-                              new Date(item.latestFileUpdatedAt),
-                              {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <DriveItemName name={item.name} />
-                        <div className={driveItemMetaMobileClass(layoutMode)}>
-                          <span>
-                            {formatter.dateTime(
-                              new Date(item.latestFileUpdatedAt),
-                              {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </span>
-                        </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <DriveItemName name={item.name} />
+                      <div className={driveItemMetaMobileClass(layoutMode)}>
+                        <span>
+                          {formatter.dateTime(
+                            new Date(item.latestFileUpdatedAt),
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </span>
                       </div>
-                    )}
+                    </div>
                     <div className={driveItemMetaDesktopClass(layoutMode)}>
                       <span>
                         {formatter.dateTime(
@@ -1687,43 +1667,23 @@ function DrivePageWorkspace({
                     <div className={driveItemIconWellClass(layoutMode)}>
                       <Folder className="text-muted-foreground size-5" />
                     </div>
-                    {layoutMode === "grid" ? (
-                      <>
-                        <DriveItemName name={t("noProject")} />
-                        <div className={driveItemMetaMobileClass(layoutMode)}>
-                          <span>
-                            {formatter.dateTime(
-                              new Date(item.latestFileUpdatedAt),
-                              {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <DriveItemName name={t("noProject")} />
-                        <div className={driveItemMetaMobileClass(layoutMode)}>
-                          <span>
-                            {formatter.dateTime(
-                              new Date(item.latestFileUpdatedAt),
-                              {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </span>
-                        </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <DriveItemName name={t("noProject")} />
+                      <div className={driveItemMetaMobileClass(layoutMode)}>
+                        <span>
+                          {formatter.dateTime(
+                            new Date(item.latestFileUpdatedAt),
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </span>
                       </div>
-                    )}
+                    </div>
                     <div className={driveItemMetaDesktopClass(layoutMode)}>
                       <span>
                         {formatter.dateTime(
@@ -1753,43 +1713,23 @@ function DrivePageWorkspace({
                     <div className={driveItemIconWellClass(layoutMode)}>
                       <Folder className="text-muted-foreground size-5" />
                     </div>
-                    {layoutMode === "grid" ? (
-                      <>
-                        <DriveItemName name={item.name} />
-                        <div className={driveItemMetaMobileClass(layoutMode)}>
-                          <span>
-                            {formatter.dateTime(
-                              new Date(item.latestFileUpdatedAt),
-                              {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <DriveItemName name={item.name} />
-                        <div className={driveItemMetaMobileClass(layoutMode)}>
-                          <span>
-                            {formatter.dateTime(
-                              new Date(item.latestFileUpdatedAt),
-                              {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
-                          </span>
-                        </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <DriveItemName name={item.name} />
+                      <div className={driveItemMetaMobileClass(layoutMode)}>
+                        <span>
+                          {formatter.dateTime(
+                            new Date(item.latestFileUpdatedAt),
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </span>
                       </div>
-                    )}
+                    </div>
                     <div className={driveItemMetaDesktopClass(layoutMode)}>
                       <span>
                         {formatter.dateTime(
@@ -1880,52 +1820,28 @@ function DrivePageWorkspace({
                             <FileTypeIcon extension={extension || "file"} />
                           </div>
                         </div>
-                        {layoutMode === "grid" ? (
-                          <>
-                            {nameEl}
-                            <div
-                              className={driveItemMetaMobileClass(layoutMode)}
-                            >
-                              <span>
-                                {item.size ? formatBytes(item.size) : "—"}
-                              </span>
-                              <span>
-                                {formatter.dateTime(new Date(item.updatedAt), {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            {nameEl}
-                            {searchContext ? (
-                              <p className="text-muted-foreground/70 line-clamp-1 text-xs">
-                                {searchContext}
-                              </p>
-                            ) : null}
-                            <div
-                              className={driveItemMetaMobileClass(layoutMode)}
-                            >
-                              <span>
-                                {item.size ? formatBytes(item.size) : "—"}
-                              </span>
-                              <span>
-                                {formatter.dateTime(new Date(item.updatedAt), {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          {nameEl}
+                          {searchContext && layoutMode !== "grid" ? (
+                            <p className="text-muted-foreground/70 line-clamp-1 text-xs">
+                              {searchContext}
+                            </p>
+                          ) : null}
+                          <div className={driveItemMetaMobileClass(layoutMode)}>
+                            <span>
+                              {item.size ? formatBytes(item.size) : "—"}
+                            </span>
+                            <span>
+                              {formatter.dateTime(new Date(item.updatedAt), {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
                           </div>
-                        )}
+                        </div>
                         <div className={driveItemMetaDesktopClass(layoutMode)}>
                           <span>
                             {item.size ? formatBytes(item.size) : "—"}
@@ -2120,41 +2036,6 @@ function DrivePageWorkspace({
                           className="h-8 flex-1"
                           autoFocus
                         />
-                      ) : layoutMode === "grid" ? (
-                        <>
-                          {nameEl}
-                          <div className={driveItemMetaMobileClass(layoutMode)}>
-                            <span>
-                              {item.size ? formatBytes(item.size) : "—"}
-                            </span>
-                            <span>
-                              {formatter.dateTime(new Date(item.uploadedAt), {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
-                          <div
-                            className={driveItemMetaDesktopClass(layoutMode)}
-                          >
-                            <span>
-                              {item.size ? formatBytes(item.size) : "—"}
-                            </span>
-                            <span>
-                              {formatter.dateTime(new Date(item.uploadedAt), {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
-                          {viewers}
-                        </>
                       ) : (
                         <>
                           <div className="flex min-w-0 flex-1 flex-col gap-0.5">

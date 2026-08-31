@@ -4,7 +4,6 @@ import {
   driveItemArticleClass,
   driveItemBodyClass,
   driveItemIconWellClass,
-  driveItemMetaMobileClass,
   driveItemsListClass,
   driveItemsPanelClass,
 } from "@/app/drive/components/drive-view-layout";
@@ -31,10 +30,12 @@ export function DriveListSkeleton({
                 <div className={driveItemIconWellClass("grid")}>
                   <Skeleton className="size-4" />
                 </div>
-                <Skeleton className="h-4 w-24" />
-                <div className={driveItemMetaMobileClass("grid")}>
-                  <Skeleton className="h-3 w-10" />
-                  <Skeleton className="h-3 w-16" />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <Skeleton className="h-4 w-24" />
+                  <div className="flex items-center gap-1">
+                    <Skeleton className="h-3 w-10" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
                 </div>
               </div>
               <div className="shrink-0 pl-1">

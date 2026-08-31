@@ -53,13 +53,8 @@ describe("DriveItemCard actions positioning", () => {
   it("keeps grid overflow actions in document flow", () => {
     expect(driveItemActionsClass("grid")).toContain("shrink-0");
     expect(driveItemActionsClass("grid")).not.toContain("absolute");
-    expect(driveItemBodyClass("grid")).toContain("grid");
-    expect(driveItemBodyClass("grid")).toContain(
-      "grid-cols-[auto_minmax(0,1fr)]",
-    );
-    expect(driveItemBodyClass("grid")).not.toMatch(
-      /^flex min-w-0 flex-1 items-center gap-2$/,
-    );
+    expect(driveItemBodyClass("grid")).toContain("items-center");
+    expect(driveItemBodyClass("grid")).not.toContain("flex-col");
 
     render(
       <DriveItemCard
