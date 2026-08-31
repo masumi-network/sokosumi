@@ -25,10 +25,7 @@ import type {
   SokoBotLabVerdict,
   SokoBotVersion,
 } from "@/lib/clients/generated/core";
-import type {
-  ChatTurnDetail,
-  SokoBotChatState,
-} from "@/lib/soko-bot/chat-state";
+import type { ChatTurnDetail } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
 
 const POLL_MS = 3_000;
@@ -85,33 +82,6 @@ async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
 const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "CANCELLED"]);
 
 /** The EVENT turn the sync starts for a simulated Coworker event (next cron tick). */
-async function waitForEventTurn(
-  taskId: string,
-  since: number,
-): Promise<string | null> {
-  const deadline = Date.now() + TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    const response = await fetch("/api/personal-assistant/state", {
-      credentials: "same-origin",
-      cache: "no-store",
-    });
-    if (response.ok) {
-      const body = (await response.json()) as {
-        state?: SokoBotChatState | null;
-      };
-      const turn = body.state?.turns.find(
-        (t) =>
-          t.source === "EVENT" &&
-          t.userMessage.includes(taskId) &&
-          new Date(t.createdAt).getTime() >= since,
-      );
-      if (turn) return turn.id;
-    }
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-  }
-  return null;
-}
-
 async function waitForTurn(turnId: string): Promise<ChatTurnDetail | null> {
   const deadline = Date.now() + TIMEOUT_MS;
   while (Date.now() < deadline) {
@@ -230,7 +200,6 @@ export function ScenarioLab({
         return;
       }
       if (scenario.trigger?.kind === "task_event") {
-        const since = Date.now() - 5_000;
         const simulated = await simulateSokoBotTaskEventAction({
           input: {
             status: scenario.trigger.status,
@@ -244,7 +213,11 @@ export function ScenarioLab({
           }));
           return;
         }
-        turnId = await waitForEventTurn(simulated.value.taskId, since);
+        // The simulation starts the turn and hands back its id. It used to
+        // be left to the one-minute events cron and found by scanning state
+        // for a turn whose text mentioned the task, which reported "no turn"
+        // for every reason a wake can be withheld.
+        turnId = simulated.value.turnId;
       } else {
         const started = await startSokoBotTurnAction({
           input: {
@@ -261,11 +234,18 @@ export function ScenarioLab({
         }
         turnId = started.value.turnId;
       }
-      const turn = turnId ? await waitForTurn(turnId) : null;
+      if (!turnId) {
+        setFailures((current) => ({
+          ...current,
+          [scenario.id]: t("noTurn"),
+        }));
+        return;
+      }
+      const turn = await waitForTurn(turnId);
       if (!turn) {
         setFailures((current) => ({
           ...current,
-          [scenario.id]: t("timeout"),
+          [scenario.id]: t("timeout", { turnId }),
         }));
         return;
       }

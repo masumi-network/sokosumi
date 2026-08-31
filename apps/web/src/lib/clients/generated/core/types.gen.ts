@@ -4836,6 +4836,7 @@ export type SokoBotLabTaskEvent = {
     taskId: string;
     name: string;
     status: string;
+    turnId: string;
 };
 
 export type SimulateSokoBotTaskEventRequest = {

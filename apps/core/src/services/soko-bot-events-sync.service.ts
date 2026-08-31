@@ -212,7 +212,22 @@ export class SokoBotEventsSyncService {
       // bot that comments on its own Task produces an event that would
       // otherwise wake it again, every minute, without a ceiling.
       const gate = await proactiveGate(work.sokoBotId);
-      if (!gate.ok) continue;
+      if (!gate.ok) {
+        // Logged rather than skipped in silence: a bot that stops reacting to
+        // its Coworkers looks identical to a broken sync from the outside,
+        // and this is the line that tells the two apart.
+        console.info("[soko-bot-events] Wake withheld", {
+          sokoBotId: work.sokoBotId,
+          reason: gate.reason,
+          usedToday: gate.usedToday,
+          limit: gate.limit,
+          changes: work.changes.length,
+        });
+        // One deferral, matching the busy-bot case below: the counter is bots
+        // whose wake did not happen, not changes.
+        result.deferred += 1;
+        continue;
+      }
       // Collapse one entity's multiple delegations into one change line.
       const unique = new Map<string, Change>();
       for (const change of work.changes) unique.set(change.entityId, change);
