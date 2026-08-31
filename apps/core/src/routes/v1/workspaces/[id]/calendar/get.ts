@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskScheduleOccurrenceState } from "@sokosumi/database";
+import { type Prisma, TaskScheduleOccurrenceState } from "@sokosumi/database";
 import { isNmkrEmail } from "@sokosumi/utils";
+import { requireCoworkerCapability } from "@/helpers/access-control";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
@@ -11,8 +12,13 @@ import {
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
+import {
+  buildCoworkerTaskListAccessFilter,
+  hasGrantedWorkspaceAccess,
+} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   workspaceCalendarItemSchema,
@@ -167,13 +173,55 @@ function isPersistedOccurrenceCursor(
   return cursor !== null && z.uuid().safeParse(cursor.id).success;
 }
 
+async function resolveCoworkerCalendarTaskAccess(
+  authContext: AuthenticationContext,
+  workspaceId: string,
+): Promise<Prisma.TaskWhereInput | undefined> {
+  if (authContext.actor !== "coworker") {
+    return undefined;
+  }
+
+  await requireCoworkerCapability(authContext.coworkerId, "tasks");
+  const hasWorkspaceGrant = authContext.context
+    ? await hasGrantedWorkspaceAccess({
+        vendorId: authContext.vendorId,
+        workspaceId,
+      })
+    : false;
+
+  return buildCoworkerTaskListAccessFilter({
+    coworkerId: authContext.coworkerId,
+    vendorId: authContext.vendorId,
+    hasWorkspaceGrant,
+  });
+}
+
+function buildSeriesTaskWhere(
+  query: WorkspaceCalendarReadQuery,
+  userId: string,
+  coworkerTaskAccess: Prisma.TaskWhereInput | undefined,
+): Prisma.TaskWhereInput | undefined {
+  const seriesTask: Prisma.TaskWhereInput = {
+    ...(query.scope === "owned" ? { ownerId: userId } : {}),
+    ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
+    ...(coworkerTaskAccess ? { AND: [coworkerTaskAccess] } : {}),
+  };
+  return Object.keys(seriesTask).length > 0 ? seriesTask : undefined;
+}
+
 export async function readWorkspaceCalendar(
   workspaceId: string,
   userId: string,
   query: WorkspaceCalendarReadQuery,
+  authContext: AuthenticationContext,
 ) {
   const { cursor, from, to } = query;
   const maxCandidates = query.limit + 1;
+  const coworkerTaskAccess = await resolveCoworkerCalendarTaskAccess(
+    authContext,
+    workspaceId,
+  );
+  const seriesTask = buildSeriesTaskWhere(query, userId, coworkerTaskAccess);
   const persistedOccurrenceBaseWhere = {
     sourceWorkspaceId: workspaceId,
     state: {
@@ -183,14 +231,7 @@ export async function readWorkspaceCalendar(
       ],
     },
     effectiveScheduledAt: { gte: from, lt: to },
-    ...(query.scope === "owned" || query.assigneeId
-      ? {
-          seriesTask: {
-            ...(query.scope === "owned" ? { ownerId: userId } : {}),
-            ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
-          },
-        }
-      : {}),
+    ...(seriesTask ? { seriesTask } : {}),
   };
   const persistedOccurrenceWhere = {
     ...persistedOccurrenceBaseWhere,
@@ -324,6 +365,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceId,
       userContext.userId,
       calendarQuery,
+      c.var.authContext,
     );
 
     return ok(c, items, pagination);

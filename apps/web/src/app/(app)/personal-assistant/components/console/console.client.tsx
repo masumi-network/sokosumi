@@ -26,6 +26,7 @@ import type {
   SokoBotInstalledSkill,
   SokoBotIntegrationCatalogEntry,
   SokoBotIntegrations,
+  SokoBotUsage,
   SokoBotVersion,
 } from "@/lib/clients/generated/core";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
@@ -54,6 +55,7 @@ import { SkillsSection } from "../skills-section.client";
 import { ActivityList } from "./activity-list.client";
 import { AutomationChecks } from "./automation-checks";
 import { DailyStats } from "./daily-stats";
+import { UsageSummary } from "./usage-summary";
 
 function Section({
   title,
@@ -94,6 +96,7 @@ export interface SokoBotConsoleProps {
   version: SokoBotVersion | null;
   installedSkills: SokoBotInstalledSkill[];
   stats: SokoBotDailyStats | null;
+  usage: SokoBotUsage | null;
   integrations: SokoBotIntegrations | null;
   adminHref: string | null;
   catalog: SokoBotIntegrationCatalogEntry[];
@@ -114,6 +117,7 @@ export function SokoBotConsole({
   version,
   installedSkills,
   stats,
+  usage,
   integrations,
   adminHref,
   catalog,
@@ -279,6 +283,14 @@ export function SokoBotConsole({
                   })}
                 >
                   <DailyStats stats={stats} />
+                </Section>
+              ) : null}
+              {usage ? (
+                <Section
+                  title={t("Console.Usage.title")}
+                  description={t("Console.Usage.description")}
+                >
+                  <UsageSummary usage={usage} />
                 </Section>
               ) : null}
               {stats ? (

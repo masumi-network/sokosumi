@@ -521,6 +521,9 @@ export async function runIntegrationTool(
   return execute(integration, slug, args);
 }
 
+/** A Composio call the model is waiting on; well under the turn budget. */
+const COMPOSIO_TIMEOUT_MS = 45_000;
+
 async function executeViaRest(
   integration: ActiveIntegration,
   slug: string,
@@ -548,6 +551,11 @@ async function executeViaRest(
         arguments: args,
         version: "latest",
       }),
+      // Every other external call in Core is bounded; this one was not, and it
+      // is the only unbounded I/O a tool call can reach. A provider that never
+      // answers held the whole turn open until the invocation was killed, which
+      // leaves the turn RUNNING and the chat on "Thinking…".
+      signal: AbortSignal.timeout(COMPOSIO_TIMEOUT_MS),
     },
   );
   const body = (await response.json().catch(() => ({}))) as {

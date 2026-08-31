@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import {
   type ScenarioCheck,
   SOKO_BOT_JUDGE_RUBRIC,
@@ -7,9 +8,10 @@ import {
   sokoBotJudgeVerdictSchema,
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
-
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
+import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 const JUDGE_TIMEOUT_MS = 90_000;
 const VALUE_LIMIT = 2_000;
@@ -79,9 +81,16 @@ async function loadTranscript(turnId: string, userId?: string) {
   };
 }
 
-async function askJudge(payload: unknown): Promise<SokoBotJudgeVerdict> {
+/** The verdict and what it cost. Both attempts count when the first fails. */
+interface JudgeCall {
+  verdict: SokoBotJudgeVerdict;
+  usage: { inputTokens: number; outputTokens: number; costUsd: number };
+}
+
+async function askJudge(payload: unknown): Promise<JudgeCall> {
   // Structured output occasionally comes back empty; one retry is cheap.
   let lastError: unknown;
+  const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const result = await generateText({
@@ -92,25 +101,94 @@ async function askJudge(payload: unknown): Promise<SokoBotJudgeVerdict> {
         instructions: SOKO_BOT_JUDGE_RUBRIC,
         prompt: JSON.stringify(payload),
       });
-      return sokoBotJudgeVerdictSchema.parse(result.output);
+      // Counted before the parse: a verdict this call cannot read still cost
+      // what it cost, and the retry below spends again on top.
+      usage.inputTokens += result.usage?.inputTokens ?? 0;
+      usage.outputTokens += result.usage?.outputTokens ?? 0;
+      usage.costUsd += gatewayCostUsd(result.providerMetadata);
+      return {
+        verdict: sokoBotJudgeVerdictSchema.parse(result.output),
+        usage,
+      };
     } catch (error) {
       lastError = error;
     }
   }
-  throw lastError instanceof Error
-    ? lastError
-    : new SokoBotLabJudgeError("Judge produced no verdict");
+  // Both attempts spent tokens. Throwing without reporting them would hide a
+  // judge that fails often, which is exactly when it costs the most.
+  throw new SokoBotJudgeFailure(
+    lastError instanceof Error
+      ? lastError.message
+      : "Judge produced no verdict",
+    usage,
+  );
 }
 
-async function storeTurnVerdict(turnId: string, verdict: SokoBotJudgeVerdict) {
-  await prisma.sokoBotTurn.update({
-    where: { id: turnId },
-    data: {
-      qualityScore: overallScore(verdict),
-      qualityVerdict: verdict,
-      qualityModel: sokoBotJudgeModel(),
-      judgedAt: new Date(),
+/** Carries what the failed attempts cost, so the caller can still record it. */
+export class SokoBotJudgeFailure extends SokoBotLabJudgeError {
+  constructor(
+    message: string,
+    readonly usage: {
+      inputTokens: number;
+      outputTokens: number;
+      costUsd: number;
     },
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Adds one model call's spend to a turn.
+ *
+ * Serializable because the JSON is a read-modify-write: the live judge and a
+ * lab re-judge of the same turn can overlap, and two plain updates would each
+ * read the same prior total and the later one would erase the earlier call's
+ * tokens while its cost was counted twice.
+ */
+async function addTurnOverheadUsage(
+  turnId: string,
+  usage: { inputTokens: number; outputTokens: number; costUsd: number },
+  extra: Prisma.SokoBotTurnUpdateInput = {},
+): Promise<void> {
+  const asNumber = (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0
+      ? value
+      : 0;
+  await serializableTransaction(async (tx) => {
+    const current = await tx.sokoBotTurn.findUnique({
+      where: { id: turnId },
+      select: { usage: true },
+    });
+    const previous =
+      current?.usage && typeof current.usage === "object"
+        ? (current.usage as Record<string, unknown>)
+        : {};
+    await tx.sokoBotTurn.update({
+      where: { id: turnId },
+      data: {
+        ...extra,
+        usage: {
+          inputTokens: asNumber(previous.inputTokens) + usage.inputTokens,
+          outputTokens: asNumber(previous.outputTokens) + usage.outputTokens,
+          cacheReadTokens: asNumber(previous.cacheReadTokens),
+          cacheWriteTokens: asNumber(previous.cacheWriteTokens),
+          costUsd: asNumber(previous.costUsd) + usage.costUsd,
+        },
+        overheadCostUsdMicros: {
+          increment: BigInt(Math.round(usage.costUsd * 1_000_000)),
+        },
+      },
+    });
+  }, "Another judge recorded usage for this turn at the same moment");
+}
+
+async function storeTurnVerdict(turnId: string, call: JudgeCall) {
+  await addTurnOverheadUsage(turnId, call.usage, {
+    qualityScore: overallScore(call.verdict),
+    qualityVerdict: call.verdict,
+    qualityModel: sokoBotJudgeModel(),
+    judgedAt: new Date(),
   });
 }
 
@@ -149,7 +227,7 @@ export async function judgeSokoBotLabTurn(input: {
     });
   };
   await record(null);
-  const verdict = await askJudge({
+  const call = await askJudge({
     scenario: {
       id: scenario.id,
       title: scenario.title,
@@ -164,8 +242,11 @@ export async function judgeSokoBotLabTurn(input: {
     },
     turn: transcript,
   });
-  await Promise.all([record(verdict), storeTurnVerdict(input.turnId, verdict)]);
-  return { verdict, model };
+  await Promise.all([
+    record(call.verdict),
+    storeTurnVerdict(input.turnId, call),
+  ]);
+  return { verdict: call.verdict, model };
 }
 
 /**
@@ -177,7 +258,7 @@ export async function judgeTurnQuality(turnId: string): Promise<void> {
   const { turn, transcript } = await loadTranscript(turnId);
   if (turn.status !== "COMPLETED" && turn.status !== "FAILED") return;
   const proactive = turn.source !== "CHAT" && turn.source !== "ADMIN_RETRY";
-  const verdict = await askJudge({
+  const call = await askJudge({
     scenario: {
       id: proactive ? "live-proactive-turn" : "live-turn",
       title: proactive ? "Self-started turn" : "Live turn",
@@ -191,5 +272,19 @@ export async function judgeTurnQuality(turnId: string): Promise<void> {
     },
     turn: transcript,
   });
-  await storeTurnVerdict(turnId, verdict);
+  await storeTurnVerdict(turnId, call);
+}
+
+/**
+ * Records what a judge call cost when it produced nothing usable. The verdict
+ * is lost either way; the spend is not, and a bot's reported usage has to
+ * include the calls that failed.
+ */
+export async function recordFailedJudgeUsage(
+  turnId: string,
+  error: unknown,
+): Promise<void> {
+  if (!(error instanceof SokoBotJudgeFailure)) return;
+  if (error.usage.costUsd === 0 && error.usage.inputTokens === 0) return;
+  await addTurnOverheadUsage(turnId, error.usage).catch(() => undefined);
 }

@@ -71,18 +71,14 @@ export async function proactiveGate(
       createdAt: { gte: localDayStart(now, bot.ingestTimezone) },
       // Behaviour-lab turns are ours, not the owner's budget.
       clientTurnId: { not: { startsWith: "lab:" } },
+      // Only what the bot decided to do by itself. A teammate mentioning it in
+      // a shared room is a person asking a question, the same as the owner
+      // typing one, and does not draw on the allowance for unprompted work —
+      // but another bot mentioning it is a machine deciding, which is exactly
+      // what this allowance is for.
       OR: [
         { source: { in: ["SCHEDULE", "EVENT", "INGEST"] } },
-        // A teammate's mention spends the owner's credits as surely as a turn
-        // the bot starts itself, and chat imposes no limit of its own. Without
-        // this the teammate check compares against a counter its own turns
-        // never increment.
-        {
-          AND: [
-            { requestedByUserId: { not: null } },
-            { requestedByUserId: { not: bot.userId } },
-          ],
-        },
+        { chainDepth: { gt: 0 } },
       ],
     },
   });
@@ -192,11 +188,12 @@ export async function findAttentionItems(bot: {
       archivedAt: null,
       status: { in: ["RUNNING", "INPUT_REQUIRED", "FAILED"] },
       updatedAt: { gte: new Date(bot.now.getTime() - ATTENTION_MAX_AGE_MS) },
-      ...(bot.followWholeBoard
-        ? {}
-        : {
-            OR: [{ assigneeId: bot.coworkerId }, { id: { in: delegatedIds } }],
-          }),
+      // Nudges stay on work this bot owns or delegated, whatever
+      // `followWholeBoard` says. Following the board is for awareness — it
+      // lets the bot answer when a comment names it. Sweeping every stuck or
+      // failed Task in the workspace made it chase a week of other people's
+      // abandoned work and, now that it can act rather than draft, restart it.
+      OR: [{ assigneeId: bot.coworkerId }, { id: { in: delegatedIds } }],
     },
     select: {
       id: true,

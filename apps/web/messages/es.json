@@ -1622,7 +1622,10 @@
         "feedbackThanks": "Gracias, anotado.",
         "approvals": "{count, plural, one {# aprobación pendiente} other {# aprobaciones pendientes}}",
         "review": "Revisar en la página del asistente",
-        "task": "Task"
+        "task": "Task",
+        "chainDepth": "Respuesta {depth} de {max} entre asistentes. Si escribe una persona, el recuento vuelve a empezar.",
+        "chainRoomRate": "{count} de {max} mensajes de asistentes en esta sala en la última hora.",
+        "chainLastHop": "Este es el último paso: ya no despertará a nadie."
       }
     },
     "Tasks": {
@@ -1778,7 +1781,8 @@
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
         "actorOrchestrator": "Orquestador",
-        "actorOrchestratorWithOwner": "{assistant} · {owner}",
+        "actorOrchestratorWithOwner": "{assistant} · asistente de {owner}",
+        "actorOrchestratorRole": "Asistente personal de {owner}",
         "actorSystem": "Sistema",
         "originFromApp": "de {appName}",
         "channelApp": {
@@ -4006,7 +4010,11 @@
           "healthUnknown": "Salud desconocida",
           "checkedAt": "comprobado",
           "healthRuntimeVersion": "Runtime del chequeo",
-          "sessionStatus": "Estado de sesión"
+          "sessionStatus": "Estado de sesión",
+          "usageCredits": "Créditos gastados",
+          "usageTurns": "Turnos",
+          "usageTokens": "Tokens (entrada / salida)",
+          "usageModelCost": "Coste del modelo"
         },
         "Turns": {
           "title": "Turnos",
@@ -4314,7 +4322,8 @@
           "neverRun": "Aún no ejecutado.",
           "score": "{passed}/{total} comprobaciones superadas",
           "startError": "No se pudo iniciar el turno.",
-          "timeout": "El turno no terminó en 5 minutos.",
+          "timeout": "El turno no terminó en 5 minutos. Turno {turnId}: revisa sus eventos en la página de administración del bot.",
+          "noTurn": "No se inició ningún turno. El bot puede estar pausado o haber alcanzado su límite diario.",
           "version": "Versión",
           "overviewModel": "Modelo",
           "overviewSkills": "Skills",
@@ -4329,6 +4338,19 @@
           "noBotTitle": "Necesitas un Soko Bot para usar el laboratorio",
           "noBotDescription": "Las ejecuciones usan tu propio asistente.",
           "noBotLink": "Créalo aquí."
+        },
+        "KillSwitch": {
+          "title": "Interruptor de la función",
+          "stateEnabled": "Soko Bot funciona con normalidad.",
+          "stateDisabled": "Desactivado — {reason}",
+          "noReason": "sin motivo indicado",
+          "disable": "Desactivar Soko Bot",
+          "enable": "Activar Soko Bot",
+          "working": "Trabajando…",
+          "reasonPlaceholder": "Motivo mostrado a los usuarios (opcional)",
+          "disabled": "Soko Bot desactivado.",
+          "enabled": "Soko Bot activado.",
+          "error": "No se pudo cambiar el interruptor."
         }
       },
       "MatchedChannels": {
@@ -6505,6 +6527,16 @@
           "ran": "se ejecutó {when}",
           "due": "toca {when}",
           "overdue": "atrasada desde {when}"
+        },
+        "Usage": {
+          "title": "Uso",
+          "description": "Todo lo que este asistente ha gastado desde que lo creaste.",
+          "credits": "Créditos gastados",
+          "turns": "en {count, plural, one {# turno} other {# turnos}}",
+          "tokens": "Tokens",
+          "tokenSplit": "{input} entrada · {output} salida",
+          "modelCost": "Coste del modelo",
+          "modelCostHint": "Lo que costaron los tokens, antes del mínimo por turno"
         }
       },
       "Avatar": {
@@ -6546,6 +6578,10 @@
         "noResults": "Ningún skill coincide.",
         "loading": "Cargando…",
         "installedLabel": "Instalado"
+      },
+      "Disabled": {
+        "title": "Soko Bot no está disponible temporalmente",
+        "description": "Un administrador ha desactivado Soko Bot por ahora. No se pierde nada de lo que hizo tu asistente; retomará donde lo dejó."
       }
     },
     "SokoBots": {
@@ -6578,7 +6614,8 @@
       "heroBody": "Un Soko Bot es tu propio asistente dentro de Sokosumi. Trabaja en tu tablero con tus Coworkers, lee el correo y el calendario que conectes, empieza el trabajo que merece la pena y te lo cuenta en el chat. Cada persona del espacio crea el suyo.",
       "heroCta": "Crea tu Soko Bot",
       "heroCtaHint": "Un minuto: elige un nombre y una cara.",
-      "teamCount": "{humans, plural, one {# humano} other {# humanos}}, {bots, plural, =0 {aún sin Soko Bots} one {# Soko Bot} other {# Soko Bots}}"
+      "teamCount": "{humans, plural, one {# humano} other {# humanos}}, {bots, plural, =0 {aún sin Soko Bots} one {# Soko Bot} other {# Soko Bots}}",
+      "disabled": "Soko Bot no está disponible temporalmente"
     },
     "Calendar": {
       "Metadata": {

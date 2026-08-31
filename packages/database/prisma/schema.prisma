@@ -1949,7 +1949,16 @@ model SokoBotTurn {
   modelId        String?
   runtimeVersion String?
   usage          Json?
+  /// Billable cost: the agent loop alone. Drives `sokoBotUsageCents`, so
+  /// widening it changes what every owner is charged.
   costUsdMicros  BigInt?
+
+  /// The rest of what the turn cost: the classifier that routed it and the
+  /// judge that scored it, both of which discarded their usage before this
+  /// existed. Their tokens are folded into `usage`, so that field is every
+  /// token the turn spent; only the money is split, because only the money
+  /// is billed.
+  overheadCostUsdMicros BigInt @default(0)
 
   leaseToken              String?
   leaseExpiresAt          DateTime?
@@ -1965,6 +1974,11 @@ model SokoBotTurn {
   /// Who asked, when a teammate (not the owner) mentioned the bot in chat.
   requestedByUserId String?
   requestedBy       User?   @relation("SokoBotTurnRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  /// Bot-to-bot hops behind this turn (see ChatRoomMention.chainDepth). Above
+  /// zero the turn exists because another bot spoke, not because a person did,
+  /// so it draws on the owner's allowance for unprompted work.
+  chainDepth Int @default(0)
 
   /// Chat-room mention that started this turn (null for the assistant page and schedules).
   chatMentionId         String?          @unique @db.Uuid
@@ -2094,6 +2108,13 @@ model SokoBotSetting {
 
   /// Version new bots are created on; null falls back to the code default.
   defaultVersionId String?
+
+  /// Set while an administrator has switched the whole feature off: no turns
+  /// start, no model calls are made, and the console says so. A database flag
+  /// rather than an env var so it takes effect at once, without a redeploy.
+  disabledAt       DateTime?
+  disabledByUserId String?
+  disabledReason   String?
 
   @@map("soko_bot_setting")
 }
@@ -3490,6 +3511,12 @@ model ChatRoomMention {
   providerResponseId     String?
   responseMessageId      String?          @unique @db.Uuid
   responseMessage        ChatRoomMessage? @relation("ChatRoomMentionResponse", fields: [responseMessageId], references: [id], onDelete: SetNull)
+
+  /// Bot-to-bot hops since the last human message. A person speaking resets it
+  /// to 0; a mention created by a coworker's own message inherits its turn's
+  /// depth plus one. Past the ceiling no mention row is written at all, so an
+  /// unattended cascade terminates whatever the models decide to say.
+  chainDepth Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

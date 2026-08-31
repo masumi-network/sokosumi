@@ -2293,3 +2293,29 @@ describe("requireJobCollaboration", () => {
     expect(tx.job.findFirst).not.toHaveBeenCalled();
   });
 });
+
+describe("buildCoworkerUsableInWorkspaceWhere", () => {
+  it("lets a Soko Bot join rooms in the workspace it lives in", () => {
+    // What makes a group chat with an assistant possible at all: without this
+    // clause a first-party bot is neither whitelisted nor granted workspace
+    // access, so it could never be added to a channel.
+    const where = buildCoworkerUsableInWorkspaceWhere("workspace_1");
+
+    expect(where.OR).toContainEqual({
+      sokoBot: { archivedAt: null, workspaceId: "workspace_1" },
+    });
+    expect(where.archivedAt).toBeNull();
+  });
+
+  it("does not reach a bot living in another workspace", () => {
+    // Two colleagues' bots share a channel only when both bots live in the
+    // organization workspace the room belongs to.
+    const where = buildCoworkerUsableInWorkspaceWhere("workspace_1");
+
+    expect(where.OR).not.toContainEqual(
+      expect.objectContaining({
+        sokoBot: expect.objectContaining({ workspaceId: "workspace_2" }),
+      }),
+    );
+  });
+});

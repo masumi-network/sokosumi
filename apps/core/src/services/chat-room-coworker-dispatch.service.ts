@@ -16,6 +16,15 @@ import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
 export const ROOM_COWORKER_TOTAL_MS = 240_000;
+
+/**
+ * Accepting a Soko Bot turn — classify, build the context packet, insert the
+ * row — happens before any turn exists to look at. When that stalled, the
+ * invocation was killed with the placeholder still spinning and nothing in the
+ * admin overview to explain it, because there was no turn. Bounded so the
+ * owner gets a failed reply instead of a "Thinking…" that never ends.
+ */
+const SOKO_BOT_ACCEPT_TIMEOUT_MS = 60_000;
 /** AI SDK stall budget after content has started; content chunks reset this. */
 export const ROOM_COWORKER_CHUNK_MS = 90_000;
 
@@ -32,6 +41,17 @@ export const ROOM_COWORKER_STREAM_TIMEOUT = {
 
 /** Must exceed `ROOM_COWORKER_TOTAL_MS` so reclaim cannot steal an in-flight run. */
 export const ROOM_SENT_STALE_MS = ROOM_COWORKER_TOTAL_MS + 30_000;
+
+/**
+ * After this long a mention is given up on rather than reclaimed again.
+ *
+ * Reclaim exists for a worker that died mid-dispatch, and it retries by
+ * re-running the same work. When the cause is not transient the mention is
+ * reclaimed for ever and the asker watches "Thinking…" indefinitely: the turn
+ * that would have carried a deadline was never created, so nothing else can
+ * end it. Past this age the reply says it failed.
+ */
+const ROOM_MENTION_GIVE_UP_MS = 15 * 60_000;
 const STALE_SENT_RECLAIM_LIMIT = 10;
 /** Cap Ably thought updates; first beat always publishes. */
 const MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS = 250;
@@ -235,7 +255,29 @@ async function failMentionThoughtPlaceholder(params: {
         },
       },
     })
-    .catch(() => undefined);
+    // Swallowing this once left the bubble streaming for ever while the
+    // mention was marked terminally failed, so nothing would revisit it. One
+    // retry, then delete: an empty space is honest, a spinner that never
+    // stops is not.
+    .catch(async () => {
+      await prisma.chatRoomMessage
+        .update({
+          where: { id: params.placeholderId as string },
+          data: {
+            content: "",
+            metadata: {
+              in_reply_to_message_id: params.sourceMessageId,
+              mention_id: params.mentionId,
+              mention_failed: true,
+            },
+          },
+        })
+        .catch(async () => {
+          await prisma.chatRoomMessage
+            .delete({ where: { id: params.placeholderId as string } })
+            .catch(() => undefined);
+        });
+    });
   await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
 }
 
@@ -408,6 +450,25 @@ export async function dispatchChatRoomMention(
     await runChatRoomMentionDispatch(mentionId);
   } catch (error) {
     console.error("Room coworker dispatch failed:", { mentionId, error });
+    // Marking the row failed unpins the poller but says nothing to the person
+    // watching the bubble. Anything that escaped after a placeholder was
+    // opened — a thread lookup, a provider update, a room read — would leave
+    // it streaming for ever, so end it here whatever threw.
+    const linked = await prisma.chatRoomMention
+      .findUnique({
+        where: { id: mentionId },
+        select: { responseMessageId: true, message: { select: { id: true } } },
+      })
+      .catch(() => null);
+    if (linked?.responseMessageId) {
+      await failMentionThoughtPlaceholder({
+        placeholderId: linked.responseMessageId,
+        sourceMessageId: linked.message.id,
+        mentionId,
+      }).catch((cleanupError) => {
+        console.error("Failed to end the assistant bubble:", cleanupError);
+      });
+    }
     await markMentionFailed(mentionId, error);
   }
 }
@@ -424,7 +485,11 @@ export async function listStaleSentChatRoomMentionIds(
   const staleBefore = new Date(now.getTime() - ROOM_SENT_STALE_MS);
   const rows = await prisma.chatRoomMention.findMany({
     where: {
-      status: "sent",
+      // `pending` too: a mention is written in one transaction and handed to
+      // the dispatcher after it commits, so a process that dies in between
+      // leaves a row nobody ever claimed. Scanning only `sent` left those
+      // stranded for ever.
+      status: { in: ["pending", "sent"] },
       updatedAt: { lt: staleBefore },
       message: { roomId },
     },
@@ -496,6 +561,13 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
               name: true,
             },
           },
+          senderCoworker: {
+            select: {
+              id: true,
+              name: true,
+              sokoBot: { select: { userId: true, archivedAt: true } },
+            },
+          },
         },
       },
     },
@@ -526,9 +598,36 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       error,
     });
 
-  const userId = mention.message.senderUserId;
+  // `instanceof` because unit fixtures build partial mention rows; the real
+  // query selects every scalar, so this is always a Date in production.
+  const askedAt = mention.createdAt;
+  if (
+    askedAt instanceof Date &&
+    Date.now() - askedAt.getTime() > ROOM_MENTION_GIVE_UP_MS &&
+    mention.status !== "responded"
+  ) {
+    await failWithShell("Soko Bot never picked this up; ask again");
+    return;
+  }
+
+  // A bot may summon another bot, but only in an organization room: a personal
+  // room has no shared workspace to run in, and every bot conversation stays
+  // somewhere a person can see it.
+  const senderBot = mention.message.senderCoworker?.sokoBot ?? null;
+  const askedByBot = mention.message.senderUserId == null && senderBot != null;
+  if (askedByBot && !mention.message.room.organizationId) {
+    await failWithShell("Soko Bots can only talk to each other in a channel");
+    return;
+  }
+  // The sending bot's owner is the workspace fallback and the attribution:
+  // their assistant asked, so the console can say whose curiosity this was.
+  const userId = mention.message.senderUserId ?? senderBot?.userId ?? null;
   if (!userId) {
     await failWithShell("Mention sender is no longer available");
+    return;
+  }
+  if (askedByBot && senderBot?.archivedAt) {
+    await failWithShell("The Soko Bot that asked is no longer active");
     return;
   }
 
@@ -551,6 +650,8 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       userId,
       workspaceId,
       failWithShell,
+      askedByBot,
+      chainDepth: mention.chainDepth,
     });
     return;
   }
@@ -973,8 +1074,18 @@ async function runSokoBotMentionDispatch(params: {
   userId: string;
   workspaceId: string;
   failWithShell: (error: unknown) => Promise<void>;
+  askedByBot: boolean;
+  chainDepth: number;
 }): Promise<void> {
-  const { mentionId, mention, userId, workspaceId, failWithShell } = params;
+  const {
+    mentionId,
+    mention,
+    userId,
+    workspaceId,
+    failWithShell,
+    askedByBot,
+    chainDepth,
+  } = params;
   const bot = mention.coworker.sokoBot;
   if (!bot || bot.archivedAt) {
     await failWithShell("This Soko Bot is no longer active");
@@ -983,7 +1094,7 @@ async function runSokoBotMentionDispatch(params: {
   // Teammates may talk to the bot in organization rooms; the turn runs as
   // the owner (their bot, their credits) with a read-only ceiling, and the
   // console shows who asked. Personal rooms stay owner-only.
-  const isOwner = bot.userId === userId;
+  const isOwner = bot.userId === userId && !askedByBot;
   if (!isOwner && !mention.message.room.organizationId) {
     await failWithShell("Only the owner can message this assistant here");
     return;
@@ -1024,32 +1135,67 @@ async function runSokoBotMentionDispatch(params: {
     });
   }
   if (!placeholderId) {
+    // The create may have committed with its acknowledgement lost, leaving a
+    // bubble streaming that this worker never learned the id of. Marking the
+    // mention failed without adopting it is how a placeholder outlives every
+    // other signal, so look before giving up.
+    const committed = await prisma.chatRoomMention.findUnique({
+      where: { id: mentionId },
+      select: { responseMessageId: true },
+    });
+    placeholderId = committed?.responseMessageId ?? null;
+  }
+  if (!placeholderId) {
     await markMentionFailed(mentionId, "Could not open the reply");
     return;
   }
+
+  // From here the caller's closure is stale: it captured the mention's
+  // responseMessageId before this placeholder existed, so failing through it
+  // would open a second bubble and leave this one streaming for ever — the
+  // shape of the "Thinking…" messages that never ended.
+  const failPlaceholder = (error: unknown) =>
+    failMentionWithCoworkerShell({
+      mentionId,
+      sourceMessageId: mention.message.id,
+      roomId: mention.message.roomId,
+      parentMessageId: mention.message.parentMessageId,
+      coworkerId: mention.coworker.id,
+      existingPlaceholderId: placeholderId,
+      error,
+    });
 
   // Directs are the bot's own conversation: the control plane already
   // rehydrates recent turns, so the message goes through as typed. Channel
   // mentions carry the surrounding room context like coworker mentions do.
   const threadRootId = mention.message.parentMessageId;
-  const message =
-    mention.message.room.kind === "direct"
-      ? mention.message.content
-      : buildRoomMentionPrompt({
-          roomName: mention.message.room.name ?? "chat",
-          senderName: mention.message.senderUser?.name ?? "A teammate",
-          content: mention.message.content,
-          isThreadReply: threadRootId != null,
-          contextMessages: await loadRoomContextMessages({
-            roomId: mention.message.roomId,
-            messageId: mention.message.id,
-            createdAt: mention.message.createdAt,
-            threadRootId,
-          }),
-        });
+  // Inside the guard: this reads the room, and a read that throws once left
+  // the placeholder above streaming for ever while the mention was marked
+  // failed somewhere the reader could not see.
+  let message: string;
+  try {
+    message =
+      mention.message.room.kind === "direct"
+        ? mention.message.content
+        : buildRoomMentionPrompt({
+            roomName: mention.message.room.name ?? "chat",
+            senderName: mention.message.senderUser?.name ?? "A teammate",
+            content: mention.message.content,
+            isThreadReply: threadRootId != null,
+            contextMessages: await loadRoomContextMessages({
+              roomId: mention.message.roomId,
+              messageId: mention.message.id,
+              createdAt: mention.message.createdAt,
+              threadRootId,
+            }),
+          });
+  } catch (error) {
+    await failPlaceholder(error);
+    return;
+  }
 
   try {
-    const result = await sokoBotControlPlane.startTurn({
+    const accepted = sokoBotControlPlane.startTurn({
       userId: bot.userId,
       workspaceId,
       clientTurnId: `chat:${mentionId}`,
@@ -1060,8 +1206,23 @@ async function runSokoBotMentionDispatch(params: {
       chat: {
         mentionId,
         responseMessageId: placeholderId,
-        requestedByUserId: isOwner ? null : userId,
+        requestedByUserId: isOwner && !askedByBot ? null : userId,
+        askedByBot,
+        chainDepth,
       },
+    });
+    let acceptTimer: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      accepted,
+      new Promise<never>((_resolve, reject) => {
+        acceptTimer = setTimeout(
+          () =>
+            reject(new Error("Soko Bot took too long to accept the message")),
+          SOKO_BOT_ACCEPT_TIMEOUT_MS,
+        );
+      }),
+    ]).finally(() => {
+      if (acceptTimer) clearTimeout(acceptTimer);
     });
     if (
       result.reconciliationLeaseToken &&
@@ -1074,6 +1235,6 @@ async function runSokoBotMentionDispatch(params: {
       );
     }
   } catch (error) {
-    await failWithShell(error);
+    await failPlaceholder(error);
   }
 }

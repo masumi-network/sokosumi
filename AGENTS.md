@@ -29,7 +29,8 @@ sokosumi/
 │   ├── net/                   # @sokosumi/net — `src/`
 │   ├── email/                 # @sokosumi/email — `src/`
 │   ├── chat/                  # @sokosumi/chat — `src/`
-│   └── ai-provider/           # @sokosumi/ai-provider — `src/`
+│   ├── ai-provider/           # @sokosumi/ai-provider — `src/`
+│   └── soko-bot/              # @sokosumi/soko-bot — `src/`; exports in package.json
 ├── docs/                      # Agent, domain, coworker, and design docs
 ├── scripts/                   # local-env, cloud-agent-db, CI helpers
 ├── skills/                    # First-party skill sources (installed into `.agents/skills/`)
@@ -372,7 +373,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 **Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds. [`docs/coworker/coworker-workspace-access-api.md`](./docs/coworker/coworker-workspace-access-api.md) — coworker early access (per-workspace pilot, not VendorGrant).
 
-**Soko Bot:** [`docs/soko-bot/implementation-plan.md`](./docs/soko-bot/implementation-plan.md) and [`docs/adr/0007-soko-bot-eve-runtime.md`](./docs/adr/0007-soko-bot-eve-runtime.md) — first-party personal project manager running inside Core, capability-scoped tools, context packets, memory, schedules, and admin operations.
+**Soko Bot:** contracts in [`packages/soko-bot`](./packages/soko-bot) (`@sokosumi/soko-bot`); in-process runtime in Core (`apps/core/src/lib/soko-bot/`). See [`docs/soko-bot/implementation-plan.md`](./docs/soko-bot/implementation-plan.md) and [`docs/adr/0007-soko-bot-eve-runtime.md`](./docs/adr/0007-soko-bot-eve-runtime.md) — first-party personal project manager running inside Core, capability-scoped tools, context packets, memory, schedules, and admin operations. There is no `apps/soko-bot` deployable.
 
 ## Additional Rules
 
@@ -396,7 +397,7 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 
 ### Runtime versions
 
-- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.23.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.24.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
 
 ### Database (Cloud agent Neon branch)
 

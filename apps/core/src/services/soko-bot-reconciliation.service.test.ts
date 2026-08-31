@@ -30,6 +30,13 @@ const {
 vi.mock("@/config/env", () => ({
   getEnv: () => ({ SOKO_BOT_CLASSIFIER_MODE: "rules" }),
 }));
+vi.mock("@/services/soko-bot-availability.service", () => ({
+  getSokoBotAvailability: async () => ({
+    disabled: false,
+    disabledAt: null,
+    disabledReason: null,
+  }),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,

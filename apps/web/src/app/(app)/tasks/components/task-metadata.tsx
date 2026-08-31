@@ -5,6 +5,7 @@ import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
@@ -25,10 +26,7 @@ interface TaskMetadataLabels {
   created: string;
   updated: string;
   schedule: string;
-  formatOrchestratorActorName: (values: {
-    assistant: string;
-    owner: string;
-  }) => string;
+  formatOrchestratorRole: (values: { owner: string }) => string;
 }
 
 interface TaskMetadataTask {
@@ -46,11 +44,13 @@ interface TaskCreatorDisplay {
   name: string;
   image: string | null;
   avatarSeed?: string | null;
+  /** Under the name: what this creator is, when it is not a person. */
+  role?: string | null;
 }
 
 function resolveTaskCreatorDisplay(
   task: TaskMetadataTask,
-  formatOrchestratorActorName: TaskMetadataLabels["formatOrchestratorActorName"],
+  formatOrchestratorRole: TaskMetadataLabels["formatOrchestratorRole"],
 ): TaskCreatorDisplay | null {
   switch (task.creator.type) {
     case "user": {
@@ -84,13 +84,23 @@ function resolveTaskCreatorDisplay(
         return null;
       }
 
+      // The assistant's own name reads as a person's here, so the line
+      // underneath says what it is and who it belongs to. Without it a Task
+      // created by "Jarvis" gives the reader no way to tell that a colleague's
+      // assistant did it, or on whose behalf.
+      const assistantName = orchestrator.name ?? "Assistant";
+      const role = formatOrchestratorRole({ owner: orchestrator.owner.name });
       return {
-        name: formatOrchestratorActorName({
-          assistant: orchestrator.name ?? "Assistant",
-          owner: orchestrator.owner.name,
-        }),
+        name: assistantName,
+        // A bot named "Ada's personal assistant" would otherwise print the
+        // same sentence twice.
+        role: role.toLowerCase() === assistantName.toLowerCase() ? null : role,
         image: null,
-        avatarSeed: orchestrator.avatarSeed ?? null,
+        // Same fallback the sidebar and the Soko Bots page use. `avatarSeed`
+        // is null for every bot, and passing that through rendered a different
+        // face here than the one the owner sees everywhere else.
+        avatarSeed:
+          orchestrator.avatarSeed ?? defaultOrbSeed(orchestrator.owner.id),
       };
     }
     default: {
@@ -121,7 +131,7 @@ export function TaskMetadata({
   const assigneeImage = getCoworkerImage(task.assignee);
   const creator = resolveTaskCreatorDisplay(
     task,
-    labels.formatOrchestratorActorName,
+    labels.formatOrchestratorRole,
   );
 
   return (
@@ -154,6 +164,7 @@ export function TaskMetadata({
             image={creator.image}
             fallback={creator.name}
             avatarSeed={creator.avatarSeed}
+            role={creator.role}
           />
         ) : null}
 
@@ -259,6 +270,7 @@ interface MetadataAvatarValueProps {
   image: string | null;
   fallback: string;
   avatarSeed?: string | null;
+  role?: string | null;
 }
 
 function MetadataAvatarValue({
@@ -267,6 +279,7 @@ function MetadataAvatarValue({
   image,
   fallback,
   avatarSeed,
+  role,
 }: MetadataAvatarValueProps) {
   return (
     <div className="flex items-center justify-between gap-4">
@@ -293,7 +306,14 @@ function MetadataAvatarValue({
             </AvatarFallback>
           </Avatar>
         )}
-        <span className="truncate text-right text-sm font-medium">{name}</span>
+        <div className="min-w-0 text-right">
+          <span className="block truncate text-sm font-medium">{name}</span>
+          {role ? (
+            <span className="text-muted-foreground block truncate text-xs">
+              {role}
+            </span>
+          ) : null}
+        </div>
       </div>
     </div>
   );

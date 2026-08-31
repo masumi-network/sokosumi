@@ -16,9 +16,9 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { generateText, stepCountIs, type ToolSet, tool } from "ai";
-
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
+import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
@@ -74,6 +74,36 @@ const MAX_STEPS = 24;
  * itself.
  */
 const TURN_RUNTIME_BUDGET_MS = 240_000;
+
+/**
+ * A single tool call may not outlive the turn's budget. `abortSignal` on
+ * `generateText` stops the model, not a tool already running: a Composio
+ * request or a slow query kept the loop alive past the budget, Vercel killed
+ * the invocation at `maxDuration`, and the turn sat on "Thinking…" until the
+ * fifteen-minute watchdog because nothing wrote `session.waiting`.
+ */
+const TOOL_CALL_TIMEOUT_MS = 90_000;
+
+async function withTimeout<T>(
+  work: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} timed out after ${ms}ms`)),
+          ms,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 function runtimeEvent(
   type: string,
@@ -172,18 +202,6 @@ class RuntimeEventLog {
   }
 }
 
-/** AI Gateway reports per-call cost in provider metadata; absent means unpriced. */
-function gatewayCostUsd(metadata: unknown): number {
-  if (!metadata || typeof metadata !== "object") return 0;
-  const gateway = (metadata as Record<string, unknown>).gateway;
-  if (!gateway || typeof gateway !== "object") return 0;
-  const cost = (gateway as Record<string, unknown>).cost;
-  const parsed = typeof cost === "string" ? Number(cost) : cost;
-  return typeof parsed === "number" && Number.isFinite(parsed) && parsed > 0
-    ? parsed
-    : 0;
-}
-
 /** Runs one turn to completion, recording everything the drain needs. */
 async function runTurn(
   sessionId: string,
@@ -218,8 +236,15 @@ async function runTurn(
       tools[capability] = tool({
         description: SOKO_BOT_TOOL_DESCRIPTIONS[capability],
         inputSchema: SOKO_BOT_TOOL_INPUT_SCHEMAS[capability],
-        async execute(toolInput: unknown, options: { toolCallId: string }) {
+        async execute(
+          toolInput: unknown,
+          options: { toolCallId: string; abortSignal?: AbortSignal },
+        ) {
           const callId = options.toolCallId;
+          // The turn's deadline reaches the tool, not only the model.
+          if (abortSignal.aborted || options.abortSignal?.aborted) {
+            throw new Error("Soko Bot turn deadline reached");
+          }
           await log.append(
             // The model chose this input; it can carry a key or password, and
             // runtime events outlive the turn.
@@ -233,13 +258,17 @@ async function runTurn(
               ],
             }),
           );
-          const result = await service.executeTool({
-            sessionId,
-            turnId: input.turnId,
+          const result = await withTimeout(
+            service.executeTool({
+              sessionId,
+              turnId: input.turnId,
+              capability,
+              toolCallId: callId,
+              input: toolInput,
+            }),
+            TOOL_CALL_TIMEOUT_MS,
             capability,
-            toolCallId: callId,
-            input: toolInput,
-          });
+          );
           await log.append(
             runtimeEvent("action.result", { name: capability, callId }),
           );

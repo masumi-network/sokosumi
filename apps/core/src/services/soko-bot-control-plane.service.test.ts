@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import {
+  SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
@@ -49,6 +51,7 @@ const {
   turnCountMock,
   turnUpdateManyMock,
   workspaceFindFirstMock,
+  availabilityMock,
 } = vi.hoisted(() => ({
   adminActionCreateMock: vi.fn(),
   adminActionFindFirstMock: vi.fn(),
@@ -98,6 +101,7 @@ const {
   turnCountMock: vi.fn(),
   turnUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
+  availabilityMock: vi.fn(),
 }));
 
 vi.mock("@/services/soko-bot-chat.service", () => ({
@@ -108,6 +112,9 @@ vi.mock("@/services/soko-bot-chat.service", () => ({
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+vi.mock("@/services/soko-bot-availability.service", () => ({
+  getSokoBotAvailability: availabilityMock,
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
@@ -241,6 +248,7 @@ function transactionClient() {
       updateMany: scheduleRunUpdateManyMock,
     },
     sokoBotTurn: {
+      count: turnCountMock,
       create: turnCreateMock,
       findFirst: turnFindFirstMock,
       findUnique: turnFindUniqueMock,
@@ -260,6 +268,7 @@ function builtContext(memoryVersion = 1): BuiltContextPacket {
         route: "DIRECT_RESPONSE",
         confidence: 1,
         requestedOutcome: "Hello",
+        askedBy: { kind: "OWNER", name: "Owner", trust: "untrusted-data" },
       },
       actor: {},
       workspace: {},
@@ -288,6 +297,11 @@ function builtContext(memoryVersion = 1): BuiltContextPacket {
 describe("SokoBotControlPlane lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({
+      disabled: false,
+      disabledAt: null,
+      disabledReason: null,
+    });
     getEnvMock.mockReturnValue({ SOKO_BOT_CLASSIFIER_MODE: "rules" });
     adminActionCreateMock.mockResolvedValue({});
     adminActionFindFirstMock.mockResolvedValue(null);
@@ -747,14 +761,28 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(turnUpdateManyMock).toHaveBeenCalledOnce();
   });
 
-  it("grants a teammate mention only the teammate ceiling", async () => {
-    // A teammate's turn now draws on the owner's daily allowance, so the gate
-    // reads the bot's proactive settings before the turn starts.
-    botFindUniqueOrThrowMock.mockResolvedValue({
-      proactivePaused: false,
-      proactiveDailyLimit: 20,
-      ingestTimezone: "Europe/Berlin",
+  it("starts no turn at all while an administrator has it switched off", async () => {
+    // The switch has to mean "no model calls", so it is refused at the single
+    // point every turn passes through rather than per entry point.
+    availabilityMock.mockResolvedValue({
+      disabled: true,
+      disabledAt: new Date(),
+      disabledReason: "Paused while we investigate",
     });
+
+    await expect(
+      new SokoBotControlPlane().startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "client-turn-off",
+        message: "Hello",
+      }),
+    ).rejects.toThrow(/investigate/i);
+
+    expect(turnCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("grants a teammate mention only the teammate ceiling", async () => {
     // The bot answers into a shared room, so the owner's private reads must
     // not be on the grant and the packet must be built for a teammate.
     botFindFirstMock.mockResolvedValue(adminBot());
@@ -804,9 +832,150 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]) {
       expect(granted).not.toContain(ownerPrivate);
     }
+    // The packet's `actor` is the owner on every turn, so the asker's id has
+    // to travel with the audience or the bot cannot tell who it is answering.
     expect(contextBuilder.build).toHaveBeenCalledWith(
-      expect.objectContaining({ audience: "TEAMMATE" }),
+      expect.objectContaining({
+        audience: "TEAMMATE",
+        askedByKind: "TEAMMATE",
+        askedByUserId: "user_teammate",
+      }),
     );
+  });
+
+  it("grants a self-started turn the same spend it grants the owner", async () => {
+    // Withholding only `hire_agent` from scheduled turns read as a spend limit
+    // and was not one: assigning a Task to a Coworker bills the owner just as
+    // a hire does, and was never withheld. The cap and the prompt are the
+    // brakes, not a half-closed door.
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "turn_scheduled",
+      leaseToken: "turn_lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "session_scheduled",
+      runtimeVersion: "eve-test",
+      acceptedAt: "2026-08-18T12:00:00.000Z",
+    });
+    const contextBuilder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+
+    await new SokoBotControlPlane(
+      runtime,
+      contextBuilder,
+      new ExternalTurnClassifier(false),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "client-turn-scheduled",
+      // Routes deterministically to HIRE_AGENT, the one ceiling that carries
+      // `hire_agent` — otherwise the assertion below passes either way.
+      message: "Hire a marketplace agent to produce the competitor teardown.",
+      source: "SCHEDULE",
+    });
+
+    const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+      ?.capabilityNames as string[];
+    expect(turnCreateMock.mock.calls[0]?.[0]?.data?.route).toBe("HIRE_AGENT");
+    expect(granted).toContain("hire_agent");
+    expect(granted).toEqual([...SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT]);
+  });
+
+  it("refuses a bot-asked turn while the owner has paused unprompted work", async () => {
+    // Counting these turns without enforcing would leave a setting the owner
+    // can see doing nothing to the turn it is meant to stop.
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    botFindUniqueOrThrowMock.mockResolvedValue({
+      userId: "user_1",
+      proactivePaused: true,
+      proactiveDailyLimit: 20,
+      ingestTimezone: "Europe/Berlin",
+    });
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotControlPlane(
+        runtimeWithReset(vi.fn()),
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new ExternalTurnClassifier(false),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "client-turn-bot-asked",
+        message: "Any update on the launch?",
+        chat: {
+          mentionId: "mention_2",
+          responseMessageId: "message_2",
+          requestedByUserId: "user_other",
+          askedByBot: true,
+          chainDepth: 1,
+        },
+      }),
+    ).rejects.toThrow(/paused unprompted work/i);
+
+    expect(turnCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("grants a bot-asked turn the ability to answer and nothing more", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    botFindUniqueOrThrowMock.mockResolvedValue({
+      userId: "user_1",
+      proactivePaused: false,
+      proactiveDailyLimit: 20,
+      ingestTimezone: "Europe/Berlin",
+    });
+    turnCountMock.mockResolvedValue(0);
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "turn_bot_asked",
+      leaseToken: "turn_lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "session_bot_asked",
+      runtimeVersion: "eve-test",
+      acceptedAt: "2026-08-18T12:00:00.000Z",
+    });
+
+    await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new ExternalTurnClassifier(false),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "client-turn-bot-asked-2",
+      message: "Any update on the launch?",
+      chat: {
+        mentionId: "mention_3",
+        responseMessageId: "message_3",
+        requestedByUserId: "user_other",
+        askedByBot: true,
+        chainDepth: 1,
+      },
+    });
+
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    // Without post_chat it could be summoned but never reply, so a chain
+    // could never reach its second hop.
+    expect(data?.capabilityNames).toEqual([
+      ...SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+    ]);
+    expect(data?.chainDepth).toBe(1);
   });
 
   it("grants the owner their route ceiling and a full packet", async () => {

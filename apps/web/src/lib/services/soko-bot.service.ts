@@ -21,6 +21,7 @@ import type {
   SokoBotSkillSearchResult,
   SokoBotTeam,
   SokoBotTurn,
+  SokoBotUsage,
   SokoBotVersion,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
@@ -42,6 +43,16 @@ export const sokoBotService = {
   async getMine(): Promise<SokoBot | null> {
     const response = await coreClient.getMySokoBot();
     return (response.data.sokoBot as SokoBot | null) ?? null;
+  },
+
+  /**
+   * What the bot has spent since it was created. Its own call rather than a
+   * field on `getMine`, which is polled for turn state while this aggregates
+   * every turn the bot has taken.
+   */
+  async getMyUsage(): Promise<SokoBotUsage> {
+    const response = await coreClient.getMySokoBotUsage();
+    return response.data;
   },
 
   /**

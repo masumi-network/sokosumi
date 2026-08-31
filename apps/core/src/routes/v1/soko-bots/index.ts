@@ -9,6 +9,7 @@ import {
   conflict,
   forbidden,
   notFound,
+  serviceUnavailable,
   unprocessableEntity,
 } from "@/helpers/error";
 import {
@@ -65,6 +66,7 @@ import {
   sokoBotTeamSchema,
   sokoBotTurnFeedbackRequestSchema,
   sokoBotTurnSchema,
+  sokoBotUsageSchema,
   sokoBotVersionSchema,
   startSokoBotTurnRequestSchema,
   startSokoBotTurnResponseSchema,
@@ -73,6 +75,7 @@ import {
   updateSokoBotScheduleRequestSchema,
   updateSokoBotVersionRequestSchema,
 } from "@/schemas/soko-bot.schema";
+import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import {
   claimAvatar,
   listAvailableAvatars,
@@ -137,6 +140,15 @@ const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
 
 app.use("*", async (c, next) => {
   if (!getEnv().SOKO_BOT_ENABLED) throw notFound("Soko Bot is not enabled");
+  // 503 rather than 404: the feature exists and is coming back, and the
+  // console tells the owner that rather than pretending it was never there.
+  const availability = await getSokoBotAvailability();
+  if (availability.disabled) {
+    throw serviceUnavailable(
+      availability.disabledReason ??
+        "Soko Bot is temporarily disabled by an administrator",
+    );
+  }
   // Beta gate, matching the web route's 404 and the calendar routes' rule.
   // It lives on the router rather than per handler so a new endpoint cannot
   // be added outside it; the UI gate alone would leave the API open.
@@ -230,6 +242,37 @@ app.openapi(getMeRoute, async (c) => {
     workspace.workspaceId,
   );
   return ok(c, sokoBotStateSchema.parse({ sokoBot: mapBot(bot) }));
+});
+
+const getMyUsageRoute = createRoute({
+  method: "get",
+  path: "/me/usage",
+  operationId: "getMySokoBotUsage",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(sokoBotUsageSchema, "Lifetime usage and cost"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+// Its own route rather than a field on `/me`: that one is polled for turn
+// state and this aggregates every turn the bot has ever taken.
+app.openapi(getMyUsageRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const bot = await sokoBotControlPlane.getForUser(
+    auth.userId,
+    workspace.workspaceId,
+  );
+  if (!bot) {
+    throw notFound("Soko Bot not found");
+  }
+  const { sokoBotUsageTotals } = await import(
+    "@/services/soko-bot-usage.service"
+  );
+  return ok(c, sokoBotUsageSchema.parse(await sokoBotUsageTotals(bot.id)));
 });
 
 const createMeRoute = createRoute({
@@ -1171,6 +1214,7 @@ const simulateTaskEventRoute = createRoute({
   responses: {
     200: jsonSuccessResponse(sokoBotLabTaskEventSchema, "Simulated event"),
     401: jsonErrorResponse("Unauthorized"),
+    409: jsonErrorResponse("Soko Bot cannot take a turn right now"),
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
@@ -1188,6 +1232,10 @@ app.openapi(simulateTaskEventRoute, async (c) => {
     return ok(c, sokoBotLabTaskEventSchema.parse(result));
   } catch (error) {
     if (error instanceof SokoBotLabError) throw notFound(error.message);
+    // "at its daily limit", "owner has paused unprompted work", "already
+    // working" — the reasons a wake is refused. Surfaced verbatim so the lab
+    // says which one it was instead of waiting out its timeout.
+    if (error instanceof SokoBotBusyError) throw conflict(error.message);
     throw error;
   }
 });

@@ -1622,7 +1622,10 @@
         "feedbackThanks": "Thanks, noted.",
         "approvals": "{count, plural, one {# approval waiting} other {# approvals waiting}}",
         "review": "Review on the assistant page",
-        "task": "Task"
+        "task": "Task",
+        "chainDepth": "Assistant-to-assistant reply {depth} of {max}. A person writing here resets the count.",
+        "chainRoomRate": "{count} of {max} assistant messages in this room this hour.",
+        "chainLastHop": "This is the last hop — it will not wake anyone else."
       }
     },
     "Tasks": {
@@ -1779,7 +1782,8 @@
         "actorCoworker": "Coworker",
         "actorUser": "User",
         "actorOrchestrator": "Orchestrator",
-        "actorOrchestratorWithOwner": "{assistant} · {owner}",
+        "actorOrchestratorWithOwner": "{assistant} · {owner}'s assistant",
+        "actorOrchestratorRole": "{owner}'s personal assistant",
         "actorSystem": "System",
         "originFromApp": "from {appName}",
         "channelApp": {
@@ -4037,7 +4041,11 @@
           "healthUnknown": "Health unknown",
           "checkedAt": "checked",
           "healthRuntimeVersion": "Health-check runtime",
-          "sessionStatus": "Session status"
+          "sessionStatus": "Session status",
+          "usageCredits": "Credits spent",
+          "usageTurns": "Turns",
+          "usageTokens": "Tokens (in / out)",
+          "usageModelCost": "Model cost"
         },
         "Turns": {
           "title": "Turns",
@@ -4345,7 +4353,8 @@
           "neverRun": "Not run yet.",
           "score": "{passed}/{total} checks passed",
           "startError": "Could not start the turn.",
-          "timeout": "The turn did not finish within 5 minutes.",
+          "timeout": "The turn did not finish within 5 minutes. Turn {turnId} — check its events on the bot's admin page.",
+          "noTurn": "No turn was started. The bot may be paused or at its daily limit.",
           "version": "Version",
           "overviewModel": "Model",
           "overviewSkills": "Skills",
@@ -4360,6 +4369,19 @@
           "noBotTitle": "You need a Soko Bot to run the lab",
           "noBotDescription": "Runs use your own assistant.",
           "noBotLink": "Create it here."
+        },
+        "KillSwitch": {
+          "title": "Feature switch",
+          "stateEnabled": "Soko Bot is running normally.",
+          "stateDisabled": "Disabled — {reason}",
+          "noReason": "no reason given",
+          "disable": "Disable Soko Bot",
+          "enable": "Enable Soko Bot",
+          "working": "Working…",
+          "reasonPlaceholder": "Reason shown to users (optional)",
+          "disabled": "Soko Bot disabled.",
+          "enabled": "Soko Bot enabled.",
+          "error": "Could not change the feature switch."
         }
       },
       "MatchedChannels": {
@@ -6505,6 +6527,16 @@
           "ran": "ran {when}",
           "due": "due {when}",
           "overdue": "overdue since {when}"
+        },
+        "Usage": {
+          "title": "Usage",
+          "description": "Everything this assistant has spent since you created it.",
+          "credits": "Credits spent",
+          "turns": "over {count, plural, one {# turn} other {# turns}}",
+          "tokens": "Tokens",
+          "tokenSplit": "{input} in · {output} out",
+          "modelCost": "Model cost",
+          "modelCostHint": "What the tokens cost, before the per-turn minimum"
         }
       },
       "Avatar": {
@@ -6546,6 +6578,10 @@
         "noResults": "No skills match.",
         "loading": "Loading…",
         "installedLabel": "Installed"
+      },
+      "Disabled": {
+        "title": "Soko Bot is temporarily unavailable",
+        "description": "An administrator has switched Soko Bot off for now. Nothing your assistant has done is lost, and it will pick up where it left off."
       }
     },
     "SokoBots": {
@@ -6578,7 +6614,8 @@
       "heroBody": "A Soko Bot is your own assistant inside Sokosumi. It works your Taskboard with your Coworkers, reads the mail and calendar you connect, starts the work that's worth doing, and tells you about it in chat. Everyone in the workspace builds their own.",
       "heroCta": "Create your Soko Bot",
       "heroCtaHint": "Takes a minute: pick a name and a face.",
-      "teamCount": "{humans, plural, one {# human} other {# humans}}, {bots, plural, =0 {no Soko Bots yet} one {# Soko Bot} other {# Soko Bots}}"
+      "teamCount": "{humans, plural, one {# human} other {# humans}}, {bots, plural, =0 {no Soko Bots yet} one {# Soko Bot} other {# Soko Bots}}",
+      "disabled": "Soko Bot is temporarily unavailable"
     },
     "Calendar": {
       "Metadata": {

@@ -1,5 +1,7 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
+import { defaultOrbSeed } from "@/lib/aurora-orb";
+
 import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
 import { getCoworkerImage } from "./coworker-image";
@@ -217,7 +219,11 @@ function orchestratorActorInfo(
   return {
     name: orchestrator.name ?? "Assistant",
     image: null,
-    avatarSeed: orchestrator.avatarSeed ?? null,
+    // Same fallback the sidebar and the Soko Bots page use. `avatarSeed` is
+    // null for every bot, and passing that through rendered a different face
+    // here than the one the owner sees everywhere else.
+    avatarSeed:
+      orchestrator.avatarSeed ?? defaultOrbSeed(orchestrator.owner.id),
     ownerName: orchestrator.owner.name,
   };
 }

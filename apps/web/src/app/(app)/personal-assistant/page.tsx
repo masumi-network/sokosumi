@@ -18,7 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type StateLoad =
   | { kind: "ok"; state: SokoBotChatState | null }
-  | { kind: "unavailable" };
+  | { kind: "unavailable" }
+  | { kind: "disabled"; reason: string | null };
 
 async function loadState(): Promise<StateLoad> {
   try {
@@ -28,6 +29,15 @@ async function loadState(): Promise<StateLoad> {
     // instead of the create form (which would fail the same way).
     if (error instanceof CoreApiRequestError && error.status === 404) {
       return { kind: "unavailable" };
+    }
+    // 503 is the administrator switch: say so, rather than showing the same
+    // shrug as a feature that was never turned on.
+    if (error instanceof CoreApiRequestError && error.status === 503) {
+      const detail = error.details as { message?: unknown } | undefined;
+      return {
+        kind: "disabled",
+        reason: typeof detail?.message === "string" ? detail.message : null,
+      };
     }
     throw error;
   }
@@ -49,6 +59,18 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
   const integrationOutcome =
     typeof params.integration === "string" ? params.integration : null;
 
+  if (load.kind === "disabled") {
+    return (
+      <div className="mx-auto w-full max-w-2xl px-4 py-6">
+        <Alert>
+          <AlertTitle>{t("Disabled.title")}</AlertTitle>
+          <AlertDescription>
+            {load.reason ?? t("Disabled.description")}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
   if (load.kind === "unavailable") {
     return (
       <div className="mx-auto w-full max-w-2xl px-4 py-6">
@@ -69,11 +91,12 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
   // behind Advanced, which is off by default. Fetching them on every load cost
   // four Core round-trips nobody was waiting to see.
   const wantsAdvanced = params.view === "advanced";
-  const [versions, installedSkills, stats, integrations, catalog] =
+  const [versions, installedSkills, stats, usage, integrations, catalog] =
     await Promise.all([
       wantsAdvanced ? sokoBotService.listVersions().catch(() => []) : [],
       wantsAdvanced ? sokoBotService.listSkills().catch(() => []) : [],
       sokoBotService.getStats().catch(() => null),
+      sokoBotService.getMyUsage().catch(() => null),
       wantsAdvanced
         ? sokoBotService.listIntegrations().catch(() => null)
         : null,
@@ -93,6 +116,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       version={version}
       installedSkills={installedSkills}
       stats={stats}
+      usage={usage}
       integrations={integrations}
       catalog={catalog}
       integrationOutcome={integrationOutcome}
