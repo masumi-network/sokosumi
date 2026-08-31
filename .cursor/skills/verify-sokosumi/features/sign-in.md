@@ -22,13 +22,14 @@ Preconditions:
 - Cloud-agent Neon: doctor should show `fixture_auth=ok` for `alice@sokosumi.test`. If it fails, re-run `node scripts/cloud-agent-db/provision.mjs` (or seed auth fixtures) — only on `cloud-agent-*` branches.
 - Coworker / shared Neon: doctor will show `fixture_auth=fail`. Use the vault (`sign-in --method vault` or `auto` fallback). Do **not** seed Alice onto that database. If there is no vault profile, create a disposable user via [Sign up](./sign-up.md).
 - Credentials available: fixture `alice@sokosumi.test` / `Password123!`, coworker vault `agent-browser auth login sokosumi`, or a user created via [Sign up](./sign-up.md).
-- `AGENT_BROWSER_SESSION_NAME=sokosumi` is set.
+- `AGENT_BROWSER_SESSION_NAME=sokosumi` is set (harness aliases it to `AGENT_BROWSER_SESSION` when that env is unset).
 - `agent-browser` on `PATH` (`npm i -g agent-browser && agent-browser install`).
 
 ### Preferred: harness
 
 ```bash
 export AGENT_BROWSER_SESSION_NAME=sokosumi
+export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-$AGENT_BROWSER_SESSION_NAME}"
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in
 # admin UI: … sign-in --admin
 # coworker / shared Neon: … sign-in --method vault
