@@ -65,6 +65,27 @@ describe("proxy", () => {
     expect(getSessionCookieMock).toHaveBeenCalledTimes(1);
   });
 
+  it("serves the push service worker without a session", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    const { NOTIFICATION_SERVICE_WORKER_URL } = await import(
+      "@/lib/utils/notification-service-worker"
+    );
+    getSessionCookieMock.mockReturnValue(null);
+    // Built from the app's constant, so renaming the worker without updating
+    // `EXCLUDED_PATHS` fails here instead of in production.
+    const request = new NextRequest(
+      `https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com${NOTIFICATION_SERVICE_WORKER_URL}`,
+    );
+
+    const response = await proxy(request);
+
+    // A worker script fetch fails on a redirect, so gating this path would
+    // strand readers on the worker version they already installed.
+    expect(response?.status).not.toBe(307);
+    expect(getSessionCookieMock).not.toHaveBeenCalled();
+  });
+
   it("edge-redirects anonymous Welcome with leftover query to /signin preserving returnUrl", async () => {
     const { NextRequest } = await import("next/server");
     const { proxy } = await import("./proxy");

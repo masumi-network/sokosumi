@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
+import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
@@ -152,7 +153,7 @@ export default function InvitationActions({
   const handleLogout = async () => {
     setLoading(true);
     setAction("logout");
-    await authClient.signOut();
+    await signOutWithPushRelease(user?.id);
     const returnUrl = getReturnUrlFromCurrentLocation();
     router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
     setLoading(false);
