@@ -9,14 +9,6 @@ fetchRetryMintimeout: 15000
 fetchRetryMaxtimeout: 120000
 networkConcurrency: 8
 
-# pnpm defaults this to `install`, so every `pnpm run <script>` may install
-# first. Turbo runs the package builds in parallel, so five of them each start
-# their own install, and each install runs `packages/database`'s prepare. Five
-# copies of `prisma generate` then write one `src/generated/prisma` at once and
-# tsc reads a half-written client. Both CI and Vercel install before they
-# build, so the check has nothing left to catch there.
-verifyDepsBeforeRun: false
-
 overrides:
   # js-yaml GHSA-52cp-r559-cp3m (quadratic CPU via merge-key chains) and
   # GHSA-5p4m-2wfm-xmqj (quadratic CPU in !!omap resolution, CVE-2026-59870).
