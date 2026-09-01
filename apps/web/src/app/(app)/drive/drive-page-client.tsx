@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsString, useQueryStates } from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import {
   type ReactElement,
   useCallback,
@@ -41,6 +41,7 @@ import {
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
+import { DriveSortControl } from "@/app/drive/components/drive-sort-control";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
@@ -123,8 +124,19 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import {
+  FILES_SORT_BY_VALUES,
+  FILES_SORT_ORDER_VALUES,
+  type FilesSortSelection,
+  filesSortUrlValues,
+  parseFilesSortSelection,
+  toDriveListSortQuery,
+} from "@/lib/utils/files-sort";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import { DRIVE_ITEMS_QUERY_KEY, getDriveItemsQueryOptions } from "@/queries";
+
+const filesSortByParser = parseAsStringLiteral([...FILES_SORT_BY_VALUES]);
+const filesSortOrderParser = parseAsStringLiteral([...FILES_SORT_ORDER_VALUES]);
 
 function withoutLegacyDriveScopeParam(
   params: URLSearchParams,
@@ -246,6 +258,8 @@ function DrivePageWorkspace({
     projectId: parseAsString,
     taskId: parseAsString,
     assigneeId: parseAsString,
+    sortBy: filesSortByParser,
+    sortOrder: filesSortOrderParser,
   });
   const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
@@ -340,6 +354,19 @@ function DrivePageWorkspace({
   const isRecentsView = !isTasksView && !isBrowseView;
   const primaryView: DrivePrimaryView =
     isBrowseView || isTasksView ? "browse" : "recents";
+  const filesSortSelection = parseFilesSortSelection(
+    driveNavQuery.sortBy,
+    driveNavQuery.sortOrder,
+  );
+  const filesSortSurface = isTasksView
+    ? "tasks"
+    : isRecentsView
+      ? "recents"
+      : "browse";
+  const filesSortQuery = toDriveListSortQuery(
+    filesSortSurface,
+    filesSortSelection,
+  );
   const layoutMode: FilesViewMode = effectiveFilesViewMode(
     filesViewMode,
     isMobile,
@@ -376,6 +403,7 @@ function DrivePageWorkspace({
       store: driveStore,
       folder: currentFolder,
       search: debouncedSearchQuery,
+      ...filesSortQuery,
     }),
     enabled: isBrowseView && !isTasksView,
   });
@@ -439,6 +467,7 @@ function DrivePageWorkspace({
               ? { projectId: projectIdParam }
               : {}),
         ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
+        ...filesSortQuery,
         signal: controller.signal,
       });
 
@@ -483,6 +512,8 @@ function DrivePageWorkspace({
     projectIdParam,
     taskIdParam,
     assigneeIdParam,
+    filesSortQuery.sortBy,
+    filesSortQuery.sortOrder,
     t,
   ]);
 
@@ -507,6 +538,8 @@ function DrivePageWorkspace({
       assigneeId: assigneeIdParam,
       searchQuery: debouncedSearchQuery.trim(),
       cursor: tasksNextCursor,
+      sortBy: filesSortQuery.sortBy,
+      sortOrder: filesSortQuery.sortOrder,
     };
 
     setTasksLoadingMore(true);
@@ -526,6 +559,10 @@ function DrivePageWorkspace({
         ...(queryAtRequest.assigneeId
           ? { assigneeId: queryAtRequest.assigneeId }
           : {}),
+        ...(queryAtRequest.sortBy ? { sortBy: queryAtRequest.sortBy } : {}),
+        ...(queryAtRequest.sortOrder
+          ? { sortOrder: queryAtRequest.sortOrder }
+          : {}),
         cursor: queryAtRequest.cursor,
         signal: controller.signal,
       });
@@ -537,7 +574,9 @@ function DrivePageWorkspace({
         projectIdParam === queryAtRequest.projectId &&
         taskIdParam === queryAtRequest.taskId &&
         assigneeIdParam === queryAtRequest.assigneeId &&
-        debouncedSearchQuery.trim() === queryAtRequest.searchQuery;
+        debouncedSearchQuery.trim() === queryAtRequest.searchQuery &&
+        filesSortQuery.sortBy === queryAtRequest.sortBy &&
+        filesSortQuery.sortOrder === queryAtRequest.sortOrder;
 
       if (controller.signal.aborted || !queryStillMatches) {
         return;
@@ -583,6 +622,8 @@ function DrivePageWorkspace({
     taskIdParam,
     assigneeIdParam,
     debouncedSearchQuery,
+    filesSortQuery.sortBy,
+    filesSortQuery.sortOrder,
     t,
   ]);
 
@@ -1271,6 +1312,10 @@ function DrivePageWorkspace({
     document.cookie = serializeFilesViewModeCookie(next);
   }
 
+  function handleFilesSortChange(next: FilesSortSelection | null) {
+    void setDriveNavQuery(filesSortUrlValues(next), { history: "replace" });
+  }
+
   const filesViewModeSwitch = (
     <DriveViewModeSwitch
       value={filesViewMode}
@@ -1278,6 +1323,22 @@ function DrivePageWorkspace({
       labels={{
         list: t("viewList"),
         grid: t("viewGrid"),
+      }}
+    />
+  );
+
+  const filesSortControl = (
+    <DriveSortControl
+      value={filesSortSelection}
+      onChange={handleFilesSortChange}
+      labels={{
+        sort: t("sortLabel"),
+        default: t("sortDefault"),
+        name: t("sortByName"),
+        date: t("sortByDate"),
+        type: t("sortByType"),
+        ascending: t("sortAscending"),
+        descending: t("sortDescending"),
       }}
     />
   );
@@ -1377,6 +1438,7 @@ function DrivePageWorkspace({
               </div>
             </div>
           )}
+          {filesSortControl}
           {filesViewModeSwitch}
         </div>
 
@@ -1530,6 +1592,8 @@ function DrivePageWorkspace({
           searchQuery={debouncedSearchQuery}
           reloadToken={recentsReloadToken}
           viewMode={layoutMode}
+          sortBy={filesSortQuery.sortBy}
+          sortOrder={filesSortQuery.sortOrder}
           onOpenMoveDialog={openMoveDialog}
           onOpenDeleteDialog={openDeleteDialog}
           onRenameFile={handleRename}

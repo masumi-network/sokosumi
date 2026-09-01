@@ -3,6 +3,7 @@
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveFileItem, DriveItem } from "@/lib/clients/generated/core";
 import { getDriveFiles } from "@/lib/clients/generated/core";
+import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
 
 /** Core max page size — fewer round trips than the default 20. */
 export const DRIVE_FILES_PAGE_LIMIT = 100;
@@ -36,6 +37,8 @@ export function driveWorkspaceRootLabel(
 type ListDriveFilesOptions = DriveWorkspaceStore & {
   q?: string;
   folder?: string;
+  sortBy?: FilesSortBy;
+  sortOrder?: FilesSortOrder;
   signal?: AbortSignal;
 };
 
@@ -63,6 +66,8 @@ export async function listDriveItems(
           : {}),
         ...(options.folder ? { folder: options.folder } : {}),
         ...(options.q?.trim() ? { q: options.q.trim() } : {}),
+        ...(options.sortBy ? { sortBy: options.sortBy } : {}),
+        ...(options.sortOrder ? { sortOrder: options.sortOrder } : {}),
         ...(cursor ? { cursor } : {}),
       },
       ...(options.signal ? { signal: options.signal } : {}),

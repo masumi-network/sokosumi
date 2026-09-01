@@ -6215,7 +6215,14 @@
       "loadRecentsError": "No se pudieron cargar los archivos recientes",
       "loadMoreRecentsError": "No se pudieron cargar más archivos recientes",
       "viewList": "Lista",
-      "viewGrid": "Cuadrícula"
+      "viewGrid": "Cuadrícula",
+      "sortLabel": "Ordenar",
+      "sortDefault": "Predeterminado",
+      "sortByName": "Nombre",
+      "sortByDate": "Fecha",
+      "sortByType": "Tipo",
+      "sortAscending": "Ascendente",
+      "sortDescending": "Descendente"
     },
     "SokoBot": {
       "Metadata": {

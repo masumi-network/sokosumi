@@ -51,19 +51,25 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenuContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
+  DropdownMenuLabel: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSeparator: () => <hr />,
   DropdownMenuItem: ({
     children,
     onSelect,
     disabled,
+    ...props
   }: {
     children: ReactNode;
     onSelect?: (event: { preventDefault: () => void }) => void;
     disabled?: boolean;
-  }) => (
+  } & Record<string, unknown>) => (
     <button
       type="button"
       disabled={disabled}
       onClick={() => onSelect?.({ preventDefault: () => undefined })}
+      {...props}
     >
       {children}
     </button>
@@ -940,5 +946,171 @@ describe("DrivePage files view mode", () => {
 
     expect(pushMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("DrivePage files sort", () => {
+  const onUrlUpdate = vi.fn();
+
+  function renderDriveWithUrlSpy(defaultFilesViewMode: FilesViewMode = "list") {
+    return render(
+      <NuqsTestingAdapter
+        searchParams={searchParams}
+        hasMemory
+        onUrlUpdate={onUrlUpdate}
+      >
+        <QueryClientProvider client={queryClient}>
+          <DrivePageClient defaultFilesViewMode={defaultFilesViewMode} />
+        </QueryClientProvider>
+      </NuqsTestingAdapter>,
+    );
+  }
+
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams("view=browse");
+    onUrlUpdate.mockReset();
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    listDriveItemsMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
+
+    fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: {
+        data: [{ id: "org_a", name: "Org A" }],
+      },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("updates URL when a sort key is chosen and omits params for default", async () => {
+    const user = userEvent.setup();
+    renderDriveWithUrlSpy();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    const browseCall = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(browseCall).not.toHaveProperty("sortBy");
+    expect(browseCall).not.toHaveProperty("sortOrder");
+
+    await user.click(screen.getByTestId("files-sort-trigger"));
+    await user.click(screen.getByTestId("files-sort-name"));
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    const lastUpdate = onUrlUpdate.mock.calls.at(-1)?.[0] as {
+      searchParams: URLSearchParams;
+    };
+    expect(lastUpdate.searchParams.get("sortBy")).toBe("name");
+    expect(lastUpdate.searchParams.get("sortOrder")).toBe("asc");
+    expect(lastUpdate.searchParams.get("view")).toBe("browse");
+
+    await waitFor(() => {
+      const options = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
+        string,
+        unknown
+      >;
+      expect(options.sortBy).toBe("name");
+      expect(options.sortOrder).toBe("asc");
+    });
+
+    await user.click(screen.getByTestId("files-sort-trigger"));
+    await user.click(screen.getByTestId("files-sort-default"));
+
+    await waitFor(() => {
+      const update = onUrlUpdate.mock.calls.at(-1)?.[0] as {
+        searchParams: URLSearchParams;
+      };
+      expect(update.searchParams.get("sortBy")).toBeNull();
+      expect(update.searchParams.get("sortOrder")).toBeNull();
+    });
+  });
+
+  it("keeps view and folder params when sort is applied", async () => {
+    searchParams = new URLSearchParams("view=browse&folder=Reports");
+    const user = userEvent.setup();
+    renderDriveWithUrlSpy();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByTestId("files-sort-trigger"));
+    await user.click(screen.getByTestId("files-sort-date"));
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    const lastUpdate = onUrlUpdate.mock.calls.at(-1)?.[0] as {
+      searchParams: URLSearchParams;
+    };
+    expect(lastUpdate.searchParams.get("view")).toBe("browse");
+    expect(lastUpdate.searchParams.get("folder")).toBe("Reports");
+    expect(lastUpdate.searchParams.get("sortBy")).toBe("date");
+    expect(lastUpdate.searchParams.get("sortOrder")).toBe("desc");
+  });
+
+  it("recents never requests a non-date primary; name maps to Core secondary sortBy", async () => {
+    searchParams = new URLSearchParams("sortBy=name&sortOrder=asc");
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+
+    expect(listDriveItemsMock).not.toHaveBeenCalled();
+    expect(fetchDriveRecentsPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sortBy: "name",
+        sortOrder: "asc",
+      }),
+    );
+  });
+
+  it("omitted default does not send a sort override on browse or recents", async () => {
+    searchParams = new URLSearchParams();
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+    const recentsCall = fetchDriveRecentsPageMock.mock.calls.at(
+      -1,
+    )?.[0] as Record<string, unknown>;
+    expect(recentsCall).not.toHaveProperty("sortBy");
+    expect(recentsCall).not.toHaveProperty("sortOrder");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Org A" }));
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+    const browseCall = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(browseCall).not.toHaveProperty("sortBy");
+    expect(browseCall).not.toHaveProperty("sortOrder");
   });
 });

@@ -52,6 +52,7 @@ import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
 import { fetchDriveRecentsPage } from "@/lib/utils/drive-recents-list.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
 function appendDownloadParam(url: string): string {
@@ -76,6 +77,8 @@ interface DriveRecentsPanelProps {
   searchQuery: string;
   reloadToken?: number;
   viewMode?: FilesViewMode;
+  sortBy?: FilesSortBy;
+  sortOrder?: FilesSortOrder;
   onOpenMoveDialog: (item: DriveItem) => void;
   onOpenDeleteDialog: (item: DriveItem) => void;
   onRenameFile: (item: DriveItem, newName: string) => Promise<void>;
@@ -115,6 +118,8 @@ export function DriveRecentsPanel({
   searchQuery,
   reloadToken = 0,
   viewMode = "list",
+  sortBy,
+  sortOrder,
   onOpenMoveDialog,
   onOpenDeleteDialog,
   onRenameFile,
@@ -172,6 +177,8 @@ export function DriveRecentsPanel({
           ? { organizationId: activeOrganizationId }
           : {}),
         ...(trimmedSearchQuery ? { q: trimmedSearchQuery } : {}),
+        ...(sortBy ? { sortBy } : {}),
+        ...(sortOrder ? { sortOrder } : {}),
         signal: controller.signal,
       });
 
@@ -206,6 +213,8 @@ export function DriveRecentsPanel({
     activeOrganizationId,
     driveStore.scope,
     reloadToken,
+    sortBy,
+    sortOrder,
     t,
     trimmedSearchQuery,
   ]);
@@ -228,6 +237,8 @@ export function DriveRecentsPanel({
     loadMoreAbortRef.current = controller;
     const requestedWorkspaceId = activeOrganizationId;
     const searchQueryAtRequest = trimmedSearchQuery;
+    const sortByAtRequest = sortBy;
+    const sortOrderAtRequest = sortOrder;
     setLoadingMore(true);
 
     try {
@@ -238,12 +249,16 @@ export function DriveRecentsPanel({
           : {}),
         cursor: nextCursor,
         ...(searchQueryAtRequest ? { q: searchQueryAtRequest } : {}),
+        ...(sortByAtRequest ? { sortBy: sortByAtRequest } : {}),
+        ...(sortOrderAtRequest ? { sortOrder: sortOrderAtRequest } : {}),
         signal: controller.signal,
       });
 
       const queryStillMatches =
         workspaceIdRef.current === requestedWorkspaceId &&
-        trimmedSearchQuery === searchQueryAtRequest;
+        trimmedSearchQuery === searchQueryAtRequest &&
+        sortBy === sortByAtRequest &&
+        sortOrder === sortOrderAtRequest;
 
       if (controller.signal.aborted || !queryStillMatches) {
         return;
