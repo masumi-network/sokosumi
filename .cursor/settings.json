@@ -1,12 +1,15 @@
 {
   "plugins": {
-    "caveman/caveman": {
-      "enabled": true
-    },
-    "superpowers": {
-      "enabled": true
-    },
     "docs-canvas": {
+      "enabled": true
+    },
+    "redis-development": {
+      "enabled": true
+    },
+    "pstack": {
+      "enabled": true
+    },
+    "cursor-team-kit": {
       "enabled": true
     }
   }

@@ -7,12 +7,16 @@ Shared product language for the Sokosumi monorepo (web, core, packages).
 ### Marketplace
 
 **Agent**:
-A Masumi-registry marketplace listing. A user hires an Agent to run a Job. Distinct from Coworker.
-_Avoid_: Classic agent, bot
+A Masumi-registry marketplace listing. Cardano Agents are hired to run a Job; x402 Agents are paid through a Coworker Task, not Hire. Distinct from Coworker.
+_Avoid_: Classic agent, bot, treating every Agent as Job-hireable
+
+**Agent catalog**:
+The browse list of marketplace Agents (Cardano and x402) on `/agents`, including links to read-only Agent detail. Not a Hire surface.
+_Avoid_: Agents gallery (when meaning only Coworkers), marketplace hire page
 
 **Hire**:
 Starting a Job on an Agent.
-_Avoid_: Purchase, subscribe (billing), assign (Task → Coworker)
+_Avoid_: Purchase, subscribe (billing), assign (Task → Coworker), treating Agent catalog browse as Hire
 
 **Job**:
 One run of an Agent for a user or workspace. Not a Task.
@@ -23,7 +27,7 @@ Work assigned to a Coworker. Not a Job.
 _Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
 
 **Coworker**:
-A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
+A vendor AI actor for Tasks and chat. Discovered on `/agents` alongside the Agent catalog. Not an Agent; not hired.
 _Avoid_: Agent (when meaning this), Soko Bot
 
 ### Soko Bot
