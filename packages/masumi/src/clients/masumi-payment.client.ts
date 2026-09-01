@@ -381,13 +381,9 @@ export function createPaymentClient(
      * arrive in one feed (masumi-payment-service `5416f92fb^`,
      * `src/routes/api/purchases/diff/index.ts`, buildPurchaseDiffWhere).
      *
-     * That node's mainline has since added the same V1 default here
-     * (`resolvePurchasePaymentSourceTypeFilter`,
-     * `src/routes/api/purchases/queries.ts`). When a deployed node starts
-     * documenting `filterPaymentSourceType` on this route, this call must page
-     * BOTH rails with a cursor each: the node resolves one source type per
-     * request, and Sokosumi runs V1 and V2 side by side. Until then, one
-     * unfiltered pass covers both.
+     * If that route ever gains `filterPaymentSourceType`, this call has to page
+     * each rail with its own cursor, because the node resolves one source type
+     * per request and Sokosumi runs V1 and V2 side by side.
      */
     async getPurchasesDiff(
       changedSince: Date,
