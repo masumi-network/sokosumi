@@ -118,6 +118,7 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
 const pendingMention = {
   id: MENTION_ID,
   coworkerId: COWORKER_ID,
+  orchestratorId: null,
   status: "pending",
   responseMessageId: null,
 };
@@ -215,6 +216,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
       {
         id: MENTION_ID,
         coworkerId: COWORKER_ID,
+        orchestratorId: null,
         status: "pending",
         responseMessageId: null,
       },
