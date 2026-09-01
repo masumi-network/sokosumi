@@ -2,13 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chat-chats-list-shell";
+import { ChatChatsListSnapshotPreview } from "@/app/chat/components/chat-chats-list-snapshot-preview";
 import { ChatChatsPageSkeleton } from "@/app/chat/components/chat-chats-loading-view";
 import {
   getLatestMembershipVisibleRoomsSnapshot,
   type MembershipVisibleRoomsSnapshot,
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
-import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import { applyRoomReadOverlays } from "@/components/chat/room-read-overlay";
 
 function getClientSnapshot(): MembershipVisibleRoomsSnapshot | null {
@@ -23,6 +23,9 @@ function getServerSnapshot(): MembershipVisibleRoomsSnapshot | null {
  * Instant Nav host for `/chat`: when this session already published membership-
  * visible rooms, first-paint that snapshot with Room unread overlay instead of
  * bone rows. Cold load (no snapshot yet) keeps ChatChatsPageSkeleton.
+ *
+ * Uses a lightweight preview (no Ably/polls) so Instant stays a paint-only
+ * shell; the streamed page mounts OrganizationChatList.
  */
 export function ChatChatsPageSkeletonHost() {
   const snapshot = useSyncExternalStore(
@@ -36,21 +39,16 @@ export function ChatChatsPageSkeletonHost() {
   }
 
   const rooms = applyRoomReadOverlays([...snapshot.rooms]);
-  const listKey = snapshot.organizationId ?? "personal";
 
   return (
     <div
       data-testid="chat-chats-snapshot"
       className={CHAT_CHATS_MOBILE_LIST_SHELL_CLASS}
     >
-      <OrganizationChatList
-        key={listKey}
+      <ChatChatsListSnapshotPreview
         rooms={rooms}
-        archivedRooms={[]}
         currentUserId={snapshot.currentUserId}
         organizationId={snapshot.organizationId}
-        canDeleteArchivedRooms={false}
-        dismissSheetOnNavigate={false}
       />
     </div>
   );
