@@ -8,6 +8,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import mountGetChatRoom from "./get";
+import mountGetChatRoomMessages from "./messages/get";
 import mountPostRoomMessage from "./messages/post";
 import mountPatchChatRoom from "./patch";
 
@@ -40,6 +42,11 @@ const {
   threadReadUpsertMock,
   messageFindFirstMock,
   messageFindUniqueMock,
+  messageFindManyMock,
+  messageCountMock,
+  queryRawUnsafeMock,
+  notificationGroupByMock,
+  listStaleSentChatRoomMentionIdsMock,
   scheduleUnfurlsMock,
   emitChatMentionNotificationsMock,
   emitChatDirectMessageNotificationsMock,
@@ -65,6 +72,11 @@ const {
   threadReadUpsertMock: vi.fn(),
   messageFindFirstMock: vi.fn(),
   messageFindUniqueMock: vi.fn(),
+  messageFindManyMock: vi.fn(),
+  messageCountMock: vi.fn(),
+  queryRawUnsafeMock: vi.fn(),
+  notificationGroupByMock: vi.fn(),
+  listStaleSentChatRoomMentionIdsMock: vi.fn(),
   scheduleUnfurlsMock: vi.fn(),
   emitChatMentionNotificationsMock: vi.fn(),
   emitChatDirectMessageNotificationsMock: vi.fn(),
@@ -80,7 +92,13 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomMessage: {
       findUnique: messageFindUniqueMock,
       findFirst: messageFindFirstMock,
+      findMany: messageFindManyMock,
+      count: messageCountMock,
     },
+    notification: {
+      groupBy: notificationGroupByMock,
+    },
+    $queryRawUnsafe: queryRawUnsafeMock,
     chatRoomUserMember: {
       findMany: membershipFindManyMock,
     },
@@ -116,6 +134,8 @@ vi.mock("@vercel/functions", () => ({
 
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: dispatchMock,
+  listStaleSentChatRoomMentionIds: (...args: unknown[]) =>
+    listStaleSentChatRoomMentionIdsMock(...args),
 }));
 
 vi.mock("@/services/chat-room-message-unfurl.service", () => ({
@@ -179,6 +199,40 @@ function buildMessageApp() {
   return app;
 }
 
+function buildGetRoomApp() {
+  const app = new OpenAPIHonoWithAuth();
+  app.onError(errorHandler);
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "user",
+      userId: USER_ID,
+      organizationId: ORG_ID,
+      role: "user",
+    } as AuthVariables["authContext"]);
+    return next();
+  });
+  mountGetChatRoom(app);
+  return app;
+}
+
+function buildGetMessagesApp() {
+  const app = new OpenAPIHonoWithAuth();
+  app.onError(errorHandler);
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "user",
+      userId: USER_ID,
+      organizationId: ORG_ID,
+      role: "user",
+    } as AuthVariables["authContext"]);
+    return next();
+  });
+  mountGetChatRoomMessages(app);
+  return app;
+}
+
 const baseRoom = {
   id: ROOM_ID,
   organizationId: ORG_ID,
@@ -194,6 +248,7 @@ const baseRoom = {
   archivedAt: null,
   userMembers: [
     {
+      userId: USER_ID,
       access: "member",
       createdAt: new Date("2026-09-01T12:00:00.000Z"),
       user: {
@@ -238,6 +293,11 @@ describe("SOK-942 PA as orchestrator member / mention / picker", () => {
     readStateFindManyMock.mockResolvedValue([]);
     readStateUpsertMock.mockResolvedValue({});
     threadReadUpsertMock.mockResolvedValue({});
+    queryRawUnsafeMock.mockResolvedValue([]);
+    notificationGroupByMock.mockResolvedValue([]);
+    messageFindManyMock.mockResolvedValue([]);
+    messageCountMock.mockResolvedValue(0);
+    listStaleSentChatRoomMentionIdsMock.mockResolvedValue([]);
   });
 
   it("owner can add their PA to a room as an orchestrator member", async () => {
@@ -472,43 +532,99 @@ describe("SOK-942 PA as orchestrator member / mention / picker", () => {
     expect(dispatchMock).toHaveBeenCalledWith(MENTION_ID);
   });
 
-  it("maps Thought / reply sender as orchestrator identity", async () => {
-    // Exercise mapChatRoomMessage via a GET-shaped message with orchestrator sender.
-    const { mapChatRoomMessage } = await import("../helpers");
-    const mapped = mapChatRoomMessage({
-      id: MESSAGE_ID,
-      roomId: ROOM_ID,
-      parentMessageId: null,
-      content: "On it.",
-      createdAt: new Date("2026-09-01T12:02:00.000Z"),
-      deletedAt: null,
-      editedAt: null,
-      metadata: { thought: true },
-      senderUser: null,
-      senderCoworker: null,
-      senderOrchestrator: {
-        id: ORCHESTRATOR_ID,
-        name: "Ada",
-        avatarImageUrl: null,
-        avatarSeed: `orb:${USER_ID}`,
-        userId: USER_ID,
-        archivedAt: null,
-        deletedAt: null,
-        user: { name: "Owner User" },
-      },
-      mentionsAsSource: [],
-      reactions: [],
-      replies: [],
-      _count: { replies: 0 },
-    } as never);
+  it("GET room returns orchestratorMembers for the mention picker", async () => {
+    const roomWithPa = {
+      ...baseRoom,
+      orchestratorMembers: [
+        {
+          orchestrator: {
+            id: ORCHESTRATOR_ID,
+            name: "Ada",
+            avatarImageUrl: null,
+            avatarSeed: `orb:${USER_ID}`,
+            userId: USER_ID,
+            archivedAt: null,
+            deletedAt: null,
+            user: { name: "Owner User" },
+          },
+        },
+      ],
+    };
+    roomFindFirstMock.mockResolvedValue(roomWithPa);
 
-    expect(mapped.sender).toEqual({
-      type: "orchestrator",
-      orchestrator: expect.objectContaining({
+    const response = await buildGetRoomApp().request(
+      `http://localhost/${ROOM_ID}`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.orchestratorMembers).toEqual([
+      expect.objectContaining({
         id: ORCHESTRATOR_ID,
         name: "Ada",
+        slug: "ada",
         ownerUserId: USER_ID,
+        caption: "Owner's personal assistant",
       }),
+    ]);
+    expect(body.data.coworkerMembers).toEqual([]);
+  });
+
+  it("GET messages returns Thought sender as orchestrator identity", async () => {
+    roomFindFirstMock.mockResolvedValue({
+      ...baseRoom,
+      userMembers: [{ userId: USER_ID, access: "member" }],
     });
+    messageFindManyMock.mockResolvedValue([
+      {
+        id: MESSAGE_ID,
+        roomId: ROOM_ID,
+        parentMessageId: null,
+        content: "On it.",
+        createdAt: new Date("2026-09-01T12:02:00.000Z"),
+        deletedAt: null,
+        editedAt: null,
+        metadata: { thought: true },
+        senderUser: null,
+        senderCoworker: null,
+        senderOrchestrator: {
+          id: ORCHESTRATOR_ID,
+          name: "Ada",
+          avatarImageUrl: null,
+          avatarSeed: `orb:${USER_ID}`,
+          userId: USER_ID,
+          archivedAt: null,
+          deletedAt: null,
+          user: { name: "Owner User" },
+        },
+        mentionsAsSource: [],
+        reactions: [],
+        replies: [],
+        _count: { replies: 0 },
+      },
+    ]);
+    messageCountMock.mockResolvedValue(1);
+
+    const response = await buildGetMessagesApp().request(
+      `http://localhost/${ROOM_ID}/messages`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual([
+      expect.objectContaining({
+        id: MESSAGE_ID,
+        content: "On it.",
+        sender: {
+          type: "orchestrator",
+          orchestrator: expect.objectContaining({
+            id: ORCHESTRATOR_ID,
+            name: "Ada",
+            ownerUserId: USER_ID,
+            caption: "Owner's personal assistant",
+          }),
+        },
+      }),
+    ]);
   });
 });
