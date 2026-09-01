@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -12,14 +11,29 @@ import {
 } from "@/components/chat/room-read-overlay";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
-vi.mock("next/link", () => ({
-  default: ({ children, href }: { children: ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+vi.mock("@/components/chat/organization-chat-list.client", () => ({
+  OrganizationChatList: ({
+    rooms,
+    paintOnly,
+  }: {
+    rooms: ChatRoom[];
+    paintOnly?: boolean;
+  }) => (
+    <div
+      data-testid="paint-only-list"
+      data-paint-only={String(Boolean(paintOnly))}
+    >
+      {rooms.map((room) => (
+        <a
+          key={room.id}
+          href={`/chat/rooms/${room.id}`}
+          className={room.unreadCount > 0 ? "font-semibold" : undefined}
+        >
+          {room.name}
+        </a>
+      ))}
+    </div>
   ),
-}));
-
-vi.mock("@/components/chat/direct-room-avatar-stack", () => ({
-  DirectRoomAvatarStack: () => <span data-testid="dm-avatar" />,
 }));
 
 import { ChatChatsPageSkeletonHost } from "./chat-chats-page-skeleton-host";
@@ -55,7 +69,7 @@ describe("ChatChatsPageSkeletonHost", () => {
     expect(screen.queryByTestId("chat-chats-snapshot")).toBeNull();
   });
 
-  it("paints the last-known list with room unread overlay when published", () => {
+  it("paints OrganizationChatList paintOnly with room unread overlay", () => {
     const stale = room({
       id: "room-1",
       name: "general",
@@ -75,10 +89,12 @@ describe("ChatChatsPageSkeletonHost", () => {
 
     expect(screen.queryByTestId("chat-chats-loading")).toBeNull();
     expect(screen.getByTestId("chat-chats-snapshot")).toBeTruthy();
+    const list = screen.getByTestId("paint-only-list");
+    expect(list.getAttribute("data-paint-only")).toBe("true");
     const link = screen.getByRole("link", { name: /general/i });
     expect(link.getAttribute("href")).toBe("/chat/rooms/room-1");
     // Overlay cleared unread → label is not bold (font-semibold).
-    expect(link.querySelector(".font-semibold")).toBeNull();
+    expect(link.className.includes("font-semibold")).toBe(false);
   });
 
   it("keeps bold unread chrome when overlay does not clear attention", () => {
@@ -91,6 +107,6 @@ describe("ChatChatsPageSkeletonHost", () => {
     render(<ChatChatsPageSkeletonHost />);
 
     const link = screen.getByRole("link", { name: /alerts/i });
-    expect(link.querySelector(".font-semibold")).not.toBeNull();
+    expect(link.className.includes("font-semibold")).toBe(true);
   });
 });

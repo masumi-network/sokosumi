@@ -101,6 +101,11 @@ interface OrganizationChatListProps {
    * Set false when the list is page-mounted outside a Sheet.
    */
   dismissSheetOnNavigate?: boolean;
+  /**
+   * Instant soft-nav paint (SOK-903): same section/row chrome as the live list,
+   * without Ably or membership refresh — avoids layout jump when RSC lands.
+   */
+  paintOnly?: boolean;
 }
 
 function SectionHeader({
@@ -185,6 +190,7 @@ export function OrganizationChatList({
   organizationId,
   canDeleteArchivedRooms = false,
   dismissSheetOnNavigate = true,
+  paintOnly = false,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const tExternal = useTranslations("App.Channels.External");
@@ -222,7 +228,7 @@ export function OrganizationChatList({
   useChatUnreadDocumentTitle(unreadRoomCount);
 
   const membershipRevokedBridge =
-    currentUserId.length > 0 ? (
+    !paintOnly && currentUserId.length > 0 ? (
       <LazyAblyProvider>
         <ChatMembershipRevokedListBridge currentUserId={currentUserId} />
       </LazyAblyProvider>
@@ -243,6 +249,10 @@ export function OrganizationChatList({
   }
 
   useEffect(() => {
+    if (paintOnly) {
+      return;
+    }
+
     let cancelled = false;
 
     const refreshRooms = async () => {
@@ -288,9 +298,13 @@ export function OrganizationChatList({
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshRooms);
     };
-  }, [hasOrganization, organizationId]);
+  }, [hasOrganization, organizationId, paintOnly]);
 
   useEffect(() => {
+    if (paintOnly) {
+      return;
+    }
+
     const handleRoomRead = (event: Event) => {
       const detail = (
         event as CustomEvent<{ room?: ChatRoom; roomId?: string }>
@@ -324,9 +338,13 @@ export function OrganizationChatList({
     return () => {
       window.removeEventListener("organization-chat-room-read", handleRoomRead);
     };
-  }, []);
+  }, [paintOnly]);
 
   useEffect(() => {
+    if (paintOnly) {
+      return;
+    }
+
     let cancelled = false;
 
     const handleRoomsChanged = (event: Event) => {
@@ -396,7 +414,7 @@ export function OrganizationChatList({
         handleRoomsChanged,
       );
     };
-  }, [hasOrganization]);
+  }, [hasOrganization, paintOnly]);
 
   function handleRestoreRoom(room: ChatRoom) {
     if (restoringRoomId || deletingRoomId) {
@@ -506,8 +524,11 @@ export function OrganizationChatList({
   );
 
   useEffect(() => {
+    if (paintOnly) {
+      return;
+    }
     publishMembershipVisibleRooms(roomRows, organizationId, currentUserId);
-  }, [currentUserId, organizationId, roomRows]);
+  }, [currentUserId, organizationId, paintOnly, roomRows]);
 
   const sortedArchivedChannels = useMemo(() => {
     return [...archivedRows].sort((a, b) =>

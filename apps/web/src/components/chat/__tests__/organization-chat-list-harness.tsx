@@ -179,6 +179,7 @@ export interface OrganizationChatListHarnessOptions {
   rooms?: ChatRoom[];
   pendingInvitations?: ChatRoomInvitation[];
   organizationId?: string | null;
+  paintOnly?: boolean;
 }
 
 export function emptyListResult(rooms: ChatRoom[] = []) {
@@ -247,6 +248,7 @@ export function createOrganizationChatList({
   rooms = emptyRooms,
   pendingInvitations,
   organizationId = "org-1",
+  paintOnly = false,
 }: OrganizationChatListHarnessOptions = {}): ReactElement {
   return (
     <OrganizationChatList
@@ -257,6 +259,7 @@ export function createOrganizationChatList({
       organizationId={organizationId}
       canDeleteArchivedRooms={false}
       dismissSheetOnNavigate={false}
+      paintOnly={paintOnly}
     />
   );
 }

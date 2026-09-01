@@ -33,7 +33,6 @@ describe("mobile tab destinations Instant Nav contract", () => {
     "chat/components/chat-home-loading-view.tsx",
     "chat/components/chat-chats-loading-view.tsx",
     "chat/components/chat-chats-page-skeleton-host.tsx",
-    "chat/components/chat-chats-list-snapshot-preview.tsx",
     "history/components/history-loading-view.tsx",
   ] as const;
 
