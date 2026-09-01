@@ -74,6 +74,25 @@ describe("compareDriveBrowseItems", () => {
     ).toBeLessThan(0);
   });
 
+  it("applies sortOrder to name tie-break when date matches", () => {
+    const sameDate = "2026-01-01T00:00:00.000Z";
+    const alpha = file("alpha.pdf", sameDate);
+    const beta = file("beta.pdf", sameDate);
+
+    expect(
+      compareDriveBrowseItems(alpha, beta, {
+        sortBy: "date",
+        sortOrder: "asc",
+      }),
+    ).toBeLessThan(0);
+    expect(
+      compareDriveBrowseItems(alpha, beta, {
+        sortBy: "date",
+        sortOrder: "desc",
+      }),
+    ).toBeGreaterThan(0);
+  });
+
   it("sorts files by type family then name", () => {
     const pdf = file("z.pdf", "2026-01-01T00:00:00.000Z");
     const png = file("a.png", "2026-01-01T00:00:00.000Z");

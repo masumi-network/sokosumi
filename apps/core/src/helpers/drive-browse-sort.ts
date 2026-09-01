@@ -70,7 +70,7 @@ export function compareDriveBrowseItems(
     }
     const byName = left.name.localeCompare(right.name);
     if (byName !== 0) {
-      return byName;
+      return byName * dir;
     }
   } else {
     // type — folders share one bucket already; files by family then name
