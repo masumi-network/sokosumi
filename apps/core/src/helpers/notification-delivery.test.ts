@@ -1,11 +1,16 @@
 import { NotificationKind } from "@sokosumi/database";
-import type { NotificationCategory } from "@sokosumi/utils";
+import {
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CHANNELS,
+  type NotificationCategory,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   resolveNotificationDelivery,
+  resolveNotificationMatrix,
   type StoredNotificationPreference,
   toNotificationCategory,
 } from "./notification-delivery";
@@ -157,5 +162,54 @@ describe("resolveNotificationDelivery", () => {
         pushOptIn: true,
       }),
     ).toEqual({ inApp: true, osBanner: true });
+  });
+});
+
+describe("resolveNotificationMatrix", () => {
+  it("answers for every cell, so the reader sees a complete matrix", () => {
+    const matrix = resolveNotificationMatrix([]);
+
+    expect(matrix).toHaveLength(
+      NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length,
+    );
+    expect(matrix.every((cell) => cell.enabled)).toBe(true);
+    expect(matrix).toContainEqual({
+      category: "CHAT_MENTION",
+      channel: "OS_BANNER",
+      enabled: true,
+    });
+  });
+
+  it("shows the reader's own choice where they made one", () => {
+    const matrix = resolveNotificationMatrix([
+      { category: "JOB", channel: "IN_APP", enabled: false },
+    ]);
+
+    expect(matrix).toContainEqual({
+      category: "JOB",
+      channel: "IN_APP",
+      enabled: false,
+    });
+    expect(matrix).toContainEqual({
+      category: "JOB",
+      channel: "OS_BANNER",
+      enabled: true,
+    });
+  });
+
+  /**
+   * A row written by an older build, for a category or channel this one no
+   * longer has. It belongs to no cell, so it cannot appear as one.
+   */
+  it("drops a stored row that names nothing this build knows", () => {
+    const matrix = resolveNotificationMatrix([
+      { category: "PIGEON", channel: "IN_APP", enabled: false },
+      { category: "JOB", channel: "CARRIER_PIGEON", enabled: false },
+    ]);
+
+    expect(matrix).toHaveLength(
+      NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length,
+    );
+    expect(matrix.every((cell) => cell.enabled)).toBe(true);
   });
 });

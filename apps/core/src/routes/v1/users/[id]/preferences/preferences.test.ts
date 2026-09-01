@@ -16,11 +16,13 @@ const {
   userUpdateMock,
   prismaTransactionMock,
   txUserFindUniqueMock,
+  notificationPreferenceUpsertMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   userUpdateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   txUserFindUniqueMock: vi.fn(),
+  notificationPreferenceUpsertMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -37,6 +39,18 @@ const PREFERENCES = {
   marketingOptIn: true,
   notificationsOptIn: false,
   pushOptIn: false,
+  notificationPreferences: [] as {
+    category: string;
+    channel: string;
+    enabled: boolean;
+  }[],
+};
+
+/** The flags a client reads, without the matrix the response resolves. */
+const PREFERENCE_FLAGS = {
+  marketingOptIn: PREFERENCES.marketingOptIn,
+  notificationsOptIn: PREFERENCES.notificationsOptIn,
+  pushOptIn: PREFERENCES.pushOptIn,
 };
 
 const SESSION_USER: AuthenticationContext = {
@@ -101,10 +115,14 @@ describe("user preferences routes", () => {
             findUnique: typeof txUserFindUniqueMock;
             update: typeof userUpdateMock;
           };
+          notificationPreference: {
+            upsert: typeof notificationPreferenceUpsertMock;
+          };
         }) => Promise<unknown>,
       ) =>
         callback({
           user: { findUnique: txUserFindUniqueMock, update: userUpdateMock },
+          notificationPreference: { upsert: notificationPreferenceUpsertMock },
         }),
     );
   });
@@ -115,7 +133,7 @@ describe("user preferences routes", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data).toEqual(PREFERENCES);
+    expect(body.data).toMatchObject(PREFERENCE_FLAGS);
     // Spelled out rather than reusing the route's own projection constant:
     // asserting against that constant is self-referential and cannot see a
     // field leave it. The mock ignores `select`, so this literal is the only
@@ -126,6 +144,9 @@ describe("user preferences routes", () => {
         marketingOptIn: true,
         notificationsOptIn: true,
         pushOptIn: true,
+        notificationPreferences: {
+          select: { category: true, channel: true, enabled: true },
+        },
       },
     });
     expect(prismaTransactionMock).not.toHaveBeenCalled();
@@ -149,6 +170,9 @@ describe("user preferences routes", () => {
         marketingOptIn: true,
         notificationsOptIn: true,
         pushOptIn: true,
+        notificationPreferences: {
+          select: { category: true, channel: true, enabled: true },
+        },
       },
     });
   });
@@ -162,6 +186,111 @@ describe("user preferences routes", () => {
     const data = userUpdateMock.mock.calls[0]?.[0].data;
     expect(data).not.toHaveProperty("marketingOptIn");
     expect(data).not.toHaveProperty("notificationsOptIn");
+  });
+
+  it("returns every matrix cell on GET, with the reader's choices applied", async () => {
+    txUserFindUniqueMock.mockResolvedValue({
+      ...PREFERENCES,
+      notificationPreferences: [
+        { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+      ],
+    });
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request("http://localhost/me/preferences");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    // Ten cells, not the one stored row: the client renders the matrix it is
+    // given rather than filling in the defaults itself.
+    expect(body.data.notificationPreferences).toHaveLength(10);
+    expect(body.data.notificationPreferences).toContainEqual({
+      category: "CHAT_MENTION",
+      channel: "OS_BANNER",
+      enabled: false,
+    });
+    expect(body.data.notificationPreferences).toContainEqual({
+      category: "CHAT_MENTION",
+      channel: "IN_APP",
+      enabled: true,
+    });
+  });
+
+  it("writes one matrix cell on PATCH without touching the account flags", async () => {
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request(
+      patchRequest("/me/preferences", {
+        notificationPreferences: [
+          { category: "JOB", channel: "OS_BANNER", enabled: false },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(notificationPreferenceUpsertMock).toHaveBeenCalledWith({
+      where: {
+        userId_category_channel: {
+          userId: "user_123",
+          category: "JOB",
+          channel: "OS_BANNER",
+        },
+      },
+      create: {
+        userId: "user_123",
+        category: "JOB",
+        channel: "OS_BANNER",
+        enabled: false,
+      },
+      update: { enabled: false },
+    });
+    // An empty user update would still bump `updatedAt`, so the route reads
+    // instead of writing when only the matrix changed.
+    expect(userUpdateMock).not.toHaveBeenCalled();
+    expect(txUserFindUniqueMock).toHaveBeenCalled();
+  });
+
+  it("rejects a category this build does not know", async () => {
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request(
+      patchRequest("/me/preferences", {
+        notificationPreferences: [
+          { category: "PIGEON", channel: "IN_APP", enabled: false },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(notificationPreferenceUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a body asking for more writes than the matrix has cells", async () => {
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request(
+      patchRequest("/me/preferences", {
+        notificationPreferences: Array.from({ length: 11 }, () => ({
+          category: "JOB",
+          channel: "IN_APP",
+          enabled: false,
+        })),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(notificationPreferenceUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a PATCH whose only field is an empty matrix", async () => {
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request(
+      patchRequest("/me/preferences", { notificationPreferences: [] }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(userUpdateMock).not.toHaveBeenCalled();
   });
 
   it("rejects an empty PATCH body", async () => {
