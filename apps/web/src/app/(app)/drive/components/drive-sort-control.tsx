@@ -43,13 +43,12 @@ export function DriveSortControl({
   labels,
   className,
 }: DriveSortControlProps): ReactElement {
-  const activeLabel = value
-    ? value.sortBy === "name"
-      ? labels.name
-      : value.sortBy === "date"
-        ? labels.date
-        : labels.type
-    : labels.default;
+  const keyLabels: Record<FilesSortBy, string> = {
+    name: labels.name,
+    date: labels.date,
+    type: labels.type,
+  };
+  const activeLabel = value ? keyLabels[value.sortBy] : labels.default;
 
   function handleSelectKey(sortBy: FilesSortBy) {
     if (value?.sortBy === sortBy) {
@@ -113,11 +112,7 @@ export function DriveSortControl({
               data-testid={`files-sort-${key}`}
               className={cn(value?.sortBy === key && "font-medium")}
             >
-              {key === "name"
-                ? labels.name
-                : key === "date"
-                  ? labels.date
-                  : labels.type}
+              {keyLabels[key]}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

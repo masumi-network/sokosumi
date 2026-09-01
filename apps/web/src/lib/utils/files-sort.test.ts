@@ -59,34 +59,35 @@ describe("filesSortUrlValues", () => {
 
 describe("toDriveListSortQuery", () => {
   it("omitted selection does not send a sort override", () => {
-    expect(toDriveListSortQuery("browse", null)).toEqual({});
-    expect(toDriveListSortQuery("recents", null)).toEqual({});
-    expect(toDriveListSortQuery("tasks", null)).toEqual({});
+    expect(toDriveListSortQuery(null)).toEqual({});
   });
 
-  it("browse and tasks pass name/date/type as primary", () => {
-    expect(
-      toDriveListSortQuery("browse", { sortBy: "name", sortOrder: "desc" }),
-    ).toEqual({ sortBy: "name", sortOrder: "desc" });
-    expect(
-      toDriveListSortQuery("tasks", { sortBy: "type", sortOrder: "asc" }),
-    ).toEqual({ sortBy: "type", sortOrder: "asc" });
+  it("passes name/date/type through for Browse and Tasks primary sort", () => {
+    expect(toDriveListSortQuery({ sortBy: "name", sortOrder: "desc" })).toEqual(
+      { sortBy: "name", sortOrder: "desc" },
+    );
+    expect(toDriveListSortQuery({ sortBy: "type", sortOrder: "asc" })).toEqual({
+      sortBy: "type",
+      sortOrder: "asc",
+    });
   });
 
   it("recents date selection controls activity direction", () => {
-    expect(
-      toDriveListSortQuery("recents", { sortBy: "date", sortOrder: "asc" }),
-    ).toEqual({ sortBy: "date", sortOrder: "asc" });
+    expect(toDriveListSortQuery({ sortBy: "date", sortOrder: "asc" })).toEqual({
+      sortBy: "date",
+      sortOrder: "asc",
+    });
   });
 
   it("recents never requests a non-date primary key; name/type map to Core secondary", () => {
     // Core keeps activityAt primary; sortBy=name|type is secondary only.
-    expect(
-      toDriveListSortQuery("recents", { sortBy: "name", sortOrder: "asc" }),
-    ).toEqual({ sortBy: "name", sortOrder: "asc" });
-    expect(
-      toDriveListSortQuery("recents", { sortBy: "type", sortOrder: "desc" }),
-    ).toEqual({ sortBy: "type", sortOrder: "desc" });
+    expect(toDriveListSortQuery({ sortBy: "name", sortOrder: "asc" })).toEqual({
+      sortBy: "name",
+      sortOrder: "asc",
+    });
+    expect(toDriveListSortQuery({ sortBy: "type", sortOrder: "desc" })).toEqual(
+      { sortBy: "type", sortOrder: "desc" },
+    );
   });
 });
 

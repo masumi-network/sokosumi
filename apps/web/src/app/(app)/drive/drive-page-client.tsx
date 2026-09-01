@@ -358,15 +358,7 @@ function DrivePageWorkspace({
     driveNavQuery.sortBy,
     driveNavQuery.sortOrder,
   );
-  const filesSortSurface = isTasksView
-    ? "tasks"
-    : isRecentsView
-      ? "recents"
-      : "browse";
-  const filesSortQuery = toDriveListSortQuery(
-    filesSortSurface,
-    filesSortSelection,
-  );
+  const filesSortQuery = toDriveListSortQuery(filesSortSelection);
   const layoutMode: FilesViewMode = effectiveFilesViewMode(
     filesViewMode,
     isMobile,

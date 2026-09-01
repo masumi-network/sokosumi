@@ -17,8 +17,6 @@ export interface FilesSortSelection {
   sortOrder: FilesSortOrder;
 }
 
-export type FilesSortSurface = "browse" | "recents" | "tasks";
-
 export interface DriveListSortQuery {
   sortBy?: FilesSortBy;
   sortOrder?: FilesSortOrder;
@@ -88,7 +86,6 @@ export function filesSortUrlValues(selection: FilesSortSelection | null): {
  * keys; Core treats them as secondary with activityAt primary.
  */
 export function toDriveListSortQuery(
-  _surface: FilesSortSurface,
   selection: FilesSortSelection | null,
 ): DriveListSortQuery {
   if (!selection) {
