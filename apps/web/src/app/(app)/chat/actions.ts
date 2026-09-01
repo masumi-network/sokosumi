@@ -67,6 +67,7 @@ interface CreateChannelInput {
   discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
   coworkerIds?: string[];
+  orchestratorIds?: string[];
 }
 
 interface UpdateRoomInput {
@@ -221,6 +222,7 @@ export async function createChannelAction(
       discoverability: cleanDiscoverability(input.discoverability) ?? "public",
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
+      orchestratorIds: cleanIds(input.orchestratorIds),
     });
     await invalidateSidebarChatList();
     revalidatePath("/");
