@@ -31,6 +31,23 @@ describe("chatRoomMessagesToUiMessages", () => {
     await expect(validateUIMessages({ messages })).resolves.toBeDefined();
   });
 
+  it("maps orchestrator sender to assistant role", async () => {
+    const messages = chatRoomMessagesToUiMessages([
+      {
+        id: "m1",
+        content: "On it.",
+        senderUserId: null,
+        senderCoworkerId: null,
+        senderOrchestratorId: "orch_1",
+        metadata: null,
+        createdAt: baseCreatedAt,
+      },
+    ]);
+
+    expect(messages[0]?.role).toBe("assistant");
+    await expect(validateUIMessages({ messages })).resolves.toBeDefined();
+  });
+
   it("rehydrates assistant generated image file parts from metadata", async () => {
     const messages = chatRoomMessagesToUiMessages([
       {

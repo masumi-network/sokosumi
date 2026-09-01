@@ -101,11 +101,17 @@ export async function ensureThreadProviderConversation(options: {
  * thread AI turn (fresh remote conversation still needs embedded context).
  */
 export function threadHasPriorAssistantReply(
-  rows: readonly { id: string; senderCoworkerId: string | null }[],
+  rows: readonly {
+    id: string;
+    senderCoworkerId: string | null;
+    senderOrchestratorId?: string | null;
+  }[],
   parentMessageId: string,
 ): boolean {
   return rows.some(
-    (row) => row.senderCoworkerId != null && row.id !== parentMessageId,
+    (row) =>
+      row.id !== parentMessageId &&
+      (row.senderCoworkerId != null || row.senderOrchestratorId != null),
   );
 }
 
@@ -140,10 +146,12 @@ export async function buildRoomStreamThreadModelMessages(options: {
       content: true,
       senderUserId: true,
       senderCoworkerId: true,
+      senderOrchestratorId: true,
       metadata: true,
       createdAt: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
+      senderOrchestrator: { select: { name: true } },
     },
   });
   const rows = [...newestFirst].reverse();
@@ -159,8 +167,15 @@ export async function buildRoomStreamThreadModelMessages(options: {
       .slice(0, -1)
       .map((row) => ({
         senderName:
-          row.senderCoworker?.name ?? row.senderUser?.name ?? "Unknown sender",
-        isCoworker: row.senderCoworkerId != null,
+          row.senderOrchestrator?.name?.trim() ||
+          row.senderCoworker?.name ||
+          row.senderUser?.name ||
+          "Unknown sender",
+        senderKind: row.senderOrchestrator
+          ? "orchestrator"
+          : row.senderCoworker
+            ? "coworker"
+            : "human",
         content: row.content,
       }));
     const prompt = buildRoomMentionPrompt({

@@ -69,6 +69,26 @@ describe("threadHasPriorAssistantReply", () => {
       ),
     ).toBe(true);
   });
+
+  it("detects an orchestrator reply under the root", () => {
+    expect(
+      threadHasPriorAssistantReply(
+        [
+          {
+            id: "parent_1",
+            senderCoworkerId: null,
+            senderOrchestratorId: null,
+          },
+          {
+            id: "asst_1",
+            senderCoworkerId: null,
+            senderOrchestratorId: "orch_1",
+          },
+        ],
+        "parent_1",
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("ensureThreadProviderConversation", () => {
@@ -187,6 +207,51 @@ describe("buildRoomStreamThreadModelMessages", () => {
     expect(result.modelMessages[0]).toMatchObject({ role: "user" });
     expect(String(result.modelMessages[0]?.content)).toContain("Root question");
     expect(String(result.modelMessages[0]?.content)).toContain("Follow-up");
+  });
+
+  it("labels orchestrator thread context as personal assistant", async () => {
+    vi.mocked(prisma.chatRoomMessage.findMany).mockResolvedValue([
+      {
+        id: "reply_1",
+        content: "Follow-up",
+        senderUserId: "user_1",
+        senderCoworkerId: null,
+        senderOrchestratorId: null,
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:01:00.000Z"),
+        senderUser: { name: "Ada" },
+        senderCoworker: null,
+        senderOrchestrator: null,
+      },
+      {
+        id: "parent_1",
+        content: "On it.",
+        senderUserId: null,
+        senderCoworkerId: null,
+        senderOrchestratorId: "orch_1",
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:00:00.000Z"),
+        senderUser: null,
+        senderCoworker: null,
+        senderOrchestrator: { name: "Ada" },
+      },
+    ] as never);
+
+    const result = await buildRoomStreamThreadModelMessages({
+      roomId: "room_1",
+      parentMessageId: "parent_1",
+      roomName: "general",
+      senderName: "Owner",
+      lastUserMessageText: "Follow-up",
+    });
+
+    expect(convertToModelMessages).not.toHaveBeenCalled();
+    expect(String(result.modelMessages[0]?.content)).toContain(
+      "Ada (personal assistant): On it.",
+    );
+    expect(String(result.modelMessages[0]?.content)).not.toContain(
+      "(AI coworker)",
+    );
   });
 
   it("embeds coworker root on first AI thread turn (does not treat root as prior reply)", async () => {

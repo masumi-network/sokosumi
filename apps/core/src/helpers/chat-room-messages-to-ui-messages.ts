@@ -15,6 +15,7 @@ export type ChatRoomMessageRow = {
   content: string;
   senderUserId: string | null;
   senderCoworkerId: string | null;
+  senderOrchestratorId?: string | null;
   metadata: unknown;
   createdAt: Date;
 };
@@ -22,7 +23,7 @@ export type ChatRoomMessageRow = {
 function resolveChatRoomMessageRole(
   row: ChatRoomMessageRow,
 ): "user" | "assistant" {
-  if (row.senderCoworkerId) {
+  if (row.senderCoworkerId || row.senderOrchestratorId) {
     return "assistant";
   }
   return "user";
