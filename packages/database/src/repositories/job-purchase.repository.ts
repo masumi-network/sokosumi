@@ -22,6 +22,12 @@ interface CreateJobPurchaseData {
 }
 
 interface UpdateJobPurchaseData {
+  /**
+   * The payment node's purchase id. Writable on update because the node can
+   * replace a purchase row: the job purchase is then found by the job's
+   * blockchain identifier and this repairs the stale id in the same write.
+   */
+  externalId?: string;
   onChainStatus?: OnChainJobStatus | null;
   onChainTransactionHash?: string | null;
   onChainTransactionStatus?: OnChainTransactionStatus | null;
@@ -41,6 +47,9 @@ function buildUpdateData(
 ): Prisma.JobPurchaseUpdateInput {
   const updateData: Prisma.JobPurchaseUpdateInput = {};
 
+  if (data.externalId !== undefined) {
+    updateData.externalId = data.externalId;
+  }
   if (data.onChainStatus !== undefined) {
     updateData.onChainStatus = data.onChainStatus;
   }

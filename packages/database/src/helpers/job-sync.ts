@@ -5,7 +5,6 @@ import {
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
 import type { Prisma } from "../generated/prisma/client.js";
-import { finalizedOnChainJobStatuses } from "../types/job.js";
 
 /**
  * Shared grace window (ms) after the effective payment deadline. Used by all
@@ -15,51 +14,57 @@ import { finalizedOnChainJobStatuses } from "../types/job.js";
 export const JOB_SYNC_PAYMENT_GRACE_MS = 1000 * 60 * 10;
 export const FREE_JOB_OFFLINE_SYNC_WINDOW_MS = 1000 * 60 * 60 * 24 * 30;
 
-export function buildJobsNeedingPurchaseSyncWhere(
+/**
+ * Paid jobs that still have no JobPurchase row, inside the payment grace
+ * window. Jobs that already have one are updated from the payment diff feed
+ * (job-purchase-diff.service.ts), which needs no per-job selector because the
+ * node tells us which purchases changed.
+ */
+export function buildJobsNeedingPurchaseBackfillWhere(
   cutoffTime: Date = new Date(Date.now() - JOB_SYNC_PAYMENT_GRACE_MS),
 ): Prisma.JobWhereInput {
   return {
     jobType: JobType.PAID,
+    purchase: null,
     OR: [
-      {
-        purchase: {
-          onChainStatus: {
-            notIn: finalizedOnChainJobStatuses,
-          },
-        },
-      },
-      {
-        purchase: {
-          onChainStatus: null,
-        },
-      },
-      {
-        purchase: null,
-        OR: [
-          { payByTime: { not: null, gt: cutoffTime } },
-          { payByTime: null, createdAt: { gt: cutoffTime } },
-        ],
-      },
+      { payByTime: { not: null, gt: cutoffTime } },
+      { payByTime: null, createdAt: { gt: cutoffTime } },
     ],
-    NOT: [
+  };
+}
+
+/**
+ * Current transaction fields can change without moving the diff cursor.
+ * Bound ordinary states by the dispute deadline plus grace. Refund and dispute
+ * actions keep polling until their terminal state because credits depend on it.
+ */
+export function buildJobsNeedingPurchaseTransactionSyncWhere(
+  cutoffTime: Date = new Date(Date.now() - JOB_SYNC_PAYMENT_GRACE_MS),
+  legacyCutoffTime: Date = new Date(
+    Date.now() - FREE_JOB_OFFLINE_SYNC_WINDOW_MS,
+  ),
+): Prisma.JobWhereInput {
+  return {
+    jobType: JobType.PAID,
+    purchase: {
+      onChainTransactionStatus: { not: null },
+    },
+    OR: [
+      { externalDisputeUnlockTime: { gt: cutoffTime } },
+      {
+        externalDisputeUnlockTime: null,
+        createdAt: { gt: legacyCutoffTime },
+      },
       {
         purchase: {
           onChainStatus: {
-            // In-flight states that must keep polling past the dispute
-            // deadline until their terminal state (funds/refund withdrawn)
-            // is observed — otherwise local credit refunds never trigger.
-            notIn: [
+            in: [
               OnChainJobStatus.DISPUTED,
               OnChainJobStatus.REFUND_REQUESTED,
               OnChainJobStatus.REFUND_AUTHORIZED,
               OnChainJobStatus.WITHDRAW_AUTHORIZED,
             ],
-            not: null,
           },
-        },
-        externalDisputeUnlockTime: {
-          not: null,
-          lt: cutoffTime,
         },
       },
     ],
