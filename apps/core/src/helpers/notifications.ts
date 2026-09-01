@@ -32,10 +32,10 @@ export interface CreateNotificationResult {
  * Whether this notification also goes out as a closed-app OS banner.
  *
  * Push rides the notification publish over Ably (ADR-0022), gated on explicit
- * user consent. This slice pushes chat only; widening the kinds is a change to
- * this gate alone (SOK-877). Non-chat kinds skip the user read entirely, so the
- * bulk job and task paths keep their current query count. Chat pays one read
- * per notification, so a room mention costs one per recipient.
+ * user consent and on nothing else: every kind pushes. That costs one consent
+ * read per notification on the bulk job and task paths too, where the chat-only
+ * gate used to return before reading. A room mention still costs one read per
+ * recipient.
  *
  * Never throws, and never reads through the caller's transaction client. A
  * consent read that fails must degrade push alone: it must not abort a caller's
@@ -44,10 +44,6 @@ export interface CreateNotificationResult {
 async function shouldPushNotification(
   notification: Notification,
 ): Promise<boolean> {
-  if (notification.kind !== NotificationKind.CHAT) {
-    return false;
-  }
-
   try {
     const user = await prisma.user.findUnique({
       where: { id: notification.userId },

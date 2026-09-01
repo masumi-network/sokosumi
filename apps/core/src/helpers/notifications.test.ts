@@ -294,23 +294,51 @@ describe("createNotification push gating", () => {
     );
   });
 
-  it("does not push non-chat kinds, and skips the opt-in read entirely", async () => {
-    const prismaMock = createPrismaMock();
-    prismaMock.notification.create.mockResolvedValue(
-      createNotificationRecord(),
-    );
-    userFindUniqueMock.mockResolvedValue({ pushOptIn: true });
+  // Every kind pushes now, not chat alone, so the gate is the opt-in and
+  // nothing else. Listed rather than derived from the enum: a kind added later
+  // should fail this list and make someone decide whether it pushes.
+  const NON_CHAT_KINDS = [
+    NotificationKind.JOB,
+    NotificationKind.TASK,
+    NotificationKind.SYSTEM,
+    NotificationKind.BILLING,
+  ] as const;
 
-    await createNotification(
-      notificationInput,
-      prismaMock as unknown as typeof prisma,
-    );
+  for (const kind of NON_CHAT_KINDS) {
+    it(`pushes a ${kind} notification when the user opted in`, async () => {
+      const prismaMock = createPrismaMock();
+      prismaMock.notification.create.mockResolvedValue(
+        createNotificationRecord({ kind }),
+      );
+      userFindUniqueMock.mockResolvedValue({ pushOptIn: true });
 
-    expect(publishNotificationEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ push: false }),
-    );
-    expect(userFindUniqueMock).not.toHaveBeenCalled();
-  });
+      await createNotification(
+        { ...notificationInput, kind },
+        prismaMock as unknown as typeof prisma,
+      );
+
+      expect(publishNotificationEventMock).toHaveBeenCalledWith(
+        expect.objectContaining({ push: true }),
+      );
+    });
+
+    it(`does not push a ${kind} notification when the user did not opt in`, async () => {
+      const prismaMock = createPrismaMock();
+      prismaMock.notification.create.mockResolvedValue(
+        createNotificationRecord({ kind }),
+      );
+      userFindUniqueMock.mockResolvedValue({ pushOptIn: false });
+
+      await createNotification(
+        { ...notificationInput, kind },
+        prismaMock as unknown as typeof prisma,
+      );
+
+      expect(publishNotificationEventMock).toHaveBeenCalledWith(
+        expect.objectContaining({ push: false }),
+      );
+    });
+  }
 
   it("does not push when the user row is missing", async () => {
     const prismaMock = createPrismaMock();
