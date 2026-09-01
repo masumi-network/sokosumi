@@ -196,17 +196,24 @@ describe("chat list chrome single-source composition contract", () => {
     const { dirname, join } = await import("node:path");
     const { fileURLToPath } = await import("node:url");
 
+    const headerDir = join(
+      dirname(fileURLToPath(import.meta.url)),
+      "../header",
+    );
     const headerProfile = readFileSync(
-      join(
-        dirname(fileURLToPath(import.meta.url)),
-        "../header/header-profile-section.tsx",
-      ),
+      join(headerDir, "header-profile-section.tsx"),
+      "utf8",
+    );
+    const headerTrailingTools = readFileSync(
+      join(headerDir, "header-trailing-tools.tsx"),
       "utf8",
     );
 
-    expect(headerProfile).toMatch(/HeaderNotificationBell/);
+    // Trailing tools (Notification Center + mobile Search) must stay outside
+    // the members Suspense so chrome remains interactive while members load.
+    expect(headerTrailingTools).toMatch(/HeaderNotificationBell/);
     expect(headerProfile).toMatch(
-      /<Suspense[\s\S]*HeaderProfileSectionInner[\s\S]*<\/Suspense>\s*<HeaderNotificationBell/,
+      /<Suspense[\s\S]*HeaderProfileSectionInner[\s\S]*<\/Suspense>\s*<HeaderTrailingTools/,
     );
 
     const fallback = headerProfile.slice(
