@@ -50,6 +50,50 @@ describe("DriveSortControl", () => {
     expect(screen.queryByTestId("files-sort-default")).not.toBeInTheDocument();
   });
 
+  it("marks the active sort key with a check in the menu", async () => {
+    const user = userEvent.setup();
+    render(
+      <DriveSortControl
+        value={{ sortBy: "type", sortOrder: "asc" }}
+        onChange={vi.fn()}
+        labels={labels}
+      />,
+    );
+
+    await user.click(screen.getByTestId("files-sort-trigger"));
+
+    expect(screen.getByTestId("files-sort-type")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByTestId("files-sort-name")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(screen.getByTestId("files-sort-date")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
+  it("checks Date when sort selection is unset", async () => {
+    const user = userEvent.setup();
+    render(
+      <DriveSortControl value={null} onChange={vi.fn()} labels={labels} />,
+    );
+
+    await user.click(screen.getByTestId("files-sort-trigger"));
+
+    expect(screen.getByTestId("files-sort-date")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByTestId("files-sort-name")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
   it("selecting Name commits name/asc and selecting Date clears to omit", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

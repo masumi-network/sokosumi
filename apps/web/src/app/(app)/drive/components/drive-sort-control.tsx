@@ -6,8 +6,8 @@ import type { ReactElement } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -97,14 +97,14 @@ export function DriveSortControl({
           <DropdownMenuLabel>{labels.sort}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {SORT_KEYS.map((key) => (
-            <DropdownMenuItem
+            <DropdownMenuCheckboxItem
               key={key}
+              checked={effective.sortBy === key}
               onSelect={() => handleSelectKey(key)}
               data-testid={`files-sort-${key}`}
-              className={cn(effective.sortBy === key && "font-medium")}
             >
               {keyLabels[key]}
-            </DropdownMenuItem>
+            </DropdownMenuCheckboxItem>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
