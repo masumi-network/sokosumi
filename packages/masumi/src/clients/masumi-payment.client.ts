@@ -368,6 +368,21 @@ export function createPaymentClient(
      * after `changedSince`, oldest first. `cursorId` breaks the tie when
      * several purchases carry the same change timestamp, so a page boundary
      * cannot drop or repeat a row.
+     *
+     * No payment-source filter is sent, so both V1 and V2 purchases come back.
+     * That is deliberate but version-bound. `GET /purchase`, `/payment/diff`
+     * and `/registry/diff` all default to Web3CardanoV1 when neither
+     * `filterPaymentSourceType` nor `filterSmartContractAddress` is given, and
+     * all three say so in the spec. `/purchase/diff` says neither, and the
+     * node builds that spec from the route's own input schema, so today it
+     * applies no default. The payment service has since added one on its
+     * mainline (masumi-payment-service `resolvePurchasePaymentSourceTypeFilter`
+     * in `src/routes/api/purchases/queries.ts`).
+     *
+     * When a deployed node starts documenting `filterPaymentSourceType` here,
+     * this call must page BOTH rails with a cursor each: the node resolves one
+     * source type per request, and Sokosumi runs V1 and V2 side by side. Until
+     * then, one unfiltered pass covers both.
      */
     async getPurchasesDiff(
       changedSince: Date,
