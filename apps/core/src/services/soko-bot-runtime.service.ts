@@ -1529,6 +1529,7 @@ export class SokoBotRuntimeService {
           status: true,
           assigneeId: true,
           assigneeOrchestratorId: true,
+          assignee: { select: { sokoBotId: true } },
         },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");

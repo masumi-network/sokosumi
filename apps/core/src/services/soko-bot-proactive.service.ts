@@ -193,7 +193,11 @@ export async function findAttentionItems(bot: {
       // lets the bot answer when a comment names it. Sweeping every stuck or
       // failed Task in the workspace made it chase a week of other people's
       // abandoned work and, now that it can act rather than draft, restart it.
-      OR: [{ assigneeId: bot.coworkerId }, { id: { in: delegatedIds } }],
+      OR: [
+        { assigneeId: bot.coworkerId },
+        { assigneeOrchestratorId: bot.id },
+        { id: { in: delegatedIds } },
+      ],
     },
     select: {
       id: true,
