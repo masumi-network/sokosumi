@@ -102,13 +102,16 @@ describe("ChatChatsPageSkeletonHost", () => {
     expect(screen.queryByTestId("chat-chats-loading")).toBeNull();
     const snapshot = screen.getByTestId("chat-chats-snapshot");
     expect(snapshot).toBeTruthy();
+    expect(snapshot.hasAttribute("inert")).toBe(true);
     expect(snapshot.className.includes("pointer-events-none")).toBe(true);
     const list = screen.getByTestId("paint-only-list");
     expect(list.getAttribute("data-paint-only")).toBe("true");
-    const link = screen.getByRole("link", { name: /general/i });
-    expect(link.getAttribute("href")).toBe("/chat/rooms/room-1");
+    // inert removes descendants from the a11y tree — query the DOM directly.
+    const link = snapshot.querySelector('a[href="/chat/rooms/room-1"]');
+    expect(link).toBeTruthy();
+    expect(link?.textContent).toMatch(/general/i);
     // Overlay cleared unread → label is not bold (font-semibold).
-    expect(link.className.includes("font-semibold")).toBe(false);
+    expect(link?.className.includes("font-semibold")).toBe(false);
   });
 
   it("keeps bold unread chrome when overlay does not clear attention", () => {
@@ -120,8 +123,11 @@ describe("ChatChatsPageSkeletonHost", () => {
 
     render(<ChatChatsPageSkeletonHost />);
 
-    const link = screen.getByRole("link", { name: /alerts/i });
-    expect(link.className.includes("font-semibold")).toBe(true);
+    const snapshot = screen.getByTestId("chat-chats-snapshot");
+    expect(snapshot.hasAttribute("inert")).toBe(true);
+    const link = snapshot.querySelector('a[href="/chat/rooms/room-2"]');
+    expect(link).toBeTruthy();
+    expect(link?.className.includes("font-semibold")).toBe(true);
   });
 
   it("paints Personal Assistant chrome when session flag is set", () => {

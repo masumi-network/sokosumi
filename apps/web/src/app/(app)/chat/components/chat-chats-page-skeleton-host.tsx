@@ -44,7 +44,8 @@ function getPersonalAssistantServerSnapshot(): boolean {
  * trailing chrome match the streamed page (no Ably/polls). When Personal
  * Assistant was shown this session (beta), paint that row + separator too so
  * soft-nav back does not jump when RSC lands (SOK-903). Snapshot paint is
- * non-interactive so taps during the flash cannot open create/menus.
+ * non-interactive (`inert` + pointer-events-none) so focus/taps during the
+ * flash cannot open create/menus or follow room links.
  */
 export function ChatChatsPageSkeletonHost() {
   const snapshot = useSyncExternalStore(
@@ -68,6 +69,7 @@ export function ChatChatsPageSkeletonHost() {
     <Sheet open>
       <div
         data-testid="chat-chats-snapshot"
+        inert
         className={cn(
           CHAT_CHATS_MOBILE_LIST_SHELL_CLASS,
           "pointer-events-none",

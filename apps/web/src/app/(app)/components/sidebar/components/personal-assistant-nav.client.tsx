@@ -4,7 +4,6 @@ import { Bot } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
 import { AuroraOrb } from "@/components/aurora-orb";
 import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
 import { SheetClose } from "@/components/ui/sheet";
@@ -15,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
@@ -69,10 +69,10 @@ export default function PersonalAssistantNav({
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
-  useEffect(() => {
+  useMountEffect(() => {
     // Session memory for Instant `/chat` (SOK-903): mount means beta chrome is on.
     publishPersonalAssistantChromeVisible(true);
-  }, []);
+  });
 
   return (
     <SidebarGroup className="w-full">
