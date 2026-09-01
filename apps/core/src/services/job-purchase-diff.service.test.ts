@@ -46,7 +46,9 @@ vi.mock("@sokosumi/database/helpers", () => ({
 import { ok } from "neverthrow";
 
 import {
+  PURCHASE_DIFF_INITIAL_LOOKBACK_MS,
   PURCHASE_DIFF_PAGE_SIZE,
+  PURCHASE_DIFF_REREAD_WINDOW_MS,
   PURCHASE_DIFF_SYNC_METADATA_KEY,
   type PurchaseDiffSyncOptions,
   syncPurchasesFromDiff,
@@ -110,7 +112,7 @@ describe("syncPurchasesFromDiff", () => {
   it("applies a changed purchase to its job and advances the cursor", async () => {
     getPurchasesDiffMock.mockResolvedValueOnce(ok([createDiffPurchase()]));
     jobPurchaseFindManyMock.mockResolvedValue([createJobPurchaseRow()]);
-    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(true);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
 
     const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
 
@@ -118,15 +120,63 @@ describe("syncPurchasesFromDiff", () => {
     expect(applyPurchase.mock.calls[0][0]).toMatchObject({ id: "job_1" });
     expect(applyPurchase.mock.calls[0][1]).toMatchObject({ id: "purchase_1" });
     expect(result).toEqual({ found: 1, processed: 1 });
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
-        update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
-      }),
+    // The id join is the whole mechanism: without this the service could query
+    // on any column and every test would still pass.
+    expect(jobPurchaseFindManyMock).toHaveBeenCalledWith({
+      where: { externalId: { in: ["purchase_1"] } },
+      include: { job: { include: expect.anything() } },
+    });
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
+      where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      create: {
+        key: PURCHASE_DIFF_SYNC_METADATA_KEY,
+        cursorId: "purchase_1",
+        lastSyncedAt: CHANGED_AT,
+      },
+      update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
+    });
+  });
+
+  it("matches a row by blockchain identifier when the stored id is stale", async () => {
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      ok([createDiffPurchase({ id: "purchase_new" })]),
+    );
+    jobPurchaseFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        createJobPurchaseRow({ externalId: "purchase_old" }),
+      ]);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
+
+    const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+    expect(jobPurchaseFindManyMock).toHaveBeenNthCalledWith(2, {
+      where: { job: { blockchainIdentifier: { in: ["chain-1"] } } },
+      include: { job: { include: expect.anything() } },
+    });
+    expect(applyPurchase).toHaveBeenCalledTimes(1);
+    expect(applyPurchase.mock.calls[0][0]).toMatchObject({ id: "job_1" });
+    expect(result.processed).toBe(1);
+  });
+
+  it("starts from a bounded lookback when no cursor is stored", async () => {
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
+    getPurchasesDiffMock.mockResolvedValueOnce(ok([]));
+    const startedAt = Date.now();
+
+    await syncPurchasesFromDiff(createOptions(vi.fn<ApplyPurchase>()));
+
+    const [changedAt, cursorId] = getPurchasesDiffMock.mock.calls[0];
+    expect(cursorId).toBeNull();
+    expect(changedAt.getTime()).toBeGreaterThanOrEqual(
+      startedAt - PURCHASE_DIFF_INITIAL_LOOKBACK_MS,
+    );
+    expect(changedAt.getTime()).toBeLessThan(
+      Date.now() - PURCHASE_DIFF_INITIAL_LOOKBACK_MS + 60_000,
     );
   });
 
-  it("starts from the stored cursor", async () => {
+  it("re-reads a window before the stored cursor", async () => {
     syncMetadataFindUniqueMock.mockResolvedValue({
       cursorId: "purchase_0",
       lastSyncedAt: CHANGED_AT,
@@ -135,11 +185,13 @@ describe("syncPurchasesFromDiff", () => {
 
     await syncPurchasesFromDiff(createOptions(vi.fn<ApplyPurchase>()));
 
+    // A change stamped before the cursor but committed after it was persisted
+    // is only ever served again inside this window.
     expect(getPurchasesDiffMock).toHaveBeenCalledWith(
-      CHANGED_AT,
-      "purchase_0",
+      new Date(CHANGED_AT.getTime() - PURCHASE_DIFF_REREAD_WINDOW_MS),
+      null,
       PURCHASE_DIFF_PAGE_SIZE,
-      expect.anything(),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 
@@ -152,7 +204,11 @@ describe("syncPurchasesFromDiff", () => {
 
     expect(applyPurchase).not.toHaveBeenCalled();
     expect(result.processed).toBe(0);
-    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
+      }),
+    );
   });
 
   it("refuses a row whose blockchain identifier does not match the job", async () => {
@@ -168,7 +224,11 @@ describe("syncPurchasesFromDiff", () => {
 
     expect(applyPurchase).not.toHaveBeenCalled();
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
-    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
+      }),
+    );
   });
 
   it("parks the cursor on the last applied row when one fails", async () => {
@@ -198,7 +258,7 @@ describe("syncPurchasesFromDiff", () => {
     ]);
     const applyPurchase = vi
       .fn<ApplyPurchase>()
-      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error("write failed"));
 
     const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
@@ -222,6 +282,9 @@ describe("syncPurchasesFromDiff", () => {
 
     expect(result).toEqual({ found: 0, processed: 0 });
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    // The diff is the only path that updates an attached purchase, so a
+    // failing request has to page rather than look like a quiet tick.
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
   it("replays from the beginning when the cursor is reset", async () => {
@@ -259,6 +322,7 @@ describe("syncPurchasesFromDiff", () => {
     );
 
     expect(getPurchasesDiffMock).toHaveBeenCalledTimes(2);
+    expect(getPurchasesDiffMock.mock.calls[1][0]).toEqual(CHANGED_AT);
     expect(getPurchasesDiffMock.mock.calls[1][1]).toBe(
       `purchase_${PURCHASE_DIFF_PAGE_SIZE - 1}`,
     );
@@ -308,7 +372,7 @@ describe("syncPurchasesFromDiff budget handling", () => {
     // One check before the request, then one per row: the second row is the
     // one that must fall outside the budget.
     let checksLeft = 2;
-    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(true);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
 
     const result = await syncPurchasesFromDiff(
       createOptions(applyPurchase, {
@@ -334,21 +398,20 @@ describe("syncPurchasesFromDiff cursor stalls", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
-  it("stops when a full page ends on the cursor it started from", async () => {
-    syncMetadataFindUniqueMock.mockResolvedValue({
-      cursorId: `purchase_${PURCHASE_DIFF_PAGE_SIZE - 1}`,
-      lastSyncedAt: CHANGED_AT,
-    });
+  it("stops when a page ends where the previous page ended", async () => {
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
     const fullPage = Array.from({ length: PURCHASE_DIFF_PAGE_SIZE }, (_, i) =>
       createDiffPurchase({ id: `purchase_${i}` }),
     );
+    // A node that treats its cursor as inclusive would serve this page for
+    // ever; the run must stop instead of re-applying it until the deadline.
     getPurchasesDiffMock.mockResolvedValue(ok(fullPage));
 
     const result = await syncPurchasesFromDiff(
       createOptions(vi.fn<ApplyPurchase>()),
     );
 
-    expect(getPurchasesDiffMock).toHaveBeenCalledTimes(1);
-    expect(result.found).toBe(PURCHASE_DIFF_PAGE_SIZE);
+    expect(getPurchasesDiffMock).toHaveBeenCalledTimes(2);
+    expect(result.found).toBe(PURCHASE_DIFF_PAGE_SIZE * 2);
   });
 });

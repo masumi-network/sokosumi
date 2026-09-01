@@ -1399,10 +1399,12 @@ describe("createPaymentClient purchase diff", () => {
       "https://payment.test",
       "api-key",
     );
+    const abortController = new AbortController();
     const result = await client.getPurchasesDiff(
       new Date("2026-01-05T10:00:00.000Z"),
       "purchase_cursor",
       25,
+      { signal: abortController.signal },
     );
 
     expect(result.isOk()).toBe(true);
@@ -1416,6 +1418,11 @@ describe("createPaymentClient purchase diff", () => {
         limit: 25,
       },
     });
+    // Without this a hung node would hold the sync lock for the whole run:
+    // toMatchObject above would not notice the signal going missing.
+    expect(getPurchaseDiffMock.mock.calls[0][0].signal).toBe(
+      abortController.signal,
+    );
   });
 
   it("omits the cursor on the first page", async () => {

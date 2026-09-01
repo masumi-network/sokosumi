@@ -100,12 +100,12 @@ export interface JobSyncResult {
 }
 
 /**
- * Budget held back from BOTH network-bound phases so the refund phase always
- * runs. One run deadline covers, in order: the purchase diff, then the
- * purchase backfill, agent, and refund phases.
+ * Budget held back from the network-bound phases so the refund phase always
+ * runs. One run deadline covers, in order: purchase backfill, the purchase
+ * diff, agent, then refund.
  *
- * The diff reads one page of changed purchases per request, backfill polls the
- * payment node once per purchase-less job (10s timeout, 5 concurrent), and
+ * Backfill polls the payment node once per purchase-less job (10s timeout, 5
+ * concurrent), the diff reads one page of changed purchases per request, and
  * agent polls sellers — and since this release keeps polling snapshot-backed
  * jobs whose agent has gone offline (see `buildInFlightAgentSnapshotWhere`),
  * free jobs for 30 days. Any of them can consume the whole run on its own: a
@@ -118,7 +118,9 @@ export interface JobSyncResult {
  * the backfill phase. It triggers on `purchase: null`, and backfill is what
  * attaches a JobPurchase row for a purchase that landed on chain since the
  * last run. Refunding first would return credits for a job whose escrow is
- * funded — paying the seller and the buyer both.
+ * funded — paying the seller and the buyer both. Backfill also runs before the
+ * diff, for the same reason: the diff's cost follows the node's change feed,
+ * so it must not be able to starve the phase refund depends on.
  *
  * (`seenJobIds` is NOT what enforces this. It is only a deduplicated counter
  * for `unfinishedFound` across the three job-selector phases; the diff is
@@ -756,7 +758,7 @@ async function applyDiffPurchase(
   job: JobWithSokosumiStatus,
   purchase: MasumiPurchaseDiffEntry,
   options: JobSyncRunOptions,
-): Promise<boolean> {
+): Promise<void> {
   const oldJobStatus = job.status;
   const transactionResult = await prisma.$transaction(
     async (tx): Promise<JobSyncTransactionResult> => {
@@ -784,7 +786,6 @@ async function applyDiffPurchase(
     transactionResult,
     options.enqueueEmail,
   );
-  return true;
 }
 
 async function syncAgentStatus(
@@ -1023,15 +1024,15 @@ export const jobSyncService = {
     };
 
     let diffProcessed = 0;
-    let purchasePhase: JobSyncPhaseResult = { found: 0, processed: 0 };
+    let backfillPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
     let agentPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
     let refundPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
 
-    // Both network-bound phases share one reserved deadline, so whichever of
-    // them is slow, the refund phase still gets its budget. Reserving only
-    // against the agent phase left the purchase phase — which is equally
-    // network-bound, and runs FIRST — able to consume the whole run on its
-    // own, collapsing the agent budget to zero and starving refunds anyway.
+    // All three network-bound phases share one reserved deadline, so whichever
+    // of them is slow, the refund phase still gets its budget. Reserving only
+    // against the agent phase left the phases that run before it able to
+    // consume the whole run on their own, collapsing the agent budget to zero
+    // and starving refunds anyway.
     const networkPhaseOptions = {
       ...runOptions,
       deadlineMs: Math.max(
@@ -1041,26 +1042,39 @@ export const jobSyncService = {
     };
 
     try {
-      // Changed purchases first: one request per page of node-side changes,
-      // instead of one request per unfinished job. The backfill phase below
-      // then only has to attach purchases that have no local row yet.
-      const purchaseDiff = await syncPurchasesFromDiff({
-        abortSignal: options.abortSignal,
-        applyPurchase: (job, purchase) =>
-          applyDiffPurchase(job, purchase, runOptions),
-        deadlineMs: networkPhaseOptions.deadlineMs,
-        shouldContinue: options.shouldContinue,
-        ...(options.resetPurchaseCursor ? { resetCursor: true } : {}),
-      });
-      diffProcessed = purchaseDiff.processed;
-
-      purchasePhase = await runSyncPhase(
+      // Backfill BEFORE the diff. Its work is bounded by our own recent hires,
+      // while the diff drains whatever the node changed — a backlog, or the
+      // whole 30-day lookback on a first run. Letting the diff go first left a
+      // job whose JobPurchase write was lost at hire time unattached past the
+      // payment grace window, and the refund phase then returns credits for an
+      // escrow that is funded on chain.
+      backfillPhase = await runSyncPhase(
         "purchase-backfill",
         buildJobsNeedingPurchaseBackfillWhere(),
         networkPhaseOptions,
         seenJobIds,
         backfillJobPurchase,
       );
+
+      // Changed purchases: one request per page of node-side changes, instead
+      // of one request per unfinished job. Isolated in its own try/catch — an
+      // unexpected throw here (a transient Prisma failure while reading the
+      // cursor, say) must not skip the agent and refund phases below.
+      try {
+        const purchaseDiff = await syncPurchasesFromDiff({
+          abortSignal: options.abortSignal,
+          applyPurchase: (job, purchase) =>
+            applyDiffPurchase(job, purchase, runOptions),
+          deadlineMs: networkPhaseOptions.deadlineMs,
+          shouldContinue: options.shouldContinue,
+          ...(options.resetPurchaseCursor ? { resetCursor: true } : {}),
+        });
+        diffProcessed = purchaseDiff.processed;
+      } catch (error) {
+        console.error("[sync/jobs/purchase-diff] Diff sync failed:", error);
+        Sentry.captureException(error);
+      }
+
       agentPhase = await runSyncPhase(
         "agent",
         buildJobsNeedingAgentStatusSyncWhere(),
@@ -1093,7 +1107,7 @@ export const jobSyncService = {
       durationMs: Date.now() - startedAt,
       processed:
         diffProcessed +
-        purchasePhase.processed +
+        backfillPhase.processed +
         agentPhase.processed +
         refundPhase.processed,
       unfinishedFound: seenJobIds.size,

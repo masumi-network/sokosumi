@@ -391,6 +391,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       sourceImportEnqueueMock,
       paymentClientFactoryMock,
       getPurchaseByBlockchainIdentifierMock,
+      getPurchasesDiffMock,
+      jobPurchaseFindManyMock,
+      syncMetadataDeleteManyMock,
+      syncMetadataFindUniqueMock,
+      syncMetadataUpsertMock,
       updateJobPurchaseByJobIdMock,
       refundJobMock,
       prismaTransactionMock,
@@ -1287,11 +1292,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
   });
 
-  it("still reconciles refunds when the purchase phase has no budget left", async () => {
-    // The purchase phase is network-bound too — one payment-node call per job
-    // — and it runs FIRST. Reserving only against the agent phase let a slow
-    // node consume the whole run here and starve refunds anyway, which is
-    // exactly when refunds matter most.
+  it("still reconciles refunds when the earlier phases have no budget left", async () => {
+    // Backfill and the diff are network-bound too, and both run BEFORE the
+    // agent phase. Reserving only against the agent phase let a slow node
+    // consume the whole run here and starve refunds anyway, which is exactly
+    // when refunds matter most.
     mockInitialJobQueries({
       purchase: [
         createJob({
@@ -1337,6 +1342,55 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
     expect(refundJobMock).toHaveBeenCalledWith("job_needs_refund", {});
     expect(getPurchaseByBlockchainIdentifierMock).not.toHaveBeenCalled();
+    expect(getPurchasesDiffMock).not.toHaveBeenCalled();
+  });
+
+  it("attaches missing purchases before draining the diff feed", async () => {
+    // Order matters: the diff drains whatever the node changed, so letting it
+    // run first can leave a purchase unattached past the grace window, and the
+    // refund phase then returns credits for a funded escrow.
+    const callOrder: string[] = [];
+    mockInitialJobQueries({
+      purchase: [
+        createJob({
+          id: "job_needs_backfill",
+          status: SokosumiJobStatus.PAYMENT_PENDING,
+          purchase: null,
+        }),
+      ],
+    });
+    getPurchaseByBlockchainIdentifierMock.mockImplementation(async () => {
+      callOrder.push("backfill");
+      return err("not found");
+    });
+    getPurchasesDiffMock.mockImplementation(async () => {
+      callOrder.push("diff");
+      return ok([]);
+    });
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(callOrder).toEqual(["backfill", "diff"]);
+  });
+
+  it("still reconciles refunds when the purchase diff throws", async () => {
+    const reconciliationJob = createJob({
+      id: "job_missing_purchase",
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      purchase: null,
+      payByTime: new Date("2026-03-18T09:45:00.000Z"),
+    });
+    mockInitialJobQueries({
+      pendingLocalRefunds: [reconciliationJob],
+    });
+    getJobByIdMock.mockResolvedValueOnce(reconciliationJob);
+    getPurchasesDiffMock.mockRejectedValueOnce(new Error("diff exploded"));
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    // An unexpected throw in the diff must not take the refund phase with it.
+    expect(refundJobMock).toHaveBeenCalledWith("job_missing_purchase", {});
+    expect(captureExceptionMock).toHaveBeenCalled();
   });
 
   it("skips new events and notifications when the agent status hash is unchanged", async () => {
