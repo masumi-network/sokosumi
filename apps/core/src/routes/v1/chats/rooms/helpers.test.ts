@@ -16,6 +16,7 @@ import {
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
   countChatRoomUnreadThreads,
+  excludeShadowPaCoworkerMentions,
   findLiveDirectByParticipantKey,
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
@@ -33,6 +34,7 @@ import {
   requireJoinableOrgChannel,
   requireRoomMemberCanInviteGuests,
   resolveMentionedCoworkerIds,
+  resolveMentionedOrchestratorIds,
   resolveMentionedUserIds,
   resolvePeerInActiveOrganization,
   resolveWorkspaceIdForChatRoom,
@@ -180,6 +182,45 @@ describe("resolveMentionedCoworkerIds", () => {
         roomCoworkers,
       }),
     ).toEqual(["coworker_hannah", "coworker_elena"]);
+  });
+});
+
+describe("excludeShadowPaCoworkerMentions", () => {
+  it("drops shadow PA coworker mentions when the same bot is a room orchestrator", () => {
+    expect(
+      excludeShadowPaCoworkerMentions({
+        mentionedCoworkerIds: ["cow_shadow", "cow_market"],
+        roomCoworkers: [
+          { id: "cow_shadow", sokoBotId: "orch_ada" },
+          { id: "cow_market", sokoBotId: null },
+        ],
+        roomOrchestratorIds: ["orch_ada"],
+      }),
+    ).toEqual(["cow_market"]);
+  });
+
+  it("keeps shadow coworker mentions when the PA is not an orchestrator member", () => {
+    expect(
+      excludeShadowPaCoworkerMentions({
+        mentionedCoworkerIds: ["cow_shadow"],
+        roomCoworkers: [{ id: "cow_shadow", sokoBotId: "orch_ada" }],
+        roomOrchestratorIds: [],
+      }),
+    ).toEqual(["cow_shadow"]);
+  });
+});
+
+describe("resolveMentionedOrchestratorIds", () => {
+  it("resolves @orchestrator tokens and bare aliases", () => {
+    expect(
+      resolveMentionedOrchestratorIds({
+        content: "@orchestrator:ada hello @ada",
+        roomOrchestrators: [
+          { id: "orch_ada", name: "Ada", slug: "ada" },
+          { id: "orch_other", name: "Other", slug: "other" },
+        ],
+      }),
+    ).toEqual(["orch_ada"]);
   });
 });
 

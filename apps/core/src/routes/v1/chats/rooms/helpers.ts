@@ -2140,6 +2140,32 @@ export function resolveMentionedCoworkerIds(params: {
   return [...mentionedIds].filter((coworkerId) => allowedIds.has(coworkerId));
 }
 
+/**
+ * When a shadow PA coworker and the same bot are both room members, drop the
+ * coworker mention so only the orchestrator rail dispatches (SOK-942 dual path).
+ */
+export function excludeShadowPaCoworkerMentions(params: {
+  mentionedCoworkerIds: readonly string[];
+  roomCoworkers: Array<{ id: string; sokoBotId: string | null }>;
+  roomOrchestratorIds: readonly string[];
+}): string[] {
+  const roomPaIds = new Set(params.roomOrchestratorIds);
+  if (roomPaIds.size === 0) {
+    return [...params.mentionedCoworkerIds];
+  }
+  const shadowCoworkerIds = new Set(
+    params.roomCoworkers
+      .filter(
+        (coworker) =>
+          coworker.sokoBotId != null && roomPaIds.has(coworker.sokoBotId),
+      )
+      .map((coworker) => coworker.id),
+  );
+  return params.mentionedCoworkerIds.filter(
+    (coworkerId) => !shadowCoworkerIds.has(coworkerId),
+  );
+}
+
 /** Resolve PA / orchestrator mentions from explicit ids + @orchestrator:slug / bare @alias. */
 export function resolveMentionedOrchestratorIds(params: {
   content: string;

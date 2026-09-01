@@ -227,6 +227,7 @@ function roomWithMembers(
         },
       },
     ],
+    orchestratorMembers: [],
   };
 }
 
@@ -253,6 +254,7 @@ function coworkerOnlyDirectRoom() {
         },
       },
     ],
+    orchestratorMembers: [],
   };
 }
 
@@ -1182,6 +1184,16 @@ describe("POST /chats/rooms/{id}/messages", () => {
         kind: "channel",
         organizationId: "org_1",
         userMembers: [],
+        coworkerMembers: [
+          {
+            coworker: {
+              id: COWORKER_ID,
+              name: "Hannah",
+              slug: "hannah",
+            },
+          },
+        ],
+        orchestratorMembers: [],
       });
       messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
       messageCreateMock.mockResolvedValue(

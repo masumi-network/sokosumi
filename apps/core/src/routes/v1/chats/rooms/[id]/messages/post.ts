@@ -29,6 +29,7 @@ import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unf
 
 import {
   chatRoomMessageInclude,
+  excludeShadowPaCoworkerMentions,
   mapChatRoomMessage,
   mapChatRoomOrchestratorParticipant,
   markChatRoomThreadRead,
@@ -217,11 +218,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // A Soko Bot direct is mention-driven (its reply is a Core turn),
         // so it never takes the coworker stream shortcut. Native orchestrator
         // PA membership (SOK-942) is also mention-driven.
+        const orchestratorMembers = room.orchestratorMembers ?? [];
         const skipCoworkerMentions =
           room.kind === "direct" &&
           room.coworkerMembers.length === 1 &&
           room.coworkerMembers[0]?.coworker.sokoBotId == null &&
-          room.orchestratorMembers.length === 0 &&
+          orchestratorMembers.length === 0 &&
           room.userMembers.length === 1 &&
           room.userMembers[0]?.userId === userContext.userId;
 
@@ -281,25 +283,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ]);
         }
 
-        const mentionedCoworkerIds = skipCoworkerMentions
-          ? []
-          : resolveMentionedCoworkerIds({
-              content: body.content,
-              explicitCoworkerIds: [
-                ...(body.mentionedCoworkerIds ?? []),
-                ...directCoworkerIds,
-                ...threadCoworkerIds,
-              ],
-              roomCoworkers: room.coworkerMembers.map(({ coworker }) => ({
-                id: coworker.id,
-                name: coworker.name,
-                slug: coworker.slug,
-              })),
-            });
-
         // PA / orchestrator mentions always resolve (including PA directs).
         // Marketplace coworker DM stream shortcut must not skip them.
-        const roomOrchestrators = room.orchestratorMembers.map(
+        const roomOrchestrators = orchestratorMembers.map(
           ({ orchestrator }) => {
             const participant =
               mapChatRoomOrchestratorParticipant(orchestrator);
@@ -312,9 +298,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
         const directOrchestratorIds =
           room.kind === "direct"
-            ? room.orchestratorMembers.map(
-                ({ orchestrator }) => orchestrator.id,
-              )
+            ? orchestratorMembers.map(({ orchestrator }) => orchestrator.id)
             : [];
         const mentionedOrchestratorIds = resolveMentionedOrchestratorIds({
           content: body.content,
@@ -325,6 +309,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ],
           roomOrchestrators,
         });
+
+        const mentionedCoworkerIds = skipCoworkerMentions
+          ? []
+          : excludeShadowPaCoworkerMentions({
+              mentionedCoworkerIds: resolveMentionedCoworkerIds({
+                content: body.content,
+                explicitCoworkerIds: [
+                  ...(body.mentionedCoworkerIds ?? []),
+                  ...directCoworkerIds,
+                  ...threadCoworkerIds,
+                ],
+                roomCoworkers: room.coworkerMembers.map(({ coworker }) => ({
+                  id: coworker.id,
+                  name: coworker.name,
+                  slug: coworker.slug,
+                })),
+              }),
+              roomCoworkers: room.coworkerMembers.map(({ coworker }) => ({
+                id: coworker.id,
+                sokoBotId: coworker.sokoBotId ?? null,
+              })),
+              roomOrchestratorIds: roomOrchestrators.map(({ id }) => id),
+            });
 
         const mentionedUserIds = resolveMentionedUserIds({
           content: body.content,
