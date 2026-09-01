@@ -10,4 +10,8 @@
 
 **Why dual kind:** Catalog loaders request Cardano and x402; kind filter and badges distinguish rails. Category filters apply when Cardano is in scope; do not send Core-invalid `kind=x402` + category-only queries.
 
+**Why x402 opens externally:** Core Agent detail (`GET /agents/{id}`) is Cardano-only. Catalog x402 cards link to the agent’s public resource / OpenAPI URL when present; cards without a URL show a disabled “Details unavailable” control instead of a dead click target. In-app `/agents/[id]` remains Cardano detail.
+
+**Why separate search URL params:** Coworker gallery keeps `?query=`; Agent catalog uses `?agentQuery=` (plus `categories` / `kind`) so the two tiers do not share or desync search state.
+
 Partially supersedes ADR-0006 (browse restored; app Hire ban remains).

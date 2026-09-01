@@ -16,7 +16,9 @@ export interface GalleryFilterState {
 }
 
 export default function useGalleryFilter() {
-  const [query, setQuery] = useQueryState("query", { defaultValue: "" });
+  // Catalog-only search. Coworker gallery keeps the separate `query` param so
+  // the two tiers do not share / desync URL-backed search state.
+  const [query, setQuery] = useQueryState("agentQuery", { defaultValue: "" });
   const [categories, setCategories] = useQueryState(
     "categories",
     parseAsArrayOf(parseAsString).withDefault([]),

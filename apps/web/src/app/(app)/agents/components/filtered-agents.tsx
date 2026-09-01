@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Suspense, useMemo } from "react";
 import FilterSection from "@/app/agents/components/filter-section";
 import {
@@ -12,6 +13,7 @@ import useGalleryFilter, {
   type GalleryFilterState,
 } from "@/hooks/use-gallery-filter";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
+import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { filterAgents } from "@/lib/helpers/agent-filter";
 import { groupAgentsByCategory } from "@/lib/helpers/agent-grouping";
 import type { Category } from "@/lib/types/category";
@@ -36,6 +38,7 @@ function FilteredAgentsInner({
   ratingStatsMap,
   categories,
 }: FilteredAgentsProps) {
+  const t = useTranslations("Components.Agents");
   const { query, categories: selectedCategories, kind } = useGalleryFilter();
 
   const filteredAgents = useMemo(() => {
@@ -69,7 +72,11 @@ function FilteredAgentsInner({
             agents={group.agents}
             icon={group.categoryIcon}
             ratingStatsMap={ratingStatsMap}
-            title={group.categoryName}
+            title={
+              group.categorySlug === SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT
+                ? t("othersCategory")
+                : group.categoryName
+            }
           />
         ))
       )}

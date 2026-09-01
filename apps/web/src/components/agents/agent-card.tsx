@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import useIsClient from "@/hooks/use-is-client";
@@ -195,15 +195,18 @@ function AgentCard({
   const kindLabel = agent.kind === "x402" ? tKind("x402") : tKind("cardano");
   const linksToDetail = agent.kind === "cardano";
 
+  // Cardano cards wrap the whole card in AgentDetailLink — use a span styled as
+  // a button so we do not nest <button> inside <a>.
   const actionButton = linksToDetail ? (
     <div className={cn(agentShowDetailsButtonVariants({ size }))}>
-      <Button
-        variant="secondary"
-        size={buttonSize}
-        className="w-full cursor-pointer md:w-auto"
+      <span
+        className={cn(
+          buttonVariants({ variant: "secondary", size: buttonSize }),
+          "w-full md:w-auto",
+        )}
       >
         {t("view")}
-      </Button>
+      </span>
     </div>
   ) : agent.externalUrl ? (
     <div className={cn(agentShowDetailsButtonVariants({ size }))}>
@@ -219,7 +222,18 @@ function AgentCard({
         </a>
       </Button>
     </div>
-  ) : null;
+  ) : (
+    <div className={cn(agentShowDetailsButtonVariants({ size }))}>
+      <Button
+        variant="secondary"
+        size={buttonSize}
+        className="w-full md:w-auto"
+        disabled
+      >
+        {t("detailsUnavailable")}
+      </Button>
+    </div>
+  );
 
   const cardContent = (
     <Card
@@ -261,7 +275,7 @@ function AgentCard({
             {linksToDetail ? (
               <StarRating
                 averageRating={ratingStats?.average ?? 0}
-                totalRatings={ratingStats?.total ?? 5}
+                totalRatings={ratingStats?.total ?? 0}
                 size="sm"
                 showRatingNumber={false}
               />

@@ -23,13 +23,14 @@ Preconditions:
 
 - **Open gallery.** Run `agent-browser open $WEB_URL/agents` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. Page is `/agents` and not `/signin`.
 - **Healthy gallery.** Snapshot shows coworker hero / **Your AI coworkers**, and catalog copy such as **Browse all agents** (or locale equivalent) when Core catalog data is present.
-- **Catalog card.** Prefer a catalog row / **Show Details** control that navigates to `/agents/<id>`. Do not expect Hire / Create Job / credits price on catalog cards.
-- **Search miss (optional).** Type nonsense in the coworker search field; expect the gallery body to clear under the hero. Catalog has its own search / filters.
-- **Detail.** From a catalog card or deep-link `/agents/<id>`: page loads read-only detail with no Hire and no price/credits chrome.
+- **Catalog card.** Prefer a Cardano catalog row / **Show Details** control that navigates to `/agents/<id>`. x402 cards open an external resource URL when present (or show Details unavailable). Do not expect Hire / Create Job / credits price on catalog cards.
+- **Search miss (optional).** Type nonsense in the coworker search field (`?query=`); expect the gallery body to clear under the hero. Catalog search uses `?agentQuery=` plus category / kind filters and does not share coworker search state.
+- **Detail.** From a Cardano catalog card or deep-link `/agents/<id>`: page loads read-only detail with no Hire and no price/credits chrome.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/browse-agents` then screenshot + `snapshot -i`.
 
 ## Gotchas
 
 - `/agents` stacks Coworker gallery above an Agent catalog Suspense tier (`getAllCoreAgents` / categories). Failures in the catalog tier must not blank the coworker gallery.
 - App Hire remains banned (ADR-0024); Core Hire APIs stay for Soko Bot / Coworker.
-- Soft-empty for coworkers is a blank gallery section; catalog uses **No agents available** / **No Agents found** (or locale equivalents).
+- Soft-empty for coworkers is a blank gallery section; catalog uses **No agents available** / **No Agents found** (or locale equivalents). Keep kind/search chrome mounted when catalog filters match nothing.
+- Core Agent detail is Cardano-only; x402 catalog entries are external links, not `/agents/[id]`.

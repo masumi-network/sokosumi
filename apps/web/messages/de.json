@@ -120,12 +120,14 @@
       "agentsNotAvailable": "Keine Agents verfügbar",
       "agentsNotFound": "Keine Agents gefunden",
       "AgentCard": {
-        "view": "Details anzeigen"
+        "view": "Details anzeigen",
+        "detailsUnavailable": "Details nicht verfügbar"
       },
       "Kind": {
         "cardano": "Cardano",
         "x402": "x402"
-      }
+      },
+      "othersCategory": "Sonstige"
     },
     "UserAvatar": {
       "account": "Konto",

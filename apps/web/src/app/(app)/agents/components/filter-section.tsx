@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import Categories from "@/app/agents/components/categories";
@@ -46,6 +46,11 @@ function FilterSectionInner({ categories }: FilterSectionProps) {
   const hasActiveFilters =
     Boolean(query) || appliedCategories.length > 0 || kind !== "all";
 
+  const [searchValue, setSearchValue] = useState(query);
+  useEffect(() => {
+    setSearchValue(query);
+  }, [query]);
+
   const debouncedSetQuery = useDebouncedCallback((value: string) => {
     void setQuery(value);
   }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
@@ -63,8 +68,12 @@ function FilterSectionInner({ categories }: FilterSectionProps) {
         <Input
           className="max-w-full min-w-36 shrink-0 md:max-w-64"
           placeholder={t("searchPlaceholder")}
-          defaultValue={query}
-          onChange={(e) => debouncedSetQuery(e.target.value)}
+          value={searchValue}
+          onChange={(e) => {
+            const next = e.target.value;
+            setSearchValue(next);
+            debouncedSetQuery(next);
+          }}
         />
         <div className="flex flex-wrap gap-2">
           {GALLERY_AGENT_KINDS.map((option) => (
