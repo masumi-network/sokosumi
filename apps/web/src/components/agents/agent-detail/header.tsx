@@ -21,9 +21,7 @@ import {
   getFullAgentAuthorName,
 } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
-import { getAgentCredits } from "@/lib/types/core-dto";
 import { generateGradientBorder } from "@/lib/utils";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getCategoryColor } from "@/lib/utils/theme";
 
 interface AgentDetailHeaderProps {
@@ -39,7 +37,6 @@ function AgentDetailHeader({
   showCloseButton,
   onClose,
 }: AgentDetailHeaderProps) {
-  const t = useTranslations("Components.Agents.AgentDetail.Header");
   const tJobsHeader = useTranslations("App.Agents.Jobs.Header");
   const { resolvedTheme } = useTheme();
   const isClient = useIsClient();
@@ -127,15 +124,6 @@ function AgentDetailHeader({
               </p>
             </div>
           </div>
-          <div className="flex items-center justify-between">
-            <div className="text-sm md:text-base">
-              <span className="font-medium">
-                {t("pricing", {
-                  credits: formatCreditsForDisplay(getAgentCredits(agent)),
-                })}
-              </span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -157,11 +145,6 @@ function AgentDetailHeaderSkeleton() {
             <div className="flex items-center gap-2">
               <Skeleton className="h-8 w-8 rounded-full" />
               <Skeleton className="h-4 w-24" />
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="text-base">
-              <Skeleton className="h-8 w-24" />
             </div>
           </div>
         </div>

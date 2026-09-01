@@ -46,9 +46,13 @@ vi.mock("next/image", () => ({
   },
 }));
 
-vi.mock("@/hooks/use-gallery-filter", () => ({
-  default: () => ({ query: "", setQuery: vi.fn() }),
-}));
+vi.mock("nuqs", async () => {
+  const actual = await vi.importActual<typeof import("nuqs")>("nuqs");
+  return {
+    ...actual,
+    useQueryState: () => ["", vi.fn()],
+  };
+});
 
 vi.mock("@/app/tasks/components/create-task-modal", () => ({
   useCreateTaskModal: () => ({ handleOpenWith: handleOpenWithMock }),
