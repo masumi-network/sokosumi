@@ -10,7 +10,6 @@ import {
   APP_HEADER_SAFE_AREA_UNDERLAY_CLASS,
 } from "@/app/components/app-shell-safe-area";
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
-import { mobileChromeSurfaceClass } from "@/app/components/mobile-chrome-surface";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
 import { getHistoryItemHref } from "@/app/history/components/history-list-item";
 import {
@@ -19,7 +18,6 @@ import {
 } from "@/app/history/components/history-meta";
 import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
 import { Input } from "@/components/ui/input";
-import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -34,7 +32,6 @@ export function HeaderMobileSearchControl({
   const t = useTranslations("App.Header.Search");
   const tHistory = useTranslations("App.History");
   const [expanded, setExpanded] = useState(false);
-  const isApple = useIsApplePlatform();
   const router = useRouter();
   const { formatTimeAgo } = useLocalizedDateTime();
   const showOwner = activeOrganizationId !== null;
@@ -85,9 +82,8 @@ export function HeaderMobileSearchControl({
               />
               <div
                 className={cn(
-                  "border-grid relative z-10 w-full border-b",
+                  "border-grid relative z-10 w-full border-b bg-background",
                   APP_HEADER_SAFE_AREA_PADDING_CLASS,
-                  mobileChromeSurfaceClass(isApple),
                 )}
               >
                 <div
