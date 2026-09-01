@@ -175,7 +175,9 @@ describe("direct room display order", () => {
         coworkerMembers: [aaron],
       });
 
-      expect(getRoomDisplayName(room, CURRENT_USER_ID)).toBe("Ada, Zara, Aaron");
+      expect(getRoomDisplayName(room, CURRENT_USER_ID)).toBe(
+        "Ada, Zara, Aaron",
+      );
       expect(
         getDirectRoomParticipants(room, CURRENT_USER_ID).map(
           (participant) => participant.id,
