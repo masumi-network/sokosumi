@@ -5,17 +5,17 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 
-import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
+import { ensureOrchestratorDirectRoomAction } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
 
-/** Opens (or creates) the direct room with a Soko Bot's chat coworker. */
+/** Opens (or creates) the direct room with a Soko Bot orchestrator. */
 export function MessageBotButton({
-  coworkerId,
+  orchestratorId,
   label,
   errorLabel,
   variant = "link",
 }: {
-  coworkerId: string;
+  orchestratorId: string;
   label: string;
   errorLabel: string;
   variant?: "link" | "button";
@@ -24,7 +24,7 @@ export function MessageBotButton({
   const [isPending, startTransition] = useTransition();
   const open = () =>
     startTransition(async () => {
-      const result = await ensureCoworkerDirectRoomAction(coworkerId);
+      const result = await ensureOrchestratorDirectRoomAction(orchestratorId);
       if (!result.ok || !result.value) {
         toast.error(errorLabel);
         return;

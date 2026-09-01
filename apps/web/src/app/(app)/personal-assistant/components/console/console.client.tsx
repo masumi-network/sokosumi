@@ -13,7 +13,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
+import { ensureOrchestratorDirectRoomAction } from "@/app/chat/actions";
 import Markdown from "@/components/markdown";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
@@ -166,10 +166,10 @@ export function SokoBotConsole({
   const turns = useMemo(() => orderedTurns(state).reverse(), [state]);
 
   function openChat() {
-    if (!bot.coworkerId) return;
-    const coworkerId = bot.coworkerId;
     startOpeningChat(async () => {
-      const result = await ensureCoworkerDirectRoomAction(coworkerId);
+      const result = await ensureOrchestratorDirectRoomAction(
+        bot.orchestratorId,
+      );
       if (!result.ok || !result.value) {
         toast.error(t("Console.openChatError"));
         return;
@@ -257,7 +257,7 @@ export function SokoBotConsole({
                 type="button"
                 className="flex-1 sm:flex-none"
                 onClick={openChat}
-                disabled={!bot.coworkerId || isOpeningChat}
+                disabled={isOpeningChat}
               >
                 <MessageSquare aria-hidden className="size-4" />
                 {isOpeningChat

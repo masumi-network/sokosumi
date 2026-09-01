@@ -105,7 +105,6 @@ const {
 }));
 
 vi.mock("@/services/soko-bot-chat.service", () => ({
-  ensureSokoBotCoworker: vi.fn().mockResolvedValue({ id: "cw", slug: "soko" }),
   finalizeSokoBotChatTurn: vi.fn().mockResolvedValue(undefined),
   deliverSokoBotTurnToDirectRoom: vi.fn().mockResolvedValue(undefined),
   publishSokoBotChatProgress: vi.fn().mockResolvedValue(undefined),
@@ -355,6 +354,21 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(botCreateMock).toHaveBeenCalled();
     expect(botUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("getForUser does not heal a shadow coworker row", async () => {
+    botFindFirstMock.mockResolvedValue({
+      id: BOT_ID,
+      memoryRevisions: [],
+      legacyMessages: [],
+      pendingDecisions: [],
+      schedules: [],
+    });
+
+    const bot = await new SokoBotControlPlane().getForUser("user_1", "ws_1");
+
+    expect(bot?.id).toBe(BOT_ID);
+    expect(bot).not.toHaveProperty("coworker");
   });
 
   it("preserves an administrator pause during profile updates", async () => {

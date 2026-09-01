@@ -12,16 +12,19 @@ import type { ChatParticipantHoverProfile } from "./room-helpers";
 const {
   createDirectRoomActionMock,
   ensureCoworkerDirectRoomActionMock,
+  ensureOrchestratorDirectRoomActionMock,
   notifyOrganizationChatRoomsChangedMock,
 } = vi.hoisted(() => ({
   createDirectRoomActionMock: vi.fn(),
   ensureCoworkerDirectRoomActionMock: vi.fn(),
+  ensureOrchestratorDirectRoomActionMock: vi.fn(),
   notifyOrganizationChatRoomsChangedMock: vi.fn(),
 }));
 
 vi.mock("@/app/chat/actions", () => ({
   createDirectRoomAction: createDirectRoomActionMock,
   ensureCoworkerDirectRoomAction: ensureCoworkerDirectRoomActionMock,
+  ensureOrchestratorDirectRoomAction: ensureOrchestratorDirectRoomActionMock,
 }));
 
 vi.mock("@/components/chat/organization-chat-events", () => ({
@@ -133,7 +136,7 @@ describe("canShowOpenDirect", () => {
     ).toBe(true);
   });
 
-  it("hides Message for an orchestrator PA", () => {
+  it("shows an orchestrator when human directs are unavailable", () => {
     expect(
       canShowOpenDirect({
         profile: {
@@ -147,10 +150,10 @@ describe("canShowOpenDirect", () => {
           sokoBotAvatarSeed: "orb:user-1",
         },
         currentUserId: "user-1",
-        canOpenHumanDirect: true,
+        canOpenHumanDirect: false,
         onOpenDirect,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("hides without an open callback", () => {
@@ -220,6 +223,40 @@ describe("openDirectWithParticipant", () => {
       directRoom,
     );
     expect(push).toHaveBeenCalledWith("/chat/rooms/room-coworker");
+  });
+
+  it("ensures an orchestrator direct, notifies, and navigates", async () => {
+    const directRoom = room("room-orchestrator");
+    const push = vi.fn();
+    ensureOrchestratorDirectRoomActionMock.mockResolvedValue({
+      ok: true,
+      value: directRoom,
+    });
+
+    await openDirectWithParticipant({
+      profile: {
+        kind: "orchestrator",
+        id: "bot-1",
+        name: "Ada Bot",
+        slug: "ada-bot",
+        caption: null,
+        image: null,
+        presence: "online",
+        sokoBotAvatarSeed: "orb:user-1",
+      },
+      selectedRoomId: null,
+      router: { push },
+      onError: vi.fn(),
+    });
+
+    expect(ensureOrchestratorDirectRoomActionMock).toHaveBeenCalledWith(
+      "bot-1",
+    );
+    expect(createDirectRoomActionMock).not.toHaveBeenCalled();
+    expect(notifyOrganizationChatRoomsChangedMock).toHaveBeenCalledWith(
+      directRoom,
+    );
+    expect(push).toHaveBeenCalledWith("/chat/rooms/room-orchestrator");
   });
 
   it("skips navigation when the direct is already selected", async () => {

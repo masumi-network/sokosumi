@@ -85,7 +85,6 @@ import {
 } from "@/services/soko-bot-avatar.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 import {
-  ensureSokoBotCoworker,
   introduceSokoBot,
   SokoBotIntroductionError,
 } from "@/services/soko-bot-chat.service";
@@ -182,7 +181,6 @@ function mapBot(
   return {
     ...bot,
     memory: bot.memoryRevisions[0] ?? null,
-    coworker: bot.coworker ?? null,
     memoryRevisions: undefined,
   };
 }
@@ -979,7 +977,6 @@ app.openapi(claimAvatarRoute, async (c) => {
   );
   if (!bot) throw notFound("Create a Soko Bot first");
   await claimAvatar(bot.id, c.req.valid("json").avatarId);
-  await ensureSokoBotCoworker(bot.id);
   const refreshed = await sokoBotControlPlane.getForUser(
     auth.userId,
     workspace.workspaceId,
@@ -1309,7 +1306,6 @@ const BOT_TEAM_SELECT = {
   avatarSeed: true,
   status: true,
   archivedAt: true,
-  coworker: { select: { id: true } },
 } as const;
 
 const teamRoute = createRoute({
@@ -1347,7 +1343,6 @@ app.openapi(teamRoute, async (c) => {
     avatarSeed: string | null;
     status: string;
     archivedAt: Date | null;
-    coworker: { id: string } | null;
   }) =>
     bot.archivedAt
       ? null
@@ -1357,7 +1352,6 @@ app.openapi(teamRoute, async (c) => {
           avatarImageUrl: bot.avatarImageUrl,
           avatarSeed: bot.avatarSeed,
           status: bot.status,
-          coworkerId: bot.coworker?.id ?? null,
         };
   if (workspace.organizationId) {
     const organization = await prisma.organization.findUnique({

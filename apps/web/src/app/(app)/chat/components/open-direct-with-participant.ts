@@ -1,6 +1,7 @@
 import {
   createDirectRoomAction,
   ensureCoworkerDirectRoomAction,
+  ensureOrchestratorDirectRoomAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 
@@ -33,8 +34,6 @@ export function canShowOpenDirect(options: {
 }): boolean {
   const { profile, currentUserId, canOpenHumanDirect, onOpenDirect } = options;
   if (!onOpenDirect) return false;
-  // Native PA has no coworker direct room yet (SOK-942); hide Message action.
-  if (profile.kind === "orchestrator") return false;
   if (profile.kind === "human") {
     if (!canOpenHumanDirect) return false;
     if (currentUserId && profile.id === currentUserId) return false;
@@ -49,14 +48,12 @@ export async function openDirectWithParticipant(options: {
   onError: (message: string) => void;
 }): Promise<{ ok: true; roomId: string } | { ok: false }> {
   const { profile, selectedRoomId, router, onError } = options;
-  if (profile.kind === "orchestrator") {
-    onError("Could not start direct message.");
-    return { ok: false };
-  }
   const result =
     profile.kind === "coworker"
       ? await ensureCoworkerDirectRoomAction(profile.id)
-      : await createDirectRoomAction({ memberUserId: profile.id });
+      : profile.kind === "orchestrator"
+        ? await ensureOrchestratorDirectRoomAction(profile.id)
+        : await createDirectRoomAction({ memberUserId: profile.id });
 
   if (!result.ok) {
     onError(result.error.message ?? "Could not start direct message.");

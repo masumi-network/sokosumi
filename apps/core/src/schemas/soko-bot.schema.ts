@@ -299,11 +299,6 @@ export const sokoBotSchema = z
     ingestTimezone: z.string().optional(),
     proactivePaused: z.boolean().optional(),
     proactiveDailyLimit: z.number().int().optional(),
-    /** Chat-facing coworker row; open a direct with it to chat with the bot. */
-    coworker: z
-      .object({ id: z.string(), slug: z.string() })
-      .nullable()
-      .optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -847,7 +842,6 @@ export const sokoBotTeamSchema = z
             avatarImageUrl: z.string().nullable(),
             avatarSeed: z.string().nullable(),
             status: sokoBotStatusSchema,
-            coworkerId: z.string().nullable(),
           })
           .nullable(),
       }),

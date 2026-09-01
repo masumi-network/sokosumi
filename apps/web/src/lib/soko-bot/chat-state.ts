@@ -163,8 +163,8 @@ export interface ChatBot {
   ingestTimezone: string;
   proactivePaused: boolean;
   proactiveDailyLimit: number;
-  /** Chat coworker row id; open a direct with it to talk to the bot. */
-  coworkerId: string | null;
+  /** Open a direct with the bot id (orchestrator participant). */
+  orchestratorId: string;
   status: SokoBotStatus;
   memoryVersion: number;
   memory: ChatMemory | null;
@@ -327,7 +327,7 @@ export function toChatBot(bot: SokoBot): ChatBot {
     ingestTimezone: bot.ingestTimezone ?? "Europe/Berlin",
     proactivePaused: bot.proactivePaused ?? false,
     proactiveDailyLimit: bot.proactiveDailyLimit ?? 20,
-    coworkerId: bot.coworker?.id ?? null,
+    orchestratorId: bot.id,
     status: bot.status,
     memoryVersion: bot.memoryVersion,
     memory: memory

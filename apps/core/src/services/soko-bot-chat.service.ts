@@ -1,22 +1,18 @@
-import type { Prisma } from "@sokosumi/database";
 import {
   composeSokoBotIntroduction,
   isSokoBotSilentAnswer,
 } from "@sokosumi/soko-bot";
-import { personalAssistantCaption } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 
 /**
- * Soko Bot in chat. The bot is represented by a first-party `Coworker` row
- * (`Coworker.sokoBotId`) so it rides every existing chat rail: room
- * membership, mentions, the sender FK, realtime, and the live-Thought
- * placeholder. Only dispatch differs: a mention starts a Soko Bot turn and
- * the turn's outcome is written back here.
+ * Soko Bot in chat. The bot is a first-class orchestrator participant
+ * (`ChatRoomOrchestratorMember` / `senderOrchestratorId`). Legacy bots may
+ * still have a shadow `Coworker` row; read paths fall back there until
+ * SOK-945 remaps them. Only dispatch differs: a mention starts a Soko Bot
+ * turn and the turn's outcome is written back here.
  */
 
-const SOKOSUMI_VENDOR_SLUG = "sokosumi";
-const SOKO_BOT_DEFAULT_NAME = "Soko Bot";
 const PROGRESS_PUBLISH_MIN_INTERVAL_MS = 250;
 
 /** Human labels for capability calls shown as live "thought" beats. */
@@ -40,59 +36,6 @@ const CAPABILITY_LABELS: Record<string, string> = {
 export function sokoBotCapabilityLabel(toolName: string | null): string {
   if (!toolName) return "Working";
   return CAPABILITY_LABELS[toolName] ?? toolName.replaceAll("_", " ");
-}
-
-export function sokoBotCoworkerSlug(sokoBotId: string): string {
-  return `soko-bot-${sokoBotId.replaceAll("-", "").slice(0, 12)}`;
-}
-
-/**
- * Create or refresh the chat-facing coworker row for a bot. Idempotent; call
- * on bot create, rename, reactivation, and archive.
- */
-export async function ensureSokoBotCoworker(
-  sokoBotId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<{ id: string; slug: string }> {
-  const bot = await tx.sokoBot.findUniqueOrThrow({
-    where: { id: sokoBotId },
-    select: {
-      id: true,
-      name: true,
-      archivedAt: true,
-      avatarImageUrl: true,
-      user: { select: { name: true } },
-    },
-  });
-  const vendor = await tx.vendor.upsert({
-    where: { slug: SOKOSUMI_VENDOR_SLUG },
-    create: { slug: SOKOSUMI_VENDOR_SLUG, name: "Sokosumi" },
-    update: {},
-    select: { id: true },
-  });
-  const data = {
-    name: bot.name?.trim() || SOKO_BOT_DEFAULT_NAME,
-    // Teammates can talk to it, so the roster says whose assistant it is.
-    caption: personalAssistantCaption(bot.user.name),
-    image: bot.avatarImageUrl,
-    description:
-      "Your personal project manager: delegates Tasks to Coworkers and hires Agents.",
-    baseURL: `soko-bot://${bot.id}`,
-    capabilities: ["chat", "tasks"],
-    isWhitelisted: false,
-    archivedAt: bot.archivedAt,
-  };
-  return tx.coworker.upsert({
-    where: { sokoBotId: bot.id },
-    create: {
-      ...data,
-      slug: sokoBotCoworkerSlug(bot.id),
-      sokoBotId: bot.id,
-      vendorId: vendor.id,
-    },
-    update: data,
-    select: { id: true, slug: true },
-  });
 }
 
 interface ChatLinkedTurn {
@@ -249,25 +192,41 @@ export async function introduceSokoBot(input: {
       archivedAt: null,
     },
     select: {
+      id: true,
       name: true,
       user: { select: { name: true } },
       coworker: { select: { id: true } },
     },
   });
-  if (!bot?.coworker) throw new SokoBotIntroductionError("Soko Bot not found");
-  const coworkerId = bot.coworker.id;
+  if (!bot) throw new SokoBotIntroductionError("Soko Bot not found");
   const room = await prisma.chatRoom.findFirst({
     where: {
       id: input.roomId,
       kind: "direct",
-      coworkerMembers: { some: { coworkerId } },
       userMembers: { some: { userId: input.userId } },
+      OR: [
+        { orchestratorMembers: { some: { orchestratorId: bot.id } } },
+        ...(bot.coworker
+          ? [{ coworkerMembers: { some: { coworkerId: bot.coworker.id } } }]
+          : []),
+      ],
     },
     select: { id: true },
   });
   if (!room) throw new SokoBotIntroductionError("Direct room not found");
+  const usesOrchestrator = await prisma.chatRoomOrchestratorMember.findFirst({
+    where: { roomId: room.id, orchestratorId: bot.id },
+    select: { id: true },
+  });
+  const legacyCoworkerId = bot.coworker?.id ?? null;
   const existing = await prisma.chatRoomMessage.findFirst({
-    where: { roomId: room.id, senderCoworkerId: coworkerId },
+    where: {
+      roomId: room.id,
+      OR: [
+        ...(usesOrchestrator ? [{ senderOrchestratorId: bot.id }] : []),
+        ...(legacyCoworkerId ? [{ senderCoworkerId: legacyCoworkerId }] : []),
+      ],
+    },
     select: { id: true },
   });
   if (existing) return { messageId: existing.id };
@@ -275,7 +234,9 @@ export async function introduceSokoBot(input: {
     const created = await tx.chatRoomMessage.create({
       data: {
         roomId: room.id,
-        senderCoworkerId: coworkerId,
+        ...(usesOrchestrator
+          ? { senderOrchestratorId: bot.id, senderCoworkerId: null }
+          : { senderCoworkerId: legacyCoworkerId }),
         content: composeSokoBotIntroduction({
           name: bot.name,
           ownerName: bot.user.name,
@@ -311,6 +272,7 @@ export async function deliverSokoBotTurnToDirectRoom(
       status: true,
       finalAnswer: true,
       userId: true,
+      sokoBotId: true,
       chatMention: { select: { id: true } },
       sokoBot: { select: { coworker: { select: { id: true } } } },
     },
@@ -319,23 +281,37 @@ export async function deliverSokoBotTurnToDirectRoom(
   if (turn.status !== "COMPLETED") return;
   const answer = turn.finalAnswer?.trim() ?? "";
   if (isSokoBotSilentAnswer(answer)) return;
-  const coworkerId = turn.sokoBot.coworker?.id;
-  if (!coworkerId) return;
+  const legacyCoworkerId = turn.sokoBot.coworker?.id ?? null;
   const room = await prisma.chatRoom.findFirst({
     where: {
       kind: "direct",
       archivedAt: null,
-      coworkerMembers: { some: { coworkerId } },
       userMembers: { some: { userId: turn.userId } },
+      OR: [
+        { orchestratorMembers: { some: { orchestratorId: turn.sokoBotId } } },
+        ...(legacyCoworkerId
+          ? [{ coworkerMembers: { some: { coworkerId: legacyCoworkerId } } }]
+          : []),
+      ],
     },
-    select: { id: true },
+    select: {
+      id: true,
+      orchestratorMembers: {
+        where: { orchestratorId: turn.sokoBotId },
+        select: { orchestratorId: true },
+        take: 1,
+      },
+    },
   });
   if (!room) return;
+  const usesOrchestrator = room.orchestratorMembers.length > 0;
   const message = await prisma.$transaction(async (tx) => {
     const created = await tx.chatRoomMessage.create({
       data: {
         roomId: room.id,
-        senderCoworkerId: coworkerId,
+        ...(usesOrchestrator
+          ? { senderOrchestratorId: turn.sokoBotId, senderCoworkerId: null }
+          : { senderCoworkerId: legacyCoworkerId }),
         content: answer,
         metadata: { soko_bot: { turn_id: turnId, source: turn.source } },
       },

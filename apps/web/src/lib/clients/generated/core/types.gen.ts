@@ -626,10 +626,6 @@ export type SokoBot = {
     ingestTimezone?: string;
     proactivePaused?: boolean;
     proactiveDailyLimit?: number;
-    coworker?: {
-        id: string;
-        slug: string;
-    } | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -2364,7 +2360,7 @@ export type CreateChatRoomRequest = {
     orchestratorIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
+     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one coworker, or exactly one personal assistant (orchestrator). Human, coworker, and orchestrator targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker and orchestrator DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -4959,7 +4955,6 @@ export type SokoBotTeam = {
             avatarImageUrl: string | null;
             avatarSeed: string | null;
             status: SokoBotStatus;
-            coworkerId: string | null;
         } | null;
     }>;
 };

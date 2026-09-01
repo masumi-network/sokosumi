@@ -2835,24 +2835,6 @@ export const SokoBotSchema = {
         proactiveDailyLimit: {
             type: 'integer'
         },
-        coworker: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string'
-                },
-                slug: {
-                    type: 'string'
-                }
-            },
-            required: [
-                'id',
-                'slug'
-            ]
-        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -8671,7 +8653,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'direct'
                     ],
-                    description: 'Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.'
+                    description: 'Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one coworker, or exactly one personal assistant (orchestrator). Human, coworker, and orchestrator targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker and orchestrator DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -16920,12 +16902,6 @@ export const SokoBotTeamSchema = {
                             },
                             status: {
                                 $ref: '#/components/schemas/SokoBotStatus'
-                            },
-                            coworkerId: {
-                                type: [
-                                    'string',
-                                    'null'
-                                ]
                             }
                         },
                         required: [
@@ -16933,8 +16909,7 @@ export const SokoBotTeamSchema = {
                             'name',
                             'avatarImageUrl',
                             'avatarSeed',
-                            'status',
-                            'coworkerId'
+                            'status'
                         ]
                     }
                 },

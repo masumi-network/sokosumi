@@ -311,6 +311,28 @@ export async function createDirectRoomAction(
  * Create-or-get the `kind:direct` room for a solo coworker 1:1.
  * Uses the active organization when set (same as `/chat`); personal if none.
  */
+export async function ensureOrchestratorDirectRoomAction(
+  orchestratorId: string,
+): Promise<RoomActionResult<ChatRoom | null>> {
+  const cleanOrchestratorId = cleanString(orchestratorId);
+  if (!cleanOrchestratorId) {
+    return roomFail("Personal assistant is required.");
+  }
+
+  try {
+    const room = await chatRoomService.createRoom({
+      kind: "direct",
+      memberUserIds: [],
+      coworkerIds: [],
+      orchestratorIds: [cleanOrchestratorId],
+    });
+    await invalidateSidebarChatList();
+    return roomOk(room);
+  } catch (error) {
+    return roomCatch(error, "Could not ensure personal assistant direct room.");
+  }
+}
+
 export async function ensureCoworkerDirectRoomAction(
   coworkerId: string,
 ): Promise<RoomActionResult<ChatRoom | null>> {

@@ -1435,13 +1435,22 @@ export function buildDirectCoworkerRoomKey(
   return `coworker:${userId}:${coworkerId}`;
 }
 
+export function buildDirectOrchestratorRoomKey(
+  userId: string,
+  orchestratorId: string,
+): string {
+  return `orchestrator:${userId}:${orchestratorId}`;
+}
+
 export function buildDirectParticipantRoomKey(params: {
   currentUserId: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
+  orchestratorIds?: readonly string[];
 }): string {
   const memberUserIds = normalizeUniqueStrings(params.memberUserIds);
   const coworkerIds = normalizeUniqueStrings(params.coworkerIds);
+  const orchestratorIds = normalizeUniqueStrings(params.orchestratorIds ?? []);
 
   if (memberUserIds.length === 1 && coworkerIds.length === 0) {
     return buildDirectRoomKey(params.currentUserId, memberUserIds[0]);
@@ -1451,11 +1460,21 @@ export function buildDirectParticipantRoomKey(params: {
     return buildDirectCoworkerRoomKey(params.currentUserId, coworkerIds[0]);
   }
 
+  if (memberUserIds.length === 0 && orchestratorIds.length === 1) {
+    return buildDirectOrchestratorRoomKey(
+      params.currentUserId,
+      orchestratorIds[0],
+    );
+  }
+
   const participantKeys = [
     ...normalizeUniqueStrings([params.currentUserId, ...memberUserIds]).map(
       (userId) => `user:${userId}`,
     ),
     ...coworkerIds.map((coworkerId) => `coworker:${coworkerId}`),
+    ...orchestratorIds.map(
+      (orchestratorId) => `orchestrator:${orchestratorId}`,
+    ),
   ].sort();
 
   return `direct:v2:${participantKeys.join(":")}`;
@@ -2345,31 +2364,55 @@ function parseDirectCreateShape(params: {
   currentUserId: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
+  orchestratorIds: readonly string[];
 }): DirectCreateShape {
   const memberUserIds = normalizeUniqueStrings(params.memberUserIds);
   const coworkerIds = normalizeUniqueStrings(params.coworkerIds);
+  const orchestratorIds = normalizeUniqueStrings(params.orchestratorIds);
 
   if (memberUserIds.includes(params.currentUserId)) {
     throw badRequest("Choose another organization member");
   }
 
-  if (memberUserIds.length === 0 && coworkerIds.length === 0) {
+  if (
+    memberUserIds.length === 0 &&
+    coworkerIds.length === 0 &&
+    orchestratorIds.length === 0
+  ) {
     throw badRequest("Choose a direct message target");
   }
 
-  if (memberUserIds.length > 0 && coworkerIds.length > 0) {
-    throw badRequest("Group direct messages cannot include coworkers.");
+  if (
+    memberUserIds.length > 0 &&
+    (coworkerIds.length > 0 || orchestratorIds.length > 0)
+  ) {
+    throw badRequest(
+      "Group direct messages cannot include coworkers or personal assistants.",
+    );
+  }
+
+  if (coworkerIds.length > 0 && orchestratorIds.length > 0) {
+    throw badRequest("Choose one AI participant type.");
   }
 
   if (coworkerIds.length > 1) {
     throw badRequest("Direct messages support one coworker only.");
   }
 
-  if (memberUserIds.length >= 1 && coworkerIds.length === 0) {
+  if (orchestratorIds.length > 1) {
+    throw badRequest("Direct messages support one personal assistant only.");
+  }
+
+  if (
+    memberUserIds.length >= 1 &&
+    coworkerIds.length === 0 &&
+    orchestratorIds.length === 0
+  ) {
     return {
       kind: "human-direct",
       memberUserIds,
       coworkerIds: [],
+      orchestratorIds: [],
     };
   }
 
@@ -2378,6 +2421,16 @@ function parseDirectCreateShape(params: {
       kind: "coworker-1to1",
       memberUserIds: [],
       coworkerIds: [coworkerIds[0]],
+      orchestratorIds: [],
+    };
+  }
+
+  if (memberUserIds.length === 0 && orchestratorIds.length === 1) {
+    return {
+      kind: "orchestrator-1to1",
+      memberUserIds: [],
+      coworkerIds: [],
+      orchestratorIds: [orchestratorIds[0]],
     };
   }
 
@@ -2403,11 +2456,19 @@ type DirectCreateShape =
       kind: "human-direct";
       memberUserIds: string[];
       coworkerIds: [];
+      orchestratorIds: [];
     }
   | {
       kind: "coworker-1to1";
       memberUserIds: [];
       coworkerIds: [string];
+      orchestratorIds: [];
+    }
+  | {
+      kind: "orchestrator-1to1";
+      memberUserIds: [];
+      coworkerIds: [];
+      orchestratorIds: [string];
     };
 
 export async function createOrGetDirectRoom(params: {
@@ -2415,6 +2476,7 @@ export async function createOrGetDirectRoom(params: {
   currentUserId: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
+  orchestratorIds?: readonly string[];
   /** Sidebar viewer. Null skips pin/mute/unread (coworker actor has none). */
   viewerUserId?: string | null;
 }): Promise<{ room: ChatRoom; created: boolean }> {
@@ -2425,9 +2487,11 @@ export async function createOrGetDirectRoom(params: {
     currentUserId,
     memberUserIds: params.memberUserIds,
     coworkerIds: params.coworkerIds,
+    orchestratorIds: params.orchestratorIds ?? [],
   });
   const requestedMemberUserIds = shape.memberUserIds;
   const requestedCoworkerIds = shape.coworkerIds;
+  const requestedOrchestratorIds = shape.orchestratorIds;
   const activeOrganizationId = params.organizationId;
 
   // Holds the key computed inside the transaction so a directKey race
@@ -2493,6 +2557,46 @@ export async function createOrGetDirectRoom(params: {
           directKey,
           memberUserIds: [],
           coworkerIds,
+          orchestratorIds: [],
+        });
+      }
+
+      if (shape.kind === "orchestrator-1to1") {
+        const workspaceId = await resolveWorkspaceIdForChatRoom({
+          organizationId: activeOrganizationId,
+          personalUserId: currentUserId,
+          tx,
+        });
+        const orchestratorIds = await validateChatOrchestratorIds(
+          requestedOrchestratorIds,
+          { workspaceId, ownerUserId: currentUserId },
+          tx,
+        );
+        const directKey = buildDirectParticipantRoomKey({
+          currentUserId,
+          memberUserIds: [],
+          coworkerIds: [],
+          orchestratorIds,
+        });
+        directKeyRef.current = directKey;
+        createOrganizationIdRef.current = activeOrganizationId;
+
+        const existing = await findOrRestoreDirectByKey(tx, {
+          organizationId: activeOrganizationId,
+          directKey,
+        });
+        if (existing) {
+          return { room: existing, created: false };
+        }
+
+        return createDirectRoomRecord({
+          tx,
+          currentUserId,
+          organizationId: activeOrganizationId,
+          directKey,
+          memberUserIds: [],
+          coworkerIds: [],
+          orchestratorIds,
         });
       }
 
@@ -2561,6 +2665,7 @@ export async function createOrGetDirectRoom(params: {
         directKey,
         memberUserIds,
         coworkerIds: [],
+        orchestratorIds: [],
       });
     });
 
@@ -2576,7 +2681,7 @@ export async function createOrGetDirectRoom(params: {
     // directKey race: another request won the create — return that room.
     if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
       const existing =
-        shape.kind === "coworker-1to1"
+        shape.kind === "coworker-1to1" || shape.kind === "orchestrator-1to1"
           ? await findOrRestoreDirectByKey(prisma, {
               organizationId: createOrganizationIdRef.current,
               directKey: directKeyRef.current,
@@ -2611,6 +2716,7 @@ async function createDirectRoomRecord(params: {
   directKey: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
+  orchestratorIds: readonly string[];
 }) {
   const {
     tx,
@@ -2619,25 +2725,37 @@ async function createDirectRoomRecord(params: {
     directKey,
     memberUserIds,
     coworkerIds,
+    orchestratorIds,
   } = params;
 
-  const [targetUsers, targetCoworkers] = await Promise.all([
-    memberUserIds.length > 0
-      ? tx.user.findMany({
-          where: { id: { in: [...memberUserIds] } },
-          select: { id: true, name: true, email: true },
-        })
-      : Promise.resolve([]),
-    coworkerIds.length > 0
-      ? tx.coworker.findMany({
-          where: { id: { in: [...coworkerIds] } },
-          select: { id: true, name: true },
-        })
-      : Promise.resolve([]),
-  ]);
+  const [targetUsers, targetCoworkers, targetOrchestrators] = await Promise.all(
+    [
+      memberUserIds.length > 0
+        ? tx.user.findMany({
+            where: { id: { in: [...memberUserIds] } },
+            select: { id: true, name: true, email: true },
+          })
+        : Promise.resolve([]),
+      coworkerIds.length > 0
+        ? tx.coworker.findMany({
+            where: { id: { in: [...coworkerIds] } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+      orchestratorIds.length > 0
+        ? tx.sokoBot.findMany({
+            where: { id: { in: [...orchestratorIds] } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+    ],
+  );
   const usersById = new Map(targetUsers.map((user) => [user.id, user]));
   const coworkersById = new Map(
     targetCoworkers.map((coworker) => [coworker.id, coworker]),
+  );
+  const orchestratorsById = new Map(
+    targetOrchestrators.map((bot) => [bot.id, bot]),
   );
   const directName = buildDirectRoomName([
     ...memberUserIds.map((userId) => {
@@ -2646,6 +2764,9 @@ async function createDirectRoomRecord(params: {
     }),
     ...coworkerIds.map((coworkerId) => {
       return coworkersById.get(coworkerId)?.name || coworkerId;
+    }),
+    ...orchestratorIds.map((orchestratorId) => {
+      return orchestratorsById.get(orchestratorId)?.name?.trim() || "Soko Bot";
     }),
   ]);
   const room = await tx.chatRoom.create({
@@ -2670,6 +2791,9 @@ async function createDirectRoomRecord(params: {
       },
       coworkerMembers: {
         create: coworkerIds.map((coworkerId) => ({ coworkerId })),
+      },
+      orchestratorMembers: {
+        create: orchestratorIds.map((orchestratorId) => ({ orchestratorId })),
       },
     },
     include: chatRoomInclude,

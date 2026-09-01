@@ -6,6 +6,7 @@ import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import {
   assertChatRoomPatchAuth,
   buildDirectCoworkerRoomKey,
+  buildDirectOrchestratorRoomKey,
   buildDirectParticipantRoomKey,
   buildDirectRoomKey,
   buildDirectRoomName,
@@ -363,6 +364,12 @@ describe("buildDirectRoomKey", () => {
   it("builds a namespaced key for coworker direct messages", () => {
     expect(buildDirectCoworkerRoomKey("user_a", "coworker_elena")).toBe(
       "coworker:user_a:coworker_elena",
+    );
+  });
+
+  it("builds a namespaced key for orchestrator direct messages", () => {
+    expect(buildDirectOrchestratorRoomKey("user_a", "bot_1")).toBe(
+      "orchestrator:user_a:bot_1",
     );
   });
 
