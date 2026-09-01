@@ -13,8 +13,15 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
   listOrganizationChatRoomsAction: vi.fn(),
 }));
 
+import {
+  clearMembershipVisibleRoomsSnapshot,
+  publishMembershipVisibleRooms,
+} from "@/components/chat/membership-visible-rooms-store";
 import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
-import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
+import {
+  clearRoomReadOverlays,
+  rememberRoomRead,
+} from "@/components/chat/room-read-overlay";
 
 import {
   getActiveRoomIdFromPathname,
@@ -60,6 +67,7 @@ describe("useChatTabUnreadPresence", () => {
   beforeEach(() => {
     mockPathname = "/chat";
     clearRoomReadOverlays();
+    clearMembershipVisibleRoomsSnapshot();
     listRoomsMock.mockReset();
     listRoomsMock.mockResolvedValue({
       ok: true,
@@ -69,6 +77,35 @@ describe("useChatTabUnreadPresence", () => {
 
   afterEach(() => {
     clearRoomReadOverlays();
+    clearMembershipVisibleRoomsSnapshot();
+  });
+
+  it("seeds the unread dot from the session snapshot before fetch", () => {
+    publishMembershipVisibleRooms(
+      [room({ id: "a", unreadCount: 2 })],
+      "org-1",
+      "user-1",
+    );
+
+    render(<Harness />);
+
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+  });
+
+  it("applies room-read overlay when seeding from the session snapshot", () => {
+    const stale = room({ id: "a", unreadCount: 3 });
+    publishMembershipVisibleRooms([stale], "org-1", "user-1");
+    rememberRoomRead({
+      id: "a",
+      updatedAt: stale.updatedAt,
+      unreadCount: 0,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
+
+    render(<Harness />);
+
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
   });
 
   it("shows unread when a non-active room has attention", async () => {

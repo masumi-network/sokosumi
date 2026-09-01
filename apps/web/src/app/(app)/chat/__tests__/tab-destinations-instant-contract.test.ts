@@ -32,6 +32,7 @@ describe("mobile tab destinations Instant Nav contract", () => {
     "history/loading.tsx",
     "chat/components/chat-home-loading-view.tsx",
     "chat/components/chat-chats-loading-view.tsx",
+    "chat/components/chat-chats-page-skeleton-host.tsx",
     "history/components/history-loading-view.tsx",
   ] as const;
 
@@ -56,10 +57,10 @@ describe("mobile tab destinations Instant Nav contract", () => {
     );
   });
 
-  it("chat/loading.tsx default export returns ChatChatsPageSkeleton", () => {
+  it("chat/loading.tsx default export returns ChatChatsPageSkeletonHost", () => {
     const code = stripComments(readApp("chat/loading.tsx"));
     expect(code).toMatch(
-      /export\s+default\s+function[\s\S]*?return\s+<\s*ChatChatsPageSkeleton\s*\/>/,
+      /export\s+default\s+function[\s\S]*?return\s+<\s*ChatChatsPageSkeletonHost\s*\/>/,
     );
   });
 
