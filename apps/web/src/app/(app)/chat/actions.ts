@@ -34,6 +34,7 @@ import type {
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 /** Chat action wire shape — ActionResultDto (neverthrow at boundary). */
 export type RoomActionResult<T> = ActionResultDto<T, ActionError>;
@@ -93,6 +94,13 @@ export interface ChatComposeRoster {
   canCreateExternal: boolean;
   members: Member[];
   coworkers: Coworker[];
+  /** Owner's live PA for channel roster (orchestratorIds), not a Coworker. */
+  personalAssistant: {
+    id: string;
+    name: string;
+    image: string | null;
+    avatarSeed: string | null;
+  } | null;
   membersLoadFailed: boolean;
 }
 
@@ -136,10 +144,20 @@ export async function loadChatComposeRosterAction(): Promise<
 
   try {
     const currentUserId = session.user.id;
-    const [activeOrganization, coworkers] = await Promise.all([
-      userService.getActiveOrganization(),
-      coworkerService.listCoworkers("chat"),
-    ]);
+    const [activeOrganization, coworkers, personalAssistantBot] =
+      await Promise.all([
+        userService.getActiveOrganization(),
+        coworkerService.listCoworkers("chat"),
+        sokoBotService.getMine().catch(() => null),
+      ]);
+    const personalAssistant = personalAssistantBot
+      ? {
+          id: personalAssistantBot.id,
+          name: personalAssistantBot.name?.trim() || "Personal assistant",
+          image: personalAssistantBot.avatarImageUrl ?? null,
+          avatarSeed: personalAssistantBot.avatarSeed ?? `orb:${currentUserId}`,
+        }
+      : null;
 
     if (!activeOrganization) {
       return roomOk({
@@ -149,6 +167,7 @@ export async function loadChatComposeRosterAction(): Promise<
         canCreateExternal: false,
         members: [],
         coworkers,
+        personalAssistant,
         membersLoadFailed: false,
       });
     }
@@ -167,6 +186,7 @@ export async function loadChatComposeRosterAction(): Promise<
       ),
       members: membersPage.members,
       coworkers,
+      personalAssistant,
       membersLoadFailed: membersPage.failed,
     });
   } catch (error) {

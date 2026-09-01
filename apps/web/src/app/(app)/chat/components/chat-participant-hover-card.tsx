@@ -160,8 +160,9 @@ export function ChatParticipantHoverCard({
     return children;
   }
 
-  const isCoworker = profile.kind === "coworker";
-  const kindLabel = isCoworker ? t("coworkerBadge") : t("humanBadge");
+  const isAiParticipant =
+    profile.kind === "coworker" || profile.kind === "orchestrator";
+  const kindLabel = isAiParticipant ? t("coworkerBadge") : t("humanBadge");
   const detail =
     profile.kind === "human"
       ? profile.email
@@ -198,7 +199,7 @@ export function ChatParticipantHoverCard({
               <AvatarFallback
                 className={cn(
                   "text-sm",
-                  profile.kind === "coworker"
+                  isAiParticipant
                     ? "bg-primary/10 text-primary"
                     : "bg-muted text-muted-foreground",
                 )}
@@ -210,7 +211,7 @@ export function ChatParticipantHoverCard({
               <LiveMemberPresenceDot
                 className="absolute -right-0.5 -bottom-0.5 size-3"
                 fallback={profile.presence}
-                isCoworker={isCoworker}
+                isCoworker={isAiParticipant}
                 userId={profile.id}
               />
             </span>
@@ -218,7 +219,7 @@ export function ChatParticipantHoverCard({
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
               <p className="truncate text-sm font-semibold">{profile.name}</p>
-              {profile.kind === "coworker" ? (
+              {isAiParticipant ? (
                 <AiCoworkerIcon className="size-3.5 shrink-0" />
               ) : null}
             </div>

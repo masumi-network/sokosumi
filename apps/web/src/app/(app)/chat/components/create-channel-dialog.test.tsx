@@ -78,6 +78,7 @@ describe("CreateChannelDialog", () => {
         canCreateExternal: false,
         members: [member("user-self", "Ada")],
         coworkers: [],
+        personalAssistant: null,
         membersLoadFailed: false,
       },
     });
@@ -128,6 +129,7 @@ describe("CreateChannelDialog", () => {
         canCreateExternal: false,
         members: [],
         coworkers: [],
+        personalAssistant: null,
         membersLoadFailed: true,
       },
     });
@@ -149,6 +151,7 @@ describe("CreateChannelDialog", () => {
         canCreateExternal: false,
         members: [member("user-self", "Ada")],
         coworkers: [],
+        personalAssistant: null,
         membersLoadFailed: false,
       },
     });
@@ -179,6 +182,7 @@ describe("CreateChannelDialog", () => {
         discoverability: "public",
         memberUserIds: ["user-self"],
         coworkerIds: [],
+        orchestratorIds: [],
       });
     });
     expect(notifyOrganizationChatRoomsChangedMock).toHaveBeenCalledWith({

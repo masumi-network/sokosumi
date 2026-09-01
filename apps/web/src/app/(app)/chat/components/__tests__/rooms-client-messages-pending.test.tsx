@@ -990,6 +990,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
         organizationMembers: [hydratedMember],
         membersLoadFailed: true,
         coworkers: [hydratedCoworker],
+        personalAssistant: null,
       });
       await rosterPromise;
     });

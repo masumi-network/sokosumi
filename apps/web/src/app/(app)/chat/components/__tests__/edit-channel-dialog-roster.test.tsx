@@ -156,6 +156,7 @@ describe("EditChannelDialog host roster payload", () => {
         expect.objectContaining({
           memberUserIds: [HOST_USER_ID],
           coworkerIds: [COWORKER_ID],
+          orchestratorIds: [],
         }),
       );
     });
@@ -197,6 +198,7 @@ describe("EditChannelDialog host roster payload", () => {
         expect.objectContaining({
           memberUserIds: [HOST_USER_ID],
           coworkerIds: [COWORKER_ID],
+          orchestratorIds: [],
         }),
       );
     });

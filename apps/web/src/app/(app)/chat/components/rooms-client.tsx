@@ -48,7 +48,10 @@ import {
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
-import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
+import type {
+  RoomShellPersonalAssistant,
+  RoomShellRosterPage,
+} from "@/app/chat/load-room-shell-roster";
 import {
   filterTopLevelChatRoomMessages,
   isReplyUnderThreadParent,
@@ -375,6 +378,7 @@ interface RoomHeaderChromeProps {
   currentUserId: string;
   organizationMembers: Member[];
   coworkers: Coworker[];
+  personalAssistant: RoomShellPersonalAssistant | null;
   canEditMembers: boolean;
   canManageSettings: boolean;
   canArchive: boolean;
@@ -399,6 +403,7 @@ function RoomHeaderChrome({
   currentUserId,
   organizationMembers,
   coworkers,
+  personalAssistant,
   canEditMembers,
   canManageSettings,
   canArchive,
@@ -430,6 +435,7 @@ function RoomHeaderChrome({
               channel={room}
               members={organizationMembers}
               coworkers={coworkers}
+              personalAssistant={personalAssistant}
               currentUserId={currentUserId}
               canEditMembers={canEditMembers}
               canManageSettings={canManageSettings}
@@ -637,6 +643,8 @@ export function RoomsClient({
     rosterPromise != null
       ? (deferredRoster?.coworkers ?? coworkersProp)
       : coworkersProp;
+  const personalAssistant =
+    rosterPromise != null ? (deferredRoster?.personalAssistant ?? null) : null;
   const membersLoadFailed =
     rosterPromise != null
       ? (deferredRoster?.membersLoadFailed ?? membersLoadFailedProp)
@@ -2878,6 +2886,7 @@ export function RoomsClient({
         currentUserId={currentUserId}
         organizationMembers={organizationMembers}
         coworkers={coworkers}
+        personalAssistant={personalAssistant}
         canEditMembers={canEditSelectedRoomMembers}
         canManageSettings={canManageSelectedRoomSettings}
         canArchive={canArchiveSelectedRoom}

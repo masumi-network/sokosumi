@@ -2217,7 +2217,7 @@ export function ChatMessageRow({
             data-testid="message-sender-avatar"
             className="relative inline-flex size-8 shrink-0"
           >
-            {sender.kind === "coworker" &&
+            {(sender.kind === "coworker" || sender.kind === "orchestrator") &&
             sender.sokoBotAvatarSeed &&
             !sender.image ? (
               <AuroraOrb
@@ -2235,6 +2235,9 @@ export function ChatMessageRow({
               </Avatar>
             )}
             {sender.kind === "coworker" && !sender.sokoBotAvatarSeed ? (
+              <AiCoworkerAvatarBadge />
+            ) : null}
+            {sender.kind === "orchestrator" && !sender.sokoBotAvatarSeed ? (
               <AiCoworkerAvatarBadge />
             ) : null}
           </span>

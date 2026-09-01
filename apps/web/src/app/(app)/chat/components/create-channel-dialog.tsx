@@ -74,12 +74,22 @@ export function CreateChannelDialog() {
   const {
     members,
     coworkers,
+    personalAssistant,
     organizationName,
     currentUserId,
     membersLoadFailed,
     canCreateExternal,
     hasOrganization,
   } = roster;
+  const orchestrators = personalAssistant
+    ? [
+        {
+          id: personalAssistant.id,
+          name: personalAssistant.name,
+          image: personalAssistant.image,
+        },
+      ]
+    : [];
   const slugFieldError =
     wizard.step === "create"
       ? availability === "taken"
@@ -161,6 +171,7 @@ export function CreateChannelDialog() {
   function submitCreate(roster: {
     memberUserIds: string[];
     coworkerIds: string[];
+    orchestratorIds: string[];
   }) {
     if (wizard.step !== "add-people" || inFlightRef.current || isPending) {
       return;
@@ -178,6 +189,7 @@ export function CreateChannelDialog() {
         discoverability: fields.discoverability,
         memberUserIds: fields.memberUserIds,
         coworkerIds: fields.coworkerIds,
+        orchestratorIds: fields.orchestratorIds,
       });
       if (!result.ok) {
         inFlightRef.current = false;
@@ -204,6 +216,7 @@ export function CreateChannelDialog() {
           ? allMemberUserIds
           : [currentUserId, ...allMemberUserIds],
         coworkerIds: [],
+        orchestratorIds: [],
       });
       return;
     }
@@ -213,6 +226,7 @@ export function CreateChannelDialog() {
     submitCreate({
       memberUserIds,
       coworkerIds: wizard.coworkerIds,
+      orchestratorIds: wizard.orchestratorIds,
     });
   }
 
@@ -487,14 +501,17 @@ export function CreateChannelDialog() {
               <ParticipantCheckboxes
                 members={members}
                 coworkers={coworkers}
+                orchestrators={orchestrators}
                 memberIds={wizard.memberUserIds}
                 coworkerIds={wizard.coworkerIds}
+                orchestratorIds={wizard.orchestratorIds}
                 lockedUserId={currentUserId}
                 onMemberIdsChange={(memberUserIds) =>
                   setWizard(
                     setSpecificMembers(wizard, {
                       memberUserIds,
                       coworkerIds: wizard.coworkerIds,
+                      orchestratorIds: wizard.orchestratorIds,
                     }),
                   )
                 }
@@ -503,6 +520,16 @@ export function CreateChannelDialog() {
                     setSpecificMembers(wizard, {
                       memberUserIds: wizard.memberUserIds,
                       coworkerIds,
+                      orchestratorIds: wizard.orchestratorIds,
+                    }),
+                  )
+                }
+                onOrchestratorIdsChange={(orchestratorIds) =>
+                  setWizard(
+                    setSpecificMembers(wizard, {
+                      memberUserIds: wizard.memberUserIds,
+                      coworkerIds: wizard.coworkerIds,
+                      orchestratorIds,
                     }),
                   )
                 }

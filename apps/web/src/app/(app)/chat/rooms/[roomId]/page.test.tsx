@@ -346,6 +346,7 @@ describe("ChatRoomPage org deep-link guard", () => {
       organizationMembers: [],
       membersLoadFailed: true,
       coworkers: [],
+      personalAssistant: null,
     };
     loadRoomShellRosterMock.mockResolvedValue(failedRoster);
 
@@ -393,6 +394,7 @@ describe("ChatRoomPage deferred history promise", () => {
       organizationMembers: [],
       membersLoadFailed: false,
       coworkers: [],
+      personalAssistant: null,
     });
   });
 

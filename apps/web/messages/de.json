@@ -5831,6 +5831,7 @@
         "cannotRemoveSelf": "Du kannst dich nicht selbst entfernen",
         "humans": "Humans",
         "coworkers": "AI coworkers",
+        "personalAssistant": "Persönlicher Assistent",
         "cancel": "Cancel",
         "create": "Create",
         "save": "Save changes"

@@ -35,6 +35,13 @@ vi.mock("@/lib/services/coworker.service", () => ({
   },
 }));
 
+const getMineMock = vi.fn();
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: {
+    getMine: (...args: unknown[]) => getMineMock(...args),
+  },
+}));
+
 const loadOrganizationMembersMock = vi.fn();
 vi.mock("@/app/chat/load-organization-members", () => ({
   loadOrganizationMembers: (...args: unknown[]) =>
@@ -62,6 +69,7 @@ describe("loadChatComposeRosterAction", () => {
       failed: false,
     });
     listCoworkersMock.mockResolvedValue([]);
+    getMineMock.mockResolvedValue(null);
   });
 
   it("returns an error DTO when roster services throw", async () => {
@@ -91,6 +99,7 @@ describe("loadChatComposeRosterAction", () => {
         canCreateExternal: false,
         members: [],
         coworkers: [],
+        personalAssistant: null,
         membersLoadFailed: true,
       },
     });

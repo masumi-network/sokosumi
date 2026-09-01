@@ -16,6 +16,7 @@ import {
   leaveRoomAction,
   updateRoomAction,
 } from "@/app/chat/actions";
+import type { RoomShellPersonalAssistant } from "@/app/chat/load-room-shell-roster";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   AlertDialog,
@@ -44,7 +45,10 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import type { Discoverability } from "./create-channel-wizard";
 import { GuestInviteSection } from "./guest-invite-section";
-import { ParticipantCheckboxes } from "./participant-checkboxes";
+import {
+  type ChannelOrchestratorOption,
+  ParticipantCheckboxes,
+} from "./participant-checkboxes";
 
 function channelDiscoverability(
   value: ChatRoom["discoverability"],
@@ -66,10 +70,39 @@ function hostRosterUserIds(channel: ChatRoom): string[] {
     .map((member) => member.id);
 }
 
+function channelOrchestratorIds(channel: ChatRoom): string[] {
+  return (channel.orchestratorMembers ?? []).map(
+    (orchestrator) => orchestrator.id,
+  );
+}
+
+function mergeOrchestratorOptions(
+  channel: ChatRoom,
+  personalAssistant: RoomShellPersonalAssistant | null,
+): ChannelOrchestratorOption[] {
+  const byId = new Map<string, ChannelOrchestratorOption>();
+  for (const orchestrator of channel.orchestratorMembers ?? []) {
+    byId.set(orchestrator.id, {
+      id: orchestrator.id,
+      name: orchestrator.name,
+      image: orchestrator.image,
+    });
+  }
+  if (personalAssistant) {
+    byId.set(personalAssistant.id, {
+      id: personalAssistant.id,
+      name: personalAssistant.name,
+      image: personalAssistant.image,
+    });
+  }
+  return [...byId.values()];
+}
+
 export function EditChannelDialog({
   channel,
   members,
   coworkers,
+  personalAssistant = null,
   currentUserId,
   canEditMembers,
   canManageSettings,
@@ -82,6 +115,7 @@ export function EditChannelDialog({
   channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
+  personalAssistant?: RoomShellPersonalAssistant | null;
   currentUserId: string;
   /** Any active channel member may rewrite the roster. */
   canEditMembers: boolean;
@@ -125,7 +159,11 @@ export function EditChannelDialog({
   const [coworkerIds, setCoworkerIds] = useState<string[]>(
     channel.coworkerMembers.map((coworker) => coworker.id),
   );
+  const [orchestratorIds, setOrchestratorIds] = useState<string[]>(() =>
+    channelOrchestratorIds(channel),
+  );
   const [isPending, startTransition] = useTransition();
+  const orchestrators = mergeOrchestratorOptions(channel, personalAssistant);
 
   const canSubmit = canEditMembers || canManageSettings;
   const isActionsOnly = !canSubmit && (canLeave || canArchive);
@@ -137,6 +175,7 @@ export function EditChannelDialog({
     setDiscoverability(channelDiscoverability(channel.discoverability));
     setMemberIds(hostRosterUserIds(channel));
     setCoworkerIds(channel.coworkerMembers.map((coworker) => coworker.id));
+    setOrchestratorIds(channelOrchestratorIds(channel));
     setGuestMembers(
       channel.userMembers.filter((member) => member.access === "guest"),
     );
@@ -159,10 +198,12 @@ export function EditChannelDialog({
               discoverability,
               memberUserIds,
               coworkerIds,
+              orchestratorIds,
             }
           : {
               memberUserIds,
               coworkerIds,
+              orchestratorIds,
             },
       );
       if (!result.ok) {
@@ -324,11 +365,14 @@ export function EditChannelDialog({
                   <ParticipantCheckboxes
                     members={members}
                     coworkers={coworkers}
+                    orchestrators={orchestrators}
                     memberIds={memberIds}
                     coworkerIds={coworkerIds}
+                    orchestratorIds={orchestratorIds}
                     lockedUserId={currentUserId}
                     onMemberIdsChange={setMemberIds}
                     onCoworkerIdsChange={setCoworkerIds}
+                    onOrchestratorIdsChange={setOrchestratorIds}
                     membersLoadFailed={membersLoadFailed}
                   />
                 ) : null}

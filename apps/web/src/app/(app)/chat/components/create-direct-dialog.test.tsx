@@ -97,6 +97,7 @@ describe("CreateDirectDialog", () => {
         canCreateExternal: false,
         members: [member("user-self", "Ada"), member("user-2", "Francis")],
         coworkers: [],
+        personalAssistant: null,
         membersLoadFailed: false,
       },
     });
@@ -143,6 +144,7 @@ describe("CreateDirectDialog", () => {
         canCreateExternal: false,
         members: [],
         coworkers: [coworker("coworker-1", "Hannah")],
+        personalAssistant: null,
         membersLoadFailed: false,
       },
     });
@@ -176,6 +178,7 @@ describe("CreateDirectDialog", () => {
         canCreateExternal: false,
         members: [],
         coworkers: [coworker("coworker-1", "Hannah")],
+        personalAssistant: null,
         membersLoadFailed: true,
       },
     });
@@ -287,6 +290,7 @@ describe("CreateDirectDialog", () => {
         canCreateExternal: false,
         members: [member("user-self", "Ada"), member("user-2", "Francis")],
         coworkers: [coworker("cow-1", "Hermes")],
+        personalAssistant: null,
         membersLoadFailed: false,
       },
     });

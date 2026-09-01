@@ -13,13 +13,22 @@ import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon, MembersRosterLoadFailed } from "./room-draft-shared";
 import { toggleId } from "./room-helpers";
 
+export interface ChannelOrchestratorOption {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
 export interface ParticipantCheckboxesProps {
   members: Member[];
   coworkers: Coworker[];
+  orchestrators?: ChannelOrchestratorOption[];
   memberIds: string[];
   coworkerIds: string[];
+  orchestratorIds?: string[];
   onMemberIdsChange: (ids: string[]) => void;
   onCoworkerIdsChange: (ids: string[]) => void;
+  onOrchestratorIdsChange?: (ids: string[]) => void;
   membersLoadFailed: boolean;
   /** Host member who must stay on the roster (create/save caller). */
   lockedUserId?: string;
@@ -28,10 +37,13 @@ export interface ParticipantCheckboxesProps {
 export function ParticipantCheckboxes({
   members,
   coworkers,
+  orchestrators = [],
   memberIds,
   coworkerIds,
+  orchestratorIds = [],
   onMemberIdsChange,
   onCoworkerIdsChange,
+  onOrchestratorIdsChange,
   membersLoadFailed,
   lockedUserId,
 }: ParticipantCheckboxesProps) {
@@ -41,6 +53,7 @@ export function ParticipantCheckboxes({
   const selectedCount =
     memberIds.length +
     coworkerIds.length +
+    orchestratorIds.length +
     (lockedUserId && !memberIds.includes(lockedUserId) ? 1 : 0);
   const filteredMembers = useMemo(() => {
     if (!normalizedQuery) {
@@ -64,6 +77,15 @@ export function ParticipantCheckboxes({
         .some((value) => value.toLowerCase().includes(normalizedQuery)),
     );
   }, [coworkers, normalizedQuery]);
+  const filteredOrchestrators = useMemo(() => {
+    if (!normalizedQuery) {
+      return orchestrators;
+    }
+
+    return orchestrators.filter((orchestrator) =>
+      orchestrator.name.toLowerCase().includes(normalizedQuery),
+    );
+  }, [orchestrators, normalizedQuery]);
 
   return (
     <div className="min-w-0 overflow-hidden rounded-lg border bg-background">
@@ -235,9 +257,65 @@ export function ParticipantCheckboxes({
             </div>
           ) : null}
 
+          {filteredOrchestrators.length > 0 && onOrchestratorIdsChange ? (
+            <div className="pt-1">
+              <div className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
+                <Bot className="size-3" aria-hidden />
+                {t("Dialog.personalAssistant")}
+              </div>
+              <div className="space-y-0.5">
+                {filteredOrchestrators.map((orchestrator) => {
+                  const checked = orchestratorIds.includes(orchestrator.id);
+
+                  return (
+                    <label
+                      key={orchestrator.id}
+                      className={cn(
+                        "flex min-w-0 cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
+                        checked ? "bg-muted/70" : "hover:bg-muted/50",
+                      )}
+                    >
+                      <Avatar className="size-8 shrink-0">
+                        <AvatarImage
+                          src={orchestrator.image ?? undefined}
+                          alt=""
+                        />
+                        <AvatarFallback className="text-xs">
+                          {getInitials(orchestrator.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm font-medium">
+                            {orchestrator.name}
+                          </span>
+                          <AiCoworkerIcon />
+                        </span>
+                      </span>
+                      <Checkbox
+                        className="shrink-0"
+                        checked={checked}
+                        onCheckedChange={(nextChecked) =>
+                          onOrchestratorIdsChange(
+                            toggleId(
+                              orchestratorIds,
+                              orchestrator.id,
+                              nextChecked === true,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
           {!membersLoadFailed &&
           filteredMembers.length === 0 &&
-          filteredCoworkers.length === 0 ? (
+          filteredCoworkers.length === 0 &&
+          filteredOrchestrators.length === 0 ? (
             <div className="text-muted-foreground px-4 py-12 text-center text-sm">
               {t("Draft.noResults")}
             </div>

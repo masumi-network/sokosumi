@@ -49,6 +49,7 @@ export function RoomShellRosterHydrator({
           organizationMembers: [],
           membersLoadFailed: true,
           coworkers: [],
+          personalAssistant: null,
         });
       },
     );

@@ -42,7 +42,7 @@ export interface DirectParticipantPreview {
   kind: "human" | "coworker";
 }
 
-/** Shared hover / roster shape for humans vs AI coworkers in a room. */
+/** Shared hover / roster shape for humans, AI coworkers, and PA orchestrators. */
 export type ChatParticipantHoverProfile =
   | {
       kind: "human";
@@ -61,6 +61,16 @@ export type ChatParticipantHoverProfile =
       image: string | null;
       presence: ChatRoomPresence;
       /** Generative avatar seed when the coworker is a Soko Bot. */
+      sokoBotAvatarSeed?: string | null;
+    }
+  | {
+      kind: "orchestrator";
+      id: string;
+      name: string;
+      slug: string;
+      caption: string | null;
+      image: string | null;
+      presence: ChatRoomPresence;
       sokoBotAvatarSeed?: string | null;
     };
 
@@ -434,10 +444,9 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
     };
   }
   if (message.sender.type === "orchestrator") {
-    // Reuse coworker hover chrome (AI icon + generative orb) for first-class PA.
     const orchestrator = message.sender.orchestrator;
     return {
-      kind: "coworker",
+      kind: "orchestrator",
       id: orchestrator.id,
       name: orchestrator.name,
       slug: orchestrator.slug,
@@ -717,11 +726,27 @@ export function getRoomParticipantPreviews(
         caption: coworker.caption,
         image: coworker.image,
         presence: coworker.presence,
+        sokoBotAvatarSeed: coworker.sokoBotAvatarSeed ?? null,
       }),
     )
     .toSorted(compareByDisplayNameThenId);
 
-  return [...humans, ...coworkers];
+  const orchestrators = (room.orchestratorMembers ?? [])
+    .map(
+      (orchestrator): ChatParticipantHoverProfile => ({
+        kind: "orchestrator",
+        id: orchestrator.id,
+        name: orchestrator.name,
+        slug: orchestrator.slug,
+        caption: orchestrator.caption,
+        image: orchestrator.image,
+        presence: orchestrator.presence,
+        sokoBotAvatarSeed: orchestrator.avatarSeed ?? null,
+      }),
+    )
+    .toSorted(compareByDisplayNameThenId);
+
+  return [...humans, ...coworkers, ...orchestrators];
 }
 
 export function presenceLabel(

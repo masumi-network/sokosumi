@@ -16,11 +16,19 @@ vi.mock("@/lib/services/coworker.service", () => ({
   },
 }));
 
+const getMineMock = vi.fn();
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: {
+    getMine: (...args: unknown[]) => getMineMock(...args),
+  },
+}));
+
 import { loadRoomShellRoster } from "./load-room-shell-roster";
 
 describe("loadRoomShellRoster", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getMineMock.mockResolvedValue(null);
   });
 
   it("loads members and coworkers in parallel", async () => {
@@ -36,6 +44,7 @@ describe("loadRoomShellRoster", () => {
       organizationMembers: members,
       membersLoadFailed: false,
       coworkers,
+      personalAssistant: null,
     });
     expect(loadOrganizationMembersMock).toHaveBeenCalledWith("org_1");
     expect(listCoworkersMock).toHaveBeenCalledWith("chat");
@@ -52,6 +61,7 @@ describe("loadRoomShellRoster", () => {
       organizationMembers: [],
       membersLoadFailed: true,
       coworkers: [],
+      personalAssistant: null,
     });
   });
 
@@ -66,7 +76,32 @@ describe("loadRoomShellRoster", () => {
       organizationMembers: [],
       membersLoadFailed: false,
       coworkers: [{ id: "c1" }],
+      personalAssistant: null,
     });
     expect(loadOrganizationMembersMock).toHaveBeenCalledWith(null);
+  });
+
+  it("maps the owner's live PA into personalAssistant", async () => {
+    loadOrganizationMembersMock.mockResolvedValue({
+      members: [],
+      failed: false,
+    });
+    listCoworkersMock.mockResolvedValue([]);
+    getMineMock.mockResolvedValue({
+      id: "bot-1",
+      name: "Ada Bot",
+      avatarImageUrl: "https://cdn.example/ada.png",
+    });
+
+    await expect(loadRoomShellRoster("org_1")).resolves.toEqual({
+      organizationMembers: [],
+      membersLoadFailed: false,
+      coworkers: [],
+      personalAssistant: {
+        id: "bot-1",
+        name: "Ada Bot",
+        image: "https://cdn.example/ada.png",
+      },
+    });
   });
 });

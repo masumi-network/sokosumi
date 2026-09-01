@@ -133,6 +133,26 @@ describe("canShowOpenDirect", () => {
     ).toBe(true);
   });
 
+  it("hides Message for an orchestrator PA", () => {
+    expect(
+      canShowOpenDirect({
+        profile: {
+          kind: "orchestrator",
+          id: "bot-1",
+          name: "Ada Bot",
+          slug: "ada-bot",
+          caption: null,
+          image: null,
+          presence: "online",
+          sokoBotAvatarSeed: "orb:user-1",
+        },
+        currentUserId: "user-1",
+        canOpenHumanDirect: true,
+        onOpenDirect,
+      }),
+    ).toBe(false);
+  });
+
   it("hides without an open callback", () => {
     expect(
       canShowOpenDirect({
