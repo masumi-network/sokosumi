@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { Category } from "@/lib/types/category";
 import { cn } from "@/lib/utils";
 
@@ -163,7 +164,7 @@ export default function Categories({
     }, 0);
   }, []);
 
-  useEffect(() => {
+  useMountEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
@@ -173,7 +174,7 @@ export default function Categories({
       container.style.cursor = "";
       container.style.userSelect = "";
     };
-  }, []);
+  });
 
   if (validCategories.length === 0) {
     return null;

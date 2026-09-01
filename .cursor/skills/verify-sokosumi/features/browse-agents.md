@@ -6,7 +6,7 @@ Browse agents lets a signed-in user open `/agents`, use the **Coworker gallery**
 
 - `agents-gallery` loads `/agents` for a signed-in user and shows the coworker gallery shell plus the Agent catalog section.
 - `agents-search-or-empty` covers search / filter miss for coworkers under the hero, and catalog empty / not-found states when filters match nothing.
-- `agents-detail-from-catalog` opens `/agents/[agentId]` from a catalog card (or a known deep-link id).
+- `agents-detail-from-catalog` opens `/agents/[agentId]` from a **Cardano** catalog card (or a known Cardano deep-link id). x402 catalog entries use an external resource URL or show Details unavailable — they are not in-app detail targets.
 
 ## How to get to it (user POV)
 
@@ -25,7 +25,7 @@ Preconditions:
 - **Healthy gallery.** Snapshot shows coworker hero / **Your AI coworkers**, and catalog copy such as **Browse all agents** (or locale equivalent) when Core catalog data is present.
 - **Catalog card.** Prefer a Cardano catalog row / **Show Details** control that navigates to `/agents/<id>`. x402 cards open an external resource URL when present (or show Details unavailable). Do not expect Hire / Create Job / credits price on catalog cards.
 - **Search miss (optional).** Type nonsense in the coworker search field (`?query=`); expect the gallery body to clear under the hero. Catalog search uses `?agentQuery=` plus category / kind filters and does not share coworker search state.
-- **Detail.** From a Cardano catalog card or deep-link `/agents/<id>`: page loads read-only detail with no Hire and no price/credits chrome.
+- **Detail.** From a Cardano catalog card or Cardano deep-link `/agents/<id>` only: page loads read-only detail with no Hire and no price/credits chrome. Do not treat x402 catalog ids as in-app detail targets.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/browse-agents` then screenshot + `snapshot -i`.
 
 ## Gotchas

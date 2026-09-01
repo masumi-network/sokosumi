@@ -14,7 +14,9 @@ export function groupAgentsByCategory(
   categories: Category[],
 ): AgentCategoryGroup[] {
   const sortedCategories = new Map(
-    categories.map((cat) => [cat.slug, { name: cat.name, icon: cat.icon }]),
+    [...categories]
+      .sort((left, right) => left.priority - right.priority)
+      .map((cat) => [cat.slug, { name: cat.name, icon: cat.icon }]),
   );
 
   const groupsBySlug = new Map<string, CatalogBrowseAgent[]>();

@@ -47,19 +47,29 @@ function FilterSectionInner({ categories }: FilterSectionProps) {
     Boolean(query) || appliedCategories.length > 0 || kind !== "all";
 
   const [searchValue, setSearchValue] = useState(query);
-  useEffect(() => {
-    setSearchValue(query);
-  }, [query]);
 
   const debouncedSetQuery = useDebouncedCallback((value: string) => {
     void setQuery(value);
   }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
+
+  // Keep the input aligned with URL-driven query changes (back/forward, Reset).
+  // Cancel any pending debounce so a stale keystroke cannot reapply the old value.
+  useEffect(() => {
+    debouncedSetQuery.cancel();
+    setSearchValue(query);
+  }, [query, debouncedSetQuery]);
 
   function handleKindChange(next: GalleryAgentKindFilter) {
     void setKind(next);
     if (next === "x402" && appliedCategories.length > 0) {
       void setAppliedCategories([]);
     }
+  }
+
+  function handleReset() {
+    debouncedSetQuery.cancel();
+    setSearchValue("");
+    resetFilters();
   }
 
   return (
@@ -95,7 +105,7 @@ function FilterSectionInner({ categories }: FilterSectionProps) {
         {hasActiveFilters ? (
           <Button
             variant="ghost"
-            onClick={resetFilters}
+            onClick={handleReset}
             className="shrink-0 gap-2 text-lg sm:ml-auto"
           >
             {!isMobile && t("reset")}

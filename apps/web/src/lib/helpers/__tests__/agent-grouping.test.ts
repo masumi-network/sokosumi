@@ -94,15 +94,16 @@ describe("groupAgentsByCategory", () => {
         ],
       }),
     ];
+    // Deliberately out of priority order — grouping must sort by priority.
     const categories: Category[] = [
+      { slug: "coding", name: "Coding", priority: 10 },
+      { ...SYNTHETIC_DEFAULT_CATEGORY },
+      { slug: SPECIAL_AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
       {
         slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
         name: "Featured",
         priority: 1,
       },
-      { slug: SPECIAL_AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
-      { slug: "coding", name: "Coding", priority: 10 },
-      { ...SYNTHETIC_DEFAULT_CATEGORY },
     ];
     const result = groupAgentsByCategory(agents, categories);
     expect(result).toHaveLength(4);
