@@ -130,6 +130,7 @@ vi.mock("@/helpers/chat-mention-notifications", () => ({
 vi.mock("@/helpers/chat-direct-message-notifications", () => ({
   emitChatDirectMessageNotifications: (...args: unknown[]) =>
     emitChatDirectMessageNotificationsMock(...args),
+  shouldEmitChatDirectMessageNotifications: () => false,
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
@@ -438,6 +439,8 @@ describe("SOK-942 PA as orchestrator member / mention / picker", () => {
           chatRoomReadState: { upsert: readStateUpsertMock },
           chatRoomThreadReadState: { upsert: threadReadUpsertMock },
           chatRoomUserMember: { findMany: membershipFindManyMock },
+          organization: { findUnique: organizationFindUniqueMock },
+          member: { findUnique: memberFindUniqueMock },
         };
         return fn(tx);
       },
