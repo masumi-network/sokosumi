@@ -197,7 +197,8 @@ describe("TaskAssigneeSelect", () => {
 
     const jarvis = screen.getByRole("option", { name: /Jarvis/ });
     expect(jarvis.className).toContain("pl-10");
-    expect(jarvis).toHaveTextContent("Alice's personal assistant");
+    expect(jarvis).toHaveTextContent("Jarvis");
+    expect(jarvis).not.toHaveTextContent("Alice's personal assistant");
   });
 
   it("lists personal assistants whose owner is missing in their own category", async () => {

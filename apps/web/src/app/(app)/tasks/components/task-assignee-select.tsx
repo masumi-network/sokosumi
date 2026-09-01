@@ -105,14 +105,7 @@ function CoworkerAssigneeItem({
       onSelect={() => onSelect(encoded)}
     >
       <AssigneeAvatar name={option.name} image={getCoworkerImage(option)} />
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate">{option.name}</span>
-        {nested && option.caption ? (
-          <span className="text-muted-foreground truncate text-xs">
-            {option.caption}
-          </span>
-        ) : null}
-      </span>
+      <span className="min-w-0 flex-1 truncate">{option.name}</span>
       <Check
         className={cn(
           "size-4",
