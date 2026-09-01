@@ -1,7 +1,8 @@
 /**
  * Shared Files sort vocabulary and URL/query mapping (Browse, Tasks).
  *
- * Omit both params → each endpoint keeps its current default.
+ * Omit both params → each endpoint keeps its current default
+ * (Browse: name asc; Tasks: date desc).
  * Drive Recents does not accept sort; order is fixed activityAt descending.
  */
 
@@ -10,6 +11,9 @@ export const FILES_SORT_ORDER_VALUES = ["asc", "desc"] as const;
 
 export type FilesSortBy = (typeof FILES_SORT_BY_VALUES)[number];
 export type FilesSortOrder = (typeof FILES_SORT_ORDER_VALUES)[number];
+
+/** Surfaces that accept sort; omit-default matches Core per endpoint. */
+export type FilesSortSurface = "browse" | "tasks";
 
 export interface FilesSortSelection {
   sortBy: FilesSortBy;
@@ -20,6 +24,15 @@ export interface DriveListSortQuery {
   sortBy?: FilesSortBy;
   sortOrder?: FilesSortOrder;
 }
+
+/** Core omit defaults — must match resolveDriveListSort fallback keys. */
+export const FILES_SORT_OMIT_DEFAULTS: Record<
+  FilesSortSurface,
+  FilesSortSelection
+> = {
+  browse: { sortBy: "name", sortOrder: "asc" },
+  tasks: { sortBy: "date", sortOrder: "desc" },
+};
 
 function isFilesSortBy(value: string): value is FilesSortBy {
   return (FILES_SORT_BY_VALUES as readonly string[]).includes(value);
@@ -33,29 +46,30 @@ export function defaultSortOrderForKey(sortBy: FilesSortBy): FilesSortOrder {
   return sortBy === "date" ? "desc" : "asc";
 }
 
-/** Visible control default when URL params are omitted (server default). */
-export const DEFAULT_FILES_SORT_SELECTION: FilesSortSelection = {
-  sortBy: "date",
-  sortOrder: "desc",
-};
-
 export function toggleSortOrder(order: FilesSortOrder): FilesSortOrder {
   return order === "asc" ? "desc" : "asc";
 }
 
+/** Visible control value when URL params are omitted (matches Core omit). */
 export function effectiveFilesSortSelection(
   selection: FilesSortSelection | null,
+  surface: FilesSortSurface,
 ): FilesSortSelection {
-  return selection ?? DEFAULT_FILES_SORT_SELECTION;
+  return selection ?? FILES_SORT_OMIT_DEFAULTS[surface];
 }
 
-/** Map a concrete selection to URL/storage; date+desc collapses to omit. */
+/**
+ * Map a concrete selection to URL/storage.
+ * Collapses only when it matches this surface's Core omit default.
+ */
 export function toStoredFilesSortSelection(
   selection: FilesSortSelection,
+  surface: FilesSortSurface,
 ): FilesSortSelection | null {
+  const omitDefault = FILES_SORT_OMIT_DEFAULTS[surface];
   if (
-    selection.sortBy === DEFAULT_FILES_SORT_SELECTION.sortBy &&
-    selection.sortOrder === DEFAULT_FILES_SORT_SELECTION.sortOrder
+    selection.sortBy === omitDefault.sortBy &&
+    selection.sortOrder === omitDefault.sortOrder
   ) {
     return null;
   }

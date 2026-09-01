@@ -14,16 +14,21 @@ const labels = {
 };
 
 describe("DriveSortControl", () => {
-  it("renders one control with direction before the key and Date when unset", () => {
+  it("Browse omit default shows Name with direction before the key", () => {
     render(
-      <DriveSortControl value={null} onChange={vi.fn()} labels={labels} />,
+      <DriveSortControl
+        value={null}
+        onChange={vi.fn()}
+        surface="browse"
+        labels={labels}
+      />,
     );
 
     const control = screen.getByTestId("files-sort-control");
     const trigger = within(control).getByTestId("files-sort-trigger");
     const order = within(trigger).getByTestId("files-sort-order");
 
-    expect(trigger).toHaveTextContent("Date");
+    expect(trigger).toHaveTextContent("Name");
     expect(
       trigger.compareDocumentPosition(order) &
         Node.DOCUMENT_POSITION_CONTAINED_BY,
@@ -32,13 +37,30 @@ describe("DriveSortControl", () => {
       order.compareDocumentPosition(trigger.querySelector("span")!) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.queryByTestId("files-sort-default")).not.toBeInTheDocument();
+  });
+
+  it("Tasks omit default shows Date", () => {
+    render(
+      <DriveSortControl
+        value={null}
+        onChange={vi.fn()}
+        surface="tasks"
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByTestId("files-sort-trigger")).toHaveTextContent("Date");
   });
 
   it("opens a Sort by menu with Name, Date, and Type only", async () => {
     const user = userEvent.setup();
     render(
-      <DriveSortControl value={null} onChange={vi.fn()} labels={labels} />,
+      <DriveSortControl
+        value={null}
+        onChange={vi.fn()}
+        surface="browse"
+        labels={labels}
+      />,
     );
 
     await user.click(screen.getByTestId("files-sort-trigger"));
@@ -47,7 +69,6 @@ describe("DriveSortControl", () => {
     expect(screen.getByTestId("files-sort-name")).toHaveTextContent("Name");
     expect(screen.getByTestId("files-sort-date")).toHaveTextContent("Date");
     expect(screen.getByTestId("files-sort-type")).toHaveTextContent("Type");
-    expect(screen.queryByTestId("files-sort-default")).not.toBeInTheDocument();
   });
 
   it("marks the active sort key with a check in the menu", async () => {
@@ -56,6 +77,7 @@ describe("DriveSortControl", () => {
       <DriveSortControl
         value={{ sortBy: "type", sortOrder: "asc" }}
         onChange={vi.fn()}
+        surface="browse"
         labels={labels}
       />,
     );
@@ -70,35 +92,74 @@ describe("DriveSortControl", () => {
       "aria-checked",
       "false",
     );
-    expect(screen.getByTestId("files-sort-date")).toHaveAttribute(
-      "aria-checked",
-      "false",
-    );
   });
 
-  it("checks Date when sort selection is unset", async () => {
+  it("Browse checks Name when sort selection is unset", async () => {
     const user = userEvent.setup();
     render(
-      <DriveSortControl value={null} onChange={vi.fn()} labels={labels} />,
+      <DriveSortControl
+        value={null}
+        onChange={vi.fn()}
+        surface="browse"
+        labels={labels}
+      />,
     );
 
     await user.click(screen.getByTestId("files-sort-trigger"));
 
-    expect(screen.getByTestId("files-sort-date")).toHaveAttribute(
+    expect(screen.getByTestId("files-sort-name")).toHaveAttribute(
       "aria-checked",
       "true",
     );
-    expect(screen.getByTestId("files-sort-name")).toHaveAttribute(
+    expect(screen.getByTestId("files-sort-date")).toHaveAttribute(
       "aria-checked",
       "false",
     );
   });
 
-  it("selecting Name commits name/asc and selecting Date clears to omit", async () => {
+  it("Browse selecting Date commits date/desc; selecting Name clears to omit", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     const { rerender } = render(
-      <DriveSortControl value={null} onChange={onChange} labels={labels} />,
+      <DriveSortControl
+        value={null}
+        onChange={onChange}
+        surface="browse"
+        labels={labels}
+      />,
+    );
+
+    await user.click(screen.getByTestId("files-sort-trigger"));
+    await user.click(screen.getByTestId("files-sort-date"));
+    expect(onChange).toHaveBeenLastCalledWith({
+      sortBy: "date",
+      sortOrder: "desc",
+    });
+
+    rerender(
+      <DriveSortControl
+        value={{ sortBy: "date", sortOrder: "desc" }}
+        onChange={onChange}
+        surface="browse"
+        labels={labels}
+      />,
+    );
+
+    await user.click(screen.getByTestId("files-sort-trigger"));
+    await user.click(screen.getByTestId("files-sort-name"));
+    expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it("Tasks selecting Name commits name/asc; selecting Date clears to omit", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <DriveSortControl
+        value={null}
+        onChange={onChange}
+        surface="tasks"
+        labels={labels}
+      />,
     );
 
     await user.click(screen.getByTestId("files-sort-trigger"));
@@ -112,6 +173,7 @@ describe("DriveSortControl", () => {
       <DriveSortControl
         value={{ sortBy: "name", sortOrder: "asc" }}
         onChange={onChange}
+        surface="tasks"
         labels={labels}
       />,
     );
@@ -128,6 +190,7 @@ describe("DriveSortControl", () => {
       <DriveSortControl
         value={{ sortBy: "name", sortOrder: "asc" }}
         onChange={onChange}
+        surface="tasks"
         labels={labels}
       />,
     );

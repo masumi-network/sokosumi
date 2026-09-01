@@ -1022,7 +1022,7 @@ describe("DrivePage files sort", () => {
     useSessionMock.mockReturnValue(sessionFor("org_a"));
   });
 
-  it("updates URL when a sort key is chosen and omits params for date default", async () => {
+  it("Browse omit default shows Name; Date stays explicit in URL and fetch", async () => {
     const user = userEvent.setup();
     renderDriveWithUrlSpy();
 
@@ -1036,9 +1036,12 @@ describe("DrivePage files sort", () => {
     >;
     expect(browseCall).not.toHaveProperty("sortBy");
     expect(browseCall).not.toHaveProperty("sortOrder");
+    expect(screen.getByTestId("files-sort-trigger")).toHaveTextContent(
+      /sortByName|Name/i,
+    );
 
     await user.click(screen.getByTestId("files-sort-trigger"));
-    await user.click(screen.getByTestId("files-sort-name"));
+    await user.click(screen.getByTestId("files-sort-date"));
 
     await waitFor(() => {
       expect(onUrlUpdate).toHaveBeenCalled();
@@ -1046,8 +1049,8 @@ describe("DrivePage files sort", () => {
     const lastUpdate = onUrlUpdate.mock.calls.at(-1)?.[0] as {
       searchParams: URLSearchParams;
     };
-    expect(lastUpdate.searchParams.get("sortBy")).toBe("name");
-    expect(lastUpdate.searchParams.get("sortOrder")).toBe("asc");
+    expect(lastUpdate.searchParams.get("sortBy")).toBe("date");
+    expect(lastUpdate.searchParams.get("sortOrder")).toBe("desc");
     expect(lastUpdate.searchParams.get("view")).toBe("browse");
 
     await waitFor(() => {
@@ -1055,12 +1058,12 @@ describe("DrivePage files sort", () => {
         string,
         unknown
       >;
-      expect(options.sortBy).toBe("name");
-      expect(options.sortOrder).toBe("asc");
+      expect(options.sortBy).toBe("date");
+      expect(options.sortOrder).toBe("desc");
     });
 
     await user.click(screen.getByTestId("files-sort-trigger"));
-    await user.click(screen.getByTestId("files-sort-date"));
+    await user.click(screen.getByTestId("files-sort-name"));
 
     await waitFor(() => {
       const update = onUrlUpdate.mock.calls.at(-1)?.[0] as {

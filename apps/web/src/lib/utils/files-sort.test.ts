@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_FILES_SORT_SELECTION,
   defaultSortOrderForKey,
   effectiveFilesSortSelection,
+  FILES_SORT_OMIT_DEFAULTS,
   filesSortUrlValues,
   parseFilesSortSelection,
   toDriveListSortQuery,
@@ -45,22 +45,52 @@ describe("parseFilesSortSelection", () => {
 });
 
 describe("effective and stored files sort selection", () => {
-  it("treats omitted selection as date descending in the control", () => {
-    expect(effectiveFilesSortSelection(null)).toEqual(
-      DEFAULT_FILES_SORT_SELECTION,
+  it("uses Browse omit default (name asc) when selection is null", () => {
+    expect(effectiveFilesSortSelection(null, "browse")).toEqual(
+      FILES_SORT_OMIT_DEFAULTS.browse,
     );
   });
 
-  it("collapses date descending back to omit for clean URLs", () => {
+  it("uses Tasks omit default (date desc) when selection is null", () => {
+    expect(effectiveFilesSortSelection(null, "tasks")).toEqual(
+      FILES_SORT_OMIT_DEFAULTS.tasks,
+    );
+  });
+
+  it("Browse collapses name ascending to omit; keeps date descending explicit", () => {
     expect(
-      toStoredFilesSortSelection({ sortBy: "date", sortOrder: "desc" }),
+      toStoredFilesSortSelection(
+        { sortBy: "name", sortOrder: "asc" },
+        "browse",
+      ),
     ).toBeNull();
     expect(
-      toStoredFilesSortSelection({ sortBy: "date", sortOrder: "asc" }),
-    ).toEqual({ sortBy: "date", sortOrder: "asc" });
+      toStoredFilesSortSelection(
+        { sortBy: "date", sortOrder: "desc" },
+        "browse",
+      ),
+    ).toEqual({ sortBy: "date", sortOrder: "desc" });
     expect(
-      toStoredFilesSortSelection({ sortBy: "name", sortOrder: "asc" }),
+      toStoredFilesSortSelection(
+        { sortBy: "name", sortOrder: "desc" },
+        "browse",
+      ),
+    ).toEqual({ sortBy: "name", sortOrder: "desc" });
+  });
+
+  it("Tasks collapses date descending to omit; keeps name ascending explicit", () => {
+    expect(
+      toStoredFilesSortSelection(
+        { sortBy: "date", sortOrder: "desc" },
+        "tasks",
+      ),
+    ).toBeNull();
+    expect(
+      toStoredFilesSortSelection({ sortBy: "name", sortOrder: "asc" }, "tasks"),
     ).toEqual({ sortBy: "name", sortOrder: "asc" });
+    expect(
+      toStoredFilesSortSelection({ sortBy: "date", sortOrder: "asc" }, "tasks"),
+    ).toEqual({ sortBy: "date", sortOrder: "asc" });
   });
 });
 

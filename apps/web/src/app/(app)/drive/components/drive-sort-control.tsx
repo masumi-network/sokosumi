@@ -18,6 +18,7 @@ import {
   effectiveFilesSortSelection,
   type FilesSortBy,
   type FilesSortSelection,
+  type FilesSortSurface,
   toggleSortOrder,
   toStoredFilesSortSelection,
 } from "@/lib/utils/files-sort";
@@ -25,6 +26,8 @@ import {
 export interface DriveSortControlProps {
   value: FilesSortSelection | null;
   onChange: (value: FilesSortSelection | null) => void;
+  /** Which Core omit default the control mirrors (Browse vs Tasks). */
+  surface: FilesSortSurface;
   labels: {
     sort: string;
     name: string;
@@ -41,6 +44,7 @@ const SORT_KEYS: FilesSortBy[] = ["name", "date", "type"];
 export function DriveSortControl({
   value,
   onChange,
+  surface,
   labels,
   className,
 }: DriveSortControlProps): ReactElement {
@@ -49,14 +53,14 @@ export function DriveSortControl({
     date: labels.date,
     type: labels.type,
   };
-  const effective = effectiveFilesSortSelection(value);
+  const effective = effectiveFilesSortSelection(value, surface);
   const activeLabel = keyLabels[effective.sortBy];
   const OrderIcon = effective.sortOrder === "asc" ? ArrowUpAZ : ArrowDownAZ;
   const orderLabel =
     effective.sortOrder === "asc" ? labels.ascending : labels.descending;
 
   function commit(next: FilesSortSelection) {
-    onChange(toStoredFilesSortSelection(next));
+    onChange(toStoredFilesSortSelection(next, surface));
   }
 
   function handleSelectKey(sortBy: FilesSortBy) {

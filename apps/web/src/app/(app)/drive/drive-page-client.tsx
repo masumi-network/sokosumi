@@ -1319,10 +1319,12 @@ function DrivePageWorkspace({
     />
   );
 
+  const filesSortSurface = isTasksView ? "tasks" : "browse";
   const filesSortControl = (
     <DriveSortControl
       value={filesSortSelection}
       onChange={handleFilesSortChange}
+      surface={filesSortSurface}
       labels={{
         sort: t("sortLabel"),
         name: t("sortByName"),
