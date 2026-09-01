@@ -214,24 +214,65 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("gives a job at most one fallback row across pages", async () => {
-    // A full first page, so the run reads a second one.
-    const firstPage = [
-      createDiffPurchase(),
-      ...Array.from({ length: PURCHASE_DIFF_PAGE_SIZE - 1 }, (_row, index) =>
-        createDiffPurchase({
-          id: `purchase_filler_${index}`,
-          blockchainIdentifier: `chain-filler-${index}`,
-        }),
-      ),
-    ];
+    // A full first page, so the run reads a second one. Every row on it
+    // matches by id, which is the ordinary case: the fallback query never
+    // runs for this page, and the claims still have to be recorded.
+    const firstPage = Array.from(
+      { length: PURCHASE_DIFF_PAGE_SIZE },
+      (_row, index) =>
+        index === 0
+          ? createDiffPurchase()
+          : createDiffPurchase({
+              id: `purchase_other_${index}`,
+              blockchainIdentifier: `chain-other-${index}`,
+            }),
+    );
     getPurchasesDiffMock
       .mockResolvedValueOnce(ok(firstPage))
       // Same job, same terms, different purchase id: a stale row the id join
       // cannot see, on a page of its own.
       .mockResolvedValueOnce(ok([createDiffPurchase({ id: "purchase_new" })]));
     jobPurchaseFindManyMock
-      .mockResolvedValueOnce([createJobPurchaseRow()])
+      .mockResolvedValueOnce(
+        firstPage.map((purchase, index) =>
+          index === 0
+            ? createJobPurchaseRow()
+            : createJobPurchaseRow({
+                externalId: purchase.id,
+                job: createJob({
+                  id: `job_other_${index}`,
+                  blockchainIdentifier: purchase.blockchainIdentifier,
+                }),
+              }),
+        ),
+      )
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        createJobPurchaseRow({ externalId: "purchase_old" }),
+      ]);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
+
+    await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+    // Two rows applying to one job would flip its status between them on
+    // every run of the re-read window, re-firing its emails and webhook.
+    const appliedToFirstJob = applyPurchase.mock.calls.filter(
+      ([job]) => job.id === "job_1",
+    );
+    expect(appliedToFirstJob).toHaveLength(1);
+    expect(appliedToFirstJob[0][1].id).toBe("purchase_1");
+  });
+
+  it("refuses a fallback match ordered from a different agent", async () => {
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      ok([
+        createDiffPurchase({
+          id: "purchase_new",
+          agentIdentifier: "agent-chain-other",
+        }),
+      ]),
+    );
+    jobPurchaseFindManyMock
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         createJobPurchaseRow({ externalId: "purchase_old" }),
@@ -240,10 +281,29 @@ describe("syncPurchasesFromDiff", () => {
 
     const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
 
-    // Two rows applying to one job would flip its status between them on
-    // every run of the re-read window, re-firing its emails and webhook.
-    expect(applyPurchase).toHaveBeenCalledTimes(1);
-    expect(result.processed).toBe(1);
+    // The agent identifier is who the work was ordered from. A row that
+    // names a different seller is not this job's purchase.
+    expect(applyPurchase).not.toHaveBeenCalled();
+    expect(result.processed).toBe(0);
+  });
+
+  it("refuses a fallback match when the job records no agent identifier", async () => {
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      ok([createDiffPurchase({ id: "purchase_new" })]),
+    );
+    jobPurchaseFindManyMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      createJobPurchaseRow({
+        externalId: "purchase_old",
+        job: createJob({ agentBlockchainIdentifier: null, agent: null }),
+      }),
+    ]);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
+
+    const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+    // Nothing to compare the row against, so the match cannot be verified.
+    expect(applyPurchase).not.toHaveBeenCalled();
+    expect(result.processed).toBe(0);
   });
 
   it("resumes on the stored row when the previous run stopped early", async () => {
@@ -545,6 +605,12 @@ describe("syncPurchasesFromDiff", () => {
       `purchase_${PURCHASE_DIFF_PAGE_SIZE - 1}`,
     );
     expect(result.found).toBe(PURCHASE_DIFF_PAGE_SIZE + 1);
+    // A short page is how a healthy run ends, so this is the path that has to
+    // arm the re-read window for the next one.
+    expect(syncMetadataUpdateManyMock).toHaveBeenCalledWith({
+      where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      data: { cursorId: null },
+    });
   });
 });
 

@@ -1316,6 +1316,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         createJob({
           id: "job_purchase_would_poll",
           status: SokosumiJobStatus.PAYMENT_PENDING,
+          // The backfill selector only admits purchase-less jobs, so a job
+          // with a purchase row would never reach the node and the assertion
+          // below would hold for the wrong reason.
+          purchase: null,
         }),
       ],
       pendingLocalRefunds: [

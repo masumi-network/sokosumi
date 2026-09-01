@@ -752,10 +752,12 @@ async function backfillJobPurchase(
 }
 
 /**
- * Writes one changed purchase from the diff feed onto its job and finalizes the
- * job exactly as the phases do: status event, emails, notifications, webhook,
- * Ably publish. The diff feed replaces the per-job poll; everything after the
- * write is unchanged.
+ * Writes one changed purchase from the diff feed onto its job and finalizes it
+ * exactly as the purchase phase did: emails, notifications, webhook, Ably
+ * publish. The diff feed replaces the per-job poll; everything after the write
+ * is unchanged. No status event is written here, and none was written by the
+ * poll either: only syncAgentStatus records one, because only the agent
+ * reports a result to record.
  */
 async function applyDiffPurchase(
   job: JobWithSokosumiStatus,

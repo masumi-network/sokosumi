@@ -154,6 +154,16 @@ async function getJobsForDiffPurchases(
     rows.map((row) => [row.externalId, mapJobWithStatus(row.job)]),
   );
 
+  // One job takes at most one FALLBACK row per run, pages included. Two rows
+  // sharing an identifier would otherwise both apply, and the job's status
+  // would flip between them on every run of the re-read window, re-firing its
+  // emails and webhook each time. Claimed before the early return below: a
+  // page where every row matched by id still claims its jobs against the
+  // fallback on a LATER page.
+  for (const job of jobsByPurchaseId.values()) {
+    claimedJobIds.add(job.id);
+  }
+
   const unmatched = purchases.filter(
     (purchase) => !jobsByPurchaseId.has(purchase.id),
   );
@@ -174,13 +184,6 @@ async function getJobsForDiffPurchases(
       mapJobWithStatus(row.job),
     ]),
   );
-  // One job takes at most one FALLBACK row per run, pages included. Two rows
-  // sharing an identifier would otherwise both apply, and the job's status
-  // would flip between them on every run of the re-read window, re-firing its
-  // emails and webhook each time.
-  for (const job of jobsByPurchaseId.values()) {
-    claimedJobIds.add(job.id);
-  }
   for (const purchase of unmatched) {
     const job = jobsByIdentifier.get(purchase.blockchainIdentifier);
     if (!job || claimedJobIds.has(job.id)) {
