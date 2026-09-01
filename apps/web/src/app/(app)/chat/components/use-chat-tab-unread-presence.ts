@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { countChatRoomsWithUnreadAttention } from "@/components/chat/chat-unread-document-title";
+import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
@@ -27,6 +28,14 @@ export function getActiveRoomIdFromPathname(
   return roomId || null;
 }
 
+function getInitialRoomsFromSessionSnapshot(): ChatRoom[] {
+  const snapshot = getLatestMembershipVisibleRoomsSnapshot();
+  if (snapshot == null) {
+    return [];
+  }
+  return applyRoomReadOverlays([...snapshot.rooms]);
+}
+
 interface UseChatTabUnreadPresenceResult {
   showUnreadDot: boolean;
 }
@@ -34,7 +43,9 @@ interface UseChatTabUnreadPresenceResult {
 export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
   const pathname = usePathname();
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
-  const [rooms, setRooms] = useState<ChatRoom[]>([]);
+  const [rooms, setRooms] = useState<ChatRoom[]>(
+    getInitialRoomsFromSessionSnapshot,
+  );
 
   const showUnreadDot =
     countChatRoomsWithUnreadAttention(rooms, { activeRoomId }) > 0;
