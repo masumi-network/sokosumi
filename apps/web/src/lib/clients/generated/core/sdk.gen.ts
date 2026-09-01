@@ -1244,9 +1244,13 @@ export const getDeveloperOwnedCoworkerTask = <ThrowOnError extends boolean = fal
 
 /**
  * List drive items (folders and files) at the current folder level.
- * Personal or organization, lexicographic order by name.
- * Uses folded mode: one Blob page per request. Cursor is opaque (from Blob API).
- * Folders are next-level path segments. Files are blobs at this level (no markers).
+ * Personal or organization scope.
+ * Omit sortBy/sortOrder for today's default: folders then files, each name ascending (Blob page-local).
+ * With sortBy/sortOrder (name|date|type, asc|desc): folders stay a leading bucket;
+ * files sort by display name, uploadedAt, or mime/extension type family.
+ * Explicit sort drains the current folder on the server and paginates with a signed cursor
+ * so order stays correct across pages (no client full drain).
+ * Search (q) still filters the current folder; sort applies to the filtered set.
  */
 export const getDriveFiles = <ThrowOnError extends boolean = false>(options: Options<GetDriveFilesData, ThrowOnError>): RequestResult<GetDriveFilesResponses, GetDriveFilesErrors, ThrowOnError> => (options.client ?? client).get<GetDriveFilesResponses, GetDriveFilesErrors, ThrowOnError>({
     responseTransformer: getDriveFilesResponseTransformer,
@@ -1385,6 +1389,10 @@ export const getDriveRecents = <ThrowOnError extends boolean = false>(options: O
  * - No projectId, no taskId → project rows (+ no-project row when unscoped tasks have files)
  * - projectId set, no taskId → task rows with output files
  * - taskId set → TASK_OUTPUT TaskFile rows
+ * Omit sortBy/sortOrder for today's default: updatedAt descending with id tie-breakers.
+ * sortBy=name|date|type with sortOrder=asc|desc at every level.
+ * Date uses latest READY task-output activity for project/task rows and file updatedAt for files.
+ * Type is meaningful for file rows; at project/task levels type falls back to name.
  */
 export const getDriveTasks = <ThrowOnError extends boolean = false>(options: Options<GetDriveTasksData, ThrowOnError>): RequestResult<GetDriveTasksResponses, GetDriveTasksErrors, ThrowOnError> => (options.client ?? client).get<GetDriveTasksResponses, GetDriveTasksErrors, ThrowOnError>({
     responseTransformer: getDriveTasksResponseTransformer,
