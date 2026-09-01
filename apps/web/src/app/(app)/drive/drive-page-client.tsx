@@ -13,6 +13,7 @@ import {
   FolderPlus,
   Folders,
   Home,
+  ListFilter,
   MoreHorizontal,
   Search,
   Trash2,
@@ -297,6 +298,7 @@ function DrivePageWorkspace({
   const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [recentsReloadToken, setRecentsReloadToken] = useState(0);
+  const [tasksFilterSheetOpen, setTasksFilterSheetOpen] = useState(false);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
   const [copying, setCopying] = useState(false);
@@ -1338,7 +1340,7 @@ function DrivePageWorkspace({
       onChange={handleFilesSortChange}
       surface={filesSortSurface}
       labels={filesSortLabels}
-      className={isBrowseView ? "hidden md:block" : undefined}
+      className="hidden md:block"
     />
   );
 
@@ -1372,6 +1374,9 @@ function DrivePageWorkspace({
                   projectId={projectIdParam}
                   taskId={taskIdParam}
                   labels={driveTasksFilterLabels}
+                  hideMobileTrigger
+                  sheetOpen={tasksFilterSheetOpen}
+                  onSheetOpenChange={setTasksFilterSheetOpen}
                 />
               </div>
             </>
@@ -1535,13 +1540,45 @@ function DrivePageWorkspace({
               className="w-full pl-8"
             />
           </div>
-          <DriveTasksFilters
-            activeOrganizationId={activeOrganizationId}
-            assigneeId={assigneeIdParam}
-            projectId={projectIdParam}
-            taskId={taskIdParam}
-            labels={driveTasksFilterLabels}
-          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label={t("moreActions")}
+                data-testid="tasks-mobile-actions"
+                className="relative"
+              >
+                <MoreHorizontal className="size-4" aria-hidden />
+                {assigneeIdParam !== null ||
+                projectIdParam !== null ||
+                taskIdParam !== null ? (
+                  <span
+                    aria-hidden
+                    className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+                  />
+                ) : null}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DriveSortMenuItems
+                value={filesSortSelection}
+                onChange={handleFilesSortChange}
+                surface={filesSortSurface}
+                labels={filesSortLabels}
+                testIdPrefix="tasks-mobile-sort"
+              />
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => setTasksFilterSheetOpen(true)}
+                data-testid="tasks-mobile-filter"
+              >
+                <ListFilter className="size-4" aria-hidden />
+                {t("filterTitle")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
 

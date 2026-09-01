@@ -163,11 +163,38 @@ vi.mock("@/lib/utils/drive-recents-list.client", () => ({
 }));
 
 vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
-  DriveTasksFilters: () => (
-    <button type="button" aria-label="filterTitle">
-      filterTitle
-    </button>
-  ),
+  DriveTasksFilters: ({
+    hideMobileTrigger,
+    sheetOpen,
+    onSheetOpenChange,
+  }: {
+    hideMobileTrigger?: boolean;
+    sheetOpen?: boolean;
+    onSheetOpenChange?: (open: boolean) => void;
+  }) => {
+    const { createPortal } = require("react-dom") as typeof import("react-dom");
+    return (
+      <>
+        {!hideMobileTrigger ? (
+          <button
+            type="button"
+            aria-label="filterTitle"
+            onClick={() => onSheetOpenChange?.(true)}
+          >
+            filterTitle
+          </button>
+        ) : null}
+        {sheetOpen
+          ? createPortal(
+              <div role="dialog" aria-label="filterTitle">
+                filter sheet
+              </div>,
+              document.body,
+            )
+          : null}
+      </>
+    );
+  },
 }));
 
 vi.mock("@/components/ui/image-viewer", () => ({
@@ -517,7 +544,7 @@ describe("DrivePage tasks mobile toolbar", () => {
     });
   });
 
-  it("places the tasks filter beside the mobile search input", async () => {
+  it("places the tasks actions menu beside the mobile search input", async () => {
     renderDrive();
 
     await waitFor(() => {
@@ -533,10 +560,27 @@ describe("DrivePage tasks mobile toolbar", () => {
     const mobileToolbar = mobileSearchInput?.closest(".md\\:hidden");
     expect(mobileToolbar).not.toBeNull();
     expect(
-      within(mobileToolbar as HTMLElement).getByRole("button", {
-        name: "filterTitle",
-      }),
+      within(mobileToolbar as HTMLElement).getByTestId("tasks-mobile-actions"),
     ).toBeVisible();
+  });
+
+  it("tasks mobile actions menu exposes sort and opens filter drawer", async () => {
+    const user = userEvent.setup();
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveTasksPageMock).toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByTestId("tasks-mobile-actions"));
+    expect(screen.getByTestId("tasks-mobile-sort-name")).toBeVisible();
+    expect(screen.getByTestId("tasks-mobile-filter")).toHaveTextContent(
+      "filterTitle",
+    );
+
+    await user.click(screen.getByTestId("tasks-mobile-filter"));
+    expect(screen.getByRole("dialog", { name: "filterTitle" })).toBeVisible();
   });
 });
 
