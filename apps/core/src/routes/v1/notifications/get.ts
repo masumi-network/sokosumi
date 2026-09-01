@@ -8,7 +8,7 @@ import {
   findStaleCoworkerAccessNotificationReferenceIds,
   findStaleVendorGrantNotificationReferenceIds,
   mergeAccessNotificationExclusions,
-  notificationFeedKindWhere,
+  notificationFeedWhere,
 } from "@/helpers/notification-feed";
 import {
   jsonErrorResponse,
@@ -167,7 +167,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const where: Prisma.NotificationWhereInput = {
       userId: userContext.userId,
-      kind: notificationFeedKindWhere(queryParams.kind),
+      ...notificationFeedWhere(queryParams.kind),
       ...mergeAccessNotificationExclusions(
         excludeResolvedVendorGrantNotificationsWhere(
           staleVendorGrantReferenceIds,
