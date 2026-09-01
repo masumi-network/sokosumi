@@ -100,7 +100,9 @@ describe("ChatChatsPageSkeletonHost", () => {
     render(<ChatChatsPageSkeletonHost />);
 
     expect(screen.queryByTestId("chat-chats-loading")).toBeNull();
-    expect(screen.getByTestId("chat-chats-snapshot")).toBeTruthy();
+    const snapshot = screen.getByTestId("chat-chats-snapshot");
+    expect(snapshot).toBeTruthy();
+    expect(snapshot.className.includes("pointer-events-none")).toBe(true);
     const list = screen.getByTestId("paint-only-list");
     expect(list.getAttribute("data-paint-only")).toBe("true");
     const link = screen.getByRole("link", { name: /general/i });

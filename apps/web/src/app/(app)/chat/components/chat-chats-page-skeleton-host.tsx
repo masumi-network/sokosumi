@@ -17,6 +17,7 @@ import {
 import { applyRoomReadOverlays } from "@/components/chat/room-read-overlay";
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarSeparator } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 function getClientSnapshot(): MembershipVisibleRoomsSnapshot | null {
   return getLatestMembershipVisibleRoomsSnapshot();
@@ -42,7 +43,8 @@ function getPersonalAssistantServerSnapshot(): boolean {
  * Uses OrganizationChatList in `paintOnly` mode so section headers and row
  * trailing chrome match the streamed page (no Ably/polls). When Personal
  * Assistant was shown this session (beta), paint that row + separator too so
- * soft-nav back does not jump when RSC lands (SOK-903).
+ * soft-nav back does not jump when RSC lands (SOK-903). Snapshot paint is
+ * non-interactive so taps during the flash cannot open create/menus.
  */
 export function ChatChatsPageSkeletonHost() {
   const snapshot = useSyncExternalStore(
@@ -66,7 +68,10 @@ export function ChatChatsPageSkeletonHost() {
     <Sheet open>
       <div
         data-testid="chat-chats-snapshot"
-        className={CHAT_CHATS_MOBILE_LIST_SHELL_CLASS}
+        className={cn(
+          CHAT_CHATS_MOBILE_LIST_SHELL_CLASS,
+          "pointer-events-none",
+        )}
       >
         {personalAssistantVisible ? (
           <>

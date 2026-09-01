@@ -8,7 +8,8 @@ import type { ChatRoom } from "@/lib/clients/generated/core";
  *
  * Instant `/chat` loading and the Chats tab unread dot also read the latest
  * snapshot (any org) so soft-nav back can first-paint real rows + overlay
- * instead of bone rows / an empty unread dot (SOK-903).
+ * instead of bone rows / an empty unread dot (SOK-903). Workspace activation
+ * clears the snapshot so Instant never paints the previous org after a switch.
  */
 const EMPTY_ROOMS: readonly ChatRoom[] = [];
 
