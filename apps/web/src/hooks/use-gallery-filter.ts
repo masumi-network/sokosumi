@@ -1,8 +1,18 @@
-import { parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
+import {
+  parseAsArrayOf,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryState,
+} from "nuqs";
+
+export const GALLERY_AGENT_KINDS = ["all", "cardano", "x402"] as const;
+
+export type GalleryAgentKindFilter = (typeof GALLERY_AGENT_KINDS)[number];
 
 export interface GalleryFilterState {
   query: string;
   categories: string[];
+  kind: GalleryAgentKindFilter;
 }
 
 export default function useGalleryFilter() {
@@ -11,17 +21,24 @@ export default function useGalleryFilter() {
     "categories",
     parseAsArrayOf(parseAsString).withDefault([]),
   );
+  const [kind, setKind] = useQueryState(
+    "kind",
+    parseAsStringLiteral(GALLERY_AGENT_KINDS).withDefault("all"),
+  );
 
   const resetFilters = () => {
-    setQuery("");
-    setCategories([]);
+    void setQuery("");
+    void setCategories([]);
+    void setKind("all");
   };
 
   return {
     query,
     categories,
+    kind,
     setQuery,
     setCategories,
+    setKind,
     resetFilters,
   };
 }

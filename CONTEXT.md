@@ -10,6 +10,10 @@ Shared product language for the Sokosumi monorepo (web, core, packages).
 A Masumi-registry marketplace listing. A user hires an Agent to run a Job. Distinct from Coworker.
 _Avoid_: Classic agent, bot
 
+**Agent catalog**:
+The browse tier on `/agents` under the Coworker gallery: Cardano and x402 Agents with search, category, and kind filters. Discovery only while app Hire is off — no Hire CTA and no price/credits on cards or detail.
+_Avoid_: Calling Coworkers Agents in catalog copy, marketplace shop, Hire gallery
+
 **Hire**:
 Starting a Job on an Agent.
 _Avoid_: Purchase, subscribe (billing), assign (Task → Coworker)

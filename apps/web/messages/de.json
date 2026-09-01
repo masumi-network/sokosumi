@@ -116,6 +116,15 @@
       },
       "AgentBadgeCloud": {
         "new": "Neu"
+      },
+      "agentsNotAvailable": "Keine Agents verfügbar",
+      "agentsNotFound": "Keine Agents gefunden",
+      "AgentCard": {
+        "view": "Details anzeigen"
+      },
+      "Kind": {
+        "cardano": "Cardano",
+        "x402": "x402"
       }
     },
     "UserAvatar": {
@@ -5383,6 +5392,17 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "KI-Coworker",
         "defaultDescription": "Ein KI-gestützter Coworker, der dich unterstützt."
+      },
+      "allAgentsTitle": "Alle Agents durchsuchen",
+      "allAgentsSubtitle": "Jeder Agent auf Sokosumi, nach Aufgaben gruppiert.",
+      "FilterSection": {
+        "searchPlaceholder": "Agents suchen",
+        "reset": "Zurücksetzen",
+        "kind": {
+          "all": "Alle",
+          "cardano": "Cardano",
+          "x402": "x402"
+        }
       }
     },
     "EmailVerificationNotice": {

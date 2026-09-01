@@ -116,6 +116,15 @@
       },
       "AgentBadgeCloud": {
         "new": "New"
+      },
+      "agentsNotAvailable": "No agents available",
+      "agentsNotFound": "No Agents found",
+      "AgentCard": {
+        "view": "Show Details"
+      },
+      "Kind": {
+        "cardano": "Cardano",
+        "x402": "x402"
       }
     },
     "UserAvatar": {
@@ -5414,6 +5423,17 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI Coworker",
         "defaultDescription": "An AI-powered coworker ready to assist you."
+      },
+      "allAgentsTitle": "Browse all agents",
+      "allAgentsSubtitle": "Every agent on Sokosumi, grouped by what they do.",
+      "FilterSection": {
+        "searchPlaceholder": "Search agents",
+        "reset": "Reset",
+        "kind": {
+          "all": "All",
+          "cardano": "Cardano",
+          "x402": "x402"
+        }
       }
     },
     "DesignMd": {

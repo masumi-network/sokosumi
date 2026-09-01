@@ -8,9 +8,16 @@ import {
   CreateTaskModalProvider,
 } from "@/app/tasks/components/create-task-modal";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { AgentsNotAvailable, AgentsSkeleton } from "@/components/agents";
 import { CoworkerGallerySection } from "@/components/agents/coworker-gallery-section";
 import { Skeleton } from "@/components/ui/skeleton";
+import { mapAgentListItemToCatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
+import { mapCoreCategoriesToCategories } from "@/lib/agents/core-dto-mappers";
+import { getAllCoreAgents, getCoreCategories } from "@/lib/agents/core-loaders";
 import { coworkerService } from "@/lib/services/coworker.service";
+import type { AgentRatingStats } from "@/lib/types/core-dto";
+
+import FilteredAgents from "./components/filtered-agents";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Agents.Metadata");
@@ -19,6 +26,12 @@ export async function generateMetadata(): Promise<Metadata> {
     title: t("title"),
     description: t("description"),
   };
+}
+
+function logAgentsCatalogFetchFailure(scope: string, error: unknown): void {
+  console.warn(`[agents] ${scope} fetch failed`, {
+    message: error instanceof Error ? error.message : String(error),
+  });
 }
 
 function CoworkersTierFallback() {
@@ -33,6 +46,18 @@ function CoworkersTierFallback() {
           <Skeleton key={index} className="h-40 w-full rounded-xl" />
         ))}
       </div>
+    </section>
+  );
+}
+
+function AgentsCatalogFallback() {
+  return (
+    <section className="space-y-8">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-48 md:h-8" />
+        <Skeleton className="h-4 w-72 md:h-5" />
+      </div>
+      <AgentsSkeleton />
     </section>
   );
 }
@@ -55,12 +80,70 @@ async function CoworkersTier() {
   );
 }
 
+/**
+ * Tier 2 — full catalog streams after Tier 1 paints so LCP is the coworker
+ * gallery, not a blocked wait on every catalog page.
+ *
+ * Catalog loaders are cookie-free (`'use cache'`) and share across users at
+ * runtime. Still `await connection()` first so build/PPR probing does not
+ * statically fill the cache when Core is unreachable (CI `next build`).
+ * Translations also need request locale via cookies/headers.
+ */
+async function AllAgentsTier() {
+  await connection();
+
+  const [listItems, categories, t] = await Promise.all([
+    getAllCoreAgents().catch((error) => {
+      logAgentsCatalogFetchFailure("agent catalog", error);
+      return [];
+    }),
+    getCoreCategories().catch((error) => {
+      logAgentsCatalogFetchFailure("categories", error);
+      return [];
+    }),
+    getTranslations("App.Agents"),
+  ]);
+
+  const agents = listItems.map(mapAgentListItemToCatalogBrowseAgent);
+
+  if (!agents.length) {
+    return <AgentsNotAvailable />;
+  }
+
+  const mappedCategories = mapCoreCategoriesToCategories(categories);
+  const ratingStatsMap: Record<string, AgentRatingStats> = Object.fromEntries(
+    agents.map((agent) => [agent.id, agent.metrics.ratings]),
+  );
+
+  return (
+    <section className="space-y-8">
+      <div className="space-y-2">
+        <h2 className="text-foreground text-xl font-light md:text-2xl">
+          {t("allAgentsTitle")}
+        </h2>
+        <p className="text-muted-foreground text-sm md:text-base">
+          {t("allAgentsSubtitle")}
+        </p>
+      </div>
+      <FilteredAgents
+        agents={agents}
+        ratingStatsMap={ratingStatsMap}
+        categories={mappedCategories}
+      />
+    </section>
+  );
+}
+
 export default function GalleryPage() {
   return (
     <div className="w-full">
       <div className="space-y-16 pb-8 md:space-y-24 md:px-2">
         <Suspense fallback={<CoworkersTierFallback />}>
           <CoworkersTier />
+        </Suspense>
+
+        <Suspense fallback={<AgentsCatalogFallback />}>
+          <AllAgentsTier />
         </Suspense>
       </div>
     </div>

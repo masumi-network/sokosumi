@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
 const getAgentsMock = vi.fn();
+const getCategoriesMock = vi.fn();
 const getAgentByIdMock = vi.fn();
 
 vi.mock("next/cache", () => ({
@@ -21,6 +22,7 @@ vi.mock("react", async (importOriginal) => {
 vi.mock("@/lib/clients/core.catalog.client", () => ({
   coreCatalogClient: {
     getAgents: (...args: unknown[]) => getAgentsMock(...args),
+    getCategories: (...args: unknown[]) => getCategoriesMock(...args),
   },
 }));
 
@@ -39,24 +41,7 @@ describe("getAllCoreAgents", () => {
     vi.resetModules();
   });
 
-  it("requests only the cardano rail so the gallery never ingests x402 items", async () => {
-    getAgentsMock.mockResolvedValue({
-      data: [{ id: "agent-cardano", kind: "cardano" }],
-      meta: { pagination: { nextCursor: null } },
-    });
-
-    const { getAllCoreAgents } = await import("./core-loaders");
-    const agents = await getAllCoreAgents();
-
-    expect(getAgentsMock).toHaveBeenCalledWith({
-      cursor: undefined,
-      kind: ["cardano"],
-      limit: 100,
-    });
-    expect(agents).toEqual([{ id: "agent-cardano", kind: "cardano" }]);
-  });
-
-  it("drops x402 payloads if a mixed page still arrives", async () => {
+  it("requests Cardano and x402 so the catalog covers both rails (SOK-922)", async () => {
     getAgentsMock.mockResolvedValue({
       data: [
         { id: "agent-cardano", kind: "cardano" },
@@ -68,6 +53,50 @@ describe("getAllCoreAgents", () => {
     const { getAllCoreAgents } = await import("./core-loaders");
     const agents = await getAllCoreAgents();
 
-    expect(agents).toEqual([{ id: "agent-cardano", kind: "cardano" }]);
+    expect(getAgentsMock).toHaveBeenCalledWith({
+      cursor: undefined,
+      kind: ["cardano", "x402"],
+      limit: 100,
+    });
+    expect(agents).toEqual([
+      { id: "agent-cardano", kind: "cardano" },
+      { id: "agent-x402", kind: "x402" },
+    ]);
+  });
+
+  it("keeps both kinds when a mixed page arrives", async () => {
+    getAgentsMock.mockResolvedValue({
+      data: [
+        { id: "agent-cardano", kind: "cardano" },
+        { id: "agent-x402", kind: "x402" },
+      ],
+      meta: { pagination: { nextCursor: null } },
+    });
+
+    const { getAllCoreAgents } = await import("./core-loaders");
+    const agents = await getAllCoreAgents();
+
+    expect(agents.map((agent) => agent.kind)).toEqual(["cardano", "x402"]);
+  });
+});
+
+describe("getCoreCategories", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("loads categories via the cookie-free catalog client (SOK-922)", async () => {
+    getCategoriesMock.mockResolvedValue({
+      data: [{ slug: "writing", name: "Writing", priority: 1 }],
+    });
+
+    const { getCoreCategories } = await import("./core-loaders");
+    const categories = await getCoreCategories();
+
+    expect(getCategoriesMock).toHaveBeenCalledWith();
+    expect(categories).toEqual([
+      { slug: "writing", name: "Writing", priority: 1 },
+    ]);
   });
 });

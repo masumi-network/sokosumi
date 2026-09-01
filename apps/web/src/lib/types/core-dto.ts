@@ -81,6 +81,14 @@ export function getAgentRatingStats(agent: CoreAgentDto): AgentRatingStats {
   return agent.metrics.ratings;
 }
 
+export function getAgentRatingStatsMap(
+  agents: CoreAgentDto[],
+): Record<string, AgentRatingStats> {
+  return Object.fromEntries(
+    agents.map((agent) => [agent.id, getAgentRatingStats(agent)]),
+  );
+}
+
 export function getAgentCredits(agent: CoreAgentDto): number {
   return agent.credits;
 }
