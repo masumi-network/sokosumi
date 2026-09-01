@@ -18966,6 +18966,14 @@ export type GetDriveFilesData = {
          */
         q?: string;
         /**
+         * Sort key: name | date | type. Omit with sortOrder to keep the endpoint default order. Recents: name/type are secondary only; activityAt stays primary. Tasks project/task levels: type falls back to name.
+         */
+        sortBy?: 'name' | 'date' | 'type';
+        /**
+         * Sort direction: asc | desc. When sortBy is omitted and sortOrder is set, applies to the endpoint's default key (Browse: name; Recents/Tasks: date). When sortBy is set without sortOrder: name/type → asc, date → desc.
+         */
+        sortOrder?: 'asc' | 'desc';
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -19953,6 +19961,14 @@ export type GetDriveRecentsData = {
          */
         q?: string;
         /**
+         * Sort key: name | date | type. Omit with sortOrder to keep the endpoint default order. Recents: name/type are secondary only; activityAt stays primary. Tasks project/task levels: type falls back to name.
+         */
+        sortBy?: 'name' | 'date' | 'type';
+        /**
+         * Sort direction: asc | desc. When sortBy is omitted and sortOrder is set, applies to the endpoint's default key (Browse: name; Recents/Tasks: date). When sortBy is set without sortOrder: name/type → asc, date → desc.
+         */
+        sortOrder?: 'asc' | 'desc';
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -19997,6 +20013,20 @@ export type GetDriveRecentsErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -20070,6 +20100,14 @@ export type GetDriveTasksData = {
          */
         q?: string;
         /**
+         * Sort key: name | date | type. Omit with sortOrder to keep the endpoint default order. Recents: name/type are secondary only; activityAt stays primary. Tasks project/task levels: type falls back to name.
+         */
+        sortBy?: 'name' | 'date' | 'type';
+        /**
+         * Sort direction: asc | desc. When sortBy is omitted and sortOrder is set, applies to the endpoint's default key (Browse: name; Recents/Tasks: date). When sortBy is set without sortOrder: name/type → asc, date → desc.
+         */
+        sortOrder?: 'asc' | 'desc';
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -20128,6 +20166,20 @@ export type GetDriveTasksErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
