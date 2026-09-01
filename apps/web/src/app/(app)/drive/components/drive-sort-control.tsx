@@ -52,6 +52,8 @@ export function DriveSortControl({
   const effective = effectiveFilesSortSelection(value);
   const activeLabel = keyLabels[effective.sortBy];
   const OrderIcon = effective.sortOrder === "asc" ? ArrowUpAZ : ArrowDownAZ;
+  const orderLabel =
+    effective.sortOrder === "asc" ? labels.ascending : labels.descending;
 
   function commit(next: FilesSortSelection) {
     onChange(toStoredFilesSortSelection(next));
@@ -59,6 +61,10 @@ export function DriveSortControl({
 
   function handleSelectKey(sortBy: FilesSortBy) {
     if (effective.sortBy === sortBy) {
+      commit({
+        sortBy,
+        sortOrder: toggleSortOrder(effective.sortOrder),
+      });
       return;
     }
     commit({
@@ -67,44 +73,23 @@ export function DriveSortControl({
     });
   }
 
-  function handleToggleOrder() {
-    commit({
-      sortBy: effective.sortBy,
-      sortOrder: toggleSortOrder(effective.sortOrder),
-    });
-  }
-
   return (
-    <div
-      className={cn(
-        "inline-flex h-8 items-stretch overflow-hidden rounded-md border border-input bg-background",
-        className,
-      )}
-      data-testid="files-sort-control"
-    >
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        className="h-full rounded-none border-0 px-2.5 shadow-none hover:bg-accent"
-        onClick={handleToggleOrder}
-        aria-label={
-          effective.sortOrder === "asc" ? labels.ascending : labels.descending
-        }
-        data-testid="files-sort-order"
-      >
-        <OrderIcon className="size-4" aria-hidden />
-      </Button>
+    <div className={cn(className)} data-testid="files-sort-control">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
             size="sm"
-            variant="ghost"
-            className="h-full rounded-none border-0 border-l border-input px-2.5 shadow-none hover:bg-accent"
-            aria-label={`${labels.sort}: ${activeLabel}`}
+            variant="outline"
+            className="gap-1.5"
+            aria-label={`${labels.sort}: ${activeLabel}, ${orderLabel}`}
             data-testid="files-sort-trigger"
           >
+            <OrderIcon
+              className="size-4 shrink-0"
+              aria-hidden
+              data-testid="files-sort-order"
+            />
             <span>{activeLabel}</span>
           </Button>
         </DropdownMenuTrigger>
