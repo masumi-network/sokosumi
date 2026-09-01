@@ -11,6 +11,10 @@
  * to the reader, and one row for both meant silencing the ones that need you to
  * be rid of the ones that do not.
  *
+ * Chat is three rows: every message in a room you belong to, the messages that
+ * name you, and your direct messages. The first is the only one that is off
+ * until you ask for it (`NOTIFICATION_CATEGORY_OFF_BY_DEFAULT`).
+ *
  * Web reads the same vocabulary from the generated Core client, not from here:
  * the Core DTO boundary keeps domain values out of web's direct imports.
  */
@@ -19,6 +23,7 @@ export const NOTIFICATION_CATEGORIES = [
   "JOB_UPDATE",
   "TASK_ATTENTION",
   "TASK_UPDATE",
+  "CHAT_ROOM_MESSAGE",
   "CHAT_MENTION",
   "CHAT_DIRECT_MESSAGE",
   "SYSTEM",
@@ -55,3 +60,30 @@ export const NOTIFICATION_CHANNEL_DEFAULT: Record<
   IN_APP: true,
   OS_BANNER: true,
 };
+
+/**
+ * The categories that stay off until the reader turns them on.
+ *
+ * The rest default to on, because they were already arriving before this
+ * matrix existed and a default of off would silence them. Every message in a
+ * room is the opposite case: nobody receives it today, and switching it on for
+ * everyone would turn a busy room into a stream of notifications the reader
+ * never asked for. So it is off, and an absent row means no rather than yes.
+ */
+export const NOTIFICATION_CATEGORY_OFF_BY_DEFAULT: readonly NotificationCategory[] =
+  ["CHAT_ROOM_MESSAGE"];
+
+/** Whether a category and channel is delivered when the reader stored nothing. */
+export function notificationDefault(
+  category: NotificationCategory | null,
+  channel: NotificationChannel,
+): boolean {
+  if (
+    category !== null &&
+    NOTIFICATION_CATEGORY_OFF_BY_DEFAULT.includes(category)
+  ) {
+    return false;
+  }
+
+  return NOTIFICATION_CHANNEL_DEFAULT[channel];
+}

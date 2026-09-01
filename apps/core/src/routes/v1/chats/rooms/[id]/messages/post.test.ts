@@ -28,6 +28,7 @@ const {
   dispatchMock,
   emitChatMentionNotificationsMock,
   emitChatDirectMessageNotificationsMock,
+  emitChatRoomMessageNotificationsMock,
   waitUntilMock,
   scheduleUnfurlsMock,
 } = vi.hoisted(() => ({
@@ -46,6 +47,7 @@ const {
   dispatchMock: vi.fn(),
   emitChatMentionNotificationsMock: vi.fn(),
   emitChatDirectMessageNotificationsMock: vi.fn(),
+  emitChatRoomMessageNotificationsMock: vi.fn(),
   waitUntilMock: vi.fn(),
   scheduleUnfurlsMock: vi.fn(),
 }));
@@ -96,6 +98,18 @@ vi.mock(
     };
   },
 );
+
+vi.mock("@/helpers/chat-room-message-notifications", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/helpers/chat-room-message-notifications")
+    >();
+  return {
+    ...actual,
+    emitChatRoomMessageNotifications: (...args: unknown[]) =>
+      emitChatRoomMessageNotificationsMock(...args),
+  };
+});
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: vi.fn().mockResolvedValue(undefined),
@@ -425,7 +439,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(dispatchMock).not.toHaveBeenCalled();
       expect(readStateUpsertMock).not.toHaveBeenCalled();
       expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
-      expect(waitUntilMock).toHaveBeenCalledTimes(1);
+      // The unfurl, and the room message the subscribed members asked for.
+      expect(waitUntilMock).toHaveBeenCalledTimes(2);
 
       // Membership is enforced in the room lookup itself.
       expect(roomFindFirstMock).toHaveBeenCalledWith(
@@ -474,10 +489,12 @@ describe("POST /chats/rooms/{id}/messages", () => {
         authorName: "Hannah",
         recipientUserIds: [ALICE_ID],
       });
+      // A direct room has its own row, so nothing is emitted as a room message.
+      expect(emitChatRoomMessageNotificationsMock).not.toHaveBeenCalled();
       expect(waitUntilMock).toHaveBeenCalledTimes(2);
     });
 
-    it("does not emit a Direct notification for coworker posts in a channel", async () => {
+    it("emits a room message for coworker posts in a channel", async () => {
       roomFindFirstMock.mockResolvedValue({
         id: ROOM_ID,
         name: "general",
@@ -498,7 +515,15 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(response.status).toBe(201);
       expect(membershipFindManyMock).not.toHaveBeenCalled();
       expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
-      expect(waitUntilMock).toHaveBeenCalledTimes(1);
+      expect(emitChatRoomMessageNotificationsMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        roomName: "general",
+        organizationId: "org_1",
+        messageId: MESSAGE_ID,
+        authorUserId: null,
+        authorName: "Hannah",
+      });
+      expect(waitUntilMock).toHaveBeenCalledTimes(2);
     });
 
     it("rejects a coworker that is not a room member", async () => {
