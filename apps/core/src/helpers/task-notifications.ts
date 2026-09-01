@@ -20,15 +20,10 @@ export async function dispatchTaskNotification(
     project: { name: string } | null;
     projectId: string | null;
     workspaceId: string | null;
-    owner: { notificationsOptIn: boolean };
   },
   eventId: string,
   status: string,
 ): Promise<void> {
-  if (!task.owner.notificationsOptIn) {
-    return;
-  }
-
   try {
     let messageKey: string;
     switch (status) {
@@ -125,11 +120,6 @@ export async function notifyTaskStatusEvent(
         project: {
           select: {
             name: true,
-          },
-        },
-        owner: {
-          select: {
-            notificationsOptIn: true,
           },
         },
       },
