@@ -245,7 +245,9 @@ export async function createTaskForActor(
   });
 }
 
-function sokoBotEditableStatuses(intent: UpdateTaskDomainInput["intent"]) {
+function sokoBotEditableStatuses(
+  intent: UpdateTaskDomainInput["intent"],
+): readonly TaskStatus[] {
   return intent === "assignment"
     ? SOKO_BOT_ASSIGN_STATUSES
     : SOKO_BOT_UPDATE_STATUSES;

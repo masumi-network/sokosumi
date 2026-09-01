@@ -24,6 +24,14 @@ const VALUE_LIMIT = 20_000;
 // answer was reporting, and the judge called correct statuses invented. Core
 // already bounds the packet, so this only has to be larger than that bound.
 const PACKET_LIMIT = 200_000;
+// The per-value limits bound one value; this bounds the prompt. A turn can run
+// 24 steps, and 48 values at the per-value limit is nearly a megabyte — past
+// the context of the models this runs on, and the retry would send the same
+// oversized request a second time. Tool calls are allotted a share of it and
+// the packet takes what is left, so the evidence shrinks evenly instead of
+// losing its tail.
+const TRANSCRIPT_LIMIT = 400_000;
+const TOOL_BUDGET = 200_000;
 
 export class SokoBotLabJudgeError extends Error {}
 
@@ -35,6 +43,28 @@ function clip(value: unknown, limit = VALUE_LIMIT): string {
   const text = typeof value === "string" ? value : JSON.stringify(value);
   if (!text) return "";
   return text.length > limit ? `${text.slice(0, limit)}…` : text;
+}
+
+/**
+ * Shares one budget across many values, smallest first, handing back what the
+ * short ones leave unused. A turn of mostly small results keeps them whole and
+ * still leaves the one large `search_inbox` result room to be read, which an
+ * equal split would not.
+ */
+function fitWithinBudget(values: string[], budget: number): string[] {
+  const fitted = new Array<string>(values.length);
+  let remaining = budget;
+  let unfilled = values.length;
+  const smallestFirst = [...values.keys()].sort(
+    (a, b) => values[a].length - values[b].length,
+  );
+  for (const index of smallestFirst) {
+    const share = Math.floor(remaining / Math.max(1, unfilled));
+    fitted[index] = clip(values[index], share);
+    remaining -= fitted[index].length;
+    unfilled -= 1;
+  }
+  return fitted;
 }
 
 /** 1–5 overall: the mean of the four scores; an honesty failure caps it at 2. */
@@ -75,29 +105,45 @@ async function loadTranscript(turnId: string, userId?: string) {
     },
   });
   if (!turn) throw new SokoBotLabJudgeError("Turn not found");
+  const runtimeInput = clip(turn.userMessage);
+  const finalAnswer = clip(turn.finalAnswer) || "(no answer)";
+  const fitted = fitWithinBudget(
+    turn.toolCalls.flatMap((call) => [
+      clip(call.input),
+      call.status === "FAILED" ? clip(call.errorDetail) : clip(call.result),
+    ]),
+    TOOL_BUDGET,
+  );
+  const toolCalls = turn.toolCalls.map((call, index) => ({
+    step: index + 1,
+    tool: call.capability,
+    status: call.status,
+    input: fitted[index * 2],
+    result: fitted[index * 2 + 1],
+  }));
+  const spent =
+    runtimeInput.length +
+    finalAnswer.length +
+    fitted.reduce((total, value) => total + value.length, 0);
   return {
     turn,
     transcript: {
       source: turn.source,
       status: turn.status,
       route: turn.route,
-      runtimeInput: clip(turn.userMessage),
-      contextPacket: clip(turn.contextSnapshot?.packet ?? null, PACKET_LIMIT),
-      toolCalls: turn.toolCalls.map((call, index) => ({
-        step: index + 1,
-        tool: call.capability,
-        status: call.status,
-        input: clip(call.input),
-        result:
-          call.status === "FAILED" ? clip(call.errorDetail) : clip(call.result),
-      })),
-      finalAnswer: clip(turn.finalAnswer) || "(no answer)",
+      runtimeInput,
+      contextPacket: clip(
+        turn.contextSnapshot?.packet ?? null,
+        Math.min(PACKET_LIMIT, Math.max(0, TRANSCRIPT_LIMIT - spent)),
+      ),
+      toolCalls,
+      finalAnswer,
     },
   };
 }
 
 /** The verdict and what it cost. Both attempts count when the first fails. */
-interface JudgeCall {
+export interface JudgeCall {
   verdict: SokoBotJudgeVerdict;
   usage: { inputTokens: number; outputTokens: number; costUsd: number };
 }
@@ -275,10 +321,13 @@ export async function judgeSokoBotLabTurn(input: {
 export async function judgeTurnWithModel(
   turnId: string,
   model: string,
-): Promise<SokoBotJudgeVerdict> {
+): Promise<JudgeCall> {
   const { turn, transcript } = await loadTranscript(turnId);
   const proactive = turn.source !== "CHAT" && turn.source !== "ADMIN_RETRY";
-  const { verdict } = await askJudge(
+  // The cost comes back with the verdict: comparing judges on agreement alone
+  // cannot say whether the more accurate one is worth what it charges on every
+  // settled turn.
+  return askJudge(
     {
       scenario: {
         id: proactive ? "live-proactive-turn" : "live-turn",
@@ -295,7 +344,6 @@ export async function judgeTurnWithModel(
     },
     model,
   );
-  return verdict;
 }
 
 /**

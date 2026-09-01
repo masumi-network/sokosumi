@@ -14,18 +14,37 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { SOKO_BOT_CAPABILITIES } from "@sokosumi/soko-bot";
+import {
+  SOKO_BOT_CAPABILITIES,
+  type SokoBotCapability,
+} from "@sokosumi/soko-bot";
 
 import prisma from "@/lib/db/prisma";
 import { SokoBotRuntimeService } from "@/services/soko-bot-runtime.service";
 
-const email = process.argv[2] ?? "patrick@nmkr.io";
-// Spending is the point: a run that skips the paid path proves the guard
-// works, not the tool. `--dry` opts out when that is genuinely wanted.
-const allowSpend = !process.argv.includes("--dry");
+function flag(name: string): string | undefined {
+  const index = process.argv.indexOf(name);
+  return index === -1 ? undefined : process.argv[index + 1];
+}
 
-const bot = await prisma.sokoBot.findFirstOrThrow({
-  where: { user: { email }, archivedAt: null },
+// No default owner. This posts messages, rewrites memory and can spend real
+// credits, so whose bot it runs against is stated on every invocation rather
+// than inherited from whoever wrote the script.
+const email = flag("--owner");
+if (!email) {
+  console.error(
+    "Usage: soko-bot:tool-smoke --owner <email> [--bot <id>] [--spend]\n" +
+      "  --spend  also hire an Agent for real, with the owner's credits.",
+  );
+  process.exit(2);
+}
+// Spending is opt-in. Everything else here is reversible or scoped to the
+// bot's own account; a hire is not, so it is asked for explicitly.
+const allowSpend = process.argv.includes("--spend");
+
+const botId = flag("--bot");
+const candidates = await prisma.sokoBot.findMany({
+  where: { user: { email }, archivedAt: null, ...(botId ? { id: botId } : {}) },
   select: {
     id: true,
     userId: true,
@@ -35,6 +54,24 @@ const bot = await prisma.sokoBot.findFirstOrThrow({
     coworker: { select: { id: true } },
   },
 });
+if (candidates.length === 0) {
+  console.error(
+    `No active Soko Bot for ${email}${botId ? ` with id ${botId}` : ""}.`,
+  );
+  process.exit(2);
+}
+// An owner with several workspaces has several bots, and picking one for them
+// would run a real hire against a workspace nobody named.
+if (candidates.length > 1) {
+  console.error(
+    `${email} has ${candidates.length} active bots. Pass --bot <id>:\n` +
+      candidates
+        .map((c) => `  ${c.id}  ${c.name} (workspace ${c.workspaceId})`)
+        .join("\n"),
+  );
+  process.exit(2);
+}
+const bot = candidates[0];
 
 const memoryVersion =
   (
@@ -95,16 +132,30 @@ process.on("uncaughtException", async (error) => {
   console.error(error);
   process.exit(1);
 });
+process.on("unhandledRejection", async (error) => {
+  await releaseTurn();
+  console.error(error);
+  process.exit(1);
+});
+// Ctrl-C is the likeliest way this run ends early, and the default handler
+// would leave the synthetic turn RUNNING and the bot unable to start another.
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, async () => {
+    await releaseTurn();
+    process.exit(130);
+  });
+}
 
 try {
   const svc = new SokoBotRuntimeService();
-  const scope = {
-    turnId,
-    sokoBotId: bot.id,
-    userId: bot.userId,
-    workspaceId: bot.workspaceId,
-  };
-  const results: { capability: string; outcome: string; note: string }[] = [];
+  // What `authorize` actually takes. The turn carries the bot, owner and
+  // workspace already, and the session is bound to the turn on first use the
+  // same way a real run binds it.
+  const scope = { turnId, sessionId: `toolsmoke:${turnId}` };
+  // Keyed by capability rather than appended: `create_task` runs twice (the
+  // task and its link peer), and two rows would make the tally read as more
+  // coverage than there is.
+  const results = new Map<string, { outcome: string; note: string }>();
   let peerId: string | null = null;
   const leftBehind: string[] = [];
 
@@ -112,10 +163,10 @@ try {
     const outcome = await svc
       .executeTool({
         ...scope,
-        capability,
+        capability: capability as SokoBotCapability,
         toolCallId: randomUUID(),
         input,
-      } as never)
+      })
       .then(
         (value) => ({ ok: true as const, value }),
         (error: unknown) => ({
@@ -123,8 +174,7 @@ try {
           message: error instanceof Error ? error.message : String(error),
         }),
       );
-    results.push({
-      capability,
+    results.set(capability, {
       outcome: outcome.ok ? "ok" : "FAILED",
       note: outcome.ok
         ? ""
@@ -134,7 +184,7 @@ try {
   }
 
   function skip(capability: string, why: string) {
-    results.push({ capability, outcome: "skipped", note: why });
+    results.set(capability, { outcome: "skipped", note: why });
   }
 
   // ---- reads -----------------------------------------------------------------
@@ -182,16 +232,34 @@ try {
   if (generic) {
     const tools = (await run("list_integration_tools", {
       provider: generic.provider,
-    })) as { tools?: { slug: string }[] } | null;
-    const tool = tools?.tools?.[0]?.slug;
-    if (tool) {
+    })) as {
+      tools?: {
+        slug: string;
+        inputSchema?: { required?: string[] };
+      }[];
+    } | null;
+    // Not simply the first tool: calling an arbitrary one with `{}` either
+    // fails on missing arguments — a false negative that says nothing about
+    // the capability — or, if it happens to accept empty input, performs an
+    // uncontrolled write on somebody's real account. A tool that names itself
+    // a read and requires no arguments is the only safe thing to invoke here.
+    const READ_TOOL = /(^|_)(list|get|search|fetch|read)(_|$)/i;
+    const safe = tools?.tools?.find(
+      (candidate) =>
+        READ_TOOL.test(candidate.slug) &&
+        (candidate.inputSchema?.required ?? []).length === 0,
+    );
+    if (safe) {
       await run("run_integration_tool", {
         provider: generic.provider,
-        tool,
+        tool: safe.slug,
         arguments: {},
       });
     } else {
-      skip("run_integration_tool", `no tool listed for ${generic.provider}`);
+      skip(
+        "run_integration_tool",
+        `no argument-free read tool on ${generic.provider}`,
+      );
     }
   } else {
     const why = "only a mailbox and calendar are connected";
@@ -303,19 +371,47 @@ try {
       roomId: ownRoom.id,
       content: "Tool smoke run: post_chat works.",
     });
+    if (results.get("post_chat")?.outcome === "ok") {
+      leftBehind.push(`Message in the owner's own chat (room ${ownRoom.id})`);
+    }
     await run("read_chat", { roomId: ownRoom.id });
   } else {
     skip("post_chat", "no direct room with the owner");
     skip("read_chat", "no direct room with the owner");
   }
 
+  // Memory is the bot's whole working state and `update_memory` replaces the
+  // document rather than appending to it, so the run writes a marked copy of
+  // what is already there and puts the original back afterwards.
+  const currentMemory = (await run("read_memory", {})) as {
+    markdown?: string;
+  } | null;
+  const originalMarkdown = currentMemory?.markdown ?? "";
   await run("update_memory", {
-    markdown: "# Soko Bot memory\n\n## Notes\n- Tool smoke run touched memory.",
+    markdown: `${originalMarkdown}\n\n<!-- soko-bot:tool-smoke wrote this line and removes it again -->`,
   });
-  await run("upload_file", {
+  if (results.get("update_memory")?.outcome === "ok") {
+    const restored = await svc
+      .executeTool({
+        ...scope,
+        capability: "update_memory",
+        toolCallId: randomUUID(),
+        input: { markdown: originalMarkdown },
+      })
+      .then(
+        () => true,
+        () => false,
+      );
+    if (!restored) leftBehind.push("memory: the smoke marker is still in it");
+  }
+
+  const uploaded = (await run("upload_file", {
     filename: `tool-smoke-${Date.now()}.md`,
     content: "Written by soko-bot:tool-smoke. Safe to delete.",
-  });
+  })) as { id?: string; filename?: string } | null;
+  if (uploaded) {
+    leftBehind.push(`File: ${uploaded.filename ?? uploaded.id ?? "uploaded"}`);
+  }
 
   // ---- hiring: real credits, only when asked for ------------------------------
   const hireable = await prisma.agent.findFirst({
@@ -360,25 +456,57 @@ try {
         // actually attempted, since a refusal before the call proves nothing.
         maxCredits: 100_000,
         name: "Tool smoke hire",
-      })) as { jobId?: string; id?: string } | null;
-      // Read back rather than taken from the response: the hire's own shape is
-      // not worth depending on here, and the newest Job for this owner is the
-      // one just created.
-      void job;
-      const latest = await prisma.job.findFirst({
-        where: { ownerId: bot.userId },
-        orderBy: { createdAt: "desc" },
-        select: { id: true },
-      });
-      if (latest) {
-        leftBehind.push(`Job: ${latest.id} (real credits spent)`);
-        await run("get_job_status", { jobId: latest.id });
+      })) as { resultingEntityId?: string | null } | null;
+      // The id the hire returned, not the owner's newest Job: a scheduled turn
+      // or another session can create one in between, and this would then
+      // report and poll somebody else's work as the smoke run's own.
+      const jobId = job?.resultingEntityId ?? null;
+      if (jobId) {
+        leftBehind.push(`Job: ${jobId} (real credits spent)`);
+        await run("get_job_status", { jobId });
       } else {
-        skip("get_job_status", "no Job found after the hire");
+        skip("get_job_status", "the hire returned no job id");
       }
       skip("provide_job_input", "only reachable once a Job asks for input");
     }
   }
+
+  // ---- asking the owner, and writing to a colleague --------------------------
+  // A pending decision is a real prompt in the owner's UI, so it is created
+  // (that is the tool) and then removed again below with the turn that owns it.
+  await run("request_user_decision", {
+    toolName: "create_task",
+    reason: "Tool smoke run: proving request_user_decision reaches the owner.",
+    proposal: {
+      name: "Tool smoke decision",
+      description: "Created by soko-bot:tool-smoke. Safe to reject.",
+    },
+  });
+
+  // The only tool here whose side effect lands on somebody other than the
+  // owner: it opens a chat with a colleague and writes them a message. Run it
+  // when a person is named, and say plainly that it is untested otherwise
+  // rather than quietly counting it as covered.
+  const dmPerson = flag("--dm");
+  if (dmPerson) {
+    await run("open_direct_chat", {
+      person: dmPerson,
+      message:
+        "Tool smoke run from a Soko Bot harness. No reply needed, sorry for the noise.",
+    });
+    leftBehind.push(`Direct chat opened with ${dmPerson}`);
+  } else {
+    skip(
+      "open_direct_chat",
+      "would message a real colleague; pass --dm <name or email>",
+    );
+  }
+
+  // The decision belongs to the synthetic turn and would outlive it as a
+  // prompt the owner can neither act on nor dismiss.
+  await prisma.sokoBotPendingDecision
+    .deleteMany({ where: { turnId } })
+    .catch(() => undefined);
 
   // The scratch Tasks are archived rather than left on the board: a harness
   // meant to be run often should not silently fill somebody's Taskboard.
@@ -395,16 +523,26 @@ try {
     .delete({ where: { id: turnId } })
     .catch(() => undefined);
 
-  const width = Math.max(...results.map((r) => r.capability.length));
-  for (const r of results) {
+  // Every capability accounted for, so a run cannot report "29 ok" while two
+  // tools were never reached at all.
+  const untouched = SOKO_BOT_CAPABILITIES.filter(
+    (capability) => !results.has(capability),
+  );
+  for (const capability of untouched) {
+    results.set(capability, { outcome: "MISSING", note: "never exercised" });
+  }
+  const width = Math.max(...[...results.keys()].map((name) => name.length));
+  for (const capability of SOKO_BOT_CAPABILITIES) {
+    const result = results.get(capability);
+    if (!result) continue;
     console.log(
-      `${r.outcome.padEnd(8)} ${r.capability.padEnd(width)}  ${r.note}`,
+      `${result.outcome.padEnd(8)} ${capability.padEnd(width)}  ${result.note}`,
     );
   }
-  const failed = results.filter((r) => r.outcome === "FAILED");
-  const skipped = results.filter((r) => r.outcome === "skipped");
+  const count = (outcome: string) =>
+    [...results.values()].filter((r) => r.outcome === outcome).length;
   console.log(
-    `\n${results.length - failed.length - skipped.length} ok, ${failed.length} failed, ${skipped.length} skipped, of ${SOKO_BOT_CAPABILITIES.length} capabilities`,
+    `\n${count("ok")} ok, ${count("FAILED")} failed, ${count("skipped")} skipped, ${untouched.length} never exercised, of ${SOKO_BOT_CAPABILITIES.length} capabilities`,
   );
   if (leftBehind.length > 0)
     console.log(`Left behind: ${leftBehind.join(" · ")}`);

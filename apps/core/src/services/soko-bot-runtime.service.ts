@@ -2247,15 +2247,16 @@ export class SokoBotRuntimeService {
       case "get_agent_input_schema": {
         const { agentId } = agentIdInputSchema.parse(input.input);
         // Availability is checked after the lookup for the same reason the
-        // Task lookup does it that way: an agent that exists but is offline
+        // Task lookup does it that way: an agent that is listed but offline
         // is not a missing one, and saying so sends the bot hunting for an
-        // id it already had right.
+        // id it already had right. `isShown` stays in the lookup, though —
+        // an unlisted Agent must read as absent, or a bot holding a stray
+        // UUID could enumerate rows `find_agents` deliberately hides.
         const agent = await prisma.agent.findFirst({
-          where: { id: agentId },
+          where: { id: agentId, isShown: true },
           select: {
             id: true,
             name: true,
-            isShown: true,
             status: true,
             blockchainIdentifier: true,
             apiBaseUrl: true,
@@ -2263,7 +2264,7 @@ export class SokoBotRuntimeService {
           },
         });
         if (!agent) throw new SokoBotRuntimeValidationError("Agent not found");
-        if (!agent.isShown || agent.status !== "ONLINE" || !agent.apiBaseUrl) {
+        if (agent.status !== "ONLINE" || !agent.apiBaseUrl) {
           throw new SokoBotRuntimeValidationError(
             `This Agent is not available to hire right now (${agent.status.toLowerCase()}). Pick another from find_agents.`,
           );

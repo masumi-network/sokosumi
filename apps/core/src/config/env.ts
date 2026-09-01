@@ -96,15 +96,12 @@ const baseEnvSchema = z.object({
    * The judge grades every settled turn, so its mistakes become the quality
    * signal. Measured against turns whose outcome was checked by hand, Haiku
    * and Sonnet score the same once the transcript is complete — the errors
-   * were missing evidence, not model strength. Sonnet is the default because
-   * its remaining disagreements are specific and checkable where Haiku's
-   * conflate answer quality with honesty; set this back to Haiku if the cost
-   * of judging every turn matters more than that.
+   * were missing evidence, not model strength. Haiku stays the default
+   * because nothing measured says the more expensive model judges better,
+   * and this runs on every turn. `soko-bot:judge-eval` re-grades with any
+   * model, so a case for changing it can be made with numbers.
    */
-  SOKO_BOT_JUDGE_MODEL: z
-    .string()
-    .min(1)
-    .default("anthropic/claude-sonnet-4.5"),
+  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
   /** Score every completed turn with the judge model. */
   SOKO_BOT_TURN_JUDGE_ENABLED: z
     .enum(["true", "false"])
