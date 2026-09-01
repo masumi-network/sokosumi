@@ -16,7 +16,7 @@ describe("getDriveItemsQueryOptions", () => {
     listDriveItemsMock.mockReset();
   });
 
-  it("keys the list by store, folder, and search", () => {
+  it("keys the list by store, folder, search, and sort", () => {
     const store = { scope: "org" as const, organizationId: "org_b" };
 
     expect(
@@ -25,7 +25,17 @@ describe("getDriveItemsQueryOptions", () => {
         folder: "Reports",
         search: "q",
       }),
-    ).toEqual(["drive", "items", store, "Reports", "q"]);
+    ).toEqual(["drive", "items", store, "Reports", "q", null, null]);
+
+    expect(
+      getDriveItemsQueryKey({
+        store,
+        folder: "Reports",
+        search: "q",
+        sortBy: "name",
+        sortOrder: "asc",
+      }),
+    ).toEqual(["drive", "items", store, "Reports", "q", "name", "asc"]);
   });
 
   it("normalizes search whitespace in the query key", () => {
