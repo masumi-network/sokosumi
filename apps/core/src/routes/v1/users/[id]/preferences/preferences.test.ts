@@ -1,4 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import {
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CHANNELS,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -197,9 +201,11 @@ describe("user preferences routes", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    // Ten cells, not the one stored row: the client renders the matrix it is
+    // Every cell, not the one stored row: the client renders the matrix it is
     // given rather than filling in the defaults itself.
-    expect(body.data.notificationPreferences).toHaveLength(10);
+    expect(body.data.notificationPreferences).toHaveLength(
+      NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length,
+    );
     expect(body.data.notificationPreferences).toContainEqual({
       category: "CHAT_MENTION",
       channel: "OS_BANNER",
@@ -218,7 +224,7 @@ describe("user preferences routes", () => {
     const response = await app.request(
       patchRequest("/me/preferences", {
         notificationPreferences: [
-          { category: "JOB", channel: "OS_BANNER", enabled: false },
+          { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: false },
         ],
       }),
     );
@@ -228,13 +234,13 @@ describe("user preferences routes", () => {
       where: {
         userId_category_channel: {
           userId: "user_123",
-          category: "JOB",
+          category: "JOB_ATTENTION",
           channel: "OS_BANNER",
         },
       },
       create: {
         userId: "user_123",
-        category: "JOB",
+        category: "JOB_ATTENTION",
         channel: "OS_BANNER",
         enabled: false,
       },
@@ -266,11 +272,19 @@ describe("user preferences routes", () => {
 
     const response = await app.request(
       patchRequest("/me/preferences", {
-        notificationPreferences: Array.from({ length: 11 }, () => ({
-          category: "JOB",
-          channel: "IN_APP",
-          enabled: false,
-        })),
+        // One more than the matrix has cells, so the cap moves with the
+        // vocabulary instead of being a number someone has to remember.
+        notificationPreferences: Array.from(
+          {
+            length:
+              NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length + 1,
+          },
+          () => ({
+            category: "JOB_ATTENTION",
+            channel: "IN_APP",
+            enabled: false,
+          }),
+        ),
       }),
     );
 

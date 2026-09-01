@@ -12636,8 +12636,10 @@ export const NotificationPreferenceSchema = {
         category: {
             type: 'string',
             enum: [
-                'JOB',
-                'TASK',
+                'JOB_ATTENTION',
+                'JOB_UPDATE',
+                'TASK_ATTENTION',
+                'TASK_UPDATE',
                 'CHAT_MENTION',
                 'CHAT_DIRECT_MESSAGE',
                 'SYSTEM'
