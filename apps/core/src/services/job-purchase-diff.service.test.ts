@@ -6,6 +6,7 @@ const {
   jobPurchaseFindManyMock,
   syncMetadataDeleteManyMock,
   syncMetadataFindUniqueMock,
+  syncMetadataUpdateManyMock,
   syncMetadataUpsertMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
@@ -13,11 +14,14 @@ const {
   jobPurchaseFindManyMock: vi.fn(),
   syncMetadataDeleteManyMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
+  syncMetadataUpdateManyMock: vi.fn(),
   syncMetadataUpsertMock: vi.fn(),
 }));
 
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
+  withScope: (callback: (scope: { setExtras: () => void }) => void) =>
+    callback({ setExtras: () => {} }),
 }));
 
 vi.mock("@/clients/masumi-payment.client", () => ({
@@ -34,6 +38,7 @@ vi.mock("@/lib/db/prisma", () => ({
     syncMetadata: {
       deleteMany: syncMetadataDeleteManyMock,
       findUnique: syncMetadataFindUniqueMock,
+      updateMany: syncMetadataUpdateManyMock,
       upsert: syncMetadataUpsertMock,
     },
   },
@@ -208,32 +213,67 @@ describe("syncPurchasesFromDiff", () => {
     expect(applyPurchase).toHaveBeenCalledTimes(1);
   });
 
-  it("never persists a cursor earlier than the stored one", async () => {
+  it("resumes on the stored row when the previous run stopped early", async () => {
     syncMetadataFindUniqueMock.mockResolvedValue({
       cursorId: "purchase_0",
       lastSyncedAt: CHANGED_AT,
     });
-    // A row from inside the re-read window: handling it must not walk the
-    // stored cursor backwards, or every later run starts further in the past.
-    const olderChange = new Date(CHANGED_AT.getTime() - 60_000);
-    getPurchasesDiffMock.mockResolvedValueOnce(
-      ok([
-        createDiffPurchase({
-          nextActionOrOnChainStateOrResultLastChangedAt: olderChange,
-        }),
-      ]),
+    getPurchasesDiffMock.mockResolvedValueOnce(ok([]));
+
+    await syncPurchasesFromDiff(createOptions(vi.fn<ApplyPurchase>()));
+
+    // Not the re-read window: a run that cannot drain that window in one
+    // budget would otherwise repeat it forever and never reach what is newer.
+    expect(getPurchasesDiffMock).toHaveBeenCalledWith(
+      CHANGED_AT,
+      "purchase_0",
+      PURCHASE_DIFF_PAGE_SIZE,
+      expect.anything(),
     );
-    jobPurchaseFindManyMock.mockResolvedValue([createJobPurchaseRow()]);
+  });
+
+  it("clears the resume point once the feed is drained", async () => {
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: "purchase_0",
+      lastSyncedAt: CHANGED_AT,
+    });
+    getPurchasesDiffMock.mockResolvedValueOnce(ok([]));
+
+    await syncPurchasesFromDiff(createOptions(vi.fn<ApplyPurchase>()));
+
+    // Arms the re-read window for the next run.
+    expect(syncMetadataUpdateManyMock).toHaveBeenCalledWith({
+      where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      data: { cursorId: null },
+    });
+  });
+
+  it("keeps the resume point when the run stops before the feed ends", async () => {
+    // A full page, so the run is out of budget rather than out of feed.
+    const page = Array.from(
+      { length: PURCHASE_DIFF_PAGE_SIZE },
+      (_row, index) => createDiffPurchase({ id: `purchase_page_${index}` }),
+    );
+    getPurchasesDiffMock.mockResolvedValueOnce(ok(page));
+    // One request plus every row on it, then out of budget.
+    let checksLeft = 1 + PURCHASE_DIFF_PAGE_SIZE;
 
     await syncPurchasesFromDiff(
-      createOptions(vi.fn<ApplyPurchase>().mockResolvedValue(undefined)),
+      createOptions(vi.fn<ApplyPurchase>(), {
+        shouldContinue: () => checksLeft-- > 0,
+      }),
     );
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
+        update: {
+          cursorId: `purchase_page_${PURCHASE_DIFF_PAGE_SIZE - 1}`,
+          lastSyncedAt: CHANGED_AT,
+        },
       }),
     );
+    // Not drained: the next run resumes here instead of re-reading the window.
+    expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("clamps the request timeout to what is left of the run budget", async () => {
@@ -285,7 +325,7 @@ describe("syncPurchasesFromDiff", () => {
 
   it("re-reads a window before the stored cursor", async () => {
     syncMetadataFindUniqueMock.mockResolvedValue({
-      cursorId: "purchase_0",
+      cursorId: null,
       lastSyncedAt: CHANGED_AT,
     });
     getPurchasesDiffMock.mockResolvedValueOnce(ok([]));
@@ -377,6 +417,8 @@ describe("syncPurchasesFromDiff", () => {
         update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
       }),
     );
+    // Parked, not drained: the next run must retry the row that failed.
+    expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("keeps the cursor untouched when the node rejects the request", async () => {

@@ -125,10 +125,12 @@ export interface JobSyncResult {
  * (`seenJobIds` is NOT what enforces this. It is only a deduplicated counter
  * for `unfinishedFound` across the three job-selector phases; the diff is
  * keyed on purchases rather than jobs and adds nothing to it. No query filters
- * on `seenJobIds`. Nothing needs to: the three selectors are disjoint.
- * Backfill requires `purchase: null` inside the payment grace window, so a job
- * that already has a purchase row is only ever updated by the diff, and a
- * purchase-less job past that window belongs to refund.)
+ * on `seenJobIds`, and none needs to. Backfill and refund cannot collide:
+ * backfill requires `purchase: null` inside the payment grace window and
+ * refund requires it past that window, so a job with a purchase row is only
+ * ever updated by the diff. The agent selector overlaps both, because it asks
+ * about the seller rather than the purchase. That overlap is why the counter
+ * is a Set: the two phases do different work on the same job.)
  */
 const REFUND_PHASE_RESERVED_MS = 20_000;
 

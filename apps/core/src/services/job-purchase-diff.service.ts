@@ -144,6 +144,7 @@ function doesFallbackPurchaseMatchJob(
  */
 async function getJobsForDiffPurchases(
   purchases: MasumiPurchaseDiffEntry[],
+  claimedJobIds: Set<string>,
 ): Promise<Map<string, JobWithSokosumiStatus>> {
   const rows = await prisma.jobPurchase.findMany({
     where: { externalId: { in: purchases.map((purchase) => purchase.id) } },
@@ -173,12 +174,13 @@ async function getJobsForDiffPurchases(
       mapJobWithStatus(row.job),
     ]),
   );
-  // One job takes at most one row per page. Two rows sharing an identifier
-  // would otherwise both apply, and the status would flip between them on
-  // every run of the re-read window, re-firing emails and webhooks each time.
-  const claimedJobIds = new Set(
-    Array.from(jobsByPurchaseId.values(), (job) => job.id),
-  );
+  // One job takes at most one FALLBACK row per run, pages included. Two rows
+  // sharing an identifier would otherwise both apply, and the job's status
+  // would flip between them on every run of the re-read window, re-firing its
+  // emails and webhook each time.
+  for (const job of jobsByPurchaseId.values()) {
+    claimedJobIds.add(job.id);
+  }
   for (const purchase of unmatched) {
     const job = jobsByIdentifier.get(purchase.blockchainIdentifier);
     if (!job || claimedJobIds.has(job.id)) {
@@ -230,16 +232,23 @@ function isDiffPurchaseForeign(
 }
 
 /**
- * `floorAt` is the timestamp already reached by an earlier run. The stored
- * cursor must never move below it: a run cut short inside the re-read window
- * would otherwise persist a row from inside that window, and the next run
- * would start even further back, walking the cursor into the past while newer
- * changes are never read.
+ * Where a run begins.
+ *
+ * The stored `cursorId` carries one bit beyond the tie-break the node needs:
+ * whether the previous run reached the end of the feed.
+ *
+ * - **Set** — the previous run stopped early (deadline, park, node error).
+ *   Resume on exactly that row, so the work it already did is not repeated.
+ *   Without this a run that cannot drain the re-read window in one budget
+ *   persists nothing it has not already read, and every later run repeats the
+ *   same window forever while newer changes are never reached.
+ * - **Null** — the previous run drained the feed. Restart the re-read window
+ *   before the stored timestamp; the tie-break is redundant there, because
+ *   the row the id would have excluded is meant to come back.
  */
 interface PurchaseDiffCursorStart {
   changedAt: Date;
   cursorId: string | null;
-  floorAt: Date;
 }
 
 async function readCursor(
@@ -252,51 +261,54 @@ async function readCursor(
     console.info(
       "[sync/jobs/purchase-diff] Cursor reset requested — replaying the full purchase diff",
     );
-    return { changedAt: new Date(0), cursorId: null, floorAt: new Date(0) };
+    return { changedAt: new Date(0), cursorId: null };
   }
 
   const metadata = await prisma.syncMetadata.findUnique({
     where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
   });
   if (!metadata) {
-    // No floor on a first run: there is no stored cursor to walk backwards.
     return {
       changedAt: new Date(Date.now() - PURCHASE_DIFF_INITIAL_LOOKBACK_MS),
       cursorId: null,
-      floorAt: new Date(0),
     };
   }
-  // The re-read window replaces the tie-breaker: it starts before the stored
-  // timestamp, so the row the cursor id would have excluded comes back anyway.
+  if (metadata.cursorId !== null) {
+    return { changedAt: metadata.lastSyncedAt, cursorId: metadata.cursorId };
+  }
   return {
     changedAt: new Date(
       metadata.lastSyncedAt.getTime() - PURCHASE_DIFF_REREAD_WINDOW_MS,
     ),
     cursorId: null,
-    floorAt: metadata.lastSyncedAt,
   };
 }
 
-async function persistCursor(
-  cursor: PurchaseDiffCursor,
-  floorAt: Date,
-): Promise<void> {
-  // The id is kept for diagnostics and for a reader that wants the last row a
-  // run handled; the read path takes its tie-breaker from the re-read window.
-  const lastSyncedAt = new Date(
-    Math.max(floorAt.getTime(), cursor.changedAt.getTime()),
-  );
+/** The row a run reached. Doubles as its resume point; see the interface. */
+async function persistCursor(cursor: PurchaseDiffCursor): Promise<void> {
   await prisma.syncMetadata.upsert({
     where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
     create: {
       key: PURCHASE_DIFF_SYNC_METADATA_KEY,
       cursorId: cursor.id,
-      lastSyncedAt,
+      lastSyncedAt: cursor.changedAt,
     },
     update: {
       cursorId: cursor.id,
-      lastSyncedAt,
+      lastSyncedAt: cursor.changedAt,
     },
+  });
+}
+
+/**
+ * Clears the resume point once a run has read the feed to its end, which arms
+ * the re-read window for the next run. `updateMany` because a run can drain
+ * the feed without ever writing a cursor row.
+ */
+async function markCursorDrained(): Promise<void> {
+  await prisma.syncMetadata.updateMany({
+    where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+    data: { cursorId: null },
   });
 }
 
@@ -329,15 +341,18 @@ function createRequestSignal(
  * The cursor only ever advances over a contiguous prefix of handled rows: a
  * row that fails to apply stops the run with the cursor parked in front of it,
  * exactly like the registry sync (agent-sync.service.ts). A row that keeps
- * failing therefore keeps the feed parked and pages through Sentry rather than
- * being dropped silently, which is that file's stated trade-off too.
+ * failing therefore keeps the feed parked rather than being dropped silently,
+ * which is that file's stated trade-off too, and anything outside the known
+ * transient classes pages on the first failure.
  */
 export async function syncPurchasesFromDiff(
   options: PurchaseDiffSyncOptions,
 ): Promise<PurchaseDiffSyncResult> {
   const startedAt = Date.now();
-  const { floorAt, ...cursorStart } = await readCursor(options);
+  const cursorStart = await readCursor(options);
   let { changedAt, cursorId } = cursorStart;
+  const claimedJobIds = new Set<string>();
+  let drained = false;
   let found = 0;
   let processed = 0;
 
@@ -376,11 +391,15 @@ export async function syncPurchasesFromDiff(
 
     const purchases = purchasesResult.value;
     if (purchases.length === 0) {
+      drained = true;
       break;
     }
     found += purchases.length;
 
-    const jobsByPurchaseId = await getJobsForDiffPurchases(purchases);
+    const jobsByPurchaseId = await getJobsForDiffPurchases(
+      purchases,
+      claimedJobIds,
+    );
 
     let lastHandledCursor: PurchaseDiffCursor | null = null;
     let stopAfterThisPage = false;
@@ -429,7 +448,13 @@ export async function syncPurchasesFromDiff(
           `[sync/jobs/purchase-diff] Failed to apply purchase ${purchase.id} to job ${job.id}:`,
           error,
         );
-        Sentry.captureException(error);
+        // Transient Prisma classes (write conflict, pool timeout) self-heal on
+        // the next run and would otherwise page on every cron tick; a real
+        // bug is not in that set and still pages.
+        captureExternalServiceError(error, {
+          label: "sync/jobs/purchase-diff",
+          extra: { jobId: job.id, purchaseId: purchase.id },
+        });
         stopAfterThisPage = true;
         break;
       }
@@ -441,11 +466,12 @@ export async function syncPurchasesFromDiff(
     }
 
     if (lastHandledCursor !== null) {
-      await persistCursor(lastHandledCursor, floorAt);
+      await persistCursor(lastHandledCursor);
       // The node treats `lastUpdate` as inclusive and breaks ties on
       // `cursorId`, so a page that ends where the last one ended means the
       // cursor is not moving. Stop instead of re-reading (and re-applying)
-      // the same rows until the deadline.
+      // the same rows until the deadline. Nothing is left behind: an
+      // unmoving cursor means the feed has nothing past this row.
       const cursorStalled = lastHandledCursor.id === cursorId;
       changedAt = lastHandledCursor.changedAt;
       cursorId = lastHandledCursor.id;
@@ -453,13 +479,22 @@ export async function syncPurchasesFromDiff(
         console.warn(
           `[sync/jobs/purchase-diff] Cursor did not advance past ${cursorId}; stopping this run`,
         );
+        drained = true;
         break;
       }
     }
 
-    if (stopAfterThisPage || purchases.length < PURCHASE_DIFF_PAGE_SIZE) {
+    if (stopAfterThisPage) {
       break;
     }
+    if (purchases.length < PURCHASE_DIFF_PAGE_SIZE) {
+      drained = true;
+      break;
+    }
+  }
+
+  if (drained) {
+    await markCursorDrained();
   }
 
   console.info(
