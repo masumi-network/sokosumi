@@ -195,6 +195,16 @@ export const coworkerSchema = z
       .string()
       .nullish()
       .openapi({ example: "https://example.com/logo" }),
+    sokoBotId: z.string().uuid().nullable().optional().openapi({
+      example: null,
+      description:
+        "Set when this coworker is a personal assistant (Soko Bot). Null for marketplace coworkers.",
+    }),
+    ownerUserId: z.string().nullable().optional().openapi({
+      example: null,
+      description:
+        "Workspace member who owns this personal assistant. Null for marketplace coworkers.",
+    }),
     metadata: z.preprocess(
       (val) => (val === undefined ? null : val),
       coworkerMetadataSchema.nullable(),

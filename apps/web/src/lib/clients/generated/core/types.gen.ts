@@ -5062,6 +5062,14 @@ export type Coworker = {
      */
     capabilities: Array<'chat' | 'tasks'>;
     image?: string | null;
+    /**
+     * Set when this coworker is a personal assistant (Soko Bot). Null for marketplace coworkers.
+     */
+    sokoBotId?: string | null;
+    /**
+     * Workspace member who owns this personal assistant. Null for marketplace coworkers.
+     */
+    ownerUserId?: string | null;
     metadata?: CoworkerMetadata;
 };
 

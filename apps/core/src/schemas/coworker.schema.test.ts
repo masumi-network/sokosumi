@@ -48,6 +48,27 @@ describe("coworkerSchema", () => {
     expect(result.metadata).toBeNull();
   });
 
+  it("parses personal assistant owner fields", () => {
+    const result = coworkerSchema.parse({
+      id: "cow_123",
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+      archivedAt: null,
+      isWhitelisted: true,
+      priority: 10,
+      slug: "jarvis",
+      name: "Jarvis",
+      vendor: sampleVendor,
+      baseURL: null,
+      capabilities: ["tasks", "chat"],
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      ownerUserId: "user_ada",
+    });
+
+    expect(result.sokoBotId).toBe("01960001-0001-7001-8001-000000000099");
+    expect(result.ownerUserId).toBe("user_ada");
+  });
+
   it("parses metadata channels", () => {
     const result = coworkerSchema.parse({
       id: "cow_123",

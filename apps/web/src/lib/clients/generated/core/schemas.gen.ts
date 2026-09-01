@@ -17422,6 +17422,23 @@ export const CoworkerSchema = {
             ],
             example: 'https://example.com/logo'
         },
+        sokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: null,
+            description: 'Set when this coworker is a personal assistant (Soko Bot). Null for marketplace coworkers.'
+        },
+        ownerUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: null,
+            description: 'Workspace member who owns this personal assistant. Null for marketplace coworkers.'
+        },
         metadata: {
             $ref: '#/components/schemas/CoworkerMetadata'
         }

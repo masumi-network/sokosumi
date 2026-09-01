@@ -126,6 +126,36 @@ describe("GET /coworkers", () => {
     expect(body.data[0].capabilities).toEqual(["chat", "tasks"]);
     expect(body.data[0].baseURL).toBeNull();
     expect(body.data[0].metadata).toBeNull();
+    expect(body.data[0].sokoBotId).toBeNull();
+    expect(body.data[0].ownerUserId).toBeNull();
+  });
+
+  it("exposes the owner of a personal assistant coworker", async () => {
+    coworkerFindManyMock.mockResolvedValue([
+      {
+        id: "cow_jarvis",
+        createdAt: new Date("2026-02-25T10:00:00.000Z"),
+        updatedAt: new Date("2026-02-25T10:00:00.000Z"),
+        archivedAt: null,
+        isWhitelisted: true,
+        priority: 0,
+        capabilities: ["chat", "tasks"],
+        slug: "jarvis",
+        name: "Jarvis",
+        baseURL: null,
+        vendor: sampleVendor,
+        sokoBotId: "01960001-0001-7001-8001-000000000099",
+        sokoBot: { userId: "user_ada" },
+      },
+    ]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0].sokoBotId).toBe("01960001-0001-7001-8001-000000000099");
+    expect(body.data[0].ownerUserId).toBe("user_ada");
   });
 
   it("can return all non-archived coworkers via scope=all", async () => {
