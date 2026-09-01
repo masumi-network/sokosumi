@@ -104,6 +104,8 @@ const NOTIFICATION: NotificationEventData = {
   isRead: false,
   readAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",
+  inApp: true,
+  osBanner: true,
 };
 
 function emitOnUnfocusedTab() {
@@ -139,6 +141,21 @@ describe("NotificationToastListener OS banner", () => {
         expect.objectContaining({ body: "message", target: TARGET }),
       );
     });
+  });
+
+  /**
+   * An open tab renders its own banner rather than waiting for the push, so the
+   * reader's banner choice has to be read here too. Reading it only on the push
+   * would leave the banner running for anyone with a tab open.
+   */
+  it("renders no banner when the reader silenced the category's banner", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({ ...NOTIFICATION, osBanner: false });
+
+    await vi.waitFor(() => {
+      expect(getNotificationServiceWorker).toHaveBeenCalled();
+    });
+    expect(showNotification).not.toHaveBeenCalled();
   });
 
   it("installs the worker on mount so the first banner does not wait", () => {
