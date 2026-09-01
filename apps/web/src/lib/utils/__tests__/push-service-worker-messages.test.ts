@@ -34,13 +34,43 @@ const CATALOGS = {
   es: esMessages,
 } as const;
 
+type Catalog = (typeof CATALOGS)[keyof typeof CATALOGS];
+
 /**
- * Read from the catalog rather than a fixed list, so a chat key added later is
- * guarded without anyone remembering to extend this test.
+ * Every message key Core can store, read from the catalog rather than a fixed
+ * list, so a key added later is guarded without anyone remembering to extend
+ * this test.
+ *
+ * Two shapes, because Core stores two. Job, Task and Chat sit under
+ * `Library.Notifications.<Group>` and Core stores them as
+ * `Notifications.<Group>.<key>`. The system keys sit at the catalog root and
+ * Core stores them verbatim, lowercase `notifications.` and all.
  */
-const CHAT_MESSAGE_KEYS = Object.keys(
-  enMessages.Library.Notifications.Chat,
-) as (keyof typeof enMessages.Library.Notifications.Chat)[];
+function messageEntries(catalog: Catalog): { key: string; text: string }[] {
+  const entries: { key: string; text: string }[] = [];
+
+  const groups: Record<string, Record<string, string>> = catalog.Library
+    .Notifications;
+  for (const [group, strings] of Object.entries(groups)) {
+    for (const [name, text] of Object.entries(strings)) {
+      entries.push({ key: `Notifications.${group}.${name}`, text });
+    }
+  }
+
+  const systemAreas: Record<
+    string,
+    Record<string, string>
+  > = catalog.notifications;
+  for (const [area, strings] of Object.entries(systemAreas)) {
+    for (const [name, text] of Object.entries(strings)) {
+      entries.push({ key: `notifications.${area}.${name}`, text });
+    }
+  }
+
+  return entries;
+}
+
+const MESSAGE_KEYS = messageEntries(enMessages).map((entry) => entry.key);
 
 /**
  * The worker's strings for one locale. Read the block rather than the file, or
@@ -65,12 +95,10 @@ describe("ably-push-sw message map", () => {
   });
 
   for (const [locale, catalog] of Object.entries(CATALOGS)) {
-    for (const key of CHAT_MESSAGE_KEYS) {
-      it(`carries the current ${locale} string for Notifications.Chat.${key}`, () => {
-        const expected = catalog.Library.Notifications.Chat[key];
-
-        expect(expected).toBeTruthy();
-        expect(localeBlock(source, locale)).toContain(expected);
+    for (const { key, text } of messageEntries(catalog)) {
+      it(`carries the current ${locale} string for ${key}`, () => {
+        expect(text).toBeTruthy();
+        expect(localeBlock(source, locale)).toContain(text);
       });
     }
   }
@@ -102,10 +130,10 @@ describe("ably-push-sw message map", () => {
   });
 
   it("keys the map by the messageKey Core stores", () => {
-    expect(CHAT_MESSAGE_KEYS.length).toBeGreaterThan(0);
+    expect(MESSAGE_KEYS.length).toBeGreaterThan(0);
 
-    for (const key of CHAT_MESSAGE_KEYS) {
-      expect(source).toContain(`"Notifications.Chat.${key}"`);
+    for (const key of MESSAGE_KEYS) {
+      expect(source).toContain(`"${key}"`);
     }
   });
 });

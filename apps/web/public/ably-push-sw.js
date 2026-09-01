@@ -42,26 +42,113 @@ const FALLBACK_LOCALE = "en";
 const LOCALE_COOKIE_NAME = "sokosumi.locale";
 
 /**
- * Copy of `Library.Notifications.Chat.*` from apps/web/messages/<locale>.json.
+ * Copy of every notification string from apps/web/messages/<locale>.json.
  *
- * A service worker cannot reach next-intl, so this worker duplicates the two
- * chat strings. SOK-876 replaces this with the shared renderer. Change a
- * string here only together with the message files.
+ * A service worker cannot reach next-intl, so this worker duplicates them.
+ * Two shapes, because Core stores two: Job, Task and Chat come from
+ * `Library.Notifications.<Group>` and are keyed `Notifications.<Group>.<key>`;
+ * the system keys sit at the catalog root and Core stores them verbatim.
+ *
+ * Generated from the catalogs rather than typed by hand, and guarded by
+ * `push-service-worker-messages.test.ts`, which fails when a catalog string
+ * changes without this copy changing with it. SOK-876 replaces the whole copy
+ * with the shared renderer.
  */
 const MESSAGES = {
   en: {
+    "Notifications.Job.completed": "{agentName} completed {jobName}",
+    "Notifications.Job.failed": "{agentName} failed to complete {jobName}",
+    "Notifications.Job.paymentFailed": "Payment failed for {jobName}",
+    "Notifications.Job.inputRequired":
+      "{agentName} needs your input for {jobName}",
+    "Notifications.Job.refundResolved": "{jobName} was refunded",
+    "Notifications.Job.disputeResolved": "Dispute resolved for {jobName}",
+    "Notifications.Task.inputRequired":
+      "{coworkerName} needs your input for {taskName}",
+    "Notifications.Task.approvalRequired":
+      "{coworkerName} needs your approval for {taskName}",
+    "Notifications.Task.authenticationRequired":
+      "{coworkerName} needs authentication for {taskName}",
+    "Notifications.Task.outOfCredits":
+      "{coworkerName} ran out of credits for {taskName}",
+    "Notifications.Task.completed": "{coworkerName} completed {taskName}",
+    "Notifications.Task.failed": "{coworkerName} failed to complete {taskName}",
+    "Notifications.Task.canceled": "{taskName} was canceled",
+    "Notifications.Task.scheduleRepaired":
+      "The schedule for {taskName} was repaired",
+    "Notifications.Task.scheduleRemovedByOperator":
+      "The schedule for {taskName} was removed after review",
     "Notifications.Chat.mentioned": "{authorName} mentioned you in {roomName}",
     "Notifications.Chat.directMessage": "{authorName} sent you a message",
+    "notifications.vendorGrant.pending":
+      "{vendorName} requested vendor access to your workspace",
+    "notifications.coworkerAccess.pending":
+      "{coworkerName} requested coworker early access to your workspace",
   },
   de: {
+    "Notifications.Job.completed": "{agentName} hat {jobName} abgeschlossen",
+    "Notifications.Job.failed":
+      "{agentName} konnte {jobName} nicht abschließen",
+    "Notifications.Job.paymentFailed": "Zahlung für {jobName} fehlgeschlagen",
+    "Notifications.Job.inputRequired":
+      "{agentName} benötigt deinen Input für {jobName}",
+    "Notifications.Job.refundResolved": "{jobName} wurde erstattet",
+    "Notifications.Job.disputeResolved": "Einspruch für {jobName} gelöst",
+    "Notifications.Task.inputRequired":
+      "{coworkerName} benötigt deinen Input für {taskName}",
+    "Notifications.Task.approvalRequired":
+      "{coworkerName} benötigt deine Freigabe für {taskName}",
+    "Notifications.Task.authenticationRequired":
+      "{coworkerName} benötigt eine Authentifizierung für {taskName}",
+    "Notifications.Task.outOfCredits":
+      "{coworkerName} hat keine Credits mehr für {taskName}",
+    "Notifications.Task.completed":
+      "{coworkerName} hat {taskName} abgeschlossen",
+    "Notifications.Task.failed":
+      "{coworkerName} konnte {taskName} nicht abschließen",
+    "Notifications.Task.canceled": "{taskName} wurde abgebrochen",
+    "Notifications.Task.scheduleRepaired":
+      "Der Zeitplan für {taskName} wurde repariert",
+    "Notifications.Task.scheduleRemovedByOperator":
+      "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
     "Notifications.Chat.mentioned":
       "{authorName} hat dich in {roomName} erwähnt",
     "Notifications.Chat.directMessage":
       "{authorName} hat dir eine Nachricht gesendet",
+    "notifications.vendorGrant.pending":
+      "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert",
+    "notifications.coworkerAccess.pending":
+      "{coworkerName} hat Coworker-Early-Access für deinen Workspace angefordert",
   },
   es: {
+    "Notifications.Job.completed": "{agentName} completó {jobName}",
+    "Notifications.Job.failed": "{agentName} no pudo completar {jobName}",
+    "Notifications.Job.paymentFailed": "Error de pago para {jobName}",
+    "Notifications.Job.inputRequired":
+      "{agentName} necesita tu input para {jobName}",
+    "Notifications.Job.refundResolved": "{jobName} fue reembolsado",
+    "Notifications.Job.disputeResolved": "Disputa resuelta para {jobName}",
+    "Notifications.Task.inputRequired":
+      "{coworkerName} necesita tu input para {taskName}",
+    "Notifications.Task.approvalRequired":
+      "{coworkerName} necesita tu aprobación para {taskName}",
+    "Notifications.Task.authenticationRequired":
+      "{coworkerName} necesita autenticación para {taskName}",
+    "Notifications.Task.outOfCredits":
+      "{coworkerName} se quedó sin créditos para {taskName}",
+    "Notifications.Task.completed": "{coworkerName} completó {taskName}",
+    "Notifications.Task.failed": "{coworkerName} no pudo completar {taskName}",
+    "Notifications.Task.canceled": "{taskName} fue cancelado",
+    "Notifications.Task.scheduleRepaired":
+      "Se reparó la programación de {taskName}",
+    "Notifications.Task.scheduleRemovedByOperator":
+      "Se eliminó la programación de {taskName} después de revisarla",
     "Notifications.Chat.mentioned": "{authorName} te mencionó en {roomName}",
     "Notifications.Chat.directMessage": "{authorName} te envió un mensaje",
+    "notifications.vendorGrant.pending":
+      "{vendorName} solicitó acceso de proveedor al workspace de la organización",
+    "notifications.coworkerAccess.pending":
+      "{coworkerName} solicitó acceso anticipado de coworker a tu espacio de trabajo",
   },
 };
 
