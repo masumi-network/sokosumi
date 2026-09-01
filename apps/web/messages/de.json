@@ -3094,6 +3094,7 @@
       },
       "Search": {
         "open": "Suchen",
+        "inputLabel": "Verlauf durchsuchen",
         "dismiss": "Suche schließen",
         "searchPlaceholder": "Suchen...",
         "empty": "Keine Ergebnisse gefunden",

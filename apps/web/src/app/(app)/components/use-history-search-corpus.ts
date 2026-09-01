@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import {
   getDefaultHistoryScope,
   resolveHistoryApiTypes,
 } from "@/app/history/utils/history-filters";
 import { coreClient } from "@/lib/clients/core.browser.client";
-import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 
 export const HISTORY_SEARCH_PAGE_SIZE = 50;
 export const HISTORY_SEARCH_DEBOUNCE_MS = 250;
@@ -17,77 +18,62 @@ interface UseHistorySearchCorpusOptions {
   errorLabel: string;
 }
 
+export function historySearchCorpusQueryKey(
+  activeOrganizationId: string | null,
+  searchQuery: string,
+) {
+  const scope = getDefaultHistoryScope(activeOrganizationId);
+  return [
+    "history-search-corpus",
+    activeOrganizationId,
+    scope,
+    searchQuery,
+  ] as const;
+}
+
 export function useHistorySearchCorpus({
   open,
   activeOrganizationId,
   errorLabel,
 }: UseHistorySearchCorpusOptions) {
-  const [query, setQuery] = useState("");
+  const [query, setQueryState] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const requestIdRef = useRef(0);
 
-  const loadHistory = useEffectEvent(async (searchQuery: string) => {
-    const requestId = ++requestIdRef.current;
-    const scope = getDefaultHistoryScope(activeOrganizationId);
-    setIsLoading(true);
-    setError(null);
-    setHistory([]);
+  const debouncedSetQuery = useDebouncedCallback((value: string) => {
+    setDebouncedQuery(value.trim());
+  }, HISTORY_SEARCH_DEBOUNCE_MS);
 
-    try {
-      const response = await coreClient.getHistory({
-        q: searchQuery || undefined,
-        limit: HISTORY_SEARCH_PAGE_SIZE,
-        scope,
-        types: resolveHistoryApiTypes(null),
-      });
-
-      if (requestId !== requestIdRef.current) return;
-
-      setHistory(response.data);
-    } catch {
-      if (requestId !== requestIdRef.current) return;
-
-      setHistory([]);
-      setError(errorLabel);
-    } finally {
-      if (requestId !== requestIdRef.current) return;
-
-      setIsLoading(false);
-    }
-  });
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedQuery(query.trim());
-    }, HISTORY_SEARCH_DEBOUNCE_MS);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [query]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    void loadHistory(debouncedQuery);
-  }, [activeOrganizationId, debouncedQuery, open]);
+  function setQuery(value: string) {
+    setQueryState(value);
+    debouncedSetQuery(value);
+  }
 
   function reset() {
-    setQuery("");
+    debouncedSetQuery.cancel();
+    setQueryState("");
     setDebouncedQuery("");
-    setHistory([]);
-    setError(null);
-    setIsLoading(false);
-    requestIdRef.current += 1;
   }
+
+  const { data, isError, isFetching, isPending } = useQuery({
+    queryKey: historySearchCorpusQueryKey(activeOrganizationId, debouncedQuery),
+    queryFn: async () => {
+      const response = await coreClient.getHistory({
+        q: debouncedQuery || undefined,
+        limit: HISTORY_SEARCH_PAGE_SIZE,
+        scope: getDefaultHistoryScope(activeOrganizationId),
+        types: resolveHistoryApiTypes(null),
+      });
+      return response.data;
+    },
+    enabled: open,
+  });
 
   return {
     query,
     setQuery,
-    history,
-    error,
-    isLoading,
+    history: data ?? [],
+    error: isError ? errorLabel : null,
+    isLoading: open && (isPending || isFetching),
     reset,
   };
 }

@@ -105,7 +105,7 @@ export function HeaderMobileSearchControl({
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder={t("searchPlaceholder")}
-                    aria-label={t("open")}
+                    aria-label={t("inputLabel")}
                     className="h-10 flex-1"
                   />
                 </div>

@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getHistoryMock, pushMock } = vi.hoisted(() => ({
@@ -43,6 +45,7 @@ vi.mock("next-intl", () => ({
     const catalogs: Record<string, Record<string, string>> = {
       "App.Header.Search": {
         open: "Search",
+        inputLabel: "Search history",
         dismiss: "Close search",
         dismissBackdrop: "Dismiss search",
         searchPlaceholder: "Search...",
@@ -71,7 +74,11 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
 
 import { HeaderMobileSearchControl } from "@/app/components/header/header-mobile-search.client";
 import { HeaderNotificationBell } from "@/app/components/header/header-notification-bell.client";
-import { HeaderTrailingTools } from "@/app/components/header/header-trailing-tools.client";
+import { HeaderTrailingTools } from "@/app/components/header/header-trailing-tools";
+import {
+  HISTORY_SEARCH_DEBOUNCE_MS,
+  HISTORY_SEARCH_PAGE_SIZE,
+} from "@/app/components/use-history-search-corpus";
 import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 
 vi.mock("@/contexts/notification-provider", () => ({
@@ -104,9 +111,23 @@ function createTaskItem(id: string, title: string): HistoryItem {
   };
 }
 
+function renderWithQuery(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  );
+}
+
 describe("HeaderTrailingTools", () => {
   it("places Search immediately after Notification Center", () => {
-    render(<HeaderTrailingTools activeOrganizationId={null} />);
+    renderWithQuery(<HeaderTrailingTools activeOrganizationId={null} />);
 
     const tools = screen.getByTestId("header-trailing-tools");
     const buttons = within(tools).getAllByRole("button");
@@ -135,7 +156,7 @@ describe("HeaderMobileSearchControl", () => {
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    render(<HeaderMobileSearchControl activeOrganizationId={null} />);
+    renderWithQuery(<HeaderMobileSearchControl activeOrganizationId={null} />);
 
     expect(
       screen.queryByTestId("header-mobile-search-expanded"),
@@ -155,7 +176,7 @@ describe("HeaderMobileSearchControl", () => {
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    render(<HeaderMobileSearchControl activeOrganizationId={null} />);
+    renderWithQuery(<HeaderMobileSearchControl activeOrganizationId={null} />);
 
     await user.click(screen.getByRole("button", { name: "Search" }));
     await user.click(screen.getByTestId("header-mobile-search-dismiss"));
@@ -171,14 +192,14 @@ describe("HeaderMobileSearchControl", () => {
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    render(<HeaderMobileSearchControl activeOrganizationId="org-1" />);
+    renderWithQuery(<HeaderMobileSearchControl activeOrganizationId="org-1" />);
 
     await user.click(screen.getByRole("button", { name: "Search" }));
 
     await waitFor(() => {
       expect(getHistoryMock).toHaveBeenCalledWith({
         q: undefined,
-        limit: 50,
+        limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
         types: ["task", "job"],
       });
@@ -197,7 +218,7 @@ describe("HeaderMobileSearchControl", () => {
   });
 
   it("keeps the collapsed control mobile-only for desktop chrome stability", () => {
-    render(
+    renderWithQuery(
       <>
         <HeaderNotificationBell />
         <HeaderMobileSearchControl activeOrganizationId={null} />
@@ -213,19 +234,19 @@ describe("HeaderMobileSearchControl", () => {
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    render(<HeaderMobileSearchControl activeOrganizationId={null} />);
+    renderWithQuery(<HeaderMobileSearchControl activeOrganizationId={null} />);
 
     await user.click(screen.getByRole("button", { name: "Search" }));
     await user.type(screen.getByPlaceholderText("Search..."), "brief");
 
     await act(async () => {
-      vi.advanceTimersByTime(250);
+      vi.advanceTimersByTime(HISTORY_SEARCH_DEBOUNCE_MS);
     });
 
     await waitFor(() => {
       expect(getHistoryMock).toHaveBeenLastCalledWith({
         q: "brief",
-        limit: 50,
+        limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
         types: ["task", "job"],
       });

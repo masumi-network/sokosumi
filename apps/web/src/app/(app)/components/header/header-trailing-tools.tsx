@@ -1,5 +1,3 @@
-"use client";
-
 import { HeaderMobileSearchControl } from "@/app/components/header/header-mobile-search.client";
 import { HeaderNotificationBell } from "@/app/components/header/header-notification-bell.client";
 

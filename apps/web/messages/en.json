@@ -3094,6 +3094,7 @@
       },
       "Search": {
         "open": "Search",
+        "inputLabel": "Search history",
         "dismiss": "Close search",
         "searchPlaceholder": "Search...",
         "empty": "No results found",

@@ -3094,6 +3094,7 @@
       },
       "Search": {
         "open": "Buscar",
+        "inputLabel": "Buscar en el historial",
         "dismiss": "Cerrar búsqueda",
         "searchPlaceholder": "Buscar...",
         "empty": "No se encontraron resultados",
