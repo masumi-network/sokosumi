@@ -26,9 +26,9 @@ import { AgentSpotlight } from "@/app/tasks/new/components/agent-spotlight";
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import {
-  initialAssigneePickerId,
   mergeAssigneePickerOptions,
   resolveAssigneeWriteFields,
+  resolveDefaultAssigneePickerId,
 } from "@/app/tasks/utils/pa-assignee-option";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
@@ -243,32 +243,16 @@ export function TaskForm({
     () => mergeAssigneePickerOptions(coworkerOptions, paAssigneeOption),
     [coworkerOptions, paAssigneeOption],
   );
-  const defaultAssigneePickerId = useMemo(() => {
-    const fromInitial = initialAssigneePickerId({
-      assigneeId: initialValues?.assigneeId,
-      assigneeOrchestratorId: initialValues?.assigneeOrchestratorId,
-    });
-    if (fromInitial) return fromInitial;
-
-    const elenaCoworker = coworkerOptions.find(
-      (option) =>
-        option.slug.trim().toLowerCase() === "elena" ||
-        option.name.trim().toLowerCase() === "elena",
-    );
-
-    return (
-      paAssigneeOption?.id ??
-      elenaCoworker?.id ??
-      assigneePickerOptions[0]?.id ??
-      ""
-    );
-  }, [
-    assigneePickerOptions,
-    coworkerOptions,
-    initialValues?.assigneeId,
-    initialValues?.assigneeOrchestratorId,
-    paAssigneeOption?.id,
-  ]);
+  const defaultAssigneePickerId = useMemo(
+    () =>
+      resolveDefaultAssigneePickerId({
+        initialValues,
+        coworkerOptions,
+        paAssigneeOption,
+        assigneePickerOptions,
+      }),
+    [assigneePickerOptions, coworkerOptions, initialValues, paAssigneeOption],
+  );
 
   const coworkerTouchedRef = useRef(false);
   const [assigneePickerId, setAssigneePickerId] = useState(

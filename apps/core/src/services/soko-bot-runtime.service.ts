@@ -1754,6 +1754,7 @@ export class SokoBotRuntimeService {
         name: task.name,
         status: task.status,
         assigneeId: task.assigneeId,
+        assigneeOrchestratorId: task.assigneeOrchestratorId ?? null,
       };
       await tx.sokoBotDelegation.create({
         data: {
@@ -1812,6 +1813,7 @@ export class SokoBotRuntimeService {
         name: task.name,
         status: task.status,
         assigneeId: task.assigneeId,
+        assigneeOrchestratorId: task.assigneeOrchestratorId ?? null,
       };
       await tx.sokoBotDelegation.create({
         data: {
@@ -1870,6 +1872,7 @@ export class SokoBotRuntimeService {
         name: task.name,
         status: task.status,
         assigneeId: task.assigneeId,
+        assigneeOrchestratorId: task.assigneeOrchestratorId ?? null,
       };
       await tx.sokoBotDelegation.create({
         data: {

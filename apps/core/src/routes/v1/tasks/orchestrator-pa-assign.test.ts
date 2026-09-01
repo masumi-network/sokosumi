@@ -560,6 +560,50 @@ describe("SOK-943 PA orchestrator task assignee", () => {
         }),
       );
     });
+
+    it("remaps shadow PA coworker assigneeId to orchestrator on patch", async () => {
+      coworkerFindFirstMock.mockResolvedValue({
+        sokoBotId: ORCHESTRATOR_ID,
+        sokoBot: {
+          userId: USER_ID,
+          workspaceId: WORKSPACE_ID,
+          archivedAt: null,
+          deletedAt: null,
+        },
+      });
+      taskUpdateMock.mockResolvedValue({ id: TASK_ID });
+      taskFindUniqueOrThrowMock.mockResolvedValue(buildTaskRecord());
+
+      const app = buildOwnerApp(mountPatchTask);
+      const response = await app.request(`http://localhost/${TASK_ID}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          assigneeId: SHADOW_COWORKER_ID,
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(taskUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            assigneeId: null,
+            assigneeOrchestratorId: ORCHESTRATOR_ID,
+          }),
+        }),
+      );
+      const body = await response.json();
+      expect(body.data.assignee).toEqual({
+        type: "orchestrator",
+        id: ORCHESTRATOR_ID,
+        orchestrator: expect.objectContaining({
+          id: ORCHESTRATOR_ID,
+          name: "Ada",
+        }),
+      });
+      expect(body.data.assigneeId).toBeNull();
+      expect(body.data.assigneeOrchestratorId).toBe(ORCHESTRATOR_ID);
+    });
   });
 
   describe("GET /tasks/{id} OpenAPI identity", () => {

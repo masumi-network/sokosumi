@@ -49,6 +49,36 @@ export function mergeAssigneePickerOptions(
   return [paOption, ...coworkerOptions];
 }
 
+export function resolveDefaultAssigneePickerId(options: {
+  initialValues?: {
+    assigneeId?: string | null;
+    assigneeOrchestratorId?: string | null;
+  };
+  coworkerOptions: CoworkerOption[];
+  paAssigneeOption: CoworkerOption | null;
+  assigneePickerOptions: CoworkerOption[];
+}): string {
+  const fromInitial = initialAssigneePickerId({
+    assigneeId: options.initialValues?.assigneeId,
+    assigneeOrchestratorId: options.initialValues?.assigneeOrchestratorId,
+  });
+  if (fromInitial) return fromInitial;
+
+  const elenaCoworker = options.coworkerOptions.find(
+    (option) =>
+      option.slug.trim().toLowerCase() === "elena" ||
+      option.name.trim().toLowerCase() === "elena",
+  );
+
+  return (
+    elenaCoworker?.id ??
+    options.coworkerOptions[0]?.id ??
+    options.paAssigneeOption?.id ??
+    options.assigneePickerOptions[0]?.id ??
+    ""
+  );
+}
+
 export function resolveAssigneeWriteFields(selectedPickerId: string): {
   assigneeId: string | null;
   assigneeOrchestratorId: string | null;

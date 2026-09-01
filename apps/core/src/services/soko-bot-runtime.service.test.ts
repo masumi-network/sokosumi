@@ -420,7 +420,8 @@ describe("SokoBotRuntimeService authorization", () => {
         id: "task_created",
         name: args.data.name,
         status: args.data.status,
-        assigneeId: args.data.assigneeId,
+        assigneeId: args.data.assigneeId ?? null,
+        assigneeOrchestratorId: args.data.assigneeOrchestratorId ?? null,
       }),
     );
     transactionTaskUpdateMock.mockImplementation(
@@ -429,6 +430,7 @@ describe("SokoBotRuntimeService authorization", () => {
         name: args.data.name ?? "Launch",
         status: args.data.status ?? TaskStatus.DRAFT,
         assigneeId: args.data.assigneeId ?? null,
+        assigneeOrchestratorId: args.data.assigneeOrchestratorId ?? null,
       }),
     );
     transactionWorkspaceFindFirstMock.mockResolvedValue({
@@ -1191,6 +1193,7 @@ describe("SokoBotRuntimeService authorization", () => {
       name: "Launch",
       status: TaskStatus.DRAFT,
       assigneeId: null,
+      assigneeOrchestratorId: null,
     });
     expect(transactionTaskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1311,6 +1314,7 @@ describe("SokoBotRuntimeService authorization", () => {
       id: "task_1",
       status: TaskStatus.READY,
       assigneeId: "coworker_1",
+      assigneeOrchestratorId: null,
     });
     expect(transactionDecisionCreateMock).not.toHaveBeenCalled();
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(

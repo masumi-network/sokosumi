@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
+import { buildPaAssigneeOption } from "@/app/tasks/utils/pa-assignee-option";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
@@ -1359,6 +1360,10 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        paAssigneeOption={buildPaAssigneeOption({
+          id: "01960001-0001-7001-8001-000000000099",
+          name: "Ada",
+        } as never)}
         onSuccess={vi.fn()}
       />,
     );
