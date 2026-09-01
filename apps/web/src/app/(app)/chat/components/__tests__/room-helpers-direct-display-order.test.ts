@@ -157,4 +157,40 @@ describe("direct room display order", () => {
     expect(idsA).toEqual(["ada", CURRENT_USER_ID, "zara", "cw-a", "cw-z"]);
     expect(idsB).toEqual(idsA);
   });
+
+  it("sorts when Array.prototype.toSorted is missing (Chromium < 110)", () => {
+    const arrayProto = Array.prototype as {
+      toSorted?: typeof Array.prototype.toSorted;
+    };
+    const originalToSorted = arrayProto.toSorted;
+    delete arrayProto.toSorted;
+
+    try {
+      const self = human({ id: CURRENT_USER_ID, name: "Me" });
+      const zara = human({ id: "zara", name: "Zara" });
+      const ada = human({ id: "ada", name: "Ada" });
+      const aaron = coworker({ id: "aaron", name: "Aaron" });
+      const room = directRoom({
+        userMembers: [self, zara, ada],
+        coworkerMembers: [aaron],
+      });
+
+      expect(getRoomDisplayName(room, CURRENT_USER_ID)).toBe("Ada, Zara, Aaron");
+      expect(
+        getDirectRoomParticipants(room, CURRENT_USER_ID).map(
+          (participant) => participant.id,
+        ),
+      ).toEqual(["ada", "zara", "aaron"]);
+      expect(getRoomParticipantPreviews(room).map((p) => p.id)).toEqual([
+        "ada",
+        CURRENT_USER_ID,
+        "zara",
+        "aaron",
+      ]);
+    } finally {
+      if (originalToSorted) {
+        arrayProto.toSorted = originalToSorted;
+      }
+    }
+  });
 });
