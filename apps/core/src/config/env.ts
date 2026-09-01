@@ -91,7 +91,17 @@ const baseEnvSchema = z.object({
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
-  /** Judge model for lab runs and per-turn quality scores (AI Gateway id). */
+  /**
+   * Judge model for lab runs and per-turn quality scores (AI Gateway id).
+   *
+   * The judge grades every settled turn, so its mistakes become the quality
+   * signal. Measured against turns whose outcome was checked by hand, Haiku
+   * and Sonnet score the same once the transcript is complete — the errors
+   * were missing evidence, not model strength. Haiku stays the default
+   * because nothing measured says the more expensive model judges better,
+   * and this runs on every turn. `soko-bot:judge-eval` re-grades with any
+   * model, so a case for changing it can be made with numbers.
+   */
   SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
   /** Score every completed turn with the judge model. */
   SOKO_BOT_TURN_JUDGE_ENABLED: z
