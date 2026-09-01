@@ -4,9 +4,11 @@ import { forbidden } from "@/helpers/error";
 import {
   isTaskAssignedToSokoBot,
   refineTaskAssigneeXorConflict,
+} from "@/helpers/task-assignee";
+import {
   requireTaskAssignableOrchestrator,
   resolveTaskAssigneeForWrite,
-} from "@/helpers/task-assignee";
+} from "@/helpers/task-assignee-resolution";
 
 const coworkerFindFirstMock = vi.fn();
 const sokoBotFindFirstMock = vi.fn();

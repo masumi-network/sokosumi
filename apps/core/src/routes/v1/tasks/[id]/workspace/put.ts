@@ -10,7 +10,7 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
-import { requireTaskAssignableOrchestrator } from "@/helpers/task-assignee";
+import { requireTaskAssignableOrchestrator } from "@/helpers/task-assignee-resolution";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";

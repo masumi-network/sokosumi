@@ -12,9 +12,9 @@ import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   hasResolvedTaskAssignee,
   type ResolvedTaskAssignee,
-  resolveTaskAssigneeForWrite,
   type TaskAssigneeRequestFields,
 } from "@/helpers/task-assignee";
+import { resolveTaskAssigneeForWrite } from "@/helpers/task-assignee-resolution";
 import {
   isGrantDeniedOrRevoked,
   parseGrantResumeStatus,

@@ -76,6 +76,12 @@ vi.mock("@/lib/services/project.service", () => ({
   },
 }));
 
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: {
+    getMine: vi.fn().mockResolvedValue(null),
+  },
+}));
+
 vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getMyMembersWithOrganizations: (...args: unknown[]) =>
@@ -200,6 +206,7 @@ describe("EditTaskPage", () => {
       expect.objectContaining({
         taskId: "task_1",
         coworkerOptions: [{ value: "cow_123", label: "Coworker" }],
+        paAssigneeOption: null,
         projectOptions: [{ id: "project_1", name: "Project" }],
         agentNameById: {
           agent_123: "Agent",
@@ -208,6 +215,7 @@ describe("EditTaskPage", () => {
           name: "Task",
           description: "Desc",
           assigneeId: "cow_123",
+          assigneeOrchestratorId: null,
           projectId: null,
           status: "READY",
           metadata: undefined,
