@@ -3124,6 +3124,26 @@ export const AdminMatchedChannelParticipantInfoSchema = {
     ]
 } as const;
 
+export const AdminArchivedMatchedChannelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        archivedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'archivedAt'
+    ]
+} as const;
+
 export const AdminAddMatchedChannelFromOrganizationResultSchema = {
     type: 'object',
     properties: {
@@ -9441,8 +9461,8 @@ export const LeftChatRoomSchema = {
         },
         remainingUserMemberCount: {
             type: 'integer',
-            minimum: 1,
-            description: 'Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.',
+            minimum: 0,
+            description: 'Human members left in the room after the caller leaves. Zero only for org-less matched channels, which auto-archive when the last member leaves. Organization rooms keep the last member (archive instead).',
             example: 3
         }
     },

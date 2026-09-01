@@ -4453,6 +4453,18 @@
             "helper": "Organizations you belong to appear first in search results.",
             "submit": "Add organization members",
             "submitting": "Adding…"
+          },
+          "Archive": {
+            "title": "Archive channel",
+            "description": "Hides this matched channel for all participants and removes it from the live hub list. Messages stay in the database.",
+            "button": "Archive channel",
+            "archiving": "Archiving…",
+            "confirmTitle": "Archive {name}?",
+            "confirmDescription": "Participants lose access immediately. You can create a new matched channel later if needed.",
+            "confirm": "Archive",
+            "cancel": "Cancel",
+            "success": "Matched channel archived",
+            "error": "Failed to archive matched channel"
           }
         }
       }

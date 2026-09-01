@@ -89,8 +89,7 @@ export function EditChannelDialog({
   canManageSettings: boolean;
   /** Organization owner/admin — archive the channel. */
   canArchive: boolean;
-  /** Any member can leave, except the last one: an empty roster could not be
-   * archived by a remaining elevated member. */
+  /** Any member can leave. Host-org last member cannot; matched last member can. */
   canLeave: boolean;
   /**
    * Host-org room members (`myAccess=member`) on external channels may invite

@@ -1,4 +1,5 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import mountArchiveAdminMatchedChannel from "./[roomId]/archive/post.js";
 import mountGetAdminMatchedChannel from "./[roomId]/get.js";
 import mountRemoveAdminMatchedChannelParticipant from "./[roomId]/participants/[userId]/delete.js";
 import mountAddAdminMatchedChannelParticipantsFromOrganization from "./[roomId]/participants/from-organization/post.js";
@@ -11,6 +12,7 @@ const app = new OpenAPIHonoWithAuth();
 mountListAdminMatchedChannels(app);
 mountCreateAdminMatchedChannel(app);
 mountGetAdminMatchedChannel(app);
+mountArchiveAdminMatchedChannel(app);
 mountAddAdminMatchedChannelParticipantsFromOrganization(app);
 mountAddAdminMatchedChannelParticipant(app);
 mountRemoveAdminMatchedChannelParticipant(app);

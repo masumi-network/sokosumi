@@ -4422,6 +4422,18 @@
             "helper": "Las organizaciones a las que perteneces aparecen primero en los resultados de búsqueda.",
             "submit": "Añadir miembros de la organización",
             "submitting": "Añadiendo…"
+          },
+          "Archive": {
+            "title": "Archivar canal",
+            "description": "Oculta este canal emparejado para todos los participantes y lo quita de la lista en vivo. Los mensajes permanecen en la base de datos.",
+            "button": "Archivar canal",
+            "archiving": "Archivando…",
+            "confirmTitle": "¿Archivar {name}?",
+            "confirmDescription": "Los participantes pierden el acceso de inmediato. Más adelante puedes crear un canal emparejado nuevo si lo necesitas.",
+            "confirm": "Archivar",
+            "cancel": "Cancelar",
+            "success": "Canal emparejado archivado",
+            "error": "No se pudo archivar el canal emparejado"
           }
         }
       }

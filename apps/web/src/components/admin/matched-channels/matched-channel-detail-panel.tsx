@@ -10,6 +10,17 @@ import {
   AsyncSearchCombobox,
   buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,6 +34,7 @@ import {
 import {
   addAdminMatchedChannelParticipantAction,
   addAdminMatchedChannelParticipantsFromOrganizationAction,
+  archiveAdminMatchedChannelAction,
   removeAdminMatchedChannelParticipantAction,
 } from "@/lib/actions/admin-matched-channels/action";
 import {
@@ -56,6 +68,8 @@ export function MatchedChannelDetailPanel({
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [isAddingOrg, setIsAddingOrg] = useState(false);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   const userLabels = buildComboboxLabels(tUser);
   const orgLabels = buildComboboxLabels(tOrg);
@@ -156,6 +170,25 @@ export function MatchedChannelDetailPanel({
     }
   }
 
+  async function handleArchive() {
+    setIsArchiving(true);
+    try {
+      const result = await archiveAdminMatchedChannelAction({
+        input: { roomId: channel.id },
+      });
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("Archive.error"));
+        return;
+      }
+      toast.success(t("Archive.success"));
+      setArchiveOpen(false);
+      router.push("/admin/matched-channels");
+      router.refresh();
+    } finally {
+      setIsArchiving(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -170,9 +203,47 @@ export function MatchedChannelDetailPanel({
             <p className="text-muted-foreground text-sm">{channel.topic}</p>
           ) : null}
         </div>
-        <Button variant="outline" asChild>
-          <Link href="/admin/matched-channels">{t("back")}</Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <AlertDialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-semantic-destructive hover:text-semantic-destructive"
+              >
+                {t("Archive.button")}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("Archive.confirmTitle", { name: channel.name })}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("Archive.confirmDescription")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isArchiving}>
+                  {t("Archive.cancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={isArchiving}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void handleArchive();
+                  }}
+                >
+                  {isArchiving ? t("Archive.archiving") : t("Archive.confirm")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button variant="outline" asChild>
+            <Link href="/admin/matched-channels">{t("back")}</Link>
+          </Button>
+        </div>
       </div>
 
       <section className="space-y-3">

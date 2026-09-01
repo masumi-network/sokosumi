@@ -3,6 +3,7 @@ import "server-only";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   AdminAddMatchedChannelFromOrganizationResult,
+  AdminArchivedMatchedChannel,
   AdminCreateMatchedChannelBody,
   AdminMatchedChannelDetail,
   AdminMatchedChannelOption,
@@ -12,6 +13,7 @@ import type {
 
 export type {
   AdminAddMatchedChannelFromOrganizationResult,
+  AdminArchivedMatchedChannel,
   AdminCreateMatchedChannelBody,
   AdminMatchedChannelDetail,
   AdminMatchedChannelOption,
@@ -84,6 +86,16 @@ export const adminMatchedChannelsService = {
     );
     if (!data) {
       throw new Error("Matched channel participant remove did not return data");
+    }
+    return data;
+  },
+
+  async archiveMatchedChannel(
+    roomId: string,
+  ): Promise<AdminArchivedMatchedChannel> {
+    const { data } = await coreClient.archiveAdminMatchedChannel(roomId);
+    if (!data) {
+      throw new Error("Matched channel archive did not return data");
     }
     return data;
   },

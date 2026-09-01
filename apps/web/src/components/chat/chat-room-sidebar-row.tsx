@@ -104,7 +104,9 @@ export function ChatRoomSidebarRow({
   const [isLeaving, setIsLeaving] = useState(false);
   const isPinned = room.starredAt != null;
   const isMuted = room.mutedAt != null;
-  const canLeave = room.kind === "channel" && room.userMembers.length > 1;
+  const canLeave =
+    room.kind === "channel" &&
+    (room.discoverability === "matched" || room.userMembers.length > 1);
   const { bold, badgeCount } = resolveRoomAttention({
     unreadCount: room.unreadCount,
     unreadMentionCount: room.unreadMentionCount,

@@ -716,6 +716,11 @@ export type AdminMatchedChannelParticipantInfo = {
     access: 'member';
 };
 
+export type AdminArchivedMatchedChannel = {
+    id: string;
+    archivedAt: Date;
+};
+
 export type AdminAddMatchedChannelFromOrganizationResult = {
     added: number;
     alreadyMember: number;
@@ -2549,7 +2554,7 @@ export type RevokeChatRoomGuestInviteLinkResult = {
 export type LeftChatRoom = {
     id: string;
     /**
-     * Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.
+     * Human members left in the room after the caller leaves. Zero only for org-less matched channels, which auto-archive when the last member leaves. Organization rooms keep the last member (archive instead).
      */
     remainingUserMemberCount: number;
 };
@@ -7393,6 +7398,92 @@ export type GetAdminMatchedChannelResponses = {
 };
 
 export type GetAdminMatchedChannelResponse = GetAdminMatchedChannelResponses[keyof GetAdminMatchedChannelResponses];
+
+export type ArchiveAdminMatchedChannelData = {
+    body?: never;
+    path: {
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}/archive';
+};
+
+export type ArchiveAdminMatchedChannelErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ArchiveAdminMatchedChannelError = ArchiveAdminMatchedChannelErrors[keyof ArchiveAdminMatchedChannelErrors];
+
+export type ArchiveAdminMatchedChannelResponses = {
+    /**
+     * Matched channel archived
+     */
+    200: {
+        data: AdminArchivedMatchedChannel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ArchiveAdminMatchedChannelResponse = ArchiveAdminMatchedChannelResponses[keyof ArchiveAdminMatchedChannelResponses];
 
 export type AddAdminMatchedChannelParticipantsFromOrganizationData = {
     body?: AdminAddMatchedChannelFromOrganizationBody;

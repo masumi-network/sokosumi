@@ -17,6 +17,7 @@ import {
 } from "@/lib/clients/core.client";
 import {
   type AdminAddMatchedChannelFromOrganizationResult,
+  type AdminArchivedMatchedChannel,
   type AdminMatchedChannelDetail,
   type AdminMatchedChannelOption,
   type AdminMatchedChannelParticipant,
@@ -281,6 +282,40 @@ export const removeAdminMatchedChannelParticipantAction = withSession<
     );
     revalidateMatchedChannelRoutes(parsed.data.roomId);
     return toActionResult(ok(removed));
+  } catch (error) {
+    return toActionResult(err(toAdminActionError(error)));
+  }
+});
+
+const archiveMatchedChannelSchema = z.object({
+  roomId: roomIdSchema,
+});
+
+interface ArchiveMatchedChannelParameters extends AuthenticatedRequest {
+  input: unknown;
+}
+
+export const archiveAdminMatchedChannelAction = withSession<
+  ArchiveMatchedChannelParameters,
+  ActionResultDto<AdminArchivedMatchedChannel, ActionError>
+>(async ({ input, session }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = archiveMatchedChannelSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid matched channel archive input",
+        }),
+      );
+    }
+
+    const archived = await adminMatchedChannelsService.archiveMatchedChannel(
+      parsed.data.roomId,
+    );
+    revalidateMatchedChannelRoutes(parsed.data.roomId);
+    return toActionResult(ok(archived));
   } catch (error) {
     return toActionResult(err(toAdminActionError(error)));
   }

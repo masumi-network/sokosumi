@@ -4422,6 +4422,18 @@
             "helper": "Organisationen, denen du angehörst, erscheinen zuerst in den Suchergebnissen.",
             "submit": "Organisationsmitglieder hinzufügen",
             "submitting": "Wird hinzugefügt…"
+          },
+          "Archive": {
+            "title": "Channel archivieren",
+            "description": "Versteckt diesen Matched Channel für alle Teilnehmer und entfernt ihn aus der Live-Liste. Nachrichten bleiben in der Datenbank.",
+            "button": "Channel archivieren",
+            "archiving": "Wird archiviert…",
+            "confirmTitle": "{name} archivieren?",
+            "confirmDescription": "Teilnehmer verlieren sofort den Zugriff. Bei Bedarf kannst du später einen neuen Matched Channel erstellen.",
+            "confirm": "Archivieren",
+            "cancel": "Abbrechen",
+            "success": "Matched Channel archiviert",
+            "error": "Matched Channel konnte nicht archiviert werden"
           }
         }
       }

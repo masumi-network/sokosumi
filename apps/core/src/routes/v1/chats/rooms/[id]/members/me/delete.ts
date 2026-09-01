@@ -38,7 +38,7 @@ const route = withGlobalHeaderParameters(
     method: "delete",
     path: "/{id}/members/me",
     description:
-      "Leave a chat room. Removes only the caller's membership and read marker; the room and its messages are untouched for everyone else. Any member can leave. The last remaining member cannot leave: ask an organization owner or admin to archive an organization room, or ask a platform admin to remove you from an org-less matched channel roster. Direct rooms cannot be left.",
+      "Leave a chat room. Removes only the caller's membership and read marker; the room and its messages stay for everyone else. Any member can leave. The last member of an organization room cannot leave (ask an owner/admin to archive). The last member of an org-less matched channel may leave; the room is soft-archived in the same transaction. Direct rooms cannot be left.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -102,16 +102,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userId: { not: userContext.userId },
         },
       });
-      // Nobody left to archive it afterwards: the room would linger with an
-      // empty roster, invisible to every user yet still holding its slug.
-      // Host-org rooms: last member asks an org owner/admin to archive.
-      // Org-less matched rooms cannot be archived that way — platform admin
-      // removes via the matched-channels hub (SOK-908 covers leave/archive).
-      if (remainingUserMemberCount === 0) {
+      // Host-org rooms: last member must ask an org owner/admin to archive —
+      // leaving would orphan an empty live roster that still holds the slug.
+      // Org-less matched channels allow last-member leave and soft-archive in
+      // the same transaction (SOK-908); admin hub can also archive explicitly.
+      const isOrgLessMatched =
+        existing.organizationId == null &&
+        existing.discoverability === "matched";
+      if (remainingUserMemberCount === 0 && !isOrgLessMatched) {
         throw badRequest(
-          existing.organizationId == null
-            ? "You are the last member of this room. Ask a platform admin to remove you from the matched channel roster."
-            : "You are the last member of this room. Ask an organization owner or admin to archive it.",
+          "You are the last member of this room. Ask an organization owner or admin to archive it.",
         );
       }
 
@@ -187,6 +187,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await tx.chatRoomReadState.deleteMany({
         where: { roomId: existing.id, userId: userContext.userId },
       });
+
+      if (remainingUserMemberCount === 0 && isOrgLessMatched) {
+        const archived = await tx.chatRoom.updateMany({
+          where: { id: existing.id, archivedAt: null },
+          data: { archivedAt: new Date() },
+        });
+        if (archived.count === 0) {
+          throw notFound("Room not found");
+        }
+      }
 
       return {
         result: { id: existing.id, remainingUserMemberCount },

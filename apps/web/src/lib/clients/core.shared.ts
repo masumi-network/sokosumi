@@ -94,6 +94,7 @@ import {
   addAdminMatchedChannelParticipantsFromOrganization as coreAddAdminMatchedChannelParticipantsFromOrganization,
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   aggregateAdminTaskX402PaymentsByAgent as coreAggregateAdminTaskX402PaymentsByAgent,
+  archiveAdminMatchedChannel as coreArchiveAdminMatchedChannel,
   archiveAdminSokoBotVersion as coreArchiveAdminSokoBotVersion,
   archiveMySokoBot as coreArchiveMySokoBot,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
@@ -1834,6 +1835,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to remove matched channel participant",
+    );
+  }
+
+  async function archiveAdminMatchedChannel(roomId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreArchiveAdminMatchedChannel({
+          client,
+          path: { roomId },
+          cache: "no-store",
+        }),
+      "Failed to archive matched channel",
     );
   }
 
@@ -4848,6 +4862,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     addAdminMatchedChannelParticipant,
     addAdminMatchedChannelParticipantsFromOrganization,
     removeAdminMatchedChannelParticipant,
+    archiveAdminMatchedChannel,
     addAdminOrganizationMember,
     removeAdminOrganizationMember,
     updateAdminOrganizationMemberRole,

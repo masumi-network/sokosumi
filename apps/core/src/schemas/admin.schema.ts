@@ -405,6 +405,15 @@ export const adminRemoveMatchedChannelParticipantSchema = z
   })
   .openapi("AdminRemoveMatchedChannelParticipant");
 
+export const adminArchivedMatchedChannelSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    archivedAt: dateTimeSchema,
+  })
+  .openapi("AdminArchivedMatchedChannel");
+
 /**
  * Soft cap for one-shot org → matched roster snapshots. Each member takes a
  * locked ensure in a single transaction; larger orgs should be added in waves
