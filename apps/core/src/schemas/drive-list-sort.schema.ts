@@ -1,14 +1,13 @@
 import { z } from "@hono/zod-openapi";
 
 /**
- * Shared Files list sort vocabulary (Browse, Recents, Tasks).
+ * Shared Files list sort vocabulary (Browse, Tasks).
  *
  * Omit both params to keep each endpoint's existing default order.
  * Invalid values are rejected by Zod (422) — no silent fallback.
  *
- * Recents: `activityAt` is always the primary key. `sortBy=name` / `type`
- * map to a secondary key only; `sortBy=date` (or omit with only `sortOrder`)
- * controls ascending vs descending on `activityAt`.
+ * Drive Recents does not accept these params; it always orders by
+ * `activityAt` descending.
  *
  * Type families for file rows (stable clustering):
  * `image` | `video` | `audio` | `pdf` | `document` | `spreadsheet` |
@@ -23,8 +22,8 @@ export const driveListSortBySchema = z
     description: [
       "Sort key: name | date | type.",
       "Omit with sortOrder to keep the endpoint default order.",
-      "Recents: name/type are secondary only; activityAt stays primary.",
       "Tasks project/task levels: type falls back to name.",
+      "Not used by Drive Recents (fixed activityAt descending).",
     ].join(" "),
     example: "name",
   });
@@ -37,8 +36,9 @@ export const driveListSortOrderSchema = z
     description: [
       "Sort direction: asc | desc.",
       "When sortBy is omitted and sortOrder is set, applies to the endpoint's default key",
-      "(Browse: name; Recents/Tasks: date).",
+      "(Browse: name; Tasks: date).",
       "When sortBy is set without sortOrder: name/type → asc, date → desc.",
+      "Not used by Drive Recents.",
     ].join(" "),
     example: "asc",
   });

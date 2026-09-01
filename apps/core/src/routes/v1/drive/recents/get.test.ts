@@ -436,41 +436,4 @@ describe("GET /v1/drive/recents", () => {
       body.data.map((item: { kind: string; name: string }) => item.name),
     ).toEqual(["newer-report.pdf", "mid-report.pdf", "older-report.pdf"]);
   });
-
-  it("flips activityAt with sortBy=date&sortOrder=asc", async () => {
-    listMock.mockResolvedValue({
-      blobs: [
-        {
-          url: "https://blob.example/old.pdf",
-          pathname: "drive/users/user_123/old.pdf",
-          size: 100,
-          uploadedAt: new Date("2026-08-18T12:00:00.000Z"),
-        },
-        {
-          url: "https://blob.example/new.pdf",
-          pathname: "drive/users/user_123/new.pdf",
-          size: 100,
-          uploadedAt: new Date("2026-08-21T12:00:00.000Z"),
-        },
-      ],
-      hasMore: false,
-    });
-
-    const app = createRecentsApp();
-    const response = await app.request(
-      "/?scope=me&limit=20&sortBy=date&sortOrder=asc",
-    );
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data.map((item: { name: string }) => item.name)).toEqual([
-      "old.pdf",
-      "new.pdf",
-    ]);
-  });
-
-  it("returns 422 for invalid sortBy", async () => {
-    const app = createRecentsApp();
-    const response = await app.request("/?scope=me&sortBy=size");
-    expect(response.status).toBe(422);
-  });
 });
