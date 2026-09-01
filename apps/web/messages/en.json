@@ -116,7 +116,18 @@
       },
       "AgentBadgeCloud": {
         "new": "New"
-      }
+      },
+      "agentsNotAvailable": "No agents available",
+      "agentsNotFound": "No Agents found",
+      "AgentCard": {
+        "view": "Show Details",
+        "detailsUnavailable": "Details unavailable"
+      },
+      "Kind": {
+        "cardano": "Cardano",
+        "x402": "x402"
+      },
+      "othersCategory": "Others"
     },
     "UserAvatar": {
       "account": "Account",
@@ -4420,7 +4431,11 @@
           "title": "Channels",
           "description": "Live matched channels with roster-only visibility.",
           "loading": "Loading channels…",
-          "empty": "No matched channels yet."
+          "empty": "No matched channels yet.",
+          "tabActive": "Live",
+          "tabArchived": "Archived",
+          "descriptionArchived": "Soft-archived matched channels. Restore one to make it live again.",
+          "emptyArchived": "No archived matched channels."
         },
         "Create": {
           "title": "Create matched channel",
@@ -4474,6 +4489,37 @@
             "helper": "Organizations you belong to appear first in search results.",
             "submit": "Add organization members",
             "submitting": "Adding…"
+          },
+          "Archive": {
+            "button": "Archive channel",
+            "archiving": "Archiving…",
+            "confirmTitle": "Archive {name}?",
+            "confirmDescription": "Participants lose access immediately. You can restore this channel from the Archived tab in this hub.",
+            "confirm": "Archive",
+            "cancel": "Cancel",
+            "success": "Matched channel archived",
+            "error": "Failed to archive matched channel"
+          },
+          "archivedBadge": "Archived — roster edits are disabled until restored.",
+          "Restore": {
+            "button": "Restore channel",
+            "restoring": "Restoring…",
+            "confirmTitle": "Restore {name}?",
+            "confirmDescription": "Clears the archive flag so the channel returns to the live hub. Existing members keep their seats and regain access on their next session refresh.",
+            "confirm": "Restore",
+            "cancel": "Cancel",
+            "success": "Matched channel restored",
+            "error": "Failed to restore matched channel"
+          },
+          "Delete": {
+            "button": "Delete permanently",
+            "deleting": "Deleting…",
+            "confirmTitle": "Permanently delete {name}?",
+            "confirmDescription": "This cannot be undone. The channel, its memberships, and messages are removed forever. Only archived channels can be deleted.",
+            "confirm": "Delete permanently",
+            "cancel": "Cancel",
+            "success": "Matched channel permanently deleted",
+            "error": "Failed to delete matched channel"
           }
         }
       }
@@ -5435,6 +5481,17 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI Coworker",
         "defaultDescription": "An AI-powered coworker ready to assist you."
+      },
+      "allAgentsTitle": "Browse all agents",
+      "allAgentsSubtitle": "Every agent on Sokosumi, grouped by what they do.",
+      "FilterSection": {
+        "searchPlaceholder": "Search agents",
+        "reset": "Reset",
+        "kind": {
+          "all": "All",
+          "cardano": "Cardano",
+          "x402": "x402"
+        }
       }
     },
     "DesignMd": {
@@ -5783,6 +5840,8 @@
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
         "editTitle": "Edit channel",
         "editDescription": "Update the channel details and participant list.",
+        "actionsOnlyTitle": "Leave channel",
+        "actionsOnlyDescription": "Leave this channel when you no longer need it. Channel settings are managed by admins.",
         "name": "Name",
         "nameRequired": "Channel name is required.",
         "namePlaceholder": "Launch planning",

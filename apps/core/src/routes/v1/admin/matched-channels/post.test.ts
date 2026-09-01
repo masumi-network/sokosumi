@@ -92,6 +92,7 @@ describe("POST /admin/matched-channels", () => {
       id: ROOM_ID,
       name: "Partners",
       slug: "partners",
+      archivedAt: null,
     });
   });
 
@@ -108,6 +109,7 @@ describe("POST /admin/matched-channels", () => {
       id: ROOM_ID,
       name: "Partners",
       slug: "partners",
+      archivedAt: null,
     });
     expect(chatRoomCreateMock).toHaveBeenCalledWith({
       data: {
@@ -119,7 +121,7 @@ describe("POST /admin/matched-channels", () => {
         slug: "partners",
         topic: "Partner coordination",
       },
-      select: { id: true, name: true, slug: true },
+      select: { id: true, name: true, slug: true, archivedAt: true },
     });
   });
 
@@ -140,6 +142,7 @@ describe("POST /admin/matched-channels", () => {
       id: ROOM_ID,
       name: "Team Soko",
       slug: "team-soko",
+      archivedAt: null,
     });
 
     const response = await post({ slug: "team-soko" });

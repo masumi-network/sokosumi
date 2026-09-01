@@ -116,7 +116,18 @@
       },
       "AgentBadgeCloud": {
         "new": "Neu"
-      }
+      },
+      "agentsNotAvailable": "Keine Agents verfügbar",
+      "agentsNotFound": "Keine Agents gefunden",
+      "AgentCard": {
+        "view": "Details anzeigen",
+        "detailsUnavailable": "Details nicht verfügbar"
+      },
+      "Kind": {
+        "cardano": "Cardano",
+        "x402": "x402"
+      },
+      "othersCategory": "Sonstige"
     },
     "UserAvatar": {
       "account": "Konto",
@@ -4389,7 +4400,11 @@
           "title": "Channels",
           "description": "Live-Matched-Channels mit Sichtbarkeit nur über das Roster.",
           "loading": "Channels werden geladen…",
-          "empty": "Noch keine Matched Channels."
+          "empty": "Noch keine Matched Channels.",
+          "tabActive": "Aktiv",
+          "tabArchived": "Archiviert",
+          "descriptionArchived": "Soft-archivierte Matched Channels. Stelle einen wieder her, um ihn erneut live zu schalten.",
+          "emptyArchived": "Keine archivierten Matched Channels."
         },
         "Create": {
           "title": "Matched Channel erstellen",
@@ -4443,6 +4458,37 @@
             "helper": "Organisationen, denen du angehörst, erscheinen zuerst in den Suchergebnissen.",
             "submit": "Organisationsmitglieder hinzufügen",
             "submitting": "Wird hinzugefügt…"
+          },
+          "Archive": {
+            "button": "Channel archivieren",
+            "archiving": "Wird archiviert…",
+            "confirmTitle": "{name} archivieren?",
+            "confirmDescription": "Teilnehmer verlieren sofort den Zugriff. Du kannst diesen Channel im Tab „Archiviert“ in diesem Hub wiederherstellen.",
+            "confirm": "Archivieren",
+            "cancel": "Abbrechen",
+            "success": "Matched Channel archiviert",
+            "error": "Matched Channel konnte nicht archiviert werden"
+          },
+          "archivedBadge": "Archiviert — Roster-Änderungen sind bis zur Wiederherstellung deaktiviert.",
+          "Restore": {
+            "button": "Channel wiederherstellen",
+            "restoring": "Wird wiederhergestellt…",
+            "confirmTitle": "{name} wiederherstellen?",
+            "confirmDescription": "Hebt die Archivierung auf, damit der Channel wieder im Live-Hub erscheint. Bestehende Mitglieder behalten ihre Plätze und erhalten beim nächsten Session-Refresh wieder Zugriff.",
+            "confirm": "Wiederherstellen",
+            "cancel": "Abbrechen",
+            "success": "Matched Channel wiederhergestellt",
+            "error": "Matched Channel konnte nicht wiederhergestellt werden"
+          },
+          "Delete": {
+            "button": "Dauerhaft löschen",
+            "deleting": "Wird gelöscht…",
+            "confirmTitle": "{name} dauerhaft löschen?",
+            "confirmDescription": "Das kann nicht rückgängig gemacht werden. Der Channel, seine Mitgliedschaften und Nachrichten werden endgültig entfernt. Nur archivierte Channels können gelöscht werden.",
+            "confirm": "Dauerhaft löschen",
+            "cancel": "Abbrechen",
+            "success": "Matched Channel dauerhaft gelöscht",
+            "error": "Matched Channel konnte nicht gelöscht werden"
           }
         }
       }
@@ -5404,6 +5450,17 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "KI-Coworker",
         "defaultDescription": "Ein KI-gestützter Coworker, der dich unterstützt."
+      },
+      "allAgentsTitle": "Alle Agents durchsuchen",
+      "allAgentsSubtitle": "Jeder Agent auf Sokosumi, nach Aufgaben gruppiert.",
+      "FilterSection": {
+        "searchPlaceholder": "Agents suchen",
+        "reset": "Zurücksetzen",
+        "kind": {
+          "all": "Alle",
+          "cardano": "Cardano",
+          "x402": "x402"
+        }
       }
     },
     "EmailVerificationNotice": {
@@ -5783,6 +5840,8 @@
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
         "editTitle": "Edit channel",
         "editDescription": "Update the channel details and participant list.",
+        "actionsOnlyTitle": "Kanal verlassen",
+        "actionsOnlyDescription": "Verlasse diesen Kanal, wenn du ihn nicht mehr brauchst. Die Kanaleinstellungen werden von Admins verwaltet.",
         "name": "Name",
         "nameRequired": "Kanalname ist erforderlich.",
         "namePlaceholder": "Launch planning",

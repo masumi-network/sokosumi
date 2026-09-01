@@ -9,8 +9,6 @@ import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
-import { getAgentCredits } from "@/lib/types/core-dto";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 export function HeaderSkeleton() {
   return (
@@ -81,11 +79,6 @@ export default function Header({
             <span>{t("back")}</span>
           </Link>
           <div className="flex items-center gap-1.5">
-            <div className="text-sm font-semibold">
-              {t("price", {
-                price: formatCreditsForDisplay(getAgentCredits(agent)),
-              })}
-            </div>
             {canRate && (
               <AgentRatingCTA
                 agentId={agent.id}
