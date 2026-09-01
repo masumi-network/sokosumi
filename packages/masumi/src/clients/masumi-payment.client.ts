@@ -370,19 +370,24 @@ export function createPaymentClient(
      * cannot drop or repeat a row.
      *
      * No payment-source filter is sent, so both V1 and V2 purchases come back.
-     * That is deliberate but version-bound. `GET /purchase`, `/payment/diff`
-     * and `/registry/diff` all default to Web3CardanoV1 when neither
-     * `filterPaymentSourceType` nor `filterSmartContractAddress` is given, and
-     * all three say so in the spec. `/purchase/diff` says neither, and the
-     * node builds that spec from the route's own input schema, so today it
-     * applies no default. The payment service has since added one on its
-     * mainline (masumi-payment-service `resolvePurchasePaymentSourceTypeFilter`
-     * in `src/routes/api/purchases/queries.ts`).
+     * That is deliberate but version-bound.
      *
-     * When a deployed node starts documenting `filterPaymentSourceType` here,
-     * this call must page BOTH rails with a cursor each: the node resolves one
-     * source type per request, and Sokosumi runs V1 and V2 side by side. Until
-     * then, one unfiltered pass covers both.
+     * `GET /purchase`, `/payment/diff` and `/registry/diff` each default to
+     * Web3CardanoV1 when neither `filterPaymentSourceType` nor
+     * `filterSmartContractAddress` is given. `/purchase/diff` does not: the
+     * deployed route takes only limit, cursorId, lastUpdate, network,
+     * filterSmartContractAddress and includeHistory, and its where clause
+     * filters on deletedAt, network and smartContractAddress alone. Both rails
+     * arrive in one feed (masumi-payment-service `5416f92fb^`,
+     * `src/routes/api/purchases/diff/index.ts`, buildPurchaseDiffWhere).
+     *
+     * That node's mainline has since added the same V1 default here
+     * (`resolvePurchasePaymentSourceTypeFilter`,
+     * `src/routes/api/purchases/queries.ts`). When a deployed node starts
+     * documenting `filterPaymentSourceType` on this route, this call must page
+     * BOTH rails with a cursor each: the node resolves one source type per
+     * request, and Sokosumi runs V1 and V2 side by side. Until then, one
+     * unfiltered pass covers both.
      */
     async getPurchasesDiff(
       changedSince: Date,
