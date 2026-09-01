@@ -4,7 +4,6 @@ const {
   captureExceptionMock,
   getPurchasesDiffMock,
   jobPurchaseFindManyMock,
-  syncMetadataDeleteManyMock,
   syncMetadataFindUniqueMock,
   syncMetadataUpdateManyMock,
   syncMetadataUpsertMock,
@@ -12,7 +11,6 @@ const {
   captureExceptionMock: vi.fn(),
   getPurchasesDiffMock: vi.fn(),
   jobPurchaseFindManyMock: vi.fn(),
-  syncMetadataDeleteManyMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
   syncMetadataUpdateManyMock: vi.fn(),
   syncMetadataUpsertMock: vi.fn(),
@@ -36,7 +34,6 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: jobPurchaseFindManyMock,
     },
     syncMetadata: {
-      deleteMany: syncMetadataDeleteManyMock,
       findUnique: syncMetadataFindUniqueMock,
       updateMany: syncMetadataUpdateManyMock,
       upsert: syncMetadataUpsertMock,
@@ -62,6 +59,29 @@ import {
 type ApplyPurchase = PurchaseDiffSyncOptions["applyPurchase"];
 
 const CHANGED_AT = new Date("2026-01-05T12:00:00.000Z");
+const STORED_STABLE_THROUGH = new Date("2026-01-05T13:00:00.000Z");
+
+function createStoredCursor(
+  cursorId: string,
+  changedAt = CHANGED_AT,
+  stableThrough = STORED_STABLE_THROUGH,
+) {
+  return {
+    cursorId: JSON.stringify({
+      changedAt: changedAt.toISOString(),
+      cursorId,
+      stableThrough: stableThrough.toISOString(),
+      version: 1,
+    }),
+    lastSyncedAt: new Date(
+      changedAt.getTime() - PURCHASE_DIFF_REREAD_WINDOW_MS,
+    ),
+  };
+}
+
+function storedCursorContaining(cursorId: string) {
+  return expect.stringContaining(`"cursorId":"${cursorId}"`);
+}
 
 function createDiffPurchase(overrides: Record<string, unknown> = {}) {
   return {
@@ -69,6 +89,17 @@ function createDiffPurchase(overrides: Record<string, unknown> = {}) {
     blockchainIdentifier: "chain-1",
     inputHash: "INPUT-HASH-1",
     agentIdentifier: "agent-chain-1",
+    payByTime: "1767616200000",
+    submitResultTime: "1767616800000",
+    unlockTime: "1767617400000",
+    externalDisputeUnlockTime: "1767618000000",
+    PaidFunds: [{ unit: "lovelace", amount: "1000000" }],
+    PaymentSource: { paymentSourceType: "Web3CardanoV1" },
+    SellerWallet: { walletVkey: "seller-vkey-1" },
+    metadata: JSON.stringify({
+      inputData: { prompt: "hello" },
+      jobId: "agent-job-1",
+    }),
     nextActionOrOnChainStateOrResultLastChangedAt: CHANGED_AT,
     ...overrides,
   };
@@ -80,6 +111,16 @@ function createJob(overrides: Record<string, unknown> = {}) {
     blockchainIdentifier: "chain-1",
     inputHash: "input-hash-1",
     agentBlockchainIdentifier: "agent-chain-1",
+    agentJobId: "agent-job-1",
+    input: JSON.stringify({ prompt: "hello" }),
+    payByTime: new Date(1767616200000),
+    submitResultTime: new Date(1767616800000),
+    unlockTime: new Date(1767617400000),
+    externalDisputeUnlockTime: new Date(1767618000000),
+    purchaseAmounts: [{ unit: "lovelace", amount: "1000000" }],
+    purchaseAmountMatchRequired: true,
+    paymentSourceType: "Web3CardanoV1",
+    sellerVkey: "seller-vkey-1",
     ...overrides,
   };
 }
@@ -115,15 +156,29 @@ describe("syncPurchasesFromDiff", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
-  it("does not move the cursor when nothing changed", async () => {
+  it("anchors the initial cursor when nothing changed", async () => {
     getPurchasesDiffMock.mockResolvedValue(ok([]));
     const applyPurchase = vi.fn<ApplyPurchase>();
+    const earliestStart = Date.now() - PURCHASE_DIFF_INITIAL_LOOKBACK_MS;
 
     const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
+    const latestStart = Date.now() - PURCHASE_DIFF_INITIAL_LOOKBACK_MS;
 
     expect(result).toEqual({ found: 0, processed: 0 });
     expect(applyPurchase).not.toHaveBeenCalled();
-    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    const initialCheckpoint = syncMetadataUpsertMock.mock.calls[0]?.[0];
+    expect(initialCheckpoint).toMatchObject({
+      where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      create: {
+        key: PURCHASE_DIFF_SYNC_METADATA_KEY,
+        cursorId: null,
+      },
+      update: expect.anything(),
+    });
+    const initialStart = initialCheckpoint?.create.lastSyncedAt as Date;
+    expect(initialStart.getTime()).toBeGreaterThanOrEqual(earliestStart);
+    expect(initialStart.getTime()).toBeLessThanOrEqual(latestStart);
   });
 
   it("applies a changed purchase to its job and advances the cursor", async () => {
@@ -143,14 +198,17 @@ describe("syncPurchasesFromDiff", () => {
       where: { externalId: { in: ["purchase_1"] } },
       include: { job: { include: expect.anything() } },
     });
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
+    expect(syncMetadataUpsertMock).toHaveBeenLastCalledWith({
       where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
       create: {
         key: PURCHASE_DIFF_SYNC_METADATA_KEY,
-        cursorId: "purchase_1",
-        lastSyncedAt: CHANGED_AT,
+        cursorId: storedCursorContaining("purchase_1"),
+        lastSyncedAt: expect.any(Date),
       },
-      update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
+      update: {
+        cursorId: storedCursorContaining("purchase_1"),
+        lastSyncedAt: expect.any(Date),
+      },
     });
   });
 
@@ -168,11 +226,51 @@ describe("syncPurchasesFromDiff", () => {
     const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
 
     expect(jobPurchaseFindManyMock).toHaveBeenNthCalledWith(2, {
-      where: { job: { blockchainIdentifier: { in: ["chain-1"] } } },
+      where: {
+        job: {
+          blockchainIdentifier: {
+            in: ["chain-1"],
+            mode: "insensitive",
+          },
+        },
+      },
       include: { job: { include: expect.anything() } },
     });
     expect(applyPurchase).toHaveBeenCalledTimes(1);
     expect(applyPurchase.mock.calls[0][0]).toMatchObject({ id: "job_1" });
+    expect(result.processed).toBe(1);
+  });
+
+  it("matches a stale-id fallback when hex identifier casing differs", async () => {
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      ok([
+        createDiffPurchase({
+          id: "purchase_new",
+          blockchainIdentifier: "CHAIN-1",
+        }),
+      ]),
+    );
+    jobPurchaseFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        createJobPurchaseRow({ externalId: "purchase_old" }),
+      ]);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
+
+    const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+    expect(jobPurchaseFindManyMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        job: {
+          blockchainIdentifier: {
+            in: ["CHAIN-1"],
+            mode: "insensitive",
+          },
+        },
+      },
+      include: { job: { include: expect.anything() } },
+    });
+    expect(applyPurchase).toHaveBeenCalledTimes(1);
     expect(result.processed).toBe(1);
   });
 
@@ -194,6 +292,49 @@ describe("syncPurchasesFromDiff", () => {
     // Sharing a blockchain identifier is what the 409 duplicate guard refuses
     // at hire time; the fallback must not be a way around it.
     expect(applyPurchase).not.toHaveBeenCalled();
+    expect(result.processed).toBe(0);
+  });
+
+  it("refuses a fallback match with a different seller", async () => {
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      ok([
+        createDiffPurchase({
+          id: "purchase_new",
+          SellerWallet: { walletVkey: "seller-vkey-other" },
+        }),
+      ]),
+    );
+    jobPurchaseFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        createJobPurchaseRow({ externalId: "purchase_old" }),
+      ]);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
+
+    const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+    expect(applyPurchase).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(result.processed).toBe(0);
+  });
+
+  it("refuses ambiguous case-insensitive fallback matches", async () => {
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      ok([createDiffPurchase({ id: "purchase_new" })]),
+    );
+    jobPurchaseFindManyMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      createJobPurchaseRow({ externalId: "purchase_old_1" }),
+      createJobPurchaseRow({
+        externalId: "purchase_old_2",
+        job: createJob({ id: "job_2", blockchainIdentifier: "CHAIN-1" }),
+      }),
+    ]);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
+
+    const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+    expect(applyPurchase).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     expect(result.processed).toBe(0);
   });
 
@@ -307,10 +448,9 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("resumes on the stored row when the previous run stopped early", async () => {
-    syncMetadataFindUniqueMock.mockResolvedValue({
-      cursorId: "purchase_0",
-      lastSyncedAt: CHANGED_AT,
-    });
+    syncMetadataFindUniqueMock.mockResolvedValue(
+      createStoredCursor("purchase_0"),
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(ok([]));
 
     await syncPurchasesFromDiff(createOptions(vi.fn<ApplyPurchase>()));
@@ -326,10 +466,9 @@ describe("syncPurchasesFromDiff", () => {
   });
 
   it("clears the resume point once the feed is drained", async () => {
-    syncMetadataFindUniqueMock.mockResolvedValue({
-      cursorId: "purchase_0",
-      lastSyncedAt: CHANGED_AT,
-    });
+    syncMetadataFindUniqueMock.mockResolvedValue(
+      createStoredCursor("purchase_0"),
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(ok([]));
 
     await syncPurchasesFromDiff(createOptions(vi.fn<ApplyPurchase>()));
@@ -337,7 +476,7 @@ describe("syncPurchasesFromDiff", () => {
     // Arms the re-read window for the next run.
     expect(syncMetadataUpdateManyMock).toHaveBeenCalledWith({
       where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
-      data: { cursorId: null },
+      data: { cursorId: null, lastSyncedAt: STORED_STABLE_THROUGH },
     });
   });
 
@@ -348,8 +487,9 @@ describe("syncPurchasesFromDiff", () => {
       (_row, index) => createDiffPurchase({ id: `purchase_page_${index}` }),
     );
     getPurchasesDiffMock.mockResolvedValueOnce(ok(page));
-    // One request plus every row on it, then out of budget.
-    let checksLeft = 1 + PURCHASE_DIFF_PAGE_SIZE;
+    // One cursor check, one request, then every row on it. The next request
+    // falls outside the budget.
+    let checksLeft = 2 + PURCHASE_DIFF_PAGE_SIZE;
 
     await syncPurchasesFromDiff(
       createOptions(vi.fn<ApplyPurchase>(), {
@@ -360,8 +500,10 @@ describe("syncPurchasesFromDiff", () => {
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         update: {
-          cursorId: `purchase_page_${PURCHASE_DIFF_PAGE_SIZE - 1}`,
-          lastSyncedAt: CHANGED_AT,
+          cursorId: storedCursorContaining(
+            `purchase_page_${PURCHASE_DIFF_PAGE_SIZE - 1}`,
+          ),
+          lastSyncedAt: expect.any(Date),
         },
       }),
     );
@@ -371,17 +513,24 @@ describe("syncPurchasesFromDiff", () => {
 
   it("clamps the request timeout to what is left of the run budget", async () => {
     getPurchasesDiffMock.mockResolvedValue(ok([]));
+    const timeoutSignal = new AbortController().signal;
+    const timeoutSpy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValueOnce(timeoutSignal);
 
-    await syncPurchasesFromDiff(
-      createOptions(vi.fn<ApplyPurchase>(), { deadlineMs: Date.now() + 350 }),
-    );
+    try {
+      await syncPurchasesFromDiff(
+        createOptions(vi.fn<ApplyPurchase>(), { deadlineMs: Date.now() + 350 }),
+      );
 
-    const signal = getPurchasesDiffMock.mock.calls[0][3].signal as AbortSignal;
-    expect(signal.aborted).toBe(false);
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    // Without the clamp this request could outlive the run by 10s and eat the
-    // budget the refund phase is reserved.
-    expect(signal.aborted).toBe(true);
+      // Without the clamp this request could outlive the run by 10s and eat the
+      // budget the refund phase is reserved.
+      const requestedTimeout = timeoutSpy.mock.calls[0][0];
+      expect(requestedTimeout).toBeGreaterThan(0);
+      expect(requestedTimeout).toBeLessThanOrEqual(100);
+    } finally {
+      timeoutSpy.mockRestore();
+    }
   });
 
   it("makes no request when the remaining budget is only the buffer", async () => {
@@ -416,11 +565,10 @@ describe("syncPurchasesFromDiff", () => {
     );
   });
 
-  it("keeps the resume point when a cut-short page ends on the resume row", async () => {
-    syncMetadataFindUniqueMock.mockResolvedValue({
-      cursorId: "purchase_1",
-      lastSyncedAt: CHANGED_AT,
-    });
+  it("skips the stored resume row before spending the row budget", async () => {
+    syncMetadataFindUniqueMock.mockResolvedValue(
+      createStoredCursor("purchase_1"),
+    );
     getPurchasesDiffMock.mockResolvedValueOnce(
       ok([
         createDiffPurchase(),
@@ -437,19 +585,31 @@ describe("syncPurchasesFromDiff", () => {
         job: createJob({ id: "job_2", blockchainIdentifier: "chain-2" }),
       }),
     ]);
-    // The request plus the first row only, so the page ends on the resume row
-    // with the second row unread.
-    let checksLeft = 2;
+    // The cursor check, request, and one new row fit. The inclusive resume row
+    // was already handled and must not consume this run's row budget.
+    let checksLeft = 3;
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
 
     await syncPurchasesFromDiff(
-      createOptions(vi.fn<ApplyPurchase>().mockResolvedValue(undefined), {
+      createOptions(applyPurchase, {
         shouldContinue: () => checksLeft-- > 0,
       }),
     );
 
-    // The stall guard fired, but the page had rows left: rewinding to the
-    // re-read window would throw away everything this run advanced past.
-    expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
+    expect(jobPurchaseFindManyMock).toHaveBeenNthCalledWith(1, {
+      where: { externalId: { in: ["purchase_2"] } },
+      include: { job: { include: expect.anything() } },
+    });
+    expect(applyPurchase).toHaveBeenCalledTimes(1);
+    expect(applyPurchase.mock.calls[0][1]).toMatchObject({ id: "purchase_2" });
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {
+          cursorId: storedCursorContaining("purchase_2"),
+          lastSyncedAt: expect.any(Date),
+        },
+      }),
+    );
   });
 
   it("re-reads a window before the stored cursor", async () => {
@@ -471,6 +631,139 @@ describe("syncPurchasesFromDiff", () => {
     );
   });
 
+  it("keeps late commits visible after two interrupted backlog runs", async () => {
+    const safeWatermark = new Date("2026-01-05T12:00:00.000Z");
+    const firstStableThrough = new Date("2026-01-05T12:05:00.000Z");
+    const lateCommitAt = new Date("2026-01-05T12:01:30.000Z");
+    const firstPage = Array.from(
+      { length: PURCHASE_DIFF_PAGE_SIZE },
+      (_row, index) =>
+        createDiffPurchase({
+          id: `purchase_first_${index}`,
+          blockchainIdentifier: "",
+          nextActionOrOnChainStateOrResultLastChangedAt: new Date(
+            safeWatermark.getTime() + 60_000 + index * 1_000,
+          ),
+        }),
+    );
+    const firstResume = firstPage.at(-1);
+    const secondPage = [
+      firstResume,
+      ...Array.from({ length: PURCHASE_DIFF_PAGE_SIZE - 1 }, (_row, index) =>
+        createDiffPurchase({
+          id: `purchase_second_${index}`,
+          blockchainIdentifier: "",
+          nextActionOrOnChainStateOrResultLastChangedAt: new Date(
+            safeWatermark.getTime() + 120_000 + index * 1_000,
+          ),
+        }),
+      ),
+    ];
+    let metadata = {
+      cursorId: null as string | null,
+      lastSyncedAt: safeWatermark,
+    };
+    syncMetadataFindUniqueMock.mockImplementation(async () => metadata);
+    syncMetadataUpsertMock.mockImplementation(
+      async ({
+        create,
+        update,
+      }: {
+        create: typeof metadata;
+        update: object;
+      }) => {
+        metadata = { ...metadata, ...create, ...update };
+        return metadata;
+      },
+    );
+    syncMetadataUpdateManyMock.mockImplementation(
+      async ({ data }: { data: object }) => {
+        metadata = { ...metadata, ...data };
+        return { count: 1 };
+      },
+    );
+    getPurchasesDiffMock
+      .mockResolvedValueOnce(ok(firstPage))
+      .mockResolvedValueOnce(ok(secondPage))
+      .mockResolvedValueOnce(ok([]))
+      .mockImplementationOnce(
+        async (changedAt: Date, cursorId: string | null) =>
+          changedAt.getTime() <= lateCommitAt.getTime() && cursorId === null
+            ? ok([
+                createDiffPurchase({
+                  id: "purchase_late",
+                  blockchainIdentifier: "chain-late",
+                  nextActionOrOnChainStateOrResultLastChangedAt: lateCommitAt,
+                }),
+              ])
+            : ok([]),
+      );
+    jobPurchaseFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        createJobPurchaseRow({
+          externalId: "purchase_late",
+          job: createJob({
+            id: "job_late",
+            blockchainIdentifier: "chain-late",
+          }),
+        }),
+      ]);
+    const dateNowSpy = vi.spyOn(Date, "now");
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
+
+    try {
+      dateNowSpy.mockReturnValue(
+        firstStableThrough.getTime() + PURCHASE_DIFF_REREAD_WINDOW_MS,
+      );
+      let checksLeft = 2 + PURCHASE_DIFF_PAGE_SIZE;
+      await syncPurchasesFromDiff(
+        createOptions(applyPurchase, {
+          shouldContinue: () => checksLeft-- > 0,
+        }),
+      );
+
+      dateNowSpy.mockReturnValue(
+        new Date("2026-01-05T12:20:00.000Z").getTime(),
+      );
+      checksLeft = 2 + PURCHASE_DIFF_PAGE_SIZE - 1;
+      await syncPurchasesFromDiff(
+        createOptions(applyPurchase, {
+          shouldContinue: () => checksLeft-- > 0,
+        }),
+      );
+
+      dateNowSpy.mockReturnValue(
+        new Date("2026-01-05T12:30:00.000Z").getTime(),
+      );
+      await syncPurchasesFromDiff(createOptions(applyPurchase));
+      expect(metadata).toMatchObject({
+        cursorId: null,
+        lastSyncedAt: firstStableThrough,
+      });
+
+      dateNowSpy.mockReturnValue(
+        new Date("2026-01-05T12:40:00.000Z").getTime(),
+      );
+      await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+      expect(getPurchasesDiffMock).toHaveBeenNthCalledWith(
+        4,
+        safeWatermark,
+        null,
+        PURCHASE_DIFF_PAGE_SIZE,
+        expect.anything(),
+      );
+      expect(applyPurchase).toHaveBeenCalledTimes(1);
+      expect(applyPurchase.mock.calls[0][1]).toMatchObject({
+        id: "purchase_late",
+      });
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+  });
+
   it("skips a diff row that belongs to no local job but still advances", async () => {
     getPurchasesDiffMock.mockResolvedValueOnce(ok([createDiffPurchase()]));
     jobPurchaseFindManyMock.mockResolvedValue([]);
@@ -482,7 +775,10 @@ describe("syncPurchasesFromDiff", () => {
     expect(result.processed).toBe(0);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
+        update: {
+          cursorId: storedCursorContaining("purchase_1"),
+          lastSyncedAt: expect.any(Date),
+        },
       }),
     );
   });
@@ -502,7 +798,10 @@ describe("syncPurchasesFromDiff", () => {
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
+        update: {
+          cursorId: storedCursorContaining("purchase_1"),
+          lastSyncedAt: expect.any(Date),
+        },
       }),
     );
   });
@@ -543,14 +842,17 @@ describe("syncPurchasesFromDiff", () => {
     expect(result.processed).toBe(1);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
+        update: {
+          cursorId: storedCursorContaining("purchase_1"),
+          lastSyncedAt: expect.any(Date),
+        },
       }),
     );
     // Parked, not drained: the next run must retry the row that failed.
     expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
   });
 
-  it("keeps the cursor untouched when the node rejects the request", async () => {
+  it("keeps the initial checkpoint when the node rejects the request", async () => {
     const { err } = await import("neverthrow");
     getPurchasesDiffMock.mockResolvedValueOnce(err("purchase-diff 500"));
 
@@ -559,10 +861,54 @@ describe("syncPurchasesFromDiff", () => {
     );
 
     expect(result).toEqual({ found: 0, processed: 0 });
-    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
+      where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      create: {
+        key: PURCHASE_DIFF_SYNC_METADATA_KEY,
+        cursorId: null,
+        lastSyncedAt: expect.any(Date),
+      },
+      update: expect.anything(),
+    });
     // The diff is the only path that updates an attached purchase, so a
     // failing request has to page rather than look like a quiet tick.
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses the initial checkpoint after the first purchase fails", async () => {
+    const purchase = createDiffPurchase();
+    getPurchasesDiffMock
+      .mockResolvedValueOnce(ok([purchase]))
+      .mockResolvedValueOnce(ok([purchase]));
+    jobPurchaseFindManyMock.mockResolvedValue([createJobPurchaseRow()]);
+    const applyPurchase = vi
+      .fn<ApplyPurchase>()
+      .mockRejectedValueOnce(new Error("write failed"))
+      .mockResolvedValueOnce(undefined);
+
+    await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+    const initialCheckpoint = syncMetadataUpsertMock.mock.calls[0]?.[0];
+    const initialStart = initialCheckpoint?.create.lastSyncedAt as Date;
+    syncMetadataFindUniqueMock.mockResolvedValueOnce({
+      cursorId: null,
+      lastSyncedAt: initialStart,
+    });
+
+    const retryResult = await syncPurchasesFromDiff(
+      createOptions(applyPurchase),
+    );
+
+    expect(getPurchasesDiffMock).toHaveBeenNthCalledWith(
+      2,
+      new Date(initialStart.getTime() - PURCHASE_DIFF_REREAD_WINDOW_MS),
+      null,
+      PURCHASE_DIFF_PAGE_SIZE,
+      expect.anything(),
+    );
+    expect(applyPurchase).toHaveBeenCalledTimes(2);
+    expect(retryResult).toEqual({ found: 1, processed: 1 });
   });
 
   it("replays from the beginning when the cursor is reset", async () => {
@@ -576,8 +922,14 @@ describe("syncPurchasesFromDiff", () => {
       createOptions(vi.fn<ApplyPurchase>(), { resetCursor: true }),
     );
 
-    expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
       where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      create: {
+        key: PURCHASE_DIFF_SYNC_METADATA_KEY,
+        cursorId: null,
+        lastSyncedAt: new Date(0),
+      },
+      update: { cursorId: null, lastSyncedAt: new Date(0) },
     });
     expect(getPurchasesDiffMock).toHaveBeenCalledWith(
       new Date(0),
@@ -585,6 +937,25 @@ describe("syncPurchasesFromDiff", () => {
       PURCHASE_DIFF_PAGE_SIZE,
       expect.anything(),
     );
+  });
+
+  it("keeps an epoch checkpoint when the first replay request fails", async () => {
+    const { err } = await import("neverthrow");
+    getPurchasesDiffMock.mockResolvedValueOnce(err("purchase-diff 500"));
+
+    await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>(), { resetCursor: true }),
+    );
+
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
+      where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      create: {
+        key: PURCHASE_DIFF_SYNC_METADATA_KEY,
+        cursorId: null,
+        lastSyncedAt: new Date(0),
+      },
+      update: { cursorId: null, lastSyncedAt: new Date(0) },
+    });
   });
 
   it("pages until the node returns a short page", async () => {
@@ -609,7 +980,7 @@ describe("syncPurchasesFromDiff", () => {
     // arm the re-read window for the next one.
     expect(syncMetadataUpdateManyMock).toHaveBeenCalledWith({
       where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
-      data: { cursorId: null },
+      data: { cursorId: null, lastSyncedAt: expect.any(Date) },
     });
   });
 });
@@ -633,7 +1004,94 @@ describe("syncPurchasesFromDiff budget handling", () => {
     );
 
     expect(getPurchasesDiffMock).not.toHaveBeenCalled();
+    expect(syncMetadataFindUniqueMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
     expect(result).toEqual({ found: 0, processed: 0 });
+  });
+
+  it("does not read the cursor after the run budget expires", async () => {
+    const result = await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>(), {
+        deadlineMs: Date.now() - 1,
+      }),
+    );
+
+    expect(syncMetadataFindUniqueMock).not.toHaveBeenCalled();
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(getPurchasesDiffMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ found: 0, processed: 0 });
+  });
+
+  it("persists a requested replay after the diff budget expires", async () => {
+    const result = await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>(), {
+        deadlineMs: Date.now() - 1,
+        resetCursor: true,
+      }),
+    );
+
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
+      where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      create: {
+        key: PURCHASE_DIFF_SYNC_METADATA_KEY,
+        cursorId: null,
+        lastSyncedAt: new Date(0),
+      },
+      update: { cursorId: null, lastSyncedAt: new Date(0) },
+    });
+    expect(getPurchasesDiffMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ found: 0, processed: 0 });
+  });
+
+  it("does not reset the replay checkpoint once the run is aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>(), {
+        abortSignal: controller.signal,
+        resetCursor: true,
+      }),
+    );
+
+    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(getPurchasesDiffMock).not.toHaveBeenCalled();
+  });
+
+  it("does not report an expected in-flight cancellation", async () => {
+    const { err } = await import("neverthrow");
+    const controller = new AbortController();
+    getPurchasesDiffMock.mockImplementationOnce(async () => {
+      controller.abort();
+      return err("aborted");
+    });
+
+    const result = await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>(), {
+        abortSignal: controller.signal,
+      }),
+    );
+
+    expect(result).toEqual({ found: 0, processed: 0 });
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("reports a request timeout while the run budget remains", async () => {
+    const { err } = await import("neverthrow");
+    const timeoutController = new AbortController();
+    timeoutController.abort();
+    const timeoutSpy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValueOnce(timeoutController.signal);
+    getPurchasesDiffMock.mockResolvedValueOnce(err("aborted"));
+
+    try {
+      await syncPurchasesFromDiff(createOptions(vi.fn<ApplyPurchase>()));
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
   it("stops mid-page when the run budget runs out", async () => {
@@ -653,9 +1111,9 @@ describe("syncPurchasesFromDiff budget handling", () => {
         job: { id: "job_2", blockchainIdentifier: "chain-2" },
       }),
     ]);
-    // One check before the request, then one per row: the second row is the
-    // one that must fall outside the budget.
-    let checksLeft = 2;
+    // One check before the cursor read, one before the request, then one per
+    // row: the second row is the one that must fall outside the budget.
+    let checksLeft = 3;
     const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
 
     const result = await syncPurchasesFromDiff(
@@ -668,7 +1126,10 @@ describe("syncPurchasesFromDiff budget handling", () => {
     expect(result.processed).toBe(1);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
+        update: {
+          cursorId: storedCursorContaining("purchase_1"),
+          lastSyncedAt: expect.any(Date),
+        },
       }),
     );
   });
@@ -697,5 +1158,35 @@ describe("syncPurchasesFromDiff cursor stalls", () => {
 
     expect(getPurchasesDiffMock).toHaveBeenCalledTimes(2);
     expect(result.found).toBe(PURCHASE_DIFF_PAGE_SIZE * 2);
+  });
+
+  it("continues when the cursor purchase moves to a newer timestamp", async () => {
+    const movedAt = new Date(CHANGED_AT.getTime() + 60_000);
+    syncMetadataFindUniqueMock.mockResolvedValue(
+      createStoredCursor("purchase_resume"),
+    );
+    const movedPage = [
+      ...Array.from({ length: PURCHASE_DIFF_PAGE_SIZE - 1 }, (_row, index) =>
+        createDiffPurchase({ id: `purchase_${index}` }),
+      ),
+      createDiffPurchase({
+        id: "purchase_resume",
+        nextActionOrOnChainStateOrResultLastChangedAt: movedAt,
+      }),
+    ];
+    getPurchasesDiffMock
+      .mockResolvedValueOnce(ok(movedPage))
+      .mockResolvedValueOnce(ok([]));
+
+    await syncPurchasesFromDiff(createOptions(vi.fn<ApplyPurchase>()));
+
+    expect(getPurchasesDiffMock).toHaveBeenCalledTimes(2);
+    expect(getPurchasesDiffMock).toHaveBeenNthCalledWith(
+      2,
+      movedAt,
+      "purchase_resume",
+      PURCHASE_DIFF_PAGE_SIZE,
+      expect.anything(),
+    );
   });
 });

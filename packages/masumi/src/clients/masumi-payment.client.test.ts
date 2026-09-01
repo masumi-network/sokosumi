@@ -35,6 +35,7 @@ const startJobResponse: StartPaidJobResponseSchemaType = {
 function createResolvedPurchase(overrides: Record<string, unknown> = {}) {
   return {
     id: "purchase_existing",
+    createdAt: new Date("2026-01-05T09:00:00.000Z"),
     blockchainIdentifier: startJobResponse.blockchainIdentifier,
     agentIdentifier: startJobResponse.agentIdentifier,
     inputHash: startJobResponse.input_hash,
@@ -54,6 +55,9 @@ function createResolvedPurchase(overrides: Record<string, unknown> = {}) {
       walletVkey: startJobResponse.sellerVKey,
     },
     SmartContractWallet: null,
+    nextActionOrOnChainStateOrResultLastChangedAt: new Date(
+      "2026-01-05T10:00:00.000Z",
+    ),
     ...overrides,
   };
 }
@@ -1457,5 +1461,58 @@ describe("createPaymentClient purchase diff", () => {
     const result = await client.getPurchasesDiff(new Date(0), null, 25);
 
     expect(result.isErr()).toBe(true);
+  });
+
+  it("rejects an invalid diff cursor timestamp", async () => {
+    getPurchaseDiffMock.mockResolvedValue({
+      data: {
+        data: {
+          Purchases: [
+            createResolvedPurchase({
+              nextActionOrOnChainStateOrResultLastChangedAt: new Date(
+                Number.NaN,
+              ),
+            }),
+          ],
+        },
+      },
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.test",
+      "api-key",
+    );
+
+    const result = await client.getPurchasesDiff(new Date(0), null, 25);
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toContain("invalid change timestamp");
+  });
+
+  it("rejects a diff cursor timestamp coerced from null", async () => {
+    getPurchaseDiffMock.mockResolvedValue({
+      data: {
+        data: {
+          Purchases: [
+            createResolvedPurchase({
+              // The generated transformer converts a wire-level null to epoch.
+              nextActionOrOnChainStateOrResultLastChangedAt: new Date(0),
+            }),
+          ],
+        },
+      },
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.test",
+      "api-key",
+    );
+
+    const result = await client.getPurchasesDiff(new Date(0), null, 25);
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toContain("invalid change timestamp");
   });
 });

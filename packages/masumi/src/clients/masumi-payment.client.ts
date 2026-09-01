@@ -369,17 +369,20 @@ export function createPaymentClient(
      * several purchases carry the same change timestamp, so a page boundary
      * cannot drop or repeat a row.
      *
-     * No payment-source filter is sent, so both V1 and V2 purchases come back.
-     * That is deliberate but version-bound.
+     * No payment-source filter is sent, so both rails inside the API key's
+     * wallet scope can come back. That is deliberate but version-bound.
      *
      * `GET /purchase`, `/payment/diff` and `/registry/diff` each default to
      * Web3CardanoV1 when neither `filterPaymentSourceType` nor
-     * `filterSmartContractAddress` is given. `/purchase/diff` does not: the
-     * deployed route takes only limit, cursorId, lastUpdate, network,
-     * filterSmartContractAddress and includeHistory, and its where clause
-     * filters on deletedAt, network and smartContractAddress alone. Both rails
-     * arrive in one feed (masumi-payment-service `5416f92fb^`,
-     * `src/routes/api/purchases/diff/index.ts`, buildPurchaseDiffWhere).
+     * `filterSmartContractAddress` is given. `/purchase/diff` has no such
+     * default.
+     *
+     * VERIFIED against masumi-payment-service `5416f92fb^`: the deployed route
+     * applies deletedAt, network, smartContractAddress, and the API key's wallet
+     * scope. It does not filter payment source, so both rails inside that wallet
+     * scope arrive in one feed. The configured key must cover every purchasing
+     * wallet Sokosumi uses (`src/routes/api/purchases/diff/index.ts`,
+     * buildPurchaseDiffWhere).
      *
      * If that route ever gains `filterPaymentSourceType`, this call has to page
      * each rail with its own cursor, because the node resolves one source type
@@ -411,7 +414,25 @@ export function createPaymentClient(
             `purchase-diff ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
           );
         }
-        return ok(response.data.data.Purchases);
+        const purchases = response.data.data.Purchases;
+        const invalidCursorPurchase = purchases.find((purchase) => {
+          const changedAt =
+            purchase.nextActionOrOnChainStateOrResultLastChangedAt;
+          const createdAt = purchase.createdAt;
+          return (
+            !(changedAt instanceof Date) ||
+            Number.isNaN(changedAt.getTime()) ||
+            !(createdAt instanceof Date) ||
+            Number.isNaN(createdAt.getTime()) ||
+            changedAt.getTime() < createdAt.getTime()
+          );
+        });
+        if (invalidCursorPurchase) {
+          return err(
+            `purchase-diff 200: invalid change timestamp for purchase ${invalidCursorPurchase.id}`,
+          );
+        }
+        return ok(purchases);
       } catch (error) {
         return err(String(error) || "Failed to fetch the purchase diff");
       }

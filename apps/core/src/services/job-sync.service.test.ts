@@ -8,6 +8,7 @@ import { SokosumiJobStatus } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PURCHASE_DIFF_SYNC_METADATA_KEY } from "./job-purchase-diff.service";
 import { jobSyncService } from "./job-sync.service";
 
 const {
@@ -34,7 +35,6 @@ const {
   getPurchaseByBlockchainIdentifierMock,
   getPurchasesDiffMock,
   jobPurchaseFindManyMock,
-  syncMetadataDeleteManyMock,
   syncMetadataFindUniqueMock,
   syncMetadataUpdateManyMock,
   syncMetadataUpsertMock,
@@ -70,7 +70,6 @@ const {
     getPurchaseByBlockchainIdentifierMock: vi.fn(),
     getPurchasesDiffMock: vi.fn(),
     jobPurchaseFindManyMock: vi.fn(),
-    syncMetadataDeleteManyMock: vi.fn(),
     syncMetadataFindUniqueMock: vi.fn(),
     syncMetadataUpdateManyMock: vi.fn(),
     syncMetadataUpsertMock: vi.fn(),
@@ -149,8 +148,13 @@ vi.mock("@/config/env", () => ({
   getWebAppBaseUrl: () => "https://app.sokosumi.test",
 }));
 
-vi.mock("@/helpers/purchase", () => ({
+vi.mock("@/helpers/purchase", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/purchase")>()),
   transformPurchaseToJobUpdate: (purchase: {
+    CurrentTransaction?: {
+      status: string;
+      txHash?: string | null;
+    } | null;
     id: string;
     nextAction?: string | null;
     nextActionErrorNote?: string | null;
@@ -164,6 +168,16 @@ vi.mock("@/helpers/purchase", () => ({
     nextAction: purchase.nextAction ?? "NONE",
     nextActionErrorType: purchase.nextActionErrorType ?? null,
     nextActionErrorNote: purchase.nextActionErrorNote ?? null,
+    ...(purchase.CurrentTransaction
+      ? {
+          onChainTransactionHash:
+            purchase.CurrentTransaction.txHash ?? undefined,
+          onChainTransactionStatus:
+            purchase.CurrentTransaction.status === "Confirmed"
+              ? "COMPLETED"
+              : "PENDING",
+        }
+      : {}),
   }),
 }));
 
@@ -184,7 +198,6 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: jobPurchaseFindManyMock,
     },
     syncMetadata: {
-      deleteMany: syncMetadataDeleteManyMock,
       findUnique: syncMetadataFindUniqueMock,
       updateMany: syncMetadataUpdateManyMock,
       upsert: syncMetadataUpsertMock,
@@ -288,6 +301,7 @@ function matchingResolvedPurchase(
   const agent = job.agent as { blockchainIdentifier?: string } | undefined;
   const inputData = JSON.parse(job.input as string);
   return {
+    blockchainIdentifier: job.blockchainIdentifier,
     inputHash: job.inputHash,
     agentIdentifier:
       job.agentBlockchainIdentifier ?? agent?.blockchainIdentifier ?? null,
@@ -355,17 +369,20 @@ function createExecutionOptions(
 
 function mockInitialJobQueries({
   purchase = [],
+  purchaseTransaction = [],
   agent,
   pendingLocalRefunds = [],
   unfinished,
 }: {
   purchase?: Record<string, unknown>[];
+  purchaseTransaction?: Record<string, unknown>[];
   agent?: Record<string, unknown>[];
   pendingLocalRefunds?: Record<string, unknown>[];
   unfinished?: Record<string, unknown>[];
 } = {}) {
   prismaJobFindManyMock.mockReset();
   prismaJobFindManyMock.mockResolvedValueOnce(purchase);
+  prismaJobFindManyMock.mockResolvedValueOnce(purchaseTransaction);
   prismaJobFindManyMock.mockResolvedValueOnce(agent ?? unfinished ?? []);
   prismaJobFindManyMock.mockResolvedValueOnce(pendingLocalRefunds);
 }
@@ -396,7 +413,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       getPurchaseByBlockchainIdentifierMock,
       getPurchasesDiffMock,
       jobPurchaseFindManyMock,
-      syncMetadataDeleteManyMock,
       syncMetadataFindUniqueMock,
       syncMetadataUpdateManyMock,
       syncMetadataUpsertMock,
@@ -785,6 +801,98 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
     // The run report is what the cron logs, so diff work has to reach it.
     expect(result.processed).toBe(1);
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("polls a purchase whose pending transaction can change outside the diff cursor", async () => {
+    const pendingJob = createJob({
+      purchase: {
+        externalId: "purchase_1",
+        onChainStatus: "FUNDS_LOCKED",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+        onChainTransactionHash: null,
+        onChainTransactionStatus: "PENDING",
+      },
+    });
+    mockInitialJobQueries({ purchaseTransaction: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(
+        matchingResolvedPurchase(pendingJob, {
+          id: "purchase_1",
+          blockchainIdentifier: "blockchain-job-1",
+          CurrentTransaction: {
+            status: "Confirmed",
+            txHash: "transaction-hash-1",
+          },
+        }),
+      ),
+    );
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(getPurchaseByBlockchainIdentifierMock).toHaveBeenCalledWith(
+      "blockchain-job-1",
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(updateJobPurchaseByJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      expect.objectContaining({
+        onChainTransactionHash: "transaction-hash-1",
+        onChainTransactionStatus: "COMPLETED",
+      }),
+      {},
+    );
+    expect(result.processed).toBe(1);
+  });
+
+  it("polls an attached legacy purchase without full term snapshots", async () => {
+    const pendingJob = createJob({
+      inputHash: null,
+      payByTime: null,
+      submitResultTime: null,
+      unlockTime: null,
+      externalDisputeUnlockTime: null,
+      purchaseAmounts: null,
+      purchaseAmountMatchRequired: false,
+      sellerVkey: null,
+      purchase: {
+        externalId: "purchase_1",
+        onChainStatus: "FUNDS_LOCKED",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+        onChainTransactionHash: null,
+        onChainTransactionStatus: "PENDING",
+      },
+    });
+    mockInitialJobQueries({ purchaseTransaction: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({
+        id: "purchase_1",
+        blockchainIdentifier: "blockchain-job-1",
+        CurrentTransaction: {
+          status: "Confirmed",
+          txHash: "transaction-hash-1",
+        },
+      }),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(updateJobPurchaseByJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      expect.objectContaining({
+        onChainTransactionHash: "transaction-hash-1",
+        onChainTransactionStatus: "COMPLETED",
+      }),
+      {},
+    );
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
@@ -1402,8 +1510,14 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       resetPurchaseCursor: true,
     });
 
-    expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
-      where: { key: "purchase-diff-sync:v1" },
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
+      where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      create: {
+        key: PURCHASE_DIFF_SYNC_METADATA_KEY,
+        cursorId: null,
+        lastSyncedAt: new Date(0),
+      },
+      update: { cursorId: null, lastSyncedAt: new Date(0) },
     });
     expect(getPurchasesDiffMock).toHaveBeenCalledWith(
       new Date(0),
@@ -2607,6 +2721,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
 
     prismaJobFindManyMock.mockReset();
+    prismaJobFindManyMock.mockResolvedValueOnce([]);
     prismaJobFindManyMock.mockResolvedValueOnce([]);
     prismaJobFindManyMock.mockResolvedValueOnce([createJob()]);
     prismaJobFindManyMock.mockRejectedValueOnce(new Error("refund query down"));

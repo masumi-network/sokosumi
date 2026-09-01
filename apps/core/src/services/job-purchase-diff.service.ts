@@ -4,13 +4,10 @@ import {
   type JobWithSokosumiStatus,
   jobInclude,
 } from "@sokosumi/database/types/job";
-import {
-  doHexValuesMatch,
-  normalizeV2RegistryIdentifier,
-} from "@sokosumi/masumi";
 import type { MasumiPurchaseDiffEntry } from "@sokosumi/masumi/clients";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
+import { doesPurchaseMatchJobTerms } from "@/helpers/purchase";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 
@@ -20,7 +17,7 @@ import { captureExternalServiceError } from "@/lib/external-service-errors";
  * purchases must be replayed, so an old binary cannot advance the new cursor
  * during a rolling deployment.
  */
-export const PURCHASE_DIFF_SYNC_METADATA_KEY = "purchase-diff-sync:v1";
+export const PURCHASE_DIFF_SYNC_METADATA_KEY = "purchase-diff-sync:v2";
 
 /** Rows per diff request. The run deadline, not this number, bounds a run. */
 export const PURCHASE_DIFF_PAGE_SIZE = 50;
@@ -48,6 +45,11 @@ export const PURCHASE_DIFF_INITIAL_LOOKBACK_MS = 1000 * 60 * 60 * 24 * 30;
  * re-read every open job each tick is gone. Re-reading a few minutes of
  * already-applied rows costs one no-op write each: finalizeJobSyncResult
  * returns early when the job status did not change, so nothing is re-notified.
+ *
+ * VERIFIED 2026-09-01: the payment service trigger uses transaction-start
+ * CURRENT_TIMESTAMP. A run therefore advances its drained watermark only to
+ * wall-clock time minus this window. A parked scan keeps its original horizon
+ * across runs, so the next overlap starts where that scan proved completeness.
  */
 export const PURCHASE_DIFF_REREAD_WINDOW_MS = 1000 * 60 * 5;
 
@@ -88,43 +90,30 @@ interface PurchaseDiffCursor {
   id: string;
 }
 
+interface PersistedPurchaseDiffCursor {
+  changedAt: string;
+  cursorId: string | null;
+  stableThrough: string;
+  version: 1;
+}
+
 function shouldStop(
   options: PurchaseDiffSyncOptions,
   message: string,
+  allowExpiredDeadline = false,
 ): boolean {
   if (options.abortSignal.aborted) {
     console.info(`[sync/jobs/purchase-diff] ${message} (aborted)`);
     return true;
   }
-  if (!options.shouldContinue() || Date.now() >= options.deadlineMs) {
+  if (
+    !options.shouldContinue() ||
+    (!allowExpiredDeadline && Date.now() >= options.deadlineMs)
+  ) {
     console.info(`[sync/jobs/purchase-diff] ${message} (out of budget)`);
     return true;
   }
   return false;
-}
-
-/**
- * A blockchain identifier alone does not prove a purchase belongs to a job:
- * the 409 duplicate guard at hire time exists because a foreign purchase can
- * carry the same identifier. The backfill phase answers that with a full terms
- * check before it attaches anything, and the fallback below must not be a way
- * around it. These two terms are the discriminators a foreign purchase cannot
- * fake: the input hash covers what was ordered, the agent identifier covers who
- * it was ordered from. A job with no stored input hash (pre-snapshot rows) is
- * unverifiable, so the fallback refuses it rather than guessing.
- */
-function doesFallbackPurchaseMatchJob(
-  purchase: MasumiPurchaseDiffEntry,
-  job: JobWithSokosumiStatus,
-): boolean {
-  const expectedAgentIdentifier =
-    job.agentBlockchainIdentifier ?? job.agent?.blockchainIdentifier ?? null;
-  return (
-    doHexValuesMatch(purchase.inputHash, job.inputHash) &&
-    expectedAgentIdentifier !== null &&
-    normalizeV2RegistryIdentifier(purchase.agentIdentifier ?? "") ===
-      normalizeV2RegistryIdentifier(expectedAgentIdentifier)
-  );
 }
 
 /**
@@ -175,24 +164,49 @@ async function getJobsForDiffPurchases(
   }
 
   const rowsByIdentifier = await prisma.jobPurchase.findMany({
-    where: { job: { blockchainIdentifier: { in: identifiers } } },
+    where: {
+      job: {
+        blockchainIdentifier: { in: identifiers, mode: "insensitive" },
+      },
+    },
     include: { job: { include: jobInclude } },
   });
-  const jobsByIdentifier = new Map(
-    rowsByIdentifier.map((row) => [
-      row.job.blockchainIdentifier,
-      mapJobWithStatus(row.job),
-    ]),
-  );
-  for (const purchase of unmatched) {
-    const job = jobsByIdentifier.get(purchase.blockchainIdentifier);
-    if (!job || claimedJobIds.has(job.id)) {
+  const jobsByIdentifier = new Map<string, JobWithSokosumiStatus[]>();
+  for (const row of rowsByIdentifier) {
+    const identifier = row.job.blockchainIdentifier?.toLowerCase();
+    if (!identifier) {
       continue;
     }
-    if (!doesFallbackPurchaseMatchJob(purchase, job)) {
-      console.warn(
-        `[sync/jobs/purchase-diff] Purchase ${purchase.id} carries job ${job.id}'s blockchain identifier but not its terms; refusing the fallback match`,
+    const jobs = jobsByIdentifier.get(identifier) ?? [];
+    jobs.push(mapJobWithStatus(row.job));
+    jobsByIdentifier.set(identifier, jobs);
+  }
+  for (const purchase of unmatched) {
+    const candidates =
+      jobsByIdentifier
+        .get(purchase.blockchainIdentifier.toLowerCase())
+        ?.filter((job) => !claimedJobIds.has(job.id)) ?? [];
+    if (candidates.length === 0) {
+      continue;
+    }
+    const matchingJobs = candidates.filter((job) =>
+      doesPurchaseMatchJobTerms(purchase, job),
+    );
+    if (matchingJobs.length !== 1) {
+      const fallbackError = new Error(
+        matchingJobs.length === 0
+          ? `Purchase ${purchase.id} matches a job blockchain identifier but not its durable terms`
+          : `Purchase ${purchase.id} ambiguously matches ${matchingJobs.length} jobs by blockchain identifier and durable terms`,
       );
+      console.error(fallbackError.message, {
+        candidateJobIds: candidates.map((job) => job.id),
+        purchaseId: purchase.id,
+      });
+      Sentry.captureException(fallbackError);
+      continue;
+    }
+    const job = matchingJobs[0];
+    if (job === undefined) {
       continue;
     }
     console.warn(
@@ -235,83 +249,179 @@ function isDiffPurchaseForeign(
 }
 
 /**
- * Where a run begins.
- *
- * The stored `cursorId` carries one bit beyond the tie-break the node needs:
- * whether the previous run reached the end of the feed.
- *
- * - **Set** — the previous run stopped early (deadline, park, node error).
- *   Resume on exactly that row, so the work it already did is not repeated.
- *   Without this a run that cannot drain the re-read window in one budget
- *   persists nothing it has not already read, and every later run repeats the
- *   same window forever while newer changes are never reached.
- * - **Null** — the previous run drained the feed. Restart the re-read window
- *   before the stored timestamp; the tie-break is redundant there, because
- *   the row the id would have excluded is meant to come back.
+ * Where a run begins. `lastSyncedAt` is always the safe watermark. `cursorId`
+ * is an opaque active-scan state with its page cursor and fixed time horizon.
+ * Keeping them separate prevents an interrupted forward scan from moving the
+ * safe watermark past a transaction that committed behind its page cursor.
  */
 interface PurchaseDiffCursorStart {
   changedAt: Date;
   cursorId: string | null;
+  safeWatermark: Date;
+  stableThrough: Date;
+}
+
+function parsePersistedCursor(
+  encodedCursor: string,
+): Omit<PurchaseDiffCursorStart, "safeWatermark"> | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(encodedCursor);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) {
+    return null;
+  }
+  const value = parsed as Record<string, unknown>;
+  if (
+    value.version !== 1 ||
+    typeof value.changedAt !== "string" ||
+    (value.cursorId !== null && typeof value.cursorId !== "string") ||
+    typeof value.stableThrough !== "string"
+  ) {
+    return null;
+  }
+  const changedAt = new Date(value.changedAt);
+  const stableThrough = new Date(value.stableThrough);
+  if (
+    Number.isNaN(changedAt.getTime()) ||
+    Number.isNaN(stableThrough.getTime()) ||
+    changedAt.getTime() > stableThrough.getTime()
+  ) {
+    return null;
+  }
+  return {
+    changedAt,
+    cursorId: value.cursorId,
+    stableThrough,
+  };
+}
+
+function encodePersistedCursor(
+  cursor: { changedAt: Date; id: string | null },
+  stableThrough: Date,
+): string {
+  const persistedCursor: PersistedPurchaseDiffCursor = {
+    changedAt: cursor.changedAt.toISOString(),
+    cursorId: cursor.id,
+    stableThrough: stableThrough.toISOString(),
+    version: 1,
+  };
+  return JSON.stringify(persistedCursor);
 }
 
 async function readCursor(
   options: PurchaseDiffSyncOptions,
+  stableThrough: Date,
 ): Promise<PurchaseDiffCursorStart> {
   if (options.resetCursor) {
-    await prisma.syncMetadata.deleteMany({
+    const replayStart = new Date(0);
+    await prisma.syncMetadata.upsert({
       where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      create: {
+        key: PURCHASE_DIFF_SYNC_METADATA_KEY,
+        cursorId: null,
+        lastSyncedAt: replayStart,
+      },
+      update: { cursorId: null, lastSyncedAt: replayStart },
     });
     console.info(
       "[sync/jobs/purchase-diff] Cursor reset requested — replaying the full purchase diff",
     );
-    return { changedAt: new Date(0), cursorId: null };
+    return {
+      changedAt: replayStart,
+      cursorId: null,
+      safeWatermark: replayStart,
+      stableThrough,
+    };
   }
 
   const metadata = await prisma.syncMetadata.findUnique({
     where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
   });
   if (!metadata) {
+    const initialStart = new Date(
+      Date.now() - PURCHASE_DIFF_INITIAL_LOOKBACK_MS,
+    );
+    await prisma.syncMetadata.upsert({
+      where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      create: {
+        key: PURCHASE_DIFF_SYNC_METADATA_KEY,
+        cursorId: null,
+        lastSyncedAt: initialStart,
+      },
+      update: { cursorId: null, lastSyncedAt: initialStart },
+    });
     return {
-      changedAt: new Date(Date.now() - PURCHASE_DIFF_INITIAL_LOOKBACK_MS),
+      changedAt: initialStart,
       cursorId: null,
+      safeWatermark: initialStart,
+      stableThrough,
     };
   }
   if (metadata.cursorId !== null) {
-    return { changedAt: metadata.lastSyncedAt, cursorId: metadata.cursorId };
+    const persistedCursor = parsePersistedCursor(metadata.cursorId);
+    if (persistedCursor !== null) {
+      return {
+        ...persistedCursor,
+        safeWatermark: metadata.lastSyncedAt,
+      };
+    }
+    const invalidCursorError = new Error(
+      "Stored purchase diff cursor state is invalid; restarting from the safe watermark",
+    );
+    console.error(invalidCursorError.message);
+    Sentry.captureException(invalidCursorError);
+    await prisma.syncMetadata.updateMany({
+      where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
+      data: { cursorId: null },
+    });
   }
   return {
     changedAt: new Date(
-      metadata.lastSyncedAt.getTime() - PURCHASE_DIFF_REREAD_WINDOW_MS,
+      Math.max(
+        0,
+        metadata.lastSyncedAt.getTime() - PURCHASE_DIFF_REREAD_WINDOW_MS,
+      ),
     ),
     cursorId: null,
+    safeWatermark: metadata.lastSyncedAt,
+    stableThrough,
   };
 }
 
-/** The row a run reached. Doubles as its resume point; see the interface. */
-async function persistCursor(cursor: PurchaseDiffCursor): Promise<void> {
+/** Stores active scan progress without moving the safe watermark. */
+async function persistCursor(
+  safeWatermark: Date,
+  cursor: { changedAt: Date; id: string | null },
+  stableThrough: Date,
+): Promise<void> {
+  const encodedCursor = encodePersistedCursor(cursor, stableThrough);
   await prisma.syncMetadata.upsert({
     where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
     create: {
       key: PURCHASE_DIFF_SYNC_METADATA_KEY,
-      cursorId: cursor.id,
-      lastSyncedAt: cursor.changedAt,
+      cursorId: encodedCursor,
+      lastSyncedAt: safeWatermark,
     },
     update: {
-      cursorId: cursor.id,
-      lastSyncedAt: cursor.changedAt,
+      cursorId: encodedCursor,
+      lastSyncedAt: safeWatermark,
     },
   });
 }
 
 /**
- * Clears the resume point once a run has read the feed to its end, which arms
- * the re-read window for the next run. `updateMany` because a run can drain
- * the feed without ever writing a cursor row.
+ * Clears the resume point once a run reaches its safe time horizon. Moving the
+ * watermark to that horizon keeps normal empty runs cheap and arms the re-read
+ * window for the next run. `updateMany` because readCursor always creates the
+ * metadata row before a request.
  */
-async function markCursorDrained(): Promise<void> {
+async function markCursorDrained(stableThrough: Date): Promise<void> {
   await prisma.syncMetadata.updateMany({
     where: { key: PURCHASE_DIFF_SYNC_METADATA_KEY },
-    data: { cursorId: null },
+    data: { cursorId: null, lastSyncedAt: stableThrough },
   });
 }
 
@@ -352,7 +462,22 @@ export async function syncPurchasesFromDiff(
   options: PurchaseDiffSyncOptions,
 ): Promise<PurchaseDiffSyncResult> {
   const startedAt = Date.now();
-  const cursorStart = await readCursor(options);
+  const nextStableThrough = new Date(
+    startedAt - PURCHASE_DIFF_REREAD_WINDOW_MS,
+  );
+  if (
+    shouldStop(
+      options,
+      options.resetCursor
+        ? "Stopping before resetting the diff cursor"
+        : "Stopping before reading the diff cursor",
+      options.resetCursor === true,
+    )
+  ) {
+    return { found: 0, processed: 0 };
+  }
+  const cursorStart = await readCursor(options, nextStableThrough);
+  const { safeWatermark, stableThrough } = cursorStart;
   let { changedAt, cursorId } = cursorStart;
   const claimedJobIds = new Set<string>();
   let drained = false;
@@ -372,12 +497,24 @@ export async function syncPurchasesFromDiff(
       break;
     }
 
+    const requestChangedAt = changedAt;
+    const requestCursorId = cursorId;
     const purchasesResult = await paymentClient().getPurchasesDiff(
       changedAt,
       cursorId,
       PURCHASE_DIFF_PAGE_SIZE,
       { signal },
     );
+    if (
+      signal.aborted &&
+      (options.abortSignal.aborted ||
+        Date.now() >= options.deadlineMs - PURCHASE_DIFF_TIMEOUT_BUFFER_MS)
+    ) {
+      console.info(
+        "[sync/jobs/purchase-diff] Stopping after the diff request (aborted)",
+      );
+      break;
+    }
     if (purchasesResult.isErr()) {
       // The diff is the only path that updates a job whose purchase row
       // already exists, so a request that keeps failing (an expired API key,
@@ -399,15 +536,45 @@ export async function syncPurchasesFromDiff(
     }
     found += purchases.length;
 
+    const stablePurchases = purchases.filter(
+      (purchase) =>
+        purchase.nextActionOrOnChainStateOrResultLastChangedAt.getTime() <=
+        stableThrough.getTime(),
+    );
+    const reachedStableHorizon = stablePurchases.length < purchases.length;
+    if (stablePurchases.length === 0) {
+      drained = true;
+      break;
+    }
+
+    const purchasesToHandle = stablePurchases.filter(
+      (purchase) =>
+        requestCursorId === null ||
+        purchase.id !== requestCursorId ||
+        purchase.nextActionOrOnChainStateOrResultLastChangedAt.getTime() !==
+          requestChangedAt.getTime(),
+    );
     const jobsByPurchaseId = await getJobsForDiffPurchases(
-      purchases,
+      purchasesToHandle,
       claimedJobIds,
     );
 
     let lastHandledCursor: PurchaseDiffCursor | null = null;
     let stopAfterThisPage = false;
 
-    for (const purchase of purchases) {
+    for (const purchase of stablePurchases) {
+      const purchaseCursor = {
+        changedAt: purchase.nextActionOrOnChainStateOrResultLastChangedAt,
+        id: purchase.id,
+      };
+      if (
+        requestCursorId !== null &&
+        purchase.id === requestCursorId &&
+        purchaseCursor.changedAt.getTime() === requestChangedAt.getTime()
+      ) {
+        lastHandledCursor = purchaseCursor;
+        continue;
+      }
       if (shouldStop(options, `Stopping before purchase ${purchase.id}`)) {
         stopAfterThisPage = true;
         break;
@@ -417,10 +584,7 @@ export async function syncPurchasesFromDiff(
       if (job === undefined) {
         // Another API-key consumer's purchase, or one of ours that has no job
         // row yet. The backfill phase owns the second case.
-        lastHandledCursor = {
-          changedAt: purchase.nextActionOrOnChainStateOrResultLastChangedAt,
-          id: purchase.id,
-        };
+        lastHandledCursor = purchaseCursor;
         continue;
       }
 
@@ -435,10 +599,7 @@ export async function syncPurchasesFromDiff(
           purchaseId: purchase.id,
         });
         Sentry.captureException(foreignPurchaseError);
-        lastHandledCursor = {
-          changedAt: purchase.nextActionOrOnChainStateOrResultLastChangedAt,
-          id: purchase.id,
-        };
+        lastHandledCursor = purchaseCursor;
         continue;
       }
 
@@ -462,19 +623,18 @@ export async function syncPurchasesFromDiff(
         break;
       }
 
-      lastHandledCursor = {
-        changedAt: purchase.nextActionOrOnChainStateOrResultLastChangedAt,
-        id: purchase.id,
-      };
+      lastHandledCursor = purchaseCursor;
     }
 
     if (lastHandledCursor !== null) {
-      await persistCursor(lastHandledCursor);
+      await persistCursor(safeWatermark, lastHandledCursor, stableThrough);
       // The node treats `lastUpdate` as inclusive and breaks ties on
       // `cursorId`, so a page that ends where the last one ended means the
       // cursor is not moving. Stop instead of re-reading (and re-applying)
       // the same rows until the deadline.
-      const cursorStalled = lastHandledCursor.id === cursorId;
+      const cursorStalled =
+        lastHandledCursor.id === requestCursorId &&
+        lastHandledCursor.changedAt.getTime() === requestChangedAt.getTime();
       changedAt = lastHandledCursor.changedAt;
       cursorId = lastHandledCursor.id;
       if (cursorStalled) {
@@ -493,6 +653,10 @@ export async function syncPurchasesFromDiff(
     if (stopAfterThisPage) {
       break;
     }
+    if (reachedStableHorizon) {
+      drained = true;
+      break;
+    }
     if (purchases.length < PURCHASE_DIFF_PAGE_SIZE) {
       drained = true;
       break;
@@ -500,7 +664,7 @@ export async function syncPurchasesFromDiff(
   }
 
   if (drained) {
-    await markCursorDrained();
+    await markCursorDrained(stableThrough);
   }
 
   console.info(

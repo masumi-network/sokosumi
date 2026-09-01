@@ -34,6 +34,44 @@ export function buildJobsNeedingPurchaseBackfillWhere(
 }
 
 /**
+ * Current transaction fields can change without moving the diff cursor.
+ * Bound ordinary states by the dispute deadline plus grace. Refund and dispute
+ * actions keep polling until their terminal state because credits depend on it.
+ */
+export function buildJobsNeedingPurchaseTransactionSyncWhere(
+  cutoffTime: Date = new Date(Date.now() - JOB_SYNC_PAYMENT_GRACE_MS),
+  legacyCutoffTime: Date = new Date(
+    Date.now() - FREE_JOB_OFFLINE_SYNC_WINDOW_MS,
+  ),
+): Prisma.JobWhereInput {
+  return {
+    jobType: JobType.PAID,
+    purchase: {
+      onChainTransactionStatus: { not: null },
+    },
+    OR: [
+      { externalDisputeUnlockTime: { gt: cutoffTime } },
+      {
+        externalDisputeUnlockTime: null,
+        createdAt: { gt: legacyCutoffTime },
+      },
+      {
+        purchase: {
+          onChainStatus: {
+            in: [
+              OnChainJobStatus.DISPUTED,
+              OnChainJobStatus.REFUND_REQUESTED,
+              OnChainJobStatus.REFUND_AUTHORIZED,
+              OnChainJobStatus.WITHDRAW_AUTHORIZED,
+            ],
+          },
+        },
+      },
+    ],
+  };
+}
+
+/**
  * Snapshot-backed jobs must keep polling when their stable Agent row advances
  * to an offline revision. Paid jobs use their signed dispute deadline; free
  * jobs have no protocol deadline, so their offline bypass is capped by age.

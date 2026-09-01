@@ -12,6 +12,7 @@ import {
 import {
   buildJobsNeedingAgentStatusSyncWhere,
   buildJobsNeedingPurchaseBackfillWhere,
+  buildJobsNeedingPurchaseTransactionSyncWhere,
   buildJobsPendingLocalRefundWhere,
   FREE_JOB_OFFLINE_SYNC_WINDOW_MS,
 } from "./job-sync.js";
@@ -141,6 +142,42 @@ describe("buildJobsNeedingPurchaseBackfillWhere", () => {
       payByTime: null,
       createdAt: { gt: cutoff },
     });
+  });
+});
+
+describe("buildJobsNeedingPurchaseTransactionSyncWhere", () => {
+  it("bounds transaction polls but keeps refund flows alive", () => {
+    const cutoff = new Date("2026-01-05T00:00:00.000Z");
+    const legacyCutoff = new Date("2025-12-06T00:00:00.000Z");
+
+    assert.deepEqual(
+      buildJobsNeedingPurchaseTransactionSyncWhere(cutoff, legacyCutoff),
+      {
+        jobType: JobType.PAID,
+        purchase: {
+          onChainTransactionStatus: { not: null },
+        },
+        OR: [
+          { externalDisputeUnlockTime: { gt: cutoff } },
+          {
+            externalDisputeUnlockTime: null,
+            createdAt: { gt: legacyCutoff },
+          },
+          {
+            purchase: {
+              onChainStatus: {
+                in: [
+                  OnChainJobStatus.DISPUTED,
+                  OnChainJobStatus.REFUND_REQUESTED,
+                  OnChainJobStatus.REFUND_AUTHORIZED,
+                  OnChainJobStatus.WITHDRAW_AUTHORIZED,
+                ],
+              },
+            },
+          },
+        ],
+      },
+    );
   });
 });
 

@@ -11,10 +11,10 @@ function createTx(update = vi.fn()) {
 }
 
 describe("jobPurchaseRepository.updateJobPurchaseByJobId", () => {
-  it("writes the payment node's purchase id so a stale externalId repairs", () => {
+  it("writes the payment node's purchase id so a stale externalId repairs", async () => {
     const { tx, update } = createTx();
 
-    jobPurchaseRepository.updateJobPurchaseByJobId(
+    await jobPurchaseRepository.updateJobPurchaseByJobId(
       "job_1",
       { externalId: "purchase_new" },
       tx,
@@ -29,10 +29,10 @@ describe("jobPurchaseRepository.updateJobPurchaseByJobId", () => {
     });
   });
 
-  it("omits fields that were not provided", () => {
+  it("omits fields that were not provided", async () => {
     const { tx, update } = createTx();
 
-    jobPurchaseRepository.updateJobPurchaseByJobId(
+    await jobPurchaseRepository.updateJobPurchaseByJobId(
       "job_1",
       { resultHash: "hash" },
       tx,

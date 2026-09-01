@@ -53,11 +53,12 @@ Override per run to generate against a staging or local node:
 PAYMENT_SPEC_URL=... REGISTRY_SPEC_URL=... pnpm --filter @sokosumi/masumi fetch:specs
 ```
 
-Earlier snapshots (2026-07-27/28) were lifted from the service repos —
-masumi-payment-service `codex/cardano-purchase-readiness` and
-masumi-registry-service `dev` @ `fe9ac5e` — because the deployments had not yet
-been upgraded to the V2/x402 release. They have been since, and the deployed
-specs are byte-identical to those snapshots, so the two sources have converged.
+Earlier snapshots (2026-07-27/28) came from the service repositories because
+the deployments had not yet been upgraded to the V2/x402 release. Payment used
+`codex/cardano-purchase-readiness`. Registry used `dev` at `fe9ac5e`. Those
+deployments were upgraded later. VERIFIED on 2026-09-01: registry still matched
+its snapshot. Payment did not, so the table above now records the deployed
+payment spec.
 
 ## Guards
 
