@@ -103,11 +103,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const where: Prisma.CoworkerWhereInput = {
       ...baseScope,
       ...(capability ? { capabilities: { hasEvery: capability } } : {}),
-      // Marketplace / hire galleries never list shadow Soko Bot coworkers.
-      // Owner-scoped PA picker uses room orchestratorMembers instead (SOK-942).
-      ...(scope === "whitelisted" || scope === "all" || scope === "available"
-        ? { sokoBotId: null }
-        : {}),
     };
 
     const coworkers = await prisma.coworker.findMany({
