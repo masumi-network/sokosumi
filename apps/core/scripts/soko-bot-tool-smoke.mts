@@ -118,34 +118,65 @@ await prisma.sokoBotContextSnapshot.create({
   },
 });
 
+// Filled in as the run creates them, so an interrupt can clean up the same
+// things the happy path does rather than only the turn.
+const scratchTaskIds: string[] = [];
+
 // The turn is RUNNING while this script holds it, and `startTurn` refuses to
 // begin anything while one is active. A crash between here and the delete
-// below would wedge the bot until somebody noticed, so the removal is in a
-// finally rather than at the end of the happy path.
-async function releaseTurn() {
+// below would wedge the bot until somebody noticed, so cleanup is in a finally
+// rather than at the end of the happy path.
+//
+// Failures are reported, not swallowed: a turn that could not be deleted
+// blocks the bot's next real turn, and a run that exits 0 after that would
+// leave nobody to notice.
+async function cleanUp(): Promise<boolean> {
+  let clean = true;
+  if (scratchTaskIds.length > 0) {
+    await prisma.task
+      .updateMany({
+        where: { id: { in: scratchTaskIds } },
+        data: { archivedAt: new Date() },
+      })
+      .catch((error: unknown) => {
+        clean = false;
+        console.error(`Scratch Tasks left on the board: ${String(error)}`);
+      });
+  }
+  await prisma.sokoBotPendingDecision
+    .deleteMany({ where: { turnId } })
+    .catch((error: unknown) => {
+      clean = false;
+      console.error(`Pending decision left for the owner: ${String(error)}`);
+    });
   await prisma.sokoBotTurn
     .delete({ where: { id: turnId } })
-    .catch(() => undefined);
+    .catch((error: unknown) => {
+      clean = false;
+      console.error(
+        `Turn ${turnId} is still RUNNING and blocks this bot: ${String(error)}`,
+      );
+    });
+  return clean;
 }
-process.on("uncaughtException", async (error) => {
-  await releaseTurn();
-  console.error(error);
-  process.exit(1);
-});
-process.on("unhandledRejection", async (error) => {
-  await releaseTurn();
-  console.error(error);
-  process.exit(1);
-});
+for (const event of ["uncaughtException", "unhandledRejection"] as const) {
+  process.on(event, async (error: unknown) => {
+    await cleanUp();
+    console.error(error);
+    process.exit(1);
+  });
+}
 // Ctrl-C is the likeliest way this run ends early, and the default handler
-// would leave the synthetic turn RUNNING and the bot unable to start another.
+// would leave the synthetic turn RUNNING, the bot unable to start another, and
+// the scratch Tasks sitting on the owner's board.
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {
-    await releaseTurn();
+    await cleanUp();
     process.exit(130);
   });
 }
 
+let failedRun = false;
 try {
   const svc = new SokoBotRuntimeService();
   // What `authorize` actually takes. The turn carries the bot, owner and
@@ -238,27 +269,27 @@ try {
         inputSchema?: { required?: string[] };
       }[];
     } | null;
-    // Not simply the first tool: calling an arbitrary one with `{}` either
-    // fails on missing arguments — a false negative that says nothing about
-    // the capability — or, if it happens to accept empty input, performs an
-    // uncontrolled write on somebody's real account. A tool that names itself
-    // a read and requires no arguments is the only safe thing to invoke here.
-    const READ_TOOL = /(^|_)(list|get|search|fetch|read)(_|$)/i;
-    const safe = tools?.tools?.find(
-      (candidate) =>
-        READ_TOOL.test(candidate.slug) &&
-        (candidate.inputSchema?.required ?? []).length === 0,
-    );
-    if (safe) {
+    // Named on the command line, never chosen here. A slug is not a contract:
+    // SEARCH_AND_ARCHIVE reads as a read and archives somebody's real mail, and
+    // no naming rule this script could apply separates the two. Whoever runs it
+    // picks a tool they have looked at.
+    const named = flag("--integration-tool");
+    const listed = tools?.tools?.some((tool) => tool.slug === named);
+    if (named && listed) {
       await run("run_integration_tool", {
         provider: generic.provider,
-        tool: safe.slug,
-        arguments: {},
+        tool: named,
+        arguments: JSON.parse(flag("--integration-args") ?? "{}"),
       });
+    } else if (named) {
+      skip(
+        "run_integration_tool",
+        `${named} is not a ${generic.provider} tool`,
+      );
     } else {
       skip(
         "run_integration_tool",
-        `no argument-free read tool on ${generic.provider}`,
+        `acts on the real ${generic.provider} account; pass --integration-tool <slug> [--integration-args '{...}']`,
       );
     }
   } else {
@@ -322,6 +353,7 @@ try {
         skip(c, "bot has no chat identity to assign to");
       }
     }
+    scratchTaskIds.push(created.id, ...(peerId ? [peerId] : []));
     leftBehind.push(
       `Tasks archived: ${created.id}${peerId ? `, ${peerId}` : ""}`,
     );
@@ -381,28 +413,38 @@ try {
   }
 
   // Memory is the bot's whole working state and `update_memory` replaces the
-  // document rather than appending to it, so the run writes a marked copy of
-  // what is already there and puts the original back afterwards.
+  // document rather than appending to it, so the run writes back exactly what
+  // it read. A failed read is not an empty memory: `run` returns null for both,
+  // and treating them alike would overwrite a real document with a blank one
+  // and then "restore" the blank.
   const currentMemory = (await run("read_memory", {})) as {
     markdown?: string;
   } | null;
-  const originalMarkdown = currentMemory?.markdown ?? "";
-  await run("update_memory", {
-    markdown: `${originalMarkdown}\n\n<!-- soko-bot:tool-smoke wrote this line and removes it again -->`,
-  });
-  if (results.get("update_memory")?.outcome === "ok") {
-    const restored = await svc
-      .executeTool({
-        ...scope,
-        capability: "update_memory",
-        toolCallId: randomUUID(),
-        input: { markdown: originalMarkdown },
-      })
-      .then(
-        () => true,
-        () => false,
-      );
-    if (!restored) leftBehind.push("memory: the smoke marker is still in it");
+  const originalMarkdown = currentMemory?.markdown;
+  if (typeof originalMarkdown !== "string") {
+    skip("update_memory", "memory could not be read; refusing to overwrite it");
+  } else {
+    // A heading the parser keeps, not an HTML comment it strips: a marker that
+    // does not survive the round trip proves nothing was written.
+    await run("update_memory", {
+      markdown: `${originalMarkdown}\n\n## Tool smoke\n- Written by soko-bot:tool-smoke and removed again.`,
+    });
+    if (results.get("update_memory")?.outcome === "ok") {
+      const restored = await svc
+        .executeTool({
+          ...scope,
+          capability: "update_memory",
+          toolCallId: randomUUID(),
+          input: { markdown: originalMarkdown },
+        })
+        .then(
+          () => true,
+          () => false,
+        );
+      if (!restored) {
+        leftBehind.push("memory: the Tool smoke section is still in it");
+      }
+    }
   }
 
   const uploaded = (await run("upload_file", {
@@ -473,7 +515,8 @@ try {
 
   // ---- asking the owner, and writing to a colleague --------------------------
   // A pending decision is a real prompt in the owner's UI, so it is created
-  // (that is the tool) and then removed again below with the turn that owns it.
+  // (that is the tool) and removed again by `cleanUp` with the turn that owns
+  // it, on the interrupt path as well as the happy one.
   await run("request_user_decision", {
     toolName: "create_task",
     reason: "Tool smoke run: proving request_user_decision reaches the owner.",
@@ -502,27 +545,6 @@ try {
     );
   }
 
-  // The decision belongs to the synthetic turn and would outlive it as a
-  // prompt the owner can neither act on nor dismiss.
-  await prisma.sokoBotPendingDecision
-    .deleteMany({ where: { turnId } })
-    .catch(() => undefined);
-
-  // The scratch Tasks are archived rather than left on the board: a harness
-  // meant to be run often should not silently fill somebody's Taskboard.
-  if (created?.id) {
-    await prisma.task
-      .updateMany({
-        where: { id: { in: [created.id, ...(peerId ? [peerId] : [])] } },
-        data: { archivedAt: new Date() },
-      })
-      .catch(() => undefined);
-  }
-
-  await prisma.sokoBotTurn
-    .delete({ where: { id: turnId } })
-    .catch(() => undefined);
-
   // Every capability accounted for, so a run cannot report "29 ok" while two
   // tools were never reached at all.
   const untouched = SOKO_BOT_CAPABILITIES.filter(
@@ -546,7 +568,12 @@ try {
   );
   if (leftBehind.length > 0)
     console.log(`Left behind: ${leftBehind.join(" · ")}`);
-  await prisma.$disconnect();
+  failedRun = count("FAILED") > 0;
 } finally {
-  await releaseTurn();
+  // Exits non-zero when anything could not be cleaned up: a synthetic turn
+  // still marked RUNNING blocks the bot's next real turn, and a run that says
+  // nothing about it leaves that for somebody to discover later.
+  const clean = await cleanUp();
+  await prisma.$disconnect();
+  if (!clean || failedRun) process.exitCode = 1;
 }

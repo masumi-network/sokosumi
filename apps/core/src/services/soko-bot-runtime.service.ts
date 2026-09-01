@@ -56,7 +56,7 @@ import {
 import { list, put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
-import { toMasumiAgent } from "@/helpers/agent";
+import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { createAgentJobForUser } from "@/helpers/job";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
@@ -2264,7 +2264,10 @@ export class SokoBotRuntimeService {
           },
         });
         if (!agent) throw new SokoBotRuntimeValidationError("Agent not found");
-        if (agent.status !== "ONLINE" || !agent.apiBaseUrl) {
+        // The same endpoint `toMasumiAgent` will use: an Agent reachable only
+        // through its metadata override is hireable, and reporting it as
+        // unavailable sends the bot looking for a different one.
+        if (agent.status !== "ONLINE" || !getAgentApiBaseUrl(agent)) {
           throw new SokoBotRuntimeValidationError(
             `This Agent is not available to hire right now (${agent.status.toLowerCase()}). Pick another from find_agents.`,
           );

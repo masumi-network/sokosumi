@@ -23,15 +23,18 @@ const VALUE_LIMIT = 20_000;
 // one value among many: at 20,000 a 50,897-character packet lost the Tasks the
 // answer was reporting, and the judge called correct statuses invented. Core
 // already bounds the packet, so this only has to be larger than that bound.
-const PACKET_LIMIT = 200_000;
+const PACKET_LIMIT = 100_000;
 // The per-value limits bound one value; this bounds the prompt. A turn can run
 // 24 steps, and 48 values at the per-value limit is nearly a megabyte — past
 // the context of the models this runs on, and the retry would send the same
 // oversized request a second time. Tool calls are allotted a share of it and
 // the packet takes what is left, so the evidence shrinks evenly instead of
 // losing its tail.
-const TRANSCRIPT_LIMIT = 400_000;
-const TOOL_BUDGET = 200_000;
+// Characters before JSON escaping: the payload is serialized once more before
+// it is sent, and quote-heavy evidence roughly doubles. The numbers leave room
+// for that and still hold a 50,897-character packet whole.
+const TRANSCRIPT_LIMIT = 160_000;
+const TOOL_BUDGET = 60_000;
 
 export class SokoBotLabJudgeError extends Error {}
 
@@ -42,7 +45,11 @@ export function sokoBotJudgeModel(): string {
 function clip(value: unknown, limit = VALUE_LIMIT): string {
   const text = typeof value === "string" ? value : JSON.stringify(value);
   if (!text) return "";
-  return text.length > limit ? `${text.slice(0, limit)}…` : text;
+  // The ellipsis counts against the limit; adding it outside made every clipped
+  // value one character over the budget it was meant to fit inside.
+  return text.length > limit
+    ? `${text.slice(0, Math.max(0, limit - 1))}…`
+    : text;
 }
 
 /**
