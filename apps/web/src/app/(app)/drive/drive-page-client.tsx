@@ -41,7 +41,10 @@ import {
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
-import { DriveSortControl } from "@/app/drive/components/drive-sort-control";
+import {
+  DriveSortControl,
+  DriveSortMenuItems,
+} from "@/app/drive/components/drive-sort-control";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
@@ -80,6 +83,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
@@ -1320,19 +1324,21 @@ function DrivePageWorkspace({
   );
 
   const filesSortSurface = isTasksView ? "tasks" : "browse";
+  const filesSortLabels = {
+    sort: t("sortLabel"),
+    name: t("sortByName"),
+    date: t("sortByDate"),
+    type: t("sortByType"),
+    ascending: t("sortAscending"),
+    descending: t("sortDescending"),
+  };
   const filesSortControl = (
     <DriveSortControl
       value={filesSortSelection}
       onChange={handleFilesSortChange}
       surface={filesSortSurface}
-      labels={{
-        sort: t("sortLabel"),
-        name: t("sortByName"),
-        date: t("sortByDate"),
-        type: t("sortByType"),
-        ascending: t("sortAscending"),
-        descending: t("sortDescending"),
-      }}
+      labels={filesSortLabels}
+      className={isBrowseView ? "hidden md:block" : undefined}
     />
   );
 
@@ -1551,15 +1557,36 @@ function DrivePageWorkspace({
               className="w-full pl-8"
             />
           </div>
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            onClick={openCreateFolderDialog}
-            aria-label={t("createFolder")}
-          >
-            <FolderPlus className="size-4" aria-hidden />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label={t("moreActions")}
+                data-testid="files-mobile-actions"
+              >
+                <MoreHorizontal className="size-4" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DriveSortMenuItems
+                value={filesSortSelection}
+                onChange={handleFilesSortChange}
+                surface={filesSortSurface}
+                labels={filesSortLabels}
+                testIdPrefix="files-mobile-sort"
+              />
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={openCreateFolderDialog}
+                data-testid="files-mobile-create-folder"
+              >
+                <FolderPlus className="size-4" aria-hidden />
+                {t("createFolder")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
 
@@ -1841,6 +1868,7 @@ function DrivePageWorkspace({
                                 size="icon"
                                 className="size-8"
                                 aria-label={t("moreActions")}
+                                data-testid="drive-item-more-actions"
                               >
                                 <MoreHorizontal
                                   className="size-4"
@@ -1965,6 +1993,7 @@ function DrivePageWorkspace({
                       size="icon"
                       className="size-8"
                       aria-label={t("moreActions")}
+                      data-testid="drive-item-more-actions"
                     >
                       <MoreHorizontal className="size-4" aria-hidden />
                     </Button>

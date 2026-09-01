@@ -967,10 +967,39 @@ describe("DrivePage files view mode", () => {
     });
 
     pushMock.mockClear();
-    await user.click(screen.getByRole("button", { name: "moreActions" }));
+    await user.click(screen.getByTestId("drive-item-more-actions"));
 
     expect(pushMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("browse mobile actions menu exposes sort and create folder", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByTestId("files-mobile-actions")).toBeVisible();
+    // Desktop create-folder control remains available (md+ toolbar).
+    expect(
+      screen.getAllByRole("button", { name: "createFolder" }).length,
+    ).toBeGreaterThan(0);
+
+    await user.click(screen.getByTestId("files-mobile-actions"));
+    expect(screen.getByTestId("files-mobile-sort-name")).toBeVisible();
+    expect(screen.getByTestId("files-mobile-create-folder")).toHaveTextContent(
+      "createFolder",
+    );
+
+    await user.click(screen.getByTestId("files-mobile-create-folder"));
+    expect(
+      screen.getByRole("dialog", { name: "createFolderDialogTitle" }),
+    ).toBeVisible();
   });
 });
 
