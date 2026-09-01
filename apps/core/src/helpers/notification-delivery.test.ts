@@ -9,26 +9,82 @@ import { describe, expect, it } from "vitest";
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
+  JOB_ATTENTION_MESSAGE_KEYS,
   resolveNotificationDelivery,
   resolveNotificationMatrix,
   type StoredNotificationPreference,
+  TASK_ATTENTION_MESSAGE_KEYS,
   toNotificationCategory,
 } from "./notification-delivery";
 
 describe("toNotificationCategory", () => {
-  it("maps a job notification to the job category", () => {
+  it("splits jobs by whether the reader has to do something", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.JOB,
+        "Notifications.Job.inputRequired",
+      ),
+    ).toBe("JOB_ATTENTION");
     expect(
       toNotificationCategory(NotificationKind.JOB, "Notifications.Job.failed"),
-    ).toBe("JOB");
+    ).toBe("JOB_UPDATE");
   });
 
-  it("maps a task notification to the task category", () => {
+  it("splits tasks the same way", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.TASK,
+        "Notifications.Task.approvalRequired",
+      ),
+    ).toBe("TASK_ATTENTION");
     expect(
       toNotificationCategory(
         NotificationKind.TASK,
         "Notifications.Task.completed",
       ),
-    ).toBe("TASK");
+    ).toBe("TASK_UPDATE");
+  });
+
+  /**
+   * Written out rather than looped over the exported lists: a loop over the
+   * list cannot notice a key dropped from it, and a dropped key silently
+   * demotes a notification the reader asked to be interrupted for.
+   */
+  it("names every key that waits on the reader", () => {
+    expect(JOB_ATTENTION_MESSAGE_KEYS).toEqual([
+      "Notifications.Job.inputRequired",
+      "Notifications.Job.paymentFailed",
+    ]);
+    expect(TASK_ATTENTION_MESSAGE_KEYS).toEqual([
+      "Notifications.Task.inputRequired",
+      "Notifications.Task.approvalRequired",
+      "Notifications.Task.authenticationRequired",
+      "Notifications.Task.outOfCredits",
+      "Notifications.Task.scheduleRemovedByOperator",
+    ]);
+  });
+
+  it("puts every listed attention key on the loud row", () => {
+    for (const key of JOB_ATTENTION_MESSAGE_KEYS) {
+      expect(toNotificationCategory(NotificationKind.JOB, key)).toBe(
+        "JOB_ATTENTION",
+      );
+    }
+    for (const key of TASK_ATTENTION_MESSAGE_KEYS) {
+      expect(toNotificationCategory(NotificationKind.TASK, key)).toBe(
+        "TASK_ATTENTION",
+      );
+    }
+  });
+
+  /**
+   * The quiet row is the fallback, so a key nobody has classified cannot make
+   * itself louder than the reader asked for.
+   */
+  it("treats a task key it does not know as an update", () => {
+    expect(
+      toNotificationCategory(NotificationKind.TASK, "Notifications.Task.wat"),
+    ).toBe("TASK_UPDATE");
   });
 
   it("maps a system notification to the system category", () => {
@@ -70,10 +126,11 @@ describe("toNotificationCategory", () => {
    */
   it("has an answer for every kind Core can store", () => {
     const EXPECTED: Record<NotificationKind, NotificationCategory | null> = {
-      JOB: "JOB",
-      TASK: "TASK",
+      // Read with the mention key, which is no job or task key, so those two
+      // answer with their quiet row.
+      JOB: "JOB_UPDATE",
+      TASK: "TASK_UPDATE",
       SYSTEM: "SYSTEM",
-      // Read with the mention key, so chat answers with one of its two rows.
       CHAT: "CHAT_MENTION",
       BILLING: null,
     };
@@ -92,7 +149,7 @@ describe("resolveNotificationDelivery", () => {
   it("delivers on both channels for a reader who set nothing", () => {
     expect(
       resolveNotificationDelivery({
-        category: "JOB",
+        category: "JOB_ATTENTION",
         preferences: NO_PREFERENCES,
         pushOptIn: true,
       }),
@@ -102,7 +159,7 @@ describe("resolveNotificationDelivery", () => {
   it("withholds the banner without account-wide push consent", () => {
     expect(
       resolveNotificationDelivery({
-        category: "JOB",
+        category: "JOB_ATTENTION",
         preferences: NO_PREFERENCES,
         pushOptIn: false,
       }),
@@ -112,8 +169,10 @@ describe("resolveNotificationDelivery", () => {
   it("stops delivering in-app when the reader turned that cell off", () => {
     expect(
       resolveNotificationDelivery({
-        category: "TASK",
-        preferences: [{ category: "TASK", channel: "IN_APP", enabled: false }],
+        category: "TASK_UPDATE",
+        preferences: [
+          { category: "TASK_UPDATE", channel: "IN_APP", enabled: false },
+        ],
         pushOptIn: true,
       }),
     ).toEqual({ inApp: false, osBanner: true });
@@ -148,7 +207,9 @@ describe("resolveNotificationDelivery", () => {
     expect(
       resolveNotificationDelivery({
         category: null,
-        preferences: [{ category: "JOB", channel: "IN_APP", enabled: false }],
+        preferences: [
+          { category: "JOB_ATTENTION", channel: "IN_APP", enabled: false },
+        ],
         pushOptIn: true,
       }),
     ).toEqual({ inApp: true, osBanner: true });
@@ -182,16 +243,16 @@ describe("resolveNotificationMatrix", () => {
 
   it("shows the reader's own choice where they made one", () => {
     const matrix = resolveNotificationMatrix([
-      { category: "JOB", channel: "IN_APP", enabled: false },
+      { category: "JOB_ATTENTION", channel: "IN_APP", enabled: false },
     ]);
 
     expect(matrix).toContainEqual({
-      category: "JOB",
+      category: "JOB_ATTENTION",
       channel: "IN_APP",
       enabled: false,
     });
     expect(matrix).toContainEqual({
-      category: "JOB",
+      category: "JOB_ATTENTION",
       channel: "OS_BANNER",
       enabled: true,
     });
@@ -204,7 +265,7 @@ describe("resolveNotificationMatrix", () => {
   it("drops a stored row that names nothing this build knows", () => {
     const matrix = resolveNotificationMatrix([
       { category: "PIGEON", channel: "IN_APP", enabled: false },
-      { category: "JOB", channel: "CARRIER_PIGEON", enabled: false },
+      { category: "JOB_ATTENTION", channel: "CARRIER_PIGEON", enabled: false },
     ]);
 
     expect(matrix).toHaveLength(
