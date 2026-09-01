@@ -1,42 +1,25 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getHistoryMock, pushMock } = vi.hoisted(() => ({
-  getHistoryMock: vi.fn(),
+const { pushMock, replaceMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
+  replaceMock: vi.fn(),
 }));
+
+let mockPathname = "/chat";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
+    replace: replaceMock,
   }),
+  usePathname: () => mockPathname,
 }));
 
-vi.mock("@/lib/clients/core.browser.client", () => ({
-  coreClient: {
-    getHistory: getHistoryMock,
-  },
-}));
-
-vi.mock("@/components/agents/agent-icon", () => ({
-  AgentIcon: () => <span data-testid="agent-icon" />,
-}));
-
-vi.mock("@/app/tasks/components/task-status-badge", () => ({
-  TaskStatusBadge: () => <span data-testid="task-status-badge" />,
-}));
-
-vi.mock("@/components/jobs/job-status-badge", () => ({
-  JobStatusBadge: () => <span data-testid="job-status-badge" />,
-}));
-
-vi.mock("@/lib/utils/datetime.client", () => ({
-  useLocalizedDateTime: () => ({
-    formatTimeAgo: (date: string | Date) =>
-      new Date(date).toISOString().split("T")[0],
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => ({
+    NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: 300,
   }),
 }));
 
@@ -54,9 +37,6 @@ vi.mock("next-intl", () => ({
         error: "Failed to load results",
         resultsHeading: "Search",
       },
-      "App.History": {
-        "Row.updated": "Updated",
-      },
       "Components.NotificationCenter": {
         notifications: "Notifications",
         unreadBadge: "unread",
@@ -72,15 +52,6 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => false,
 }));
 
-import { HeaderMobileSearchControl } from "@/app/components/header/header-mobile-search.client";
-import { HeaderNotificationBell } from "@/app/components/header/header-notification-bell.client";
-import { HeaderTrailingTools } from "@/app/components/header/header-trailing-tools";
-import {
-  HISTORY_SEARCH_DEBOUNCE_MS,
-  HISTORY_SEARCH_PAGE_SIZE,
-} from "@/app/components/use-history-search-corpus";
-import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
-
 vi.mock("@/contexts/notification-provider", () => ({
   useNotifications: () => ({ unreadCount: 0 }),
 }));
@@ -95,68 +66,28 @@ vi.mock("@/app/components/header/notification-dropdown-content", () => ({
   ),
 }));
 
-function createTaskItem(id: string, title: string): HistoryItem {
-  return {
-    id,
-    kind: "task",
-    title,
-    status: "DRAFT",
-    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-    archivedAt: null,
-    description: null,
-    credits: null,
-    projectId: null,
-    coworkerId: null,
-    owner: null,
-  };
-}
-
-function renderWithQuery(ui: ReactNode) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-  );
-}
-
-describe("HeaderTrailingTools", () => {
-  it("places Search immediately after Notification Center", () => {
-    renderWithQuery(<HeaderTrailingTools activeOrganizationId={null} />);
-
-    const tools = screen.getByTestId("header-trailing-tools");
-    const buttons = within(tools).getAllByRole("button");
-    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
-      "Notifications",
-      "Search",
-    ]);
-  });
-});
+import { HeaderMobileSearchControl } from "@/app/components/header/header-mobile-search.client";
+import { HeaderNotificationBell } from "@/app/components/header/header-notification-bell.client";
+import { HeaderTrailingTools } from "@/app/components/header/header-trailing-tools";
 
 describe("HeaderMobileSearchControl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    getHistoryMock.mockResolvedValue({
-      data: [createTaskItem("task-1", "Draft brief")],
-    });
+    mockPathname = "/chat";
+    window.history.replaceState({}, "", "/chat");
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("expands search in the header chrome without navigating to /history", async () => {
+  it("expands search in the header chrome and opens /history", async () => {
     const user = userEvent.setup({
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    renderWithQuery(<HeaderMobileSearchControl activeOrganizationId={null} />);
+    render(<HeaderMobileSearchControl />);
 
     expect(
       screen.queryByTestId("header-mobile-search-expanded"),
@@ -168,7 +99,25 @@ describe("HeaderMobileSearchControl", () => {
       screen.getByTestId("header-mobile-search-expanded"),
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
+    expect(pushMock).toHaveBeenCalledWith("/history");
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
+  it("does not re-push /history when already on the history page", async () => {
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+
     expect(pushMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByTestId("header-mobile-search-expanded"),
+    ).toBeInTheDocument();
   });
 
   it("dismisses expanded search and restores the trigger", async () => {
@@ -176,7 +125,7 @@ describe("HeaderMobileSearchControl", () => {
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    renderWithQuery(<HeaderMobileSearchControl activeOrganizationId={null} />);
+    render(<HeaderMobileSearchControl />);
 
     await user.click(screen.getByRole("button", { name: "Search" }));
     await user.click(screen.getByTestId("header-mobile-search-dismiss"));
@@ -187,41 +136,48 @@ describe("HeaderMobileSearchControl", () => {
     expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
   });
 
-  it("queries the history-search corpus and navigates on result select", async () => {
+  it("filters the history page via URL q instead of opening a results popup", async () => {
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
     const user = userEvent.setup({
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    renderWithQuery(<HeaderMobileSearchControl activeOrganizationId="org-1" />);
+    render(<HeaderMobileSearchControl />);
 
     await user.click(screen.getByRole("button", { name: "Search" }));
+    await user.type(screen.getByPlaceholderText("Search..."), "brief");
 
-    await waitFor(() => {
-      expect(getHistoryMock).toHaveBeenCalledWith({
-        q: undefined,
-        limit: HISTORY_SEARCH_PAGE_SIZE,
-        scope: "owned",
-        types: ["task", "job"],
-      });
+    await act(async () => {
+      vi.advanceTimersByTime(300);
     });
 
-    await waitFor(() => {
-      expect(screen.getByText("Draft brief")).toBeInTheDocument();
+    expect(replaceMock).toHaveBeenCalledWith("/history?q=brief");
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
+  it("clears the history q param when dismissing expanded search", async () => {
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history?q=brief");
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    await user.click(screen.getByText("Draft brief"));
+    render(<HeaderMobileSearchControl />);
 
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
-    expect(
-      screen.queryByTestId("header-mobile-search-expanded"),
-    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.getByPlaceholderText("Search...")).toHaveValue("brief");
+
+    await user.click(screen.getByTestId("header-mobile-search-dismiss"));
+
+    expect(replaceMock).toHaveBeenCalledWith("/history");
   });
 
   it("keeps the collapsed control mobile-only for desktop chrome stability", () => {
-    renderWithQuery(
+    render(
       <>
         <HeaderNotificationBell />
-        <HeaderMobileSearchControl activeOrganizationId={null} />
+        <HeaderMobileSearchControl />
       </>,
     );
 
@@ -229,27 +185,10 @@ describe("HeaderMobileSearchControl", () => {
     expect(trigger.className).toMatch(/md:hidden/);
   });
 
-  it("debounces typed queries through the shared history corpus", async () => {
-    const user = userEvent.setup({
-      advanceTimers: vi.advanceTimersByTime.bind(vi),
-    });
+  it("renders trailing tools without requiring organization context", () => {
+    render(<HeaderTrailingTools />);
 
-    renderWithQuery(<HeaderMobileSearchControl activeOrganizationId={null} />);
-
-    await user.click(screen.getByRole("button", { name: "Search" }));
-    await user.type(screen.getByPlaceholderText("Search..."), "brief");
-
-    await act(async () => {
-      vi.advanceTimersByTime(HISTORY_SEARCH_DEBOUNCE_MS);
-    });
-
-    await waitFor(() => {
-      expect(getHistoryMock).toHaveBeenLastCalledWith({
-        q: "brief",
-        limit: HISTORY_SEARCH_PAGE_SIZE,
-        scope: "owned",
-        types: ["task", "job"],
-      });
-    });
+    expect(screen.getByTestId("header-trailing-tools")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
   });
 });

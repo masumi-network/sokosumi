@@ -41,7 +41,7 @@ export function HistoryToolbar({
 }: HistoryToolbarProps) {
   return (
     <div className="flex items-center gap-2 sm:gap-3">
-      <div className="min-w-0 flex-1">
+      <div className="hidden min-w-0 flex-1 md:block">
         <HistorySearch
           activeOrganizationId={activeOrganizationId}
           projectOptions={projectOptions}

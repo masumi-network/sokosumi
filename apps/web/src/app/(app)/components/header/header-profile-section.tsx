@@ -42,9 +42,7 @@ export default function HeaderProfileSection({
           adminMenuEnabled={adminMenuEnabled}
         />
       </Suspense>
-      <HeaderTrailingTools
-        activeOrganizationId={session.session.activeOrganizationId ?? null}
-      />
+      <HeaderTrailingTools />
     </div>
   );
 }
