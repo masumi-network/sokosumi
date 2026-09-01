@@ -32,6 +32,7 @@ import {
   requireChatRoomUserAccess,
   resolveWorkspaceIdForChatRoom,
   validateChatCoworkerIds,
+  validateChatOrchestratorIds,
 } from "../helpers";
 import {
   diffChannelMembershipRoster,
@@ -374,6 +375,42 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               data: coworkerIds.map((coworkerId) => ({
                 roomId: existing.id,
                 coworkerId,
+              })),
+            });
+          }
+        }
+
+        if (body.orchestratorIds !== undefined) {
+          const workspaceId = await resolveWorkspaceIdForChatRoom({
+            organizationId,
+            personalUserId: userContext.userId,
+            tx,
+          });
+          const orchestratorIds = await validateChatOrchestratorIds(
+            body.orchestratorIds,
+            { workspaceId, ownerUserId: userContext.userId },
+            tx,
+          );
+
+          await tx.chatRoomMention.updateMany({
+            where: {
+              status: { in: ["pending", "sent"] },
+              orchestratorId: { notIn: orchestratorIds },
+              message: { roomId: existing.id },
+            },
+            data: {
+              status: "failed",
+              error: "Personal assistant is no longer a member of this room",
+            },
+          });
+          await tx.chatRoomOrchestratorMember.deleteMany({
+            where: { roomId: existing.id },
+          });
+          if (orchestratorIds.length > 0) {
+            await tx.chatRoomOrchestratorMember.createMany({
+              data: orchestratorIds.map((orchestratorId) => ({
+                roomId: existing.id,
+                orchestratorId,
               })),
             });
           }

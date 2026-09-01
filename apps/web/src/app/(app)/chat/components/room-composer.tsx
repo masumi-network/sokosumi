@@ -103,7 +103,8 @@ function RoomMentionSuggestion({
   mention: NormalizedMention<RoomMentionParticipant>;
 }) {
   const t = useTranslations("App.Channels");
-  const isCoworker = mention.data?.kind === "coworker";
+  const isCoworker =
+    mention.data?.kind === "coworker" || mention.data?.kind === "orchestrator";
   const isAll = mention.data?.kind === "all";
   const displayName = isAll ? t("MentionAll.label") : mention.value;
   return (
@@ -173,7 +174,7 @@ function mentionLookupMapsFromCatalog(
     if (!data) {
       continue;
     }
-    if (data.kind === "coworker") {
+    if (data.kind === "coworker" || data.kind === "orchestrator") {
       const coworker: ChatRoomCoworkerParticipant = {
         id: data.id,
         name: data.name,

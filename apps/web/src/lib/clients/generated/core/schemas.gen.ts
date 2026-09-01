@@ -8241,6 +8241,14 @@ export const ChatRoomSchema = {
             items: {
                 $ref: '#/components/schemas/ChatRoomCoworkerParticipant'
             }
+        },
+        orchestratorMembers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomOrchestratorParticipant'
+            },
+            default: [],
+            description: 'Personal assistants (Soko Bot / orchestrator) on the room roster. Used by owner-scoped @mention pickers.'
         }
     },
     required: [
@@ -8387,6 +8395,63 @@ export const ChatRoomCoworkerParticipantSchema = {
     ]
 } as const;
 
+export const ChatRoomOrchestratorParticipantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440099'
+        },
+        name: {
+            type: 'string',
+            example: 'Ada'
+        },
+        slug: {
+            type: 'string',
+            example: 'ada'
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Andreas\'s personal assistant'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/pa.png'
+        },
+        presence: {
+            $ref: '#/components/schemas/ChatRoomPresence'
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'orb:user_123'
+        },
+        ownerUserId: {
+            type: 'string',
+            example: 'user_123'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'caption',
+        'image',
+        'presence',
+        'avatarSeed',
+        'ownerUserId'
+    ]
+} as const;
+
 export const ChatRoomKindSchema = {
     type: 'string',
     enum: [
@@ -8505,6 +8570,18 @@ export const CreateChatRoomRequestSchema = {
                     example: [
                         'cow_123'
                     ]
+                },
+                orchestratorIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    maxItems: 50,
+                    description: 'Personal assistant (Soko Bot / orchestrator) IDs to add to the room. Owner may add their own live PA; no Coworker membership required.',
+                    example: [
+                        '550e8400-e29b-41d4-a716-446655440099'
+                    ]
                 }
             },
             required: [
@@ -8544,6 +8621,18 @@ export const CreateChatRoomRequestSchema = {
                     description: 'AI coworker IDs to add to the room.',
                     example: [
                         'cow_123'
+                    ]
+                },
+                orchestratorIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    maxItems: 50,
+                    description: 'Personal assistant (Soko Bot / orchestrator) IDs to add to the room. Owner may add their own live PA; no Coworker membership required.',
+                    example: [
+                        '550e8400-e29b-41d4-a716-446655440099'
                     ]
                 }
             },
@@ -9004,6 +9093,24 @@ export const ChatRoomMessageSenderSchema = {
                 type: {
                     type: 'string',
                     enum: [
+                        'orchestrator'
+                    ]
+                },
+                orchestrator: {
+                    $ref: '#/components/schemas/ChatRoomOrchestratorParticipant'
+                }
+            },
+            required: [
+                'type',
+                'orchestrator'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
                         'unknown'
                     ]
                 }
@@ -9023,7 +9130,17 @@ export const ChatRoomMessageMentionSchema = {
             format: 'uuid'
         },
         coworkerId: {
-            type: 'string'
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        orchestratorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
         },
         status: {
             $ref: '#/components/schemas/ChatRoomMentionStatus'
@@ -9039,6 +9156,7 @@ export const ChatRoomMessageMentionSchema = {
     required: [
         'id',
         'coworkerId',
+        'orchestratorId',
         'status',
         'responseMessageId'
     ]
@@ -9241,6 +9359,28 @@ export const ChatRoomMessageMembershipSubjectSchema = {
                 'id',
                 'name'
             ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'orchestrator'
+                    ]
+                },
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'type',
+                'id',
+                'name'
+            ]
         }
     ]
 } as const;
@@ -9337,6 +9477,18 @@ export const UpdateChatRoomRequestSchema = {
             maxItems: 50,
             example: [
                 'cow_123'
+            ]
+        },
+        orchestratorIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 50,
+            description: 'Rewrite personal assistant (orchestrator) roster. Owner may include their live PA.',
+            example: [
+                '550e8400-e29b-41d4-a716-446655440099'
             ]
         }
     }
@@ -9619,6 +9771,17 @@ export const CreateChatRoomMessageRequestSchema = {
             },
             example: [
                 'cow_123'
+            ]
+        },
+        mentionedOrchestratorIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            description: 'Personal assistants (orchestrators) addressed in the message. Validated against room orchestrator membership; claims a ChatRoomMention and starts a Soko Bot turn.',
+            example: [
+                '550e8400-e29b-41d4-a716-446655440099'
             ]
         },
         mentionedUserIds: {

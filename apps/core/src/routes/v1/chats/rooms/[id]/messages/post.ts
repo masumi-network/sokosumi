@@ -30,11 +30,13 @@ import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unf
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  mapChatRoomOrchestratorParticipant,
   markChatRoomThreadRead,
   mergeChatRoomMessageMetadata,
   requireChatRoomCoworkerAccess,
   requireChatRoomUserWriteAccess,
   resolveMentionedCoworkerIds,
+  resolveMentionedOrchestratorIds,
   resolveMentionedUserIds,
   resolveRoomQuoteSnapshot,
   resolveThreadParentMessageId,
@@ -213,11 +215,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         // A Soko Bot direct is mention-driven (its reply is a Core turn),
-        // so it never takes the coworker stream shortcut.
+        // so it never takes the coworker stream shortcut. Native orchestrator
+        // PA membership (SOK-942) is also mention-driven.
         const skipCoworkerMentions =
           room.kind === "direct" &&
           room.coworkerMembers.length === 1 &&
           room.coworkerMembers[0]?.coworker.sokoBotId == null &&
+          room.orchestratorMembers.length === 0 &&
           room.userMembers.length === 1 &&
           room.userMembers[0]?.userId === userContext.userId;
 
@@ -244,6 +248,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // A thread reply goes to every coworker already part of the thread —
         // as a sender or a mention target — without requiring a fresh @mention.
         let threadCoworkerIds: string[] = [];
+        let threadOrchestratorIds: string[] = [];
         if (parentMessageId) {
           const threadMessages = await tx.chatRoomMessage.findMany({
             where: {
@@ -252,15 +257,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
             select: {
               senderCoworkerId: true,
-              mentionsAsSource: { select: { coworkerId: true } },
+              senderOrchestratorId: true,
+              mentionsAsSource: {
+                select: { coworkerId: true, orchestratorId: true },
+              },
             },
           });
           threadCoworkerIds = threadMessages.flatMap((threadMessage) => [
             ...(threadMessage.senderCoworkerId
               ? [threadMessage.senderCoworkerId]
               : []),
-            ...threadMessage.mentionsAsSource.map(
-              (mention) => mention.coworkerId,
+            ...threadMessage.mentionsAsSource.flatMap((mention) =>
+              mention.coworkerId ? [mention.coworkerId] : [],
+            ),
+          ]);
+          threadOrchestratorIds = threadMessages.flatMap((threadMessage) => [
+            ...(threadMessage.senderOrchestratorId
+              ? [threadMessage.senderOrchestratorId]
+              : []),
+            ...threadMessage.mentionsAsSource.flatMap((mention) =>
+              mention.orchestratorId ? [mention.orchestratorId] : [],
             ),
           ]);
         }
@@ -281,6 +297,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               })),
             });
 
+        // PA / orchestrator mentions always resolve (including PA directs).
+        // Marketplace coworker DM stream shortcut must not skip them.
+        const roomOrchestrators = room.orchestratorMembers.map(
+          ({ orchestrator }) => {
+            const participant =
+              mapChatRoomOrchestratorParticipant(orchestrator);
+            return {
+              id: participant.id,
+              name: participant.name,
+              slug: participant.slug,
+            };
+          },
+        );
+        const directOrchestratorIds =
+          room.kind === "direct"
+            ? room.orchestratorMembers.map(
+                ({ orchestrator }) => orchestrator.id,
+              )
+            : [];
+        const mentionedOrchestratorIds = resolveMentionedOrchestratorIds({
+          content: body.content,
+          explicitOrchestratorIds: [
+            ...(body.mentionedOrchestratorIds ?? []),
+            ...directOrchestratorIds,
+            ...threadOrchestratorIds,
+          ],
+          roomOrchestrators,
+        });
+
         const mentionedUserIds = resolveMentionedUserIds({
           content: body.content,
           explicitUserIds: body.mentionedUserIds ?? [],
@@ -300,9 +345,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...(clientId ? { clientMessageId: clientId } : {}),
             ...(metadata ? { metadata } : {}),
             mentionsAsSource: {
-              create: mentionedCoworkerIds.map((coworkerId) => ({
-                coworkerId,
-              })),
+              create: [
+                ...mentionedCoworkerIds.map((coworkerId) => ({
+                  coworkerId,
+                })),
+                ...mentionedOrchestratorIds.map((orchestratorId) => ({
+                  orchestratorId,
+                })),
+              ],
             },
             userMentionsAsSource: {
               create: mentionedUserIds.map((mentionedUserId) => ({

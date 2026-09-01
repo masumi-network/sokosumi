@@ -31,6 +31,7 @@ import {
   resolveChannelName,
   resolveWorkspaceIdForChatRoom,
   validateChatCoworkerIds,
+  validateChatOrchestratorIds,
   validateOrganizationUserIds,
 } from "./helpers";
 
@@ -95,6 +96,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(authContext);
 
     if (body.kind === "direct") {
+      if ((body.orchestratorIds ?? []).length > 0) {
+        throw badRequest(
+          "Add personal assistants to a channel or via room settings",
+        );
+      }
       const direct = await createOrGetDirectRoom({
         // Both kinds respect activeOrganization when present.
         // Coworker 1:1 may be personal (null) with no active org.
@@ -145,6 +151,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId,
           tx,
         );
+        const orchestratorIds = await validateChatOrchestratorIds(
+          body.orchestratorIds ?? [],
+          { workspaceId, ownerUserId: userContext.userId },
+          tx,
+        );
 
         return tx.chatRoom.create({
           data: {
@@ -165,6 +176,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
             coworkerMembers: {
               create: coworkerIds.map((coworkerId) => ({ coworkerId })),
+            },
+            orchestratorMembers: {
+              create: orchestratorIds.map((orchestratorId) => ({
+                orchestratorId,
+              })),
             },
           },
           include: chatRoomInclude,

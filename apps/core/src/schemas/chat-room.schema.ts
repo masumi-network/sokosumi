@@ -13,6 +13,7 @@ import { dateTimeSchema } from "@/helpers/datetime";
  */
 const MAX_ROOM_MEMBERS = 500;
 const MAX_ROOM_COWORKERS = 50;
+const MAX_ROOM_ORCHESTRATORS = 50;
 
 export const chatRoomPresenceSchema = z
   .enum(["online", "afk", "offline"])
@@ -107,6 +108,35 @@ export const chatRoomCoworkerParticipantSchema = z
   })
   .openapi("ChatRoomCoworkerParticipant");
 
+/**
+ * First-class personal assistant / Soko Bot on a room roster (SOK-942).
+ * Distinct from marketplace coworkers — no Coworker row required.
+ */
+export const chatRoomOrchestratorParticipantSchema = z
+  .object({
+    id: z
+      .string()
+      .uuid()
+      .openapi({ example: "550e8400-e29b-41d4-a716-446655440099" }),
+    name: z.string().openapi({ example: "Ada" }),
+    /** Mention token slug (`@orchestrator:<slug>`). Derived from display name. */
+    slug: z.string().openapi({ example: "ada" }),
+    caption: z
+      .string()
+      .nullable()
+      .openapi({ example: "Andreas's personal assistant" }),
+    image: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/pa.png" }),
+    presence: chatRoomPresenceSchema.openapi({ example: "online" }),
+    /** Generative orb seed when image is null. */
+    avatarSeed: z.string().nullable().openapi({ example: "orb:user_123" }),
+    /** Owner of this personal assistant. */
+    ownerUserId: z.string().openapi({ example: "user_123" }),
+  })
+  .openapi("ChatRoomOrchestratorParticipant");
+
 export const chatRoomSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -190,6 +220,13 @@ export const chatRoomSchema = z
     }),
     userMembers: z.array(chatRoomUserParticipantSchema),
     coworkerMembers: z.array(chatRoomCoworkerParticipantSchema),
+    orchestratorMembers: z
+      .array(chatRoomOrchestratorParticipantSchema)
+      .default([])
+      .openapi({
+        description:
+          "Personal assistants (Soko Bot / orchestrator) on the room roster. Used by owner-scoped @mention pickers.",
+      }),
   })
   .openapi("ChatRoom");
 
@@ -222,6 +259,16 @@ const roomCoworkerIdsSchema = z
   .openapi({
     description: "AI coworker IDs to add to the room.",
     example: ["cow_123"],
+  });
+
+const roomOrchestratorIdsSchema = z
+  .array(z.string().uuid())
+  .max(MAX_ROOM_ORCHESTRATORS)
+  .optional()
+  .openapi({
+    description:
+      "Personal assistant (Soko Bot / orchestrator) IDs to add to the room. Owner may add their own live PA; no Coworker membership required.",
+    example: ["550e8400-e29b-41d4-a716-446655440099"],
   });
 
 export const channelSlugAvailabilitySchema = z
@@ -272,6 +319,7 @@ export const createChatRoomRequestSchema = z
         }),
       memberUserIds: roomMemberUserIdsSchema,
       coworkerIds: roomCoworkerIdsSchema,
+      orchestratorIds: roomOrchestratorIdsSchema,
     }),
     z
       .object({
@@ -281,6 +329,7 @@ export const createChatRoomRequestSchema = z
         }),
         memberUserIds: roomMemberUserIdsSchema,
         coworkerIds: roomCoworkerIdsSchema,
+        orchestratorIds: roomOrchestratorIdsSchema,
       })
       .strict(),
   ])
@@ -319,6 +368,15 @@ export const updateChatRoomRequestSchema = z
       .openapi({
         example: ["cow_123"],
       }),
+    orchestratorIds: z
+      .array(z.string().uuid())
+      .max(MAX_ROOM_ORCHESTRATORS)
+      .optional()
+      .openapi({
+        description:
+          "Rewrite personal assistant (orchestrator) roster. Owner may include their live PA.",
+        example: ["550e8400-e29b-41d4-a716-446655440099"],
+      }),
   })
   .openapi("UpdateChatRoomRequest");
 
@@ -345,7 +403,10 @@ export const chatRoomMentionStatusSchema = z
 export const chatRoomMessageMentionSchema = z
   .object({
     id: z.string().uuid(),
-    coworkerId: z.string(),
+    /** Marketplace coworker target. Null when the mention targets an orchestrator. */
+    coworkerId: z.string().nullable(),
+    /** Personal assistant / Soko Bot target. Null when the mention targets a coworker. */
+    orchestratorId: z.string().uuid().nullable(),
     status: chatRoomMentionStatusSchema,
     responseMessageId: z.string().uuid().nullable(),
   })
@@ -360,6 +421,10 @@ export const chatRoomMessageSenderSchema = z
     z.object({
       type: z.literal("coworker"),
       coworker: chatRoomCoworkerParticipantSchema,
+    }),
+    z.object({
+      type: z.literal("orchestrator"),
+      orchestrator: chatRoomOrchestratorParticipantSchema,
     }),
     z.object({
       type: z.literal("unknown"),
@@ -424,6 +489,11 @@ export const chatRoomMessageMembershipSubjectSchema = z
     }),
     z.object({
       type: z.literal("coworker"),
+      id: z.string(),
+      name: z.string(),
+    }),
+    z.object({
+      type: z.literal("orchestrator"),
       id: z.string(),
       name: z.string(),
     }),
@@ -519,6 +589,14 @@ export const createChatRoomMessageRequestSchema = z
       .optional()
       .openapi({
         example: ["cow_123"],
+      }),
+    mentionedOrchestratorIds: z
+      .array(z.string().uuid())
+      .optional()
+      .openapi({
+        description:
+          "Personal assistants (orchestrators) addressed in the message. Validated against room orchestrator membership; claims a ChatRoomMention and starts a Soko Bot turn.",
+        example: ["550e8400-e29b-41d4-a716-446655440099"],
       }),
     mentionedUserIds: z
       .array(z.string().min(1))

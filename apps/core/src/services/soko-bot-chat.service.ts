@@ -123,7 +123,13 @@ async function publishRealtime(
 
 async function loadChatLinkedTurn(turnId: string): Promise<
   | (ChatLinkedTurn & {
-      mention: { id: string; messageId: string; roomId: string } | null;
+      mention: {
+        id: string;
+        messageId: string;
+        roomId: string;
+        coworkerId: string | null;
+        orchestratorId: string | null;
+      } | null;
       steps: string[];
       pendingDecisionIds: string[];
       taskIds: string[];
@@ -146,6 +152,8 @@ async function loadChatLinkedTurn(turnId: string): Promise<
       chatMention: {
         select: {
           id: true,
+          coworkerId: true,
+          orchestratorId: true,
           messageId: true,
           message: { select: { roomId: true } },
         },
@@ -173,6 +181,8 @@ async function loadChatLinkedTurn(turnId: string): Promise<
           id: turn.chatMention.id,
           messageId: turn.chatMention.messageId,
           roomId: turn.chatMention.message.roomId,
+          coworkerId: turn.chatMention.coworkerId,
+          orchestratorId: turn.chatMention.orchestratorId,
         }
       : null,
     steps: turn.events.map((event) => sokoBotCapabilityLabel(event.toolName)),
@@ -388,6 +398,12 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
         where: { id: responseMessageId },
         data: {
           content: answer,
+          ...(mention.orchestratorId
+            ? {
+                senderOrchestratorId: mention.orchestratorId,
+                senderCoworkerId: null,
+              }
+            : {}),
           metadata: {
             in_reply_to_message_id: mention.messageId,
             mention_id: mention.id,

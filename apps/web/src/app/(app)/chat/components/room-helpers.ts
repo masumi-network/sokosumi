@@ -129,9 +129,9 @@ export function composerMentionDisplayNames({
   return { byKey, bySlug };
 }
 
-/** Shared mention-picker payload for humans, coworkers, and synthetic @all. */
+/** Shared mention-picker payload for humans, coworkers, PAs, and synthetic @all. */
 export interface RoomMentionParticipant {
-  kind: "human" | "coworker" | "all";
+  kind: "human" | "coworker" | "orchestrator" | "all";
   id: string;
   name: string;
   slug: string;
@@ -168,9 +168,10 @@ export function omitCoworkerMentionRecords<
   T extends { data?: { kind?: string } },
 >(records: Record<string, T>): Record<string, T> {
   return Object.fromEntries(
-    Object.entries(records).filter(
-      ([, entry]) => entry.data?.kind !== "coworker",
-    ),
+    Object.entries(records).filter(([, entry]) => {
+      const kind = entry.data?.kind;
+      return kind !== "coworker" && kind !== "orchestrator";
+    }),
   );
 }
 
@@ -182,7 +183,10 @@ export function partitionRoomMentionSuggestions(
   const coworkers: NormalizedMention<RoomMentionParticipant>[] = [];
 
   for (const mention of filtered) {
-    if (mention.data?.kind === "coworker") {
+    if (
+      mention.data?.kind === "coworker" ||
+      mention.data?.kind === "orchestrator"
+    ) {
       coworkers.push(mention);
     } else {
       // human | all | missing kind → People (safe fallback for humans-shaped rows)
@@ -429,6 +433,20 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
       sokoBotAvatarSeed: coworker.sokoBotAvatarSeed ?? null,
     };
   }
+  if (message.sender.type === "orchestrator") {
+    // Reuse coworker hover chrome (AI icon + generative orb) for first-class PA.
+    const orchestrator = message.sender.orchestrator;
+    return {
+      kind: "coworker",
+      id: orchestrator.id,
+      name: orchestrator.name,
+      slug: orchestrator.slug,
+      caption: orchestrator.caption,
+      image: orchestrator.image,
+      presence: orchestrator.presence,
+      sokoBotAvatarSeed: orchestrator.avatarSeed ?? null,
+    };
+  }
   return {
     kind: "unknown",
     name: "Unknown",
@@ -443,6 +461,9 @@ export function messageSenderKey(message: ChatRoomMessage): string | null {
   }
   if (message.sender.type === "coworker") {
     return `coworker:${message.sender.coworker.id}`;
+  }
+  if (message.sender.type === "orchestrator") {
+    return `orchestrator:${message.sender.orchestrator.id}`;
   }
   return null;
 }

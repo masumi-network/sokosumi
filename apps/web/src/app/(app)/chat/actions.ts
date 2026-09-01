@@ -75,6 +75,7 @@ interface UpdateRoomInput {
   discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
   coworkerIds?: string[];
+  orchestratorIds?: string[];
 }
 
 interface CreateDirectRoomInput {
@@ -324,6 +325,9 @@ export async function updateRoomAction(
     }),
     ...(input.coworkerIds !== undefined && {
       coworkerIds: cleanIds(input.coworkerIds),
+    }),
+    ...(input.orchestratorIds !== undefined && {
+      orchestratorIds: cleanIds(input.orchestratorIds),
     }),
   };
 
@@ -663,6 +667,7 @@ export async function sendRoomMessageAction(
   mentionedCoworkerIds: string[],
   options?: {
     mentionedUserIds?: string[];
+    mentionedOrchestratorIds?: string[];
     parentMessageId?: string;
     /** Same-room quote target; does not set parentMessageId. */
     quote?: { messageId: string };
@@ -682,6 +687,7 @@ export async function sendRoomMessageAction(
     const message = await chatRoomService.sendMessage(roomId, {
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(mentionedCoworkerIds),
+      mentionedOrchestratorIds: cleanIds(options?.mentionedOrchestratorIds),
       mentionedUserIds: cleanIds(options?.mentionedUserIds),
       ...(options?.parentMessageId && {
         parentMessageId: options.parentMessageId,

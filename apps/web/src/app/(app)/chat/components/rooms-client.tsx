@@ -1384,18 +1384,55 @@ export function RoomsClient({
   );
   useRegisterBreadcrumbOverride(breadcrumbOverride);
   const coworkersById = useMemo(() => {
-    return new Map(
-      (selectedRoom?.coworkerMembers ?? []).map((coworker) => [
-        coworker.id,
-        coworker,
-      ]),
+    const fromCoworkers = (selectedRoom?.coworkerMembers ?? []).map(
+      (coworker) => [coworker.id, coworker] as const,
     );
+    // Merge PA roster into mention/markdown lookups (coworker-shaped DTO).
+    const fromOrchestrators = (selectedRoom?.orchestratorMembers ?? []).map(
+      (orchestrator) =>
+        [
+          orchestrator.id,
+          {
+            id: orchestrator.id,
+            name: orchestrator.name,
+            slug: orchestrator.slug,
+            caption: orchestrator.caption,
+            image: orchestrator.image,
+            presence: orchestrator.presence,
+            sokoBotId: orchestrator.id,
+            sokoBotAvatarSeed: orchestrator.avatarSeed,
+          },
+        ] as const,
+    );
+    return new Map([...fromCoworkers, ...fromOrchestrators]);
   }, [selectedRoom]);
   const coworkersBySlug = useMemo(() => {
+    const fromCoworkers = (selectedRoom?.coworkerMembers ?? []).map(
+      (coworker) => [coworker.slug, coworker] as const,
+    );
+    const fromOrchestrators = (selectedRoom?.orchestratorMembers ?? []).map(
+      (orchestrator) =>
+        [
+          orchestrator.slug,
+          {
+            id: orchestrator.id,
+            name: orchestrator.name,
+            slug: orchestrator.slug,
+            caption: orchestrator.caption,
+            image: orchestrator.image,
+            presence: orchestrator.presence,
+            sokoBotId: orchestrator.id,
+            sokoBotAvatarSeed: orchestrator.avatarSeed,
+          },
+        ] as const,
+    );
+    return new Map([...fromCoworkers, ...fromOrchestrators]);
+  }, [selectedRoom]);
+  const orchestratorsById = useMemo(() => {
     return new Map(
-      (selectedRoom?.coworkerMembers ?? []).map((coworker) => [
-        coworker.slug,
-        coworker,
+      (selectedRoom?.orchestratorMembers ?? []).map((orchestrator) => [
+        orchestrator.id,
+        orchestrator,
       ]),
     );
   }, [selectedRoom]);
@@ -1453,7 +1490,30 @@ export function RoomsClient({
         ] as const;
       },
     );
-    const entries = [...humanEntries, ...coworkerEntries];
+    const orchestratorEntries = (selectedRoom?.orchestratorMembers ?? [])
+      .filter((orchestrator) => orchestrator.ownerUserId === currentUserId)
+      .map((orchestrator) => {
+        const participant: RoomMentionParticipant = {
+          kind: "orchestrator",
+          id: orchestrator.id,
+          name: orchestrator.name,
+          slug: orchestrator.slug,
+          image: orchestrator.image,
+        };
+        return [
+          orchestrator.id,
+          {
+            value: orchestrator.name,
+            slug: orchestrator.slug,
+            data: participant,
+          },
+        ] as const;
+      });
+    const entries = [
+      ...humanEntries,
+      ...coworkerEntries,
+      ...orchestratorEntries,
+    ];
     if (
       selectedRoom &&
       shouldIncludeRoomAllMention(selectedRoom, currentUserId)
@@ -1469,18 +1529,22 @@ export function RoomsClient({
 
   function partitionMentionIds(selectedKeys: string[]): {
     mentionedCoworkerIds: string[];
+    mentionedOrchestratorIds: string[];
     mentionedUserIds: string[];
   } {
     const mentionedCoworkerIds: string[] = [];
+    const mentionedOrchestratorIds: string[] = [];
     const mentionedUserIds: string[] = [];
     for (const id of selectedKeys) {
-      if (coworkersById.has(id)) {
+      if (orchestratorsById.has(id)) {
+        mentionedOrchestratorIds.push(id);
+      } else if (coworkersById.has(id)) {
         mentionedCoworkerIds.push(id);
       } else if (usersById.has(id) && id !== currentUserId) {
         mentionedUserIds.push(id);
       }
     }
-    return { mentionedCoworkerIds, mentionedUserIds };
+    return { mentionedCoworkerIds, mentionedOrchestratorIds, mentionedUserIds };
   }
 
   useEffect(() => {
@@ -2472,6 +2536,7 @@ export function RoomsClient({
       job.mentionedCoworkerIds,
       {
         mentionedUserIds: job.mentionedUserIds,
+        mentionedOrchestratorIds: job.mentionedOrchestratorIds,
         parentMessageId: job.parentMessageId,
         quote: job.quote,
         clientMessageId: job.clientMessageId,
@@ -2624,9 +2689,11 @@ export function RoomsClient({
         return { ok: false };
       }
 
-      const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
-        request.mentionedIds,
-      );
+      const {
+        mentionedCoworkerIds,
+        mentionedOrchestratorIds,
+        mentionedUserIds,
+      } = partitionMentionIds(request.mentionedIds);
 
       const pendingQuoteForShell = pendingQuote;
       const pending = createPendingRoomMessage({
@@ -2635,6 +2702,7 @@ export function RoomsClient({
         content: request.content,
         senderUser,
         mentionedCoworkerIds,
+        mentionedOrchestratorIds,
         quote: pendingQuoteForShell
           ? {
               messageId: pendingQuoteForShell.messageId,
@@ -2660,6 +2728,7 @@ export function RoomsClient({
         roomId,
         content: request.content,
         mentionedCoworkerIds,
+        mentionedOrchestratorIds,
         mentionedUserIds,
         quote: request.quote,
         clientMessageId: request.clientMessageId,
@@ -2718,9 +2787,11 @@ export function RoomsClient({
         return { ok: false };
       }
 
-      const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
-        request.mentionedIds,
-      );
+      const {
+        mentionedCoworkerIds,
+        mentionedOrchestratorIds,
+        mentionedUserIds,
+      } = partitionMentionIds(request.mentionedIds);
 
       const pendingQuoteForShell = pendingThreadQuote;
       const pending = createPendingRoomMessage({
@@ -2730,6 +2801,7 @@ export function RoomsClient({
         senderUser,
         parentMessageId,
         mentionedCoworkerIds,
+        mentionedOrchestratorIds,
         quote: pendingQuoteForShell
           ? {
               messageId: pendingQuoteForShell.messageId,
@@ -2754,6 +2826,7 @@ export function RoomsClient({
         roomId,
         content: request.content,
         mentionedCoworkerIds,
+        mentionedOrchestratorIds,
         mentionedUserIds,
         quote: request.quote,
         clientMessageId: request.clientMessageId,

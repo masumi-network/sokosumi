@@ -2225,6 +2225,10 @@ export type ChatRoom = {
     peerInActiveOrganization?: boolean;
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
+    /**
+     * Personal assistants (Soko Bot / orchestrator) on the room roster. Used by owner-scoped @mention pickers.
+     */
+    orchestratorMembers?: Array<ChatRoomOrchestratorParticipant>;
 };
 
 /**
@@ -2263,6 +2267,17 @@ export type ChatRoomCoworkerParticipant = {
     presence: ChatRoomPresence;
     sokoBotId?: string | null;
     sokoBotAvatarSeed?: string | null;
+};
+
+export type ChatRoomOrchestratorParticipant = {
+    id: string;
+    name: string;
+    slug: string;
+    caption: string | null;
+    image: string | null;
+    presence: ChatRoomPresence;
+    avatarSeed: string | null;
+    ownerUserId: string;
 };
 
 /**
@@ -2320,6 +2335,10 @@ export type CreateChatRoomRequest = {
      * AI coworker IDs to add to the room.
      */
     coworkerIds?: Array<string>;
+    /**
+     * Personal assistant (Soko Bot / orchestrator) IDs to add to the room. Owner may add their own live PA; no Coworker membership required.
+     */
+    orchestratorIds?: Array<string>;
 } | {
     /**
      * Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
@@ -2333,6 +2352,10 @@ export type CreateChatRoomRequest = {
      * AI coworker IDs to add to the room.
      */
     coworkerIds?: Array<string>;
+    /**
+     * Personal assistant (Soko Bot / orchestrator) IDs to add to the room. Owner may add their own live PA; no Coworker membership required.
+     */
+    orchestratorIds?: Array<string>;
 };
 
 export type DiscoverableChatRoom = {
@@ -2441,12 +2464,16 @@ export type ChatRoomMessageSender = {
     type: 'coworker';
     coworker: ChatRoomCoworkerParticipant;
 } | {
+    type: 'orchestrator';
+    orchestrator: ChatRoomOrchestratorParticipant;
+} | {
     type: 'unknown';
 };
 
 export type ChatRoomMessageMention = {
     id: string;
-    coworkerId: string;
+    coworkerId: string | null;
+    orchestratorId: string | null;
     status: ChatRoomMentionStatus;
     responseMessageId: string | null;
 };
@@ -2501,6 +2528,10 @@ export type ChatRoomMessageMembershipSubject = {
     type: 'coworker';
     id: string;
     name: string;
+} | {
+    type: 'orchestrator';
+    id: string;
+    name: string;
 };
 
 export type ChatRoomMessageUnfurl = {
@@ -2524,6 +2555,10 @@ export type UpdateChatRoomRequest = {
      */
     memberUserIds?: Array<string>;
     coworkerIds?: Array<string>;
+    /**
+     * Rewrite personal assistant (orchestrator) roster. Owner may include their live PA.
+     */
+    orchestratorIds?: Array<string>;
 };
 
 /**
@@ -2623,6 +2658,10 @@ export type ChatRoomThreadReadState = {
 export type CreateChatRoomMessageRequest = {
     content: string;
     mentionedCoworkerIds?: Array<string>;
+    /**
+     * Personal assistants (orchestrators) addressed in the message. Validated against room orchestrator membership; claims a ChatRoomMention and starts a Soko Bot turn.
+     */
+    mentionedOrchestratorIds?: Array<string>;
     /**
      * Human room members addressed in the message. Validated against room membership; does not create ChatRoomMention rows or AI dispatch.
      */

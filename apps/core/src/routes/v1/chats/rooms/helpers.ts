@@ -3,6 +3,7 @@ import {
   buildRoomQuoteSnippetParts,
   CHANNEL_SLUG_MAX_LENGTH,
   channelNameFromSlug,
+  getFirstName,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
 
@@ -48,6 +49,18 @@ export const chatRoomCoworkerSelect = {
   sokoBot: { select: { userId: true, avatarSeed: true } },
 } as const satisfies Prisma.CoworkerSelect;
 
+/** First-class PA / Soko Bot fields for room roster and message senders. */
+export const chatRoomOrchestratorSelect = {
+  id: true,
+  name: true,
+  avatarImageUrl: true,
+  avatarSeed: true,
+  userId: true,
+  archivedAt: true,
+  deletedAt: true,
+  user: { select: { name: true } },
+} as const satisfies Prisma.SokoBotSelect;
+
 /**
  * Orb seed for a Soko Bot coworker (the bot has no image; the web renders a
  * generative avatar from this seed). Null for marketplace coworkers.
@@ -62,6 +75,36 @@ export function sokoBotAvatarSeedFor(coworker: {
 
 type ChatRoomPresence = "online" | "afk" | "offline";
 
+type ChatRoomOrchestratorRow = {
+  id: string;
+  name: string | null;
+  avatarImageUrl: string | null;
+  avatarSeed: string | null;
+  userId: string;
+  user: { name: string };
+};
+
+/** Map a live Soko Bot row to the ChatRoomOrchestratorParticipant DTO. */
+export function mapChatRoomOrchestratorParticipant(
+  bot: ChatRoomOrchestratorRow,
+) {
+  const name = bot.name?.trim() || "Soko Bot";
+  const slug = orchestratorMentionSlug(name);
+  const ownerFirstName = getFirstName(bot.user.name) ?? null;
+  return {
+    id: bot.id,
+    name,
+    slug,
+    caption: ownerFirstName
+      ? `${ownerFirstName}'s personal assistant`
+      : "Personal assistant",
+    image: bot.avatarImageUrl ?? null,
+    presence: "online" as const,
+    avatarSeed: bot.avatarSeed ?? `orb:${bot.userId}`,
+    ownerUserId: bot.userId,
+  };
+}
+
 export const chatRoomInclude = {
   userMembers: {
     include: {
@@ -75,15 +118,23 @@ export const chatRoomInclude = {
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
+  orchestratorMembers: {
+    include: {
+      orchestrator: { select: chatRoomOrchestratorSelect },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  },
 } as const satisfies Prisma.ChatRoomInclude;
 
 export const chatRoomMessageInclude = {
   senderUser: { select: chatRoomUserSelect },
   senderCoworker: { select: chatRoomCoworkerSelect },
+  senderOrchestrator: { select: chatRoomOrchestratorSelect },
   mentionsAsSource: {
     select: {
       id: true,
       coworkerId: true,
+      orchestratorId: true,
       status: true,
       responseMessageId: true,
     },
@@ -834,6 +885,9 @@ export function mapChatRoom(
       sokoBotId: coworker.sokoBotId ?? null,
       sokoBotAvatarSeed: sokoBotAvatarSeedFor(coworker),
     })),
+    orchestratorMembers: (room.orchestratorMembers ?? []).map(
+      ({ orchestrator }) => mapChatRoomOrchestratorParticipant(orchestrator),
+    ),
   };
 }
 
@@ -1061,6 +1115,15 @@ export function mapChatRoomMessage(
   currentUserId?: string,
 ) {
   const sender = (() => {
+    if (message.senderOrchestrator) {
+      return {
+        type: "orchestrator" as const,
+        orchestrator: mapChatRoomOrchestratorParticipant(
+          message.senderOrchestrator,
+        ),
+      };
+    }
+
     if (message.senderUser) {
       return {
         type: "user" as const,
@@ -1135,7 +1198,8 @@ export function mapChatRoomMessage(
       ? []
       : message.mentionsAsSource.map((mention) => ({
           id: mention.id,
-          coworkerId: mention.coworkerId,
+          coworkerId: mention.coworkerId ?? null,
+          orchestratorId: mention.orchestratorId ?? null,
           status: mention.status,
           responseMessageId: mention.responseMessageId,
         })),
@@ -1328,6 +1392,13 @@ export function membershipAccessForUser(
   userId: string,
 ): string | null | undefined {
   return userMembers.find((member) => member.userId === userId)?.access;
+}
+
+/** Mention token slug for a PA display name (matches roster DTO slug). */
+export function orchestratorMentionSlug(
+  name: string | null | undefined,
+): string {
+  return sanitizeChannelSlug(name?.trim() || "Soko Bot") || "soko-bot";
 }
 
 export function slugifyRoomName(name: string): string {
@@ -1602,9 +1673,9 @@ export async function requireArchivedChatRoomUserAccess(
   return room;
 }
 
-// Write paths need room identity, coworker roster for AI mention dispatch,
-// and human member names for resolveMentionedUserIds. Avoid the full include
-// (sessions / presence) — that would pull hundreds of unused rows per message.
+// Write paths need room identity, coworker/orchestrator roster for AI mention
+// dispatch, and human member names for resolveMentionedUserIds. Avoid the full
+// include (sessions / presence) — that would pull hundreds of unused rows.
 const chatRoomWriteSelect = {
   id: true,
   name: true,
@@ -1632,6 +1703,21 @@ const chatRoomWriteSelect = {
           name: true,
           slug: true,
           sokoBotId: true,
+        },
+      },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  },
+  orchestratorMembers: {
+    select: {
+      orchestrator: {
+        select: {
+          id: true,
+          name: true,
+          avatarImageUrl: true,
+          avatarSeed: true,
+          userId: true,
+          user: { select: { name: true } },
         },
       },
     },
@@ -1965,6 +2051,44 @@ export async function validateChatCoworkerIds(
   return uniqueCoworkerIds;
 }
 
+/**
+ * Owner may add their own live Soko Bot (PA) to a room. Must match workspace
+ * and owner; archived/deleted bots are rejected.
+ */
+export async function validateChatOrchestratorIds(
+  orchestratorIds: readonly string[],
+  opts: { workspaceId: string; ownerUserId: string },
+  tx: Prisma.TransactionClient,
+): Promise<string[]> {
+  const uniqueOrchestratorIds = normalizeUniqueStrings(orchestratorIds);
+  if (uniqueOrchestratorIds.length === 0) {
+    return [];
+  }
+
+  const bots = await tx.sokoBot.findMany({
+    where: {
+      id: { in: uniqueOrchestratorIds },
+      workspaceId: opts.workspaceId,
+      userId: opts.ownerUserId,
+      archivedAt: null,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+  const found = new Set(bots.map((bot) => bot.id));
+  const missing = uniqueOrchestratorIds.filter(
+    (orchestratorId) => !found.has(orchestratorId),
+  );
+
+  if (missing.length > 0) {
+    throw badRequest(
+      "Room personal assistants must be your live Soko Bot in this workspace",
+    );
+  }
+
+  return uniqueOrchestratorIds;
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -2014,6 +2138,59 @@ export function resolveMentionedCoworkerIds(params: {
 
   const allowedIds = new Set(params.roomCoworkers.map(({ id }) => id));
   return [...mentionedIds].filter((coworkerId) => allowedIds.has(coworkerId));
+}
+
+/** Resolve PA / orchestrator mentions from explicit ids + @orchestrator:slug / bare @alias. */
+export function resolveMentionedOrchestratorIds(params: {
+  content: string;
+  explicitOrchestratorIds?: readonly string[];
+  roomOrchestrators: Array<{ id: string; name: string; slug: string }>;
+}): string[] {
+  const roomOrchestratorIds = new Set(
+    params.roomOrchestrators.map((orchestrator) => orchestrator.id),
+  );
+  const mentionedIds = new Set(
+    normalizeUniqueStrings(params.explicitOrchestratorIds ?? []).filter((id) =>
+      roomOrchestratorIds.has(id),
+    ),
+  );
+
+  const slugToId = new Map(
+    params.roomOrchestrators.map((orchestrator) => [
+      orchestrator.slug,
+      orchestrator.id,
+    ]),
+  );
+
+  const tokenRegex = /@orchestrator:([a-z0-9][a-z0-9-]*)/gi;
+  for (const match of params.content.matchAll(tokenRegex)) {
+    const slug = match[1]?.toLowerCase();
+    const id = slug ? slugToId.get(slug) : null;
+    if (id) {
+      mentionedIds.add(id);
+    }
+  }
+
+  for (const orchestrator of params.roomOrchestrators) {
+    const aliases = new Set([
+      orchestrator.slug.toLowerCase(),
+      slugifyRoomName(orchestrator.name),
+    ]);
+    for (const alias of aliases) {
+      const aliasRegex = new RegExp(
+        `(^|\\s)@${escapeRegExp(alias)}(?=$|[\\s.,!?;:])`,
+        "i",
+      );
+      if (aliasRegex.test(params.content)) {
+        mentionedIds.add(orchestrator.id);
+      }
+    }
+  }
+
+  const allowedIds = new Set(params.roomOrchestrators.map(({ id }) => id));
+  return [...mentionedIds].filter((orchestratorId) =>
+    allowedIds.has(orchestratorId),
+  );
 }
 
 /** Catalog / content sentinel for room-wide @all. Not a user UUID. */

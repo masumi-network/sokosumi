@@ -80,6 +80,27 @@ describe("outbound room message", () => {
       {
         id: "pending-mention:turn-1:cow-1",
         coworkerId: "cow-1",
+        orchestratorId: null,
+        status: "pending",
+        responseMessageId: null,
+      },
+    ]);
+  });
+
+  it("creates pending orchestrator mention rows on the shell", () => {
+    const pending = createPendingRoomMessage({
+      clientTurnId: "turn-pa",
+      roomId: "room-1",
+      content: "@soko hello",
+      senderUser,
+      mentionedOrchestratorIds: ["orch-1"],
+    });
+
+    expect(pending.mentions).toEqual([
+      {
+        id: "pending-mention:turn-pa:orchestrator:orch-1",
+        coworkerId: null,
+        orchestratorId: "orch-1",
         status: "pending",
         responseMessageId: null,
       },

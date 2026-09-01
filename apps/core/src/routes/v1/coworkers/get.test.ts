@@ -93,6 +93,7 @@ describe("GET /coworkers", () => {
       where: {
         archivedAt: null,
         isWhitelisted: true,
+        sokoBotId: null,
       },
       orderBy: expectedOrderBy,
       include: coworkerInclude,
@@ -138,6 +139,7 @@ describe("GET /coworkers", () => {
     expect(coworkerFindManyMock).toHaveBeenCalledWith({
       where: {
         archivedAt: null,
+        sokoBotId: null,
       },
       orderBy: expectedOrderBy,
       include: coworkerInclude,
@@ -155,6 +157,7 @@ describe("GET /coworkers", () => {
       where: {
         archivedAt: null,
         isWhitelisted: true,
+        sokoBotId: null,
       },
       orderBy: expectedOrderBy,
       include: coworkerInclude,
@@ -190,6 +193,7 @@ describe("GET /coworkers", () => {
       where: {
         archivedAt: null,
         isWhitelisted: true,
+        sokoBotId: null,
         capabilities: {
           hasEvery: ["tasks"],
         },
@@ -212,6 +216,7 @@ describe("GET /coworkers", () => {
       where: {
         archivedAt: null,
         isWhitelisted: true,
+        sokoBotId: null,
         capabilities: {
           hasEvery: ["tasks", "chat"],
         },
@@ -384,7 +389,10 @@ describe("GET /coworkers", () => {
 
     expect(response.status).toBe(200);
     expect(coworkerFindManyMock).toHaveBeenCalledWith({
-      where: usableInWorkspaceWhere,
+      where: {
+        ...usableInWorkspaceWhere,
+        sokoBotId: null,
+      },
       orderBy: expectedOrderBy,
       include: coworkerInclude,
     });
@@ -410,6 +418,7 @@ describe("GET /coworkers", () => {
     expect(coworkerFindManyMock).toHaveBeenCalledWith({
       where: {
         ...usableInWorkspaceWhere,
+        sokoBotId: null,
         capabilities: {
           hasEvery: ["tasks"],
         },

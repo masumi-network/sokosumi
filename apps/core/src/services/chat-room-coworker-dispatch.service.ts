@@ -170,7 +170,8 @@ async function publishMentionThoughtPlaceholder(params: {
   parentMessageId: string | null;
   sourceMessageId: string;
   mentionId: string;
-  coworkerId: string;
+  coworkerId?: string | null;
+  orchestratorId?: string | null;
   reasoningSteps: Array<{ type: string; text: string }>;
   thoughtStartedAtMs: number;
 }): Promise<string> {
@@ -191,12 +192,16 @@ async function publishMentionThoughtPlaceholder(params: {
     await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
     return params.placeholderId;
   }
+  const sender =
+    params.orchestratorId != null
+      ? { senderOrchestratorId: params.orchestratorId }
+      : { senderCoworkerId: params.coworkerId! };
   const created = await prisma.$transaction(async (tx) => {
     const row = await tx.chatRoomMessage.create({
       data: {
         roomId: params.roomId,
         parentMessageId: params.parentMessageId,
-        senderCoworkerId: params.coworkerId,
+        ...sender,
         content: "",
         metadata,
       },
@@ -281,13 +286,14 @@ async function failMentionThoughtPlaceholder(params: {
   await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
 }
 
-/** Pre-claim fail still needs a coworker bubble; parent has no mention footer. */
+/** Pre-claim fail still needs a coworker/orchestrator bubble; parent has no mention footer. */
 async function failMentionWithCoworkerShell(params: {
   mentionId: string;
   sourceMessageId: string;
   roomId: string;
   parentMessageId: string | null;
-  coworkerId: string;
+  coworkerId?: string;
+  orchestratorId?: string;
   existingPlaceholderId: string | null;
   error: unknown;
 }): Promise<void> {
@@ -310,6 +316,7 @@ async function failMentionWithCoworkerShell(params: {
         sourceMessageId: params.sourceMessageId,
         mentionId: params.mentionId,
         coworkerId: params.coworkerId,
+        orchestratorId: params.orchestratorId,
         reasoningSteps: [],
         thoughtStartedAtMs: 0,
       });
@@ -405,12 +412,16 @@ async function loadRoomContextMessages(params: {
       content: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
+      senderOrchestrator: { select: { name: true } },
     },
   });
   return contextRows.reverse().map((row) => ({
     senderName:
-      row.senderCoworker?.name ?? row.senderUser?.name ?? "Unknown sender",
-    isCoworker: row.senderCoworker != null,
+      row.senderOrchestrator?.name?.trim() ||
+      row.senderCoworker?.name ||
+      row.senderUser?.name ||
+      "Unknown sender",
+    isCoworker: row.senderCoworker != null || row.senderOrchestrator != null,
     content: row.content,
   }));
 }
@@ -545,6 +556,16 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           sokoBot: { select: { userId: true, archivedAt: true } },
         },
       },
+      orchestrator: {
+        select: {
+          id: true,
+          userId: true,
+          archivedAt: true,
+          name: true,
+          avatarImageUrl: true,
+          avatarSeed: true,
+        },
+      },
       message: {
         include: {
           room: {
@@ -566,6 +587,14 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
               id: true,
               name: true,
               sokoBot: { select: { userId: true, archivedAt: true } },
+            },
+          },
+          senderOrchestrator: {
+            select: {
+              id: true,
+              name: true,
+              userId: true,
+              archivedAt: true,
             },
           },
         },
@@ -593,7 +622,9 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       sourceMessageId: mention.message.id,
       roomId: mention.message.roomId,
       parentMessageId: mention.message.parentMessageId,
-      coworkerId: mention.coworker.id,
+      coworkerId: mention.coworkerId ?? mention.coworker?.id ?? undefined,
+      orchestratorId:
+        mention.orchestratorId ?? mention.orchestrator?.id ?? undefined,
       existingPlaceholderId: mention.responseMessageId,
       error,
     });
@@ -613,7 +644,10 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   // A bot may summon another bot, but only in an organization room: a personal
   // room has no shared workspace to run in, and every bot conversation stays
   // somewhere a person can see it.
-  const senderBot = mention.message.senderCoworker?.sokoBot ?? null;
+  const senderBot =
+    mention.message.senderOrchestrator ??
+    mention.message.senderCoworker?.sokoBot ??
+    null;
   const askedByBot = mention.message.senderUserId == null && senderBot != null;
   if (askedByBot && !mention.message.room.organizationId) {
     await failWithShell("Soko Bots can only talk to each other in a channel");
@@ -643,10 +677,34 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
+  if (mention.orchestratorId && mention.orchestrator) {
+    await runSokoBotOrchestratorMentionDispatch({
+      mentionId,
+      mention: {
+        ...mention,
+        orchestrator: mention.orchestrator,
+      },
+      userId,
+      workspaceId,
+      failWithShell,
+      askedByBot,
+      chainDepth: mention.chainDepth,
+    });
+    return;
+  }
+
+  if (!mention.coworker) {
+    await failWithShell("Mention target is no longer available");
+    return;
+  }
+
   if (mention.coworker.sokoBotId) {
     await runSokoBotMentionDispatch({
       mentionId,
-      mention,
+      mention: {
+        ...mention,
+        coworker: mention.coworker,
+      },
       userId,
       workspaceId,
       failWithShell,
@@ -1172,6 +1230,186 @@ async function runSokoBotMentionDispatch(params: {
   // Inside the guard: this reads the room, and a read that throws once left
   // the placeholder above streaming for ever while the mention was marked
   // failed somewhere the reader could not see.
+  let message: string;
+  try {
+    message =
+      mention.message.room.kind === "direct"
+        ? mention.message.content
+        : buildRoomMentionPrompt({
+            roomName: mention.message.room.name ?? "chat",
+            senderName: mention.message.senderUser?.name ?? "A teammate",
+            content: mention.message.content,
+            isThreadReply: threadRootId != null,
+            contextMessages: await loadRoomContextMessages({
+              roomId: mention.message.roomId,
+              messageId: mention.message.id,
+              createdAt: mention.message.createdAt,
+              threadRootId,
+            }),
+          });
+  } catch (error) {
+    await failPlaceholder(error);
+    return;
+  }
+
+  try {
+    const accepted = sokoBotControlPlane.startTurn({
+      userId: bot.userId,
+      workspaceId,
+      clientTurnId: `chat:${mentionId}`,
+      message: isOwner
+        ? message
+        : `${mention.message.senderUser?.name ?? "A teammate"} (a teammate, not your owner) asked:\n${message}`,
+      source: "CHAT",
+      chat: {
+        mentionId,
+        responseMessageId: placeholderId,
+        requestedByUserId: isOwner && !askedByBot ? null : userId,
+        askedByBot,
+        chainDepth,
+      },
+    });
+    let acceptTimer: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      accepted,
+      new Promise<never>((_resolve, reject) => {
+        acceptTimer = setTimeout(
+          () =>
+            reject(new Error("Soko Bot took too long to accept the message")),
+          SOKO_BOT_ACCEPT_TIMEOUT_MS,
+        );
+      }),
+    ]).finally(() => {
+      if (acceptTimer) clearTimeout(acceptTimer);
+    });
+    if (
+      result.reconciliationLeaseToken &&
+      (result.status === "STARTING" || result.status === "RUNNING")
+    ) {
+      await sokoBotControlPlane.reconcileTurn(
+        result.turnId,
+        undefined,
+        result.reconciliationLeaseToken,
+      );
+    }
+  } catch (error) {
+    await failPlaceholder(error);
+  }
+}
+
+/**
+ * First-class PA mention (SOK-942): ChatRoomOrchestratorMember +
+ * senderOrchestratorId Thought placeholder. Shadow Coworker path stays above.
+ */
+async function runSokoBotOrchestratorMentionDispatch(params: {
+  mentionId: string;
+  mention: {
+    message: {
+      id: string;
+      roomId: string;
+      parentMessageId: string | null;
+      content: string;
+      senderUser: { id: string; name: string | null } | null;
+      createdAt: Date;
+      room: {
+        id: string;
+        kind: string;
+        name: string | null;
+        organizationId: string | null;
+      };
+    };
+    responseMessageId: string | null;
+    orchestrator: {
+      id: string;
+      userId: string;
+      archivedAt: Date | null;
+      name: string | null;
+    };
+  };
+  userId: string;
+  workspaceId: string;
+  failWithShell: (error: unknown) => Promise<void>;
+  askedByBot: boolean;
+  chainDepth: number;
+}): Promise<void> {
+  const {
+    mentionId,
+    mention,
+    userId,
+    workspaceId,
+    failWithShell,
+    askedByBot,
+    chainDepth,
+  } = params;
+  const bot = mention.orchestrator;
+  if (bot.archivedAt) {
+    await failWithShell("This Soko Bot is no longer active");
+    return;
+  }
+  const isOwner = bot.userId === userId && !askedByBot;
+  if (!isOwner && !mention.message.room.organizationId) {
+    await failWithShell("Only the owner can message this assistant here");
+    return;
+  }
+  const membership = await prisma.chatRoomOrchestratorMember.findUnique({
+    where: {
+      roomId_orchestratorId: {
+        roomId: mention.message.roomId,
+        orchestratorId: bot.id,
+      },
+    },
+    select: { id: true },
+  });
+  if (!membership) {
+    await failWithShell("Soko Bot is no longer a member of this room");
+    return;
+  }
+  const claimed = await claimMentionForDispatch(mentionId);
+  if (!claimed) return;
+
+  const startedAtMs = Date.now();
+  let placeholderId: string | null = mention.responseMessageId;
+  try {
+    placeholderId = await publishMentionThoughtPlaceholder({
+      placeholderId,
+      roomId: mention.message.roomId,
+      parentMessageId: mention.message.parentMessageId,
+      sourceMessageId: mention.message.id,
+      mentionId,
+      orchestratorId: bot.id,
+      reasoningSteps: [],
+      thoughtStartedAtMs: startedAtMs,
+    });
+  } catch (publishError) {
+    console.error("Soko Bot Thought placeholder create failed:", {
+      mentionId,
+      error: publishError,
+    });
+  }
+  if (!placeholderId) {
+    const committed = await prisma.chatRoomMention.findUnique({
+      where: { id: mentionId },
+      select: { responseMessageId: true },
+    });
+    placeholderId = committed?.responseMessageId ?? null;
+  }
+  if (!placeholderId) {
+    await markMentionFailed(mentionId, "Could not open the reply");
+    return;
+  }
+
+  const failPlaceholder = (error: unknown) =>
+    failMentionWithCoworkerShell({
+      mentionId,
+      sourceMessageId: mention.message.id,
+      roomId: mention.message.roomId,
+      parentMessageId: mention.message.parentMessageId,
+      orchestratorId: bot.id,
+      existingPlaceholderId: placeholderId,
+      error,
+    });
+
+  const threadRootId = mention.message.parentMessageId;
   let message: string;
   try {
     message =
