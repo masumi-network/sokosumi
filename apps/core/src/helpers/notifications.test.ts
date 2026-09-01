@@ -70,6 +70,7 @@ function createNotificationRecord(
     isRead: false,
     readAt: null,
     createdAt: CREATED_AT,
+    inApp: true,
     ...overrides,
   };
 }
