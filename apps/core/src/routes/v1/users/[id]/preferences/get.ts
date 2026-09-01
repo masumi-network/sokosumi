@@ -12,7 +12,10 @@ import {
 } from "@/routes/v1/users/user-route-context";
 import { userPreferencesResponseSchema } from "@/schemas/user.schema";
 
-import { USER_PREFERENCES_SELECT } from "./preferences-select.js";
+import {
+  toUserPreferencesResponse,
+  USER_PREFERENCES_SELECT,
+} from "./preferences-select.js";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -34,6 +37,10 @@ const route = createRoute({
           marketingOptIn: true,
           notificationsOptIn: true,
           pushOptIn: false,
+          notificationPreferences: [
+            { category: "JOB", channel: "IN_APP", enabled: true },
+            { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+          ],
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -66,6 +73,6 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       return user;
     });
 
-    return ok(c, userPreferencesResponseSchema.parse(preferences));
+    return ok(c, toUserPreferencesResponse(preferences));
   });
 }

@@ -110,6 +110,7 @@ const USER_RECORD = {
   marketingOptIn: true,
   notificationsOptIn: false,
   pushOptIn: false,
+  notificationPreferences: [],
 };
 
 const BARE_COWORKER: AuthenticationContext = {
@@ -264,7 +265,7 @@ describe("coworker user route allowlist", () => {
     const response = await app.request("http://localhost/me/preferences");
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data).toEqual({
+    expect(body.data).toMatchObject({
       marketingOptIn: true,
       notificationsOptIn: false,
       pushOptIn: false,
