@@ -533,6 +533,7 @@ export function getDirectRoomParticipants(
   room: ChatRoom,
   currentUserId: string,
 ): DirectParticipantPreview[] {
+  // filter/map already copy. Array#toSorted is Chrome 110+; AVG 109 crashed here.
   const humans = room.userMembers
     .filter((member) => member.id !== currentUserId)
     .map((member) => ({
@@ -543,7 +544,7 @@ export function getDirectRoomParticipants(
       presence: member.presence,
       kind: "human" as const,
     }))
-    .toSorted(compareByDisplayNameThenId);
+    .sort(compareByDisplayNameThenId);
 
   const coworkers = room.coworkerMembers
     .map((coworker) => ({
@@ -554,7 +555,7 @@ export function getDirectRoomParticipants(
       presence: coworker.presence,
       kind: "coworker" as const,
     }))
-    .toSorted(compareByDisplayNameThenId);
+    .sort(compareByDisplayNameThenId);
 
   return [...humans, ...coworkers];
 }
@@ -684,7 +685,7 @@ export function getRoomParticipantPreviews(
         presence: member.presence,
       }),
     )
-    .toSorted(compareByDisplayNameThenId);
+    .sort(compareByDisplayNameThenId);
 
   const coworkers = room.coworkerMembers
     .map(
@@ -698,7 +699,7 @@ export function getRoomParticipantPreviews(
         presence: coworker.presence,
       }),
     )
-    .toSorted(compareByDisplayNameThenId);
+    .sort(compareByDisplayNameThenId);
 
   return [...humans, ...coworkers];
 }
