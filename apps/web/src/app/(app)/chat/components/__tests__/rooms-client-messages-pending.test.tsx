@@ -837,11 +837,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       nextCursor: string | null;
       failed: boolean;
     }>(() => undefined);
-    const rosterPromise = new Promise<{
-      organizationMembers: [];
-      membersLoadFailed: boolean;
-      coworkers: [];
-    }>(() => undefined);
+    const rosterPromise = new Promise<RoomShellRosterPage>(() => undefined);
 
     render(
       <RoomsClient
@@ -869,11 +865,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       nextCursor: string | null;
       failed: boolean;
     }>(() => undefined);
-    const rosterPromise = new Promise<{
-      organizationMembers: [];
-      membersLoadFailed: boolean;
-      coworkers: [];
-    }>(() => undefined);
+    const rosterPromise = new Promise<RoomShellRosterPage>(() => undefined);
 
     render(
       <RoomsClient
@@ -899,11 +891,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       nextCursor: string | null;
       failed: boolean;
     }>(() => undefined);
-    const rosterPromise = new Promise<{
-      organizationMembers: [];
-      membersLoadFailed: boolean;
-      coworkers: [];
-    }>(() => undefined);
+    const rosterPromise = new Promise<RoomShellRosterPage>(() => undefined);
 
     render(
       <RoomsClient
