@@ -4777,6 +4777,8 @@
         "kindTaskAttentionHint": "Eine Aufgabe steht still, bis du handelst, etwa bei fehlender Freigabe oder fehlenden Credits.",
         "kindTaskUpdate": "Andere Aufgaben-Updates",
         "kindTaskUpdateHint": "Alles andere, was eine Aufgabe meldet, etwa Abschluss oder Abbruch.",
+        "kindChatRoomMessage": "Jede Nachricht in deinen Räumen",
+        "kindChatRoomMessageHint": "Jemand schreibt in einem Raum, in dem du bist. Aus, bis du es einschaltest.",
         "kindChatMention": "Erwähnungen im Chat",
         "kindChatMentionHint": "Jemand nennt dich in einem Chat.",
         "kindChatDirectMessage": "Direktnachrichten",
@@ -4784,7 +4786,7 @@
         "kindSystem": "Anfragen und Zugriff",
         "kindSystemHint": "Jemand fragt nach Zugriff, oder eine Entscheidung trifft ein.",
         "groupChat": "Chat",
-        "groupChatDescription": "Erwähnungen und Direktnachrichten",
+        "groupChatDescription": "Nachrichten im Raum, Erwähnungen und Direktnachrichten",
         "deliveryOff": "Aus",
         "deliveryInApp": "In App",
         "deliveryBanner": "Banner",
@@ -7066,7 +7068,8 @@
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
-        "directMessage": "{authorName} hat dir eine Nachricht gesendet"
+        "directMessage": "{authorName} hat dir eine Nachricht gesendet",
+        "roomMessage": "{authorName} hat in {roomName} geschrieben"
       }
     }
   },

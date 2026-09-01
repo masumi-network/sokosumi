@@ -60,6 +60,8 @@ const MATRIX = [
   { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: false },
   { category: "TASK_UPDATE", channel: "IN_APP", enabled: true },
   { category: "TASK_UPDATE", channel: "OS_BANNER", enabled: false },
+  { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: false },
+  { category: "CHAT_ROOM_MESSAGE", channel: "OS_BANNER", enabled: false },
   { category: "CHAT_MENTION", channel: "IN_APP", enabled: true },
   { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
   { category: "CHAT_DIRECT_MESSAGE", channel: "IN_APP", enabled: true },
@@ -241,9 +243,34 @@ describe("NotificationKinds", () => {
     });
     // One request, so the group cannot end up half applied with the reader
     // watching its kinds settle one by one.
-    expect(lastWrite()).toHaveLength(4);
+    expect(lastWrite()).toHaveLength(6);
     expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
     expect(written("CHAT_DIRECT_MESSAGE", "OS_BANNER")).toBe(false);
+  });
+
+  /**
+   * Nobody receives every message in a room today, so the row starts off and
+   * the reader turns it on. It is the one row where an untouched account is
+   * quieter than the ones around it.
+   */
+  it("shows every message in a room as off until the reader asks", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await user.click(screen.getByRole("button", { name: /^groupChat/ }));
+
+    expect(stop("kindChatRoomMessage", "deliveryOff")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await pick("kindChatRoomMessage", "deliveryInApp");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(true);
+    expect(written("CHAT_ROOM_MESSAGE", "OS_BANNER")).toBe(false);
   });
 
   it("keeps the kinds in a group separately selectable", async () => {
@@ -274,11 +301,12 @@ describe("NotificationKinds", () => {
 
   it("does not ask for push when the banner it writes was already on", async () => {
     isAccountEnabled = false;
-    // Both chat kinds already banner, and one of them missing its in-app cell,
+    // Every chat kind already banner, and two of them missing an in-app cell,
     // so the group write changes something without asking for a new banner.
     renderKinds(
       MATRIX.map((cell) =>
-        cell.category === "CHAT_MENTION"
+        cell.category === "CHAT_MENTION" ||
+        cell.category === "CHAT_ROOM_MESSAGE"
           ? { ...cell, enabled: cell.channel === "OS_BANNER" }
           : cell,
       ),

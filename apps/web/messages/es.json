@@ -4777,6 +4777,8 @@
         "kindTaskAttentionHint": "Una tarea se detiene hasta que actúes, por ejemplo por falta de aprobación o de créditos.",
         "kindTaskUpdate": "Otras novedades de tareas",
         "kindTaskUpdateHint": "Todo lo demás que informa una tarea, como que termina o se cancela.",
+        "kindChatRoomMessage": "Todos los mensajes de tus salas",
+        "kindChatRoomMessageHint": "Alguien escribe en una sala a la que perteneces. Apagado hasta que lo actives.",
         "kindChatMention": "Menciones en el chat",
         "kindChatMentionHint": "Alguien te menciona en un chat.",
         "kindChatDirectMessage": "Mensajes directos",
@@ -4784,7 +4786,7 @@
         "kindSystem": "Solicitudes y acceso",
         "kindSystemHint": "Alguien pide acceso o llega una decisión.",
         "groupChat": "Chat",
-        "groupChatDescription": "Menciones y mensajes directos",
+        "groupChatDescription": "Mensajes de sala, menciones y mensajes directos",
         "deliveryOff": "Desactivado",
         "deliveryInApp": "En app",
         "deliveryBanner": "Banner",
@@ -7066,7 +7068,8 @@
       },
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",
-        "directMessage": "{authorName} te envió un mensaje"
+        "directMessage": "{authorName} te envió un mensaje",
+        "roomMessage": "{authorName} escribió en {roomName}"
       }
     }
   },

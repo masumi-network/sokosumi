@@ -93,6 +93,11 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
     descriptionKey: "groupChatDescription",
     kinds: [
       {
+        category: "CHAT_ROOM_MESSAGE",
+        labelKey: "kindChatRoomMessage",
+        hintKey: "kindChatRoomMessageHint",
+      },
+      {
         category: "CHAT_MENTION",
         labelKey: "kindChatMention",
         hintKey: "kindChatMentionHint",

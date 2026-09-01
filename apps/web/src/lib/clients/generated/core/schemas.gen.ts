@@ -12632,6 +12632,7 @@ export const NotificationPreferenceSchema = {
                 'JOB_UPDATE',
                 'TASK_ATTENTION',
                 'TASK_UPDATE',
+                'CHAT_ROOM_MESSAGE',
                 'CHAT_MENTION',
                 'CHAT_DIRECT_MESSAGE',
                 'SYSTEM'

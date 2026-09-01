@@ -243,10 +243,12 @@ export {
 } from "./notification-feed-kinds.js";
 export {
   NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CATEGORY_OFF_BY_DEFAULT,
   NOTIFICATION_CHANNEL_DEFAULT,
   NOTIFICATION_CHANNELS,
   type NotificationCategory,
   type NotificationChannel,
+  notificationDefault,
 } from "./notification-preferences.js";
 export {
   type BuildOAuthClientScopeParamOptions,

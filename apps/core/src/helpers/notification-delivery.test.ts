@@ -108,6 +108,15 @@ describe("toNotificationCategory", () => {
     ).toBe("CHAT_DIRECT_MESSAGE");
   });
 
+  it("gives every message in a room its own row", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.CHAT,
+        "Notifications.Chat.roomMessage",
+      ),
+    ).toBe("CHAT_ROOM_MESSAGE");
+  });
+
   it("has no category for a chat key it does not know", () => {
     expect(
       toNotificationCategory(NotificationKind.CHAT, "Notifications.Chat.wat"),
@@ -226,6 +235,35 @@ describe("resolveNotificationDelivery", () => {
   });
 });
 
+describe("resolveNotificationDelivery for every message in a room", () => {
+  it("delivers nothing for a reader who stored nothing", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "CHAT_ROOM_MESSAGE",
+        preferences: [],
+        pushOptIn: true,
+      }),
+    ).toEqual({ inApp: false, osBanner: false });
+  });
+
+  it("delivers once the reader turns the row on", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "CHAT_ROOM_MESSAGE",
+        preferences: [
+          { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: true },
+          {
+            category: "CHAT_ROOM_MESSAGE",
+            channel: "OS_BANNER",
+            enabled: true,
+          },
+        ],
+        pushOptIn: true,
+      }),
+    ).toEqual({ inApp: true, osBanner: true });
+  });
+});
+
 describe("resolveNotificationMatrix", () => {
   it("answers for every cell, so the reader sees a complete matrix", () => {
     const matrix = resolveNotificationMatrix([]);
@@ -233,10 +271,46 @@ describe("resolveNotificationMatrix", () => {
     expect(matrix).toHaveLength(
       NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length,
     );
-    expect(matrix.every((cell) => cell.enabled)).toBe(true);
+    expect(
+      matrix
+        .filter((cell) => cell.category !== "CHAT_ROOM_MESSAGE")
+        .every((cell) => cell.enabled),
+    ).toBe(true);
     expect(matrix).toContainEqual({
       category: "CHAT_MENTION",
       channel: "OS_BANNER",
+      enabled: true,
+    });
+  });
+
+  /**
+   * Every message in a room is the one row nobody receives today, so it is the
+   * one row that starts off. Reading it as on would turn a busy room into a
+   * stream of notifications for readers who never opened this page.
+   */
+  it("leaves every message in a room off until the reader asks", () => {
+    const matrix = resolveNotificationMatrix([]);
+
+    expect(matrix).toContainEqual({
+      category: "CHAT_ROOM_MESSAGE",
+      channel: "IN_APP",
+      enabled: false,
+    });
+    expect(matrix).toContainEqual({
+      category: "CHAT_ROOM_MESSAGE",
+      channel: "OS_BANNER",
+      enabled: false,
+    });
+  });
+
+  it("gives every message in a room the reader's own answer once they store one", () => {
+    const matrix = resolveNotificationMatrix([
+      { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: true },
+    ]);
+
+    expect(matrix).toContainEqual({
+      category: "CHAT_ROOM_MESSAGE",
+      channel: "IN_APP",
       enabled: true,
     });
   });
@@ -271,6 +345,10 @@ describe("resolveNotificationMatrix", () => {
     expect(matrix).toHaveLength(
       NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length,
     );
-    expect(matrix.every((cell) => cell.enabled)).toBe(true);
+    expect(
+      matrix
+        .filter((cell) => cell.category !== "CHAT_ROOM_MESSAGE")
+        .every((cell) => cell.enabled),
+    ).toBe(true);
   });
 });
