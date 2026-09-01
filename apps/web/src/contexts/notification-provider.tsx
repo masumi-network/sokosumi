@@ -425,6 +425,12 @@ export function NotificationProvider({
 
   const handleNotificationEvent = useCallback(
     (notification: NotificationEventData) => {
+      // Silenced in the app by the reader's preference matrix. It still arrives,
+      // because an OS banner rides the same event.
+      if (!notification.inApp) {
+        return;
+      }
+
       dispatch({
         type: "realtime",
         notification: {

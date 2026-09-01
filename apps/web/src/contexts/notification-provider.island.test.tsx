@@ -124,6 +124,63 @@ describe("NotificationProvider island", () => {
     });
   });
 
+  /** Emits one realtime event through the bridge's own callback. */
+  async function emit(notification: Record<string, unknown>) {
+    render(
+      <NotificationProvider userId="user-1">
+        <NotificationConsumer />
+      </NotificationProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const onNotification = useNotificationRealtimeMock.mock.calls
+      .map(
+        (call) =>
+          (call[0] as { onNotification?: (event: unknown) => void })
+            .onNotification,
+      )
+      .find(Boolean);
+
+    await act(async () => {
+      onNotification?.(notification);
+    });
+  }
+
+  const REALTIME_EVENT = {
+    id: "notification-1",
+    userId: "user-1",
+    kind: "JOB",
+    referenceId: "job-1",
+    eventId: "event-1",
+    messageKey: "Notifications.Job.completed",
+    messageParams: {},
+    metadata: null,
+    isRead: false,
+    readAt: null,
+    createdAt: "2026-06-18T09:00:00.000Z",
+    inApp: true,
+    osBanner: true,
+  };
+
+  it("counts a delivered notification the moment it arrives", async () => {
+    await emit(REALTIME_EVENT);
+
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("1");
+  });
+
+  /**
+   * The event still arrives, because the OS banner rides it. The bell is what
+   * the reader silenced, so it must not move.
+   */
+  it("leaves the bell alone for a notification silenced in the app", async () => {
+    await emit({ ...REALTIME_EVENT, inApp: false });
+
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
+  });
+
   it("surfaces fetch errors on the immediate path without Ably", async () => {
     lazyAblyProviderMock.mockImplementation((): ReactNode => null);
     getNotificationsMock.mockRejectedValue(new Error("network down"));
