@@ -45,15 +45,16 @@ describe("agent.service", () => {
     vi.clearAllMocks();
   });
 
-  it("serves available agents from core", async () => {
-    const coreAgents = [{ id: "agent-1" }];
-    getAllCoreAgentsMock.mockResolvedValue(coreAgents);
+  it("serves Cardano agents from the mixed catalog for mention pricing", async () => {
+    const cardanoAgent = { id: "agent-1", kind: "cardano" as const };
+    const x402Agent = { id: "agent-x402", kind: "x402" as const };
+    getAllCoreAgentsMock.mockResolvedValue([cardanoAgent, x402Agent]);
 
     const { agentService } = await import("./agent.service");
     const result = await agentService.getAvailableAgentsWithCreditsPrice();
 
     expect(getAllCoreAgentsMock).toHaveBeenCalledTimes(1);
-    expect(result).toEqual(coreAgents);
+    expect(result).toEqual([cardanoAgent]);
   });
 
   it("returns null for an unavailable agent by id (core 404)", async () => {

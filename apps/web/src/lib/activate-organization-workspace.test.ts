@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { clearMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import { updatePreferredOrganization } from "@/lib/actions/organization";
 import {
   activateOrganizationWorkspace,
@@ -19,10 +20,15 @@ vi.mock("@/lib/actions/organization", () => ({
   updatePreferredOrganization: vi.fn(),
 }));
 
+vi.mock("@/components/chat/membership-visible-rooms-store", () => ({
+  clearMembershipVisibleRoomsSnapshot: vi.fn(),
+}));
+
 describe("activateOrganizationWorkspace", () => {
   beforeEach(() => {
     vi.mocked(authClient.organization.setActive).mockReset();
     vi.mocked(updatePreferredOrganization).mockReset();
+    vi.mocked(clearMembershipVisibleRoomsSnapshot).mockReset();
   });
 
   it("sets the active organization and persists it as preferred", async () => {
@@ -42,6 +48,7 @@ describe("activateOrganizationWorkspace", () => {
     expect(authClient.organization.setActive).toHaveBeenCalledWith({
       organizationId: "org-7",
     });
+    expect(clearMembershipVisibleRoomsSnapshot).toHaveBeenCalledOnce();
     expect(updatePreferredOrganization).toHaveBeenCalledWith({
       organizationId: "org-7",
     });
@@ -64,6 +71,7 @@ describe("activateOrganizationWorkspace", () => {
     expect(authClient.organization.setActive).toHaveBeenCalledWith({
       organizationId: null,
     });
+    expect(clearMembershipVisibleRoomsSnapshot).toHaveBeenCalledOnce();
     expect(updatePreferredOrganization).toHaveBeenCalledWith({
       organizationId: null,
     });
@@ -80,6 +88,7 @@ describe("activateOrganizationWorkspace", () => {
     await expect(activateOrganizationWorkspace("org-7")).rejects.toThrow(
       "ORGANIZATION_NOT_FOUND",
     );
+    expect(clearMembershipVisibleRoomsSnapshot).not.toHaveBeenCalled();
     expect(updatePreferredOrganization).not.toHaveBeenCalled();
   });
 

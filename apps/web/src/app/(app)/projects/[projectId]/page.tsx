@@ -179,6 +179,7 @@ export default async function ProjectDetailPage({
           {t("modules.title")}
         </h2>
         <ProjectModuleTiles
+          projectId={project.id}
           labels={{
             comingSoon: t("modules.comingSoon"),
             seo: {

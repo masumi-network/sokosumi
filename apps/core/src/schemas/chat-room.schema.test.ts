@@ -1,11 +1,17 @@
+import {
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+  CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
   chatRoomAccessSchema,
   chatRoomDiscoverabilitySchema,
   chatRoomSchema,
+  createChatRoomMessageRequestSchema,
   createChatRoomRequestSchema,
   discoverableChatRoomSchema,
+  updateChatRoomMessageRequestSchema,
 } from "./chat-room.schema";
 import {
   chatRoomInvitationSchema,
@@ -215,5 +221,51 @@ describe("chat room invitation schemas", () => {
     });
     expect(parsed.status).toBe("pending");
     expect(parsed.inviter.name).toBe("Jane Doe");
+  });
+});
+
+describe("createChatRoomMessageRequestSchema", () => {
+  it("accepts content at the 10_000 max", () => {
+    const content = "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH);
+    expect(createChatRoomMessageRequestSchema.parse({ content }).content).toBe(
+      content,
+    );
+  });
+
+  it("rejects a paste over 10_000 characters", () => {
+    const content = `┌${"─".repeat(40)}┐\n`.repeat(280);
+    expect(content.length).toBeGreaterThan(
+      CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+    );
+    const result = createChatRoomMessageRequestSchema.safeParse({ content });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects content over the shared max with a readable message", () => {
+    const result = createChatRoomMessageRequestSchema.safeParse({
+      content: "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1),
+    });
+    expect(result.success).toBe(false);
+    if (result.success) {
+      return;
+    }
+    expect(result.error.issues[0]?.message).toBe(
+      CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+    );
+  });
+});
+
+describe("updateChatRoomMessageRequestSchema", () => {
+  it("rejects content over the shared max with a readable message", () => {
+    const result = updateChatRoomMessageRequestSchema.safeParse({
+      content: "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1),
+    });
+    expect(result.success).toBe(false);
+    if (result.success) {
+      return;
+    }
+    expect(result.error.issues[0]?.message).toBe(
+      CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+    );
   });
 });

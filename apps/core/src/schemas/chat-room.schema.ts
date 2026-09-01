@@ -1,4 +1,8 @@
 import { z } from "@hono/zod-openapi";
+import {
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+  CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+} from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
@@ -500,9 +504,16 @@ export const chatRoomPinnedMessageListItemSchema = z
 
 export const createChatRoomMessageRequestSchema = z
   .object({
-    content: z.string().trim().min(1).max(10_000).openapi({
-      example: "@coworker:elena Can you summarize this launch risk?",
-    }),
+    content: z
+      .string()
+      .trim()
+      .min(1)
+      .max(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH, {
+        error: CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+      })
+      .openapi({
+        example: "@coworker:elena Can you summarize this launch risk?",
+      }),
     mentionedCoworkerIds: z
       .array(z.string().min(1))
       .optional()
@@ -542,9 +553,16 @@ export const createChatRoomMessageRequestSchema = z
 
 export const updateChatRoomMessageRequestSchema = z
   .object({
-    content: z.string().trim().min(1).max(10_000).openapi({
-      example: "Fixed typo in the launch summary",
-    }),
+    content: z
+      .string()
+      .trim()
+      .min(1)
+      .max(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH, {
+        error: CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+      })
+      .openapi({
+        example: "Fixed typo in the launch summary",
+      }),
   })
   .openapi("UpdateChatRoomMessageRequest");
 
@@ -573,9 +591,9 @@ export const leftChatRoomSchema = z
     id: z.string().uuid().openapi({
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
-    remainingUserMemberCount: z.number().int().min(1).openapi({
+    remainingUserMemberCount: z.number().int().min(0).openapi({
       description:
-        "Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.",
+        "Human members left in the room after the caller leaves. Zero only for org-less matched channels, which auto-archive when the last member leaves. Organization rooms keep the last member (archive instead).",
       example: 3,
     }),
   })

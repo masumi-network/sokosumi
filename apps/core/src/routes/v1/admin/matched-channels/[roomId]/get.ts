@@ -16,7 +16,7 @@ const route = createRoute({
   path: "/{roomId}",
   operationId: "getAdminMatchedChannel",
   description:
-    "Get one live matched channel including member roster (admin only). Returns 404 when the room is missing, archived, or not a live org-less matched channel.",
+    "Get one matched channel including member roster (admin only). Works for live and soft-archived org-less matched channels. Returns 404 when the room is missing or not an org-less matched channel.",
   tags: ["Admin"],
   request: {
     params: adminMatchedChannelRoomParamsSchema,
@@ -42,13 +42,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         organizationId: null,
         kind: "channel",
         discoverability: "matched",
-        archivedAt: null,
       },
       select: {
         id: true,
         name: true,
         slug: true,
         topic: true,
+        archivedAt: true,
         userMembers: {
           where: { access: CHAT_ROOM_ACCESS.MEMBER },
           select: {
@@ -72,6 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         name: room.name,
         slug: room.slug,
         topic: room.topic,
+        archivedAt: room.archivedAt,
         participants: room.userMembers.map((member) => ({
           userId: member.userId,
           name: member.user.name,

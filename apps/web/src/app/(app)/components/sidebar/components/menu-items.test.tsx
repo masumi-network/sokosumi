@@ -158,4 +158,26 @@ describe("MenuItems search action", () => {
       "/calendar",
     );
   });
+
+  it("orders primary destinations Search, Agents, Projects, Tasks, Schedules, History", () => {
+    const { container } = renderMenu(true, true);
+    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
+      (element) => element.textContent ?? "",
+    );
+
+    const primaryOrder = [
+      "search",
+      "exploreAgents",
+      "projects",
+      "taskManager",
+      "calendar",
+      "history",
+    ];
+    const positions = primaryOrder.map((label) =>
+      menuLabels.findIndex((text) => text.includes(label)),
+    );
+
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
 });

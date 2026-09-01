@@ -94,6 +94,22 @@ describe("agent detail first-paint contract (SOK-781)", () => {
     expect(page).not.toMatch(/create-job-modal/);
   });
 
+  it("detail surfaces show no price/credits while app Hire is off (SOK-922)", () => {
+    const page = stripComments(readAgentId("page.tsx"));
+    const detailHeader = stripComments(
+      readWebSrc("components/agents/agent-detail/header.tsx"),
+    );
+    const jobsHeader = stripComments(readAgentId("jobs/components/header.tsx"));
+
+    expect(page).not.toMatch(/getAgentCredits|formatCreditsForDisplay/);
+    expect(detailHeader).not.toMatch(
+      /getAgentCredits|formatCreditsForDisplay|t\("pricing"/,
+    );
+    expect(jobsHeader).not.toMatch(
+      /getAgentCredits|formatCreditsForDisplay|t\("price"/,
+    );
+  });
+
   it("route-level loading shell exists and stays sync", () => {
     const loading = stripComments(readAgentId("loading.tsx"));
     expect(loading).not.toMatch(DYNAMIC_SHELL_API_RE);

@@ -131,11 +131,23 @@ export function getAgentLegalOther(
   return agent.overrideLegalOther ?? agent.legalOther ?? null;
 }
 
-export function getAgentAuthorOrganization(agent: CoreAgentDto): string | null {
+interface AgentAuthorSource {
+  author: {
+    name: string | null;
+    image?: string | null;
+    organization: string | null;
+  };
+}
+
+export function getAgentAuthorOrganization(
+  agent: AgentAuthorSource,
+): string | null {
   return agent.author.organization ?? null;
 }
 
-export function getShortAgentAuthorName(agent: CoreAgentDto): string | null {
+export function getShortAgentAuthorName(
+  agent: AgentAuthorSource,
+): string | null {
   const organization = getAgentAuthorOrganization(agent);
   if (organization) {
     return organization;
@@ -156,7 +168,7 @@ export function getFullAgentAuthorName(agent: CoreAgentDto): string | null {
 }
 
 export function getAgentAuthorResolvedImage(
-  agent: CoreAgentDto,
+  agent: AgentAuthorSource,
 ): string | null {
   const image = agent.author.image;
   return image ? resolveIpfsOrHttpUrl(image) : null;
@@ -195,7 +207,13 @@ const DEFAULT_CATEGORY_STYLES: CategoryStyles = {
   },
 };
 
-export function getAgentCategoryStyles(agent: CoreAgentDto): CategoryStyles {
+interface AgentCategoryStylesSource {
+  categories: Array<{ styles: unknown }>;
+}
+
+export function getAgentCategoryStyles(
+  agent: AgentCategoryStylesSource,
+): CategoryStyles {
   if (!agent.categories || agent.categories.length === 0) {
     return DEFAULT_CATEGORY_STYLES;
   }

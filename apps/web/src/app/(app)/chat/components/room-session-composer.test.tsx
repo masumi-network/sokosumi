@@ -1,3 +1,4 @@
+import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
@@ -7,13 +8,11 @@ import {
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   composeDraftKey,
   getComposeDraft,
   setComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
-
 import { RoomSessionComposer } from "./room-session-composer";
 
 vi.mock("next-intl", () => ({
@@ -235,5 +234,41 @@ describe("RoomSessionComposer draft clear on send", () => {
       expect(editor.textContent ?? "").toBe("");
     });
     expect(document.activeElement).toBe(editor);
+  });
+
+  it("keeps the draft and explains why send failed when content is over the max", async () => {
+    const { toast } = await import("sonner");
+    const tooLong = "a".repeat(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1);
+    setComposeDraft(draftKey, {
+      text: tooLong,
+      attachments: [],
+    });
+    const onSend = vi.fn();
+
+    render(
+      <RoomSessionComposer
+        roomId={roomId}
+        draftKey={draftKey}
+        mentions={{}}
+        placeholder="Message"
+        pendingQuote={null}
+        isSending={false}
+        onSend={onSend}
+      />,
+    );
+
+    const editor = await screen.findByRole("textbox");
+    await waitFor(() => {
+      expect(editor.textContent?.length).toBe(tooLong.length);
+    });
+
+    fireEvent.submit(editor.closest("form")!);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("composerTooLong");
+    });
+    expect(onSend).not.toHaveBeenCalled();
+    expect(editor.textContent).toBe(tooLong);
+    expect(getComposeDraft(draftKey)?.text).toBe(tooLong);
   });
 });
