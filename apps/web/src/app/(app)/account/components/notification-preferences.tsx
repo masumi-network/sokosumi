@@ -14,7 +14,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
 import { NOTIFICATION_PREFERENCES_ANCHOR } from "../constants";
-import { NotificationMatrix } from "./notification-matrix";
+import { NotificationUxOptions } from "./notification-ux/notification-ux-options";
 import { PushNotificationSetting } from "./push-notification-setting";
 
 interface NotificationPreferencesProps {
@@ -136,7 +136,7 @@ export function NotificationPreferences({
           />
         </div>
         <PushNotificationSetting />
-        <NotificationMatrix />
+        <NotificationUxOptions />
       </CardContent>
     </Card>
   );
