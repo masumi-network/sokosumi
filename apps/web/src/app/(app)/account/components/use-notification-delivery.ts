@@ -20,12 +20,13 @@ import {
   categoryDelivery,
   cellsFor,
   type Delivery,
-  type GroupDelivery,
+  type DeliveryChange,
   type GroupSpec,
-  groupDelivery,
+  groupPreset,
   type KindSpec,
   NOTIFICATION_GROUPS,
   type NotificationCategory,
+  type PresetState,
 } from "./notification-delivery";
 
 export interface KindChoice {
@@ -36,18 +37,21 @@ export interface KindChoice {
 
 export interface GroupChoice {
   spec: GroupSpec;
-  delivery: GroupDelivery;
+  /** Which of the group's own answers it is on, or that it is on none. */
+  preset: PresetState;
   kinds: KindChoice[];
   saving: boolean;
 }
 
 export interface NotificationDelivery {
   groups: GroupChoice[];
-  /** Writes every named category at one loudness, in a single request. */
-  setDelivery: (
-    categories: readonly NotificationCategory[],
-    delivery: Delivery,
-  ) => Promise<void>;
+  /**
+   * Writes every named category, each at its own loudness, in one request.
+   *
+   * One request rather than one per kind, so a preset cannot land half applied
+   * with the reader watching its kinds settle one by one.
+   */
+  setDeliveries: (changes: readonly DeliveryChange[]) => Promise<void>;
 }
 
 /**
@@ -80,7 +84,7 @@ export function useNotificationDelivery(): NotificationDelivery {
     return [
       {
         spec,
-        delivery: groupDelivery(cells, kinds),
+        preset: groupPreset(cells, kinds),
         kinds: kinds.map((kind) => ({
           spec: kind,
           delivery: categoryDelivery(cells, kind.category),
@@ -148,17 +152,15 @@ export function useNotificationDelivery(): NotificationDelivery {
     }
   }
 
-  async function setDelivery(
-    categories: readonly NotificationCategory[],
-    delivery: Delivery,
-  ) {
-    const changes = cellsFor(cells, categories, delivery);
+  async function setDeliveries(changes: readonly DeliveryChange[]) {
+    const categories = changes.map((change) => change.category);
+    const written = cellsFor(cells, changes);
 
-    if (changes.length === 0) {
+    if (written.length === 0) {
       return;
     }
 
-    const previous = changes.map((change) => ({
+    const previous = written.map((change) => ({
       ...change,
       enabled:
         cells.find(
@@ -170,7 +172,7 @@ export function useNotificationDelivery(): NotificationDelivery {
 
     // A banner that was already on is not a new request, so a group write that
     // happens to carry one must not put a permission prompt on the screen.
-    const asksForBanner = changes.some(
+    const asksForBanner = written.some(
       (change, index) =>
         change.channel === "OS_BANNER" &&
         change.enabled &&
@@ -181,15 +183,15 @@ export function useNotificationDelivery(): NotificationDelivery {
       await activatePushIfNeeded();
     }
 
-    paint(changes);
+    paint(written);
     setSaving((current) => [...current, ...categories]);
 
     try {
-      const written = await preferencesBrowserClient.patchMyPreferences({
-        notificationPreferences: changes.map((change) => ({
-          category: change.category,
-          channel: change.channel,
-          enabled: change.enabled,
+      const stored = await preferencesBrowserClient.patchMyPreferences({
+        notificationPreferences: written.map((cell) => ({
+          category: cell.category,
+          channel: cell.channel,
+          enabled: cell.enabled,
         })),
       });
 
@@ -198,7 +200,7 @@ export function useNotificationDelivery(): NotificationDelivery {
       await queryClient.cancelQueries({
         queryKey: getMyPreferencesQueryKey(userId),
       });
-      queryClient.setQueryData(getMyPreferencesQueryKey(userId), written);
+      queryClient.setQueryData(getMyPreferencesQueryKey(userId), stored);
     } catch (error) {
       console.error("Failed to update the notification preference", error);
       paint(previous);
@@ -210,5 +212,5 @@ export function useNotificationDelivery(): NotificationDelivery {
     }
   }
 
-  return { groups, setDelivery };
+  return { groups, setDeliveries };
 }

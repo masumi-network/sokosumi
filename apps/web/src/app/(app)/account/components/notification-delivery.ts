@@ -13,14 +13,10 @@ export type NotificationCategory = NotificationPreference["category"];
 export const DELIVERIES = ["OFF", "IN_APP", "BANNER"] as const;
 export type Delivery = (typeof DELIVERIES)[number];
 
-/** A group whose kinds disagree. Reported, never written. */
-export type GroupDelivery = Delivery | "MIXED";
-
-export const DELIVERY_LABEL_KEY: Record<GroupDelivery, string> = {
+export const DELIVERY_LABEL_KEY: Record<Delivery, string> = {
   OFF: "deliveryOff",
   IN_APP: "deliveryInApp",
   BANNER: "deliveryBanner",
-  MIXED: "deliveryMixed",
 };
 
 export const DELIVERY_HINT_KEY: Record<Delivery, string> = {
@@ -34,6 +30,14 @@ export interface KindSpec {
   labelKey: string;
   /** What happens, in the reader's terms, under the name. */
   hintKey: string;
+  /**
+   * Whether this kind waits on the reader.
+   *
+   * The presets read it: "Important" keeps these and drops the rest. It is a
+   * property of the kind rather than a preset's private list, so a kind added
+   * later answers the question once instead of in every preset.
+   */
+  important: boolean;
 }
 
 export interface GroupSpec {
@@ -62,11 +66,13 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "JOB_ATTENTION",
         labelKey: "kindJobAttention",
         hintKey: "kindJobAttentionHint",
+        important: true,
       },
       {
         category: "JOB_UPDATE",
         labelKey: "kindJobUpdate",
         hintKey: "kindJobUpdateHint",
+        important: false,
       },
     ],
   },
@@ -79,11 +85,13 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "TASK_ATTENTION",
         labelKey: "kindTaskAttention",
         hintKey: "kindTaskAttentionHint",
+        important: true,
       },
       {
         category: "TASK_UPDATE",
         labelKey: "kindTaskUpdate",
         hintKey: "kindTaskUpdateHint",
+        important: false,
       },
     ],
   },
@@ -96,16 +104,19 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "CHAT_ROOM_MESSAGE",
         labelKey: "kindChatRoomMessage",
         hintKey: "kindChatRoomMessageHint",
+        important: false,
       },
       {
         category: "CHAT_MENTION",
         labelKey: "kindChatMention",
         hintKey: "kindChatMentionHint",
+        important: true,
       },
       {
         category: "CHAT_DIRECT_MESSAGE",
         labelKey: "kindChatDirectMessage",
         hintKey: "kindChatDirectMessageHint",
+        important: true,
       },
     ],
   },
@@ -113,7 +124,12 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
     id: "SYSTEM",
     labelKey: "kindSystem",
     kinds: [
-      { category: "SYSTEM", labelKey: "kindSystem", hintKey: "kindSystemHint" },
+      {
+        category: "SYSTEM",
+        labelKey: "kindSystem",
+        hintKey: "kindSystemHint",
+        important: true,
+      },
     ],
   },
 ];
@@ -138,19 +154,94 @@ export function categoryDelivery(
   return mine.some((cell) => cell.enabled) ? "IN_APP" : "OFF";
 }
 
-/** What a group's control shows: one answer, or that its kinds disagree. */
-export function groupDelivery(
+/**
+ * The answers a group's own control offers.
+ *
+ * Ordered loudest first, and each one means the same thing in every group:
+ * everything, only what waits on you, only what waits on you and quietly, or
+ * nothing. What they write differs by group, because what waits on you differs
+ * by group.
+ */
+export const PRESETS = ["EVERYTHING", "IMPORTANT", "QUIET", "OFF"] as const;
+export type Preset = (typeof PRESETS)[number];
+
+/** A group whose kinds match no preset. Reported, never written. */
+export type PresetState = Preset | "CUSTOM";
+
+export const PRESET_LABEL_KEY: Record<PresetState, string> = {
+  EVERYTHING: "presetEverything",
+  IMPORTANT: "presetImportant",
+  QUIET: "presetQuiet",
+  OFF: "presetOff",
+  CUSTOM: "presetCustom",
+};
+
+export const PRESET_HINT_KEY: Record<PresetState, string> = {
+  EVERYTHING: "presetEverythingHint",
+  IMPORTANT: "presetImportantHint",
+  QUIET: "presetQuietHint",
+  OFF: "presetOffHint",
+  CUSTOM: "presetCustomHint",
+};
+
+/** What one preset sets one kind to. */
+export function presetDelivery(preset: Preset, kind: KindSpec): Delivery {
+  if (preset === "OFF") {
+    return "OFF";
+  }
+
+  if (preset === "EVERYTHING") {
+    return "BANNER";
+  }
+
+  if (!kind.important) {
+    return "OFF";
+  }
+
+  return preset === "IMPORTANT" ? "BANNER" : "IN_APP";
+}
+
+/**
+ * The presets worth showing for this group.
+ *
+ * A group whose kinds all wait on the reader cannot tell "Everything" from
+ * "Important": both write the same cells, and a control that never changes
+ * anything reads as broken. So a preset that writes what an earlier one writes
+ * is dropped rather than explained.
+ */
+export function groupPresets(kinds: readonly KindSpec[]): Preset[] {
+  const kept: Preset[] = [];
+
+  for (const preset of PRESETS) {
+    const shape = kinds.map((kind) => presetDelivery(preset, kind));
+    const same = kept.some((earlier) =>
+      kinds.every(
+        (kind, index) => presetDelivery(earlier, kind) === shape[index],
+      ),
+    );
+
+    if (!same) {
+      kept.push(preset);
+    }
+  }
+
+  return kept;
+}
+
+/** Which preset the group is on, or that the reader set its kinds one by one. */
+export function groupPreset(
   cells: readonly NotificationPreference[],
   kinds: readonly KindSpec[],
-): GroupDelivery {
-  const deliveries = kinds.map((kind) =>
-    categoryDelivery(cells, kind.category),
+): PresetState {
+  return (
+    groupPresets(kinds).find((preset) =>
+      kinds.every(
+        (kind) =>
+          categoryDelivery(cells, kind.category) ===
+          presetDelivery(preset, kind),
+      ),
+    ) ?? "CUSTOM"
   );
-  const first = deliveries[0];
-
-  return first !== undefined && deliveries.every((one) => one === first)
-    ? first
-    : "MIXED";
 }
 
 /**
@@ -168,16 +259,44 @@ const DELIVERY_CHANNELS: Record<
   BANNER: ["IN_APP", "OS_BANNER"],
 };
 
-/** The cells one delivery writes for the given categories. */
+/** One category, and where the reader wants it. */
+export interface DeliveryChange {
+  category: NotificationCategory;
+  delivery: Delivery;
+}
+
+/**
+ * The cells a set of changes writes.
+ *
+ * A delivery per category rather than one for all of them, because a preset
+ * sets the kinds of a group to different things and has to write them in one
+ * request.
+ */
 export function cellsFor(
   cells: readonly NotificationPreference[],
-  categories: readonly NotificationCategory[],
-  delivery: Delivery,
+  changes: readonly DeliveryChange[],
 ): NotificationPreference[] {
-  return cells
-    .filter((cell) => categories.includes(cell.category))
-    .map((cell) => ({
-      ...cell,
-      enabled: DELIVERY_CHANNELS[delivery].includes(cell.channel),
-    }));
+  return cells.flatMap((cell) => {
+    const change = changes.find((one) => one.category === cell.category);
+
+    return change
+      ? [
+          {
+            ...cell,
+            enabled: DELIVERY_CHANNELS[change.delivery].includes(cell.channel),
+          },
+        ]
+      : [];
+  });
+}
+
+/** The changes a preset writes for a group. */
+export function presetChanges(
+  preset: Preset,
+  kinds: readonly KindSpec[],
+): DeliveryChange[] {
+  return kinds.map((kind) => ({
+    category: kind.category,
+    delivery: presetDelivery(preset, kind),
+  }));
 }
