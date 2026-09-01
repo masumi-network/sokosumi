@@ -398,7 +398,7 @@ export const deleteAdminMatchedChannelAction = withSession<
     }
 
     await adminMatchedChannelsService.deleteMatchedChannel(parsed.data.roomId);
-    revalidateMatchedChannelRoutes();
+    revalidateMatchedChannelRoutes(parsed.data.roomId);
     return toActionResult(ok(undefined));
   } catch (error) {
     return toActionResult(err(toAdminActionError(error)));
