@@ -105,7 +105,7 @@ export function DriveSortControl({
             aria-label={`${labels.sort}: ${activeLabel}`}
             data-testid="files-sort-trigger"
           >
-            <span className="hidden sm:inline">{activeLabel}</span>
+            <span>{activeLabel}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
