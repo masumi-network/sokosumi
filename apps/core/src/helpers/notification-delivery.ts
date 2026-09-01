@@ -1,6 +1,8 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
+  NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNEL_DEFAULT,
+  NOTIFICATION_CHANNELS,
   type NotificationCategory,
   type NotificationChannel,
 } from "@sokosumi/utils";
@@ -102,4 +104,31 @@ export function resolveNotificationDelivery({
     inApp: isEnabled(category, "IN_APP", preferences),
     osBanner: pushOptIn && isEnabled(category, "OS_BANNER", preferences),
   };
+}
+
+/** One cell of the matrix the reader sees, with its answer already resolved. */
+export interface NotificationMatrixCell {
+  category: NotificationCategory;
+  channel: NotificationChannel;
+  enabled: boolean;
+}
+
+/**
+ * The whole matrix, one cell per category and channel.
+ *
+ * Complete rather than sparse, so the reader's settings page renders what it
+ * is given and the defaults stay in one place. A stored row that names a
+ * category or a channel this build does not know belongs to no cell and is
+ * dropped.
+ */
+export function resolveNotificationMatrix(
+  preferences: readonly StoredNotificationPreference[],
+): NotificationMatrixCell[] {
+  return NOTIFICATION_CATEGORIES.flatMap((category) =>
+    NOTIFICATION_CHANNELS.map((channel) => ({
+      category,
+      channel,
+      enabled: isEnabled(category, channel, preferences),
+    })),
+  );
 }
