@@ -1325,7 +1325,6 @@ function DrivePageWorkspace({
       onChange={handleFilesSortChange}
       labels={{
         sort: t("sortLabel"),
-        default: t("sortDefault"),
         name: t("sortByName"),
         date: t("sortByDate"),
         type: t("sortByType"),

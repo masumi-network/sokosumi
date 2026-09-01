@@ -997,7 +997,7 @@ describe("DrivePage files sort", () => {
     useSessionMock.mockReturnValue(sessionFor("org_a"));
   });
 
-  it("updates URL when a sort key is chosen and omits params for default", async () => {
+  it("updates URL when a sort key is chosen and omits params for date default", async () => {
     const user = userEvent.setup();
     renderDriveWithUrlSpy();
 
@@ -1035,7 +1035,7 @@ describe("DrivePage files sort", () => {
     });
 
     await user.click(screen.getByTestId("files-sort-trigger"));
-    await user.click(screen.getByTestId("files-sort-default"));
+    await user.click(screen.getByTestId("files-sort-date"));
 
     await waitFor(() => {
       const update = onUrlUpdate.mock.calls.at(-1)?.[0] as {
@@ -1056,7 +1056,7 @@ describe("DrivePage files sort", () => {
     });
 
     await user.click(screen.getByTestId("files-sort-trigger"));
-    await user.click(screen.getByTestId("files-sort-date"));
+    await user.click(screen.getByTestId("files-sort-type"));
 
     await waitFor(() => {
       expect(onUrlUpdate).toHaveBeenCalled();
@@ -1066,8 +1066,8 @@ describe("DrivePage files sort", () => {
     };
     expect(lastUpdate.searchParams.get("view")).toBe("browse");
     expect(lastUpdate.searchParams.get("folder")).toBe("Reports");
-    expect(lastUpdate.searchParams.get("sortBy")).toBe("date");
-    expect(lastUpdate.searchParams.get("sortOrder")).toBe("desc");
+    expect(lastUpdate.searchParams.get("sortBy")).toBe("type");
+    expect(lastUpdate.searchParams.get("sortOrder")).toBe("asc");
   });
 
   it("recents never requests a non-date primary; name maps to Core secondary sortBy", async () => {

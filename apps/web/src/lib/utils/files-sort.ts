@@ -34,8 +34,33 @@ export function defaultSortOrderForKey(sortBy: FilesSortBy): FilesSortOrder {
   return sortBy === "date" ? "desc" : "asc";
 }
 
+/** Visible control default when URL params are omitted (server default). */
+export const DEFAULT_FILES_SORT_SELECTION: FilesSortSelection = {
+  sortBy: "date",
+  sortOrder: "desc",
+};
+
 export function toggleSortOrder(order: FilesSortOrder): FilesSortOrder {
   return order === "asc" ? "desc" : "asc";
+}
+
+export function effectiveFilesSortSelection(
+  selection: FilesSortSelection | null,
+): FilesSortSelection {
+  return selection ?? DEFAULT_FILES_SORT_SELECTION;
+}
+
+/** Map a concrete selection to URL/storage; date+desc collapses to omit. */
+export function toStoredFilesSortSelection(
+  selection: FilesSortSelection,
+): FilesSortSelection | null {
+  if (
+    selection.sortBy === DEFAULT_FILES_SORT_SELECTION.sortBy &&
+    selection.sortOrder === DEFAULT_FILES_SORT_SELECTION.sortOrder
+  ) {
+    return null;
+  }
+  return selection;
 }
 
 /**

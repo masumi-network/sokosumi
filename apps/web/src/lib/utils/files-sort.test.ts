@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_FILES_SORT_SELECTION,
   defaultSortOrderForKey,
+  effectiveFilesSortSelection,
   filesSortUrlValues,
   parseFilesSortSelection,
   toDriveListSortQuery,
   toggleSortOrder,
+  toStoredFilesSortSelection,
 } from "@/lib/utils/files-sort";
 
 describe("parseFilesSortSelection", () => {
@@ -38,6 +41,26 @@ describe("parseFilesSortSelection", () => {
   it("rejects invalid values as null (no silent remap)", () => {
     expect(parseFilesSortSelection("size", "asc")).toBeNull();
     expect(parseFilesSortSelection("name", "sideways")).toBeNull();
+  });
+});
+
+describe("effective and stored files sort selection", () => {
+  it("treats omitted selection as date descending in the control", () => {
+    expect(effectiveFilesSortSelection(null)).toEqual(
+      DEFAULT_FILES_SORT_SELECTION,
+    );
+  });
+
+  it("collapses date descending back to omit for clean URLs", () => {
+    expect(
+      toStoredFilesSortSelection({ sortBy: "date", sortOrder: "desc" }),
+    ).toBeNull();
+    expect(
+      toStoredFilesSortSelection({ sortBy: "date", sortOrder: "asc" }),
+    ).toEqual({ sortBy: "date", sortOrder: "asc" });
+    expect(
+      toStoredFilesSortSelection({ sortBy: "name", sortOrder: "asc" }),
+    ).toEqual({ sortBy: "name", sortOrder: "asc" });
   });
 });
 

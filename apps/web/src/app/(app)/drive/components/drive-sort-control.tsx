@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownAZ, ArrowUpAZ, ArrowUpDown } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ } from "lucide-react";
 import type { ReactElement } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,11 @@ import {
 import { cn } from "@/lib/utils";
 import {
   defaultSortOrderForKey,
+  effectiveFilesSortSelection,
   type FilesSortBy,
   type FilesSortSelection,
   toggleSortOrder,
+  toStoredFilesSortSelection,
 } from "@/lib/utils/files-sort";
 
 export interface DriveSortControlProps {
@@ -25,7 +27,6 @@ export interface DriveSortControlProps {
   onChange: (value: FilesSortSelection | null) => void;
   labels: {
     sort: string;
-    default: string;
     name: string;
     date: string;
     type: string;
@@ -48,89 +49,80 @@ export function DriveSortControl({
     date: labels.date,
     type: labels.type,
   };
-  const activeLabel = value ? keyLabels[value.sortBy] : labels.default;
+  const effective = effectiveFilesSortSelection(value);
+  const activeLabel = keyLabels[effective.sortBy];
+  const OrderIcon = effective.sortOrder === "asc" ? ArrowUpAZ : ArrowDownAZ;
+
+  function commit(next: FilesSortSelection) {
+    onChange(toStoredFilesSortSelection(next));
+  }
 
   function handleSelectKey(sortBy: FilesSortBy) {
-    if (value?.sortBy === sortBy) {
+    if (effective.sortBy === sortBy) {
       return;
     }
-    onChange({
+    commit({
       sortBy,
       sortOrder: defaultSortOrderForKey(sortBy),
     });
   }
 
   function handleToggleOrder() {
-    if (!value) {
-      return;
-    }
-    onChange({
-      sortBy: value.sortBy,
-      sortOrder: toggleSortOrder(value.sortOrder),
+    commit({
+      sortBy: effective.sortBy,
+      sortOrder: toggleSortOrder(effective.sortOrder),
     });
   }
 
-  const OrderIcon =
-    value?.sortOrder === "asc"
-      ? ArrowUpAZ
-      : value?.sortOrder === "desc"
-        ? ArrowDownAZ
-        : ArrowUpDown;
-
   return (
     <div
-      className={cn("flex items-center gap-1", className)}
+      className={cn(
+        "inline-flex h-8 items-stretch overflow-hidden rounded-md border border-input bg-background",
+        className,
+      )}
       data-testid="files-sort-control"
     >
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="h-full rounded-none border-0 px-2.5 shadow-none hover:bg-accent"
+        onClick={handleToggleOrder}
+        aria-label={
+          effective.sortOrder === "asc" ? labels.ascending : labels.descending
+        }
+        data-testid="files-sort-order"
+      >
+        <OrderIcon className="size-4" aria-hidden />
+      </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
             size="sm"
-            variant="outline"
-            className="gap-1.5"
+            variant="ghost"
+            className="h-full rounded-none border-0 border-l border-input px-2.5 shadow-none hover:bg-accent"
             aria-label={`${labels.sort}: ${activeLabel}`}
             data-testid="files-sort-trigger"
           >
-            <ArrowUpDown className="size-4" aria-hidden />
             <span className="hidden sm:inline">{activeLabel}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>{labels.sort}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={() => onChange(null)}
-            data-testid="files-sort-default"
-          >
-            {labels.default}
-          </DropdownMenuItem>
           {SORT_KEYS.map((key) => (
             <DropdownMenuItem
               key={key}
               onSelect={() => handleSelectKey(key)}
               data-testid={`files-sort-${key}`}
-              className={cn(value?.sortBy === key && "font-medium")}
+              className={cn(effective.sortBy === key && "font-medium")}
             >
               {keyLabels[key]}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="px-2.5"
-        disabled={!value}
-        onClick={handleToggleOrder}
-        aria-label={
-          value?.sortOrder === "asc" ? labels.ascending : labels.descending
-        }
-        data-testid="files-sort-order"
-      >
-        <OrderIcon className="size-4" aria-hidden />
-      </Button>
     </div>
   );
 }
