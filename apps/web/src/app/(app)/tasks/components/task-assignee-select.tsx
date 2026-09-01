@@ -95,12 +95,24 @@ function CoworkerAssigneeItem({
   return (
     <CommandItem
       value={encoded}
-      keywords={[option.name, option.slug, ...extraKeywords]}
-      className={nested ? "pl-7" : undefined}
+      keywords={[
+        option.name,
+        option.slug,
+        ...(option.caption ? [option.caption] : []),
+        ...extraKeywords,
+      ]}
+      className={nested ? "pl-10" : undefined}
       onSelect={() => onSelect(encoded)}
     >
       <AssigneeAvatar name={option.name} image={getCoworkerImage(option)} />
-      <span className="flex-1 truncate">{option.name}</span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate">{option.name}</span>
+        {nested && option.caption ? (
+          <span className="text-muted-foreground truncate text-xs">
+            {option.caption}
+          </span>
+        ) : null}
+      </span>
       <Check
         className={cn(
           "size-4",

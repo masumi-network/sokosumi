@@ -169,6 +169,7 @@ describe("TaskAssigneeSelect", () => {
             id: "coworker-jarvis",
             slug: "jarvis",
             name: "Jarvis",
+            caption: "Alice's personal assistant",
             sokoBotId: "01960001-0001-7001-8001-000000000099",
             ownerUserId: "user-1",
           }),
@@ -195,7 +196,8 @@ describe("TaskAssigneeSelect", () => {
     expect(coworkersGroup).toHaveTextContent("Elena");
 
     const jarvis = screen.getByRole("option", { name: /Jarvis/ });
-    expect(jarvis.className).toContain("pl-7");
+    expect(jarvis.className).toContain("pl-10");
+    expect(jarvis).toHaveTextContent("Alice's personal assistant");
   });
 
   it("lists personal assistants whose owner is missing in their own category", async () => {
