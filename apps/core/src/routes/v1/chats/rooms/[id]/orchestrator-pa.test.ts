@@ -179,17 +179,6 @@ function buildMessageApp() {
   return app;
 }
 
-const orchestratorParticipant = {
-  id: ORCHESTRATOR_ID,
-  name: "Ada",
-  slug: "ada",
-  caption: "Owner's personal assistant",
-  image: null,
-  presence: "online" as const,
-  avatarSeed: `orb:${USER_ID}`,
-  ownerUserId: USER_ID,
-};
-
 const baseRoom = {
   id: ROOM_ID,
   organizationId: ORG_ID,

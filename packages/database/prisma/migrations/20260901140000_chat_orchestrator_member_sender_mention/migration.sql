@@ -56,6 +56,8 @@ ALTER TABLE "chat_room_mention"
   ADD COLUMN "orchestratorId" UUID;
 
 -- Drop old unique so we can re-add partial-friendly uniques + XOR.
+-- Original chat rooms migration created this as a UNIQUE INDEX (not a table CONSTRAINT).
+DROP INDEX IF EXISTS "chat_room_mention_messageId_coworkerId_key";
 ALTER TABLE "chat_room_mention"
   DROP CONSTRAINT IF EXISTS "chat_room_mention_messageId_coworkerId_key";
 
