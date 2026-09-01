@@ -265,13 +265,14 @@ vi.mock("@/components/ui/alert-dialog", () => {
 import { toast } from "sonner";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 
-function makeUser(id: string) {
+function makeUser(id: string, access: "member" | "guest" = "member") {
   return {
     id,
     name: `User ${id}`,
     email: `${id}@example.com`,
     image: null,
     presence: "offline" as const,
+    access,
   };
 }
 

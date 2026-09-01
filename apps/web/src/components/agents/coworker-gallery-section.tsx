@@ -9,8 +9,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { useQueryState } from "nuqs";
 import { useEffect, useMemo, useState } from "react";
-
 import { StartChatButton } from "@/app/chat/components/landing/start-chat-button.client";
 import { OpenCoworkerRoomProvider } from "@/app/chat/components/landing/use-open-coworker-room";
 import { coworkerCanChat } from "@/app/chat/utils/coworker-utils";
@@ -27,7 +27,6 @@ import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import { canUseNextImageSrc } from "@/config/next-image";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
-import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { Coworker } from "@/lib/clients/generated/core";
 import type { CoworkerOffer } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
@@ -440,8 +439,8 @@ function CoworkerGallerySectionInner({
   const t = useTranslations("App.Agents.CoworkerGallerySection");
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
-  // Gallery search query (URL-backed) filters coworker offers below.
-  const { query, setQuery } = useGalleryFilter();
+  // Coworker gallery search — independent from catalog `agentQuery`.
+  const [query, setQuery] = useQueryState("query", { defaultValue: "" });
   const { handleOpenWith } = useCreateTaskModal();
   const [selected, setSelected] = useState<OfferItem | null>(null);
   const [showAllCompanies, setShowAllCompanies] = useState(false);

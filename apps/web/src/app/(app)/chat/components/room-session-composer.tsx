@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   type ChannelLinkTarget,
   formatTaskAttachmentMarkdown,
 } from "@sokosumi/utils";
+import { useTranslations } from "next-intl";
 import {
   type FormEvent,
   type Ref,
@@ -11,6 +13,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { toast } from "sonner";
 
 import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
 import {
@@ -32,6 +35,7 @@ import {
 import {
   buildRoomComposerMessageContent,
   type ChatParticipantHoverProfile,
+  isRoomComposerContentOverLimit,
   isRoomComposerEmpty,
   type PendingRoomQuote,
   type RoomMentionParticipant,
@@ -117,6 +121,7 @@ export function RoomSessionComposer({
   onOpenDirectMessage,
   openingDirectParticipantKey,
 }: RoomSessionComposerProps) {
+  const t = useTranslations("App.Channels");
   const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
@@ -173,6 +178,15 @@ export function RoomSessionComposer({
       formatTaskAttachmentMarkdown,
     );
     if (!content) return;
+    if (isRoomComposerContentOverLimit(content)) {
+      toast.error(
+        t("composerTooLong", {
+          count: content.length,
+          max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+        }),
+      );
+      return;
+    }
 
     const quotePayload = pendingQuote
       ? { messageId: pendingQuote.messageId }

@@ -1,3 +1,4 @@
+import { clearMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 
@@ -18,6 +19,10 @@ export async function activateOrganizationWorkspace(
       activation.error.message ?? "Failed to set active organization",
     );
   }
+
+  // Drop prior workspace Instant/Chats snapshot so soft-nav never paints the
+  // previous org's rooms (SOK-903). New OrganizationChatList republishes.
+  clearMembershipVisibleRoomsSnapshot();
 
   try {
     const result = await updatePreferredOrganization({

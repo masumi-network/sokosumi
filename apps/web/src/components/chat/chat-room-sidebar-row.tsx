@@ -104,7 +104,14 @@ export function ChatRoomSidebarRow({
   const [isLeaving, setIsLeaving] = useState(false);
   const isPinned = room.starredAt != null;
   const isMuted = room.mutedAt != null;
-  const canLeave = room.kind === "channel" && room.userMembers.length > 1;
+  // Match rooms-client: guests and matched may always leave; host-org last
+  // host keeps Leave hidden when they are the sole `member` access row.
+  const canLeave =
+    room.kind === "channel" &&
+    (room.myAccess === "guest" ||
+      room.discoverability === "matched" ||
+      room.userMembers.filter((member) => member.access === "member").length >
+        1);
   const { bold, badgeCount } = resolveRoomAttention({
     unreadCount: room.unreadCount,
     unreadMentionCount: room.unreadMentionCount,

@@ -47,7 +47,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 ## Features
 
 - [Sign in](./sign-in.md) — email/password session, Welcome `/` landing, persist on `/agents`.
-- [Browse agents](./browse-agents.md) — `/agents` coworker gallery (search / offers; not marketplace catalog).
+- [Browse agents](./browse-agents.md) — `/agents` coworker gallery + Agent catalog (no app Hire / price).
 - [Chat landing](./chat-landing.md) — authenticated default Welcome at `/` (not Ably messaging; `/chat` is adjacent).
 - [Tasks board](./tasks-board.md) — `/tasks` task manager shell (kanban / tabs).
 - [Projects](./projects.md) — `/projects` list or empty state.

@@ -82,16 +82,22 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
       ariaKeyshortcuts: historySearch ? "Meta+K Control+K" : undefined,
     },
     {
-      key: "task-manager",
-      href: "/tasks",
-      label: t("taskManager"),
-      Icon: ListTodo,
+      key: "explore-agents",
+      href: "/agents",
+      label: t("exploreAgents"),
+      Icon: Bot,
     },
     {
       key: "projects",
       href: "/projects",
       label: t("projects"),
       Icon: FolderKanban,
+    },
+    {
+      key: "task-manager",
+      href: "/tasks",
+      label: t("taskManager"),
+      Icon: ListTodo,
     },
     ...(calendarMenuEnabled
       ? [
@@ -103,12 +109,6 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
           },
         ]
       : []),
-    {
-      key: "explore-agents",
-      href: "/agents",
-      label: t("exploreAgents"),
-      Icon: Bot,
-    },
     {
       key: "history",
       href: "/history",

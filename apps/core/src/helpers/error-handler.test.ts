@@ -306,4 +306,39 @@ describe("errorHandler", () => {
       }),
     );
   });
+
+  it("clears context.error for expected 4xx so evlog does not mark the wide event", async () => {
+    const app = createApp();
+    let seenError: Error | undefined = new Error("unset");
+    app.use("*", async (c, next) => {
+      await next();
+      seenError = c.error;
+    });
+    app.get("/", () => {
+      throw conflict("Conflict");
+    });
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(409);
+    expect(seenError).toBeUndefined();
+  });
+
+  it("keeps context.error for unexpected 5xx so evlog can mark the wide event", async () => {
+    const app = createApp();
+    let seenError: Error | undefined;
+    app.use("*", async (c, next) => {
+      await next();
+      seenError = c.error;
+    });
+    app.get("/", () => {
+      throw new Error("boom");
+    });
+
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(500);
+    expect(seenError).toEqual(expect.any(Error));
+    expect(seenError?.message).toBe("boom");
+  });
 });

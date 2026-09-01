@@ -293,6 +293,19 @@ export const adminOrganizationMemberIdParamSchema = z.object({
   }),
 });
 
+export const adminMatchedChannelListStatusSchema = z
+  .enum(["active", "archived"])
+  .openapi("AdminMatchedChannelListStatus");
+
+export const adminMatchedChannelListQuerySchema = z.object({
+  status: adminMatchedChannelListStatusSchema.default("active").openapi({
+    param: { name: "status", in: "query" },
+    description:
+      "List filter. `active` (default) returns live matched channels; `archived` returns soft-archived ones.",
+    example: "active",
+  }),
+});
+
 export const adminMatchedChannelOptionSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -300,6 +313,11 @@ export const adminMatchedChannelOptionSchema = z
     }),
     name: z.string().openapi({ example: "Matched Channel" }),
     slug: z.string().openapi({ example: "matched-channel" }),
+    archivedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When set, the channel is soft-archived and absent from live chat. Null while live.",
+      example: null,
+    }),
   })
   .openapi("AdminMatchedChannelOption");
 
@@ -369,6 +387,11 @@ export const adminMatchedChannelDetailSchema = z
     name: z.string().openapi({ example: "Matched Channel" }),
     slug: z.string().openapi({ example: "matched-channel" }),
     topic: z.string().nullable().openapi({ example: "Partner coordination" }),
+    archivedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When set, the channel is soft-archived. Null while live. Roster mutations require a live channel.",
+      example: null,
+    }),
     participants: z.array(adminMatchedChannelParticipantInfoSchema),
   })
   .openapi("AdminMatchedChannelDetail");
@@ -404,6 +427,15 @@ export const adminRemoveMatchedChannelParticipantSchema = z
     outcome: z.literal("removed").openapi({ example: "removed" }),
   })
   .openapi("AdminRemoveMatchedChannelParticipant");
+
+export const adminArchivedMatchedChannelSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    archivedAt: dateTimeSchema,
+  })
+  .openapi("AdminArchivedMatchedChannel");
 
 /**
  * Soft cap for one-shot org → matched roster snapshots. Each member takes a

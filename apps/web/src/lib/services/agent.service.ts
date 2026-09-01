@@ -3,7 +3,11 @@ import "server-only";
 import { mapCoreMyAgentReview } from "@/lib/agents/core-dto-mappers";
 import { getAllCoreAgents, getCoreAgentById } from "@/lib/agents/core-loaders";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type { Agent, AgentDetail } from "@/lib/clients/generated/core";
+import type {
+  Agent,
+  AgentDetail,
+  CardanoAgentListItem,
+} from "@/lib/clients/generated/core";
 
 export const agentService = (() => {
   return {
@@ -14,7 +18,10 @@ export const agentService = (() => {
     },
 
     getAvailableAgentsWithCreditsPrice: async (): Promise<Agent[]> => {
-      return getAllCoreAgents();
+      const items = await getAllCoreAgents();
+      return items.filter(
+        (item): item is CardanoAgentListItem => item.kind === "cardano",
+      );
     },
 
     async canUserRateAgent(agentId: string): Promise<boolean> {

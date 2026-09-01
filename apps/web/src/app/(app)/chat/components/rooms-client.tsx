@@ -1,5 +1,6 @@
 "use client";
 
+import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import { Hash, Loader2, MessageCircle } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -160,6 +161,7 @@ import {
   hasPendingCoworkerMention,
   highlightRoomMessageElement,
   isMessageContinuation,
+  isRoomComposerContentOverLimit,
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
@@ -958,13 +960,14 @@ export function RoomsClient({
       selectedRoom.myAccess === "member" &&
       selectedRoom.discoverability === "external",
   );
-  // Any participant can leave, but not the last host-org member — an empty
-  // host roster could not be archived (archive requires org owner/admin). Guests
-  // do not count toward that floor; guests may always leave.
+  // Any participant can leave. Host-org channels keep the last host member so
+  // an empty roster cannot block archive (org owner/admin). Matched channels
+  // allow last-member leave (Core auto-archives). Guests may always leave.
   const canLeaveSelectedRoom = Boolean(
     selectedRoom &&
       !isDirectRoom &&
       (isGuestInSelectedRoom ||
+        isMatchedChannel ||
         selectedRoom.userMembers.filter((member) => member.access === "member")
           .length > 1),
   );
@@ -2280,6 +2283,15 @@ export function RoomsClient({
     const raw = contentOverride ?? draft;
     const content = raw.trim();
     if (!content) return;
+    if (isRoomComposerContentOverLimit(content)) {
+      toast.error(
+        t("composerTooLong", {
+          count: content.length,
+          max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+        }),
+      );
+      return;
+    }
 
     // Keep controlled draft in sync with what we submit so a failed save still
     // shows the text the user actually confirmed (not a stale parent draft).
@@ -2425,7 +2437,7 @@ export function RoomsClient({
   ) {
     if (isStillSelectedRoom(job.roomId)) {
       setMessagesState((current) =>
-        failOutboundMessage(current, job.clientMessageId),
+        failOutboundMessage(current, job.clientMessageId, errorMessage),
       );
       return;
     }
@@ -2443,7 +2455,7 @@ export function RoomsClient({
       threadParentMessageIdRef.current === job.parentMessageId;
     if (shellVisible) {
       setThreadMessages((current) =>
-        failOutboundMessage(current, job.clientMessageId),
+        failOutboundMessage(current, job.clientMessageId, errorMessage),
       );
       return;
     }

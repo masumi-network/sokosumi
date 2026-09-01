@@ -65,6 +65,9 @@ export const CLIENT_MESSAGE_ID_METADATA_KEY = "client_message_id" as const;
 export const OUTBOUND_DELIVERY_STATUS_METADATA_KEY =
   "outbound_delivery_status" as const;
 
+/** Sender-local reason when an outbound shell failed to persist. */
+export const OUTBOUND_ERROR_METADATA_KEY = "outbound_error" as const;
+
 export type OutboundDeliveryStatus = "pending" | "failed";
 
 export function outboundLocalMessageId(clientTurnId: string): string {
@@ -99,6 +102,20 @@ export function readOutboundDeliveryStatus(
     return raw;
   }
   return "pending";
+}
+
+export function readOutboundErrorMessage(
+  message: ChatRoomMessage,
+): string | null {
+  if (!isOutboundLocalMessage(message)) {
+    return null;
+  }
+  const raw = message.metadata?.[OUTBOUND_ERROR_METADATA_KEY];
+  if (typeof raw !== "string") {
+    return null;
+  }
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 export interface CreatePendingRoomMessageParams {
@@ -216,19 +233,27 @@ function setOutboundDeliveryStatus(
   messages: readonly ChatRoomMessage[],
   clientTurnId: string,
   status: OutboundDeliveryStatus,
+  errorMessage?: string,
 ): ChatRoomMessage[] {
   const pendingId = outboundLocalMessageId(clientTurnId);
+  const trimmedError = errorMessage?.trim();
   return messages.map((message) => {
     if (message.id !== pendingId) {
       return message;
     }
+    const nextMetadata: Record<string, unknown> = {
+      ...(message.metadata ?? {}),
+      [CLIENT_MESSAGE_ID_METADATA_KEY]: clientTurnId,
+      [OUTBOUND_DELIVERY_STATUS_METADATA_KEY]: status,
+    };
+    if (status === "failed" && trimmedError) {
+      nextMetadata[OUTBOUND_ERROR_METADATA_KEY] = trimmedError;
+    } else {
+      delete nextMetadata[OUTBOUND_ERROR_METADATA_KEY];
+    }
     return {
       ...message,
-      metadata: {
-        ...(message.metadata ?? {}),
-        [CLIENT_MESSAGE_ID_METADATA_KEY]: clientTurnId,
-        [OUTBOUND_DELIVERY_STATUS_METADATA_KEY]: status,
-      },
+      metadata: nextMetadata,
     };
   });
 }
@@ -236,8 +261,14 @@ function setOutboundDeliveryStatus(
 export function failOutboundMessage(
   messages: readonly ChatRoomMessage[],
   clientTurnId: string,
+  errorMessage?: string,
 ): ChatRoomMessage[] {
-  return setOutboundDeliveryStatus(messages, clientTurnId, "failed");
+  return setOutboundDeliveryStatus(
+    messages,
+    clientTurnId,
+    "failed",
+    errorMessage,
+  );
 }
 
 export function markOutboundMessagePending(
