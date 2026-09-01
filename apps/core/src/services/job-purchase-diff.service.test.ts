@@ -213,6 +213,39 @@ describe("syncPurchasesFromDiff", () => {
     expect(applyPurchase).toHaveBeenCalledTimes(1);
   });
 
+  it("gives a job at most one fallback row across pages", async () => {
+    // A full first page, so the run reads a second one.
+    const firstPage = [
+      createDiffPurchase(),
+      ...Array.from({ length: PURCHASE_DIFF_PAGE_SIZE - 1 }, (_row, index) =>
+        createDiffPurchase({
+          id: `purchase_filler_${index}`,
+          blockchainIdentifier: `chain-filler-${index}`,
+        }),
+      ),
+    ];
+    getPurchasesDiffMock
+      .mockResolvedValueOnce(ok(firstPage))
+      // Same job, same terms, different purchase id: a stale row the id join
+      // cannot see, on a page of its own.
+      .mockResolvedValueOnce(ok([createDiffPurchase({ id: "purchase_new" })]));
+    jobPurchaseFindManyMock
+      .mockResolvedValueOnce([createJobPurchaseRow()])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        createJobPurchaseRow({ externalId: "purchase_old" }),
+      ]);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
+
+    const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+    // Two rows applying to one job would flip its status between them on
+    // every run of the re-read window, re-firing its emails and webhook.
+    expect(applyPurchase).toHaveBeenCalledTimes(1);
+    expect(result.processed).toBe(1);
+  });
+
   it("resumes on the stored row when the previous run stopped early", async () => {
     syncMetadataFindUniqueMock.mockResolvedValue({
       cursorId: "purchase_0",
@@ -321,6 +354,42 @@ describe("syncPurchasesFromDiff", () => {
     expect(changedAt.getTime()).toBeLessThan(
       Date.now() - PURCHASE_DIFF_INITIAL_LOOKBACK_MS + 60_000,
     );
+  });
+
+  it("keeps the resume point when a cut-short page ends on the resume row", async () => {
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: "purchase_1",
+      lastSyncedAt: CHANGED_AT,
+    });
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      ok([
+        createDiffPurchase(),
+        createDiffPurchase({
+          id: "purchase_2",
+          blockchainIdentifier: "chain-2",
+        }),
+      ]),
+    );
+    jobPurchaseFindManyMock.mockResolvedValue([
+      createJobPurchaseRow(),
+      createJobPurchaseRow({
+        externalId: "purchase_2",
+        job: createJob({ id: "job_2", blockchainIdentifier: "chain-2" }),
+      }),
+    ]);
+    // The request plus the first row only, so the page ends on the resume row
+    // with the second row unread.
+    let checksLeft = 2;
+
+    await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>().mockResolvedValue(undefined), {
+        shouldContinue: () => checksLeft-- > 0,
+      }),
+    );
+
+    // The stall guard fired, but the page had rows left: rewinding to the
+    // re-read window would throw away everything this run advanced past.
+    expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("re-reads a window before the stored cursor", async () => {

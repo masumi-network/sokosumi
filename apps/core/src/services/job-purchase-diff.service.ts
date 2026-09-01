@@ -470,8 +470,7 @@ export async function syncPurchasesFromDiff(
       // The node treats `lastUpdate` as inclusive and breaks ties on
       // `cursorId`, so a page that ends where the last one ended means the
       // cursor is not moving. Stop instead of re-reading (and re-applying)
-      // the same rows until the deadline. Nothing is left behind: an
-      // unmoving cursor means the feed has nothing past this row.
+      // the same rows until the deadline.
       const cursorStalled = lastHandledCursor.id === cursorId;
       changedAt = lastHandledCursor.changedAt;
       cursorId = lastHandledCursor.id;
@@ -479,7 +478,11 @@ export async function syncPurchasesFromDiff(
         console.warn(
           `[sync/jobs/purchase-diff] Cursor did not advance past ${cursorId}; stopping this run`,
         );
-        drained = true;
+        // Only a page that ran to its end proves the feed has nothing past
+        // this row. A page cut short by the budget or by a failed apply ends
+        // on the resume row for a different reason, and must keep its resume
+        // point so the next run continues instead of rewinding.
+        drained = !stopAfterThisPage;
         break;
       }
     }
