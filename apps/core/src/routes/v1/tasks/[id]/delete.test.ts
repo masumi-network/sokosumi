@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { buildTaskApiAssigneeFields } from "@/test-fixtures/task-api-assignee";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { buildTaskApiAssigneeFields } from "@/test-fixtures/task-api-assignee";
 
 import mountDeleteTask from "./delete";
 

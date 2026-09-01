@@ -26,11 +26,11 @@ import {
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { created } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import { refineTaskAssigneeXorConflict } from "@/helpers/task-assignee";
 import {
   refineAssigneeIdAliasConflict,
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
-import { refineTaskAssigneeXorConflict } from "@/helpers/task-assignee";
 import {
   refineChannelOriginConflict,
   resolveTaskEventChannel,

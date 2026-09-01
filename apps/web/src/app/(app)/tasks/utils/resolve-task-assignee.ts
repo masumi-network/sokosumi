@@ -1,11 +1,10 @@
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type {
   Coworker,
   TaskAssignee,
   TaskListItem,
 } from "@/lib/clients/generated/core";
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-
-import { defaultOrbSeed } from "@/lib/aurora-orb";
 
 import { getCoworkerImage } from "./coworker-image";
 

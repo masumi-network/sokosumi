@@ -9,8 +9,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { mapTask } from "@/helpers/task";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { taskSchema } from "@/schemas/task.schema";
 import type { AuthVariables } from "@/middleware/auth";
+import { taskSchema } from "@/schemas/task.schema";
+import type { TaskWithIncludes } from "@/types/task";
 
 import mountGetTaskById from "./[id]/get";
 import mountPatchTask, { patchTaskRequestSchema } from "./[id]/patch";
@@ -571,7 +572,9 @@ describe("SOK-943 PA orchestrator task assignee", () => {
 
       expect(response.status).toBe(200);
       const body = await response.json();
-      const expected = taskSchema.parse(mapTask(task));
+      const expected = taskSchema.parse(
+        mapTask(task as unknown as TaskWithIncludes),
+      );
       expect(body.data.assignee).toEqual(expected.assignee);
       expect(body.data.assigneeOrchestratorId).toBe(ORCHESTRATOR_ID);
       expect(body.data.assigneeId).toBeNull();

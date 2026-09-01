@@ -4,12 +4,12 @@ import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { resolveTaskAssigneeCoworker } from "@/app/tasks/utils/resolve-task-assignee";
 import { coreClient } from "@/lib/clients/core.client";
+import type { Coworker } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type {
   JobSummary,
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
-import type { Coworker } from "@/lib/clients/generated/core";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { taskService } from "@/lib/services/task.service";
 import type { CoreAgentDto } from "@/lib/types/core-dto";

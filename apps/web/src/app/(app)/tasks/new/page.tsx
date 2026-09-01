@@ -9,8 +9,8 @@ import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
-import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 export const metadata = {
   title: "New Task",

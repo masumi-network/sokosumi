@@ -1,6 +1,6 @@
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { getColumnId } from "@/app/tasks/utils/task-column";
 import { resolveTaskAssigneeCoworker } from "@/app/tasks/utils/resolve-task-assignee";
+import { getColumnId } from "@/app/tasks/utils/task-column";
 import type { Coworker } from "@/lib/clients/generated/core";
 import type {
   Task,

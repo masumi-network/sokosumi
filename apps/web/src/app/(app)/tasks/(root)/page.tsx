@@ -13,11 +13,11 @@ import {
   findCoworkerIdBySlug,
   getCoworkerOptions,
 } from "@/app/tasks/utils/coworker-options";
-import { buildPaAssigneeOption } from "@/app/tasks/utils/pa-assignee-option";
 import {
   parseJobsListFilters,
   sanitizeJobAgentIdForPersistedFilter,
 } from "@/app/tasks/utils/jobs-filters";
+import { buildPaAssigneeOption } from "@/app/tasks/utils/pa-assignee-option";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
   firstQueryString,
