@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/database";
 import {
   buildJobsNeedingAgentStatusSyncWhere,
-  buildJobsNeedingPurchaseSyncWhere,
+  buildJobsNeedingPurchaseBackfillWhere,
   buildJobsPendingLocalRefundWhere,
   mapJobWithStatus,
 } from "@sokosumi/database/helpers";
@@ -33,6 +33,7 @@ import {
   doMasumiPaymentAmountsMatch,
   normalizeV2RegistryIdentifier,
 } from "@sokosumi/masumi";
+import type { MasumiPurchaseDiffEntry } from "@sokosumi/masumi/clients";
 import {
   buildWebhookFailureContext,
   postWebhook,
@@ -49,6 +50,7 @@ import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
+import { syncPurchasesFromDiff } from "@/services/job-purchase-diff.service";
 import { refundJob } from "@/services/job-refund";
 import { sourceImportService } from "@/services/source-import.service";
 
@@ -66,7 +68,7 @@ type JobStatusValue =
   | "running"
   | "completed"
   | "failed";
-type JobSyncKind = "purchase" | "agent" | "refund";
+type JobSyncKind = "purchase-backfill" | "agent" | "refund";
 
 interface JobSyncPhaseResult {
   found: number;
@@ -82,6 +84,8 @@ interface JobSyncTransactionResult {
 export interface JobSyncExecutionOptions {
   abortSignal: AbortSignal;
   deadlineMs: number;
+  /** Replays the whole purchase diff feed instead of resuming at the cursor. */
+  resetPurchaseCursor?: boolean;
   shouldContinue: () => boolean;
 }
 
@@ -97,31 +101,32 @@ export interface JobSyncResult {
 
 /**
  * Budget held back from BOTH network-bound phases so the refund phase always
- * runs. The three phases share one run deadline and execute in order:
- * purchase, then agent, then refund.
+ * runs. One run deadline covers, in order: the purchase diff, then the
+ * purchase backfill, agent, and refund phases.
  *
- * Purchase polls the payment node once per job (10s timeout, 5 concurrent),
- * and agent polls sellers — and since this release keeps polling
- * snapshot-backed jobs whose agent has gone offline (see
- * `buildInFlightAgentSnapshotWhere`), free jobs for 30 days. Either can
- * consume the whole run on its own: a slow payment node exhausts the budget in
- * the purchase phase before the agent phase starts. Refund is database-only,
- * cheap, and returns money to users, so it must not be the thing that starves
- * — and a slow node is exactly when refunds are most likely to be needed.
+ * The diff reads one page of changed purchases per request, backfill polls the
+ * payment node once per purchase-less job (10s timeout, 5 concurrent), and
+ * agent polls sellers — and since this release keeps polling snapshot-backed
+ * jobs whose agent has gone offline (see `buildInFlightAgentSnapshotWhere`),
+ * free jobs for 30 days. Any of them can consume the whole run on its own: a
+ * slow payment node exhausts the budget before the agent phase starts. Refund
+ * is database-only, cheap, and returns money to users, so it must not be the
+ * thing that starves — and a slow node is exactly when refunds are most likely
+ * to be needed.
  *
  * Reserving budget rather than reordering the phases: refund MUST run after
- * purchase. It triggers on `purchase: null`, and the purchase phase is what
- * backfills a JobPurchase row for a purchase that landed on chain since the
+ * the backfill phase. It triggers on `purchase: null`, and backfill is what
+ * attaches a JobPurchase row for a purchase that landed on chain since the
  * last run. Refunding first would return credits for a job whose escrow is
  * funded — paying the seller and the buyer both.
  *
  * (`seenJobIds` is NOT what enforces this. It is only a deduplicated counter
- * for `unfinishedFound`; no query filters on it. Nothing needs to: the three
- * selectors are disjoint. A purchase-less job sits in the purchase set while
- * `payByTime` is in the future and in the refund set once it is past, and
- * `REFUND_WITHDRAWN` / `FUNDS_OR_DATUM_INVALID` are in
- * `finalizedOnChainJobStatuses`, which the purchase selector excludes and the
- * refund selector requires.)
+ * for `unfinishedFound` across the three job-selector phases; the diff is
+ * keyed on purchases rather than jobs and adds nothing to it. No query filters
+ * on `seenJobIds`. Nothing needs to: the three selectors are disjoint.
+ * Backfill requires `purchase: null` inside the payment grace window, so a job
+ * that already has a purchase row is only ever updated by the diff, and a
+ * purchase-less job past that window belongs to refund.)
  */
 const REFUND_PHASE_RESERVED_MS = 20_000;
 
@@ -131,8 +136,8 @@ function hasTimeRemaining(deadlineMs: number): boolean {
 
 function getJobSyncLogPrefix(kind: JobSyncKind): string {
   switch (kind) {
-    case "purchase":
-      return "[sync/jobs/purchase]";
+    case "purchase-backfill":
+      return "[sync/jobs/purchase-backfill]";
     case "agent":
       return "[sync/jobs/agent]";
     case "refund":
@@ -151,8 +156,8 @@ function logJobSyncError(
 ): void {
   const message = (() => {
     switch (kind) {
-      case "purchase":
-        return `Failed to sync purchase state for job ${jobId}`;
+      case "purchase-backfill":
+        return `Failed to backfill the purchase for job ${jobId}`;
       case "agent":
         return `Failed to sync agent status for job ${jobId}`;
       case "refund":
@@ -558,44 +563,6 @@ function matchesDeadline(
   return purchaseValue === String(jobValue.getTime());
 }
 
-/**
- * Verifies that the node answered the identifier this job actually asked for.
- *
- * The blockchain identifier IS the job's on-chain identity — it is what the
- * seller signed and what the escrow is keyed on — so it is the only field that
- * distinguishes one job's purchase from another's. Nothing else here does:
- * `inputHash` is a hash of the input alone, so two hires of the same agent with
- * the same input share it; deadlines and amounts collide freely; and the
- * purchase id may legitimately change if the node replaces the row.
- *
- * Since the lookup is keyed on that identifier, this is a narrow echo check —
- * it catches the node answering with a different row, not a purchase that is
- * plausibly-but-wrongly matched. That is the whole gap the id-based lookup used
- * to close for free.
- *
- * An absent identifier on the response reads as unverifiable, not foreign: this
- * runs on every paid job every cron tick, including rows predating the snapshot
- * columns, and refusing those would stop them syncing forever.
- */
-function isPolledPurchaseForeign(
-  purchase: { blockchainIdentifier?: string | null },
-  job: { blockchainIdentifier: string | null },
-): boolean {
-  if (
-    typeof purchase.blockchainIdentifier !== "string" ||
-    purchase.blockchainIdentifier.length === 0 ||
-    typeof job.blockchainIdentifier !== "string" ||
-    job.blockchainIdentifier.length === 0
-  ) {
-    return false;
-  }
-  // Casing never carries meaning in these hex-encoded protocol values.
-  return (
-    purchase.blockchainIdentifier.toLowerCase() !==
-    job.blockchainIdentifier.toLowerCase()
-  );
-}
-
 /** Recreates the exact metadata sent by createPurchase for a stored job. */
 function getExpectedPurchaseMetadata(job: {
   agentJobId: string;
@@ -614,7 +581,7 @@ function getExpectedPurchaseMetadata(job: {
   }
 }
 
-async function syncPurchaseState(
+async function backfillJobPurchase(
   initialJob: JobWithSokosumiStatus,
   options: JobSyncRunOptions,
 ): Promise<boolean> {
@@ -625,7 +592,7 @@ async function syncPurchaseState(
     const backfillSignal = createPollingSignal(
       options,
       `Stopping before backfilling purchase for job ${job.id}`,
-      "purchase",
+      "purchase-backfill",
     );
     if (!backfillSignal) {
       return false;
@@ -643,7 +610,7 @@ async function syncPurchaseState(
       shouldStopSync(
         options,
         `Stopping after backfilling purchase for job ${job.id}`,
-        "purchase",
+        "purchase-backfill",
       )
     ) {
       return false;
@@ -743,7 +710,7 @@ async function syncPurchaseState(
           // Unique constraint: purchase already created by a concurrent
           // request. The row exists, so fall through to refresh and finalize.
           logJobSyncInfo(
-            "purchase",
+            "purchase-backfill",
             `Skipping purchase backfill for job ${job.id}: ${code}`,
           );
         } else if (code === "P2014" || code === "P2025") {
@@ -751,7 +718,7 @@ async function syncPurchaseState(
           // sync. Skip the refresh below, which would otherwise throw
           // "Job not found" for the now-missing job.
           logJobSyncInfo(
-            "purchase",
+            "purchase-backfill",
             `Skipping purchase backfill for job ${job.id}: ${code}`,
           );
           return false;
@@ -768,100 +735,49 @@ async function syncPurchaseState(
     job = refreshedJob;
   }
 
-  const purchaseExternalIdToSync = job.purchase?.externalId ?? null;
-  // Both guards are required: main batches the completion email through
-  // `enqueueEmail`, and the V2 poll below looks the purchase up by blockchain
-  // identifier, so a job without one can never be polled.
-  const jobBlockchainIdentifier = job.blockchainIdentifier;
-  if (!purchaseExternalIdToSync || !jobBlockchainIdentifier) {
-    await finalizeJobSyncResult(
-      oldJobStatus,
-      {
-        job,
-        jobStatus: job.status,
-      },
-      options.enqueueEmail,
-    );
-    return true;
-  }
-
-  const pollingSignal = createPollingSignal(
-    options,
-    `Stopping before polling purchase status for job ${job.id}`,
-    "purchase",
+  await finalizeJobSyncResult(
+    oldJobStatus,
+    {
+      job,
+      jobStatus: job.status,
+    },
+    options.enqueueEmail,
   );
-  if (!pollingSignal) {
-    return false;
-  }
+  return true;
+}
 
-  // Poll by blockchain identifier: GET /purchase defaults to a V1-only
-  // payment-source filter, so a purchase id cursor lookup can miss (or worse,
-  // return a neighboring row for) V2 purchases.
-  const onChainPurchaseResult =
-    await paymentClient().getPurchaseByBlockchainIdentifier(
-      jobBlockchainIdentifier,
-      {
-        signal: pollingSignal,
-      },
-    );
-  if (
-    pollingSignal.aborted ||
-    shouldStopSync(
-      options,
-      `Stopping after polling purchase status for job ${job.id}`,
-      "purchase",
-    )
-  ) {
-    return false;
-  }
-
-  let transactionResult: JobSyncTransactionResult = {
-    job,
-    jobStatus: job.status,
-  };
-
-  if (onChainPurchaseResult.isOk()) {
-    const polledPurchase = onChainPurchaseResult.value;
-    // The lookup key changed from the purchase id — a value read straight off
-    // this job's own row — to the blockchain identifier, because V2 purchases
-    // are invisible to the id cursor. Confirm the node answered with that
-    // identifier: writing a different row's state would stamp another job's
-    // refund or completion onto this one.
-    if (isPolledPurchaseForeign(polledPurchase, job)) {
-      const foreignPurchaseError = new Error(
-        `Resolved purchase is for a different blockchain identifier than job ${job.id}; refusing purchase state update`,
+/**
+ * Writes one changed purchase from the diff feed onto its job and finalizes the
+ * job exactly as the phases do: status event, emails, notifications, webhook,
+ * Ably publish. The diff feed replaces the per-job poll; everything after the
+ * write is unchanged.
+ */
+async function applyDiffPurchase(
+  job: JobWithSokosumiStatus,
+  purchase: MasumiPurchaseDiffEntry,
+  options: JobSyncRunOptions,
+): Promise<boolean> {
+  const oldJobStatus = job.status;
+  const transactionResult = await prisma.$transaction(
+    async (tx): Promise<JobSyncTransactionResult> => {
+      await jobPurchaseRepository.updateJobPurchaseByJobId(
+        job.id,
+        transformPurchaseToJobUpdate(purchase),
+        tx,
       );
-      console.error(foreignPurchaseError.message, {
-        jobId: job.id,
-        blockchainIdentifier: job.blockchainIdentifier,
-        resolvedBlockchainIdentifier: polledPurchase.blockchainIdentifier,
-        purchaseId: polledPurchase.id,
-      });
-      Sentry.captureException(foreignPurchaseError);
-      return false;
-    }
-    transactionResult = await prisma.$transaction(
-      async (tx): Promise<JobSyncTransactionResult> => {
-        const purchaseData = transformPurchaseToJobUpdate(polledPurchase);
-        await jobPurchaseRepository.updateJobPurchaseByJobId(
-          job.id,
-          purchaseData,
-          tx,
-        );
 
-        const refreshedJob = await jobRepository.getJobById(job.id, tx);
-        if (!refreshedJob) {
-          throw new Error("Job not found");
-        }
+      const refreshedJob = await jobRepository.getJobById(job.id, tx);
+      if (!refreshedJob) {
+        throw new Error("Job not found");
+      }
 
-        return {
-          job: refreshedJob,
-          jobStatus: refreshedJob.status,
-        };
-      },
-      JOB_SYNC_TRANSACTION_OPTIONS,
-    );
-  }
+      return {
+        job: refreshedJob,
+        jobStatus: refreshedJob.status,
+      };
+    },
+    JOB_SYNC_TRANSACTION_OPTIONS,
+  );
 
   await finalizeJobSyncResult(
     oldJobStatus,
@@ -1040,10 +956,16 @@ async function runSyncPhase(
     seenJobIds.add(job.id);
   }
 
-  const foundMessage =
-    kind === "refund"
-      ? `Found ${jobs.length} jobs pending local refund`
-      : `Found ${jobs.length} jobs for ${kind} sync`;
+  const foundMessage = (() => {
+    switch (kind) {
+      case "refund":
+        return `Found ${jobs.length} jobs pending local refund`;
+      case "purchase-backfill":
+        return `Found ${jobs.length} jobs needing a purchase backfill`;
+      case "agent":
+        return `Found ${jobs.length} jobs for agent sync`;
+    }
+  })();
   logJobSyncInfo(kind, foundMessage);
 
   const limit = pLimit(JOB_SYNC_CONCURRENCY);
@@ -1100,6 +1022,7 @@ export const jobSyncService = {
       },
     };
 
+    let diffProcessed = 0;
     let purchasePhase: JobSyncPhaseResult = { found: 0, processed: 0 };
     let agentPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
     let refundPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
@@ -1118,12 +1041,25 @@ export const jobSyncService = {
     };
 
     try {
+      // Changed purchases first: one request per page of node-side changes,
+      // instead of one request per unfinished job. The backfill phase below
+      // then only has to attach purchases that have no local row yet.
+      const purchaseDiff = await syncPurchasesFromDiff({
+        abortSignal: options.abortSignal,
+        applyPurchase: (job, purchase) =>
+          applyDiffPurchase(job, purchase, runOptions),
+        deadlineMs: networkPhaseOptions.deadlineMs,
+        shouldContinue: options.shouldContinue,
+        ...(options.resetPurchaseCursor ? { resetCursor: true } : {}),
+      });
+      diffProcessed = purchaseDiff.processed;
+
       purchasePhase = await runSyncPhase(
-        "purchase",
-        buildJobsNeedingPurchaseSyncWhere(),
+        "purchase-backfill",
+        buildJobsNeedingPurchaseBackfillWhere(),
         networkPhaseOptions,
         seenJobIds,
-        syncPurchaseState,
+        backfillJobPurchase,
       );
       agentPhase = await runSyncPhase(
         "agent",
@@ -1156,7 +1092,10 @@ export const jobSyncService = {
     return {
       durationMs: Date.now() - startedAt,
       processed:
-        purchasePhase.processed + agentPhase.processed + refundPhase.processed,
+        diffProcessed +
+        purchasePhase.processed +
+        agentPhase.processed +
+        refundPhase.processed,
       unfinishedFound: seenJobIds.size,
     };
   },

@@ -13,6 +13,8 @@ import { createX402PaymentMethods } from "./masumi-payment-x402.js";
 import { extractNodeErrorMessage } from "./node-error.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
+  type GetPurchaseDiffResponses,
+  getPurchaseDiff,
   getRailReadiness,
   type PostPurchaseData,
   type PostPurchaseResolveBlockchainIdentifierResponses,
@@ -35,6 +37,14 @@ export interface CardanoV2ReadySource {
 
 type ResolvedPurchase =
   PostPurchaseResolveBlockchainIdentifierResponses["200"]["data"];
+
+/**
+ * One purchase as returned by the node's diff feed. Structurally the same row
+ * the resolve endpoint returns, plus the change timestamps the cursor rides
+ * on.
+ */
+export type MasumiPurchaseDiffEntry =
+  GetPurchaseDiffResponses["200"]["data"]["Purchases"][number];
 type CreatedPurchase = PostPurchaseResponses["200"]["data"];
 type PurchaseRequest = NonNullable<PostPurchaseData["body"]>;
 
@@ -351,6 +361,44 @@ export function createPaymentClient(
       options: PaymentClientRequestOptions = {},
     ) {
       return resolvePurchase(jobBlockchainIdentifier, options);
+    },
+
+    /**
+     * Purchases whose next action, on-chain state, or result changed at or
+     * after `changedSince`, oldest first. `cursorId` breaks the tie when
+     * several purchases carry the same change timestamp, so a page boundary
+     * cannot drop or repeat a row.
+     */
+    async getPurchasesDiff(
+      changedSince: Date,
+      cursorId: string | null,
+      limit: number,
+      options: PaymentClientRequestOptions = {},
+    ): Promise<Result<MasumiPurchaseDiffEntry[], string>> {
+      try {
+        const response = await getPurchaseDiff({
+          client: client(),
+          query: {
+            network,
+            lastUpdate: changedSince.toISOString(),
+            cursorId: cursorId ?? undefined,
+            limit,
+          },
+          signal: options.signal,
+        });
+        if (
+          response.error ||
+          !response.data ||
+          response.response?.status !== 200
+        ) {
+          return err(
+            `purchase-diff ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
+          );
+        }
+        return ok(response.data.data.Purchases);
+      } catch (error) {
+        return err(String(error) || "Failed to fetch the purchase diff");
+      }
     },
 
     /**
