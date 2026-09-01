@@ -1,3 +1,4 @@
+import { AgentsSkeleton } from "@/components/agents";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AgentsLoading() {
@@ -14,6 +15,13 @@ export default function AgentsLoading() {
               <Skeleton key={index} className="h-40 w-full rounded-xl" />
             ))}
           </div>
+        </section>
+        <section className="space-y-8">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-48 md:h-8" />
+            <Skeleton className="h-4 w-72 md:h-5" />
+          </div>
+          <AgentsSkeleton />
         </section>
       </div>
     </div>

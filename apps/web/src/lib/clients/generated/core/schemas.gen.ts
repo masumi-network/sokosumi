@@ -3020,13 +3020,34 @@ export const AdminMatchedChannelOptionSchema = {
         slug: {
             type: 'string',
             example: 'matched-channel'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When set, the channel is soft-archived and absent from live chat. Null while live.'
         }
     },
     required: [
         'id',
         'name',
-        'slug'
+        'slug',
+        'archivedAt'
     ]
+} as const;
+
+export const AdminMatchedChannelListStatusSchema = {
+    type: 'string',
+    enum: [
+        'active',
+        'archived'
+    ],
+    default: 'active',
+    description: 'List filter. `active` (default) returns live matched channels; `archived` returns soft-archived ones.',
+    example: 'active'
 } as const;
 
 export const AdminCreateMatchedChannelBodySchema = {
@@ -3077,6 +3098,15 @@ export const AdminMatchedChannelDetailSchema = {
             ],
             example: 'Partner coordination'
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When set, the channel is soft-archived. Null while live. Roster mutations require a live channel.'
+        },
         participants: {
             type: 'array',
             items: {
@@ -3089,6 +3119,7 @@ export const AdminMatchedChannelDetailSchema = {
         'name',
         'slug',
         'topic',
+        'archivedAt',
         'participants'
     ]
 } as const;
@@ -3121,6 +3152,26 @@ export const AdminMatchedChannelParticipantInfoSchema = {
         'name',
         'email',
         'access'
+    ]
+} as const;
+
+export const AdminArchivedMatchedChannelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        archivedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'archivedAt'
     ]
 } as const;
 
@@ -9441,8 +9492,8 @@ export const LeftChatRoomSchema = {
         },
         remainingUserMemberCount: {
             type: 'integer',
-            minimum: 1,
-            description: 'Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.',
+            minimum: 0,
+            description: 'Human members left in the room after the caller leaves. Zero only for org-less matched channels, which auto-archive when the last member leaves. Organization rooms keep the last member (archive instead).',
             example: 3
         }
     },

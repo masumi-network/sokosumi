@@ -89,8 +89,7 @@ export function EditChannelDialog({
   canManageSettings: boolean;
   /** Organization owner/admin — archive the channel. */
   canArchive: boolean;
-  /** Any member can leave, except the last one: an empty roster could not be
-   * archived by a remaining elevated member. */
+  /** Any member can leave. Host-org last member cannot; matched last member can. */
   canLeave: boolean;
   /**
    * Host-org room members (`myAccess=member`) on external channels may invite
@@ -129,6 +128,7 @@ export function EditChannelDialog({
   const [isPending, startTransition] = useTransition();
 
   const canSubmit = canEditMembers || canManageSettings;
+  const isActionsOnly = !canSubmit && (canLeave || canArchive);
 
   useEffect(() => {
     if (!open) return;
@@ -225,9 +225,15 @@ export function EditChannelDialog({
         <DialogContent className="max-h-[calc(100svh-2rem)] min-w-0 overflow-x-hidden overflow-y-auto px-5 py-6 shadow-none sm:max-w-2xl">
           <form className="min-w-0 space-y-4" onSubmit={handleSubmit}>
             <DialogHeader className="pr-6">
-              <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
+              <DialogTitle>
+                {isActionsOnly
+                  ? t("Dialog.actionsOnlyTitle")
+                  : t("Dialog.editTitle")}
+              </DialogTitle>
               <DialogDescription>
-                {t("Dialog.editDescription")}
+                {isActionsOnly
+                  ? t("Dialog.actionsOnlyDescription")
+                  : t("Dialog.editDescription")}
               </DialogDescription>
             </DialogHeader>
             {canManageSettings || canEditMembers ? (
@@ -330,13 +336,6 @@ export function EditChannelDialog({
             ) : null}
             {canSubmit ? (
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setOpen(false)}
-                >
-                  {t("Dialog.cancel")}
-                </Button>
                 <Button type="submit" variant="primary" disabled={isPending}>
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -363,8 +362,16 @@ export function EditChannelDialog({
             </div>
           ) : null}
           {canArchive || canLeave ? (
-            <div className="space-y-3 border-t pt-4">
-              <p className="text-sm font-medium">{tActions("sectionTitle")}</p>
+            <div
+              className={
+                isActionsOnly ? "space-y-3 pt-1" : "space-y-3 border-t pt-4"
+              }
+            >
+              {isActionsOnly ? null : (
+                <p className="text-sm font-medium">
+                  {tActions("sectionTitle")}
+                </p>
+              )}
               <div className="flex flex-col gap-2 sm:flex-row">
                 {canLeave ? (
                   <Button
@@ -390,17 +397,6 @@ export function EditChannelDialog({
                 ) : null}
               </div>
             </div>
-          ) : null}
-          {!canSubmit ? (
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setOpen(false)}
-              >
-                {t("Dialog.cancel")}
-              </Button>
-            </DialogFooter>
           ) : null}
         </DialogContent>
       </Dialog>
