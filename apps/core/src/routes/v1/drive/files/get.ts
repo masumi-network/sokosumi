@@ -160,6 +160,8 @@ function mapBlobPageToItems(input: {
   return { folderItems, fileItems };
 }
 
+const MAX_BLOB_LIST_PAGES = 100;
+
 async function listAllFolderItems(input: {
   token: string;
   searchPrefix: string;
@@ -169,8 +171,16 @@ async function listAllFolderItems(input: {
   const fileByPathname = new Map<string, DriveItem>();
   let blobCursor: string | undefined;
   let hasMore = true;
+  let pageCount = 0;
 
   while (hasMore) {
+    pageCount += 1;
+    if (pageCount > MAX_BLOB_LIST_PAGES) {
+      throw unprocessableEntity(
+        "This folder is too large to sort globally. Omit sortBy to use page-local ordering.",
+      );
+    }
+
     const page = await list({
       mode: "folded",
       prefix: input.searchPrefix,
@@ -194,8 +204,19 @@ async function listAllFolderItems(input: {
       }
     }
 
-    hasMore = page.hasMore;
-    blobCursor = page.hasMore ? (page.cursor ?? undefined) : undefined;
+    if (!page.hasMore) {
+      hasMore = false;
+      break;
+    }
+
+    const nextCursor = page.cursor ?? undefined;
+    if (!nextCursor || nextCursor === blobCursor) {
+      throw unprocessableEntity(
+        "Blob storage returned an incomplete page while sorting this folder. Omit sortBy to use page-local ordering.",
+      );
+    }
+
+    blobCursor = nextCursor;
   }
 
   return [...folderByName.values(), ...fileByPathname.values()];

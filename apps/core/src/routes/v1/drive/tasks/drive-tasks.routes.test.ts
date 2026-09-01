@@ -367,6 +367,42 @@ describe("Drive Tasks Routes", () => {
         expect(res.status).toBe(422);
       });
 
+      it("applies sortOrder to name tie-break within the same type family", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        prismaTaskFileCountMock.mockResolvedValue(2);
+        prismaTaskFileFindManyMock.mockResolvedValue([
+          {
+            id: "tf_a",
+            name: "alpha.pdf",
+            fileUrl: "https://example.com/alpha.pdf",
+            size: BigInt(10),
+            mimeType: "application/pdf",
+            updatedAt: new Date("2026-03-25T12:00:00.000Z"),
+          },
+          {
+            id: "tf_b",
+            name: "zeta.pdf",
+            fileUrl: "https://example.com/zeta.pdf",
+            size: BigInt(10),
+            mimeType: "application/pdf",
+            updatedAt: new Date("2026-03-25T12:00:00.000Z"),
+          },
+        ]);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123&sortBy=type&sortOrder=desc",
+        );
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.data.map((item: { name: string }) => item.name)).toEqual([
+          "zeta.pdf",
+          "alpha.pdf",
+        ]);
+      });
+
       it("omits PENDING and FAILED TaskFiles from results", async () => {
         requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
 

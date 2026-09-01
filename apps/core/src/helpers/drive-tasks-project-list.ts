@@ -108,12 +108,13 @@ async function resolveProjectTaskCursorSortKey(
     assigneeId?: string;
     coworkerAccess?: CoworkerTaskAccessSqlParams;
   },
-): Promise<{ latestFileUpdatedAt: Date; id: string } | null> {
+): Promise<{ latestFileUpdatedAt: Date; id: string; name: string } | null> {
   const rows = await prisma.$queryRaw<
-    Array<{ id: string; latestFileUpdatedAt: Date }>
+    Array<{ id: string; latestFileUpdatedAt: Date; name: string }>
   >`
     SELECT
       t.id,
+      t.name,
       lf."latestFileUpdatedAt"
     ${filters.baseWhere}
       AND t.id = ${taskId}
@@ -127,6 +128,7 @@ async function resolveProjectTaskCursorSortKey(
 
   return {
     id: row.id,
+    name: row.name,
     latestFileUpdatedAt: row.latestFileUpdatedAt,
   };
 }
@@ -161,16 +163,7 @@ export async function fetchProjectTasksPage(params: {
     }
 
     if (sortKey === "name") {
-      const cursorNameRows = await prisma.$queryRaw<Array<{ name: string }>>`
-        SELECT t.name
-        ${filters.baseWhere}
-          AND t.id = ${params.cursor}
-        LIMIT 1
-      `;
-      const cursorName = cursorNameRows[0]?.name;
-      if (!cursorName) {
-        return { ok: false, reason: "invalid_cursor" };
-      }
+      const cursorName = cursorSortKey.name;
 
       cursorFilter =
         sortOrder === "desc"

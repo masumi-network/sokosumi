@@ -201,4 +201,25 @@ describe("GET /v1/drive/files sort", () => {
     expect(response.status).toBe(422);
     expect(listMock).not.toHaveBeenCalled();
   });
+
+  it("returns 422 when Blob pagination stalls during global sort drain", async () => {
+    listMock.mockResolvedValue(
+      blobPage({
+        blobs: [
+          {
+            pathname: "drive/users/user_123/a.pdf",
+            uploadedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+        hasMore: true,
+      }),
+    );
+
+    const app = createFilesApp();
+    const response = await app.request(
+      "/?scope=me&limit=20&sortBy=name&sortOrder=asc",
+    );
+    expect(response.status).toBe(422);
+    expect(listMock).toHaveBeenCalledTimes(1);
+  });
 });

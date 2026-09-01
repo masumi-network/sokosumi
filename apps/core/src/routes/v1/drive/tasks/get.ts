@@ -11,7 +11,7 @@ import {
 } from "@/helpers/drive-file-type-family";
 import { fetchProjectTasksPage } from "@/helpers/drive-tasks-project-list";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import { badRequest, forbidden } from "@/helpers/error";
+import { badRequest, forbidden, unprocessableEntity } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -159,6 +159,8 @@ function taskFileOrderBy(
   return [{ updatedAt: "desc" }, { id: "desc" }];
 }
 
+const MAX_TASK_FILES_FOR_TYPE_SORT = 10_000;
+
 function sortTaskFilesInMemory<
   T extends {
     id: string;
@@ -183,7 +185,7 @@ function sortTaskFilesInMemory<
       }
       const byName = a.name.localeCompare(b.name);
       if (byName !== 0) {
-        return byName;
+        return byName * dir;
       }
     } else {
       const byName = a.name.localeCompare(b.name);
@@ -306,27 +308,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const takePlusOne = take + 1;
 
       if (useInMemoryTypeSort) {
-        const [matchingFiles, totalCount] = await Promise.all([
-          prisma.taskFile.findMany({
-            where: taskFileWhere,
-            orderBy: [{ name: "asc" }, { id: "asc" }],
-            include: {
-              task: {
-                select: {
-                  id: true,
-                  name: true,
-                  projectId: true,
-                  project: {
-                    select: {
-                      name: true,
-                    },
+        const totalCount = await prisma.taskFile.count({
+          where: taskFileWhere,
+        });
+        if (totalCount > MAX_TASK_FILES_FOR_TYPE_SORT) {
+          throw unprocessableEntity(
+            "Too many task files match this query for type sorting. Narrow your search or omit sortBy=type.",
+          );
+        }
+
+        const matchingFiles = await prisma.taskFile.findMany({
+          where: taskFileWhere,
+          take: MAX_TASK_FILES_FOR_TYPE_SORT,
+          orderBy: [{ name: "asc" }, { id: "asc" }],
+          include: {
+            task: {
+              select: {
+                id: true,
+                name: true,
+                projectId: true,
+                project: {
+                  select: {
+                    name: true,
                   },
                 },
               },
             },
-          }),
-          prisma.taskFile.count({ where: taskFileWhere }),
-        ]);
+          },
+        });
 
         const sorted = sortTaskFilesInMemory(matchingFiles, sort);
         let startIndex = 0;
@@ -490,15 +499,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const takePlusOne = take + 1;
 
       if (useInMemoryTypeSort) {
-        const [taskFiles, taskFileCount] = await Promise.all([
-          prisma.taskFile.findMany({
-            where: taskFileWhere,
-            orderBy: [{ name: "asc" }, { id: "asc" }],
-          }),
-          prisma.taskFile.count({
-            where: taskFileWhere,
-          }),
-        ]);
+        const taskFileCount = await prisma.taskFile.count({
+          where: taskFileWhere,
+        });
+        if (taskFileCount > MAX_TASK_FILES_FOR_TYPE_SORT) {
+          throw unprocessableEntity(
+            "Too many task files match this query for type sorting. Narrow your search or omit sortBy=type.",
+          );
+        }
+
+        const taskFiles = await prisma.taskFile.findMany({
+          where: taskFileWhere,
+          take: MAX_TASK_FILES_FOR_TYPE_SORT,
+          orderBy: [{ name: "asc" }, { id: "asc" }],
+        });
 
         const sorted = sortTaskFilesInMemory(taskFiles, sort);
         let startIndex = 0;
