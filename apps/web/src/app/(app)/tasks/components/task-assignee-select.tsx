@@ -194,7 +194,7 @@ export function TaskAssigneeSelect({
               value={search}
               onValueChange={setSearch}
             />
-            <CommandList className="max-h-none min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y">
+            <CommandList className="max-h-none min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/80 [&::-webkit-scrollbar-track]:bg-transparent">
               <CommandEmpty>{emptyResults}</CommandEmpty>
               <CommandItem
                 value={UNSET_TASK_ASSIGNEE_VALUE}

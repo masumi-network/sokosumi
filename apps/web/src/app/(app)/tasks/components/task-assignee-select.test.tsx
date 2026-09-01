@@ -111,6 +111,7 @@ describe("TaskAssigneeSelect", () => {
     expect(list.className).toContain("overflow-y-auto");
     expect(list.className).toContain("overscroll-contain");
     expect(list.className).toContain("touch-pan-y");
+    expect(list.className).toContain("[scrollbar-width:thin]");
   });
 
   it("portals the list into a dialog so wheel scroll is allowlisted", async () => {
