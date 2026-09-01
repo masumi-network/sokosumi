@@ -4424,8 +4424,6 @@
             "submitting": "Wird hinzugefügt…"
           },
           "Archive": {
-            "title": "Channel archivieren",
-            "description": "Versteckt diesen Matched Channel für alle Teilnehmer und entfernt ihn aus der Live-Liste. Nachrichten bleiben in der Datenbank.",
             "button": "Channel archivieren",
             "archiving": "Wird archiviert…",
             "confirmTitle": "{name} archivieren?",

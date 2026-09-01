@@ -4424,8 +4424,6 @@
             "submitting": "Añadiendo…"
           },
           "Archive": {
-            "title": "Archivar canal",
-            "description": "Oculta este canal emparejado para todos los participantes y lo quita de la lista en vivo. Los mensajes permanecen en la base de datos.",
             "button": "Archivar canal",
             "archiving": "Archivando…",
             "confirmTitle": "¿Archivar {name}?",

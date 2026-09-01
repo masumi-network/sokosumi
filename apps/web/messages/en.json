@@ -4455,8 +4455,6 @@
             "submitting": "Adding…"
           },
           "Archive": {
-            "title": "Archive channel",
-            "description": "Hides this matched channel for all participants and removes it from the live hub list. Messages stay in the database.",
             "button": "Archive channel",
             "archiving": "Archiving…",
             "confirmTitle": "Archive {name}?",
