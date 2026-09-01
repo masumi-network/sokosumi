@@ -4442,7 +4442,7 @@
             "button": "Restaurar canal",
             "restoring": "Restaurando…",
             "confirmTitle": "¿Restaurar {name}?",
-            "confirmDescription": "Quita el archivo para que el canal vuelva al panel en vivo. Los miembros existentes conservan su plaza y recuperan el acceso en la próxima actualización de sesión.",
+            "confirmDescription": "Quita el archivo para que el canal vuelva al panel en vivo. Los miembros existentes conservan su membresía y recuperan el acceso en la próxima actualización de sesión.",
             "confirm": "Restaurar",
             "cancel": "Cancelar",
             "success": "Canal emparejado restaurado",

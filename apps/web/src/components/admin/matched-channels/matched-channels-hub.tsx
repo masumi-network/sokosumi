@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createAdminMatchedChannelAction,
   listAdminMatchedChannelsAction,
@@ -116,6 +116,28 @@ export function MatchedChannelsHub() {
   const emptyMessage =
     listStatus === "archived" ? t("List.emptyArchived") : t("List.empty");
 
+  const channelListPanel = isLoadingChannels ? (
+    <p className="text-muted-foreground text-sm">{t("List.loading")}</p>
+  ) : channels.length === 0 ? (
+    <p className="text-muted-foreground text-sm">{emptyMessage}</p>
+  ) : (
+    <ul className="divide-border divide-y rounded-md border">
+      {channels.map((channel) => (
+        <li key={channel.id}>
+          <Link
+            href={`/admin/matched-channels/${channel.id}`}
+            className="hover:bg-muted/50 flex flex-col gap-0.5 px-4 py-3 transition-colors"
+          >
+            <span className="font-medium">{channel.name}</span>
+            <span className="text-muted-foreground text-xs">
+              {channel.slug}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
     <div className="space-y-8">
       <section className="space-y-3">
@@ -139,28 +161,13 @@ export function MatchedChannelsHub() {
             <TabsTrigger value="active">{t("List.tabActive")}</TabsTrigger>
             <TabsTrigger value="archived">{t("List.tabArchived")}</TabsTrigger>
           </TabsList>
+          <TabsContent value="active" className="mt-3">
+            {listStatus === "active" ? channelListPanel : null}
+          </TabsContent>
+          <TabsContent value="archived" className="mt-3">
+            {listStatus === "archived" ? channelListPanel : null}
+          </TabsContent>
         </Tabs>
-        {isLoadingChannels ? (
-          <p className="text-muted-foreground text-sm">{t("List.loading")}</p>
-        ) : channels.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{emptyMessage}</p>
-        ) : (
-          <ul className="divide-border divide-y rounded-md border">
-            {channels.map((channel) => (
-              <li key={channel.id}>
-                <Link
-                  href={`/admin/matched-channels/${channel.id}`}
-                  className="hover:bg-muted/50 flex flex-col gap-0.5 px-4 py-3 transition-colors"
-                >
-                  <span className="font-medium">{channel.name}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {channel.slug}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       {listStatus === "active" ? (
