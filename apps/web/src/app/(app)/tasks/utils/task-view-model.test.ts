@@ -22,9 +22,10 @@ function buildTask(
     user: { id: "user-1", name: "Test User", image: null },
     organization: null,
     assigneeId: null,
+    assigneeOrchestratorId: null,
     assignee: null,
     coworkerId: null,
-    coworker: null,
+    coworker: null as unknown as TaskListItem["coworker"],
     creator: {
       type: "user",
       id: "user-1",

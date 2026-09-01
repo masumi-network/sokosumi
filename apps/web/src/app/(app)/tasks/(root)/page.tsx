@@ -13,6 +13,7 @@ import {
   findCoworkerIdBySlug,
   getCoworkerOptions,
 } from "@/app/tasks/utils/coworker-options";
+import { buildPaAssigneeOption } from "@/app/tasks/utils/pa-assignee-option";
 import {
   parseJobsListFilters,
   sanitizeJobAgentIdForPersistedFilter,
@@ -31,6 +32,7 @@ import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 import { projectService } from "@/lib/services/project.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
@@ -73,6 +75,7 @@ async function loadTasksPageData() {
   return await Promise.all([
     coworkerService.listCoworkers("tasks").catch(() => []),
     projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+    sokoBotService.getMine().catch(() => null),
   ]);
 }
 
@@ -115,7 +118,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
     "normal";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [taskCoworkers, projectsPage] = await loadTasksPageData();
+  const [taskCoworkers, projectsPage, sokoBot] = await loadTasksPageData();
   const filters = parseTasksFilters(
     { scope, assigneeId, coworkerId: legacyCoworkerId, status, projectId },
     activeOrganizationId,
@@ -248,6 +251,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         ) as Record<KanbanColumnId, string | null>);
 
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
+  const paAssigneeOption = buildPaAssigneeOption(sokoBot);
   const canCreateTask = await hasAssignedOrganizationSeat(activeOrganizationId);
   const initialCreateTaskOpen = create === "true";
   const resolvedAssigneeSlug = assigneeSlugParam ?? legacyCoworkerSlugParam;
@@ -282,6 +286,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         columnNextCursorById={columnNextCursorById}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}
+        paAssigneeOption={paAssigneeOption}
         projectOptions={projectOptions}
         userId={session?.user.id ?? null}
         activeOrganizationId={activeOrganizationId}

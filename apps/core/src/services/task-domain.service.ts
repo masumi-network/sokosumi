@@ -8,11 +8,14 @@ import {
 } from "@sokosumi/database";
 import { isTaskEditableStatus } from "@sokosumi/utils";
 
-import {
-  requireTaskAssignableCoworker,
-  type TaskAssigner,
-} from "@/helpers/access-control";
 import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
+import {
+  hasResolvedTaskAssignee,
+  type ResolvedTaskAssignee,
+  resolveTaskAssigneeForWrite,
+  type TaskAssigneeRequestFields,
+} from "@/helpers/task-assignee";
+import { type TaskAssigner } from "@/helpers/access-control";
 import {
   isGrantDeniedOrRevoked,
   parseGrantResumeStatus,
@@ -41,6 +44,7 @@ export interface CreateTaskDomainInput {
   description?: string | null;
   resolveDescription?: (tx: Prisma.TransactionClient) => Promise<string | null>;
   assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
   status: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
   channel?: Channel;
 }
@@ -56,6 +60,7 @@ export interface UpdateTaskDomainInput {
   description?: string | null;
   projectId?: string | null;
   assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
   status?: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
   channel?: Channel;
 }
@@ -67,13 +72,13 @@ interface PendingGrantState {
 
 function requireAssigneeForExecutableStatus(
   status: TaskStatus,
-  assigneeId: string | null | undefined,
+  assignee: ResolvedTaskAssignee,
 ): void {
   const allowsMissingAssignee =
     status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
-  if (!allowsMissingAssignee && assigneeId == null) {
+  if (!allowsMissingAssignee && !hasResolvedTaskAssignee(assignee)) {
     throw unprocessableEntity(
-      "assigneeId is required for statuses other than draft or canceled",
+      "An assignee is required for statuses other than draft or canceled",
     );
   }
 }
@@ -110,21 +115,26 @@ function taskAssigner(actor: TaskDomainActor): TaskAssigner {
 async function requireTaskReferences(
   input: {
     projectId?: string | null;
-    assigneeId?: string | null;
+    assignee?: TaskAssigneeRequestFields;
     workspaceId: string;
     actor: TaskDomainActor;
   },
   tx: Prisma.TransactionClient,
-): Promise<void> {
+): Promise<ResolvedTaskAssignee | null> {
   await requireProjectInWorkspace(input.projectId, input.workspaceId, tx);
-  if (input.assigneeId !== null && input.assigneeId !== undefined) {
-    await requireTaskAssignableCoworker(
-      input.assigneeId,
-      input.workspaceId,
-      tx,
-      taskAssigner(input.actor),
-    );
-  }
+  if (!input.assignee) return null;
+  const hasAssigneeField =
+    input.assignee.assigneeId !== undefined ||
+    input.assignee.assigneeOrchestratorId !== undefined;
+  if (!hasAssigneeField) return null;
+  return resolveTaskAssigneeForWrite(
+    input.assignee,
+    {
+      workspaceId: input.workspaceId,
+      assigner: taskAssigner(input.actor),
+    },
+    tx,
+  );
 }
 
 function creatorFields(actor: TaskDomainActor) {
@@ -209,8 +219,23 @@ export async function createTaskForActor(
   input: CreateTaskDomainInput,
   tx: Prisma.TransactionClient,
 ): Promise<Task> {
-  requireAssigneeForExecutableStatus(input.status, input.assigneeId);
-  await requireTaskReferences(input, tx);
+  const assignee = await requireTaskReferences(
+    {
+      projectId: input.projectId,
+      assignee: {
+        assigneeId: input.assigneeId,
+        assigneeOrchestratorId: input.assigneeOrchestratorId,
+      },
+      workspaceId: input.workspaceId,
+      actor: input.actor,
+    },
+    tx,
+  );
+  const resolvedAssignee: ResolvedTaskAssignee = assignee ?? {
+    assigneeId: input.assigneeId ?? null,
+    assigneeOrchestratorId: input.assigneeOrchestratorId ?? null,
+  };
+  requireAssigneeForExecutableStatus(input.status, resolvedAssignee);
   const pendingGrant = await resolvePendingGrant(input, tx);
   const status = pendingGrant ? TaskStatus.GRANT_PENDING : input.status;
   const description =
@@ -226,7 +251,8 @@ export async function createTaskForActor(
       projectId: input.projectId ?? null,
       name: input.name,
       description,
-      assigneeId: input.assigneeId ?? null,
+      assigneeId: resolvedAssignee.assigneeId,
+      assigneeOrchestratorId: resolvedAssignee.assigneeOrchestratorId,
       ...creatorFields(input.actor),
       status,
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
@@ -312,22 +338,37 @@ export async function updateTaskForActor(
     );
   }
 
-  const assigneeIdWasProvided = input.assigneeId !== undefined;
-  const nextAssigneeId = assigneeIdWasProvided
-    ? input.assigneeId
-    : task.assigneeId;
+  const assigneeFieldsProvided =
+    input.assigneeId !== undefined ||
+    input.assigneeOrchestratorId !== undefined;
+  const existingAssignee: ResolvedTaskAssignee = {
+    assigneeId: task.assigneeId,
+    assigneeOrchestratorId: task.assigneeOrchestratorId,
+  };
+  let nextAssignee = existingAssignee;
+  if (assigneeFieldsProvided) {
+    const resolved = await requireTaskReferences(
+      {
+        workspaceId: task.workspaceId,
+        projectId: input.projectId,
+        assignee: {
+          assigneeId: input.assigneeId,
+          assigneeOrchestratorId: input.assigneeOrchestratorId,
+        },
+        actor: input.actor,
+      },
+      tx,
+    );
+    if (resolved) {
+      nextAssignee = resolved;
+    }
+  }
   const nextStatus = input.status ?? task.status;
-  requireAssigneeForExecutableStatus(nextStatus, nextAssigneeId);
+  requireAssigneeForExecutableStatus(nextStatus, nextAssignee);
 
-  await requireTaskReferences(
-    {
-      workspaceId: task.workspaceId,
-      projectId: input.projectId,
-      assigneeId: assigneeIdWasProvided ? input.assigneeId : undefined,
-      actor: input.actor,
-    },
-    tx,
-  );
+  if (input.projectId !== undefined) {
+    await requireProjectInWorkspace(input.projectId, task.workspaceId, tx);
+  }
 
   const allowedStatuses =
     input.actor.kind === "soko_bot"
@@ -345,7 +386,12 @@ export async function updateTaskForActor(
       name: input.name,
       description: input.description,
       projectId: input.projectId,
-      assigneeId: input.assigneeId,
+      ...(assigneeFieldsProvided
+        ? {
+            assigneeId: nextAssignee.assigneeId,
+            assigneeOrchestratorId: nextAssignee.assigneeOrchestratorId,
+          }
+        : {}),
       status: input.status,
       // Record a status event only for a real transition; a Soko Bot
       // re-assignment that keeps DRAFT must not spam the task timeline.

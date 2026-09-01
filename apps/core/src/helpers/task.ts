@@ -109,7 +109,8 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
 
 interface ValidateTaskAssigneeAssignmentParams {
   status: TaskStatus;
-  assigneeId: string | null | undefined;
+  assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
 }
 
 function getAllowedTransitions(
@@ -428,14 +429,17 @@ export function validateStatusTransition(
 export function validateTaskAssigneeAssignment({
   status,
   assigneeId,
+  assigneeOrchestratorId,
 }: ValidateTaskAssigneeAssignmentParams): void {
-  const hasAssigneeId = assigneeId !== null && assigneeId !== undefined;
+  const hasAssignee =
+    (assigneeId !== null && assigneeId !== undefined) ||
+    (assigneeOrchestratorId !== null && assigneeOrchestratorId !== undefined);
   const allowsMissingAssignee =
     status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
 
-  if (!allowsMissingAssignee && !hasAssigneeId) {
+  if (!allowsMissingAssignee && !hasAssignee) {
     throw unprocessableEntity(
-      "assigneeId is required for statuses other than draft or canceled",
+      "An assignee is required for statuses other than draft or canceled",
     );
   }
 }
@@ -601,6 +605,48 @@ function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
   );
 }
 
+function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
+  if (task.assigneeOrchestratorId != null) {
+    const orchestrator = orchestratorSummaryFromLoadedRelation(
+      `Task ${task.id} assignee`,
+      task.assigneeOrchestratorId,
+      task.assigneeOrchestrator ?? null,
+    );
+    if (orchestrator == null) {
+      throw new Error(
+        `Task ${task.id}: assignee orchestrator summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "orchestrator" as const,
+      id: task.assigneeOrchestratorId,
+      orchestrator,
+    };
+  }
+
+  if (task.assigneeId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `Task ${task.id} assignee`,
+      task.assigneeId,
+      task.assignee ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `Task ${task.id}: assignee coworker summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "coworker" as const,
+      id: task.assigneeId,
+      coworker,
+    };
+  }
+
+  return null;
+}
+
 function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
@@ -614,11 +660,9 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.owner,
   );
 
-  const taskAssigneeSummary = coworkerSummaryFromLoadedRelation(
-    `Task ${task.id}`,
-    task.assigneeId,
-    task.assignee ?? null,
-  );
+  const taskAssignee = mapTaskAssignee(task);
+  const taskAssigneeCoworkerSummary =
+    taskAssignee?.type === "coworker" ? taskAssignee.coworker : null;
 
   const creator = mapTaskCreator(task);
 
@@ -635,9 +679,10 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     projectId: task.projectId,
     organization: taskOrganizationSummary,
     assigneeId: task.assigneeId,
-    assignee: taskAssigneeSummary,
+    assigneeOrchestratorId: task.assigneeOrchestratorId ?? null,
+    assignee: taskAssignee,
     coworkerId: task.assigneeId,
-    coworker: taskAssigneeSummary,
+    coworker: taskAssigneeCoworkerSummary,
     creator,
     // Deprecated aliases for legacy orchestrator-created tasks.
     orchestratorId: creator.type === "orchestrator" ? creator.id : null,

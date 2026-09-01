@@ -1050,17 +1050,23 @@ export type Task = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Never an orchestrator.
+     * Marketplace coworker assignee id. Null when assignee.type is orchestrator.
      */
     assigneeId: string | null;
-    assignee: CoworkerSummary;
     /**
-     * Deprecated. Use assigneeId instead.
+     * Owner PA orchestrator assignee id. Null when assignee.type is coworker.
+     */
+    assigneeOrchestratorId: string | null;
+    assignee: TaskAssignee;
+    /**
+     * Deprecated. Use assignee when type is coworker.
      *
      * @deprecated
      */
     coworkerId: string | null;
-    coworker: CoworkerSummary & unknown;
+    coworker: CoworkerSummary & ({
+        [key: string]: unknown;
+    } | null);
     creator: TaskCreator;
     /**
      * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
@@ -1118,12 +1124,37 @@ export type OrganizationSummary = {
     slug: string;
 } | null;
 
+/**
+ * Task assignee. Exactly one of marketplace coworker or owner PA orchestrator.
+ */
+export type TaskAssignee = TaskAssigneeCoworker | TaskAssigneeOrchestrator | null;
+
+export type TaskAssigneeCoworker = {
+    type: 'coworker';
+    id: string;
+    coworker: CoworkerSummary;
+};
+
 export type CoworkerSummary = {
     id: string;
     name: string;
     image?: string | null;
     slug: string;
-} | null;
+};
+
+export type TaskAssigneeOrchestrator = {
+    type: 'orchestrator';
+    id: string;
+    orchestrator: OrchestratorSummary;
+};
+
+export type OrchestratorSummary = {
+    id: string;
+    name: string | null;
+    avatarSeed: string | null;
+    avatarImageUrl: string | null;
+    owner: UserSummary;
+};
 
 /**
  * Actor that created the task. Exactly one of user, coworker, or orchestrator.
@@ -1152,14 +1183,6 @@ export type TaskCreatorOrchestrator = {
     type: 'orchestrator';
     id: string;
     orchestrator: OrchestratorSummary;
-};
-
-export type OrchestratorSummary = {
-    id: string;
-    name: string | null;
-    avatarSeed: string | null;
-    avatarImageUrl: string | null;
-    owner: UserSummary;
 };
 
 export type TaskEvent = {
@@ -5225,17 +5248,23 @@ export type TaskListItem = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Never an orchestrator.
+     * Marketplace coworker assignee id. Null when assignee.type is orchestrator.
      */
     assigneeId: string | null;
-    assignee: CoworkerSummary;
     /**
-     * Deprecated. Use assigneeId instead.
+     * Owner PA orchestrator assignee id. Null when assignee.type is coworker.
+     */
+    assigneeOrchestratorId: string | null;
+    assignee: TaskAssignee;
+    /**
+     * Deprecated. Use assignee when type is coworker.
      *
      * @deprecated
      */
     coworkerId: string | null;
-    coworker: CoworkerSummary & unknown;
+    coworker: CoworkerSummary & ({
+        [key: string]: unknown;
+    } | null);
     creator: TaskCreator;
     /**
      * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
@@ -35337,6 +35366,10 @@ export type PostTasksData = {
         projectId?: string | null;
         assigneeId?: string | null;
         /**
+         * Owner PA orchestrator assignee. XOR with assigneeId.
+         */
+        assigneeOrchestratorId?: string | null;
+        /**
          * Deprecated. Use assigneeId instead.
          *
          * @deprecated
@@ -36035,6 +36068,10 @@ export type PatchTasksByIdData = {
         description?: string | null;
         projectId?: string | null;
         assigneeId?: string | null;
+        /**
+         * Owner PA orchestrator assignee. XOR with assigneeId.
+         */
+        assigneeOrchestratorId?: string | null;
         /**
          * Deprecated. Use assigneeId instead.
          *

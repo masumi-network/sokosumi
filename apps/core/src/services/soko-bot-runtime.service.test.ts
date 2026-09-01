@@ -58,6 +58,7 @@ const {
   transactionTurnUpdateManyMock,
   transactionTaskUpdateMock,
   transactionWorkspaceFindFirstMock,
+  transactionCoworkerFindFirstMock,
   transactionMock,
   turnFindUniqueMock,
   transactionChatMessageCreateMock,
@@ -129,6 +130,7 @@ const {
   transactionTurnUpdateManyMock: vi.fn(),
   transactionTaskUpdateMock: vi.fn(),
   transactionWorkspaceFindFirstMock: vi.fn(),
+  transactionCoworkerFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
   transactionChatMessageCreateMock: vi.fn(),
@@ -240,6 +242,7 @@ vi.mock("@/lib/db/transaction", () => ({
         },
         project: { findFirst: transactionProjectFindFirstMock },
         workspace: { findFirst: transactionWorkspaceFindFirstMock },
+        coworker: { findFirst: transactionCoworkerFindFirstMock },
         sokoBotTurn: {
           findFirst: transactionTurnFindFirstMock,
           updateMany: transactionTurnUpdateManyMock,

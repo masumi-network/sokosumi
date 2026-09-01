@@ -118,10 +118,14 @@ describe("buildTaskActivityActors", () => {
         image: adaAvatar,
       },
       assignee: {
+        type: "coworker" as const,
         id: "cow-1",
-        name: "Ops Agent",
-        image: "https://example.com/ops.png",
-        slug: "ops-agent",
+        coworker: {
+          id: "cow-1",
+          name: "Ops Agent",
+          image: "https://example.com/ops.png",
+          slug: "ops-agent",
+        },
       },
       creator: {
         type: "orchestrator" as const,

@@ -251,6 +251,7 @@ interface TasksViewProps {
   columnNextCursorById: Record<KanbanColumnId, string | null>;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
+  paAssigneeOption?: CoworkerOption | null;
   projectOptions: ProjectFilterOption[];
   userId?: string | null;
   activeOrganizationId: string | null;
@@ -335,6 +336,7 @@ export function TasksView({
   columnNextCursorById: initialColumnNextCursorById,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
+  paAssigneeOption = null,
   projectOptions,
   userId,
   activeOrganizationId,
@@ -1507,6 +1509,7 @@ export function TasksView({
       ) : null}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}
+        paAssigneeOption={paAssigneeOption}
         projectOptions={resolvedProjectOptions}
         defaultProjectId={defaultProjectId}
         initialCreateTaskOpen={initialCreateTaskOpen}

@@ -61,10 +61,14 @@ function createTask(
       overrides.assigneeName === null
         ? null
         : {
+            type: "coworker" as const,
             id: "cw_1",
-            name: overrides.assigneeName ?? "Hepha",
-            image: null,
-            slug: "hepha",
+            coworker: {
+              id: "cw_1",
+              name: overrides.assigneeName ?? "Hepha",
+              image: null,
+              slug: "hepha",
+            },
           },
     credits: overrides.credits ?? 0,
     metadata: null,

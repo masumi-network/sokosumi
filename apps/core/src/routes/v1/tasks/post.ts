@@ -30,6 +30,7 @@ import {
   refineAssigneeIdAliasConflict,
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
+import { refineTaskAssigneeXorConflict } from "@/helpers/task-assignee";
 import {
   refineChannelOriginConflict,
   resolveTaskEventChannel,
@@ -95,6 +96,10 @@ export const createTaskRequestSchema = z
       .optional()
       .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
     assigneeId: z.string().nullish().openapi({ example: "cow_123" }),
+    assigneeOrchestratorId: z.string().uuid().nullish().openapi({
+      example: "01960001-0001-7001-8001-000000000099",
+      description: "Owner PA orchestrator assignee. XOR with assigneeId.",
+    }),
     /** @deprecated Use `assigneeId`. */
     coworkerId: z.string().nullish().openapi({
       example: "cow_123",
@@ -116,14 +121,22 @@ export const createTaskRequestSchema = z
   .superRefine((data, ctx) => {
     refineChannelOriginConflict(data, ctx);
     refineAssigneeIdAliasConflict(data, ctx);
+    refineTaskAssigneeXorConflict(data, ctx);
 
     const assigneeId = resolveAssigneeIdFromRequest(data);
-    const hasAssigneeId = assigneeId !== null && assigneeId !== undefined;
+    const hasCoworkerAssignee = assigneeId !== null && assigneeId !== undefined;
+    const hasOrchestratorAssignee =
+      data.assigneeOrchestratorId !== null &&
+      data.assigneeOrchestratorId !== undefined;
 
-    if (data.status !== TaskStatus.DRAFT && !hasAssigneeId) {
+    if (
+      data.status !== TaskStatus.DRAFT &&
+      !hasCoworkerAssignee &&
+      !hasOrchestratorAssignee
+    ) {
       ctx.addIssue({
         code: "custom",
-        message: "assigneeId is required when creating a non-draft task",
+        message: "An assignee is required when creating a non-draft task",
         path: ["assigneeId"],
       });
     }
@@ -434,6 +447,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             });
           },
           assigneeId: body.assigneeId,
+          assigneeOrchestratorId: body.assigneeOrchestratorId,
           status: body.status,
           channel: body.channel,
         },

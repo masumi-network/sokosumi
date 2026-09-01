@@ -186,6 +186,31 @@ export const taskCreatorSchema = z
   ])
   .openapi("TaskCreator");
 
+const taskAssigneeCoworkerSchema = z
+  .object({
+    type: z.literal("coworker"),
+    id: z.string().openapi({ example: "cow_123" }),
+    coworker: coworkerSummarySchema,
+  })
+  .openapi("TaskAssigneeCoworker");
+
+const taskAssigneeOrchestratorSchema = z
+  .object({
+    type: z.literal("orchestrator"),
+    id: z.string().uuid().openapi({
+      example: "01960001-0001-7001-8001-000000000099",
+    }),
+    orchestrator: orchestratorSummarySchema,
+  })
+  .openapi("TaskAssigneeOrchestrator");
+
+export const taskAssigneeSchema = z
+  .discriminatedUnion("type", [
+    taskAssigneeCoworkerSchema,
+    taskAssigneeOrchestratorSchema,
+  ])
+  .openapi("TaskAssignee");
+
 const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
@@ -213,19 +238,28 @@ const taskBaseSchema = z.object({
   }),
   assigneeId: z.string().nullable().openapi({
     example: "cow_123",
-    description: "Marketplace coworker assignee. Never an orchestrator.",
+    description:
+      "Marketplace coworker assignee id. Null when assignee.type is orchestrator.",
   }),
-  assignee: coworkerSummarySchema.nullable(),
-  /** @deprecated Use `assigneeId`. */
+  assigneeOrchestratorId: z.string().uuid().nullable().openapi({
+    example: "01960001-0001-7001-8001-000000000099",
+    description:
+      "Owner PA orchestrator assignee id. Null when assignee.type is coworker.",
+  }),
+  assignee: taskAssigneeSchema.nullable().openapi({
+    description:
+      "Task assignee. Exactly one of marketplace coworker or owner PA orchestrator.",
+  }),
+  /** @deprecated Use `assignee` when `assignee.type === "coworker"`. */
   coworkerId: z.string().nullable().openapi({
     example: "cow_123",
     deprecated: true,
-    description: "Deprecated. Use assigneeId instead.",
+    description: "Deprecated. Use assignee when type is coworker.",
   }),
-  /** @deprecated Use `assignee`. */
+  /** @deprecated Use `assignee` when `assignee.type === "coworker"`. */
   coworker: coworkerSummarySchema.nullable().openapi({
     deprecated: true,
-    description: "Deprecated. Use assignee instead.",
+    description: "Deprecated. Use assignee when type is coworker.",
   }),
   creator: taskCreatorSchema.openapi({
     description:

@@ -2,6 +2,7 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import { resolveTaskAssigneeDisplay } from "@/app/tasks/utils/resolve-task-assignee";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -135,7 +136,8 @@ export function TaskMetadata({
   const ownerImage = task.owner.image
     ? resolveIpfsOrHttpUrl(task.owner.image)
     : null;
-  const assigneeImage = getCoworkerImage(task.assignee);
+  const assigneeDisplay = resolveTaskAssigneeDisplay(task.assignee);
+  const assigneeImage = assigneeDisplay.image;
   const creator = resolveTaskCreatorDisplay(
     task,
     labels.formatOrchestratorRole,
@@ -205,20 +207,31 @@ export function TaskMetadata({
             {labels.coworker}
           </span>
           <div className="flex min-w-0 items-center gap-2">
-            <Avatar className="size-5">
-              {assigneeImage ? (
-                <AvatarImage
-                  src={assigneeImage}
-                  alt={task.assignee?.name ?? "Coworker"}
-                  className="object-cover"
-                />
-              ) : null}
-              <AvatarFallback className="bg-muted text-[0.625rem]">
-                {task.assignee?.name?.slice(0, 1).toUpperCase() ?? "?"}
-              </AvatarFallback>
-            </Avatar>
+            {assigneeDisplay.avatarSeed ? (
+              <AssistantOrb
+                seed={assigneeDisplay.avatarSeed}
+                expression="idle"
+                animate={false}
+                size={20}
+                className="size-5 shrink-0"
+                alt={assigneeDisplay.name ?? "Assistant"}
+              />
+            ) : (
+              <Avatar className="size-5">
+                {assigneeImage ? (
+                  <AvatarImage
+                    src={assigneeImage}
+                    alt={assigneeDisplay.name ?? "Coworker"}
+                    className="object-cover"
+                  />
+                ) : null}
+                <AvatarFallback className="bg-muted text-[0.625rem]">
+                  {assigneeDisplay.name?.slice(0, 1).toUpperCase() ?? "?"}
+                </AvatarFallback>
+              </Avatar>
+            )}
             <span className="truncate text-right text-sm font-medium">
-              {task.assignee?.name ?? "—"}
+              {assigneeDisplay.name ?? "—"}
             </span>
           </div>
         </div>

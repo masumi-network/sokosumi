@@ -138,6 +138,7 @@ function createTask() {
       slug: "workspace-org",
     },
     assigneeId: "cow_123",
+    assigneeOrchestratorId: null,
     assignee: {
       id: "cow_123",
       name: "Coworker",

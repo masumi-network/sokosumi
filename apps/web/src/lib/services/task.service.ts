@@ -41,7 +41,8 @@ interface ListJobsParams {
 interface CreateTaskInput {
   name?: string;
   description: string | null;
-  assigneeId: string | null;
+  assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -51,6 +52,7 @@ interface PatchTaskInput {
   name?: string;
   description?: string | null;
   assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
 }
 

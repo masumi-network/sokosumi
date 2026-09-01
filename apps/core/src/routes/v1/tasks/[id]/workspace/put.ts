@@ -3,6 +3,7 @@ import {
   requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
 } from "@/helpers/access-control";
+import { requireTaskAssignableOrchestrator } from "@/helpers/task-assignee";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -142,6 +143,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ownedTask.assigneeId,
           targetWorkspace.id,
           tx,
+        );
+      }
+
+      if (ownedTask.assigneeOrchestratorId) {
+        await requireTaskAssignableOrchestrator(
+          ownedTask.assigneeOrchestratorId,
+          targetWorkspace.id,
+          tx,
+          { kind: "user", userId: userContext.userId },
         );
       }
 

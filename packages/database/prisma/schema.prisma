@@ -1839,8 +1839,9 @@ model SokoBot {
   lastSeenInboxAt       DateTime?
   consecutivePollErrors Int       @default(0)
 
-  createdTasks       Task[]                   @relation("TaskCreatorOrchestrator")
-  taskEvents         TaskEvent[]
+  createdTasks            Task[]                   @relation("TaskCreatorOrchestrator")
+  assigneeOrchestratorTasks Task[]                 @relation("TaskAssigneeOrchestrator")
+  taskEvents              TaskEvent[]
   orchestratorUsages OrchestratorUsage[]
   turns              SokoBotTurn[]
   memoryRevisions    SokoBotMemoryRevision[]
@@ -2377,9 +2378,13 @@ model Task {
 
   status TaskStatus @default(DRAFT)
 
-  /// Marketplace coworker assignee. Never an orchestrator.
+  /// Marketplace coworker assignee. XOR with assigneeOrchestratorId.
   assigneeId String?
   assignee   Coworker? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  /// Owner PA orchestrator assignee. XOR with assigneeId.
+  assigneeOrchestratorId String? @db.Uuid
+  assigneeOrchestrator   SokoBot? @relation("TaskAssigneeOrchestrator", fields: [assigneeOrchestratorId], references: [id], onDelete: SetNull)
 
   /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
   /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
@@ -2431,6 +2436,7 @@ model Task {
   @@index([ownerId])
   @@index([ownerId, organizationId])
   @@index([assigneeId])
+  @@index([assigneeOrchestratorId])
   @@index([projectId])
   @@index([status, nextRunAt])
   @@index([pendingVendorGrantId])

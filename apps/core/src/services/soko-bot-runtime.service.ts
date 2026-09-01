@@ -60,6 +60,7 @@ import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { createAgentJobForUser } from "@/helpers/job";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
+import { isTaskAssignedToSokoBot } from "@/helpers/task-assignee";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import prisma from "@/lib/db/prisma";
 import {
@@ -1433,11 +1434,17 @@ export class SokoBotRuntimeService {
         select: {
           id: true,
           status: true,
+          assigneeId: true,
+          assigneeOrchestratorId: true,
           assignee: { select: { sokoBotId: true } },
         },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");
-      if (task.assignee?.sokoBotId !== authorized.turn.sokoBotId) {
+      if (
+        !isTaskAssignedToSokoBot(task, {
+          id: authorized.turn.sokoBotId,
+        })
+      ) {
         throw new SokoBotRuntimeValidationError(
           "You are not the assignee of this Task; use reply_to_task to comment",
         );
@@ -1516,7 +1523,13 @@ export class SokoBotRuntimeService {
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
         },
-        select: { id: true, name: true, status: true, assigneeId: true },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          assigneeId: true,
+          assigneeOrchestratorId: true,
+        },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");
       if (!input.status) {
@@ -1540,7 +1553,7 @@ export class SokoBotRuntimeService {
             `Task is ${task.status}; only ${resumable.join(", ")} can be set READY. To leave a comment without changing the status, omit \`status\`.`,
           );
         }
-        if (!task.assigneeId) {
+        if (!isTaskAssignedToSokoBot(task, { id: authorized.turn.sokoBotId })) {
           throw new SokoBotRuntimeValidationError(
             "Task has no assignee; use assign_task instead",
           );

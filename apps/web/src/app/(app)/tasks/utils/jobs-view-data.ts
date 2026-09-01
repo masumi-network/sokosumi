@@ -2,9 +2,14 @@ import "server-only";
 
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import { resolveTaskAssigneeCoworker } from "@/app/tasks/utils/resolve-task-assignee";
 import { coreClient } from "@/lib/clients/core.client";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
-import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
+import type {
+  JobSummary,
+  TaskListItem,
+} from "@/lib/clients/generated/core/types.gen";
+import type { Coworker } from "@/lib/clients/generated/core";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { taskService } from "@/lib/services/task.service";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
@@ -12,8 +17,8 @@ import type { CoreAgentDto } from "@/lib/types/core-dto";
 type AgentForPreview = Parameters<typeof getAgentName>[0] &
   Parameters<typeof getAgentResolvedIcon>[0];
 
-/** Minimal task shape used to resolve job coworker; full Task from getTaskById also accepted. */
-type TaskSeedForJob = { id: string; assigneeId: string | null };
+/** Minimal task shape used to resolve job assignee display. */
+type TaskSeedForJob = Pick<TaskListItem, "id" | "assigneeId" | "assignee">;
 
 interface MapJobsToTasksViewDataParams {
   jobs: JobSummary[];
@@ -124,8 +129,11 @@ export async function mapJobsToTasksViewData({
         return null;
       }
 
-      const assignee = task.assigneeId
-        ? (coworkersById.get(task.assigneeId) ?? null)
+      const assignee = task
+        ? resolveTaskAssigneeCoworker(
+            task,
+            coworkersById as Map<string, Coworker>,
+          )
         : null;
       return {
         name: assignee?.name?.trim() || null,

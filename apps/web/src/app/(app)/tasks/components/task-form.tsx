@@ -25,6 +25,11 @@ import { AgentDetail } from "@/app/tasks/new/components/agent-detail";
 import { AgentSpotlight } from "@/app/tasks/new/components/agent-spotlight";
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
+import {
+  initialAssigneePickerId,
+  mergeAssigneePickerOptions,
+  resolveAssigneeWriteFields,
+} from "@/app/tasks/utils/pa-assignee-option";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
@@ -138,6 +143,7 @@ interface TaskFormInitialValues {
   name?: string;
   description?: string;
   assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
   metadata?: string | null;
@@ -150,6 +156,7 @@ interface TaskFormProps {
   mode: "create" | "edit";
   labels: TaskFormLabels;
   coworkerOptions: CoworkerOption[];
+  paAssigneeOption?: CoworkerOption | null;
   agentNameById?: Map<string, string>;
   taskId?: string;
   initialValues?: TaskFormInitialValues;
@@ -165,6 +172,7 @@ interface TaskFormProps {
   onCreateTask?: (input: {
     description: string;
     assigneeId: string | null;
+    assigneeOrchestratorId?: string | null;
     projectId?: string | null;
     context: TaskContextSelectionInput;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -179,6 +187,7 @@ export function TaskForm({
   mode,
   labels,
   coworkerOptions,
+  paAssigneeOption = null,
   agentNameById = EMPTY_AGENT_NAME_MAP,
   taskId,
   initialValues,
@@ -230,10 +239,17 @@ export function TaskForm({
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] =
     useState(false);
   const [createProjectQuery, setCreateProjectQuery] = useState("");
-  const defaultAssigneeId = useMemo(() => {
-    // Default to Elena on first open. Match by slug or name (case-insensitive)
-    // so it works across environments (dev seed + mainnet) where the slug may
-    // differ; fall back to the highest-priority coworker.
+  const assigneePickerOptions = useMemo(
+    () => mergeAssigneePickerOptions(coworkerOptions, paAssigneeOption),
+    [coworkerOptions, paAssigneeOption],
+  );
+  const defaultAssigneePickerId = useMemo(() => {
+    const fromInitial = initialAssigneePickerId({
+      assigneeId: initialValues?.assigneeId,
+      assigneeOrchestratorId: initialValues?.assigneeOrchestratorId,
+    });
+    if (fromInitial) return fromInitial;
+
     const elenaCoworker = coworkerOptions.find(
       (option) =>
         option.slug.trim().toLowerCase() === "elena" ||
@@ -241,20 +257,28 @@ export function TaskForm({
     );
 
     return (
-      initialValues?.assigneeId ??
+      paAssigneeOption?.id ??
       elenaCoworker?.id ??
-      coworkerOptions[0]?.id ??
+      assigneePickerOptions[0]?.id ??
       ""
     );
-  }, [coworkerOptions, initialValues?.assigneeId]);
+  }, [
+    assigneePickerOptions,
+    coworkerOptions,
+    initialValues?.assigneeId,
+    initialValues?.assigneeOrchestratorId,
+    paAssigneeOption?.id,
+  ]);
 
   const coworkerTouchedRef = useRef(false);
-  const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
+  const [assigneePickerId, setAssigneePickerId] = useState(
+    defaultAssigneePickerId,
+  );
 
   useLayoutEffect(() => {
     if (coworkerTouchedRef.current) return;
-    setAssigneeId(defaultAssigneeId);
-  }, [defaultAssigneeId]);
+    setAssigneePickerId(defaultAssigneePickerId);
+  }, [defaultAssigneePickerId]);
 
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [scheduleSelection, setScheduleSelection] =
@@ -300,7 +324,7 @@ export function TaskForm({
 
   const handleCoworkerSelect = useCallback((id: string) => {
     coworkerTouchedRef.current = true;
-    setAssigneeId(id);
+    setAssigneePickerId(id);
   }, []);
 
   const handleCreateProject = useCallback((searchQuery: string) => {
@@ -412,7 +436,9 @@ export function TaskForm({
   // is prefilled (gallery offer, agents-page deep link). A prompt alone does not
   // skip step 1 — otherwise a bad coworker slug would land on compose with the
   // default assignee.
-  const hasPrefilledAssignee = Boolean(initialValues?.assigneeId);
+  const hasPrefilledAssignee = Boolean(
+    initialValues?.assigneeId || initialValues?.assigneeOrchestratorId,
+  );
   const useWizard = isModal && mode === "create" && !hasPrefilledAssignee;
   const [step, setStep] = useState<1 | 2>(hasPrefilledAssignee ? 2 : 1);
   const showTaskStep = !useWizard || step === 2;
@@ -455,9 +481,11 @@ export function TaskForm({
         const desiredStatus = overrideStatus ?? status;
         if (mode === "create" && ["DRAFT", "READY"].includes(desiredStatus)) {
           const createTaskHandler = onCreateTask ?? createTask;
+          const assigneeFields = resolveAssigneeWriteFields(assigneePickerId);
           const result = await createTaskHandler({
             description: trimmedDescription,
-            assigneeId,
+            assigneeId: assigneeFields.assigneeId,
+            assigneeOrchestratorId: assigneeFields.assigneeOrchestratorId,
             context: {
               brand: {
                 enabled: contextSelection.brand.enabled,
@@ -520,11 +548,13 @@ export function TaskForm({
         }
 
         const trimmedName = name.trim();
+        const assigneeFields = resolveAssigneeWriteFields(assigneePickerId);
         const result = await updateTask({
           taskId,
           name: trimmedName,
           description: trimmedDescription,
-          assigneeId,
+          assigneeId: assigneeFields.assigneeId,
+          assigneeOrchestratorId: assigneeFields.assigneeOrchestratorId,
           ...(shouldShowProjectSelect ? { projectId } : {}),
           currentStatus: originalStatus,
           desiredStatus,
@@ -557,7 +587,7 @@ export function TaskForm({
       step,
       useWizard,
       name,
-      assigneeId,
+      assigneePickerId,
       projectId,
       shouldShowProjectSelect,
       originalStatus,
@@ -646,8 +676,9 @@ export function TaskForm({
   }, []);
 
   const selectedOption = useMemo(
-    () => coworkerOptions.find((option) => option.id === assigneeId),
-    [coworkerOptions, assigneeId],
+    () =>
+      assigneePickerOptions.find((option) => option.id === assigneePickerId),
+    [assigneePickerOptions, assigneePickerId],
   );
   const showModalCoworkerHeader =
     selectedOption !== undefined &&
@@ -766,8 +797,8 @@ export function TaskForm({
           {useWizard && step === 1 ? (
             <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8">
               <AgentSpotlight
-                options={coworkerOptions}
-                selectedId={assigneeId}
+                options={assigneePickerOptions}
+                selectedId={assigneePickerId}
                 onSelect={handleCoworkerSelect}
                 onPickOffer={(offer) => {
                   setDescription(offer.prompt);
@@ -990,11 +1021,11 @@ export function TaskForm({
                 ) : null}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {coworkerOptions.map((option) => (
+                {assigneePickerOptions.map((option) => (
                   <CoworkerCard
                     key={option.id}
                     option={option}
-                    isSelected={assigneeId === option.id}
+                    isSelected={assigneePickerId === option.id}
                     isDefault={option.slug === "elena"}
                     onSelect={() => handleCoworkerSelect(option.id)}
                     labels={cardLabels}

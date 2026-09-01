@@ -1,4 +1,5 @@
 import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
+import { isTaskAssignedToSokoBot } from "@/helpers/task-assignee";
 import prisma from "@/lib/db/prisma";
 import {
   SokoBotBusyError,
@@ -234,6 +235,7 @@ export class SokoBotTaskboardSyncService {
         workspaceId: bot.workspaceId,
         archivedAt: null,
         OR: [
+          { assigneeOrchestratorId: bot.id, status: { notIn: [...TERMINAL] } },
           { assigneeId: bot.coworkerId, status: { notIn: [...TERMINAL] } },
           { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },
           ...(bot.followWholeBoard
@@ -246,6 +248,7 @@ export class SokoBotTaskboardSyncService {
         name: true,
         status: true,
         assigneeId: true,
+        assigneeOrchestratorId: true,
         updatedAt: true,
         sokoBotWatches: {
           where: { sokoBotId: bot.id },
@@ -261,7 +264,7 @@ export class SokoBotTaskboardSyncService {
       [];
     for (const task of tasks) {
       const watch = task.sokoBotWatches[0] ?? null;
-      const assignedToBot = task.assigneeId === bot.coworkerId;
+      const assignedToBot = isTaskAssignedToSokoBot(task, bot);
       const work = assignedToBot && WORK_STATUSES.has(task.status);
       // Board-only Tasks: the bot neither owns nor created them.
       const boardOnly = !assignedToBot && !taskIds.has(task.id);

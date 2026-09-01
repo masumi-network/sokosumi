@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { buildTaskApiAssigneeFields } from "@/test-fixtures/task-api-assignee";
 
 import mountPatchTask from "./[id]/patch";
 import mountPostTask from "./post";
@@ -35,6 +36,7 @@ const {
   mapTaskMock: vi.fn((task: unknown) => {
     const t = task as Record<string, unknown>;
     const status = t.status as string | undefined;
+    const assigneeFields = buildTaskApiAssigneeFields(t);
     return {
       ...t,
       grantResumeStatus:
@@ -59,16 +61,7 @@ const {
               slug: "organization",
             }
           : null),
-      assignee:
-        t.assignee ??
-        (t.assigneeId
-          ? {
-              id: t.assigneeId,
-              name: "Coworker",
-              image: null,
-              slug: "coworker",
-            }
-          : null),
+      ...assigneeFields,
       creator: (() => {
         const creatorOrchestratorId =
           (t.creatorOrchestratorId as string | null | undefined) ?? null;
@@ -122,21 +115,6 @@ const {
         name: "Task owner",
         image: null,
       },
-      coworkerId:
-        (t.coworkerId as string | null | undefined) ??
-        (t.assigneeId as string | null | undefined) ??
-        null,
-      coworker:
-        (t.coworker as object | null | undefined) ??
-        (t.assignee as object | null | undefined) ??
-        (t.assigneeId
-          ? {
-              id: t.assigneeId,
-              name: "Coworker",
-              image: null,
-              slug: "coworker",
-            }
-          : null),
       orchestratorId:
         (t.orchestratorId as string | null | undefined) ??
         (t.creatorOrchestratorId as string | null | undefined) ??
@@ -180,7 +158,60 @@ vi.mock("@/helpers/task", () => ({
   validateTaskAssigneeAssignment: validateTaskAssigneeAssignmentMock,
 }));
 
-function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
+const WORKSPACE_ID = "99999999-9999-7999-8999-999999999999";
+const OTHER_WORKSPACE_ID = "22222222-2222-7222-8222-222222222222";
+
+function createDefaultTx(
+  overrides: {
+    taskCreate?: ReturnType<typeof vi.fn>;
+    taskUpdate?: ReturnType<typeof vi.fn>;
+    taskFindFirst?: ReturnType<typeof vi.fn>;
+    taskFindUniqueOrThrow?: ReturnType<typeof vi.fn>;
+  } = {},
+) {
+  const taskCreate = overrides.taskCreate ?? vi.fn();
+  const taskUpdate = overrides.taskUpdate ?? vi.fn();
+  const taskFindFirst =
+    overrides.taskFindFirst ??
+    vi.fn().mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.READY,
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      projectId: null,
+      workspaceId: OTHER_WORKSPACE_ID,
+      ownerId: "user_123",
+      archivedAt: null,
+      organizationId: null,
+      metadata: null,
+      nextRunAt: null,
+    });
+  const taskFindUniqueOrThrow =
+    overrides.taskFindUniqueOrThrow ??
+    vi
+      .fn()
+      .mockImplementation(async () => taskUpdate.mock.results.at(-1)?.value);
+
+  return {
+    coworker: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+    sokoBot: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+    project: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+    task: {
+      create: taskCreate,
+      update: taskUpdate,
+      findFirst: taskFindFirst,
+      findUniqueOrThrow: taskFindUniqueOrThrow,
+    },
+  };
+}
+
+function createApp(activeWorkspaceId = WORKSPACE_ID) {
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
@@ -215,11 +246,7 @@ describe("task coworker whitelist enforcement", () => {
   });
 
   it("rejects task creation when coworker is not whitelisted", async () => {
-    const tx = {
-      task: {
-        create: vi.fn(),
-      },
-    };
+    const tx = createDefaultTx();
 
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback(tx);
@@ -247,7 +274,7 @@ describe("task coworker whitelist enforcement", () => {
     expect(response.status).toBe(404);
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
-      "99999999-9999-7999-8999-999999999999",
+      WORKSPACE_ID,
       expect.anything(),
       // Only the owner may put work on their own Soko Bot; the assigner has to
       // reach the check for that rule to apply.
@@ -257,11 +284,7 @@ describe("task coworker whitelist enforcement", () => {
   });
 
   it("rejects task update when coworker is not whitelisted", async () => {
-    const tx = {
-      task: {
-        update: vi.fn(),
-      },
-    };
+    const tx = createDefaultTx();
 
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback(tx);
@@ -271,7 +294,10 @@ describe("task coworker whitelist enforcement", () => {
       id: "tsk_123",
       status: TaskStatus.READY,
       assigneeId: null,
-      workspaceId: "22222222-2222-7222-8222-222222222222",
+      assigneeOrchestratorId: null,
+      projectId: null,
+      workspaceId: OTHER_WORKSPACE_ID,
+      organizationId: null,
     });
     requireTaskAssignableCoworkerMock.mockRejectedValue(
       new HTTPException(404, {
@@ -304,6 +330,7 @@ describe("task coworker whitelist enforcement", () => {
       projectId: null,
       status: TaskStatus.READY,
       assigneeId: null,
+      assigneeOrchestratorId: null,
       name: "Updated title",
       description: null,
       metadata: null,
@@ -312,7 +339,7 @@ describe("task coworker whitelist enforcement", () => {
       events: [],
       jobs: [],
       workspace: {
-        id: "22222222-2222-7222-8222-222222222222",
+        id: OTHER_WORKSPACE_ID,
         organizationId: null,
         organization: null,
       },
@@ -322,11 +349,51 @@ describe("task coworker whitelist enforcement", () => {
       linksFrom: [],
       linksTo: [],
     });
-    const tx = {
-      task: {
-        update: updateMock,
+    const findUniqueOrThrowMock = vi.fn().mockResolvedValue({
+      id: "tsk_123",
+      createdAt: "2026-03-25T10:00:00.000Z",
+      updatedAt: "2026-03-25T10:00:00.000Z",
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: null,
+      status: TaskStatus.READY,
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      name: "Updated title",
+      description: null,
+      metadata: null,
+      nextRunAt: null,
+      credits: 0,
+      events: [],
+      jobs: [],
+      workspace: {
+        id: OTHER_WORKSPACE_ID,
+        organizationId: null,
+        organization: null,
       },
-    };
+      share: null,
+      links: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const tx = createDefaultTx({
+      taskUpdate: updateMock,
+      taskFindUniqueOrThrow: findUniqueOrThrowMock,
+      taskFindFirst: vi.fn().mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        assigneeOrchestratorId: null,
+        projectId: null,
+        workspaceId: OTHER_WORKSPACE_ID,
+        ownerId: "user_123",
+        archivedAt: null,
+        organizationId: null,
+        metadata: null,
+        nextRunAt: null,
+      }),
+    });
 
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback(tx);
@@ -334,9 +401,12 @@ describe("task coworker whitelist enforcement", () => {
 
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
-      status: TaskStatus.READY,
+      status: TaskStatus.DRAFT,
       assigneeId: null,
-      workspaceId: "22222222-2222-7222-8222-222222222222",
+      assigneeOrchestratorId: null,
+      projectId: null,
+      workspaceId: OTHER_WORKSPACE_ID,
+      organizationId: null,
     });
 
     const app = createApp();
@@ -351,14 +421,14 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(updateMock).toHaveBeenCalledWith(
+    expect(findUniqueOrThrowMock).toHaveBeenCalledWith(
       expect.objectContaining({
         include: expect.objectContaining({
           linksFrom: expect.objectContaining({
             where: {
               toTask: {
                 is: {
-                  workspaceId: "22222222-2222-7222-8222-222222222222",
+                  workspaceId: OTHER_WORKSPACE_ID,
                   archivedAt: null,
                 },
               },
@@ -368,7 +438,7 @@ describe("task coworker whitelist enforcement", () => {
             where: {
               fromTask: {
                 is: {
-                  workspaceId: "22222222-2222-7222-8222-222222222222",
+                  workspaceId: OTHER_WORKSPACE_ID,
                   archivedAt: null,
                 },
               },
@@ -380,11 +450,7 @@ describe("task coworker whitelist enforcement", () => {
   });
 
   it("rejects task creation when coworker lacks tasks capability", async () => {
-    const tx = {
-      task: {
-        create: vi.fn(),
-      },
-    };
+    const tx = createDefaultTx();
 
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback(tx);
@@ -412,7 +478,7 @@ describe("task coworker whitelist enforcement", () => {
     expect(response.status).toBe(404);
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
-      "99999999-9999-7999-8999-999999999999",
+      WORKSPACE_ID,
       expect.anything(),
       // Only the owner may put work on their own Soko Bot; the assigner has to
       // reach the check for that rule to apply.

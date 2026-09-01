@@ -3,10 +3,7 @@ import { TaskStatus } from "@sokosumi/database";
 import { isTaskEditableStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import {
-  requireMutableTaskOwnership,
-  requireTaskAssignableCoworker,
-} from "@/helpers/access-control";
+import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -17,11 +14,13 @@ import {
   refineAssigneeIdAliasConflict,
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
+import { refineTaskAssigneeXorConflict } from "@/helpers/task-assignee";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
+import { updateTaskForActor } from "@/services/task-domain.service";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -46,6 +45,10 @@ export const patchTaskRequestSchema = z
       .optional()
       .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
     assigneeId: z.string().nullish().openapi({ example: "cow_123" }),
+    assigneeOrchestratorId: z.string().uuid().nullish().openapi({
+      example: "01960001-0001-7001-8001-000000000099",
+      description: "Owner PA orchestrator assignee. XOR with assigneeId.",
+    }),
     /** @deprecated Use `assigneeId`. */
     coworkerId: z.string().nullish().openapi({
       example: "cow_123",
@@ -55,18 +58,20 @@ export const patchTaskRequestSchema = z
   })
   .superRefine((data, ctx) => {
     refineAssigneeIdAliasConflict(data, ctx);
+    refineTaskAssigneeXorConflict(data, ctx);
 
     if (
       data.name === undefined &&
       data.description === undefined &&
       data.projectId === undefined &&
       data.assigneeId === undefined &&
-      data.coworkerId === undefined
+      data.coworkerId === undefined &&
+      data.assigneeOrchestratorId === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId or assigneeId is required",
+          "At least one of name, description, projectId, assigneeId, or assigneeOrchestratorId is required",
         path: ["name"],
       });
     }
@@ -74,12 +79,17 @@ export const patchTaskRequestSchema = z
   .transform((data) => {
     const { coworkerId: _coworkerId, ...rest } = data;
     const assigneeId = resolveAssigneeIdFromRequest(data);
+    const assigneeFieldsProvided =
+      data.assigneeId !== undefined ||
+      data.coworkerId !== undefined ||
+      data.assigneeOrchestratorId !== undefined;
     return {
       ...rest,
-      // Only set when either alias was provided so omitted patches keep the
-      // existing assignee (handler treats `undefined` as "not provided").
-      ...(data.assigneeId !== undefined || data.coworkerId !== undefined
-        ? { assigneeId }
+      ...(assigneeFieldsProvided
+        ? {
+            assigneeId,
+            assigneeOrchestratorId: data.assigneeOrchestratorId,
+          }
         : {}),
     };
   });
@@ -114,7 +124,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
-    const { name, description, projectId, assigneeId } = c.req.valid("json");
+    const { name, description, projectId, assigneeId, assigneeOrchestratorId } =
+      c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskOwnership(
@@ -161,37 +172,37 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden("You can only update draft, queued, or ready tasks");
       }
 
-      const assigneeIdWasProvided = assigneeId !== undefined;
-      const nextAssigneeId = assigneeIdWasProvided
-        ? assigneeId
+      const assigneeFieldsProvided =
+        assigneeId !== undefined || assigneeOrchestratorId !== undefined;
+      const nextAssigneeId = assigneeFieldsProvided
+        ? (assigneeId ?? null)
         : task.assigneeId;
+      const nextAssigneeOrchestratorId = assigneeFieldsProvided
+        ? (assigneeOrchestratorId ?? null)
+        : task.assigneeOrchestratorId;
       validateTaskAssigneeAssignment({
         status: task.status,
         assigneeId: nextAssigneeId,
+        assigneeOrchestratorId: nextAssigneeOrchestratorId,
       });
 
-      if (assigneeIdWasProvided && assigneeId !== null) {
-        await requireTaskAssignableCoworker(assigneeId, task.workspaceId, tx, {
-          kind: "user",
-          userId: userContext.userId,
-        });
-      }
-
-      const updatedTask = await tx.task.update({
-        where: {
-          id,
+      const updatedTaskRow = await updateTaskForActor(
+        {
+          actor: { kind: "user", userId: userContext.userId },
           ownerId: userContext.userId,
-          archivedAt: null,
-          status: {
-            in: [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY],
-          },
-        },
-        data: {
+          taskId: id,
+          intent: "metadata",
           name,
           description,
           projectId,
-          assigneeId,
+          ...(assigneeFieldsProvided
+            ? { assigneeId, assigneeOrchestratorId }
+            : {}),
         },
+        tx,
+      );
+      const updatedTask = await tx.task.findUniqueOrThrow({
+        where: { id: updatedTaskRow.id },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });
       if (projectIdWasProvided) {

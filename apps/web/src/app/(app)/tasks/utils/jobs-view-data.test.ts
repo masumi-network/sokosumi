@@ -73,7 +73,10 @@ describe("mapJobsToTasksViewData", () => {
       ],
     ]);
     const seedTasksById = new Map([
-      ["task-seeded", { id: "task-seeded", assigneeId: "coworker-1" }],
+      [
+        "task-seeded",
+        { id: "task-seeded", assigneeId: "coworker-1", assignee: null },
+      ],
     ]);
 
     const result = await mapJobsToTasksViewData({
@@ -115,7 +118,10 @@ describe("mapJobsToTasksViewData", () => {
       ],
     ]);
     const seedTasksById = new Map([
-      ["task-seeded", { id: "task-seeded", assigneeId: "coworker-1" }],
+      [
+        "task-seeded",
+        { id: "task-seeded", assigneeId: "coworker-1", assignee: null },
+      ],
     ]);
     const preloaded = createMockCoreAgent({
       id: "agent-1",

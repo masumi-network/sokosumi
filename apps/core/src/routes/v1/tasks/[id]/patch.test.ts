@@ -21,6 +21,8 @@ const {
   refreshTaskSchedulePlannedOccurrencesMock,
   requireTaskAssignableCoworkerMock,
   requireTaskOwnershipMock,
+  taskFindFirstMock,
+  taskFindUniqueOrThrowMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
   mapTaskMock: vi.fn(),
@@ -29,12 +31,18 @@ const {
   refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
+  taskFindUniqueOrThrowMock: vi.fn(),
   taskUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireMutableTaskOwnership: requireTaskOwnershipMock,
+}));
+
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -91,6 +99,7 @@ function createTaskApi(projectId: string | null = null) {
       slug: "acme-labs",
     },
     assigneeId: null,
+    assigneeOrchestratorId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -183,21 +192,65 @@ describe("patchTaskRequestSchema", () => {
       });
     }).toThrow();
   });
+
+  it("rejects conflicting assigneeId and assigneeOrchestratorId", () => {
+    expect(() => {
+      patchTaskRequestSchema.parse({
+        assigneeId: "cow_a",
+        assigneeOrchestratorId: "01960001-0001-7001-8001-000000000099",
+      });
+    }).toThrow();
+  });
+
+  it("accepts assigneeOrchestratorId as the only assignee field", () => {
+    const result = patchTaskRequestSchema.parse({
+      assigneeOrchestratorId: "01960001-0001-7001-8001-000000000099",
+    });
+
+    expect(result.assigneeOrchestratorId).toBe(
+      "01960001-0001-7001-8001-000000000099",
+    );
+    expect(result.assigneeId).toBeUndefined();
+  });
 });
+
+function defaultMutableTaskRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "tsk_123",
+    status: TaskStatus.DRAFT,
+    assigneeId: null,
+    assigneeOrchestratorId: null,
+    projectId: null,
+    workspaceId: WORKSPACE_ID,
+    ownerId: "user_123",
+    archivedAt: null,
+    organizationId: "org_123",
+    metadata: null,
+    nextRunAt: null,
+    ...overrides,
+  };
+}
 
 describe("PATCH /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const taskRow = defaultMutableTaskRow();
     requireTaskOwnershipMock.mockResolvedValue({
-      id: "tsk_123",
-      status: TaskStatus.DRAFT,
-      assigneeId: null,
-      projectId: null,
-      workspaceId: WORKSPACE_ID,
+      id: taskRow.id,
+      status: taskRow.status,
+      assigneeId: taskRow.assigneeId,
+      assigneeOrchestratorId: taskRow.assigneeOrchestratorId,
+      projectId: taskRow.projectId,
+      workspaceId: taskRow.workspaceId,
     });
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
     refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
+    taskFindFirstMock.mockResolvedValue(taskRow);
     taskUpdateMock.mockResolvedValue(createTaskApi(PROJECT_ID));
+    taskFindUniqueOrThrowMock.mockImplementation(async () => {
+      const updated = await taskUpdateMock.mock.results.at(-1)?.value;
+      return updated ?? createTaskApi(PROJECT_ID);
+    });
     mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
@@ -205,7 +258,9 @@ describe("PATCH /tasks/{id}", () => {
           findFirst: projectFindFirstMock,
         },
         task: {
+          findFirst: taskFindFirstMock,
           update: taskUpdateMock,
+          findUniqueOrThrow: taskFindUniqueOrThrowMock,
         },
       });
     });

@@ -144,7 +144,18 @@ export function buildTaskActivityActors(
   addUserActor(userById, task.owner);
 
   if (task.assignee) {
-    addCoworkerActor(coworkerById, task.assignee);
+    switch (task.assignee.type) {
+      case "coworker":
+        addCoworkerActor(coworkerById, task.assignee.coworker);
+        break;
+      case "orchestrator":
+        addOrchestratorActor(orchestratorById, task.assignee.orchestrator);
+        break;
+      default: {
+        const _exhaustive: never = task.assignee;
+        void _exhaustive;
+      }
+    }
   }
 
   switch (task.creator.type) {

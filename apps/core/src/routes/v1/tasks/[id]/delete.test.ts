@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { buildTaskApiAssigneeFields } from "@/test-fixtures/task-api-assignee";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountDeleteTask from "./delete";
@@ -28,6 +29,7 @@ const {
   mapTaskMock: vi.fn((task: unknown) => {
     const t = task as Record<string, unknown>;
     const status = t.status as string | undefined;
+    const assigneeFields = buildTaskApiAssigneeFields(t);
     return {
       ...t,
       grantResumeStatus:
@@ -52,16 +54,7 @@ const {
               slug: "organization",
             }
           : null),
-      assignee:
-        t.assignee ??
-        (t.assigneeId
-          ? {
-              id: t.assigneeId,
-              name: "Coworker",
-              image: null,
-              slug: "coworker",
-            }
-          : null),
+      ...assigneeFields,
       creator: (() => {
         const creatorOrchestratorId =
           (t.creatorOrchestratorId as string | null | undefined) ?? null;
@@ -114,21 +107,6 @@ const {
         name: "Task owner",
         image: null,
       },
-      coworkerId:
-        (t.coworkerId as string | null | undefined) ??
-        (t.assigneeId as string | null | undefined) ??
-        null,
-      coworker:
-        (t.coworker as object | null | undefined) ??
-        (t.assignee as object | null | undefined) ??
-        (t.assigneeId
-          ? {
-              id: t.assigneeId,
-              name: "Coworker",
-              image: null,
-              slug: "coworker",
-            }
-          : null),
       orchestratorId:
         (t.orchestratorId as string | null | undefined) ??
         (t.creatorOrchestratorId as string | null | undefined) ??

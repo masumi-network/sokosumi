@@ -17,12 +17,14 @@ interface TaskEditModalProps {
     name: string;
     description: string;
     assigneeId: string;
+    assigneeOrchestratorId?: string | null;
     projectId?: string | null;
     status: TaskStatus;
     metadata?: string | null;
     nextRunAt?: string | null;
   };
   coworkerOptions: CoworkerOption[];
+  paAssigneeOption?: CoworkerOption | null;
   projectOptions: ProjectFilterOption[];
   agentNameById: Map<string, string>;
   labels: TaskFormLabels;
@@ -33,6 +35,7 @@ export function TaskEditModal({
   title,
   initialValues,
   coworkerOptions,
+  paAssigneeOption = null,
   projectOptions,
   agentNameById,
   labels,
@@ -62,6 +65,7 @@ export function TaskEditModal({
         showCancel={false}
         labels={labels}
         coworkerOptions={coworkerOptions}
+        paAssigneeOption={paAssigneeOption}
         projectOptions={projectOptions}
         agentNameById={agentNameById}
         taskId={taskId}

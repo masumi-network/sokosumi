@@ -90,6 +90,7 @@ function buildMapTaskResponse(task: {
         }
       : null,
     assigneeId: null,
+    assigneeOrchestratorId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,

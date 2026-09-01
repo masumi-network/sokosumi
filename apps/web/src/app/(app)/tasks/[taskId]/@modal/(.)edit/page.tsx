@@ -6,6 +6,7 @@ import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/tas
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { buildPaAssigneeOption } from "@/app/tasks/utils/pa-assignee-option";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
@@ -13,6 +14,7 @@ import type { Project } from "@/lib/clients/generated/core";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
@@ -62,13 +64,15 @@ export default async function TaskEditModalPage({
     );
   }
 
-  const [taskCoworkers, agents, projectsPage] = await Promise.all([
+  const [taskCoworkers, agents, projectsPage, sokoBot] = await Promise.all([
     coworkerService.listCoworkers("tasks").catch(() => []),
     agentService.getAvailableAgentsWithCreditsPrice(),
     projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+    sokoBotService.getMine().catch(() => null),
   ]);
 
   const coworkerOptions = getCoworkerOptions(taskCoworkers);
+  const paAssigneeOption = buildPaAssigneeOption(sokoBot);
   const projectOptions = await buildProjectOptions(
     projectsPage.projects,
     taskResult.projectId ?? null,
@@ -122,12 +126,14 @@ export default async function TaskEditModalPage({
         ctrl: tEdit("ctrl"),
       }}
       coworkerOptions={coworkerOptions}
+      paAssigneeOption={paAssigneeOption}
       projectOptions={projectOptions}
       agentNameById={agentNameById}
       initialValues={{
         name: taskResult.name,
         description: taskResult.description ?? "",
         assigneeId: taskResult.assigneeId ?? "",
+        assigneeOrchestratorId: taskResult.assigneeOrchestratorId ?? null,
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
         metadata: taskResult.metadata,

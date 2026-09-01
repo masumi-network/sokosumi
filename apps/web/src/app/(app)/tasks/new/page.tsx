@@ -4,10 +4,12 @@ import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/tas
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { buildPaAssigneeOption } from "@/app/tasks/utils/pa-assignee-option";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 
 export const metadata = {
@@ -16,15 +18,17 @@ export const metadata = {
 
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
-  const [taskCoworkers, agents, session] = await Promise.all([
+  const [taskCoworkers, agents, session, sokoBot] = await Promise.all([
     coworkerService.listCoworkers("tasks").catch(() => []),
     agentService.getAvailableAgentsWithCreditsPrice(),
     getSession(),
+    sokoBotService.getMine().catch(() => null),
   ]);
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
   const coworkerOptions = getCoworkerOptions(taskCoworkers);
+  const paAssigneeOption = buildPaAssigneeOption(sokoBot);
   const canCreateTask = await hasAssignedOrganizationSeat(
     session?.session.activeOrganizationId ?? null,
   );
@@ -76,6 +80,7 @@ export default async function NewTaskPage() {
             ctrl: t("ctrl"),
           }}
           coworkerOptions={coworkerOptions}
+          paAssigneeOption={paAssigneeOption}
           agentNameById={agentNameById}
           initialDesignMdAttachment={initialDesignMdAttachment}
         />

@@ -42,6 +42,7 @@ import {
 interface CreateTaskParameters extends AuthenticatedRequest {
   description: string;
   assigneeId: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -63,6 +64,7 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   name: string;
   description: string;
   assigneeId: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
   currentStatus: TaskStatus;
   desiredStatus: TaskStatus;
@@ -153,6 +155,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   taskId: string;
   description: string;
   assigneeId: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -325,6 +328,7 @@ function toCoreTaskContext(
 async function createTaskFromDescription(input: {
   description: string;
   assigneeId: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
   userId: string;
   context?: TaskContextSelectionInput;
@@ -341,9 +345,19 @@ async function createTaskFromDescription(input: {
     ? toCoreTaskContext(input.context, input.userId)
     : undefined;
 
+  const assigneeOrchestratorId = input.assigneeOrchestratorId ?? null;
+  const assigneeId =
+    assigneeOrchestratorId != null
+      ? undefined
+      : input.assigneeId
+        ? input.assigneeId
+        : null;
+
   const task = await taskService.createTask({
     description: trimmedDescription,
-    assigneeId: input.assigneeId ? input.assigneeId : null,
+    ...(assigneeOrchestratorId != null
+      ? { assigneeOrchestratorId }
+      : { assigneeId: assigneeId ?? null }),
     projectId: normalizedProjectId ?? null,
     ...(context ? { context } : {}),
     status: resolveCreateStatus(input.status, input.schedule),
@@ -483,6 +497,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   async ({
     description,
     assigneeId,
+    assigneeOrchestratorId,
     projectId,
     session,
     context,
@@ -493,6 +508,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
       const task = await createTaskFromDescription({
         description,
         assigneeId,
+        assigneeOrchestratorId,
         projectId,
         userId: session.user.id,
         context,
@@ -522,6 +538,7 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     name,
     description,
     assigneeId,
+    assigneeOrchestratorId,
     projectId,
     currentStatus,
     desiredStatus,
@@ -544,7 +561,9 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
       await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
-        assigneeId: assigneeId?.trim() ? assigneeId : null,
+        ...(assigneeOrchestratorId != null
+          ? { assigneeOrchestratorId, assigneeId: null }
+          : { assigneeId: assigneeId?.trim() ? assigneeId : null }),
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
           : {}),
@@ -829,6 +848,7 @@ export const createTaskAndLink = withSession<
     taskId,
     description,
     assigneeId,
+    assigneeOrchestratorId,
     projectId,
     session,
     status,
@@ -849,6 +869,7 @@ export const createTaskAndLink = withSession<
       createdTask = await createTaskFromDescription({
         description,
         assigneeId,
+        assigneeOrchestratorId,
         projectId,
         userId: session.user.id,
         context,

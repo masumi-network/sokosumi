@@ -91,6 +91,7 @@ function createTaskResult(metadata: string, nextRunAt: Date) {
     organization: null,
     projectId: null,
     assigneeId: assignee.id,
+    assigneeOrchestratorId: null,
     assignee,
     creatorUserId: owner.id,
     creatorUser: owner,

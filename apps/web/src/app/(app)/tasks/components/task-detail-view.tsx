@@ -21,6 +21,8 @@ import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendo
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { buildPaAssigneeOption } from "@/app/tasks/utils/pa-assignee-option";
+import { resolveTaskAssigneeDisplay } from "@/app/tasks/utils/resolve-task-assignee";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import {
@@ -35,6 +37,7 @@ import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
@@ -328,7 +331,7 @@ async function TaskVendorGrantApprovalBannerSlot({
   if (!canApprove) {
     return (
       <TaskVendorGrantPendingInfoBanner
-        coworkerName={task.assignee?.name ?? null}
+        coworkerName={resolveTaskAssigneeDisplay(task.assignee).name}
       />
     );
   }
@@ -345,7 +348,7 @@ async function TaskVendorGrantApprovalBannerSlot({
   return (
     <TaskVendorGrantApprovalBanner
       grantId={grantId}
-      coworkerName={task.assignee?.name ?? null}
+      coworkerName={resolveTaskAssigneeDisplay(task.assignee).name}
       organizationId={orgId}
       reviewHref={reviewHref}
     />
@@ -469,6 +472,8 @@ async function TaskDetailActionsSlot({
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
+  const sokoBot = await sokoBotService.getMine().catch(() => null);
+  const paAssigneeOption = buildPaAssigneeOption(sokoBot);
   const {
     task: taskWithCoworker,
     agentNameById,
@@ -509,8 +514,10 @@ async function TaskDetailActionsSlot({
       jobsCount={taskWithCoworker.jobsCount}
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}
+      paAssigneeOption={paAssigneeOption}
       agentNameById={agentNameById}
       defaultAssigneeId={task.assigneeId}
+      defaultAssigneeOrchestratorId={task.assigneeOrchestratorId}
       initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}

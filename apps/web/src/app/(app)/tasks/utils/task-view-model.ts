@@ -1,5 +1,6 @@
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { getColumnId } from "@/app/tasks/utils/task-column";
+import { resolveTaskAssigneeCoworker } from "@/app/tasks/utils/resolve-task-assignee";
 import type { Coworker } from "@/lib/clients/generated/core";
 import type {
   Task,
@@ -76,9 +77,7 @@ export function mapTaskToTaskWithCoworker(
   coworkersById: Map<string, Coworker>,
   agentsById: Map<string, CoreAgentDto>,
 ): TaskWithCoworker {
-  const assignee = task.assigneeId
-    ? (coworkersById.get(task.assigneeId) ?? null)
-    : null;
+  const assignee = resolveTaskAssigneeCoworker(task, coworkersById);
   const agentIds = parseAgentMentions(task.description, agentsById);
   const agents = agentIds
     .map((id) => agentsById.get(id))

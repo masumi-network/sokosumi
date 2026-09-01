@@ -125,8 +125,10 @@ interface TaskDetailActionsProps {
   jobsCount: number;
   taskLinks: TaskLink[];
   coworkerOptions: CoworkerOption[];
+  paAssigneeOption?: CoworkerOption | null;
   agentNameById: Map<string, string>;
   defaultAssigneeId?: string | null;
+  defaultAssigneeOrchestratorId?: string | null;
   /** Resolved DESIGN.md for create-related flow (same picker as new task). */
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
@@ -150,8 +152,10 @@ export function TaskDetailActions({
   jobsCount,
   taskLinks,
   coworkerOptions,
+  paAssigneeOption = null,
   agentNameById,
   defaultAssigneeId,
+  defaultAssigneeOrchestratorId = null,
   initialDesignMdAttachment = null,
   actionsMenuLabel,
   labels,
@@ -209,7 +213,7 @@ export function TaskDetailActions({
 
   const canMutateTask = !isReadOnly;
   const availableStatusActions = getTaskStatusActions(status, labels, {
-    hasCoworker: Boolean(defaultAssigneeId),
+    hasCoworker: Boolean(defaultAssigneeId || defaultAssigneeOrchestratorId),
   });
   const statusActions = canMutateTask
     ? availableStatusActions
@@ -961,14 +965,22 @@ export function TaskDetailActions({
             showCancel={false}
             labels={createTaskLabels}
             coworkerOptions={coworkerOptions}
+            paAssigneeOption={paAssigneeOption}
             agentNameById={agentNameById}
             initialDesignMdAttachment={initialDesignMdAttachment}
             initialValues={
-              defaultAssigneeId ? { assigneeId: defaultAssigneeId } : undefined
+              defaultAssigneeId || defaultAssigneeOrchestratorId
+                ? {
+                    assigneeId: defaultAssigneeId ?? undefined,
+                    assigneeOrchestratorId:
+                      defaultAssigneeOrchestratorId ?? undefined,
+                  }
+                : undefined
             }
             onCreateTask={async ({
               description,
               assigneeId,
+              assigneeOrchestratorId,
               projectId,
               status,
               schedule,
@@ -978,6 +990,7 @@ export function TaskDetailActions({
                 taskId,
                 description,
                 assigneeId,
+                assigneeOrchestratorId,
                 projectId,
                 status,
                 schedule,

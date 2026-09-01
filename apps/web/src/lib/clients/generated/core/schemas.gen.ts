@@ -4347,10 +4347,19 @@ export const TaskSchema = {
                 'null'
             ],
             example: 'cow_123',
-            description: 'Marketplace coworker assignee. Never an orchestrator.'
+            description: 'Marketplace coworker assignee id. Null when assignee.type is orchestrator.'
+        },
+        assigneeOrchestratorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099',
+            description: 'Owner PA orchestrator assignee id. Null when assignee.type is coworker.'
         },
         assignee: {
-            $ref: '#/components/schemas/CoworkerSummary'
+            $ref: '#/components/schemas/TaskAssignee'
         },
         coworkerId: {
             type: [
@@ -4359,7 +4368,7 @@ export const TaskSchema = {
             ],
             example: 'cow_123',
             deprecated: true,
-            description: 'Deprecated. Use assigneeId instead.'
+            description: 'Deprecated. Use assignee when type is coworker.'
         },
         coworker: {
             allOf: [
@@ -4367,8 +4376,12 @@ export const TaskSchema = {
                     $ref: '#/components/schemas/CoworkerSummary'
                 },
                 {
+                    type: [
+                        'object',
+                        'null'
+                    ],
                     deprecated: true,
-                    description: 'Deprecated. Use assignee instead.'
+                    description: 'Deprecated. Use assignee when type is coworker.'
                 }
             ]
         },
@@ -4528,6 +4541,7 @@ export const TaskSchema = {
         'organization',
         'projectId',
         'assigneeId',
+        'assigneeOrchestratorId',
         'assignee',
         'coworkerId',
         'coworker',
@@ -4602,11 +4616,47 @@ export const OrganizationSummarySchema = {
     ]
 } as const;
 
-export const CoworkerSummarySchema = {
-    type: [
-        'object',
-        'null'
+export const TaskAssigneeSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/TaskAssigneeCoworker'
+        },
+        {
+            $ref: '#/components/schemas/TaskAssigneeOrchestrator'
+        },
+        {
+            type: 'null'
+        }
     ],
+    description: 'Task assignee. Exactly one of marketplace coworker or owner PA orchestrator.'
+} as const;
+
+export const TaskAssigneeCoworkerSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'coworker'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        coworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'coworker'
+    ]
+} as const;
+
+export const CoworkerSummarySchema = {
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -4632,6 +4682,73 @@ export const CoworkerSummarySchema = {
         'id',
         'name',
         'slug'
+    ]
+} as const;
+
+export const TaskAssigneeOrchestratorSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'orchestrator'
+            ]
+        },
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        orchestrator: {
+            $ref: '#/components/schemas/OrchestratorSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'orchestrator'
+    ]
+} as const;
+
+export const OrchestratorSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Atlas'
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'orb:jewel-sky:user_123'
+        },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://blob.example/mascot.png'
+        },
+        owner: {
+            $ref: '#/components/schemas/UserSummary'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'avatarSeed',
+        'avatarImageUrl',
+        'owner'
     ]
 } as const;
 
@@ -4728,48 +4845,6 @@ export const TaskCreatorOrchestratorSchema = {
         'type',
         'id',
         'orchestrator'
-    ]
-} as const;
-
-export const OrchestratorSummarySchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099'
-        },
-        name: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Atlas'
-        },
-        avatarSeed: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'orb:jewel-sky:user_123'
-        },
-        avatarImageUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://blob.example/mascot.png'
-        },
-        owner: {
-            $ref: '#/components/schemas/UserSummary'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'avatarSeed',
-        'avatarImageUrl',
-        'owner'
     ]
 } as const;
 
@@ -17981,10 +18056,19 @@ export const TaskListItemSchema = {
                 'null'
             ],
             example: 'cow_123',
-            description: 'Marketplace coworker assignee. Never an orchestrator.'
+            description: 'Marketplace coworker assignee id. Null when assignee.type is orchestrator.'
+        },
+        assigneeOrchestratorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099',
+            description: 'Owner PA orchestrator assignee id. Null when assignee.type is coworker.'
         },
         assignee: {
-            $ref: '#/components/schemas/CoworkerSummary'
+            $ref: '#/components/schemas/TaskAssignee'
         },
         coworkerId: {
             type: [
@@ -17993,7 +18077,7 @@ export const TaskListItemSchema = {
             ],
             example: 'cow_123',
             deprecated: true,
-            description: 'Deprecated. Use assigneeId instead.'
+            description: 'Deprecated. Use assignee when type is coworker.'
         },
         coworker: {
             allOf: [
@@ -18001,8 +18085,12 @@ export const TaskListItemSchema = {
                     $ref: '#/components/schemas/CoworkerSummary'
                 },
                 {
+                    type: [
+                        'object',
+                        'null'
+                    ],
                     deprecated: true,
-                    description: 'Deprecated. Use assignee instead.'
+                    description: 'Deprecated. Use assignee when type is coworker.'
                 }
             ]
         },
@@ -18128,6 +18216,7 @@ export const TaskListItemSchema = {
         'organization',
         'projectId',
         'assigneeId',
+        'assigneeOrchestratorId',
         'assignee',
         'coworkerId',
         'coworker',
