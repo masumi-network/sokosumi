@@ -46,12 +46,20 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
-/** Chat's two kinds disagree, so the group has a mixture to report. */
+/**
+ * Jobs and chat each hold two kinds that disagree, so both groups have a
+ * mixture to report. Tasks agree, and requests and access is a single kind, so
+ * it is drawn as a plain row.
+ */
 const MATRIX = [
-  { category: "JOB", channel: "IN_APP", enabled: true },
-  { category: "JOB", channel: "OS_BANNER", enabled: true },
-  { category: "TASK", channel: "IN_APP", enabled: true },
-  { category: "TASK", channel: "OS_BANNER", enabled: false },
+  { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
+  { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: true },
+  { category: "JOB_UPDATE", channel: "IN_APP", enabled: true },
+  { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
+  { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
+  { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: false },
+  { category: "TASK_UPDATE", channel: "IN_APP", enabled: true },
+  { category: "TASK_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "CHAT_MENTION", channel: "IN_APP", enabled: true },
   { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
   { category: "CHAT_DIRECT_MESSAGE", channel: "IN_APP", enabled: true },
@@ -144,19 +152,22 @@ describe("NotificationKinds", () => {
   it("marks where each kind arrives, without opening anything", () => {
     renderKinds();
 
-    expect(stop("kindJob", "deliveryBanner")).toHaveAttribute(
+    expect(stop("kindSystem", "deliveryInApp")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(stop("kindTask", "deliveryInApp")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(stop("kindTask", "deliveryBanner")).toHaveAttribute(
+    expect(stop("kindSystem", "deliveryBanner")).toHaveAttribute(
       "aria-pressed",
       "false",
     );
-    // Chat holds two kinds that disagree, and says so rather than picking one.
+    // Both task kinds agree, so the group answers for them in one word.
+    expect(stop("groupTask", "deliveryInApp")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // Jobs and chat each hold two kinds that disagree, and say so rather than
+    // picking one.
+    expect(stop("groupJob", "deliveryMixed")).toBeInTheDocument();
     expect(stop("groupChat", "deliveryMixed")).toBeInTheDocument();
   });
 
@@ -174,15 +185,15 @@ describe("NotificationKinds", () => {
   it("writes both channels of the kind the reader changed", async () => {
     renderKinds();
 
-    await pick("kindJob", "deliveryOff");
+    await pick("kindSystem", "deliveryOff");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
     expect(lastWrite()).toHaveLength(2);
-    expect(written("JOB", "IN_APP")).toBe(false);
-    expect(written("JOB", "OS_BANNER")).toBe(false);
-    expect(stop("kindJob", "deliveryOff")).toHaveAttribute(
+    expect(written("SYSTEM", "IN_APP")).toBe(false);
+    expect(written("SYSTEM", "OS_BANNER")).toBe(false);
+    expect(stop("kindSystem", "deliveryOff")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -191,12 +202,33 @@ describe("NotificationKinds", () => {
   it("turns a banner into both channels, so nothing arrives unseen", async () => {
     renderKinds();
 
-    await pick("kindTask", "deliveryBanner");
+    await pick("kindSystem", "deliveryBanner");
 
     await waitFor(() => {
-      expect(written("TASK", "OS_BANNER")).toBe(true);
+      expect(written("SYSTEM", "OS_BANNER")).toBe(true);
     });
-    expect(written("TASK", "IN_APP")).toBe(true);
+    expect(written("SYSTEM", "IN_APP")).toBe(true);
+  });
+
+  it("splits a job that needs you from one that merely happened", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await user.click(screen.getByRole("button", { name: /^groupJob/ }));
+    await pick("kindJobUpdate", "deliveryOff");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    // The loud row keeps its banner while the quiet one goes silent, which is
+    // the split this vocabulary exists for.
+    expect(lastWrite()).toHaveLength(2);
+    expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
+    expect(written("JOB_ATTENTION", "OS_BANNER")).toBeUndefined();
+    expect(stop("kindJobAttention", "deliveryBanner")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("sets every kind in a group from the group's own control", async () => {
@@ -233,7 +265,7 @@ describe("NotificationKinds", () => {
     isAccountEnabled = false;
     renderKinds();
 
-    await pick("kindTask", "deliveryBanner");
+    await pick("kindSystem", "deliveryBanner");
 
     await waitFor(() => {
       expect(setAccountEnabled).toHaveBeenCalledWith(true);
@@ -265,12 +297,12 @@ describe("NotificationKinds", () => {
     patchMyPreferences.mockRejectedValueOnce(new Error("nope"));
     renderKinds();
 
-    await pick("kindJob", "deliveryOff");
+    await pick("kindSystem", "deliveryOff");
 
     await waitFor(() => {
       expect(vi.mocked(toast.error)).toHaveBeenCalled();
     });
-    expect(stop("kindJob", "deliveryBanner")).toHaveAttribute(
+    expect(stop("kindSystem", "deliveryInApp")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -282,6 +314,6 @@ describe("NotificationKinds", () => {
     expect(
       screen.queryByRole("group", { name: "deliveryAriaLabel kindSystem" }),
     ).toBeNull();
-    expect(stops("kindJob")).toBeInTheDocument();
+    expect(stops("groupJob")).toBeInTheDocument();
   });
 });

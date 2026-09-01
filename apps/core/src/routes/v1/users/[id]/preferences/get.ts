@@ -38,7 +38,7 @@ const route = createRoute({
           notificationsOptIn: true,
           pushOptIn: false,
           notificationPreferences: [
-            { category: "JOB", channel: "IN_APP", enabled: true },
+            { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
             { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
           ],
         },
