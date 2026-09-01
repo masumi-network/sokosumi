@@ -155,13 +155,19 @@ export function NotificationToastListener({
       const isDocumentFocused =
         typeof document !== "undefined" ? document.hasFocus() : true;
       const permission = getBrowserNotificationPermission();
-      const showBrowser = shouldShowBrowserNotification({
-        permission,
-        isDocumentFocused,
-        isRead: notification.isRead,
-      });
+      // `osBanner` is the reader's own choice for this category. An open tab
+      // renders its banner from this event rather than from the push, so the
+      // choice has to be read here as well as at publish time.
+      const showBrowser =
+        notification.osBanner &&
+        shouldShowBrowserNotification({
+          permission,
+          isDocumentFocused,
+          isRead: notification.isRead,
+        });
       const showPendingAccessToast =
         isDocumentFocused &&
+        notification.inApp &&
         !notification.isRead &&
         (isPendingVendorGrantNotification(notification) ||
           isPendingCoworkerAccessNotification(notification));

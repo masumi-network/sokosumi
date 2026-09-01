@@ -35,6 +35,13 @@ export const notificationEventDataSchema = z.object({
   isRead: z.boolean(),
   readAt: z.string().nullable(),
   createdAt: z.string(),
+  /**
+   * Where the reader's preference matrix said this goes. Both default to true
+   * for an event published by a Core that predates the matrix: it was delivered
+   * on both channels, so that is what the reader saw.
+   */
+  inApp: z.boolean().default(true),
+  osBanner: z.boolean().default(true),
 });
 
 export type NotificationEventData = z.infer<typeof notificationEventDataSchema>;
