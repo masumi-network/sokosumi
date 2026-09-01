@@ -3,7 +3,7 @@
 import { ArrowLeft, Search } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDebouncedCallback } from "use-debounce";
 import {
@@ -45,11 +45,16 @@ export function HeaderMobileSearchControl() {
   const [query, setQuery] = useState("");
   const router = useRouter();
   const pathname = usePathname();
+  const previousPathnameRef = useRef(pathname);
 
   function replaceHistoryQuery(nextQuery: string | null) {
-    const paramsForMerge = new URLSearchParams(
-      isHistoryPath(pathname) ? readLocationSearch() : "",
-    );
+    const currentPath =
+      typeof window !== "undefined" ? window.location.pathname : pathname;
+    if (!isHistoryPath(currentPath)) {
+      return;
+    }
+
+    const paramsForMerge = new URLSearchParams(readLocationSearch());
 
     if (nextQuery) {
       paramsForMerge.set(HISTORY_FILTER_PARAM_KEYS.q, nextQuery);
@@ -67,6 +72,27 @@ export function HeaderMobileSearchControl() {
     replaceHistoryQuery,
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
+
+  useEffect(() => {
+    const previousPathname = previousPathnameRef.current;
+    previousPathnameRef.current = pathname;
+    debouncedReplaceHistoryQuery.cancel();
+
+    if (
+      expanded &&
+      isHistoryPath(previousPathname) &&
+      !isHistoryPath(pathname)
+    ) {
+      setExpanded(false);
+      setQuery("");
+    }
+  }, [pathname, expanded, debouncedReplaceHistoryQuery]);
+
+  useEffect(() => {
+    return () => {
+      debouncedReplaceHistoryQuery.cancel();
+    };
+  }, [debouncedReplaceHistoryQuery]);
 
   function openSearch() {
     setExpanded(true);

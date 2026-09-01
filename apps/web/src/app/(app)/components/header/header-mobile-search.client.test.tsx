@@ -156,6 +156,32 @@ describe("HeaderMobileSearchControl", () => {
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 
+  it("cancels pending history query updates after navigating away", async () => {
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    const { rerender } = render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await user.type(screen.getByPlaceholderText("Search..."), "brief");
+
+    mockPathname = "/chat";
+    window.history.replaceState({}, "", "/chat");
+    rerender(<HeaderMobileSearchControl />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(replaceMock).not.toHaveBeenCalled();
+    expect(
+      screen.queryByTestId("header-mobile-search-expanded"),
+    ).not.toBeInTheDocument();
+  });
+
   it("clears the history q param when dismissing expanded search", async () => {
     mockPathname = "/history";
     window.history.replaceState({}, "", "/history?q=brief");
