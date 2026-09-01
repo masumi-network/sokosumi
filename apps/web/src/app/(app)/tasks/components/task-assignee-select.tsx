@@ -86,21 +86,24 @@ export function TaskAssigneeSelect({
   searchPlaceholder,
   emptyResults,
 }: TaskAssigneeSelectProps) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
     null,
   );
 
-  useLayoutEffect(() => {
-    const dialogContent = triggerRef.current?.closest(
+  function resolvePortalContainer(): HTMLElement | null {
+    const dialogContent = hostRef.current?.closest(
       "[data-slot=dialog-content]",
     );
-    setPortalContainer(
-      dialogContent instanceof HTMLElement ? dialogContent : null,
-    );
+    return dialogContent instanceof HTMLElement ? dialogContent : null;
+  }
+
+  useLayoutEffect(() => {
+    setPortalContainer(resolvePortalContainer());
   }, []);
+
   const selection = decodeTaskAssigneeValue(value);
   const selectedCoworker = useMemo(
     () =>
@@ -129,6 +132,9 @@ export function TaskAssigneeSelect({
       : (selectedMember?.image ?? null);
 
   function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setPortalContainer(resolvePortalContainer());
+    }
     setOpen(nextOpen);
     if (!nextOpen) {
       setSearch("");
@@ -141,140 +147,149 @@ export function TaskAssigneeSelect({
   }
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          ref={triggerRef}
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          aria-label={assignee}
-          className="w-full justify-between gap-2"
-        >
-          <span className="flex min-w-0 flex-1 items-center gap-2">
-            {selection.kind === "unset" ? null : (
-              <AssigneeAvatar name={selectedLabel} image={selectedImage} />
-            )}
-            <span
-              className={cn(
-                "truncate",
-                selection.kind === "unset"
-                  ? "text-muted-foreground"
-                  : "text-foreground",
+    <div ref={hostRef} className="w-full">
+      <Popover open={open} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            aria-label={assignee}
+            className="w-full justify-between gap-2"
+          >
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              {selection.kind === "unset" ? null : (
+                <AssigneeAvatar name={selectedLabel} image={selectedImage} />
               )}
-            >
-              {selectedLabel}
-            </span>
-          </span>
-          <ChevronsUpDown className="size-4 shrink-0 opacity-50" aria-hidden />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        container={portalContainer}
-        className="flex w-(--radix-popover-trigger-width) max-h-(--radix-popover-content-available-height) flex-col overflow-hidden p-0"
-      >
-        <Command
-          className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
-          shouldFilter
-        >
-          <CommandInput
-            autoFocus
-            placeholder={searchPlaceholder}
-            value={search}
-            onValueChange={setSearch}
-          />
-          <CommandList className="max-h-none min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y">
-            <CommandEmpty>{emptyResults}</CommandEmpty>
-            <CommandItem
-              value={UNSET_TASK_ASSIGNEE_VALUE}
-              keywords={[unassigned]}
-              onSelect={() => handleSelect(UNSET_TASK_ASSIGNEE_VALUE)}
-            >
-              <span className="flex-1 truncate">{unassigned}</span>
-              <Check
+              <span
                 className={cn(
-                  "size-4",
-                  selection.kind === "unset" ? "opacity-100" : "opacity-0",
+                  "truncate",
+                  selection.kind === "unset"
+                    ? "text-muted-foreground"
+                    : "text-foreground",
                 )}
-                aria-hidden
-              />
-            </CommandItem>
-            {memberOptions.length > 0 ? (
-              <CommandGroup heading={people}>
-                {memberOptions.map((member) => {
-                  const encoded = encodeTaskAssigneeValue({
-                    kind: "user",
-                    id: member.id,
-                  });
-                  const memberIsMe = isCurrentUser(member.id, currentUserId);
+              >
+                {selectedLabel}
+              </span>
+            </span>
+            <ChevronsUpDown
+              className="size-4 shrink-0 opacity-50"
+              aria-hidden
+            />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          container={portalContainer}
+          className="flex w-(--radix-popover-trigger-width) max-h-(--radix-popover-content-available-height) flex-col overflow-hidden p-0"
+        >
+          <Command
+            className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+            shouldFilter
+          >
+            <CommandInput
+              autoFocus
+              placeholder={searchPlaceholder}
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandList className="max-h-none min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y">
+              <CommandEmpty>{emptyResults}</CommandEmpty>
+              <CommandItem
+                value={UNSET_TASK_ASSIGNEE_VALUE}
+                keywords={[unassigned]}
+                onSelect={() => handleSelect(UNSET_TASK_ASSIGNEE_VALUE)}
+              >
+                <span className="flex-1 truncate">{unassigned}</span>
+                <Check
+                  className={cn(
+                    "size-4",
+                    selection.kind === "unset" ? "opacity-100" : "opacity-0",
+                  )}
+                  aria-hidden
+                />
+              </CommandItem>
+              {memberOptions.length > 0 ? (
+                <CommandGroup heading={people}>
+                  {memberOptions.map((member) => {
+                    const encoded = encodeTaskAssigneeValue({
+                      kind: "user",
+                      id: member.id,
+                    });
+                    const memberIsMe = isCurrentUser(member.id, currentUserId);
 
-                  return (
-                    <CommandItem
-                      key={encoded}
-                      value={encoded}
-                      keywords={memberIsMe ? [me, member.name] : [member.name]}
-                      onSelect={() => handleSelect(encoded)}
-                    >
-                      <AssigneeAvatar name={member.name} image={member.image} />
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate">
-                          {memberIsMe ? me : member.name}
-                        </span>
-                        {memberIsMe ? (
-                          <span className="text-muted-foreground truncate text-xs">
-                            {member.name}
+                    return (
+                      <CommandItem
+                        key={encoded}
+                        value={encoded}
+                        keywords={
+                          memberIsMe ? [me, member.name] : [member.name]
+                        }
+                        onSelect={() => handleSelect(encoded)}
+                      >
+                        <AssigneeAvatar
+                          name={member.name}
+                          image={member.image}
+                        />
+                        <span className="flex min-w-0 flex-1 flex-col">
+                          <span className="truncate">
+                            {memberIsMe ? me : member.name}
                           </span>
-                        ) : null}
-                      </span>
-                      <Check
-                        className={cn(
-                          "size-4",
-                          value === encoded ? "opacity-100" : "opacity-0",
-                        )}
-                        aria-hidden
-                      />
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            ) : null}
-            {coworkerOptions.length > 0 ? (
-              <CommandGroup heading={coworkers}>
-                {coworkerOptions.map((option) => {
-                  const encoded = encodeTaskAssigneeValue({
-                    kind: "coworker",
-                    id: option.id,
-                  });
+                          {memberIsMe ? (
+                            <span className="text-muted-foreground truncate text-xs">
+                              {member.name}
+                            </span>
+                          ) : null}
+                        </span>
+                        <Check
+                          className={cn(
+                            "size-4",
+                            value === encoded ? "opacity-100" : "opacity-0",
+                          )}
+                          aria-hidden
+                        />
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              ) : null}
+              {coworkerOptions.length > 0 ? (
+                <CommandGroup heading={coworkers}>
+                  {coworkerOptions.map((option) => {
+                    const encoded = encodeTaskAssigneeValue({
+                      kind: "coworker",
+                      id: option.id,
+                    });
 
-                  return (
-                    <CommandItem
-                      key={encoded}
-                      value={encoded}
-                      keywords={[option.name, option.slug]}
-                      onSelect={() => handleSelect(encoded)}
-                    >
-                      <AssigneeAvatar
-                        name={option.name}
-                        image={getCoworkerImage(option)}
-                      />
-                      <span className="flex-1 truncate">{option.name}</span>
-                      <Check
-                        className={cn(
-                          "size-4",
-                          value === encoded ? "opacity-100" : "opacity-0",
-                        )}
-                        aria-hidden
-                      />
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            ) : null}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                    return (
+                      <CommandItem
+                        key={encoded}
+                        value={encoded}
+                        keywords={[option.name, option.slug]}
+                        onSelect={() => handleSelect(encoded)}
+                      >
+                        <AssigneeAvatar
+                          name={option.name}
+                          image={getCoworkerImage(option)}
+                        />
+                        <span className="flex-1 truncate">{option.name}</span>
+                        <Check
+                          className={cn(
+                            "size-4",
+                            value === encoded ? "opacity-100" : "opacity-0",
+                          )}
+                          aria-hidden
+                        />
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              ) : null}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }

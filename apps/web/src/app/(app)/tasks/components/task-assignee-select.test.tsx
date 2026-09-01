@@ -5,6 +5,7 @@ import {
   encodeTaskAssigneeValue,
   UNSET_TASK_ASSIGNEE_VALUE,
 } from "@/app/tasks/utils/task-assignee";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 import { TaskAssigneeSelect } from "./task-assignee-select";
@@ -114,38 +115,40 @@ describe("TaskAssigneeSelect", () => {
 
   it("portals the list into a dialog so wheel scroll is allowlisted", async () => {
     const user = userEvent.setup();
-    const host = document.createElement("div");
-    host.setAttribute("data-slot", "dialog-content");
-    host.setAttribute("data-testid", "task-form-dialog");
-    document.body.append(host);
 
-    try {
-      render(
-        <TaskAssigneeSelect
-          coworkerOptions={coworkerOptions}
-          memberOptions={memberOptions}
-          value={UNSET_TASK_ASSIGNEE_VALUE}
-          onChange={vi.fn()}
-          {...labels}
-        />,
-        { container: host },
-      );
+    render(
+      <Dialog open>
+        <DialogContent>
+          <DialogTitle>New task</DialogTitle>
+          <TaskAssigneeSelect
+            coworkerOptions={coworkerOptions}
+            memberOptions={memberOptions}
+            value={UNSET_TASK_ASSIGNEE_VALUE}
+            onChange={vi.fn()}
+            {...labels}
+          />
+        </DialogContent>
+      </Dialog>,
+    );
 
-      await user.click(screen.getByRole("combobox", { name: "Assignee" }));
+    await user.click(screen.getByRole("combobox", { name: "Assignee" }));
 
-      await waitFor(() => {
-        expect(
-          host.querySelector('[data-slot="popover-content"]'),
-        ).toBeTruthy();
-      });
+    const dialog = await waitFor(() => {
+      const content = document.querySelector('[data-slot="dialog-content"]');
+      expect(content).toBeTruthy();
+      return content as HTMLElement;
+    });
 
+    await waitFor(() => {
       expect(
-        document.body.querySelector(
-          ':scope > [data-radix-popper-content-wrapper] [data-slot="popover-content"]',
-        ),
-      ).toBeNull();
-    } finally {
-      host.remove();
-    }
+        dialog.querySelector('[data-slot="popover-content"]'),
+      ).toBeTruthy();
+    });
+
+    expect(
+      document.body.querySelector(
+        ':scope > [data-radix-popper-content-wrapper] [data-slot="popover-content"]',
+      ),
+    ).toBeNull();
   });
 });
