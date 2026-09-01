@@ -8,11 +8,7 @@ import {
 import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
-import {
-  driveRecentsSortFingerprint,
-  fetchDriveRecentsPage,
-  resolveDriveRecentsSort,
-} from "@/helpers/drive-recents";
+import { fetchDriveRecentsPage } from "@/helpers/drive-recents";
 import {
   DRIVE_TASK_FILE_WHERE,
   fetchDriveTaskOutputRecentsBatch,
@@ -31,7 +27,6 @@ import {
 } from "@/helpers/vendor-grants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
-import { resolveDriveListSort } from "@/schemas/drive-list-sort.schema";
 import {
   driveRecentsListSchema,
   driveRecentsQuerySchema,
@@ -43,12 +38,8 @@ const route = createRoute({
   path: "/",
   description: [
     "List recent Drive files and task/agent outputs for the active workspace.",
-    "Returns a flat, activity-sorted file list with cursor pagination.",
+    "Returns a flat, activity-sorted file list (newest first) with cursor pagination.",
     "Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles.",
-    "Omit sortBy/sortOrder for today's default: activityAt descending.",
-    "sortBy=date (or sortOrder alone) flips activityAt direction.",
-    "sortBy=name|type never replaces activityAt as primary — they are secondary keys only",
-    "(activityAt, secondary, id) with stable kind/id tie-breakers.",
   ].join("\n"),
   tags: ["Drive"],
   request: {
@@ -62,7 +53,6 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
-    422: jsonErrorResponse("Unprocessable Entity"),
     503: jsonErrorResponse("Service Unavailable"),
   },
 });
@@ -134,8 +124,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { cursor, take } = parseCursorPagination(query);
     const searchQuery = query.q?.trim();
-    const listSort = resolveDriveListSort(query, "date");
-    const sort = resolveDriveRecentsSort(listSort);
 
     const page = await fetchDriveRecentsPage({
       prefix,
@@ -146,9 +134,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       cursorBinding: {
         prefix,
         searchQuery: searchQuery ?? "",
-        sortFingerprint: driveRecentsSortFingerprint(sort),
       },
-      sort,
       ...(searchQuery ? { searchQuery } : {}),
       fetchTaskOutputs: ({ cursor: taskCursor, take: taskTake }) =>
         fetchDriveTaskOutputRecentsBatch({

@@ -2,7 +2,6 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
-import { driveListSortQueryFields } from "@/schemas/drive-list-sort.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 export const driveRecentsDriveFileItemSchema = z
@@ -115,7 +114,6 @@ export const driveRecentsQuerySchema = z
         description:
           "Search recents by file name (Drive blobs) or task/file name and task description (task outputs). Case-insensitive substring.",
       }),
-    ...driveListSortQueryFields,
   })
   .merge(cursorPaginationQuerySchema)
   .refine((data) => data.scope !== "org" || Boolean(data.organizationId), {
