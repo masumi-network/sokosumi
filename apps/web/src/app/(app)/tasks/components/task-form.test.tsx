@@ -287,6 +287,7 @@ const baseLabels = {
   coworkerDescription: "Pick a coworker",
   assignee: "Assignee",
   assigneeUnassigned: "Unassigned",
+  assigneeMe: "Me",
   assigneePeople: "People",
   assigneeCoworkers: "Coworkers",
   assigneeSearchPlaceholder: "Search assignees...",
@@ -1380,6 +1381,82 @@ describe("TaskForm", () => {
     for (const button of screen.getAllByRole("button", { name: /Soko/ })) {
       expect(button).toHaveAttribute("aria-pressed", "false");
     }
+  });
+
+  it("opens compose unassigned when Unassigned is picked on the wizard rail", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        memberOptions={memberOptions}
+        currentUserId="user-1"
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getAllByRole("button", { name: /Unassigned/ })[0]);
+
+    expect(screen.getByTestId("markdown-editor")).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Assignee" }),
+    ).toHaveTextContent("Unassigned");
+    expect(screen.getByRole("button", { name: "Set schedule" })).toBeDisabled();
+
+    await user.type(screen.getByTestId("markdown-editor"), "Inbox later");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeId: null,
+        assigneeUserId: null,
+        status: TaskStatus.READY,
+      }),
+    );
+  });
+
+  it("opens compose assigned to Me when Me is picked on the wizard rail", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        memberOptions={memberOptions}
+        currentUserId="user-1"
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getAllByRole("button", { name: /Me/ })[0]);
+
+    expect(screen.getByTestId("markdown-editor")).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Assignee" }),
+    ).toHaveTextContent("Me");
+    expect(screen.getByRole("button", { name: "Set schedule" })).toBeDisabled();
+
+    await user.type(screen.getByTestId("markdown-editor"), "Do it myself");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeId: null,
+        assigneeUserId: "user-1",
+        status: TaskStatus.READY,
+      }),
+    );
   });
 
   it("submits a human assignee on create", async () => {

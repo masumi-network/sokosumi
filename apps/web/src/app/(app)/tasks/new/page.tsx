@@ -81,6 +81,7 @@ export default async function NewTaskPage() {
           }}
           coworkerOptions={coworkerOptions}
           memberOptions={memberOptions}
+          currentUserId={session?.user?.id ?? null}
           agentNameById={agentNameById}
           initialDesignMdAttachment={initialDesignMdAttachment}
         />

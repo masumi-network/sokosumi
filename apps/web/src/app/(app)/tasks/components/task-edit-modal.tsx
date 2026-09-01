@@ -26,6 +26,7 @@ interface TaskEditModalProps {
   };
   coworkerOptions: CoworkerOption[];
   memberOptions?: TaskAssigneeMemberOption[];
+  currentUserId?: string | null;
   projectOptions: ProjectFilterOption[];
   agentNameById: Map<string, string>;
   labels: TaskFormLabels;
@@ -37,6 +38,7 @@ export function TaskEditModal({
   initialValues,
   coworkerOptions,
   memberOptions = [],
+  currentUserId = null,
   projectOptions,
   agentNameById,
   labels,
@@ -67,6 +69,7 @@ export function TaskEditModal({
         labels={labels}
         coworkerOptions={coworkerOptions}
         memberOptions={memberOptions}
+        currentUserId={currentUserId}
         projectOptions={projectOptions}
         agentNameById={agentNameById}
         taskId={taskId}

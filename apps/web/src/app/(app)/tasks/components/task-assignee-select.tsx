@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 export interface TaskAssigneeSelectLabels {
   assignee: string;
   unassigned: string;
+  me: string;
   people: string;
   coworkers: string;
   searchPlaceholder: string;
@@ -40,6 +41,7 @@ export interface TaskAssigneeSelectLabels {
 interface TaskAssigneeSelectProps extends TaskAssigneeSelectLabels {
   coworkerOptions: CoworkerOption[];
   memberOptions: TaskAssigneeMemberOption[];
+  currentUserId?: string | null;
   value: string;
   onChange: (value: string) => void;
 }
@@ -63,13 +65,22 @@ function AssigneeAvatar({
   );
 }
 
+function isCurrentUser(
+  memberId: string,
+  currentUserId: string | null | undefined,
+): boolean {
+  return Boolean(currentUserId) && memberId === currentUserId;
+}
+
 export function TaskAssigneeSelect({
   coworkerOptions,
   memberOptions,
+  currentUserId = null,
   value,
   onChange,
   assignee,
   unassigned,
+  me,
   people,
   coworkers,
   searchPlaceholder,
@@ -93,7 +104,12 @@ export function TaskAssigneeSelect({
     [memberOptions, selection],
   );
   const selectedLabel =
-    selectedCoworker?.name ?? selectedMember?.name ?? unassigned;
+    selectedCoworker?.name ??
+    (selectedMember
+      ? isCurrentUser(selectedMember.id, currentUserId)
+        ? me
+        : selectedMember.name
+      : unassigned);
   const selectedImage =
     selectedCoworker != null
       ? getCoworkerImage(selectedCoworker)
@@ -174,16 +190,26 @@ export function TaskAssigneeSelect({
                     kind: "user",
                     id: member.id,
                   });
+                  const memberIsMe = isCurrentUser(member.id, currentUserId);
 
                   return (
                     <CommandItem
                       key={encoded}
                       value={encoded}
-                      keywords={[member.name]}
+                      keywords={memberIsMe ? [me, member.name] : [member.name]}
                       onSelect={() => handleSelect(encoded)}
                     >
                       <AssigneeAvatar name={member.name} image={member.image} />
-                      <span className="flex-1 truncate">{member.name}</span>
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate">
+                          {memberIsMe ? me : member.name}
+                        </span>
+                        {memberIsMe ? (
+                          <span className="text-muted-foreground truncate text-xs">
+                            {member.name}
+                          </span>
+                        ) : null}
+                      </span>
                       <Check
                         className={cn(
                           "size-4",

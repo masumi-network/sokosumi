@@ -514,6 +514,7 @@ async function TaskDetailActionsSlot({
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}
       memberOptions={memberOptions}
+      currentUserId={session?.user?.id ?? null}
       agentNameById={agentNameById}
       defaultAssigneeId={task.assigneeId}
       defaultAssigneeUserId={task.assigneeUserId}

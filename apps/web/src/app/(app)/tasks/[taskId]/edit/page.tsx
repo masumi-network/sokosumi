@@ -42,8 +42,8 @@ export default async function EditTaskPage({
     redirect(`/tasks/${taskId}`);
   }
 
-  const activeOrganizationId =
-    (await getSession())?.session.activeOrganizationId ?? null;
+  const session = await getSession();
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const targetOrganizationId = taskResult.workspace.organizationId ?? null;
 
   if (activeOrganizationId !== targetOrganizationId) {
@@ -133,6 +133,7 @@ export default async function EditTaskPage({
       }}
       coworkerOptions={coworkerOptions}
       memberOptions={memberOptions}
+      currentUserId={session?.user?.id ?? null}
       projectOptions={projectOptions}
       agentNameById={agentNameById}
       initialValues={{

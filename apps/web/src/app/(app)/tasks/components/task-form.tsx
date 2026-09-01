@@ -29,6 +29,7 @@ import {
   encodeTaskAssigneeValue,
   type TaskAssigneeMemberOption,
   taskAssigneeIdsFromSelection,
+  UNSET_TASK_ASSIGNEE_VALUE,
 } from "@/app/tasks/utils/task-assignee";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
@@ -95,6 +96,7 @@ export interface TaskFormLabels {
   coworkerDescription: string;
   assignee: string;
   assigneeUnassigned: string;
+  assigneeMe: string;
   assigneePeople: string;
   assigneeCoworkers: string;
   assigneeSearchPlaceholder: string;
@@ -164,6 +166,7 @@ interface TaskFormProps {
   labels: TaskFormLabels;
   coworkerOptions: CoworkerOption[];
   memberOptions?: TaskAssigneeMemberOption[];
+  currentUserId?: string | null;
   agentNameById?: Map<string, string>;
   taskId?: string;
   initialValues?: TaskFormInitialValues;
@@ -195,6 +198,7 @@ export function TaskForm({
   labels,
   coworkerOptions,
   memberOptions = [],
+  currentUserId = null,
   agentNameById = EMPTY_AGENT_NAME_MAP,
   taskId,
   initialValues,
@@ -321,6 +325,17 @@ export function TaskForm({
     coworkerTouchedRef.current = true;
     setAssigneeValue(encodeTaskAssigneeValue({ kind: "coworker", id }));
   }, []);
+
+  const meOption = useMemo(() => {
+    if (!currentUserId) return null;
+    return (
+      memberOptions.find((member) => member.id === currentUserId) ?? {
+        id: currentUserId,
+        name: labels.assigneeMe,
+        image: null,
+      }
+    );
+  }, [currentUserId, labels.assigneeMe, memberOptions]);
 
   const handleAssigneeChange = useCallback((nextValue: string) => {
     coworkerTouchedRef.current = true;
@@ -449,6 +464,28 @@ export function TaskForm({
   const useWizard = isModal && mode === "create" && !hasPrefilledAssignee;
   const [step, setStep] = useState<1 | 2>(hasPrefilledAssignee ? 2 : 1);
   const showTaskStep = !useWizard || step === 2;
+  const skipWizardToCompose = useCallback(
+    (nextValue: string) => {
+      coworkerTouchedRef.current = true;
+      setAssigneeValue(nextValue);
+      setScheduleSelection((current) => ({
+        mode: "none",
+        timezone: current.timezone,
+      }));
+      setDescription(initialDescription);
+      setStep(2);
+    },
+    [initialDescription],
+  );
+  const handleSelectUnassigned = useCallback(() => {
+    skipWizardToCompose(UNSET_TASK_ASSIGNEE_VALUE);
+  }, [skipWizardToCompose]);
+  const handleSelectMe = useCallback(() => {
+    if (!currentUserId) return;
+    skipWizardToCompose(
+      encodeTaskAssigneeValue({ kind: "user", id: currentUserId }),
+    );
+  }, [currentUserId, skipWizardToCompose]);
   const useComposeLayout = isModal && mode === "create" && showTaskStep;
   const useModalShellLayout = isModal;
   const useModalScrollFill = isModal;
@@ -691,6 +728,11 @@ export function TaskForm({
     () => coworkerOptions.find((option) => option.id === assigneeId),
     [coworkerOptions, assigneeId],
   );
+  const selectedMember = useMemo(
+    () => memberOptions.find((member) => member.id === assigneeUserId),
+    [assigneeUserId, memberOptions],
+  );
+  const composeSubjectName = selectedOption?.name ?? selectedMember?.name;
   const showModalCoworkerHeader =
     selectedOption !== undefined &&
     (useComposeLayout || (isModal && mode === "edit"));
@@ -816,6 +858,9 @@ export function TaskForm({
                   setDescription(initialDescription);
                   setStep(2);
                 }}
+                onSelectUnassigned={handleSelectUnassigned}
+                onSelectMe={meOption ? handleSelectMe : undefined}
+                me={meOption}
                 labels={{
                   defaultBadge: cardLabels.defaultBadge,
                   modelLabel: cardLabels.modelLabel,
@@ -831,6 +876,8 @@ export function TaskForm({
                   previewEmpty:
                     labels.previewEmpty ?? "No example output available yet.",
                   noResults: labels.noResults ?? "No agents found.",
+                  me: labels.assigneeMe,
+                  unassigned: labels.assigneeUnassigned,
                 }}
               />
             </div>
@@ -892,10 +939,10 @@ export function TaskForm({
                 useModalFieldFill && "flex min-h-0 flex-1 flex-col",
               )}
             >
-              {useComposeLayout && selectedOption ? (
+              {useComposeLayout && composeSubjectName ? (
                 <div className="space-y-1">
                   <h3 className="text-lg font-semibold">
-                    {taskStepTitle.replace("{name}", selectedOption.name)}
+                    {taskStepTitle.replace("{name}", composeSubjectName)}
                   </h3>
                   <p className="text-muted-foreground text-sm">
                     {labels.detailsDescription}
@@ -937,10 +984,12 @@ export function TaskForm({
                 <TaskAssigneeSelect
                   coworkerOptions={coworkerOptions}
                   memberOptions={memberOptions}
+                  currentUserId={currentUserId}
                   value={assigneeValue}
                   onChange={handleAssigneeChange}
                   assignee={labels.assignee}
                   unassigned={labels.assigneeUnassigned}
+                  me={labels.assigneeMe}
                   people={labels.assigneePeople}
                   coworkers={labels.assigneeCoworkers}
                   searchPlaceholder={labels.assigneeSearchPlaceholder}

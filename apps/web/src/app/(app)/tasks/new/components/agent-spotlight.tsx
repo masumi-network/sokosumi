@@ -1,7 +1,8 @@
 "use client";
 
+import { UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
   OfferDetailDialog,
   type OfferDetailItem,
@@ -27,6 +28,13 @@ export interface AgentSpotlightLabels {
   previewUse: string;
   previewEmpty: string;
   noResults: string;
+  me: string;
+  unassigned: string;
+}
+
+interface AgentSpotlightMeOption {
+  name: string;
+  image?: string | null;
 }
 
 interface AgentSpotlightProps {
@@ -37,6 +45,9 @@ interface AgentSpotlightProps {
   onPickOffer: (offer: CoworkerOffer) => void;
   /** Opens a blank editor. */
   onStartFromScratch: () => void;
+  onSelectUnassigned: () => void;
+  onSelectMe?: () => void;
+  me?: AgentSpotlightMeOption | null;
   defaultSlug?: string;
   labels: AgentSpotlightLabels;
 }
@@ -48,6 +59,87 @@ const SCROLLBAR =
 
 function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
+}
+
+function StickyRailItem({
+  name,
+  caption,
+  image,
+  fallback,
+  onSelect,
+  className,
+}: {
+  name: string;
+  caption?: string;
+  image?: string | null;
+  fallback: ReactNode;
+  onSelect: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors",
+        FOCUS_RING,
+        "hover:bg-muted/50",
+        className,
+      )}
+    >
+      <Avatar className="ring-border size-8 shrink-0 rounded-full ring-1">
+        {image ? (
+          <AvatarImage src={image} alt="" className="object-cover" />
+        ) : null}
+        <AvatarFallback className="rounded-full text-xs font-medium">
+          {fallback}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <p className="text-foreground truncate text-sm font-medium">{name}</p>
+        {caption ? (
+          <p className="text-muted-foreground truncate text-xs">{caption}</p>
+        ) : null}
+      </div>
+    </button>
+  );
+}
+
+function RailSkipItems({
+  me,
+  labels,
+  onSelectMe,
+  onSelectUnassigned,
+  itemClassName,
+}: {
+  me?: AgentSpotlightMeOption | null;
+  labels: Pick<AgentSpotlightLabels, "me" | "unassigned">;
+  onSelectMe?: () => void;
+  onSelectUnassigned: () => void;
+  itemClassName?: string;
+}) {
+  return (
+    <>
+      {me && onSelectMe ? (
+        <StickyRailItem
+          name={labels.me}
+          caption={me.name}
+          image={me.image}
+          fallback={initials(me.name)}
+          onSelect={onSelectMe}
+          className={itemClassName}
+        />
+      ) : null}
+      <StickyRailItem
+        name={labels.unassigned}
+        fallback={
+          <UserRound className="text-muted-foreground size-3.5" aria-hidden />
+        }
+        onSelect={onSelectUnassigned}
+        className={itemClassName}
+      />
+    </>
+  );
 }
 
 /** Model + hosting chips shown both in the spotlight header and the task preview. */
@@ -141,6 +233,9 @@ export function AgentSpotlight({
   onSelect,
   onPickOffer,
   onStartFromScratch,
+  onSelectUnassigned,
+  onSelectMe,
+  me = null,
   defaultSlug = "elena",
   labels,
 }: AgentSpotlightProps) {
@@ -175,41 +270,49 @@ export function AgentSpotlight({
   const llm = current?.profile?.llm ?? [];
   const hosting = current?.profile?.hosting;
 
-  if (!current) {
-    return (
-      <p className="text-muted-foreground flex-1 py-8 text-center text-sm">
-        {labels.noResults}
-      </p>
-    );
-  }
-
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
-      {/* Rail (mobile) — horizontal strip of coworkers */}
+      {/* Rail (mobile) — skips first, then coworkers */}
       <div
         className={cn(
           "flex shrink-0 gap-2 overflow-x-auto border-b pb-3 md:hidden",
           SCROLLBAR,
         )}
       >
+        <RailSkipItems
+          me={me}
+          labels={labels}
+          onSelectMe={onSelectMe}
+          onSelectUnassigned={onSelectUnassigned}
+          itemClassName="w-44 shrink-0"
+        />
         {options.map((option) => (
           <RailItem
             key={option.id}
             option={option}
-            active={option.id === current.id}
+            active={option.id === current?.id}
             onSelect={() => onSelect(option.id)}
             className="w-44 shrink-0"
           />
         ))}
       </div>
 
-      {/* Rail (desktop) — coworker selector grouped by company */}
+      {/* Rail (desktop) — skips first, then coworkers grouped by company */}
       <div
         className={cn(
           "hidden md:flex md:w-52 md:shrink-0 md:flex-col md:gap-4 md:overflow-y-auto md:py-1 md:pr-3",
           SCROLLBAR,
         )}
       >
+        <div className="space-y-1">
+          <RailSkipItems
+            me={me}
+            labels={labels}
+            onSelectMe={onSelectMe}
+            onSelectUnassigned={onSelectUnassigned}
+            itemClassName="w-full"
+          />
+        </div>
         {groups.map((group) => (
           <div key={group.vendorId} className="space-y-1">
             <p className="text-muted-foreground px-2 text-xs font-medium">
@@ -219,7 +322,7 @@ export function AgentSpotlight({
               <RailItem
                 key={member.id}
                 option={member}
-                active={member.id === current.id}
+                active={member.id === current?.id}
                 onSelect={() => onSelect(member.id)}
                 className="w-full"
               />
@@ -228,117 +331,129 @@ export function AgentSpotlight({
         ))}
       </div>
 
-      {/* Detail — spotlight + ready-to-run tasks */}
-      <div
-        key={current.id}
-        className={cn(
-          "border-border animate-in fade-in-0 min-w-0 flex-1 space-y-5 overflow-y-auto pt-4 md:border-l md:pt-1 md:pl-6",
-          SCROLLBAR,
-        )}
-      >
-        <div className="flex items-start gap-4">
-          <Avatar className="ring-border size-16 shrink-0 rounded-full ring-1">
-            <AvatarImage src={current.image} alt="" className="object-cover" />
-            <AvatarFallback className="rounded-full text-lg font-medium">
-              {initials(current.name)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h3 className="text-foreground text-lg font-medium">
-                {current.name}
-              </h3>
-              {current.slug === defaultSlug ? (
-                <span className="bg-muted text-muted-foreground rounded-sm px-1.5 py-0.5 text-xs leading-none font-medium">
-                  {labels.defaultBadge}
-                </span>
-              ) : null}
+      {current ? (
+        <>
+          <div
+            key={current.id}
+            className={cn(
+              "border-border animate-in fade-in-0 min-w-0 flex-1 space-y-5 overflow-y-auto pt-4 md:border-l md:pt-1 md:pl-6",
+              SCROLLBAR,
+            )}
+          >
+            <div className="flex items-start gap-4">
+              <Avatar className="ring-border size-16 shrink-0 rounded-full ring-1">
+                <AvatarImage
+                  src={current.image}
+                  alt=""
+                  className="object-cover"
+                />
+                <AvatarFallback className="rounded-full text-lg font-medium">
+                  {initials(current.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <h3 className="text-foreground text-lg font-medium">
+                    {current.name}
+                  </h3>
+                  {current.slug === defaultSlug ? (
+                    <span className="bg-muted text-muted-foreground rounded-sm px-1.5 py-0.5 text-xs leading-none font-medium">
+                      {labels.defaultBadge}
+                    </span>
+                  ) : null}
+                </div>
+                {current.caption ? (
+                  <p className="text-muted-foreground text-sm">
+                    {current.caption}
+                  </p>
+                ) : null}
+                <div className="mt-1.5 flex h-5 items-center">
+                  <VendorMark vendor={current.vendor} className="h-4" />
+                </div>
+              </div>
             </div>
-            {current.caption ? (
-              <p className="text-muted-foreground text-sm">{current.caption}</p>
+
+            {current.description ? (
+              <p className="text-foreground/80 text-sm leading-relaxed text-pretty">
+                {current.description}
+              </p>
             ) : null}
-            <div className="mt-1.5 flex h-5 items-center">
-              <VendorMark vendor={current.vendor} className="h-4" />
-            </div>
+
+            <MetaTagChips
+              llm={llm}
+              hosting={hosting}
+              modelLabel={labels.modelLabel}
+              hostingLabel={labels.hostingLabel}
+            />
+
+            <OfferPicker
+              name={current.name}
+              offers={current.offers ?? []}
+              labels={{
+                title: labels.tasksTitle,
+                startFromScratch: labels.startFromScratch,
+                startFromScratchHint: labels.startFromScratchHint,
+                previewExample: labels.previewExample,
+              }}
+              onPickOffer={onPickOffer}
+              onPreviewOffer={setPreviewOffer}
+              onStartFromScratch={onStartFromScratch}
+            />
           </div>
-        </div>
 
-        {current.description ? (
-          <p className="text-foreground/80 text-sm leading-relaxed text-pretty">
-            {current.description}
-          </p>
-        ) : null}
-
-        <MetaTagChips
-          llm={llm}
-          hosting={hosting}
-          modelLabel={labels.modelLabel}
-          hostingLabel={labels.hostingLabel}
-        />
-
-        <OfferPicker
-          name={current.name}
-          offers={current.offers ?? []}
-          labels={{
-            title: labels.tasksTitle,
-            startFromScratch: labels.startFromScratch,
-            startFromScratchHint: labels.startFromScratchHint,
-            previewExample: labels.previewExample,
-          }}
-          onPickOffer={onPickOffer}
-          onPreviewOffer={setPreviewOffer}
-          onStartFromScratch={onStartFromScratch}
-        />
-      </div>
-
-      {/* Example-output preview — same rich dialog as the agents marketplace */}
-      <OfferDetailDialog
-        item={
-          previewOffer
-            ? ({
-                offer: previewOffer,
-                coworkerName: current.name,
-                coworkerCaption: current.caption ?? undefined,
-                vendor: current.vendor,
-                coworkerAvatar: (
-                  <Avatar className="ring-border size-11 rounded-full ring-1">
-                    <AvatarImage
-                      src={current.image}
-                      alt=""
-                      className="object-cover"
-                    />
-                    <AvatarFallback className="rounded-full text-sm font-medium">
-                      {initials(current.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                ),
-                metaTags:
-                  llm.length > 0 || hosting ? (
-                    <MetaTagChips
-                      llm={llm}
-                      hosting={hosting}
-                      modelLabel={labels.modelLabel}
-                      hostingLabel={labels.hostingLabel}
-                    />
-                  ) : undefined,
-              } satisfies OfferDetailItem)
-            : null
-        }
-        onClose={() => setPreviewOffer(null)}
-        onStart={() => {
-          if (previewOffer) onPickOffer(previewOffer);
-          setPreviewOffer(null);
-        }}
-        labels={{
-          deliveredBy: t("deliveredByLabel"),
-          deliverable: t("deliverableLabel"),
-          start: labels.previewUse,
-          pending: labels.previewEmpty,
-          openInNewTab: t("openInNewTab"),
-          fallbackTitle: t("offerDetails"),
-        }}
-        typeLabel={getTypeLabel}
-      />
+          <OfferDetailDialog
+            item={
+              previewOffer
+                ? ({
+                    offer: previewOffer,
+                    coworkerName: current.name,
+                    coworkerCaption: current.caption ?? undefined,
+                    vendor: current.vendor,
+                    coworkerAvatar: (
+                      <Avatar className="ring-border size-11 rounded-full ring-1">
+                        <AvatarImage
+                          src={current.image}
+                          alt=""
+                          className="object-cover"
+                        />
+                        <AvatarFallback className="rounded-full text-sm font-medium">
+                          {initials(current.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    ),
+                    metaTags:
+                      llm.length > 0 || hosting ? (
+                        <MetaTagChips
+                          llm={llm}
+                          hosting={hosting}
+                          modelLabel={labels.modelLabel}
+                          hostingLabel={labels.hostingLabel}
+                        />
+                      ) : undefined,
+                  } satisfies OfferDetailItem)
+                : null
+            }
+            onClose={() => setPreviewOffer(null)}
+            onStart={() => {
+              if (previewOffer) onPickOffer(previewOffer);
+              setPreviewOffer(null);
+            }}
+            labels={{
+              deliveredBy: t("deliveredByLabel"),
+              deliverable: t("deliverableLabel"),
+              start: labels.previewUse,
+              pending: labels.previewEmpty,
+              openInNewTab: t("openInNewTab"),
+              fallbackTitle: t("offerDetails"),
+            }}
+            typeLabel={getTypeLabel}
+          />
+        </>
+      ) : (
+        <p className="text-muted-foreground flex-1 py-8 text-center text-sm">
+          {labels.noResults}
+        </p>
+      )}
     </div>
   );
 }

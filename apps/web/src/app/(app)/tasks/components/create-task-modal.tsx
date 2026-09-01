@@ -138,6 +138,7 @@ export function CreateTaskModalProvider({
 interface CreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
   memberOptions?: TaskAssigneeMemberOption[];
+  currentUserId?: string | null;
   /** Omit to hide the project picker (e.g. when opened from the agents page). */
   projectOptions?: ProjectFilterOption[];
   defaultProjectId?: string | null;
@@ -149,6 +150,7 @@ interface CreateTaskModalProps {
 export function CreateTaskModal({
   coworkerOptions,
   memberOptions = [],
+  currentUserId = null,
   projectOptions,
   defaultProjectId = null,
   agentNameById: initialAgentNameById,
@@ -330,6 +332,7 @@ export function CreateTaskModal({
         }}
         coworkerOptions={coworkerOptions}
         memberOptions={memberOptions}
+        currentUserId={currentUserId}
         projectOptions={projectOptions}
         agentNameById={agentNameById}
         initialDesignMdAttachment={initialDesignMdAttachment}

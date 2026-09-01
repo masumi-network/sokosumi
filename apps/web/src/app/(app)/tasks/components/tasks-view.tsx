@@ -1518,6 +1518,7 @@ export function TasksView({
       <CreateTaskModal
         coworkerOptions={coworkerOptions}
         memberOptions={memberOptions}
+        currentUserId={userId}
         projectOptions={resolvedProjectOptions}
         defaultProjectId={defaultProjectId}
         initialCreateTaskOpen={initialCreateTaskOpen}

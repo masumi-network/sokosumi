@@ -139,6 +139,7 @@ interface TaskDetailActionsProps {
   defaultAssigneeId?: string | null;
   defaultAssigneeUserId?: string | null;
   memberOptions?: TaskAssigneeMemberOption[];
+  currentUserId?: string | null;
   /** Resolved DESIGN.md for create-related flow (same picker as new task). */
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
@@ -166,6 +167,7 @@ export function TaskDetailActions({
   defaultAssigneeId,
   defaultAssigneeUserId,
   memberOptions = [],
+  currentUserId = null,
   initialDesignMdAttachment = null,
   actionsMenuLabel,
   labels,
@@ -983,6 +985,7 @@ export function TaskDetailActions({
             labels={createTaskLabels}
             coworkerOptions={coworkerOptions}
             memberOptions={memberOptions}
+            currentUserId={currentUserId}
             agentNameById={agentNameById}
             initialDesignMdAttachment={initialDesignMdAttachment}
             initialValues={{
