@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
 
+import { CHAT_DIRECT_MESSAGE_MESSAGE_KEY } from "@/helpers/notification-delivery";
 import { createNotification } from "@/helpers/notifications";
 import prisma from "@/lib/db/prisma";
 
@@ -84,7 +85,7 @@ export async function emitChatDirectMessageNotifications(
         kind: NotificationKind.CHAT,
         referenceId: params.roomId,
         eventId: params.messageId,
-        messageKey: "Notifications.Chat.directMessage",
+        messageKey: CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
         messageParams: {
           authorName: params.authorName,
           roomName: params.roomName,
