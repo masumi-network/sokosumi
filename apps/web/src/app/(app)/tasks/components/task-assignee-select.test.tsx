@@ -1,7 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { encodeTaskAssigneeValue } from "@/app/tasks/utils/task-assignee";
+import {
+  encodeTaskAssigneeValue,
+  UNSET_TASK_ASSIGNEE_VALUE,
+} from "@/app/tasks/utils/task-assignee";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 import { TaskAssigneeSelect } from "./task-assignee-select";
@@ -74,5 +77,75 @@ describe("TaskAssigneeSelect", () => {
     expect(
       screen.getByRole("combobox", { name: "Assignee" }),
     ).not.toHaveTextContent("Ada");
+  });
+
+  it("keeps a long assignee list in a pannable overflow region", async () => {
+    const user = userEvent.setup();
+    const manyMembers = Array.from({ length: 20 }, (_, index) => ({
+      id: `user-${index}`,
+      name: `Member ${index}`,
+      image: null,
+    }));
+
+    render(
+      <TaskAssigneeSelect
+        coworkerOptions={coworkerOptions}
+        memberOptions={manyMembers}
+        value={UNSET_TASK_ASSIGNEE_VALUE}
+        onChange={vi.fn()}
+        {...labels}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Assignee" }));
+
+    const list = await waitFor(() => {
+      const content = document.querySelector('[data-slot="popover-content"]');
+      expect(content).toBeTruthy();
+      const region = content?.querySelector('[data-slot="command-list"]');
+      expect(region).toBeTruthy();
+      return region as HTMLElement;
+    });
+
+    expect(list.className).toContain("overflow-y-auto");
+    expect(list.className).toContain("overscroll-contain");
+    expect(list.className).toContain("touch-pan-y");
+  });
+
+  it("portals the list into a dialog so wheel scroll is allowlisted", async () => {
+    const user = userEvent.setup();
+    const host = document.createElement("div");
+    host.setAttribute("data-slot", "dialog-content");
+    host.setAttribute("data-testid", "task-form-dialog");
+    document.body.append(host);
+
+    try {
+      render(
+        <TaskAssigneeSelect
+          coworkerOptions={coworkerOptions}
+          memberOptions={memberOptions}
+          value={UNSET_TASK_ASSIGNEE_VALUE}
+          onChange={vi.fn()}
+          {...labels}
+        />,
+        { container: host },
+      );
+
+      await user.click(screen.getByRole("combobox", { name: "Assignee" }));
+
+      await waitFor(() => {
+        expect(
+          host.querySelector('[data-slot="popover-content"]'),
+        ).toBeTruthy();
+      });
+
+      expect(
+        document.body.querySelector(
+          ':scope > [data-radix-popper-content-wrapper] [data-slot="popover-content"]',
+        ),
+      ).toBeNull();
+    } finally {
+      host.remove();
+    }
   });
 });

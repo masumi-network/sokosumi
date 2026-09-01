@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import {
@@ -86,8 +86,21 @@ export function TaskAssigneeSelect({
   searchPlaceholder,
   emptyResults,
 }: TaskAssigneeSelectProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
+    null,
+  );
+
+  useLayoutEffect(() => {
+    const dialogContent = triggerRef.current?.closest(
+      "[data-slot=dialog-content]",
+    );
+    setPortalContainer(
+      dialogContent instanceof HTMLElement ? dialogContent : null,
+    );
+  }, []);
   const selection = decodeTaskAssigneeValue(value);
   const selectedCoworker = useMemo(
     () =>
@@ -131,6 +144,7 @@ export function TaskAssigneeSelect({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           type="button"
           variant="outline"
           role="combobox"
@@ -158,16 +172,20 @@ export function TaskAssigneeSelect({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-(--radix-popover-trigger-width) p-0"
+        container={portalContainer}
+        className="flex w-(--radix-popover-trigger-width) max-h-(--radix-popover-content-available-height) flex-col overflow-hidden p-0"
       >
-        <Command className="**:data-[slot=command-list]:max-h-72" shouldFilter>
+        <Command
+          className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+          shouldFilter
+        >
           <CommandInput
             autoFocus
             placeholder={searchPlaceholder}
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList>
+          <CommandList className="max-h-none min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y">
             <CommandEmpty>{emptyResults}</CommandEmpty>
             <CommandItem
               value={UNSET_TASK_ASSIGNEE_VALUE}
