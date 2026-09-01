@@ -4368,7 +4368,11 @@
           "title": "Canales",
           "description": "Canales emparejados en vivo con visibilidad solo por lista.",
           "loading": "Cargando canales…",
-          "empty": "Aún no hay canales emparejados."
+          "empty": "Aún no hay canales emparejados.",
+          "tabActive": "Activos",
+          "tabArchived": "Archivados",
+          "descriptionArchived": "Canales emparejados archivados. Restáuralos para volver a ponerlos en vivo.",
+          "emptyArchived": "No hay canales emparejados archivados."
         },
         "Create": {
           "title": "Crear canal emparejado",
@@ -4422,6 +4426,37 @@
             "helper": "Las organizaciones a las que perteneces aparecen primero en los resultados de búsqueda.",
             "submit": "Añadir miembros de la organización",
             "submitting": "Añadiendo…"
+          },
+          "Archive": {
+            "button": "Archivar canal",
+            "archiving": "Archivando…",
+            "confirmTitle": "¿Archivar {name}?",
+            "confirmDescription": "Los participantes pierden el acceso de inmediato. Puedes restaurar este canal desde la pestaña Archivados en este panel.",
+            "confirm": "Archivar",
+            "cancel": "Cancelar",
+            "success": "Canal emparejado archivado",
+            "error": "No se pudo archivar el canal emparejado"
+          },
+          "archivedBadge": "Archivado: las ediciones de la lista están desactivadas hasta restaurarlo.",
+          "Restore": {
+            "button": "Restaurar canal",
+            "restoring": "Restaurando…",
+            "confirmTitle": "¿Restaurar {name}?",
+            "confirmDescription": "Quita el archivo para que el canal vuelva al panel en vivo. Los miembros existentes conservan su membresía y recuperan el acceso en la próxima actualización de sesión.",
+            "confirm": "Restaurar",
+            "cancel": "Cancelar",
+            "success": "Canal emparejado restaurado",
+            "error": "No se pudo restaurar el canal emparejado"
+          },
+          "Delete": {
+            "button": "Eliminar permanentemente",
+            "deleting": "Eliminando…",
+            "confirmTitle": "¿Eliminar permanentemente {name}?",
+            "confirmDescription": "Esto no se puede deshacer. El canal, sus membresías y mensajes se eliminan para siempre. Solo se pueden eliminar canales archivados.",
+            "confirm": "Eliminar permanentemente",
+            "cancel": "Cancelar",
+            "success": "Canal emparejado eliminado permanentemente",
+            "error": "No se pudo eliminar el canal emparejado"
           }
         }
       }
@@ -5762,6 +5797,8 @@
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
         "editTitle": "Edit channel",
         "editDescription": "Update the channel details and participant list.",
+        "actionsOnlyTitle": "Salir del canal",
+        "actionsOnlyDescription": "Sal de este canal cuando ya no lo necesites. La configuración del canal la gestionan los administradores.",
         "name": "Name",
         "nameRequired": "El nombre del canal es obligatorio.",
         "namePlaceholder": "Launch planning",

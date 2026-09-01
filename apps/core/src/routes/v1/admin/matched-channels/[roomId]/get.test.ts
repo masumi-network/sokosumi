@@ -79,6 +79,7 @@ describe("GET /admin/matched-channels/{roomId}", () => {
       name: "Partners",
       slug: "partners",
       topic: "Hello",
+      archivedAt: null,
       userMembers: [
         {
           userId: "user_1",
@@ -99,6 +100,7 @@ describe("GET /admin/matched-channels/{roomId}", () => {
       name: "Partners",
       slug: "partners",
       topic: "Hello",
+      archivedAt: null,
       participants: [
         {
           userId: "user_1",
@@ -115,10 +117,28 @@ describe("GET /admin/matched-channels/{roomId}", () => {
           organizationId: null,
           kind: "channel",
           discoverability: "matched",
-          archivedAt: null,
         },
       }),
     );
+  });
+
+  it("returns detail for an archived matched channel", async () => {
+    const archivedAt = new Date("2026-03-01T12:00:00.000Z");
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: ROOM_ID,
+      name: "Partners",
+      slug: "partners",
+      topic: "Hello",
+      archivedAt,
+      userMembers: [],
+    });
+
+    const response = await createApp().request(`http://localhost/${ROOM_ID}`);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.archivedAt).toBe(archivedAt.toISOString());
+    expect(body.data.participants).toEqual([]);
   });
 
   it("returns 404 when the room is missing", async () => {

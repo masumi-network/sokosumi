@@ -73,4 +73,33 @@ describe("EditChannelDialog trigger", () => {
       screen.getByRole("heading", { name: "Dialog.editTitle" }),
     ).toBeTruthy();
   });
+
+  it("uses leave-only copy when the member can leave but not edit", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditChannelDialog
+        channel={channel()}
+        members={[]}
+        coworkers={[]}
+        currentUserId="user-1"
+        canEditMembers={false}
+        canManageSettings={false}
+        canArchive={false}
+        canLeave
+      >
+        <button type="button" aria-label="editChannel" title="editChannel">
+          general
+        </button>
+      </EditChannelDialog>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "editChannel" }));
+    expect(
+      screen.getByRole("heading", { name: "Dialog.actionsOnlyTitle" }),
+    ).toBeTruthy();
+    expect(screen.getByText("Dialog.actionsOnlyDescription")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "leave" })).toBeTruthy();
+    expect(screen.queryByText("sectionTitle")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Dialog.cancel" })).toBeNull();
+  });
 });
