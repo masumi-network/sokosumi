@@ -91,8 +91,9 @@ const baseEnvSchema = z.object({
   AI_GATEWAY_API_KEY: z.string().min(1).optional(),
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
-  /** Judge model for lab runs and per-turn quality scores (AI Gateway id). */
   /**
+   * Judge model for lab runs and per-turn quality scores (AI Gateway id).
+   *
    * The judge grades every settled turn, so its mistakes become the quality
    * signal. Measured against turns whose outcome was checked by hand, Haiku
    * and Sonnet score the same once the transcript is complete — the errors
