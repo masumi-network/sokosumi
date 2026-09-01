@@ -16,6 +16,7 @@ import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomOrchestratorParticipant,
   ChatRoomPresence,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
@@ -97,18 +98,31 @@ export function isRoomMentionAllId(id: string): boolean {
   return id === ROOM_MENTION_ALL_ID;
 }
 
+export const EMPTY_CHAT_COWORKER_MAP = new Map<
+  string,
+  ChatRoomCoworkerParticipant
+>();
+export const EMPTY_CHAT_ORCHESTRATOR_MAP = new Map<
+  string,
+  ChatRoomOrchestratorParticipant
+>();
+
 /** Display names for composer hydrate chips. Picker catalog stays separate. */
 export function composerMentionDisplayNames({
   usersById,
   usersBySlug,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   mentionCatalog,
 }: {
   usersById?: Map<string, { name: string }>;
   usersBySlug?: Map<string, { name: string }>;
   coworkersById?: Map<string, { name: string }>;
   coworkersBySlug?: Map<string, { name: string }>;
+  orchestratorsById?: Map<string, { name: string }>;
+  orchestratorsBySlug?: Map<string, { name: string }>;
   mentionCatalog?: Record<string, { value?: string; slug?: string | null }>;
 }): { byKey: Map<string, string>; bySlug: Map<string, string> } {
   const byKey = new Map<string, string>();
@@ -134,6 +148,12 @@ export function composerMentionDisplayNames({
   }
   for (const [slug, coworker] of coworkersBySlug ?? []) {
     bySlug.set(slug, coworker.name);
+  }
+  for (const [id, orchestrator] of orchestratorsById ?? []) {
+    byKey.set(id, orchestrator.name);
+  }
+  for (const [slug, orchestrator] of orchestratorsBySlug ?? []) {
+    bySlug.set(slug, orchestrator.name);
   }
 
   return { byKey, bySlug };
@@ -771,7 +791,7 @@ export function escapeHtml(value: string): string {
 }
 
 export interface MentionDirectTarget {
-  kind: "human" | "coworker";
+  kind: "human" | "coworker" | "orchestrator";
   id: string;
 }
 
@@ -796,7 +816,10 @@ export function mentionDirectTargetFromAttributes(
     attributes["data-directId"];
   const kind = typeof kindRaw === "string" ? kindRaw : null;
   const id = typeof idRaw === "string" ? idRaw : null;
-  if ((kind !== "human" && kind !== "coworker") || !id) {
+  if (
+    (kind !== "human" && kind !== "coworker" && kind !== "orchestrator") ||
+    !id
+  ) {
     return null;
   }
   return { kind, id };
@@ -826,6 +849,7 @@ export function chatParticipantProfileForDirectTarget(
   target: MentionDirectTarget,
   lookups: {
     coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+    orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
     usersById?: Map<string, MentionHoverUserLookup>;
   },
 ): ChatParticipantHoverProfile | null {
@@ -842,6 +866,22 @@ export function chatParticipantProfileForDirectTarget(
       caption: coworker.caption,
       image: coworker.image,
       presence: coworker.presence,
+    };
+  }
+  if (target.kind === "orchestrator") {
+    const orchestrator = lookups.orchestratorsById?.get(target.id);
+    if (!orchestrator) {
+      return null;
+    }
+    return {
+      kind: "orchestrator",
+      id: orchestrator.id,
+      name: orchestrator.name,
+      slug: orchestrator.slug,
+      caption: orchestrator.caption,
+      image: orchestrator.image,
+      presence: orchestrator.presence,
+      sokoBotAvatarSeed: orchestrator.avatarSeed,
     };
   }
   const user = lookups.usersById?.get(target.id);
@@ -863,6 +903,8 @@ export function resolveMentionDirectTarget({
   mentionSlug,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
 }: {
@@ -870,11 +912,18 @@ export function resolveMentionDirectTarget({
   mentionSlug: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
 }): MentionDirectTarget | null {
   if (isRoomMentionAllId(mentionId)) {
     return null;
+  }
+  const orchestrator =
+    orchestratorsById?.get(mentionId) ?? orchestratorsBySlug?.get(mentionSlug);
+  if (orchestrator) {
+    return { kind: "orchestrator", id: orchestrator.id };
   }
   const coworker =
     coworkersById.get(mentionId) ?? coworkersBySlug.get(mentionSlug);
@@ -903,12 +952,16 @@ export function formatRoomMarkdownMentions({
   content,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
 }): string {
@@ -923,12 +976,14 @@ export function formatRoomMarkdownMentions({
     if (match.start > lastIndex) {
       formatted += content.slice(lastIndex, match.start);
     }
+    const orchestrator =
+      orchestratorsById?.get(match.id) ?? orchestratorsBySlug?.get(match.slug);
     const coworker =
       coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
     const user = usersById?.get(match.id) ?? usersBySlug?.get(match.slug);
     const displayName = isRoomMentionAllId(match.id)
       ? ROOM_MENTION_ALL_ID
-      : (coworker?.name ?? user?.name);
+      : (orchestrator?.name ?? coworker?.name ?? user?.name);
     if (displayName) {
       formatted += mentionChipHtml(
         displayName,
@@ -937,6 +992,8 @@ export function formatRoomMarkdownMentions({
           mentionSlug: match.slug,
           coworkersById,
           coworkersBySlug,
+          orchestratorsById,
+          orchestratorsBySlug,
           usersById,
           usersBySlug,
         }),
@@ -1022,6 +1079,8 @@ export function formatRoomMarkdownContent({
   content,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
   channelLinks = [],
@@ -1029,6 +1088,8 @@ export function formatRoomMarkdownContent({
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
   channelLinks?: readonly ChannelLinkTarget[];
@@ -1038,6 +1099,8 @@ export function formatRoomMarkdownContent({
       content,
       coworkersById,
       coworkersBySlug,
+      orchestratorsById,
+      orchestratorsBySlug,
       usersById,
       usersBySlug,
     }),

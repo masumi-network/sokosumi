@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { NormalizedMention } from "@/components/ui/mention-textarea-utils";
 import type {
   ChatRoomCoworkerParticipant,
+  ChatRoomOrchestratorParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import {
@@ -40,6 +41,17 @@ const human: ChatRoomUserParticipant = {
   presence: "online",
 };
 
+const orchestrator: ChatRoomOrchestratorParticipant = {
+  id: "orch_1",
+  name: "Ada",
+  slug: "ada",
+  caption: "Alice's personal assistant",
+  image: null,
+  presence: "online",
+  avatarSeed: "orb:user_1",
+  ownerUserId: "user_1",
+};
+
 const LABELS = { peopleLabel: "People", coworkersLabel: "Coworkers" };
 
 function mention(
@@ -53,7 +65,11 @@ function mention(
   };
 }
 
-function hoverChip(kind: "human" | "coworker", id: string, label: string) {
+function hoverChip(
+  kind: "human" | "coworker" | "orchestrator",
+  id: string,
+  label: string,
+) {
   return `<span class="text-primary font-medium whitespace-nowrap" data-direct-kind="${kind}" data-direct-id="${id}">@${label}</span>`;
 }
 
@@ -69,6 +85,22 @@ describe("formatRoomMarkdownMentions", () => {
 
     expect(formatted).toBe(
       `${hoverChip("coworker", coworker.id, "Elena")} please look`,
+    );
+  });
+
+  it("identifies a resolved orchestrator chip for hover", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: `@${orchestrator.id}:${orchestrator.slug} please look`,
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      orchestratorsById: new Map([[orchestrator.id, orchestrator]]),
+      orchestratorsBySlug: new Map([[orchestrator.slug, orchestrator]]),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+    });
+
+    expect(formatted).toBe(
+      `${hoverChip("orchestrator", orchestrator.id, "Ada")} please look`,
     );
   });
 

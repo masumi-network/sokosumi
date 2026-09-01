@@ -114,6 +114,7 @@ import type {
   ChatRoomMessageQuoteAttachment,
   ChatRoomMessageReaction,
   ChatRoomMessageUnfurl,
+  ChatRoomOrchestratorParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -314,6 +315,8 @@ function MessageQuoteBlock({
   quote,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
   channelLinks,
@@ -325,6 +328,8 @@ function MessageQuoteBlock({
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
@@ -366,6 +371,8 @@ function MessageQuoteBlock({
               markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
               coworkersById={coworkersById}
               coworkersBySlug={coworkersBySlug}
+              orchestratorsById={orchestratorsById}
+              orchestratorsBySlug={orchestratorsBySlug}
               usersById={usersById}
               usersBySlug={usersBySlug}
               channelLinks={channelLinks}
@@ -526,6 +533,8 @@ function ChannelMarkdownSegment({
   content,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
   channelLinks,
@@ -537,6 +546,8 @@ function ChannelMarkdownSegment({
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
@@ -551,6 +562,8 @@ function ChannelMarkdownSegment({
       markdownClassName={ROOM_MESSAGE_MARKDOWN_CLASSNAME}
       coworkersById={coworkersById}
       coworkersBySlug={coworkersBySlug}
+      orchestratorsById={orchestratorsById}
+      orchestratorsBySlug={orchestratorsBySlug}
       usersById={usersById}
       usersBySlug={usersBySlug}
       channelLinks={channelLinks}
@@ -566,6 +579,8 @@ export function ChannelMessageText({
   content,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
   channelLinks,
@@ -577,6 +592,8 @@ export function ChannelMessageText({
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
@@ -593,6 +610,8 @@ export function ChannelMessageText({
         content={segments[0].content}
         coworkersById={coworkersById}
         coworkersBySlug={coworkersBySlug}
+        orchestratorsById={orchestratorsById}
+        orchestratorsBySlug={orchestratorsBySlug}
         usersById={usersById}
         usersBySlug={usersBySlug}
         channelLinks={channelLinks}
@@ -615,6 +634,8 @@ export function ChannelMessageText({
                 content={segment.content}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 channelLinks={channelLinks}
@@ -661,6 +682,8 @@ function ChannelMessageBody({
   content,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
   channelLinks,
@@ -674,6 +697,8 @@ function ChannelMessageBody({
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks: readonly ChannelLinkTarget[];
@@ -723,6 +748,8 @@ function ChannelMessageBody({
           content={content}
           coworkersById={coworkersById}
           coworkersBySlug={coworkersBySlug}
+          orchestratorsById={orchestratorsById}
+          orchestratorsBySlug={orchestratorsBySlug}
           usersById={usersById}
           usersBySlug={usersBySlug}
           channelLinks={channelLinks}
@@ -1487,6 +1514,8 @@ function MessageEditComposer({
   usersBySlug,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   channels = [],
 }: {
   value: string;
@@ -1500,6 +1529,8 @@ function MessageEditComposer({
   usersBySlug?: Map<string, UserMentionLookup>;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   channels?: readonly ComposerChannelOption[];
 }) {
   const t = useTranslations("App.Channels");
@@ -1514,9 +1545,19 @@ function MessageEditComposer({
         usersBySlug,
         coworkersById,
         coworkersBySlug,
+        orchestratorsById,
+        orchestratorsBySlug,
         mentionCatalog: mentions,
       }),
-    [coworkersById, coworkersBySlug, mentions, usersById, usersBySlug],
+    [
+      coworkersById,
+      coworkersBySlug,
+      mentions,
+      orchestratorsById,
+      orchestratorsBySlug,
+      usersById,
+      usersBySlug,
+    ],
   );
 
   useMountEffect(() => {
@@ -1972,6 +2013,8 @@ export function ChatMessageRow({
   message,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
   channelLinks = [],
@@ -2009,6 +2052,8 @@ export function ChatMessageRow({
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   channelLinks?: readonly ChannelLinkTarget[];
@@ -2292,6 +2337,8 @@ export function ChatMessageRow({
                   quote={quote}
                   coworkersById={coworkersById}
                   coworkersBySlug={coworkersBySlug}
+                  orchestratorsById={orchestratorsById}
+                  orchestratorsBySlug={orchestratorsBySlug}
                   usersById={usersById}
                   usersBySlug={usersBySlug}
                   channelLinks={channelLinks}
@@ -2314,6 +2361,8 @@ export function ChatMessageRow({
                   usersBySlug={usersBySlug}
                   coworkersById={coworkersById}
                   coworkersBySlug={coworkersBySlug}
+                  orchestratorsById={orchestratorsById}
+                  orchestratorsBySlug={orchestratorsBySlug}
                   channels={channels}
                 />
               ) : isFailedMentionThoughtShell(message.metadata) ? (
@@ -2362,6 +2411,8 @@ export function ChatMessageRow({
                     content={message.content}
                     coworkersById={coworkersById}
                     coworkersBySlug={coworkersBySlug}
+                    orchestratorsById={orchestratorsById}
+                    orchestratorsBySlug={orchestratorsBySlug}
                     usersById={usersById}
                     usersBySlug={usersBySlug}
                     channelLinks={channelLinks}

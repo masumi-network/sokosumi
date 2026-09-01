@@ -1392,54 +1392,33 @@ export function RoomsClient({
   );
   useRegisterBreadcrumbOverride(breadcrumbOverride);
   const coworkersById = useMemo(() => {
-    const fromCoworkers = (selectedRoom?.coworkerMembers ?? []).map(
-      (coworker) => [coworker.id, coworker] as const,
+    return new Map(
+      (selectedRoom?.coworkerMembers ?? []).map((coworker) => [
+        coworker.id,
+        coworker,
+      ]),
     );
-    // Merge PA roster into mention/markdown lookups (coworker-shaped DTO).
-    const fromOrchestrators = (selectedRoom?.orchestratorMembers ?? []).map(
-      (orchestrator) =>
-        [
-          orchestrator.id,
-          {
-            id: orchestrator.id,
-            name: orchestrator.name,
-            slug: orchestrator.slug,
-            caption: orchestrator.caption,
-            image: orchestrator.image,
-            presence: orchestrator.presence,
-            sokoBotId: orchestrator.id,
-            sokoBotAvatarSeed: orchestrator.avatarSeed,
-          },
-        ] as const,
-    );
-    return new Map([...fromCoworkers, ...fromOrchestrators]);
   }, [selectedRoom]);
   const coworkersBySlug = useMemo(() => {
-    const fromCoworkers = (selectedRoom?.coworkerMembers ?? []).map(
-      (coworker) => [coworker.slug, coworker] as const,
+    return new Map(
+      (selectedRoom?.coworkerMembers ?? []).map((coworker) => [
+        coworker.slug,
+        coworker,
+      ]),
     );
-    const fromOrchestrators = (selectedRoom?.orchestratorMembers ?? []).map(
-      (orchestrator) =>
-        [
-          orchestrator.slug,
-          {
-            id: orchestrator.id,
-            name: orchestrator.name,
-            slug: orchestrator.slug,
-            caption: orchestrator.caption,
-            image: orchestrator.image,
-            presence: orchestrator.presence,
-            sokoBotId: orchestrator.id,
-            sokoBotAvatarSeed: orchestrator.avatarSeed,
-          },
-        ] as const,
-    );
-    return new Map([...fromCoworkers, ...fromOrchestrators]);
   }, [selectedRoom]);
   const orchestratorsById = useMemo(() => {
     return new Map(
       (selectedRoom?.orchestratorMembers ?? []).map((orchestrator) => [
         orchestrator.id,
+        orchestrator,
+      ]),
+    );
+  }, [selectedRoom]);
+  const orchestratorsBySlug = useMemo(() => {
+    return new Map(
+      (selectedRoom?.orchestratorMembers ?? []).map((orchestrator) => [
+        orchestrator.slug,
         orchestrator,
       ]),
     );
@@ -2984,6 +2963,8 @@ export function RoomsClient({
                       message={message}
                       coworkersById={coworkersById}
                       coworkersBySlug={coworkersBySlug}
+                      orchestratorsById={orchestratorsById}
+                      orchestratorsBySlug={orchestratorsBySlug}
                       usersById={usersById}
                       usersBySlug={usersBySlug}
                       mentions={mentionRecords}
@@ -3109,6 +3090,8 @@ export function RoomsClient({
                 onIdsLoaded={handlePinnedIdsLoaded}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 channelLinks={channelLinks}
@@ -3154,6 +3137,8 @@ export function RoomsClient({
               usersBySlug={usersBySlug}
               coworkersById={coworkersById}
               coworkersBySlug={coworkersBySlug}
+              orchestratorsById={orchestratorsById}
+              orchestratorsBySlug={orchestratorsBySlug}
               channels={channelOptions}
               channelLinks={channelLinks}
               placeholder={
@@ -3195,6 +3180,8 @@ export function RoomsClient({
                 onLoadOlder={handleLoadOlderThreadMessages}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 mentionRecords={mentionRecords}
@@ -3269,6 +3256,8 @@ export function RoomsClient({
                 listGeneration={pinnedListGeneration}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 channelLinks={channelLinks}

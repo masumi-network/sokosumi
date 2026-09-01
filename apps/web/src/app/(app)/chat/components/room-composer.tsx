@@ -61,6 +61,7 @@ import {
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import type {
   ChatRoomCoworkerParticipant,
+  ChatRoomOrchestratorParticipant,
   ChatRoomUserParticipant,
   DriveFile,
 } from "@/lib/clients/generated/core";
@@ -155,17 +156,26 @@ function mentionLookupMapsFromCatalog(
   roster?: {
     coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
     coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+    orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+    orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
     usersById?: Map<string, UserMentionLookup>;
     usersBySlug?: Map<string, UserMentionLookup>;
   },
 ): {
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug: Map<string, ChatRoomOrchestratorParticipant>;
   usersById: Map<string, UserMentionLookup>;
   usersBySlug: Map<string, UserMentionLookup>;
 } {
   const coworkersById = new Map<string, ChatRoomCoworkerParticipant>();
   const coworkersBySlug = new Map<string, ChatRoomCoworkerParticipant>();
+  const orchestratorsById = new Map<string, ChatRoomOrchestratorParticipant>();
+  const orchestratorsBySlug = new Map<
+    string,
+    ChatRoomOrchestratorParticipant
+  >();
   const usersById = new Map<string, UserMentionLookup>();
   const usersBySlug = new Map<string, UserMentionLookup>();
 
@@ -174,7 +184,7 @@ function mentionLookupMapsFromCatalog(
     if (!data) {
       continue;
     }
-    if (data.kind === "coworker" || data.kind === "orchestrator") {
+    if (data.kind === "coworker") {
       const coworker: ChatRoomCoworkerParticipant = {
         id: data.id,
         name: data.name,
@@ -187,6 +197,21 @@ function mentionLookupMapsFromCatalog(
       coworkersBySlug.set(data.slug, coworker);
       continue;
     }
+    if (data.kind === "orchestrator") {
+      const orchestrator: ChatRoomOrchestratorParticipant = {
+        id: data.id,
+        name: data.name,
+        slug: data.slug,
+        caption: null,
+        image: data.image,
+        presence: "offline",
+        avatarSeed: null,
+        ownerUserId: "",
+      };
+      orchestratorsById.set(data.id, orchestrator);
+      orchestratorsBySlug.set(data.slug, orchestrator);
+      continue;
+    }
     if (data.kind === "human") {
       const user: UserMentionLookup = { id: data.id, name: data.name };
       usersById.set(data.id, user);
@@ -197,6 +222,14 @@ function mentionLookupMapsFromCatalog(
   return {
     coworkersById: mergeLookupMap(coworkersById, roster?.coworkersById),
     coworkersBySlug: mergeLookupMap(coworkersBySlug, roster?.coworkersBySlug),
+    orchestratorsById: mergeLookupMap(
+      orchestratorsById,
+      roster?.orchestratorsById,
+    ),
+    orchestratorsBySlug: mergeLookupMap(
+      orchestratorsBySlug,
+      roster?.orchestratorsBySlug,
+    ),
     usersById: mergeLookupMap(usersById, roster?.usersById),
     usersBySlug: mergeLookupMap(usersBySlug, roster?.usersBySlug),
   };
@@ -210,6 +243,8 @@ function PendingQuotePreview({
   usersBySlug: rosterUsersBySlug,
   coworkersById: rosterCoworkersById,
   coworkersBySlug: rosterCoworkersBySlug,
+  orchestratorsById: rosterOrchestratorsById,
+  orchestratorsBySlug: rosterOrchestratorsBySlug,
   channelLinks,
   currentUserId,
   canOpenHumanDirect,
@@ -223,6 +258,8 @@ function PendingQuotePreview({
   usersBySlug?: Map<string, UserMentionLookup>;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   channelLinks: readonly ChannelLinkTarget[];
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
@@ -230,13 +267,21 @@ function PendingQuotePreview({
   openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Quote");
-  const { coworkersById, coworkersBySlug, usersById, usersBySlug } =
-    mentionLookupMapsFromCatalog(mentions, {
-      usersById: rosterUsersById,
-      usersBySlug: rosterUsersBySlug,
-      coworkersById: rosterCoworkersById,
-      coworkersBySlug: rosterCoworkersBySlug,
-    });
+  const {
+    coworkersById,
+    coworkersBySlug,
+    orchestratorsById,
+    orchestratorsBySlug,
+    usersById,
+    usersBySlug,
+  } = mentionLookupMapsFromCatalog(mentions, {
+    usersById: rosterUsersById,
+    usersBySlug: rosterUsersBySlug,
+    coworkersById: rosterCoworkersById,
+    coworkersBySlug: rosterCoworkersBySlug,
+    orchestratorsById: rosterOrchestratorsById,
+    orchestratorsBySlug: rosterOrchestratorsBySlug,
+  });
 
   const attachment = quote.attachment;
 
@@ -266,6 +311,8 @@ function PendingQuotePreview({
                 markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 channelLinks={channelLinks}
@@ -303,6 +350,8 @@ export function RoomComposer({
   usersBySlug,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   channels = [],
   channelLinks = [],
   onSelectedKeysChange,
@@ -334,6 +383,8 @@ export function RoomComposer({
   usersBySlug?: Map<string, UserMentionLookup>;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   channels?: readonly ComposerChannelOption[];
   channelLinks?: readonly ChannelLinkTarget[];
   onSelectedKeysChange: (selectedKeys: string[]) => void;
@@ -401,9 +452,19 @@ export function RoomComposer({
         usersBySlug,
         coworkersById,
         coworkersBySlug,
+        orchestratorsById,
+        orchestratorsBySlug,
         mentionCatalog: mentions,
       }),
-    [coworkersById, coworkersBySlug, mentions, usersById, usersBySlug],
+    [
+      coworkersById,
+      coworkersBySlug,
+      mentions,
+      orchestratorsById,
+      orchestratorsBySlug,
+      usersById,
+      usersBySlug,
+    ],
   );
 
   // Stored pref wins; else desktop open / mobile closed (SOK-681).
@@ -672,6 +733,8 @@ export function RoomComposer({
                 usersBySlug={usersBySlug}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 channelLinks={channelLinks}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
