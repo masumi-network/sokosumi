@@ -13,12 +13,8 @@ function AgentsNotAvailable(): React.JSX.Element {
   const t = useTranslations("Components.Agents");
 
   return (
-    <div className="container mx-auto px-4 pt-4 pb-8">
-      <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground text-lg">
-          {t("agentsNotAvailable")}
-        </p>
-      </div>
+    <div className="flex min-h-40 items-center justify-center py-12">
+      <p className="text-muted-foreground text-lg">{t("agentsNotAvailable")}</p>
     </div>
   );
 }
@@ -27,10 +23,8 @@ function AgentsNotFound() {
   const t = useTranslations("Components.Agents");
 
   return (
-    <div className="container mx-auto px-4 pt-4 pb-8">
-      <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground text-lg">{t("agentsNotFound")}</p>
-      </div>
+    <div className="flex min-h-40 items-center justify-center py-12">
+      <p className="text-muted-foreground text-lg">{t("agentsNotFound")}</p>
     </div>
   );
 }

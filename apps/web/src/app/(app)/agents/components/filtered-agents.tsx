@@ -56,22 +56,23 @@ function FilteredAgentsInner({
     return <AgentsNotAvailable />;
   }
 
-  if (!filteredAgents.length) {
-    return <AgentsNotFound />;
-  }
-
   return (
     <div className="flex flex-col gap-12">
+      {/* Keep filter chrome mounted on empty matches so kind/search stay usable. */}
       <FilterSection categories={categories} />
-      {groupedAgents.map((group) => (
-        <Agents
-          key={group.categorySlug}
-          agents={group.agents}
-          icon={group.categoryIcon}
-          ratingStatsMap={ratingStatsMap}
-          title={group.categoryName}
-        />
-      ))}
+      {!filteredAgents.length ? (
+        <AgentsNotFound />
+      ) : (
+        groupedAgents.map((group) => (
+          <Agents
+            key={group.categorySlug}
+            agents={group.agents}
+            icon={group.categoryIcon}
+            ratingStatsMap={ratingStatsMap}
+            title={group.categoryName}
+          />
+        ))
+      )}
     </div>
   );
 }
