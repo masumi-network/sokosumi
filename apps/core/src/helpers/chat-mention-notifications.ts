@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
 
+import { CHAT_MENTION_MESSAGE_KEY } from "@/helpers/notification-delivery";
 import { createNotification } from "@/helpers/notifications";
 import prisma from "@/lib/db/prisma";
 
@@ -65,7 +66,7 @@ export async function emitChatMentionNotifications(
         kind: NotificationKind.CHAT,
         referenceId: params.roomId,
         eventId: params.messageId,
-        messageKey: "Notifications.Chat.mentioned",
+        messageKey: CHAT_MENTION_MESSAGE_KEY,
         messageParams: {
           authorName: params.authorName,
           roomName: params.roomName,
