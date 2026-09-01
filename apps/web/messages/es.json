@@ -5772,6 +5772,8 @@
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
         "editTitle": "Edit channel",
         "editDescription": "Update the channel details and participant list.",
+        "actionsOnlyTitle": "Salir del canal",
+        "actionsOnlyDescription": "Sal de este canal cuando ya no lo necesites. La configuración del canal la gestionan los administradores.",
         "name": "Name",
         "nameRequired": "El nombre del canal es obligatorio.",
         "namePlaceholder": "Launch planning",

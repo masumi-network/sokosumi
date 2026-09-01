@@ -5772,6 +5772,8 @@
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
         "editTitle": "Edit channel",
         "editDescription": "Update the channel details and participant list.",
+        "actionsOnlyTitle": "Leave channel",
+        "actionsOnlyDescription": "Leave this channel when you no longer need it. Channel settings are managed by admins.",
         "name": "Name",
         "nameRequired": "Channel name is required.",
         "namePlaceholder": "Launch planning",
