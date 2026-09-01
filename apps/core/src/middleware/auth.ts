@@ -5,10 +5,12 @@ import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
 
 import { forbidden, unauthorized } from "@/helpers/error";
+import { hashApiKey } from "@/lib/api-key-hash";
 import { auth } from "@/lib/auth";
-import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
+import { COWORKER_API_KEY_PREFIX } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import { attachAuthToLogger } from "@/lib/evlog";
+import { ORCHESTRATOR_API_KEY_PREFIX } from "@/lib/orchestrator-api-key";
 
 const DEFAULT_USER_ROLE = "user";
 
@@ -37,9 +39,18 @@ export interface CoworkerAuthenticationContext {
   context?: WorkspaceActorRequestContext;
 }
 
+/** Personal assistant (Soko Bot) authenticating with a first-party orchestrator key. */
+export interface OrchestratorAuthenticationContext {
+  actor: "orchestrator";
+  sokoBotId: string;
+  userId: string;
+  workspaceId: string;
+}
+
 export type AuthenticationContext =
   | UserAuthenticationContext
-  | CoworkerAuthenticationContext;
+  | CoworkerAuthenticationContext
+  | OrchestratorAuthenticationContext;
 
 export type AuthVariables = {
   isAuthenticated: boolean;
@@ -62,6 +73,14 @@ function syncSentryUser(context: AuthVariables) {
     scope.setUser({
       id: context.authContext.userId,
       organizationId: context.authContext.organizationId || undefined,
+    });
+    return;
+  }
+
+  if (context.authContext.actor === "orchestrator") {
+    scope.setUser({
+      id: `orchestrator:${context.authContext.sokoBotId}`,
+      orchestratorId: context.authContext.sokoBotId,
     });
     return;
   }
@@ -106,6 +125,15 @@ function syncRequestLogger(context: AuthVariables) {
     return;
   }
 
+  if (isOrchestratorAuthContext(authContext)) {
+    attachAuthToLogger({
+      actor: "orchestrator",
+      orchestratorId: authContext.sokoBotId,
+      userId: authContext.userId,
+    });
+    return;
+  }
+
   const _exhaustive: never = authContext;
   void _exhaustive;
 }
@@ -127,6 +155,12 @@ export function isCoworkerAuthContext(
   authContext: AuthenticationContext,
 ): authContext is CoworkerAuthenticationContext {
   return authContext.actor === "coworker";
+}
+
+export function isOrchestratorAuthContext(
+  authContext: AuthenticationContext,
+): authContext is OrchestratorAuthenticationContext {
+  return authContext.actor === "orchestrator";
 }
 
 /**
@@ -397,6 +431,74 @@ async function verifyCoworkerApiKey(
   return true;
 }
 
+/**
+ * Verifies a first-party orchestrator API key bound to a Soko Bot / PA.
+ *
+ * Expected token format: orchestrator_<secret>
+ * Legacy `orch_` keys are intentionally not accepted.
+ */
+async function verifyOrchestratorApiKey(
+  token: string,
+  c: Context<AuthEnv>,
+): Promise<boolean> {
+  if (!token.startsWith(ORCHESTRATOR_API_KEY_PREFIX)) {
+    return false;
+  }
+
+  const keyHash = await hashApiKey(token);
+  const orchestratorApiKey = await prisma.orchestratorApiKey.findUnique({
+    where: {
+      keyHash,
+    },
+    select: {
+      sokoBotId: true,
+      revokedAt: true,
+      expiresAt: true,
+      sokoBot: {
+        select: {
+          archivedAt: true,
+          deletedAt: true,
+          userId: true,
+          workspaceId: true,
+        },
+      },
+    },
+  });
+
+  if (!orchestratorApiKey) {
+    return false;
+  }
+
+  if (orchestratorApiKey.revokedAt) {
+    return false;
+  }
+
+  if (
+    orchestratorApiKey.expiresAt &&
+    orchestratorApiKey.expiresAt <= new Date()
+  ) {
+    return false;
+  }
+
+  if (
+    orchestratorApiKey.sokoBot.archivedAt ||
+    orchestratorApiKey.sokoBot.deletedAt
+  ) {
+    return false;
+  }
+
+  setAuthContext(c, {
+    isAuthenticated: true,
+    authContext: {
+      actor: "orchestrator",
+      sokoBotId: orchestratorApiKey.sokoBotId,
+      userId: orchestratorApiKey.sokoBot.userId,
+      workspaceId: orchestratorApiKey.sokoBot.workspaceId,
+    },
+  });
+  return true;
+}
+
 const hashAccessToken = async (value: string) => {
   const tokenWithoutPrefix = value.replace(/^soko_access_token_/, "");
   return await hashApiKey(tokenWithoutPrefix);
@@ -518,13 +620,25 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
       throw unauthorized("Invalid or expired coworker token");
     }
 
-    // Check 2: Better Auth API key
+    // Check 2: First-party orchestrator API key (PA / Soko Bot).
+    // Orchestrator-prefixed tokens must not fall back to user auth schemes.
+    // Legacy `orch_` tokens are not handled here and fall through to 401.
+    if (token.startsWith(ORCHESTRATOR_API_KEY_PREFIX)) {
+      const orchestratorApiKeyValid = await verifyOrchestratorApiKey(token, c);
+      if (orchestratorApiKeyValid) {
+        return true;
+      }
+
+      throw unauthorized("Invalid or expired orchestrator token");
+    }
+
+    // Check 3: Better Auth API key
     const apiKeyValid = await verifyApiKey(token, c);
     if (apiKeyValid) {
       return true;
     }
 
-    // Check 3: OAuth Access Token
+    // Check 4: OAuth Access Token
     const oauthTokenValid = await verifyOAuthToken(token, c);
     if (oauthTokenValid) {
       return true;

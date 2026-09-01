@@ -54,6 +54,7 @@ import {
   type AuthenticationContext,
   isCoworkerAgentContext,
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   isUserAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
@@ -83,6 +84,14 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
     };
   }
 
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      userId: null,
+      coworkerId: null,
+      orchestratorId: authContext.sokoBotId,
+    };
+  }
+
   // Status transitions from a delegated coworker are attributed to the acting
   // coworker only. Context userId is workspace context, not a second actor FK.
   return {
@@ -98,6 +107,14 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
       userId: authContext.userId,
       coworkerId: null,
       orchestratorId: null,
+    };
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      userId: null,
+      coworkerId: null,
+      orchestratorId: authContext.sokoBotId,
     };
   }
 

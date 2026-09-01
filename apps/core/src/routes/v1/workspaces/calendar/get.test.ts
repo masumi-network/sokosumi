@@ -103,7 +103,9 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
       organizationId:
         authContext.actor === "coworker"
           ? (authContext.context?.organizationId ?? null)
-          : authContext.organizationId,
+          : authContext.actor === "user"
+            ? authContext.organizationId
+            : null,
     });
     return await next();
   });

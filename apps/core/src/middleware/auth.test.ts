@@ -15,6 +15,7 @@ const {
   verifyApiKeyMock,
   getSessionMock,
   coworkerApiKeyFindUniqueMock,
+  orchestratorApiKeyFindUniqueMock,
   prismaTransactionMock,
   oauthAccessTokenFindUniqueMock,
   oauthConsentFindFirstMock,
@@ -23,6 +24,7 @@ const {
   verifyApiKeyMock: vi.fn(),
   getSessionMock: vi.fn(),
   coworkerApiKeyFindUniqueMock: vi.fn(),
+  orchestratorApiKeyFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   oauthAccessTokenFindUniqueMock: vi.fn(),
   oauthConsentFindFirstMock: vi.fn(),
@@ -42,6 +44,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworkerApiKey: {
       findUnique: coworkerApiKeyFindUniqueMock,
+    },
+    orchestratorApiKey: {
+      findUnique: orchestratorApiKeyFindUniqueMock,
     },
     user: {
       findUnique: userFindUniqueMock,
@@ -68,6 +73,7 @@ describe("authMiddleware", () => {
     vi.clearAllMocks();
 
     coworkerApiKeyFindUniqueMock.mockResolvedValue(null);
+    orchestratorApiKeyFindUniqueMock.mockResolvedValue(null);
 
     verifyApiKeyMock.mockResolvedValue({
       valid: false,
@@ -88,6 +94,175 @@ describe("authMiddleware", () => {
         },
       });
     });
+  });
+
+  it("authenticates from dedicated orchestrator API key bound to a Soko Bot", async () => {
+    orchestratorApiKeyFindUniqueMock.mockResolvedValue({
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: null,
+      expiresAt: null,
+      sokoBot: {
+        archivedAt: null,
+        deletedAt: null,
+        userId: "user_pa_owner",
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer orchestrator_validtoken",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "orchestrator",
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      userId: "user_pa_owner",
+      workspaceId: "01960001-0001-7001-8001-000000000010",
+    });
+    expect(orchestratorApiKeyFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        keyHash: expect.any(String),
+      },
+      select: {
+        sokoBotId: true,
+        revokedAt: true,
+        expiresAt: true,
+        sokoBot: {
+          select: {
+            archivedAt: true,
+            deletedAt: true,
+            userId: true,
+            workspaceId: true,
+          },
+        },
+      },
+    });
+    expect(coworkerApiKeyFindUniqueMock).not.toHaveBeenCalled();
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+    expect(getSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("does not authenticate a coworker API key as the orchestrator actor", async () => {
+    coworkerApiKeyFindUniqueMock.mockResolvedValue({
+      coworkerId: "cow_shadow_pa",
+      revokedAt: null,
+      expiresAt: null,
+      coworker: {
+        archivedAt: null,
+        vendorId: "01960001-0001-7001-8001-000000000001",
+        sokoBotId: "01960001-0001-7001-8001-000000000099",
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer coworker_shadow_pa_token",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "coworker",
+      coworkerId: "cow_shadow_pa",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+    });
+    expect(orchestratorApiKeyFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for revoked orchestrator API key", async () => {
+    orchestratorApiKeyFindUniqueMock.mockResolvedValue({
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: new Date(),
+      expiresAt: null,
+      sokoBot: {
+        archivedAt: null,
+        deletedAt: null,
+        userId: "user_pa_owner",
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer orchestrator_revoked",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 for expired orchestrator API key", async () => {
+    orchestratorApiKeyFindUniqueMock.mockResolvedValue({
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: null,
+      expiresAt: new Date(Date.now() - 60_000),
+      sokoBot: {
+        archivedAt: null,
+        deletedAt: null,
+        userId: "user_pa_owner",
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer orchestrator_expired",
+      },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 for orchestrator API key tied to an archived Soko Bot", async () => {
+    orchestratorApiKeyFindUniqueMock.mockResolvedValue({
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      revokedAt: null,
+      expiresAt: null,
+      sokoBot: {
+        archivedAt: new Date(),
+        deletedAt: null,
+        userId: "user_pa_owner",
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer orchestrator_archived_bot",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to user auth for invalid orchestrator-prefixed token", async () => {
+    verifyApiKeyMock.mockResolvedValue({
+      valid: true,
+      key: {
+        referenceId: "user_api_key",
+        metadata: {},
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer orchestrator_invalid",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+    expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("authenticates from dedicated coworker API key bearer token", async () => {

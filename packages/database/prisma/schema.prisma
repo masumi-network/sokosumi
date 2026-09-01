@@ -1847,6 +1847,7 @@ model SokoBot {
   legacyMessages     SokoBotLegacyMessage[]
   pendingDecisions   SokoBotPendingDecision[]
   schedules          SokoBotSchedule[]
+  apiKeys            OrchestratorApiKey[]
 
   @@index([archivedAt])
   @@index([lastPolledAt])
@@ -1857,6 +1858,29 @@ model SokoBot {
   @@index([userId, workspaceId])
   @@index([workspaceId])
   @@map("orchestrator")
+}
+
+/// First-party API keys for a personal assistant (Soko Bot) authenticating as
+/// the `orchestrator` HTTP actor. Distinct from coworker keys and from the
+/// retired Hermes `orch_` token shape.
+model OrchestratorApiKey {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name     String?
+  keyHash  String  @unique
+  keyStart String
+
+  expiresAt DateTime?
+  revokedAt DateTime?
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  @@index([sokoBotId])
+  @@index([revokedAt, expiresAt])
+  @@map("orchestrator_api_key")
 }
 
 /// Immutable copy of external Hermes chat history made during first-party

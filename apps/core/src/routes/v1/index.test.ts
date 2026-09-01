@@ -97,8 +97,19 @@ describe("v1 router", () => {
     const body = (await response.json()) as {
       paths?: Record<string, { get?: { security?: [] } }>;
       servers: Array<{ url: string }>;
+      components?: {
+        securitySchemes?: {
+          bearerAuth?: { description?: string };
+        };
+      };
     };
     expect(body.servers).toEqual([{ url: "/v1" }]);
     expect(body.paths?.["/share/{token}"]?.get?.security).toEqual([]);
+    expect(body.components?.securitySchemes?.bearerAuth?.description).toContain(
+      "orchestrator_",
+    );
+    expect(body.components?.securitySchemes?.bearerAuth?.description).toContain(
+      "coworker_",
+    );
   });
 });

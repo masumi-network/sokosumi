@@ -3,10 +3,10 @@ import { createRoute } from "@hono/zod-openapi";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { hashApiKey } from "@/lib/api-key-hash";
 import {
   COWORKER_API_KEY_START_LENGTH,
   generateCoworkerApiKeyToken,
-  hashApiKey,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";

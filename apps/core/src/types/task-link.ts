@@ -78,6 +78,13 @@ function buildVisiblePeerTaskWhere(
         ownerId: authContext.userId,
       };
     }
+    case "orchestrator": {
+      return {
+        workspaceId: workspaceId ?? authContext.workspaceId,
+        archivedAt: null,
+        ownerId: authContext.userId,
+      };
+    }
     default: {
       const exhaustive: never = authContext;
       return exhaustive;
