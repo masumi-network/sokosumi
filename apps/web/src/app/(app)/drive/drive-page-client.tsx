@@ -1429,7 +1429,7 @@ function DrivePageWorkspace({
               </div>
             </div>
           )}
-          {filesSortControl}
+          {!isRecentsView && filesSortControl}
           {filesViewModeSwitch}
         </div>
 
@@ -1583,8 +1583,6 @@ function DrivePageWorkspace({
           searchQuery={debouncedSearchQuery}
           reloadToken={recentsReloadToken}
           viewMode={layoutMode}
-          sortBy={filesSortQuery.sortBy}
-          sortOrder={filesSortQuery.sortOrder}
           onOpenMoveDialog={openMoveDialog}
           onOpenDeleteDialog={openDeleteDialog}
           onRenameFile={handleRename}

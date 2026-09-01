@@ -1,9 +1,8 @@
 /**
- * Shared Files sort vocabulary and URL/query mapping (Browse, Recents, Tasks).
+ * Shared Files sort vocabulary and URL/query mapping (Browse, Tasks).
  *
  * Omit both params → each endpoint keeps its current default.
- * Recents: Core keeps activityAt primary; name/type are secondary only when
- * sent as sortBy (see Core drive-list-sort / drive-recents helpers).
+ * Drive Recents does not accept sort; order is fixed activityAt descending.
  */
 
 export const FILES_SORT_BY_VALUES = ["name", "date", "type"] as const;
@@ -106,9 +105,8 @@ export function filesSortUrlValues(selection: FilesSortSelection | null): {
 }
 
 /**
- * Map UI selection to Drive list query params.
- * Null selection → no override (omit). Recents name/type still send those
- * keys; Core treats them as secondary with activityAt primary.
+ * Map UI selection to Drive list query params (Browse, Tasks).
+ * Null selection → no override (omit).
  */
 export function toDriveListSortQuery(
   selection: FilesSortSelection | null,

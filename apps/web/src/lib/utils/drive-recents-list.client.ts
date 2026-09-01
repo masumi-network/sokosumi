@@ -3,7 +3,6 @@
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveRecentsItem } from "@/lib/clients/generated/core";
 import { getDriveRecents } from "@/lib/clients/generated/core";
-import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
 
 export const DRIVE_RECENTS_PAGE_LIMIT = 50;
 
@@ -17,8 +16,6 @@ export interface FetchDriveRecentsPageOptions {
   organizationId?: string;
   cursor?: string;
   q?: string;
-  sortBy?: FilesSortBy;
-  sortOrder?: FilesSortOrder;
   signal?: AbortSignal;
 }
 
@@ -35,8 +32,6 @@ export async function fetchDriveRecentsPage(
         : {}),
       ...(options.cursor ? { cursor: options.cursor } : {}),
       ...(options.q?.trim() ? { q: options.q.trim() } : {}),
-      ...(options.sortBy ? { sortBy: options.sortBy } : {}),
-      ...(options.sortOrder ? { sortOrder: options.sortOrder } : {}),
     },
     ...(options.signal ? { signal: options.signal } : {}),
     throwOnError: true,

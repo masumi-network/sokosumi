@@ -1375,12 +1375,8 @@ export const patchDriveFoldersRename = <ThrowOnError extends boolean = false>(op
 
 /**
  * List recent Drive files and task/agent outputs for the active workspace.
- * Returns a flat, activity-sorted file list with cursor pagination.
+ * Returns a flat, activity-sorted file list (newest first) with cursor pagination.
  * Mixes Drive blob uploads at any folder depth with READY TASK_OUTPUT TaskFiles.
- * Omit sortBy/sortOrder for today's default: activityAt descending.
- * sortBy=date (or sortOrder alone) flips activityAt direction.
- * sortBy=name|type never replaces activityAt as primary — they are secondary keys only
- * (activityAt, secondary, id) with stable kind/id tie-breakers.
  */
 export const getDriveRecents = <ThrowOnError extends boolean = false>(options: Options<GetDriveRecentsData, ThrowOnError>): RequestResult<GetDriveRecentsResponses, GetDriveRecentsErrors, ThrowOnError> => (options.client ?? client).get<GetDriveRecentsResponses, GetDriveRecentsErrors, ThrowOnError>({
     responseTransformer: getDriveRecentsResponseTransformer,

@@ -74,6 +74,31 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
       {children}
     </button>
   ),
+  DropdownMenuCheckboxItem: ({
+    children,
+    checked,
+    onCheckedChange,
+    onSelect,
+    ...props
+  }: {
+    children: ReactNode;
+    checked?: boolean;
+    onCheckedChange?: (checked: boolean) => void;
+    onSelect?: (event: { preventDefault: () => void }) => void;
+  } & Record<string, unknown>) => (
+    <button
+      type="button"
+      role="menuitemcheckbox"
+      aria-checked={checked}
+      onClick={() => {
+        onCheckedChange?.(true);
+        onSelect?.({ preventDefault: () => undefined });
+      }}
+      {...props}
+    >
+      {children}
+    </button>
+  ),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -1070,7 +1095,7 @@ describe("DrivePage files sort", () => {
     expect(lastUpdate.searchParams.get("sortOrder")).toBe("asc");
   });
 
-  it("recents never requests a non-date primary; name maps to Core secondary sortBy", async () => {
+  it("recents omits sort params even when URL has sort", async () => {
     searchParams = new URLSearchParams("sortBy=name&sortOrder=asc");
     renderDrive();
 
@@ -1079,15 +1104,15 @@ describe("DrivePage files sort", () => {
     });
 
     expect(listDriveItemsMock).not.toHaveBeenCalled();
-    expect(fetchDriveRecentsPageMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sortBy: "name",
-        sortOrder: "asc",
-      }),
-    );
+    const recentsCall = fetchDriveRecentsPageMock.mock.calls.at(
+      -1,
+    )?.[0] as Record<string, unknown>;
+    expect(recentsCall).not.toHaveProperty("sortBy");
+    expect(recentsCall).not.toHaveProperty("sortOrder");
+    expect(screen.queryByTestId("files-sort-trigger")).not.toBeInTheDocument();
   });
 
-  it("omitted default does not send a sort override on browse or recents", async () => {
+  it("omitted default does not send a sort override on browse", async () => {
     searchParams = new URLSearchParams();
     renderDrive();
 
@@ -1112,5 +1137,6 @@ describe("DrivePage files sort", () => {
     >;
     expect(browseCall).not.toHaveProperty("sortBy");
     expect(browseCall).not.toHaveProperty("sortOrder");
+    expect(screen.getByTestId("files-sort-trigger")).toBeVisible();
   });
 });

@@ -89,28 +89,14 @@ describe("toDriveListSortQuery", () => {
     expect(toDriveListSortQuery({ sortBy: "name", sortOrder: "desc" })).toEqual(
       { sortBy: "name", sortOrder: "desc" },
     );
-    expect(toDriveListSortQuery({ sortBy: "type", sortOrder: "asc" })).toEqual({
-      sortBy: "type",
-      sortOrder: "asc",
-    });
-  });
-
-  it("recents date selection controls activity direction", () => {
     expect(toDriveListSortQuery({ sortBy: "date", sortOrder: "asc" })).toEqual({
       sortBy: "date",
       sortOrder: "asc",
     });
-  });
-
-  it("recents never requests a non-date primary key; name/type map to Core secondary", () => {
-    // Core keeps activityAt primary; sortBy=name|type is secondary only.
-    expect(toDriveListSortQuery({ sortBy: "name", sortOrder: "asc" })).toEqual({
-      sortBy: "name",
+    expect(toDriveListSortQuery({ sortBy: "type", sortOrder: "asc" })).toEqual({
+      sortBy: "type",
       sortOrder: "asc",
     });
-    expect(toDriveListSortQuery({ sortBy: "type", sortOrder: "desc" })).toEqual(
-      { sortBy: "type", sortOrder: "desc" },
-    );
   });
 });
 

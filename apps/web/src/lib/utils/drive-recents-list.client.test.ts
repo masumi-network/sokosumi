@@ -20,7 +20,7 @@ describe("fetchDriveRecentsPage", () => {
     vi.clearAllMocks();
   });
 
-  it("omits sort params when unset (server default)", async () => {
+  it("never sends sort params (Core recents are fixed activityAt desc)", async () => {
     getDriveRecentsMock.mockResolvedValue({
       data: {
         data: [],
@@ -28,7 +28,7 @@ describe("fetchDriveRecentsPage", () => {
       },
     });
 
-    await fetchDriveRecentsPage({ scope: "me" });
+    await fetchDriveRecentsPage({ scope: "me", q: "report" });
 
     const call = getDriveRecentsMock.mock.calls[0]?.[0] as {
       query: Record<string, unknown>;
@@ -36,54 +36,9 @@ describe("fetchDriveRecentsPage", () => {
     expect(call.query).toMatchObject({
       scope: "me",
       limit: DRIVE_RECENTS_PAGE_LIMIT,
+      q: "report",
     });
     expect(call.query).not.toHaveProperty("sortBy");
     expect(call.query).not.toHaveProperty("sortOrder");
-  });
-
-  it("passes date sort for activity direction", async () => {
-    getDriveRecentsMock.mockResolvedValue({
-      data: {
-        data: [],
-        meta: { pagination: { nextCursor: null } },
-      },
-    });
-
-    await fetchDriveRecentsPage({
-      scope: "me",
-      sortBy: "date",
-      sortOrder: "asc",
-    });
-
-    expect(getDriveRecentsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        query: expect.objectContaining({
-          sortBy: "date",
-          sortOrder: "asc",
-        }),
-      }),
-    );
-  });
-
-  it("passes name/type as Core secondary keys (never drops them to invent a date-only primary)", async () => {
-    getDriveRecentsMock.mockResolvedValue({
-      data: {
-        data: [],
-        meta: { pagination: { nextCursor: null } },
-      },
-    });
-
-    await fetchDriveRecentsPage({
-      scope: "me",
-      sortBy: "name",
-      sortOrder: "asc",
-    });
-
-    const call = getDriveRecentsMock.mock.calls[0]?.[0] as {
-      query: Record<string, unknown>;
-    };
-    // Core keeps activityAt primary; name is secondary only.
-    expect(call.query.sortBy).toBe("name");
-    expect(call.query.sortOrder).toBe("asc");
   });
 });
