@@ -85,7 +85,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           slug,
           topic: body.topic?.trim() || null,
         },
-        select: { id: true, name: true, slug: true },
+        select: { id: true, name: true, slug: true, archivedAt: true },
       });
 
       return created(
@@ -94,6 +94,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           id: room.id,
           name: room.name,
           slug: room.slug ?? slug,
+          archivedAt: room.archivedAt,
         }),
       );
     } catch (error) {
