@@ -42,7 +42,7 @@ describe("Header", () => {
     expect(screen.getAllByTestId("detail-actions")).toHaveLength(2);
   });
 
-  it("does not render create-job / hire controls (SOK-805)", () => {
+  it("does not render create-job / hire or price controls (SOK-805 / SOK-922)", () => {
     const agent = createMockCoreAgent({ id: "agent-1", credits: 1 });
 
     render(
@@ -54,9 +54,10 @@ describe("Header", () => {
       />,
     );
 
-    // Header still renders navigational chrome without hire/create-job.
+    // Header still renders navigational chrome without hire/create-job/price.
     expect(screen.getByText("back")).toBeInTheDocument();
     expect(screen.queryByTestId("create-job-trigger")).not.toBeInTheDocument();
     expect(screen.queryByText(/newJob/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/price:/i)).not.toBeInTheDocument();
   });
 });

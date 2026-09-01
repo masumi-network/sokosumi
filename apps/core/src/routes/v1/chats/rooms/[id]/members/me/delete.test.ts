@@ -13,6 +13,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   roomFindFirstMock,
+  roomUpdateManyMock,
   userMemberCountMock,
   userMemberDeleteManyMock,
   guestInvitationCountMock,
@@ -28,6 +29,7 @@ const {
   publishChatMembershipRevokedMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
+  roomUpdateManyMock: vi.fn(),
   userMemberCountMock: vi.fn(),
   userMemberDeleteManyMock: vi.fn(),
   guestInvitationCountMock: vi.fn(),
@@ -86,7 +88,10 @@ const MEMBERSHIP_MESSAGE = {
 };
 
 const tx = {
-  chatRoom: { findFirst: roomFindFirstMock },
+  chatRoom: {
+    findFirst: roomFindFirstMock,
+    updateMany: roomUpdateManyMock,
+  },
   chatRoomUserMember: {
     count: userMemberCountMock,
     deleteMany: userMemberDeleteManyMock,
@@ -191,6 +196,7 @@ beforeEach(() => {
   guestInvitationCountMock.mockResolvedValue(0);
   guestInvitationUpdateManyMock.mockResolvedValue({ count: 0 });
   readStateDeleteManyMock.mockResolvedValue({ count: 1 });
+  roomUpdateManyMock.mockResolvedValue({ count: 1 });
   userFindUniqueMock.mockResolvedValue({ name: SELF_ID });
   messageCreateMock.mockResolvedValue(MEMBERSHIP_MESSAGE);
   publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
@@ -245,7 +251,7 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
     expect((await response.json()).data.remainingUserMemberCount).toBe(2);
   });
 
-  it("refuses to let the last member leave", async () => {
+  it("refuses to let the last member leave an organization room", async () => {
     roomFindFirstMock.mockResolvedValue(room({ memberIds: [SELF_ID] }));
     userMemberCountMock.mockResolvedValue(0);
 
@@ -254,9 +260,10 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
     expect(await response.text()).toMatch(/organization owner or admin/i);
     expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
     expect(readStateDeleteManyMock).not.toHaveBeenCalled();
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
   });
 
-  it("points last member of an org-less matched room at platform admin", async () => {
+  it("lets the last member leave an org-less matched room and archives it", async () => {
     roomFindFirstMock.mockResolvedValue(
       room({
         memberIds: [SELF_ID],
@@ -264,14 +271,32 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
         discoverability: "matched",
       }),
     );
-    userMemberCountMock.mockResolvedValue(0);
+    userMemberCountMock.mockImplementation(
+      async ({ where }: { where: { access?: string } }) => {
+        if (where.access === "member") return 0;
+        if (where.access === "guest") return 0;
+        return 0;
+      },
+    );
 
     const response = await leave();
-    const body = await response.text();
-    expect(response.status).toBe(400);
-    expect(body).toMatch(/platform admin/i);
-    expect(body).not.toMatch(/organization owner/i);
-    expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toEqual({
+      id: ROOM_ID,
+      remainingUserMemberCount: 0,
+    });
+    expect(userMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, userId: SELF_ID },
+    });
+    expect(roomUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: ROOM_ID, archivedAt: null },
+      data: { archivedAt: expect.any(Date) },
+    });
+    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
+      userId: SELF_ID,
+      roomId: ROOM_ID,
+      reason: "left",
+    });
   });
 
   it("refuses last host leave while guests remain", async () => {

@@ -960,13 +960,14 @@ export function RoomsClient({
       selectedRoom.myAccess === "member" &&
       selectedRoom.discoverability === "external",
   );
-  // Any participant can leave, but not the last host-org member — an empty
-  // host roster could not be archived (archive requires org owner/admin). Guests
-  // do not count toward that floor; guests may always leave.
+  // Any participant can leave. Host-org channels keep the last host member so
+  // an empty roster cannot block archive (org owner/admin). Matched channels
+  // allow last-member leave (Core auto-archives). Guests may always leave.
   const canLeaveSelectedRoom = Boolean(
     selectedRoom &&
       !isDirectRoom &&
       (isGuestInSelectedRoom ||
+        isMatchedChannel ||
         selectedRoom.userMembers.filter((member) => member.access === "member")
           .length > 1),
   );

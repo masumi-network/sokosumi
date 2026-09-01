@@ -591,9 +591,9 @@ export const leftChatRoomSchema = z
     id: z.string().uuid().openapi({
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
-    remainingUserMemberCount: z.number().int().min(1).openapi({
+    remainingUserMemberCount: z.number().int().min(0).openapi({
       description:
-        "Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.",
+        "Human members left in the room after the caller leaves. Zero only for org-less matched channels, which auto-archive when the last member leaves. Organization rooms keep the last member (archive instead).",
       example: 3,
     }),
   })
