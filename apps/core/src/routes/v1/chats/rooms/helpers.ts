@@ -2157,29 +2157,42 @@ export function resolveMentionedCoworkerIds(params: {
 }
 
 /**
- * When a shadow PA coworker and the same bot are both room members, drop the
- * coworker mention so only the orchestrator rail dispatches (SOK-942 dual path).
+ * When a shadow PA coworker and the same bot are both room members, rewrite
+ * the coworker mention onto the orchestrator rail (SOK-942 dual path).
  */
-export function excludeShadowPaCoworkerMentions(params: {
+export function remapShadowPaCoworkerMentions(params: {
   mentionedCoworkerIds: readonly string[];
   roomCoworkers: Array<{ id: string; sokoBotId: string | null }>;
   roomOrchestratorIds: readonly string[];
-}): string[] {
+}): {
+  mentionedCoworkerIds: string[];
+  remappedOrchestratorIds: string[];
+} {
   const roomPaIds = new Set(params.roomOrchestratorIds);
   if (roomPaIds.size === 0) {
-    return [...params.mentionedCoworkerIds];
+    return {
+      mentionedCoworkerIds: [...params.mentionedCoworkerIds],
+      remappedOrchestratorIds: [],
+    };
   }
-  const shadowCoworkerIds = new Set(
-    params.roomCoworkers
-      .filter(
-        (coworker) =>
-          coworker.sokoBotId != null && roomPaIds.has(coworker.sokoBotId),
-      )
-      .map((coworker) => coworker.id),
+  const shadowBotByCoworkerId = new Map(
+    params.roomCoworkers.flatMap((coworker) =>
+      coworker.sokoBotId != null && roomPaIds.has(coworker.sokoBotId)
+        ? [[coworker.id, coworker.sokoBotId] as const]
+        : [],
+    ),
   );
-  return params.mentionedCoworkerIds.filter(
-    (coworkerId) => !shadowCoworkerIds.has(coworkerId),
-  );
+  const mentionedCoworkerIds: string[] = [];
+  const remappedOrchestratorIds: string[] = [];
+  for (const coworkerId of params.mentionedCoworkerIds) {
+    const orchestratorId = shadowBotByCoworkerId.get(coworkerId);
+    if (orchestratorId) {
+      remappedOrchestratorIds.push(orchestratorId);
+    } else {
+      mentionedCoworkerIds.push(coworkerId);
+    }
+  }
+  return { mentionedCoworkerIds, remappedOrchestratorIds };
 }
 
 /** Resolve PA / orchestrator mentions from explicit ids + @orchestrator:slug / bare @alias. */

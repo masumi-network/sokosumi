@@ -58,6 +58,7 @@ describe("diffChannelMembershipRoster", () => {
           { id: "user_b", name: "Bob" },
         ],
         coworkers: [{ id: "cow_old", name: "OldBot" }],
+        orchestrators: [{ id: "orch_old", name: "Old PA" }],
       },
       next: {
         users: [
@@ -65,6 +66,7 @@ describe("diffChannelMembershipRoster", () => {
           { id: "user_c", name: "Carol" },
         ],
         coworkers: [{ id: "cow_new", name: "NewBot" }],
+        orchestrators: [{ id: "orch_new", name: "Ada" }],
       },
     });
 
@@ -78,12 +80,20 @@ describe("diffChannelMembershipRoster", () => {
         subject: { type: "coworker", id: "cow_old", name: "OldBot" },
       },
       {
+        action: "left",
+        subject: { type: "orchestrator", id: "orch_old", name: "Old PA" },
+      },
+      {
         action: "joined",
         subject: { type: "user", id: "user_c", name: "Carol" },
       },
       {
         action: "joined",
         subject: { type: "coworker", id: "cow_new", name: "NewBot" },
+      },
+      {
+        action: "joined",
+        subject: { type: "orchestrator", id: "orch_new", name: "Ada" },
       },
     ]);
   });
@@ -92,6 +102,7 @@ describe("diffChannelMembershipRoster", () => {
     const roster = {
       users: [{ id: "user_a", name: "Ada" }],
       coworkers: [{ id: "cow_1", name: "Bot" }],
+      orchestrators: [{ id: "orch_1", name: "Ada" }],
     };
     expect(
       diffChannelMembershipRoster({ prior: roster, next: roster }),
@@ -187,6 +198,17 @@ describe("readMembershipFromMetadata", () => {
     ).toEqual({
       action: "left",
       subject: { type: "coworker", id: "cow_1", name: "Bot" },
+    });
+    expect(
+      readMembershipFromMetadata({
+        membership: {
+          action: "joined",
+          subject: { type: "orchestrator", id: "orch_1", name: "Ada" },
+        },
+      }),
+    ).toEqual({
+      action: "joined",
+      subject: { type: "orchestrator", id: "orch_1", name: "Ada" },
     });
   });
 

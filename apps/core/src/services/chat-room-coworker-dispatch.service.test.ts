@@ -18,6 +18,8 @@ const {
   getSokosumiProviderMock,
   transactionUpdateManyMock,
   coworkerMemberFindUniqueMock,
+  orchestratorMemberFindUniqueMock,
+  startTurnMock,
   workspaceFindUniqueMock,
   coworkerFindFirstMock,
 } = vi.hoisted(() => ({
@@ -37,6 +39,8 @@ const {
   getSokosumiProviderMock: vi.fn(),
   transactionUpdateManyMock: vi.fn(),
   coworkerMemberFindUniqueMock: vi.fn(),
+  orchestratorMemberFindUniqueMock: vi.fn(),
+  startTurnMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
 }));
@@ -61,6 +65,9 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomCoworkerMember: {
       findUnique: coworkerMemberFindUniqueMock,
     },
+    chatRoomOrchestratorMember: {
+      findUnique: orchestratorMemberFindUniqueMock,
+    },
     chatRoom: {
       update: vi.fn(),
     },
@@ -83,6 +90,9 @@ vi.mock("@/lib/db/prisma", () => ({
           update: updateMock,
         },
         chatRoomCoworkerMember: { findUnique: coworkerMemberFindUniqueMock },
+        chatRoomOrchestratorMember: {
+          findUnique: orchestratorMemberFindUniqueMock,
+        },
         chatRoom: { update: vi.fn() },
       }),
     ),
@@ -103,6 +113,13 @@ vi.mock("ai", () => ({
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  sokoBotControlPlane: {
+    startTurn: (...args: unknown[]) => startTurnMock(...args),
+    reconcileTurn: vi.fn(),
+  },
 }));
 
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
@@ -195,6 +212,10 @@ beforeEach(() => {
   updateManyMock.mockResolvedValue({ count: 1 });
   transactionUpdateManyMock.mockResolvedValue({ count: 1 });
   coworkerMemberFindUniqueMock.mockResolvedValue({ id: "membership_1" });
+  orchestratorMemberFindUniqueMock.mockResolvedValue({
+    id: "orch_membership_1",
+  });
+  startTurnMock.mockResolvedValue({ status: "COMPLETED", turnId: "turn_1" });
   workspaceFindUniqueMock.mockResolvedValue({ id: ORG_WORKSPACE_ID });
   coworkerFindFirstMock.mockResolvedValue({
     id: "cow_1",
@@ -887,6 +908,56 @@ describe("dispatchChatRoomMention claim", () => {
     });
     expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "update");
     expect(publishRealtimeMock).toHaveBeenCalledWith("msg_1", "mention_status");
+  });
+
+  it("creates Thought with senderOrchestratorId for an orchestrator mention", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      coworkerId: null,
+      coworker: null,
+      orchestratorId: "orch_1",
+      orchestrator: {
+        id: "orch_1",
+        userId: "user_1",
+        archivedAt: null,
+        name: "Ada",
+        avatarImageUrl: null,
+        avatarSeed: "orb:user_1",
+      },
+      message: {
+        ...pendingMention().message,
+        content: "@ada hello",
+        room: {
+          ...pendingMention().message.room,
+          kind: "channel",
+        },
+      },
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          content: "",
+          senderOrchestratorId: "orch_1",
+          metadata: expect.objectContaining({
+            mention_id: MENTION_ID,
+            streaming: true,
+          }),
+        }),
+      }),
+    );
+    expect(createMock.mock.calls[0]?.[0]?.data).not.toHaveProperty(
+      "senderCoworkerId",
+    );
+    expect(startTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "CHAT",
+        clientTurnId: `chat:${MENTION_ID}`,
+        userId: "user_1",
+      }),
+    );
   });
 
   it("keeps a failed Thought shell when mention dispatch fails after stream", async () => {

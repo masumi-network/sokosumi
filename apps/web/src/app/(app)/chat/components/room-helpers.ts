@@ -40,7 +40,7 @@ export interface DirectParticipantPreview {
   detail: string | null;
   image: string | null;
   presence: ChatRoomPresence;
-  kind: "human" | "coworker";
+  kind: "human" | "coworker" | "orchestrator";
 }
 
 /** Shared hover / roster shape for humans, AI coworkers, and PA orchestrators. */
@@ -579,6 +579,20 @@ function compareByDisplayNameThenId(
   return a.id.localeCompare(b.id);
 }
 
+/**
+ * Shadow PA coworker that is also a first-class orchestrator member.
+ * Hide the coworker chip / title so only the orchestrator rail is offered.
+ */
+export function isShadowPaCoworkerOverlappingOrchestrator(
+  coworker: { sokoBotId?: string | null },
+  orchestratorMembers: ReadonlyArray<{ id: string }>,
+): boolean {
+  return (
+    coworker.sokoBotId != null &&
+    orchestratorMembers.some((member) => member.id === coworker.sokoBotId)
+  );
+}
+
 export function getDirectRoomParticipants(
   room: ChatRoom,
   currentUserId: string,
@@ -595,7 +609,15 @@ export function getDirectRoomParticipants(
     }))
     .toSorted(compareByDisplayNameThenId);
 
+  const orchestratorMembers = room.orchestratorMembers ?? [];
   const coworkers = room.coworkerMembers
+    .filter(
+      (coworker) =>
+        !isShadowPaCoworkerOverlappingOrchestrator(
+          coworker,
+          orchestratorMembers,
+        ),
+    )
     .map((coworker) => ({
       id: coworker.id,
       name: coworker.name,
@@ -606,7 +628,18 @@ export function getDirectRoomParticipants(
     }))
     .toSorted(compareByDisplayNameThenId);
 
-  return [...humans, ...coworkers];
+  const orchestrators = orchestratorMembers
+    .map((orchestrator) => ({
+      id: orchestrator.id,
+      name: orchestrator.name,
+      detail: orchestrator.caption,
+      image: orchestrator.image,
+      presence: orchestrator.presence,
+      kind: "orchestrator" as const,
+    }))
+    .toSorted(compareByDisplayNameThenId);
+
+  return [...humans, ...coworkers, ...orchestrators];
 }
 
 /**

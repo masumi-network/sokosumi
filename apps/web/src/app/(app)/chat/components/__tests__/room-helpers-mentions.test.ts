@@ -11,6 +11,7 @@ import {
   composerMentionDisplayNames,
   formatRoomMarkdownContent,
   formatRoomMarkdownMentions,
+  isShadowPaCoworkerOverlappingOrchestrator,
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
@@ -567,6 +568,31 @@ describe("partitionRoomMentionSuggestions", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]?.id).toBe("people");
     expect(groups[0]?.items).toEqual([unknown]);
+  });
+});
+
+describe("isShadowPaCoworkerOverlappingOrchestrator", () => {
+  it("is true when coworker.sokoBotId matches a room orchestrator", () => {
+    expect(
+      isShadowPaCoworkerOverlappingOrchestrator(
+        { sokoBotId: orchestrator.id },
+        [orchestrator],
+      ),
+    ).toBe(true);
+  });
+
+  it("is false when the bot is not an orchestrator member", () => {
+    expect(
+      isShadowPaCoworkerOverlappingOrchestrator(
+        { sokoBotId: orchestrator.id },
+        [],
+      ),
+    ).toBe(false);
+    expect(
+      isShadowPaCoworkerOverlappingOrchestrator({ sokoBotId: null }, [
+        orchestrator,
+      ]),
+    ).toBe(false);
   });
 });
 

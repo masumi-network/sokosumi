@@ -29,11 +29,11 @@ import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unf
 
 import {
   chatRoomMessageInclude,
-  excludeShadowPaCoworkerMentions,
   mapChatRoomMessage,
   mapChatRoomOrchestratorParticipant,
   markChatRoomThreadRead,
   mergeChatRoomMessageMetadata,
+  remapShadowPaCoworkerMentions,
   requireChatRoomCoworkerAccess,
   requireChatRoomUserWriteAccess,
   resolveMentionedCoworkerIds,
@@ -300,19 +300,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.kind === "direct"
             ? orchestratorMembers.map(({ orchestrator }) => orchestrator.id)
             : [];
-        const mentionedOrchestratorIds = resolveMentionedOrchestratorIds({
-          content: body.content,
-          explicitOrchestratorIds: [
-            ...(body.mentionedOrchestratorIds ?? []),
-            ...directOrchestratorIds,
-            ...threadOrchestratorIds,
-          ],
-          roomOrchestrators,
-        });
-
-        const mentionedCoworkerIds = skipCoworkerMentions
-          ? []
-          : excludeShadowPaCoworkerMentions({
+        const remappedShadowPa = skipCoworkerMentions
+          ? { mentionedCoworkerIds: [], remappedOrchestratorIds: [] }
+          : remapShadowPaCoworkerMentions({
               mentionedCoworkerIds: resolveMentionedCoworkerIds({
                 content: body.content,
                 explicitCoworkerIds: [
@@ -332,6 +322,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               })),
               roomOrchestratorIds: roomOrchestrators.map(({ id }) => id),
             });
+        const mentionedCoworkerIds = remappedShadowPa.mentionedCoworkerIds;
+        const mentionedOrchestratorIds = [
+          ...new Set([
+            ...resolveMentionedOrchestratorIds({
+              content: body.content,
+              explicitOrchestratorIds: [
+                ...(body.mentionedOrchestratorIds ?? []),
+                ...directOrchestratorIds,
+                ...threadOrchestratorIds,
+              ],
+              roomOrchestrators,
+            }),
+            ...remappedShadowPa.remappedOrchestratorIds,
+          ]),
+        ];
 
         const mentionedUserIds = resolveMentionedUserIds({
           content: body.content,

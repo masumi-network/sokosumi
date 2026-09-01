@@ -382,7 +382,23 @@ describe("SOK-942 PA as orchestrator member / mention / picker", () => {
           chatRoomGuestInviteLink: {
             count: vi.fn().mockResolvedValue(0),
           },
-          chatRoomMessage: { create: vi.fn() },
+          chatRoomMessage: {
+            create: messageCreateMock.mockResolvedValue({
+              id: "550e8400-e29b-41d4-a716-446655440088",
+              roomId: ROOM_ID,
+              content: "Ada joined",
+              metadata: {
+                membership: {
+                  action: "joined",
+                  subject: {
+                    type: "orchestrator",
+                    id: ORCHESTRATOR_ID,
+                    name: "Ada",
+                  },
+                },
+              },
+            }),
+          },
           $queryRaw: vi.fn().mockResolvedValue([{ id: ROOM_ID }]),
         };
         return fn(tx);
@@ -413,6 +429,23 @@ describe("SOK-942 PA as orchestrator member / mention / picker", () => {
       }),
     );
     expect(body.data.coworkerMembers).toEqual([]);
+    expect(messageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          content: "Ada joined",
+          metadata: {
+            membership: {
+              action: "joined",
+              subject: {
+                type: "orchestrator",
+                id: ORCHESTRATOR_ID,
+                name: "Ada",
+              },
+            },
+          },
+        }),
+      }),
+    );
   });
 
   it("owner @mention of PA creates orchestrator mention and dispatches turn", async () => {
@@ -529,6 +562,121 @@ describe("SOK-942 PA as orchestrator member / mention / picker", () => {
       }),
     );
     expect(waitUntilMock).toHaveBeenCalled();
+    expect(dispatchMock).toHaveBeenCalledWith(MENTION_ID);
+  });
+
+  it("remaps a shadow PA coworker mention onto the orchestrator rail", async () => {
+    const shadowCoworkerId = "550e8400-e29b-41d4-a716-446655440077";
+    const roomWithBoth = {
+      ...baseRoom,
+      providerConversationId: null,
+      orchestratorMembers: [
+        {
+          orchestrator: {
+            id: ORCHESTRATOR_ID,
+            name: "Ada",
+            avatarImageUrl: null,
+            avatarSeed: `orb:${USER_ID}`,
+            userId: USER_ID,
+            archivedAt: null,
+            deletedAt: null,
+            user: { name: "Owner User" },
+          },
+        },
+      ],
+      coworkerMembers: [
+        {
+          coworker: {
+            id: shadowCoworkerId,
+            name: "Ada",
+            slug: "ada",
+            caption: null,
+            image: null,
+            sokoBotId: ORCHESTRATOR_ID,
+          },
+        },
+      ],
+    };
+
+    const createdMessage = {
+      id: MESSAGE_ID,
+      roomId: ROOM_ID,
+      parentMessageId: null,
+      content: "@ada hello",
+      createdAt: new Date("2026-09-01T12:01:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: null,
+      senderUserId: USER_ID,
+      senderCoworkerId: null,
+      senderOrchestratorId: null,
+      senderUser: {
+        id: USER_ID,
+        name: "Owner",
+        email: "owner@example.com",
+        image: null,
+      },
+      senderCoworker: null,
+      senderOrchestrator: null,
+      mentionsAsSource: [
+        {
+          id: MENTION_ID,
+          coworkerId: null,
+          orchestratorId: ORCHESTRATOR_ID,
+          status: "pending",
+          responseMessageId: null,
+        },
+      ],
+      reactions: [],
+      replies: [],
+      _count: { replies: 0 },
+    };
+
+    roomFindFirstMock.mockResolvedValue(roomWithBoth);
+    messageFindFirstMock.mockResolvedValue(null);
+    messageFindUniqueMock.mockResolvedValue(createdMessage);
+
+    prismaTransactionMock.mockImplementation(
+      async (fn: (tx: unknown) => unknown) => {
+        const tx = {
+          chatRoom: {
+            findFirst: roomFindFirstMock,
+            update: roomUpdateActivityMock.mockResolvedValue({}),
+          },
+          chatRoomMessage: {
+            findFirst: messageFindFirstMock,
+            create: messageCreateMock.mockResolvedValue(createdMessage),
+          },
+          chatRoomReadState: { upsert: readStateUpsertMock },
+          chatRoomThreadReadState: { upsert: threadReadUpsertMock },
+          chatRoomUserMember: { findMany: membershipFindManyMock },
+          organization: { findUnique: organizationFindUniqueMock },
+          member: { findUnique: memberFindUniqueMock },
+        };
+        return fn(tx);
+      },
+    );
+
+    const app = buildMessageApp();
+    const response = await app.request(`http://localhost/${ROOM_ID}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        content: "@ada hello",
+        mentionedCoworkerIds: [shadowCoworkerId],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(messageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          mentionsAsSource: {
+            create: [{ orchestratorId: ORCHESTRATOR_ID }],
+          },
+        }),
+      }),
+    );
     expect(dispatchMock).toHaveBeenCalledWith(MENTION_ID);
   });
 

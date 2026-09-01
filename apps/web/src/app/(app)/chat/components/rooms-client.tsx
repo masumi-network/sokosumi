@@ -165,6 +165,7 @@ import {
   highlightRoomMessageElement,
   isMessageContinuation,
   isRoomComposerContentOverLimit,
+  isShadowPaCoworkerOverlappingOrchestrator,
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
@@ -1458,8 +1459,15 @@ export function RoomsClient({
           },
         ] as const;
       });
-    const coworkerEntries = (selectedRoom?.coworkerMembers ?? []).map(
-      (coworker) => {
+    const coworkerEntries = (selectedRoom?.coworkerMembers ?? [])
+      .filter(
+        (coworker) =>
+          !isShadowPaCoworkerOverlappingOrchestrator(
+            coworker,
+            selectedRoom?.orchestratorMembers ?? [],
+          ),
+      )
+      .map((coworker) => {
         const participant: RoomMentionParticipant = {
           kind: "coworker",
           id: coworker.id,
@@ -1475,8 +1483,7 @@ export function RoomsClient({
             data: participant,
           },
         ] as const;
-      },
-    );
+      });
     const orchestratorEntries = (selectedRoom?.orchestratorMembers ?? [])
       .filter((orchestrator) => orchestrator.ownerUserId === currentUserId)
       .map((orchestrator) => {

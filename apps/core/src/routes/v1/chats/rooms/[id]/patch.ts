@@ -220,9 +220,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 name: member.coworker.name,
               }))
             : [];
+        const priorOrchestrators =
+          body.orchestratorIds !== undefined
+            ? existing.orchestratorMembers.map((member) => ({
+                id: member.orchestrator.id,
+                name: member.orchestrator.name?.trim() || "Soko Bot",
+              }))
+            : [];
 
         let nextUsers = priorUsers;
         let nextCoworkers = priorCoworkers;
+        let nextOrchestrators = priorOrchestrators;
 
         if (body.memberUserIds !== undefined) {
           // Host roster only. Guest ids echoed in memberUserIds are ignored
@@ -391,6 +399,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             { workspaceId, ownerUserId: userContext.userId },
             tx,
           );
+          const orchestrators = await tx.sokoBot.findMany({
+            where: { id: { in: orchestratorIds } },
+            select: { id: true, name: true },
+          });
+          const nameById = new Map(
+            orchestrators.map((bot) => [
+              bot.id,
+              bot.name?.trim() || "Soko Bot",
+            ]),
+          );
+          nextOrchestrators = orchestratorIds.map((orchestratorId) => ({
+            id: orchestratorId,
+            name: nameById.get(orchestratorId) ?? "Soko Bot",
+          }));
 
           await tx.chatRoomMention.updateMany({
             where: {
@@ -417,8 +439,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         const changes = diffChannelMembershipRoster({
-          prior: { users: priorUsers, coworkers: priorCoworkers },
-          next: { users: nextUsers, coworkers: nextCoworkers },
+          prior: {
+            users: priorUsers,
+            coworkers: priorCoworkers,
+            orchestrators: priorOrchestrators,
+          },
+          next: {
+            users: nextUsers,
+            coworkers: nextCoworkers,
+            orchestrators: nextOrchestrators,
+          },
         });
         const createdStatus = await recordChannelMembershipStatus(tx, {
           roomId: existing.id,

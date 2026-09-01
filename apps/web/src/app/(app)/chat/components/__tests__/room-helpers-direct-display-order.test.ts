@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
+  ChatRoomOrchestratorParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import {
@@ -37,9 +38,25 @@ function coworker(
   };
 }
 
+function orchestrator(
+  partial: Pick<ChatRoomOrchestratorParticipant, "id" | "name"> &
+    Partial<ChatRoomOrchestratorParticipant>,
+): ChatRoomOrchestratorParticipant {
+  return {
+    slug: partial.id,
+    caption: `${partial.name}'s personal assistant`,
+    image: null,
+    presence: "online",
+    avatarSeed: `orb:${partial.id}`,
+    ownerUserId: CURRENT_USER_ID,
+    ...partial,
+  };
+}
+
 function directRoom(overrides: {
   userMembers: ChatRoomUserParticipant[];
   coworkerMembers?: ChatRoomCoworkerParticipant[];
+  orchestratorMembers?: ChatRoomOrchestratorParticipant[];
 }): ChatRoom {
   return {
     id: "room-1",
@@ -59,6 +76,7 @@ function directRoom(overrides: {
     mutedAt: null,
     markedUnread: false,
     coworkerMembers: [],
+    orchestratorMembers: [],
     ...overrides,
   } as ChatRoom;
 }
@@ -133,6 +151,36 @@ describe("direct room display order", () => {
     expect(
       getDirectRoomParticipants(room, CURRENT_USER_ID).map((p) => p.id),
     ).toEqual(["a-1", "a-2"]);
+  });
+
+  it("includes orchestrators in direct titles and hides overlapping shadow PA coworkers", () => {
+    const self = human({ id: CURRENT_USER_ID, name: "Me" });
+    const ada = orchestrator({ id: "orch_ada", name: "Ada" });
+    const shadow = coworker({
+      id: "cow_shadow",
+      name: "Ada",
+      sokoBotId: "orch_ada",
+    });
+    const market = coworker({ id: "cow_market", name: "Hermes" });
+
+    const room = directRoom({
+      userMembers: [self],
+      coworkerMembers: [shadow, market],
+      orchestratorMembers: [ada],
+    });
+
+    expect(getDirectRoomParticipants(room, CURRENT_USER_ID)).toEqual([
+      expect.objectContaining({
+        id: "cow_market",
+        kind: "coworker",
+      }),
+      expect.objectContaining({
+        id: "orch_ada",
+        kind: "orchestrator",
+        name: "Ada",
+      }),
+    ]);
+    expect(getRoomDisplayName(room, CURRENT_USER_ID)).toBe("Hermes, Ada");
   });
 
   it("getRoomParticipantPreviews ignores input order within humans and coworkers", () => {

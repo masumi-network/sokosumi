@@ -16,7 +16,6 @@ import {
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
   countChatRoomUnreadThreads,
-  excludeShadowPaCoworkerMentions,
   findLiveDirectByParticipantKey,
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
@@ -27,6 +26,7 @@ import {
   mapChatRoomMessage,
   markAllChatRoomThreadsRead,
   mergeChatRoomMessageMetadata,
+  remapShadowPaCoworkerMentions,
   requireArchivedChatRoomUserAccess,
   requireChatRoomUserAccess,
   requireChatRoomUserMembership,
@@ -185,10 +185,10 @@ describe("resolveMentionedCoworkerIds", () => {
   });
 });
 
-describe("excludeShadowPaCoworkerMentions", () => {
-  it("drops shadow PA coworker mentions when the same bot is a room orchestrator", () => {
+describe("remapShadowPaCoworkerMentions", () => {
+  it("rewrites shadow PA coworker mentions onto the orchestrator rail", () => {
     expect(
-      excludeShadowPaCoworkerMentions({
+      remapShadowPaCoworkerMentions({
         mentionedCoworkerIds: ["cow_shadow", "cow_market"],
         roomCoworkers: [
           { id: "cow_shadow", sokoBotId: "orch_ada" },
@@ -196,17 +196,23 @@ describe("excludeShadowPaCoworkerMentions", () => {
         ],
         roomOrchestratorIds: ["orch_ada"],
       }),
-    ).toEqual(["cow_market"]);
+    ).toEqual({
+      mentionedCoworkerIds: ["cow_market"],
+      remappedOrchestratorIds: ["orch_ada"],
+    });
   });
 
   it("keeps shadow coworker mentions when the PA is not an orchestrator member", () => {
     expect(
-      excludeShadowPaCoworkerMentions({
+      remapShadowPaCoworkerMentions({
         mentionedCoworkerIds: ["cow_shadow"],
         roomCoworkers: [{ id: "cow_shadow", sokoBotId: "orch_ada" }],
         roomOrchestratorIds: [],
       }),
-    ).toEqual(["cow_shadow"]);
+    ).toEqual({
+      mentionedCoworkerIds: ["cow_shadow"],
+      remappedOrchestratorIds: [],
+    });
   });
 });
 
