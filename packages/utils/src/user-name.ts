@@ -42,3 +42,13 @@ export function getFirstName(
   const first = parsed?.first.trim();
   return first || undefined;
 }
+
+/** Roster / coworker caption for a personal assistant owned by `ownerName`. */
+export function personalAssistantCaption(
+  ownerName: null | string | undefined,
+): string {
+  const ownerFirstName = getFirstName(ownerName);
+  return ownerFirstName
+    ? `${ownerFirstName}'s personal assistant`
+    : "Personal assistant";
+}

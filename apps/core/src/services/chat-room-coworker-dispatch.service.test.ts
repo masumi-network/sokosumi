@@ -239,8 +239,16 @@ describe("buildRoomMentionPrompt", () => {
       content: "@hannah summarize this",
       isThreadReply: false,
       contextMessages: [
-        { senderName: "Andreas", isCoworker: false, content: "First message" },
-        { senderName: "Hannah", isCoworker: true, content: "Second\nmessage" },
+        {
+          senderName: "Andreas",
+          senderKind: "human",
+          content: "First message",
+        },
+        {
+          senderName: "Hannah",
+          senderKind: "coworker",
+          content: "Second\nmessage",
+        },
       ],
     });
 
@@ -255,6 +263,25 @@ describe("buildRoomMentionPrompt", () => {
         "@hannah summarize this",
       ].join("\n"),
     );
+  });
+
+  it("labels personal assistant context lines distinctly from coworkers", () => {
+    const prompt = buildRoomMentionPrompt({
+      roomName: "general",
+      senderName: "Patrick",
+      content: "@ada summarize this",
+      isThreadReply: false,
+      contextMessages: [
+        {
+          senderName: "Ada",
+          senderKind: "orchestrator",
+          content: "On it.",
+        },
+      ],
+    });
+
+    expect(prompt).toContain("- Ada (personal assistant): On it.");
+    expect(prompt).not.toContain("(AI coworker)");
   });
 
   it("labels thread replies instead of claiming a mention", () => {
@@ -278,7 +305,11 @@ describe("buildRoomMentionPrompt", () => {
       content: "@hannah tldr?",
       isThreadReply: false,
       contextMessages: [
-        { senderName: "Andreas", isCoworker: false, content: "x".repeat(800) },
+        {
+          senderName: "Andreas",
+          senderKind: "human",
+          content: "x".repeat(800),
+        },
       ],
     });
 

@@ -286,8 +286,8 @@ async function failMentionThoughtPlaceholder(params: {
   await publishChatRoomMessageRealtimeById(params.placeholderId, "update");
 }
 
-/** Pre-claim fail still needs a coworker/orchestrator bubble; parent has no mention footer. */
-async function failMentionWithCoworkerShell(params: {
+/** Pre-claim fail still needs a thought-shell bubble; parent has no mention footer. */
+async function failMentionWithThoughtShell(params: {
   mentionId: string;
   sourceMessageId: string;
   roomId: string;
@@ -340,10 +340,27 @@ const ROOM_CONTEXT_MESSAGE_LIMIT = 10;
 /** Per-message cap inside the context block so one wall of text cannot eat the prompt. */
 const ROOM_CONTEXT_MESSAGE_MAX_CHARS = 500;
 
+export type RoomContextSenderKind = "human" | "coworker" | "orchestrator";
+
 export interface RoomContextMessage {
   senderName: string;
-  isCoworker: boolean;
+  senderKind: RoomContextSenderKind;
   content: string;
+}
+
+function formatContextSenderLabel(message: RoomContextMessage): string {
+  switch (message.senderKind) {
+    case "coworker":
+      return `${message.senderName} (AI coworker)`;
+    case "orchestrator":
+      return `${message.senderName} (personal assistant)`;
+    case "human":
+      return message.senderName;
+    default: {
+      const _exhaustive: never = message.senderKind;
+      return _exhaustive;
+    }
+  }
 }
 
 function formatContextLine(message: RoomContextMessage): string {
@@ -352,10 +369,7 @@ function formatContextLine(message: RoomContextMessage): string {
     flattened.length > ROOM_CONTEXT_MESSAGE_MAX_CHARS
       ? `${flattened.slice(0, ROOM_CONTEXT_MESSAGE_MAX_CHARS)}…`
       : flattened;
-  const senderLabel = message.isCoworker
-    ? `${message.senderName} (AI coworker)`
-    : message.senderName;
-  return `- ${senderLabel}: ${truncated}`;
+  return `- ${formatContextSenderLabel(message)}: ${truncated}`;
 }
 
 /**
@@ -415,15 +429,22 @@ async function loadRoomContextMessages(params: {
       senderOrchestrator: { select: { name: true } },
     },
   });
-  return contextRows.reverse().map((row) => ({
-    senderName:
-      row.senderOrchestrator?.name?.trim() ||
-      row.senderCoworker?.name ||
-      row.senderUser?.name ||
-      "Unknown sender",
-    isCoworker: row.senderCoworker != null || row.senderOrchestrator != null,
-    content: row.content,
-  }));
+  return contextRows.reverse().map((row) => {
+    const senderKind: RoomContextSenderKind = row.senderOrchestrator
+      ? "orchestrator"
+      : row.senderCoworker
+        ? "coworker"
+        : "human";
+    return {
+      senderName:
+        row.senderOrchestrator?.name?.trim() ||
+        row.senderCoworker?.name ||
+        row.senderUser?.name ||
+        "Unknown sender",
+      senderKind,
+      content: row.content,
+    };
+  });
 }
 
 function errorMessage(error: unknown): string {
@@ -617,7 +638,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   // Fail closed when the human sender row was deleted (SetNull): billing /
   // provider auth as the room creator would attribute cost to the wrong user.
   const failWithShell = (error: unknown) =>
-    failMentionWithCoworkerShell({
+    failMentionWithThoughtShell({
       mentionId,
       sourceMessageId: mention.message.id,
       roomId: mention.message.roomId,
@@ -1213,7 +1234,7 @@ async function runSokoBotMentionDispatch(params: {
   // would open a second bubble and leave this one streaming for ever — the
   // shape of the "Thinking…" messages that never ended.
   const failPlaceholder = (error: unknown) =>
-    failMentionWithCoworkerShell({
+    failMentionWithThoughtShell({
       mentionId,
       sourceMessageId: mention.message.id,
       roomId: mention.message.roomId,
@@ -1399,7 +1420,7 @@ async function runSokoBotOrchestratorMentionDispatch(params: {
   }
 
   const failPlaceholder = (error: unknown) =>
-    failMentionWithCoworkerShell({
+    failMentionWithThoughtShell({
       mentionId,
       sourceMessageId: mention.message.id,
       roomId: mention.message.roomId,

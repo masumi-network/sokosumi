@@ -3,7 +3,7 @@ import {
   buildRoomQuoteSnippetParts,
   CHANNEL_SLUG_MAX_LENGTH,
   channelNameFromSlug,
-  getFirstName,
+  personalAssistantCaption,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
 
@@ -90,14 +90,11 @@ export function mapChatRoomOrchestratorParticipant(
 ) {
   const name = bot.name?.trim() || "Soko Bot";
   const slug = orchestratorMentionSlug(name);
-  const ownerFirstName = getFirstName(bot.user.name) ?? null;
   return {
     id: bot.id,
     name,
     slug,
-    caption: ownerFirstName
-      ? `${ownerFirstName}'s personal assistant`
-      : "Personal assistant",
+    caption: personalAssistantCaption(bot.user.name),
     image: bot.avatarImageUrl ?? null,
     presence: "online" as const,
     avatarSeed: bot.avatarSeed ?? `orb:${bot.userId}`,
@@ -2093,25 +2090,32 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function resolveMentionedCoworkerIds(params: {
+function resolveMentionedParticipantIds(params: {
   content: string;
-  explicitCoworkerIds?: readonly string[];
-  roomCoworkers: Array<{ id: string; name: string; slug: string }>;
+  explicitIds?: readonly string[];
+  participants: Array<{ id: string; name: string; slug: string }>;
+  tokenPrefix: "coworker" | "orchestrator";
 }): string[] {
-  const roomCoworkerIds = new Set(
-    params.roomCoworkers.map((coworker) => coworker.id),
+  const roomIds = new Set(
+    params.participants.map((participant) => participant.id),
   );
   const mentionedIds = new Set(
-    normalizeUniqueStrings(params.explicitCoworkerIds ?? []).filter((id) =>
-      roomCoworkerIds.has(id),
+    normalizeUniqueStrings(params.explicitIds ?? []).filter((id) =>
+      roomIds.has(id),
     ),
   );
 
   const slugToId = new Map(
-    params.roomCoworkers.map((coworker) => [coworker.slug, coworker.id]),
+    params.participants.map((participant) => [
+      participant.slug,
+      participant.id,
+    ]),
   );
 
-  const tokenRegex = /@coworker:([a-z0-9][a-z0-9-]*)/gi;
+  const tokenRegex = new RegExp(
+    `@${escapeRegExp(params.tokenPrefix)}:([a-z0-9][a-z0-9-]*)`,
+    "gi",
+  );
   for (const match of params.content.matchAll(tokenRegex)) {
     const slug = match[1]?.toLowerCase();
     const id = slug ? slugToId.get(slug) : null;
@@ -2120,10 +2124,10 @@ export function resolveMentionedCoworkerIds(params: {
     }
   }
 
-  for (const coworker of params.roomCoworkers) {
+  for (const participant of params.participants) {
     const aliases = new Set([
-      coworker.slug.toLowerCase(),
-      slugifyRoomName(coworker.name),
+      participant.slug.toLowerCase(),
+      slugifyRoomName(participant.name),
     ]);
     for (const alias of aliases) {
       const aliasRegex = new RegExp(
@@ -2131,13 +2135,25 @@ export function resolveMentionedCoworkerIds(params: {
         "i",
       );
       if (aliasRegex.test(params.content)) {
-        mentionedIds.add(coworker.id);
+        mentionedIds.add(participant.id);
       }
     }
   }
 
-  const allowedIds = new Set(params.roomCoworkers.map(({ id }) => id));
-  return [...mentionedIds].filter((coworkerId) => allowedIds.has(coworkerId));
+  return [...mentionedIds].filter((id) => roomIds.has(id));
+}
+
+export function resolveMentionedCoworkerIds(params: {
+  content: string;
+  explicitCoworkerIds?: readonly string[];
+  roomCoworkers: Array<{ id: string; name: string; slug: string }>;
+}): string[] {
+  return resolveMentionedParticipantIds({
+    content: params.content,
+    explicitIds: params.explicitCoworkerIds,
+    participants: params.roomCoworkers,
+    tokenPrefix: "coworker",
+  });
 }
 
 /**
@@ -2172,51 +2188,12 @@ export function resolveMentionedOrchestratorIds(params: {
   explicitOrchestratorIds?: readonly string[];
   roomOrchestrators: Array<{ id: string; name: string; slug: string }>;
 }): string[] {
-  const roomOrchestratorIds = new Set(
-    params.roomOrchestrators.map((orchestrator) => orchestrator.id),
-  );
-  const mentionedIds = new Set(
-    normalizeUniqueStrings(params.explicitOrchestratorIds ?? []).filter((id) =>
-      roomOrchestratorIds.has(id),
-    ),
-  );
-
-  const slugToId = new Map(
-    params.roomOrchestrators.map((orchestrator) => [
-      orchestrator.slug,
-      orchestrator.id,
-    ]),
-  );
-
-  const tokenRegex = /@orchestrator:([a-z0-9][a-z0-9-]*)/gi;
-  for (const match of params.content.matchAll(tokenRegex)) {
-    const slug = match[1]?.toLowerCase();
-    const id = slug ? slugToId.get(slug) : null;
-    if (id) {
-      mentionedIds.add(id);
-    }
-  }
-
-  for (const orchestrator of params.roomOrchestrators) {
-    const aliases = new Set([
-      orchestrator.slug.toLowerCase(),
-      slugifyRoomName(orchestrator.name),
-    ]);
-    for (const alias of aliases) {
-      const aliasRegex = new RegExp(
-        `(^|\\s)@${escapeRegExp(alias)}(?=$|[\\s.,!?;:])`,
-        "i",
-      );
-      if (aliasRegex.test(params.content)) {
-        mentionedIds.add(orchestrator.id);
-      }
-    }
-  }
-
-  const allowedIds = new Set(params.roomOrchestrators.map(({ id }) => id));
-  return [...mentionedIds].filter((orchestratorId) =>
-    allowedIds.has(orchestratorId),
-  );
+  return resolveMentionedParticipantIds({
+    content: params.content,
+    explicitIds: params.explicitOrchestratorIds,
+    participants: params.roomOrchestrators,
+    tokenPrefix: "orchestrator",
+  });
 }
 
 /** Catalog / content sentinel for room-wide @all. Not a user UUID. */

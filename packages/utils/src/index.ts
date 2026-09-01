@@ -382,6 +382,7 @@ export {
   getFallbackUserName,
   getFirstName,
   getStoredUserName,
+  personalAssistantCaption,
 } from "./user-name.js";
 export {
   isUserUploadAllowedContentType,

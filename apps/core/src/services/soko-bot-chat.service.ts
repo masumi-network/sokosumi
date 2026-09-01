@@ -3,7 +3,7 @@ import {
   composeSokoBotIntroduction,
   isSokoBotSilentAnswer,
 } from "@sokosumi/soko-bot";
-import { getFirstName } from "@sokosumi/utils";
+import { personalAssistantCaption } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 
@@ -64,7 +64,6 @@ export async function ensureSokoBotCoworker(
       user: { select: { name: true } },
     },
   });
-  const ownerFirstName = getFirstName(bot.user.name) ?? null;
   const vendor = await tx.vendor.upsert({
     where: { slug: SOKOSUMI_VENDOR_SLUG },
     create: { slug: SOKOSUMI_VENDOR_SLUG, name: "Sokosumi" },
@@ -74,9 +73,7 @@ export async function ensureSokoBotCoworker(
   const data = {
     name: bot.name?.trim() || SOKO_BOT_DEFAULT_NAME,
     // Teammates can talk to it, so the roster says whose assistant it is.
-    caption: ownerFirstName
-      ? `${ownerFirstName}'s personal assistant`
-      : "Personal assistant",
+    caption: personalAssistantCaption(bot.user.name),
     image: bot.avatarImageUrl,
     description:
       "Your personal project manager: delegates Tasks to Coworkers and hires Agents.",

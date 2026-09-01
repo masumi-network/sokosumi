@@ -6,6 +6,7 @@ import {
   getFallbackUserName,
   getFirstName,
   getStoredUserName,
+  personalAssistantCaption,
 } from "./user-name.js";
 
 test("getStoredUserName preserves a trimmed name", () => {
@@ -46,4 +47,13 @@ test("getFirstName returns undefined for blank input", () => {
   assert.equal(getFirstName(undefined), undefined);
   assert.equal(getFirstName(null), undefined);
   assert.equal(getFirstName("   "), undefined);
+});
+
+test("personalAssistantCaption uses the owner's given name", () => {
+  assert.equal(
+    personalAssistantCaption("Owner User"),
+    "Owner's personal assistant",
+  );
+  assert.equal(personalAssistantCaption("   "), "Personal assistant");
+  assert.equal(personalAssistantCaption(null), "Personal assistant");
 });
