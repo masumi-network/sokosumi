@@ -1,9 +1,10 @@
 "use client";
 
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import { groupCoworkerAssigneeOptions } from "@/app/tasks/utils/coworker-options";
 import {
   decodeTaskAssigneeValue,
   encodeTaskAssigneeValue,
@@ -34,6 +35,7 @@ export interface TaskAssigneeSelectLabels {
   me: string;
   people: string;
   coworkers: string;
+  personalAssistants: string;
   searchPlaceholder: string;
   emptyResults: string;
 }
@@ -72,6 +74,44 @@ function isCurrentUser(
   return Boolean(currentUserId) && memberId === currentUserId;
 }
 
+function CoworkerAssigneeItem({
+  option,
+  selectedValue,
+  nested = false,
+  extraKeywords = [],
+  onSelect,
+}: {
+  option: CoworkerOption;
+  selectedValue: string;
+  nested?: boolean;
+  extraKeywords?: string[];
+  onSelect: (value: string) => void;
+}) {
+  const encoded = encodeTaskAssigneeValue({
+    kind: "coworker",
+    id: option.id,
+  });
+
+  return (
+    <CommandItem
+      value={encoded}
+      keywords={[option.name, option.slug, ...extraKeywords]}
+      className={nested ? "pl-7" : undefined}
+      onSelect={() => onSelect(encoded)}
+    >
+      <AssigneeAvatar name={option.name} image={getCoworkerImage(option)} />
+      <span className="flex-1 truncate">{option.name}</span>
+      <Check
+        className={cn(
+          "size-4",
+          selectedValue === encoded ? "opacity-100" : "opacity-0",
+        )}
+        aria-hidden
+      />
+    </CommandItem>
+  );
+}
+
 export function TaskAssigneeSelect({
   coworkerOptions,
   memberOptions,
@@ -83,6 +123,7 @@ export function TaskAssigneeSelect({
   me,
   people,
   coworkers,
+  personalAssistants,
   searchPlaceholder,
   emptyResults,
 }: TaskAssigneeSelectProps) {
@@ -130,6 +171,14 @@ export function TaskAssigneeSelect({
     selectedCoworker != null
       ? getCoworkerImage(selectedCoworker)
       : (selectedMember?.image ?? null);
+  const groupedCoworkers = useMemo(
+    () =>
+      groupCoworkerAssigneeOptions(
+        coworkerOptions,
+        memberOptions.map((member) => member.id),
+      ),
+    [coworkerOptions, memberOptions],
+  );
 
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
@@ -218,72 +267,82 @@ export function TaskAssigneeSelect({
                       id: member.id,
                     });
                     const memberIsMe = isCurrentUser(member.id, currentUserId);
+                    const ownedAssistants =
+                      groupedCoworkers.nestedByOwnerId.get(member.id) ?? [];
 
                     return (
-                      <CommandItem
-                        key={encoded}
-                        value={encoded}
-                        keywords={
-                          memberIsMe ? [me, member.name] : [member.name]
-                        }
-                        onSelect={() => handleSelect(encoded)}
-                      >
-                        <AssigneeAvatar
-                          name={member.name}
-                          image={member.image}
-                        />
-                        <span className="flex min-w-0 flex-1 flex-col">
-                          <span className="truncate">
-                            {memberIsMe ? me : member.name}
-                          </span>
-                          {memberIsMe ? (
-                            <span className="text-muted-foreground truncate text-xs">
-                              {member.name}
+                      <Fragment key={encoded}>
+                        <CommandItem
+                          value={encoded}
+                          keywords={
+                            memberIsMe ? [me, member.name] : [member.name]
+                          }
+                          onSelect={() => handleSelect(encoded)}
+                        >
+                          <AssigneeAvatar
+                            name={member.name}
+                            image={member.image}
+                          />
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate">
+                              {memberIsMe ? me : member.name}
                             </span>
-                          ) : null}
-                        </span>
-                        <Check
-                          className={cn(
-                            "size-4",
-                            value === encoded ? "opacity-100" : "opacity-0",
-                          )}
-                          aria-hidden
-                        />
-                      </CommandItem>
+                            {memberIsMe ? (
+                              <span className="text-muted-foreground truncate text-xs">
+                                {member.name}
+                              </span>
+                            ) : null}
+                          </span>
+                          <Check
+                            className={cn(
+                              "size-4",
+                              value === encoded ? "opacity-100" : "opacity-0",
+                            )}
+                            aria-hidden
+                          />
+                        </CommandItem>
+                        {ownedAssistants.map((option) => (
+                          <CoworkerAssigneeItem
+                            key={option.id}
+                            option={option}
+                            selectedValue={value}
+                            nested
+                            extraKeywords={
+                              memberIsMe
+                                ? [me, member.name, personalAssistants]
+                                : [member.name, personalAssistants]
+                            }
+                            onSelect={handleSelect}
+                          />
+                        ))}
+                      </Fragment>
                     );
                   })}
                 </CommandGroup>
               ) : null}
-              {coworkerOptions.length > 0 ? (
+              {groupedCoworkers.unownedPersonalAssistants.length > 0 ? (
+                <CommandGroup heading={personalAssistants}>
+                  {groupedCoworkers.unownedPersonalAssistants.map((option) => (
+                    <CoworkerAssigneeItem
+                      key={option.id}
+                      option={option}
+                      selectedValue={value}
+                      extraKeywords={[personalAssistants]}
+                      onSelect={handleSelect}
+                    />
+                  ))}
+                </CommandGroup>
+              ) : null}
+              {groupedCoworkers.marketplace.length > 0 ? (
                 <CommandGroup heading={coworkers}>
-                  {coworkerOptions.map((option) => {
-                    const encoded = encodeTaskAssigneeValue({
-                      kind: "coworker",
-                      id: option.id,
-                    });
-
-                    return (
-                      <CommandItem
-                        key={encoded}
-                        value={encoded}
-                        keywords={[option.name, option.slug]}
-                        onSelect={() => handleSelect(encoded)}
-                      >
-                        <AssigneeAvatar
-                          name={option.name}
-                          image={getCoworkerImage(option)}
-                        />
-                        <span className="flex-1 truncate">{option.name}</span>
-                        <Check
-                          className={cn(
-                            "size-4",
-                            value === encoded ? "opacity-100" : "opacity-0",
-                          )}
-                          aria-hidden
-                        />
-                      </CommandItem>
-                    );
-                  })}
+                  {groupedCoworkers.marketplace.map((option) => (
+                    <CoworkerAssigneeItem
+                      key={option.id}
+                      option={option}
+                      selectedValue={value}
+                      onSelect={handleSelect}
+                    />
+                  ))}
                 </CommandGroup>
               ) : null}
             </CommandList>

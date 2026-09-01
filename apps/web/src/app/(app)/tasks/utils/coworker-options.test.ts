@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { Coworker } from "@/lib/clients/generated/core";
 
-import { findCoworkerIdBySlug, getCoworkerOptions } from "./coworker-options";
+import {
+  findCoworkerIdBySlug,
+  getCoworkerOptions,
+  groupCoworkerAssigneeOptions,
+} from "./coworker-options";
 
 function baseCoworker(overrides: Partial<Coworker> = {}): Coworker {
   return {
@@ -62,6 +66,23 @@ describe("getCoworkerOptions", () => {
     });
     expect(options[0]?.description).toBeUndefined();
   });
+
+  it("maps personal assistant owner fields", () => {
+    const options = getCoworkerOptions([
+      baseCoworker({
+        id: "cow_jarvis",
+        slug: "jarvis",
+        name: "Jarvis",
+        sokoBotId: "01960001-0001-7001-8001-000000000099",
+        ownerUserId: "user_ada",
+      }),
+    ]);
+    expect(options[0]).toMatchObject({
+      id: "cow_jarvis",
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+      ownerUserId: "user_ada",
+    });
+  });
 });
 
 describe("findCoworkerIdBySlug", () => {
@@ -78,5 +99,46 @@ describe("findCoworkerIdBySlug", () => {
     const options = getCoworkerOptions([baseCoworker()]);
     expect(findCoworkerIdBySlug(options, "nope")).toBeNull();
     expect(findCoworkerIdBySlug(options, "   ")).toBeNull();
+  });
+});
+
+describe("groupCoworkerAssigneeOptions", () => {
+  it("nests personal assistants under their owner and keeps marketplace coworkers separate", () => {
+    const elena = getCoworkerOptions([
+      baseCoworker({ id: "cow_elena", slug: "elena", name: "Elena" }),
+    ])[0]!;
+    const jarvis = getCoworkerOptions([
+      baseCoworker({
+        id: "cow_jarvis",
+        slug: "jarvis",
+        name: "Jarvis",
+        sokoBotId: "01960001-0001-7001-8001-000000000099",
+        ownerUserId: "user_ada",
+      }),
+    ])[0]!;
+    const orphan = getCoworkerOptions([
+      baseCoworker({
+        id: "cow_alfred",
+        slug: "alfred",
+        name: "Alfred",
+        sokoBotId: "01960001-0001-7001-8001-000000000098",
+        ownerUserId: "user_gone",
+      }),
+    ])[0]!;
+
+    const grouped = groupCoworkerAssigneeOptions(
+      [elena, jarvis, orphan],
+      ["user_ada", "user_grace"],
+    );
+
+    expect(grouped.marketplace.map((option) => option.id)).toEqual([
+      "cow_elena",
+    ]);
+    expect(
+      grouped.nestedByOwnerId.get("user_ada")?.map((option) => option.id),
+    ).toEqual(["cow_jarvis"]);
+    expect(
+      grouped.unownedPersonalAssistants.map((option) => option.id),
+    ).toEqual(["cow_alfred"]);
   });
 });

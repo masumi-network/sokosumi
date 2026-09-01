@@ -29,6 +29,7 @@ const labels = {
   me: "Me",
   people: "People",
   coworkers: "Coworkers",
+  personalAssistants: "Personal assistants",
   searchPlaceholder: "Search assignees...",
   emptyResults: "No assignees found.",
 };
@@ -151,5 +152,80 @@ describe("TaskAssigneeSelect", () => {
         ':scope > [data-radix-popper-content-wrapper] [data-slot="popover-content"]',
       ),
     ).toBeNull();
+  });
+
+  it("nests personal assistants under their owner instead of Coworkers", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskAssigneeSelect
+        coworkerOptions={[
+          mockCoworkerOption({
+            id: "coworker-1",
+            slug: "elena",
+            name: "Elena",
+          }),
+          mockCoworkerOption({
+            id: "coworker-jarvis",
+            slug: "jarvis",
+            name: "Jarvis",
+            sokoBotId: "01960001-0001-7001-8001-000000000099",
+            ownerUserId: "user-1",
+          }),
+        ]}
+        memberOptions={memberOptions}
+        currentUserId="user-1"
+        value={UNSET_TASK_ASSIGNEE_VALUE}
+        onChange={vi.fn()}
+        {...labels}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Assignee" }));
+
+    const peopleGroup = screen.getByText("People").closest("[cmdk-group]");
+    const coworkersGroup = screen
+      .getByText("Coworkers")
+      .closest("[cmdk-group]");
+    expect(peopleGroup).toBeTruthy();
+    expect(coworkersGroup).toBeTruthy();
+
+    expect(peopleGroup).toHaveTextContent("Jarvis");
+    expect(coworkersGroup).not.toHaveTextContent("Jarvis");
+    expect(coworkersGroup).toHaveTextContent("Elena");
+
+    const jarvis = screen.getByRole("option", { name: /Jarvis/ });
+    expect(jarvis.className).toContain("pl-7");
+  });
+
+  it("lists personal assistants whose owner is missing in their own category", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskAssigneeSelect
+        coworkerOptions={[
+          mockCoworkerOption({
+            id: "coworker-alfred",
+            slug: "alfred",
+            name: "Alfred",
+            sokoBotId: "01960001-0001-7001-8001-000000000098",
+            ownerUserId: "user-gone",
+          }),
+        ]}
+        memberOptions={memberOptions}
+        value={UNSET_TASK_ASSIGNEE_VALUE}
+        onChange={vi.fn()}
+        {...labels}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Assignee" }));
+
+    const assistantsGroup = screen
+      .getByText("Personal assistants")
+      .closest("[cmdk-group]");
+    expect(assistantsGroup).toBeTruthy();
+    expect(assistantsGroup).toHaveTextContent("Alfred");
+    expect(screen.queryByText("Coworkers")).toBeNull();
   });
 });

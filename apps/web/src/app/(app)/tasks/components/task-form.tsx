@@ -99,6 +99,7 @@ export interface TaskFormLabels {
   assigneeMe: string;
   assigneePeople: string;
   assigneeCoworkers: string;
+  assigneePersonalAssistants: string;
   assigneeSearchPlaceholder: string;
   assigneeEmptyResults: string;
   chooseAgent?: string;
@@ -992,6 +993,7 @@ export function TaskForm({
                   me={labels.assigneeMe}
                   people={labels.assigneePeople}
                   coworkers={labels.assigneeCoworkers}
+                  personalAssistants={labels.assigneePersonalAssistants}
                   searchPlaceholder={labels.assigneeSearchPlaceholder}
                   emptyResults={labels.assigneeEmptyResults}
                 />

@@ -290,6 +290,7 @@ const baseLabels = {
   assigneeMe: "Me",
   assigneePeople: "People",
   assigneeCoworkers: "Coworkers",
+  assigneePersonalAssistants: "Personal assistants",
   assigneeSearchPlaceholder: "Search assignees...",
   assigneeEmptyResults: "No assignees found.",
   status: "Status",

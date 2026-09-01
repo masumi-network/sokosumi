@@ -39,6 +39,8 @@ export function getCoworkerOptions(coworkers: Coworker[]): CoworkerOption[] {
         offers: coworker.metadata?.offers?.length
           ? coworker.metadata.offers
           : undefined,
+        sokoBotId: coworker.sokoBotId ?? null,
+        ownerUserId: coworker.ownerUserId ?? null,
       };
     })
     .sort(
@@ -58,4 +60,46 @@ export function findCoworkerIdBySlug(
     (option) => normalizeCoworkerSlug(option.slug) === normalized,
   );
   return match?.id ?? null;
+}
+
+export interface CoworkerAssigneeGroups {
+  marketplace: CoworkerOption[];
+  nestedByOwnerId: Map<string, CoworkerOption[]>;
+  unownedPersonalAssistants: CoworkerOption[];
+}
+
+function isPersonalAssistantOption(option: CoworkerOption): boolean {
+  return Boolean(option.sokoBotId);
+}
+
+export function groupCoworkerAssigneeOptions(
+  options: CoworkerOption[],
+  memberIds: Iterable<string>,
+): CoworkerAssigneeGroups {
+  const memberIdSet = new Set(memberIds);
+  const marketplace: CoworkerOption[] = [];
+  const nestedByOwnerId = new Map<string, CoworkerOption[]>();
+  const unownedPersonalAssistants: CoworkerOption[] = [];
+
+  for (const option of options) {
+    if (!isPersonalAssistantOption(option)) {
+      marketplace.push(option);
+      continue;
+    }
+
+    const ownerUserId = option.ownerUserId;
+    if (ownerUserId && memberIdSet.has(ownerUserId)) {
+      const owned = nestedByOwnerId.get(ownerUserId);
+      if (owned) {
+        owned.push(option);
+      } else {
+        nestedByOwnerId.set(ownerUserId, [option]);
+      }
+      continue;
+    }
+
+    unownedPersonalAssistants.push(option);
+  }
+
+  return { marketplace, nestedByOwnerId, unownedPersonalAssistants };
 }

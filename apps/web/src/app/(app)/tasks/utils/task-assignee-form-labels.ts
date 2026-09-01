@@ -6,6 +6,7 @@ export function taskAssigneeFormLabels(t: {
       | "assigneeMe"
       | "assigneePeople"
       | "assigneeCoworkers"
+      | "assigneePersonalAssistants"
       | "assigneeSearchPlaceholder"
       | "assigneeEmptyResults",
   ): string;
@@ -15,6 +16,7 @@ export function taskAssigneeFormLabels(t: {
   assigneeMe: string;
   assigneePeople: string;
   assigneeCoworkers: string;
+  assigneePersonalAssistants: string;
   assigneeSearchPlaceholder: string;
   assigneeEmptyResults: string;
 } {
@@ -24,6 +26,7 @@ export function taskAssigneeFormLabels(t: {
     assigneeMe: t("assigneeMe"),
     assigneePeople: t("assigneePeople"),
     assigneeCoworkers: t("assigneeCoworkers"),
+    assigneePersonalAssistants: t("assigneePersonalAssistants"),
     assigneeSearchPlaceholder: t("assigneeSearchPlaceholder"),
     assigneeEmptyResults: t("assigneeEmptyResults"),
   };

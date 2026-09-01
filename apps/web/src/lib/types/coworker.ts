@@ -31,4 +31,8 @@ export interface CoworkerOption {
   profile?: CoworkerProfile;
   /** Curated ready-to-run task offers shown in the New Task picker. */
   offers?: CoworkerOffer[];
+  /** Set when this option is a personal assistant (Soko Bot). */
+  sokoBotId?: string | null;
+  /** Workspace member who owns this personal assistant. */
+  ownerUserId?: string | null;
 }
