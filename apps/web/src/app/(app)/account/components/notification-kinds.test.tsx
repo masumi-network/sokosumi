@@ -47,9 +47,9 @@ vi.mock("sonner", () => ({
 }));
 
 /**
- * Jobs and chat each hold two kinds that disagree, so both groups have a
- * mixture to report. Tasks agree, and requests and access is a single kind, so
- * it is drawn as a plain row.
+ * Jobs sit on no preset, so the group reports Custom. Tasks are Quiet and chat
+ * is Important, so both report the preset they are on. Requests and access is
+ * a single kind, so it is drawn as a plain row with the delivery stops.
  */
 const MATRIX = [
   { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
@@ -58,12 +58,12 @@ const MATRIX = [
   { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
   { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: false },
-  { category: "TASK_UPDATE", channel: "IN_APP", enabled: true },
+  { category: "TASK_UPDATE", channel: "IN_APP", enabled: false },
   { category: "TASK_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: false },
   { category: "CHAT_ROOM_MESSAGE", channel: "OS_BANNER", enabled: false },
   { category: "CHAT_MENTION", channel: "IN_APP", enabled: true },
-  { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+  { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: true },
   { category: "CHAT_DIRECT_MESSAGE", channel: "IN_APP", enabled: true },
   { category: "CHAT_DIRECT_MESSAGE", channel: "OS_BANNER", enabled: true },
   { category: "SYSTEM", channel: "IN_APP", enabled: true },
@@ -116,6 +116,19 @@ function stops(kind: string) {
   return screen.getByRole("group", { name: `deliveryAriaLabel ${kind}` });
 }
 
+function presets(group: string) {
+  return screen.getByRole("group", { name: `presetAriaLabel ${group}` });
+}
+
+function preset(group: string, name: string) {
+  return within(presets(group)).getByRole("button", { name });
+}
+
+async function pickPreset(group: string, name: string) {
+  const user = userEvent.setup();
+  await user.click(preset(group, name));
+}
+
 function stop(kind: string, delivery: string) {
   return within(stops(kind)).getByRole("button", { name: delivery });
 }
@@ -162,26 +175,48 @@ describe("NotificationKinds", () => {
       "aria-pressed",
       "false",
     );
-    // Both task kinds agree, so the group answers for them in one word.
-    expect(stop("groupTask", "deliveryInApp")).toHaveAttribute(
+    // The groups answer with the preset they are on, without being opened.
+    expect(preset("groupTask", "presetQuiet")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    // Jobs and chat each hold two kinds that disagree, and say so rather than
-    // picking one.
-    expect(stop("groupJob", "deliveryMixed")).toBeInTheDocument();
-    expect(stop("groupChat", "deliveryMixed")).toBeInTheDocument();
+    expect(preset("groupChat", "presetImportant")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // Jobs match none of them, and say so rather than reporting one.
+    expect(preset("groupJob", "presetCustom")).toBeInTheDocument();
   });
 
-  it("opens the group from the mixture rather than resolving it", async () => {
-    const user = userEvent.setup();
+  it("offers a group the four answers that mean something for it", () => {
     renderKinds();
 
-    expect(screen.queryByText("kindChatMention")).toBeNull();
-    await user.click(stop("groupChat", "deliveryMixed"));
+    expect(
+      within(presets("groupJob"))
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual([
+      "presetEverything",
+      "presetImportant",
+      "presetQuiet",
+      "presetOff",
+      // Custom is not an answer to pick: it reports that the reader set the
+      // kinds one by one, and opens the group.
+      "presetCustom",
+    ]);
+  });
 
-    expect(screen.getByText("kindChatMention")).toBeInTheDocument();
-    expect(patchMyPreferences).not.toHaveBeenCalled();
+  /**
+   * A group of one is drawn as its kind, with the delivery ladder. Its presets
+   * would be that ladder under other names.
+   */
+  it("leaves a single kind with its delivery stops", () => {
+    renderKinds();
+
+    expect(
+      screen.queryByRole("group", { name: "presetAriaLabel kindSystem" }),
+    ).toBeNull();
+    expect(stops("kindSystem")).toBeInTheDocument();
   });
 
   it("writes both channels of the kind the reader changed", async () => {
@@ -236,7 +271,7 @@ describe("NotificationKinds", () => {
   it("sets every kind in a group from the group's own control", async () => {
     renderKinds();
 
-    await pick("groupChat", "deliveryOff");
+    await pickPreset("groupChat", "presetOff");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
@@ -246,6 +281,54 @@ describe("NotificationKinds", () => {
     expect(lastWrite()).toHaveLength(6);
     expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
     expect(written("CHAT_DIRECT_MESSAGE", "OS_BANNER")).toBe(false);
+  });
+
+  /**
+   * The point of the split rows: one press keeps the job that is stuck loud
+   * and silences the one that merely finished.
+   */
+  it("keeps what waits on you and drops the rest, in one request", async () => {
+    renderKinds();
+
+    await pickPreset("groupJob", "presetImportant");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(lastWrite()).toHaveLength(4);
+    expect(written("JOB_ATTENTION", "OS_BANNER")).toBe(true);
+    expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
+    expect(written("JOB_UPDATE", "OS_BANNER")).toBe(false);
+  });
+
+  it("keeps the same kinds quietly when the reader asks for quiet", async () => {
+    renderKinds();
+
+    await pickPreset("groupJob", "presetQuiet");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(written("JOB_ATTENTION", "IN_APP")).toBe(true);
+    expect(written("JOB_ATTENTION", "OS_BANNER")).toBe(false);
+    expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
+  });
+
+  /**
+   * Chat's quiet answer leaves every message in a room off, because that row
+   * never waits on the reader.
+   */
+  it("leaves every message in a room off under a quiet chat", async () => {
+    renderKinds();
+
+    await pickPreset("groupChat", "presetQuiet");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(false);
+    expect(written("CHAT_MENTION", "IN_APP")).toBe(true);
+    expect(written("CHAT_MENTION", "OS_BANNER")).toBe(false);
   });
 
   /**
@@ -312,7 +395,7 @@ describe("NotificationKinds", () => {
       ),
     );
 
-    await pick("groupChat", "deliveryBanner");
+    await pickPreset("groupChat", "presetEverything");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
@@ -342,6 +425,6 @@ describe("NotificationKinds", () => {
     expect(
       screen.queryByRole("group", { name: "deliveryAriaLabel kindSystem" }),
     ).toBeNull();
-    expect(stops("groupJob")).toBeInTheDocument();
+    expect(presets("groupJob")).toBeInTheDocument();
   });
 });

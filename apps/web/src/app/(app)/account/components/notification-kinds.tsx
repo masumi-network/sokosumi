@@ -15,8 +15,9 @@ import {
   DELIVERY_HINT_KEY,
   DELIVERY_LABEL_KEY,
   type Delivery,
-  type GroupDelivery,
+  presetChanges,
 } from "./notification-delivery";
+import { PresetStops } from "./notification-presets";
 import {
   type GroupChoice,
   type NotificationDelivery,
@@ -36,14 +37,11 @@ function DeliveryStops({
   delivery,
   disabled,
   onPick,
-  onMixed,
 }: {
   kind: string;
-  delivery: GroupDelivery;
+  delivery: Delivery;
   disabled: boolean;
   onPick: (delivery: Delivery) => void;
-  /** Opens the group, for the reader who wants to see what the mixture is. */
-  onMixed?: () => void;
 }) {
   const t = useTranslations("App.Account.Notifications");
 
@@ -73,17 +71,6 @@ function DeliveryStops({
           {t(DELIVERY_LABEL_KEY[candidate])}
         </button>
       ))}
-      {delivery === "MIXED" && onMixed ? (
-        <button
-          type="button"
-          aria-pressed
-          title={t("deliveryMixedHint")}
-          onClick={onMixed}
-          className="text-primary bg-primary/5 focus-visible:ring-ring/50 rounded-full border border-dashed px-3 py-1 text-xs font-medium whitespace-nowrap outline-none focus-visible:ring-[3px]"
-        >
-          {t("deliveryMixed")}
-        </button>
-      ) : null}
     </div>
   );
 }
@@ -99,7 +86,7 @@ function KindRow({
 }: {
   label: string;
   hint: string;
-  delivery: GroupDelivery;
+  delivery: Delivery;
   disabled: boolean;
   indent?: boolean;
   onPick: (delivery: Delivery) => void;
@@ -128,10 +115,11 @@ function KindRow({
 /**
  * A group that folds, with its kinds under it.
  *
- * The group control sets every kind in it at once, and the kinds under it stay
- * separately selectable. Chat is the case this exists for: mentions and direct
- * messages are usually one decision and sometimes two. Set apart, the group
- * says so and the dashed stop opens the fold rather than picking for you.
+ * The group control offers the answers that mean something for this group, and
+ * the kinds under it stay separately selectable. Chat is the case this exists
+ * for: mentions, direct messages and every message in a room are usually one
+ * decision and sometimes three. Set one by one, the group says Custom and that
+ * stop opens the fold rather than picking for you.
  */
 function GroupRows({
   group,
@@ -142,7 +130,7 @@ function GroupRows({
 }) {
   const t = useTranslations("App.Account.Notifications");
   const [open, setOpen] = useState(false);
-  const categories = group.kinds.map((kind) => kind.spec.category);
+  const kinds = group.kinds.map((kind) => kind.spec);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -162,15 +150,16 @@ function GroupRows({
             ) : null}
           </span>
         </CollapsibleTrigger>
-        <DeliveryStops
-          kind={t(group.spec.labelKey)}
-          delivery={group.delivery}
+        <PresetStops
+          group={t(group.spec.labelKey)}
+          kinds={kinds}
+          preset={group.preset}
           disabled={group.saving}
-          onMixed={() => {
+          onCustom={() => {
             setOpen(true);
           }}
-          onPick={(delivery) => {
-            void choices.setDelivery(categories, delivery);
+          onPick={(preset) => {
+            void choices.setDeliveries(presetChanges(preset, kinds));
           }}
         />
       </div>
@@ -185,7 +174,9 @@ function GroupRows({
               disabled={kind.saving}
               indent
               onPick={(delivery) => {
-                void choices.setDelivery([kind.spec.category], delivery);
+                void choices.setDeliveries([
+                  { category: kind.spec.category, delivery },
+                ]);
               }}
             />
           ))}
@@ -232,7 +223,9 @@ export function NotificationKinds() {
               delivery={only.delivery}
               disabled={only.saving}
               onPick={(delivery) => {
-                void choices.setDelivery([only.spec.category], delivery);
+                void choices.setDeliveries([
+                  { category: only.spec.category, delivery },
+                ]);
               }}
             />
           ) : (
