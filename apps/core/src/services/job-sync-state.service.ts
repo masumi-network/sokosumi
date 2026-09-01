@@ -112,11 +112,13 @@ async function dispatchFinalStatusNotification(
   jobStatus: SokosumiJobStatus,
   enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
+  dispatchJobInAppNotification(job, jobStatus);
+
+  // The account-wide opt-in is the email gate now. The notification answers to
+  // the preference matrix instead, one row per category and channel.
   if (!job.owner.notificationsOptIn) {
     return;
   }
-
-  dispatchJobInAppNotification(job, jobStatus);
 
   try {
     const agentName = getAgentName(job.agent);
@@ -150,11 +152,11 @@ async function dispatchInputRequiredNotification(
   job: JobWithSokosumiStatus,
   enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
+  dispatchJobInAppNotification(job, SokosumiJobStatus.INPUT_REQUIRED);
+
   if (!job.owner.notificationsOptIn) {
     return;
   }
-
-  dispatchJobInAppNotification(job, SokosumiJobStatus.INPUT_REQUIRED);
 
   try {
     const agentName = getAgentName(job.agent);
@@ -268,10 +270,6 @@ async function dispatchJobNotification(
   jobStatus: SokosumiJobStatus,
   eventId: string,
 ): Promise<void> {
-  if (!job.owner.notificationsOptIn) {
-    return;
-  }
-
   try {
     const agentName = getAgentName(job.agent);
     const jobName = job.name ?? "Untitled job";
