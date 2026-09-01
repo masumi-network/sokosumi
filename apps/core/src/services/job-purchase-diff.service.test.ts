@@ -62,7 +62,19 @@ function createDiffPurchase(overrides: Record<string, unknown> = {}) {
   return {
     id: "purchase_1",
     blockchainIdentifier: "chain-1",
+    inputHash: "INPUT-HASH-1",
+    agentIdentifier: "agent-chain-1",
     nextActionOrOnChainStateOrResultLastChangedAt: CHANGED_AT,
+    ...overrides,
+  };
+}
+
+function createJob(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "job_1",
+    blockchainIdentifier: "chain-1",
+    inputHash: "input-hash-1",
+    agentBlockchainIdentifier: "agent-chain-1",
     ...overrides,
   };
 }
@@ -70,7 +82,7 @@ function createDiffPurchase(overrides: Record<string, unknown> = {}) {
 function createJobPurchaseRow(overrides: Record<string, unknown> = {}) {
   return {
     externalId: "purchase_1",
-    job: { id: "job_1", blockchainIdentifier: "chain-1" },
+    job: createJob(),
     ...overrides,
   };
 }
@@ -159,6 +171,101 @@ describe("syncPurchasesFromDiff", () => {
     expect(result.processed).toBe(1);
   });
 
+  it("refuses a fallback match whose terms are not the job's terms", async () => {
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      ok([
+        createDiffPurchase({ id: "purchase_new", inputHash: "other-input" }),
+      ]),
+    );
+    jobPurchaseFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        createJobPurchaseRow({ externalId: "purchase_old" }),
+      ]);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
+
+    const result = await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+    // Sharing a blockchain identifier is what the 409 duplicate guard refuses
+    // at hire time; the fallback must not be a way around it.
+    expect(applyPurchase).not.toHaveBeenCalled();
+    expect(result.processed).toBe(0);
+  });
+
+  it("gives a job at most one row per page", async () => {
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      ok([createDiffPurchase(), createDiffPurchase({ id: "purchase_new" })]),
+    );
+    jobPurchaseFindManyMock
+      .mockResolvedValueOnce([createJobPurchaseRow()])
+      .mockResolvedValueOnce([createJobPurchaseRow()]);
+    const applyPurchase = vi.fn<ApplyPurchase>().mockResolvedValue(undefined);
+
+    await syncPurchasesFromDiff(createOptions(applyPurchase));
+
+    // Otherwise the job's status flips between the two rows on every run of
+    // the re-read window, re-firing its emails and webhook each time.
+    expect(applyPurchase).toHaveBeenCalledTimes(1);
+  });
+
+  it("never persists a cursor earlier than the stored one", async () => {
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      cursorId: "purchase_0",
+      lastSyncedAt: CHANGED_AT,
+    });
+    // A row from inside the re-read window: handling it must not walk the
+    // stored cursor backwards, or every later run starts further in the past.
+    const olderChange = new Date(CHANGED_AT.getTime() - 60_000);
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      ok([
+        createDiffPurchase({
+          nextActionOrOnChainStateOrResultLastChangedAt: olderChange,
+        }),
+      ]),
+    );
+    jobPurchaseFindManyMock.mockResolvedValue([createJobPurchaseRow()]);
+
+    await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>().mockResolvedValue(undefined)),
+    );
+
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: { cursorId: "purchase_1", lastSyncedAt: CHANGED_AT },
+      }),
+    );
+  });
+
+  it("clamps the request timeout to what is left of the run budget", async () => {
+    getPurchasesDiffMock.mockResolvedValue(ok([]));
+
+    await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>(), { deadlineMs: Date.now() + 350 }),
+    );
+
+    const signal = getPurchasesDiffMock.mock.calls[0][3].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    // Without the clamp this request could outlive the run by 10s and eat the
+    // budget the refund phase is reserved.
+    expect(signal.aborted).toBe(true);
+  });
+
+  it("makes no request when the remaining budget is only the buffer", async () => {
+    await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>(), { deadlineMs: Date.now() + 100 }),
+    );
+
+    expect(getPurchasesDiffMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the documented tuning constants", () => {
+    // Both carry a written justification: 30 days mirrors the offline-agent
+    // sync window, 5 minutes is the commit-visibility window.
+    expect(PURCHASE_DIFF_INITIAL_LOOKBACK_MS).toBe(1000 * 60 * 60 * 24 * 30);
+    expect(PURCHASE_DIFF_REREAD_WINDOW_MS).toBe(1000 * 60 * 5);
+  });
+
   it("starts from a bounded lookback when no cursor is stored", async () => {
     syncMetadataFindUniqueMock.mockResolvedValue(null);
     getPurchasesDiffMock.mockResolvedValueOnce(ok([]));
@@ -215,7 +322,7 @@ describe("syncPurchasesFromDiff", () => {
     getPurchasesDiffMock.mockResolvedValueOnce(ok([createDiffPurchase()]));
     jobPurchaseFindManyMock.mockResolvedValue([
       createJobPurchaseRow({
-        job: { id: "job_1", blockchainIdentifier: "chain-other" },
+        job: createJob({ blockchainIdentifier: "chain-other" }),
       }),
     ]);
     const applyPurchase = vi.fn<ApplyPurchase>();
@@ -249,11 +356,11 @@ describe("syncPurchasesFromDiff", () => {
       createJobPurchaseRow(),
       createJobPurchaseRow({
         externalId: "purchase_2",
-        job: { id: "job_2", blockchainIdentifier: "chain-2" },
+        job: createJob({ id: "job_2", blockchainIdentifier: "chain-2" }),
       }),
       createJobPurchaseRow({
         externalId: "purchase_3",
-        job: { id: "job_3", blockchainIdentifier: "chain-3" },
+        job: createJob({ id: "job_3", blockchainIdentifier: "chain-3" }),
       }),
     ]);
     const applyPurchase = vi
@@ -408,7 +515,7 @@ describe("syncPurchasesFromDiff cursor stalls", () => {
     getPurchasesDiffMock.mockResolvedValue(ok(fullPage));
 
     const result = await syncPurchasesFromDiff(
-      createOptions(vi.fn<ApplyPurchase>()),
+      createOptions(vi.fn<ApplyPurchase>(), { deadlineMs: Date.now() + 500 }),
     );
 
     expect(getPurchasesDiffMock).toHaveBeenCalledTimes(2);

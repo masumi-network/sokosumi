@@ -764,13 +764,23 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       nextActionErrorNote: null,
     });
 
-    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
 
     expect(updateJobPurchaseByJobIdMock).toHaveBeenCalledWith(
       "job_1",
-      expect.objectContaining({ onChainStatus: "FUNDS_LOCKED" }),
+      // externalId rides along on purpose: when a job is found by its
+      // blockchain identifier because the node replaced the purchase row,
+      // this write is what repairs the stale id.
+      expect.objectContaining({
+        externalId: "purchase_1",
+        onChainStatus: "FUNDS_LOCKED",
+      }),
       {},
     );
+    // The run report is what the cron logs, so diff work has to reach it.
+    expect(result.processed).toBe(1);
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
@@ -1371,6 +1381,28 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
     expect(callOrder).toEqual(["backfill", "diff"]);
+  });
+
+  it("replays the purchase feed when the run asks for a cursor reset", async () => {
+    // Joins the two halves of ?replay=true: the route sets the flag and the
+    // diff service drops the cursor. Neither test alone proves the escape
+    // hatch works, and the 30-day first-run lookback depends on it.
+    mockInitialJobQueries({});
+
+    await jobSyncService.syncUnfinishedJobs({
+      ...createExecutionOptions(),
+      resetPurchaseCursor: true,
+    });
+
+    expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
+      where: { key: "purchase-diff-sync:v1" },
+    });
+    expect(getPurchasesDiffMock).toHaveBeenCalledWith(
+      new Date(0),
+      null,
+      expect.any(Number),
+      expect.anything(),
+    );
   });
 
   it("still reconciles refunds when the purchase diff throws", async () => {
