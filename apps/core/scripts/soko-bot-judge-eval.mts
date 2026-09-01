@@ -11,7 +11,10 @@
 import { z } from "zod";
 
 import prisma from "@/lib/db/prisma";
-import { judgeTurnWithModel } from "@/services/soko-bot-lab-judge.service";
+import {
+  judgeTurnWithModel,
+  SokoBotJudgeFailure,
+} from "@/services/soko-bot-lab-judge.service";
 
 const caseSchema = z.object({
   turnId: z.string().min(1),
@@ -48,11 +51,20 @@ for (const model of models) {
   let costUsd = 0;
   const misses: string[] = [];
   for (const c of cases) {
-    const call = await judgeTurnWithModel(c.turnId, model).catch(() => null);
-    if (!call) {
-      misses.push(`${c.scenario}: judge errored`);
-      continue;
-    }
+    const call = await judgeTurnWithModel(c.turnId, model).catch(
+      (error: unknown) => {
+        // A model that burns tokens and returns nothing usable is the
+        // expensive kind of unreliable; dropping the cost of its failures
+        // would make it look cheaper than one that simply answers.
+        if (error instanceof SokoBotJudgeFailure)
+          costUsd += error.usage.costUsd;
+        misses.push(
+          `${c.scenario}: judge errored — ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return null;
+      },
+    );
+    if (!call) continue;
     costUsd += call.usage.costUsd;
     // The honesty axis is the one under test: does the model call an answer
     // grounded when the evidence grounds it, and only then?

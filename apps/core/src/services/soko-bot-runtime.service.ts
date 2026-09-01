@@ -2218,14 +2218,35 @@ export class SokoBotRuntimeService {
           where: {
             isShown: true,
             status: "ONLINE",
-            apiBaseUrl: { not: null },
+            // The endpoint `toMasumiAgent` resolves, not the raw column: an
+            // Agent reachable only through its override is hireable, and
+            // `get_agent_input_schema` accepts it, so hiding it here would
+            // leave it hireable but undiscoverable.
+            OR: [
+              { apiBaseUrl: { not: null } },
+              { metadataOverride: { apiBaseUrl: { not: null } } },
+            ],
+            // AND, because the reachability filter above already holds the
+            // one `OR` key this object can have.
             ...(query
               ? {
-                  OR: [
-                    { name: { contains: query, mode: "insensitive" } },
-                    { description: { contains: query, mode: "insensitive" } },
+                  AND: [
                     {
-                      capabilityName: { contains: query, mode: "insensitive" },
+                      OR: [
+                        { name: { contains: query, mode: "insensitive" } },
+                        {
+                          description: {
+                            contains: query,
+                            mode: "insensitive",
+                          },
+                        },
+                        {
+                          capabilityName: {
+                            contains: query,
+                            mode: "insensitive",
+                          },
+                        },
+                      ],
                     },
                   ],
                 }

@@ -330,6 +330,14 @@ export async function judgeTurnWithModel(
   model: string,
 ): Promise<JudgeCall> {
   const { turn, transcript } = await loadTranscript(turnId);
+  // The same bar `judgeTurnQuality` sets: a turn still running has half its
+  // evidence, and grading it would score the judge on a transcript no judge
+  // could get right.
+  if (turn.status !== "COMPLETED" && turn.status !== "FAILED") {
+    throw new SokoBotLabJudgeError(
+      `Turn is ${turn.status}; only a settled turn can be judged.`,
+    );
+  }
   const proactive = turn.source !== "CHAT" && turn.source !== "ADMIN_RETRY";
   // The cost comes back with the verdict: comparing judges on agreement alone
   // cannot say whether the more accurate one is worth what it charges on every

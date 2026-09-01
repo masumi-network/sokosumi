@@ -121,6 +121,9 @@ await prisma.sokoBotContextSnapshot.create({
 // Filled in as the run creates them, so an interrupt can clean up the same
 // things the happy path does rather than only the turn.
 const scratchTaskIds: string[] = [];
+// A schedule the run leaves behind does not just sit there: it fires, and the
+// bot starts a turn nobody asked for.
+let scratchScheduleId: string | null = null;
 
 // The turn is RUNNING while this script holds it, and `startTurn` refuses to
 // begin anything while one is active. A crash between here and the delete
@@ -132,6 +135,16 @@ const scratchTaskIds: string[] = [];
 // leave nobody to notice.
 async function cleanUp(): Promise<boolean> {
   let clean = true;
+  if (scratchScheduleId) {
+    await prisma.sokoBotSchedule
+      .deleteMany({ where: { id: scratchScheduleId } })
+      .catch((error: unknown) => {
+        clean = false;
+        console.error(
+          `Smoke schedule ${scratchScheduleId} still fires: ${String(error)}`,
+        );
+      });
+  }
   if (scratchTaskIds.length > 0) {
     await prisma.task
       .updateMany({
@@ -378,11 +391,15 @@ try {
     prompt: "Smoke schedule. Safe to delete.",
   })) as { id?: string } | null;
   if (schedule?.id) {
+    scratchScheduleId = schedule.id;
     await run("update_schedule", {
       scheduleId: schedule.id,
       prompt: "Smoke schedule, updated.",
     });
     await run("delete_schedule", { scheduleId: schedule.id });
+    if (results.get("delete_schedule")?.outcome === "ok") {
+      scratchScheduleId = null;
+    }
   } else {
     skip("update_schedule", "schedule was not created");
     skip("delete_schedule", "schedule was not created");
@@ -442,6 +459,10 @@ try {
           () => false,
         );
       if (!restored) {
+        // Not just a note at the bottom of the output: the bot's next real
+        // turn would start from the harness's document, and a run that exits
+        // 0 says nothing went wrong.
+        failedRun = true;
         leftBehind.push("memory: the Tool smoke section is still in it");
       }
     }
@@ -568,7 +589,7 @@ try {
   );
   if (leftBehind.length > 0)
     console.log(`Left behind: ${leftBehind.join(" · ")}`);
-  failedRun = count("FAILED") > 0;
+  failedRun = failedRun || count("FAILED") > 0;
 } finally {
   // Exits non-zero when anything could not be cleaned up: a synthetic turn
   // still marked RUNNING blocks the bot's next real turn, and a run that says
