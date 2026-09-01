@@ -100,12 +100,24 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     [TaskStatus.CANCELED]: t("Filters.statusOptions.CANCELED"),
   };
 
+  const historyTotal =
+    historyPage.pagination?.total ?? historyPage.history.length;
+  const historyLoaded = historyPage.history.length;
+  const historyHasMore = historyPage.pagination?.nextCursor != null;
+  const resultsCountLabel = historyHasMore
+    ? t("ResultsCount.resultsCountLoaded", {
+        found: historyLoaded,
+        total: historyTotal,
+      })
+    : t("ResultsCount.resultsCount", { count: historyTotal });
+
   return (
     <div className="w-full px-2">
       <div className="mx-auto flex w-full flex-col gap-6 pb-6">
         <HistoryToolbar
           activeOrganizationId={activeOrganizationId}
           projectOptions={projectOptions}
+          resultsCountLabel={resultsCountLabel}
           labels={{
             search: {
               placeholder: t("Search.placeholder"),

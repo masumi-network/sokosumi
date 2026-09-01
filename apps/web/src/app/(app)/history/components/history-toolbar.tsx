@@ -12,6 +12,7 @@ import { HistoryViewFilters } from "./history-view-filters";
 interface HistoryToolbarProps {
   activeOrganizationId: string | null;
   projectOptions: ProjectFilterOption[];
+  resultsCountLabel: string;
   labels: {
     search: {
       placeholder: string;
@@ -37,6 +38,7 @@ interface HistoryToolbarProps {
 export function HistoryToolbar({
   activeOrganizationId,
   projectOptions,
+  resultsCountLabel,
   labels,
 }: HistoryToolbarProps) {
   return (
@@ -48,11 +50,19 @@ export function HistoryToolbar({
           labels={labels.search}
         />
       </div>
-      <HistoryViewFilters
-        activeOrganizationId={activeOrganizationId}
-        projectOptions={projectOptions}
-        labels={labels.filters}
-      />
+      <p
+        className="text-muted-foreground min-w-0 flex-1 truncate text-sm md:hidden"
+        aria-live="polite"
+      >
+        {resultsCountLabel}
+      </p>
+      <div className="ml-auto shrink-0 md:ml-0">
+        <HistoryViewFilters
+          activeOrganizationId={activeOrganizationId}
+          projectOptions={projectOptions}
+          labels={labels.filters}
+        />
+      </div>
     </div>
   );
 }
