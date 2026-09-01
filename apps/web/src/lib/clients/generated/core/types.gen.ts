@@ -7350,6 +7350,85 @@ export type CreateAdminMatchedChannelResponses = {
 
 export type CreateAdminMatchedChannelResponse = CreateAdminMatchedChannelResponses[keyof CreateAdminMatchedChannelResponses];
 
+export type DeleteAdminMatchedChannelData = {
+    body?: never;
+    path: {
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}';
+};
+
+export type DeleteAdminMatchedChannelErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminMatchedChannelError = DeleteAdminMatchedChannelErrors[keyof DeleteAdminMatchedChannelErrors];
+
+export type DeleteAdminMatchedChannelResponses = {
+    /**
+     * Matched channel permanently deleted
+     */
+    204: void;
+};
+
+export type DeleteAdminMatchedChannelResponse = DeleteAdminMatchedChannelResponses[keyof DeleteAdminMatchedChannelResponses];
+
 export type GetAdminMatchedChannelData = {
     body?: never;
     path: {

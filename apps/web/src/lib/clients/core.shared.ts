@@ -115,6 +115,7 @@ import {
   createMySokoBotSchedule as coreCreateMySokoBotSchedule,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
+  deleteAdminMatchedChannel as coreDeleteAdminMatchedChannel,
   deleteAdminSokoBot as coreDeleteAdminSokoBot,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
   deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
@@ -1865,6 +1866,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to restore matched channel",
+    );
+  }
+
+  async function deleteAdminMatchedChannel(roomId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteAdminMatchedChannel({
+          client,
+          path: { roomId },
+          cache: "no-store",
+        }),
+      "Failed to permanently delete matched channel",
     );
   }
 
@@ -4881,6 +4895,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     removeAdminMatchedChannelParticipant,
     archiveAdminMatchedChannel,
     restoreAdminMatchedChannel,
+    deleteAdminMatchedChannel,
     addAdminOrganizationMember,
     removeAdminOrganizationMember,
     updateAdminOrganizationMemberRole,

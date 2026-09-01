@@ -4447,6 +4447,16 @@
             "cancel": "Abbrechen",
             "success": "Matched Channel wiederhergestellt",
             "error": "Matched Channel konnte nicht wiederhergestellt werden"
+          },
+          "Delete": {
+            "button": "Dauerhaft löschen",
+            "deleting": "Wird gelöscht…",
+            "confirmTitle": "{name} dauerhaft löschen?",
+            "confirmDescription": "Das kann nicht rückgängig gemacht werden. Der Channel, seine Mitgliedschaften und Nachrichten werden endgültig entfernt. Nur archivierte Channels können gelöscht werden.",
+            "confirm": "Dauerhaft löschen",
+            "cancel": "Abbrechen",
+            "success": "Matched Channel dauerhaft gelöscht",
+            "error": "Matched Channel konnte nicht gelöscht werden"
           }
         }
       }

@@ -4478,6 +4478,16 @@
             "cancel": "Cancel",
             "success": "Matched channel restored",
             "error": "Failed to restore matched channel"
+          },
+          "Delete": {
+            "button": "Delete permanently",
+            "deleting": "Deleting…",
+            "confirmTitle": "Permanently delete {name}?",
+            "confirmDescription": "This cannot be undone. The channel, its memberships, and messages are removed forever. Only archived channels can be deleted.",
+            "confirm": "Delete permanently",
+            "cancel": "Cancel",
+            "success": "Matched channel permanently deleted",
+            "error": "Failed to delete matched channel"
           }
         }
       }

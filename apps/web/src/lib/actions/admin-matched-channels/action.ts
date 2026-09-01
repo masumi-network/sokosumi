@@ -372,3 +372,35 @@ export const restoreAdminMatchedChannelAction = withSession<
     return toActionResult(err(toAdminActionError(error)));
   }
 });
+
+const deleteMatchedChannelSchema = z.object({
+  roomId: roomIdSchema,
+});
+
+interface DeleteMatchedChannelParameters extends AuthenticatedRequest {
+  input: unknown;
+}
+
+export const deleteAdminMatchedChannelAction = withSession<
+  DeleteMatchedChannelParameters,
+  ActionResultDto<void, ActionError>
+>(async ({ input, session }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = deleteMatchedChannelSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid matched channel delete input",
+        }),
+      );
+    }
+
+    await adminMatchedChannelsService.deleteMatchedChannel(parsed.data.roomId);
+    revalidateMatchedChannelRoutes();
+    return toActionResult(ok(undefined));
+  } catch (error) {
+    return toActionResult(err(toAdminActionError(error)));
+  }
+});

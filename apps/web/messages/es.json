@@ -4447,6 +4447,16 @@
             "cancel": "Cancelar",
             "success": "Canal emparejado restaurado",
             "error": "No se pudo restaurar el canal emparejado"
+          },
+          "Delete": {
+            "button": "Eliminar permanentemente",
+            "deleting": "Eliminando…",
+            "confirmTitle": "¿Eliminar permanentemente {name}?",
+            "confirmDescription": "Esto no se puede deshacer. El canal, sus membresías y mensajes se eliminan para siempre. Solo se pueden eliminar canales archivados.",
+            "confirm": "Eliminar permanentemente",
+            "cancel": "Cancelar",
+            "success": "Canal emparejado eliminado permanentemente",
+            "error": "No se pudo eliminar el canal emparejado"
           }
         }
       }

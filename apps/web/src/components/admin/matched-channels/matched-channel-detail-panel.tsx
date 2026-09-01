@@ -35,6 +35,7 @@ import {
   addAdminMatchedChannelParticipantAction,
   addAdminMatchedChannelParticipantsFromOrganizationAction,
   archiveAdminMatchedChannelAction,
+  deleteAdminMatchedChannelAction,
   removeAdminMatchedChannelParticipantAction,
   restoreAdminMatchedChannelAction,
 } from "@/lib/actions/admin-matched-channels/action";
@@ -73,6 +74,8 @@ export function MatchedChannelDetailPanel({
   const [isArchiving, setIsArchiving] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const isArchived = channel.archivedAt != null;
 
   const userLabels = buildComboboxLabels(tUser);
@@ -211,6 +214,25 @@ export function MatchedChannelDetailPanel({
     }
   }
 
+  async function handleDelete() {
+    setIsDeleting(true);
+    try {
+      const result = await deleteAdminMatchedChannelAction({
+        input: { roomId: channel.id },
+      });
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("Delete.error"));
+        return;
+      }
+      toast.success(t("Delete.success"));
+      setDeleteOpen(false);
+      router.push("/admin/matched-channels");
+      router.refresh();
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -232,39 +254,77 @@ export function MatchedChannelDetailPanel({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isArchived ? (
-            <AlertDialog open={restoreOpen} onOpenChange={setRestoreOpen}>
-              <AlertDialogTrigger asChild>
-                <Button type="button" variant="outline">
-                  {t("Restore.button")}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {t("Restore.confirmTitle", { name: channel.name })}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t("Restore.confirmDescription")}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isRestoring}>
-                    {t("Restore.cancel")}
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    disabled={isRestoring}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      void handleRestore();
-                    }}
+            <>
+              <AlertDialog open={restoreOpen} onOpenChange={setRestoreOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="outline">
+                    {t("Restore.button")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("Restore.confirmTitle", { name: channel.name })}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("Restore.confirmDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isRestoring}>
+                      {t("Restore.cancel")}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={isRestoring}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        void handleRestore();
+                      }}
+                    >
+                      {isRestoring
+                        ? t("Restore.restoring")
+                        : t("Restore.confirm")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-semantic-destructive hover:text-semantic-destructive"
                   >
-                    {isRestoring
-                      ? t("Restore.restoring")
-                      : t("Restore.confirm")}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    {t("Delete.button")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("Delete.confirmTitle", { name: channel.name })}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("Delete.confirmDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>
+                      {t("Delete.cancel")}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={isDeleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        void handleDelete();
+                      }}
+                    >
+                      {isDeleting ? t("Delete.deleting") : t("Delete.confirm")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
           ) : (
             <AlertDialog open={archiveOpen} onOpenChange={setArchiveOpen}>
               <AlertDialogTrigger asChild>

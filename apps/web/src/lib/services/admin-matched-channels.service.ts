@@ -113,4 +113,8 @@ export const adminMatchedChannelsService = {
     }
     return data;
   },
+
+  async deleteMatchedChannel(roomId: string): Promise<void> {
+    await coreClient.deleteAdminMatchedChannel(roomId);
+  },
 };
