@@ -1,104 +1,77 @@
 "use client";
 
+import { BellRing, type LucideIcon, Mail, Smartphone } from "lucide-react";
+
 import { cn } from "@/lib/utils";
-import { CHANNEL_ICON } from "./channel-chip";
-import { type CategoryGroup, LEVEL_COPY } from "./notification-model";
-import { type NotificationChoices } from "./use-notification-choices";
+import {
+  type CategoryGroup,
+  DISPLAY_CHANNELS,
+  type DisplayChannel,
+  deliveryChannels,
+  headline,
+} from "./notification-model";
 
-/** The channels this account can actually store, in reading order. */
-export function storedChannels(group: CategoryGroup) {
-  return (group.categories[0]?.channels ?? []).filter(
-    (channel) => channel.available,
+export const CHANNEL_ICON: Record<DisplayChannel, LucideIcon> = {
+  IN_APP: BellRing,
+  OS_BANNER: Smartphone,
+  EMAIL: Mail,
+};
+
+export const CHANNEL_LABEL: Record<DisplayChannel, string> = {
+  IN_APP: "In Sokosumi",
+  OS_BANNER: "Banner",
+  EMAIL: "Email",
+};
+
+/**
+ * How much of a channel this group uses.
+ *
+ * Only the subjects the summary names are counted. A covered subject would say
+ * "banner" a second time for the same message, and a state built from that
+ * would report a mixture where the reader sees one setting.
+ */
+export function channelState(
+  group: CategoryGroup,
+  channel: DisplayChannel,
+): "on" | "mixed" | "off" {
+  const named = headline(group);
+  const reached = named.filter((subject) =>
+    deliveryChannels(subject.effective).includes(channel),
   );
-}
 
-/** What the group listens for: the top rung speaks for every rung under it. */
-export function scopeLine(group: CategoryGroup, choices: NotificationChoices) {
-  return group.rungs[choices.groupScope(group)]?.summary ?? group.description;
-}
-
-/** Where it arrives, in the words the delivery control uses. */
-export function deliveryLine(
-  group: CategoryGroup,
-  choices: NotificationChoices,
-) {
-  const level = choices.groupLevel(group);
-
-  if (level !== "CUSTOM") {
-    return LEVEL_COPY[level].sentence;
+  if (reached.length === 0) {
+    return "off";
   }
 
-  const reached = storedChannels(group)
-    .map((channel) => {
-      const state = choices.groupChannelState(group, channel.channel);
-
-      if (state === "off") {
-        return null;
-      }
-
-      return state === "mixed" ? `${channel.label} (some)` : channel.label;
-    })
-    .filter((part) => part !== null);
-
-  return reached.length === 0 ? LEVEL_COPY.OFF.sentence : reached.join(", ");
+  return reached.length === named.length ? "on" : "mixed";
 }
 
 /**
- * The whole group in one sentence.
+ * One pip per subject, filled when that subject arrives.
  *
- * Two halves, always in the same order: what it listens for, then where that
- * lands. An off group drops the first half, because what it listens for stops
- * being the reader's problem the moment nothing arrives.
+ * The closed row can name two subjects at most, so the pips carry the rest:
+ * four things can happen in Chat and two of them reach you. It says how much of
+ * the group is live without listing what a reader turned off on purpose.
  */
-export function summaryLine(
-  group: CategoryGroup,
-  choices: NotificationChoices,
-) {
-  const level = choices.groupLevel(group);
-
-  if (level === "OFF") {
-    return LEVEL_COPY.OFF.sentence;
-  }
-
-  return `${scopeLine(group, choices)} · ${deliveryLine(group, choices)}`;
-}
-
-/**
- * How far up the ladder this group reaches, as filled pips.
- *
- * The ladder is ordered and containing, and a row of pips is the one shape that
- * says both without words: four pips, three filled, and the fourth is something
- * you are not being told about.
- */
-export function ScopeMeter({
+export function SubjectPips({
   group,
-  choices,
   className,
 }: {
   group: CategoryGroup;
-  choices: NotificationChoices;
   className?: string;
 }) {
-  const reach = choices.groupScope(group);
-  const silent = choices.groupLevel(group) === "OFF";
-
-  if (group.rungs.length < 2) {
+  if (group.subjects.length < 2) {
     return null;
   }
 
   return (
-    <span
-      className={cn("flex items-center gap-1", className)}
-      title={scopeLine(group, choices)}
-    >
-      <span className="sr-only">{scopeLine(group, choices)}</span>
-      {group.rungs.map((rung, index) => (
+    <span className={cn("flex items-center gap-1", className)} aria-hidden>
+      {group.subjects.map((subject) => (
         <span
-          key={rung.id}
-          aria-hidden
+          key={subject.spec.id}
           className={cn(
             "h-1.5 w-4 rounded-full transition-colors",
-            index > reach || silent
+            subject.effective === "OFF"
               ? "bg-muted-foreground/20"
               : "bg-primary/60",
           )}
@@ -112,23 +85,16 @@ export function ScopeMeter({
  * Which channels this group reaches, as icons. Read only: it reports, and the
  * control next to it decides.
  */
-export function ChannelSummary({
-  group,
-  choices,
-}: {
-  group: CategoryGroup;
-  choices: NotificationChoices;
-}) {
+export function ChannelSummary({ group }: { group: CategoryGroup }) {
   return (
     <span className="flex items-center gap-1.5">
-      <span className="sr-only">{deliveryLine(group, choices)}</span>
-      {storedChannels(group).map((channel) => {
-        const Icon = CHANNEL_ICON[channel.channel];
-        const state = choices.groupChannelState(group, channel.channel);
+      {DISPLAY_CHANNELS.map((channel) => {
+        const Icon = CHANNEL_ICON[channel];
+        const state = channelState(group, channel);
 
         return (
           <Icon
-            key={channel.channel}
+            key={channel}
             aria-hidden
             className={cn(
               "size-4 shrink-0",
@@ -144,20 +110,14 @@ export function ChannelSummary({
 }
 
 /**
- * Breadth and delivery in one glance: how far the ladder goes, then where it
- * lands. The two things a closed group has to say without being opened.
+ * Breadth and delivery in one glance: how much of the group is live, then where
+ * it lands. The two things a closed group has to say without being opened.
  */
-export function GroupGlance({
-  group,
-  choices,
-}: {
-  group: CategoryGroup;
-  choices: NotificationChoices;
-}) {
+export function GroupGlance({ group }: { group: CategoryGroup }) {
   return (
-    <span className="flex shrink-0 items-center gap-3">
-      <ScopeMeter group={group} choices={choices} />
-      <ChannelSummary group={group} choices={choices} />
+    <span className="flex shrink-0 items-center gap-3" aria-hidden>
+      <SubjectPips group={group} />
+      <ChannelSummary group={group} />
     </span>
   );
 }

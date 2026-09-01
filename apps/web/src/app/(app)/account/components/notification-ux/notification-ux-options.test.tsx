@@ -1,13 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMyPreferencesQueryKey } from "@/queries/preferences";
 
-import { E1PresetStops } from "./e1-preset-stops";
-import { E2PresetMenu } from "./e2-preset-menu";
-import { E10PagePreset } from "./e10-page-preset";
+import { F1SubjectStops } from "./f1-subject-stops";
+import { F3SubjectSwitches } from "./f3-subject-switches";
 import { NotificationUxOptions } from "./notification-ux-options";
 import { useNotificationChoices } from "./use-notification-choices";
 
@@ -49,9 +49,10 @@ vi.mock("sonner", () => ({
 }));
 
 /**
- * Chat starts on its default rung with its two subjects disagreeing about the
- * banner, so it is custom from the first paint. Requests and access has one
- * rung, which is what the preset de-duplication is checked against.
+ * Chat starts with its two stored subjects disagreeing about the banner, so the
+ * group is custom from the first paint and the summary has a mixture to report.
+ * Requests and access has one subject, which is what the preset de-duplication
+ * is checked against.
  */
 const MATRIX = [
   { category: "TASK", channel: "IN_APP", enabled: true },
@@ -89,11 +90,10 @@ function renderWith(node: React.ReactNode) {
   );
 }
 
-/** Each layout alone, so its controls are the only ones on screen. */
+/** One layout alone, so its controls are the only ones on screen. */
 const Only = {
-  E1: () => <E1PresetStops choices={useNotificationChoices()} />,
-  E2: () => <E2PresetMenu choices={useNotificationChoices()} />,
-  E10: () => <E10PagePreset choices={useNotificationChoices()} />,
+  F1: () => <F1SubjectStops choices={useNotificationChoices()} />,
+  F3: () => <F3SubjectSwitches choices={useNotificationChoices()} />,
 };
 
 function lastWrite() {
@@ -114,10 +114,13 @@ function opener(group: string) {
   return screen.getByRole("button", { name: new RegExp(`^${group}`) });
 }
 
-function ladder(group: string) {
-  return screen.getByRole("radiogroup", {
-    name: `${group}, what to tell you about`,
-  });
+/** One subject's delivery control, named after the subject and nothing else. */
+function row(subject: string) {
+  return screen.getByRole("group", { name: subject });
+}
+
+function stop(subject: string, delivery: string) {
+  return within(row(subject)).getByRole("button", { name: delivery });
 }
 
 describe("NotificationUxOptions", () => {
@@ -149,236 +152,282 @@ describe("NotificationUxOptions", () => {
   it("draws every layout that is up for evaluation", () => {
     renderWith(<NotificationUxOptions />);
 
-    for (let index = 1; index <= 10; index += 1) {
+    for (let index = 1; index <= 4; index += 1) {
       expect(
-        screen.getByText(new RegExp(`^E${index}\\. `)),
+        screen.getByText(new RegExp(`^F${index}\\. `)),
       ).toBeInTheDocument();
     }
   });
 
-  it("marks the rungs under the chosen one as included, and only checks one", async () => {
+  it("gives every subject its own row, once", async () => {
     const user = userEvent.setup();
-    renderWith(<Only.E1 />);
+    renderWith(<Only.F1 />);
 
     await user.click(opener("Chat"));
-    const rungs = ladder("Chat");
-    await user.click(
-      within(rungs).getByRole("radio", { name: /Every message in your rooms/ }),
-    );
 
-    // Three rungs sit under the fourth, and none of them is a separate switch.
-    expect(within(rungs).getAllByText("included")).toHaveLength(3);
-    expect(within(rungs).getAllByRole("radio", { checked: true })).toHaveLength(
-      1,
+    for (const subject of [
+      "Direct messages",
+      "Mentions of you",
+      "Threads you follow",
+      "Every message in your rooms",
+    ]) {
+      expect(screen.getAllByRole("group", { name: subject })).toHaveLength(1);
+    }
+  });
+
+  it("names only the subjects nothing else speaks for", () => {
+    renderWith(<Only.F1 />);
+
+    expect(opener("Chat")).toHaveAccessibleName(
+      /Direct messages and Mentions of you/,
     );
   });
 
-  it("turns the added subject on when the ladder widens", async () => {
+  it("makes a covered subject report its cover instead of repeating it", async () => {
     const user = userEvent.setup();
-    renderWith(<Only.E1 />);
+    renderWith(<Only.F1 />);
 
     await user.click(opener("Chat"));
-    const rungs = ladder("Chat");
-    await user.click(
-      within(rungs).getByRole("radio", { name: /Direct messages/ }),
+    await user.click(stop("Every message in your rooms", "In app"));
+
+    expect(
+      screen.getAllByText("Covered by Every message in your rooms"),
+    ).toHaveLength(2);
+    // The summary drops what the wider subject already carries, which is the
+    // duplication this round exists to remove.
+    expect(opener("Chat")).toHaveAccessibleName(
+      /Direct messages and Every message in your rooms/,
     );
-
-    await waitFor(() => {
-      expect(patchMyPreferences).toHaveBeenCalled();
-    });
-    expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
-
-    await user.click(within(rungs).getByRole("radio", { name: /Mentions/ }));
-
-    await waitFor(() => {
-      expect(patchMyPreferences).toHaveBeenCalledTimes(2);
-    });
-    expect(written("CHAT_MENTION", "IN_APP")).toBe(true);
-    // The rung below came along. Asking for mentions cannot drop the direct
-    // messages, which is the whole claim the ladder makes.
-    expect(written("CHAT_DIRECT_MESSAGE", "IN_APP")).toBe(true);
+    expect(opener("Chat")).not.toHaveAccessibleName(/Mentions of you/);
   });
 
-  it("reads the delivery from the subjects in scope, not from the ones left out", async () => {
+  it("reports the cover's delivery on a subject that is off by itself", async () => {
     const user = userEvent.setup();
-    renderWith(<Only.E1 />);
+    renderWith(<Only.F1 />);
+
     await user.click(opener("Chat"));
+    await user.click(stop("Every message in your rooms", "Banner"));
 
-    // The two chat subjects disagree about the banner, so the group is custom.
+    // Threads you follow is off on its own and still arrives, because every
+    // message in the room carries it. The row has to say what happens, not
+    // what was last set on it.
+    expect(stop("Threads you follow", "Banner")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(stop("Threads you follow", "Off")).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("refuses to make a covered subject quieter than its cover", async () => {
+    const user = userEvent.setup();
+    renderWith(<Only.F1 />);
+
+    await user.click(opener("Chat"));
+    await user.click(stop("Every message in your rooms", "In app"));
+
+    expect(stop("Mentions of you", "Off")).toBeDisabled();
+    expect(stop("Mentions of you", "Off")).toHaveAttribute(
+      "title",
+      "Every message in your rooms already delivers this in Sokosumi only",
+    );
+    expect(stop("Mentions of you", "Banner")).toBeEnabled();
+  });
+
+  it("lets a covered subject stay louder than its cover", async () => {
+    const user = userEvent.setup();
+    renderWith(<Only.F1 />);
+
+    await user.click(opener("Chat"));
+    await user.click(stop("Every message in your rooms", "In app"));
+    await user.click(stop("Mentions of you", "Banner"));
+
+    await waitFor(() => {
+      expect(written("CHAT_MENTION", "OS_BANNER")).toBe(true);
+    });
     expect(
-      within(
-        screen.getByRole("group", { name: "Chat, where it arrives" }),
-      ).getByRole("button", { name: "All" }),
-    ).toHaveAttribute("aria-pressed", "false");
+      screen.getByText(
+        "Covered by Every message in your rooms, and louder here",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("writes only the categories the row owns", async () => {
+    const user = userEvent.setup();
+    renderWith(<Only.F1 />);
+
+    await user.click(opener("Chat"));
+    await user.click(stop("Direct messages", "Off"));
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(lastWrite()).toHaveLength(2);
+    expect(written("CHAT_DIRECT_MESSAGE", "IN_APP")).toBe(false);
+    expect(written("CHAT_DIRECT_MESSAGE", "OS_BANNER")).toBe(false);
+    expect(written("CHAT_MENTION", "IN_APP")).toBeUndefined();
+  });
+
+  it("remembers a subject nothing stores yet without writing it", async () => {
+    const user = userEvent.setup();
+    renderWith(<Only.F1 />);
+
+    await user.click(opener("Chat"));
+    await user.click(stop("Threads you follow", "Banner"));
+
+    expect(patchMyPreferences).not.toHaveBeenCalled();
+    expect(stop("Threads you follow", "Banner")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("drops a preset that would write what another one writes", () => {
+    renderWith(<Only.F1 />);
+
+    const presets = within(
+      screen.getByRole("group", { name: "Requests and access preset" }),
+    )
+      .getAllByRole("button")
+      .map((button) => button.textContent);
+
+    // One subject, and it is important, so "Everything" and "Important" would
+    // be the same press. A stop that cannot light is not drawn.
+    expect(presets).toEqual(["Everything", "Quiet", "Off"]);
+    // Chat can tell all four apart, and starts on none of them because its two
+    // stored subjects disagree about the banner.
+    expect(
+      within(screen.getByRole("group", { name: "Chat preset" }))
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Everything", "Important", "Quiet", "Off", "Custom"]);
+  });
+
+  it("writes every stored subject of a group in one request", async () => {
+    const user = userEvent.setup();
+    renderWith(<Only.F1 />);
 
     await user.click(
-      within(ladder("Chat")).getByRole("radio", { name: /Direct messages/ }),
-    );
-
-    // Narrowed to the one subject that has both channels on, the group is not
-    // custom any more: the subject it no longer listens to cannot outvote it.
-    await waitFor(() => {
-      expect(
-        within(
-          screen.getByRole("group", { name: "Chat, where it arrives" }),
-        ).getByRole("button", { name: "All" }),
-      ).toHaveAttribute("aria-pressed", "true");
-    });
-  });
-
-  it("drops a preset that would write what an earlier one writes", () => {
-    renderWith(<Only.E1 />);
-
-    const chat = screen.getByRole("group", { name: "Chat preset" });
-    const system = screen.getByRole("group", {
-      name: "Requests and access preset",
-    });
-
-    expect(
-      within(chat).getByRole("button", { name: "Everything" }),
-    ).toBeInTheDocument();
-    expect(
-      within(chat).getByRole("button", { name: "Important" }),
-    ).toBeInTheDocument();
-    // One rung, so "Everything" and "Important" would be the same press.
-    expect(
-      within(system).queryByRole("button", { name: "Important" }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(system).getByRole("button", { name: "Everything" }),
-    ).toBeInTheDocument();
-  });
-
-  it("writes both questions from one preset", async () => {
-    const user = userEvent.setup();
-    renderWith(<Only.E1 />);
-
-    const chat = screen.getByRole("group", { name: "Chat preset" });
-    await user.click(within(chat).getByRole("button", { name: "Everything" }));
-
-    await waitFor(() => {
-      expect(patchMyPreferences).toHaveBeenCalled();
-    });
-    const cells = lastWrite();
-    expect(cells).toHaveLength(4);
-    expect(
-      cells.every((cell: { enabled: boolean }) => cell.enabled === true),
-    ).toBe(true);
-    // The widest rung, not just the loudest delivery.
-    expect(
       within(screen.getByRole("group", { name: "Chat preset" })).getByRole(
         "button",
         { name: "Everything" },
       ),
-    ).toHaveAttribute("aria-pressed", "true");
-  });
-
-  it("leaves the breadth alone when only the noise goes down", async () => {
-    const user = userEvent.setup();
-    renderWith(<Only.E1 />);
-
-    await user.click(opener("Chat"));
-    await user.click(
-      within(ladder("Chat")).getByRole("radio", { name: /Direct messages/ }),
     );
+
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
+    expect(lastWrite()).toHaveLength(4);
+    expect(written("CHAT_MENTION", "OS_BANNER")).toBe(true);
+    expect(written("CHAT_DIRECT_MESSAGE", "OS_BANNER")).toBe(true);
+  });
 
-    const chat = screen.getByRole("group", { name: "Chat preset" });
-    await user.click(within(chat).getByRole("button", { name: "Quiet" }));
+  it("writes the whole account in one request", async () => {
+    const user = userEvent.setup();
+    renderWith(<NotificationUxOptions />);
+
+    await user.click(
+      within(
+        screen.getByRole("group", { name: "All notifications" }),
+      ).getByRole("button", { name: "Off" }),
+    );
 
     await waitFor(() => {
-      expect(patchMyPreferences).toHaveBeenCalledTimes(2);
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    // Quiet is about where, so the narrowed breadth survives it.
-    expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
-    expect(written("CHAT_DIRECT_MESSAGE", "IN_APP")).toBe(true);
-    expect(written("CHAT_DIRECT_MESSAGE", "OS_BANNER")).toBe(false);
+    expect(lastWrite()).toHaveLength(8);
+    expect(
+      lastWrite().every((cell: { enabled: boolean }) => !cell.enabled),
+    ).toBe(true);
   });
 
   it("turns push on from the control that asked for a banner", async () => {
-    isAccountEnabled = false;
     const user = userEvent.setup();
-    renderWith(<Only.E1 />);
+    isAccountEnabled = false;
+    renderWith(<Only.F1 />);
 
     await user.click(opener("Tasks"));
-    await user.click(
-      screen.getByRole("button", {
-        name: "matrixCategoryTask, matrixChannelOsBanner",
-      }),
-    );
+    await user.click(stop("Tasks that wait on you", "Banner"));
 
     await waitFor(() => {
       expect(setAccountEnabled).toHaveBeenCalledWith(true);
     });
-    expect(lastWrite()).toEqual([
-      { category: "TASK", channel: "OS_BANNER", enabled: true },
-    ]);
   });
 
-  it("does not ask for push when a wider ladder rewrites a banner it already had", async () => {
+  it("does not ask for push when the banner it writes was already on", async () => {
+    const user = userEvent.setup();
     isAccountEnabled = false;
-    const user = userEvent.setup();
-    renderWith(<Only.E1 />);
+    renderWith(<Only.F1 />);
 
-    await user.click(opener("Chat"));
     await user.click(
-      within(ladder("Chat")).getByRole("radio", { name: /Direct messages/ }),
+      within(
+        screen.getByRole("group", { name: "Requests and access preset" }),
+      ).getByRole("button", { name: "Everything" }),
     );
-
-    await waitFor(() => {
-      expect(patchMyPreferences).toHaveBeenCalled();
-    });
-    // The direct message banner was already on. Writing it again is not a new
-    // request, so the browser must not be asked for the permission.
-    expect(written("CHAT_DIRECT_MESSAGE", "OS_BANNER")).toBe(true);
-    expect(setAccountEnabled).not.toHaveBeenCalled();
-  });
-
-  it("says what a closed group listens for", () => {
-    renderWith(<Only.E1 />);
-
-    // The row that opens the group says it, so a reader never has to open it.
-    expect(opener("Chat")).toHaveAccessibleName(/Direct messages and mentions/);
-  });
-
-  it("opens the group from the menu that also holds the presets", async () => {
-    const user = userEvent.setup();
-    renderWith(<Only.E2 />);
-
-    expect(ladderIsAbsent("Chat")).toBe(true);
-    await user.click(screen.getByRole("button", { name: "Chat preset" }));
-    await user.click(
-      screen.getByRole("menuitem", { name: /Choose what and where/ }),
-    );
-
-    expect(ladder("Chat")).toBeInTheDocument();
-    expect(patchMyPreferences).not.toHaveBeenCalled();
-  });
-
-  it("puts every group on one preset in a single write", async () => {
-    const user = userEvent.setup();
-    renderWith(<Only.E10 />);
-
-    const everything = screen.getByRole("group", { name: "All notifications" });
-    await user.click(within(everything).getByRole("button", { name: "Off" }));
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    const cells = lastWrite();
-    expect(cells).toHaveLength(MATRIX.length);
+    expect(setAccountEnabled).not.toHaveBeenCalled();
+  });
+
+  it("puts the row back when the write fails", async () => {
+    const user = userEvent.setup();
+    patchMyPreferences.mockRejectedValueOnce(new Error("nope"));
+    renderWith(<Only.F1 />);
+
+    await user.click(opener("Tasks"));
+    await user.click(stop("Tasks that wait on you", "Off"));
+
+    await waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalled();
+    });
+    expect(stop("Tasks that wait on you", "In app")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("shows one change in every layout", async () => {
+    const user = userEvent.setup();
+    renderWith(<NotificationUxOptions />);
+
+    await user.click(
+      within(
+        screen.getAllByRole("group", { name: "Tasks preset" })[0],
+      ).getByRole("button", { name: "Off" }),
+    );
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    // The preset menu in F2 is also named after the group, so the openers are
+    // the buttons named after it and nothing else.
+    const openers = screen.getAllByRole("button", {
+      name: /^Tasks(?! preset)/,
+    });
+    expect(openers).toHaveLength(4);
+    for (const button of openers) {
+      expect(button).toHaveAccessibleName(/Nothing arrives/);
+    }
+  });
+
+  it("hides the banner control until the subject is on", async () => {
+    const user = userEvent.setup();
+    renderWith(<Only.F3 />);
+
+    await user.click(opener("Tasks"));
+    const rows = screen.getByText("Other task updates").closest("div")
+      ?.parentElement as HTMLElement;
+
+    expect(within(rows).queryByRole("button", { name: "Banner" })).toBeNull();
+    await user.click(
+      screen.getByRole("switch", { name: "Other task updates" }),
+    );
     expect(
-      cells.every((cell: { enabled: boolean }) => cell.enabled === false),
-    ).toBe(true);
+      within(rows).getByRole("button", { name: "Banner" }),
+    ).toBeInTheDocument();
   });
 });
-
-function ladderIsAbsent(group: string) {
-  return (
-    screen.queryByRole("radiogroup", {
-      name: `${group}, what to tell you about`,
-    }) === null
-  );
-}

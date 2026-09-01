@@ -17,38 +17,12 @@ import {
   PRESET_COPY,
   PRESET_IDS,
   type PresetId,
+  presetHint,
 } from "./notification-model";
 import { type NotificationChoices } from "./use-notification-choices";
 
 const CUSTOM_STOP =
   "text-primary bg-primary/5 rounded-full border border-dashed px-3 py-1 text-xs font-medium whitespace-nowrap";
-
-/**
- * What a preset means for this group, in that group's own words.
- *
- * "Everything" is a different promise for chat than for jobs, and a preset that
- * cannot say which one it is has to be taken on trust.
- */
-function presetHint(
-  group: CategoryGroup,
-  choices: NotificationChoices,
-  preset: PresetId,
-) {
-  const rung =
-    preset === "EVERYTHING"
-      ? group.rungs.at(-1)
-      : preset === "IMPORTANT"
-        ? group.rungs[group.defaultScope]
-        : group.rungs[choices.groupScope(group)];
-
-  if (preset === "OFF") {
-    return PRESET_COPY.OFF.hint;
-  }
-
-  const where = preset === "QUIET" ? ", in Sokosumi only" : "";
-
-  return `${rung?.summary ?? group.description}${where}`;
-}
 
 /** The presets as stops on the row. The control D1 grew into. */
 export function PresetSegments({
@@ -73,7 +47,7 @@ export function PresetSegments({
           key={preset}
           type="button"
           aria-pressed={active === preset}
-          title={presetHint(group, choices, preset)}
+          title={presetHint(group, preset)}
           onClick={() => {
             void choices.setGroupPreset(group, preset);
           }}
@@ -186,7 +160,7 @@ export function PresetMenu({
                   {PRESET_COPY[preset].label}
                 </span>
                 <span className="text-muted-foreground block text-xs leading-5">
-                  {presetHint(group, choices, preset)}
+                  {presetHint(group, preset)}
                 </span>
               </span>
             </DropdownMenuRadioItem>
@@ -246,7 +220,7 @@ export function PresetList({
               {PRESET_COPY[preset].label}
             </span>
             <span className="text-muted-foreground block text-sm leading-6">
-              {presetHint(group, choices, preset)}
+              {presetHint(group, preset)}
             </span>
           </span>
         </button>

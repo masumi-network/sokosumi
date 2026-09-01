@@ -1,23 +1,8 @@
 import type { NotificationPreference } from "@/lib/clients/generated/core";
-import type { ScopeRung } from "./notification-scopes";
+import type { SubjectSpec } from "./notification-subjects";
 
 export type NotificationCategory = NotificationPreference["category"];
 export type StoredChannel = NotificationPreference["channel"];
-
-/**
- * The channels the settings screen draws. `EMAIL` is a preview column: nothing
- * stores it and nothing sends on it yet, so it renders disabled.
- */
-export type DisplayChannel = StoredChannel | "EMAIL";
-
-export const DISPLAY_CHANNELS: readonly DisplayChannel[] = [
-  "IN_APP",
-  "OS_BANNER",
-  "EMAIL",
-];
-
-/** How a control stands when it covers more than one cell. */
-export type TriState = "on" | "off" | "mixed";
 
 export interface StoredCell {
   category: NotificationCategory;
@@ -25,137 +10,126 @@ export interface StoredCell {
   enabled: boolean;
 }
 
-export interface ChannelChoice {
-  channel: DisplayChannel;
-  label: string;
-  enabled: boolean;
-  available: boolean;
-  saving: boolean;
-  unavailableReason: string | null;
-}
-
-export interface CategoryChoice {
-  category: NotificationCategory;
-  label: string;
-  channels: ChannelChoice[];
-}
-
 /**
- * A heading the reader recognises, holding two independent questions.
+ * How loudly one subject arrives.
  *
- * **What** counts as an event, on a ladder whose rungs contain each other, and
- * **where** it arrives. Keeping them apart is what stops the settings from
- * multiplying: chat has four breadths and three deliveries, and that is seven
- * controls rather than twelve combinations.
+ * Ordered, and each step contains the one below: a banner is also waiting in
+ * Sokosumi when you get back. That is why one control can carry it, and why a
+ * subject can be compared with the subject that covers it.
  */
-export interface CategoryGroup {
-  id: string;
-  label: string;
-  description: string;
-  categories: CategoryChoice[];
-  rungs: readonly ScopeRung[];
-  defaultScope: number;
-}
+export const DELIVERIES = ["OFF", "IN_APP", "BANNER"] as const;
+export type Delivery = (typeof DELIVERIES)[number];
 
-/** Where a group's events arrive. */
-export const GROUP_LEVELS = ["ALL", "IN_APP", "OFF"] as const;
-export type GroupLevel = (typeof GROUP_LEVELS)[number];
-export type GroupLevelState = GroupLevel | "CUSTOM";
+export const DELIVERY_RANK: Record<Delivery, number> = {
+  OFF: 0,
+  IN_APP: 1,
+  BANNER: 2,
+};
 
-export const LEVEL_COPY: Record<
-  GroupLevelState,
-  { label: string; short: string; sentence: string; inline: string }
+export const DELIVERY_COPY: Record<
+  Delivery,
+  { label: string; short: string; sentence: string }
 > = {
-  ALL: {
-    label: "In Sokosumi and a banner",
-    short: "All",
-    sentence: "In Sokosumi and a banner on your devices",
-    inline: "in Sokosumi and a banner",
-  },
+  OFF: { label: "Off", short: "Off", sentence: "nothing" },
   IN_APP: {
-    label: "Only in Sokosumi",
+    label: "In Sokosumi",
     short: "In app",
-    sentence: "Waiting for you in Sokosumi, no banners",
-    inline: "only in Sokosumi",
+    sentence: "in Sokosumi only",
   },
-  OFF: {
-    label: "Nowhere",
-    short: "Off",
-    sentence: "Nothing arrives, anywhere",
-    inline: "nowhere",
-  },
-  CUSTOM: {
-    label: "Set per subject",
-    short: "Custom",
-    sentence: "Set per subject",
-    inline: "per subject",
+  BANNER: {
+    label: "In Sokosumi and a banner",
+    short: "Banner",
+    sentence: "with a banner",
   },
 };
 
-/**
- * A named pair of one breadth and one delivery.
- *
- * The two ladders are the honest model and four words are what a reader wants,
- * so a preset is a shortcut across both rather than a third thing to learn.
- * `scope: null` means "leave the breadth alone", which is why turning the noise
- * down does not also forget what you had asked to hear about.
- */
+/** The channels a delivery lights up. `EMAIL` is drawn, never stored. */
+export type DisplayChannel = StoredChannel | "EMAIL";
+export const DISPLAY_CHANNELS: readonly DisplayChannel[] = [
+  "IN_APP",
+  "OS_BANNER",
+  "EMAIL",
+];
+
+export function deliveryChannels(delivery: Delivery): DisplayChannel[] {
+  if (delivery === "BANNER") {
+    return ["IN_APP", "OS_BANNER"];
+  }
+
+  return delivery === "IN_APP" ? ["IN_APP"] : [];
+}
+
+export interface SubjectChoice {
+  spec: SubjectSpec;
+  /** What the reader set on this row. */
+  own: Delivery;
+  /** The loudest delivery the subjects covering this one already give it. */
+  floor: Delivery;
+  /** What actually happens, once the subject covering it is taken in. */
+  effective: Delivery;
+  /** The subject that already carries this one at this loudness, if any. */
+  coveredBy: SubjectSpec | null;
+  /** True when this row asks for more than the subject covering it. */
+  louder: boolean;
+  /** Nothing stores it yet, so it is drawn and remembered for the visit only. */
+  stored: boolean;
+  saving: boolean;
+}
+
+export interface CategoryGroup {
+  id: string;
+  label: string;
+  subjects: SubjectChoice[];
+}
+
 export const PRESET_IDS = ["EVERYTHING", "IMPORTANT", "QUIET", "OFF"] as const;
 export type PresetId = (typeof PRESET_IDS)[number];
 export type PresetState = PresetId | "CUSTOM";
 
-export const PRESET_COPY: Record<PresetState, { label: string; hint: string }> =
-  {
-    EVERYTHING: { label: "Everything", hint: "The widest this group goes." },
-    IMPORTANT: { label: "Important", hint: "The part that usually matters." },
-    QUIET: { label: "Quiet", hint: "Same events, no banners." },
-    OFF: { label: "Off", hint: "Nothing from this group." },
-    CUSTOM: { label: "Custom", hint: "Your own mix. Open it to see." },
-  };
-
-const PRESET_SHAPE: Record<
-  PresetId,
-  { scope: "last" | "default" | null; level: GroupLevel }
-> = {
-  EVERYTHING: { scope: "last", level: "ALL" },
-  IMPORTANT: { scope: "default", level: "ALL" },
-  QUIET: { scope: null, level: "IN_APP" },
-  OFF: { scope: null, level: "OFF" },
+export const PRESET_COPY: Record<PresetState, { label: string }> = {
+  EVERYTHING: { label: "Everything" },
+  IMPORTANT: { label: "Important" },
+  QUIET: { label: "Quiet" },
+  OFF: { label: "Off" },
+  CUSTOM: { label: "Custom" },
 };
 
-export function presetLevel(preset: PresetId) {
-  return PRESET_SHAPE[preset].level;
-}
-
-/** Which rung a preset means here, or null when it leaves the breadth alone. */
-export function presetScope(group: CategoryGroup, preset: PresetId) {
-  const shape = PRESET_SHAPE[preset].scope;
-
-  if (shape === "last") {
-    return Math.max(group.rungs.length - 1, 0);
+/** What a preset sets one subject to. */
+export function presetDelivery(
+  preset: PresetId,
+  subject: SubjectSpec,
+): Delivery {
+  if (preset === "OFF") {
+    return "OFF";
   }
 
-  return shape === "default" ? group.defaultScope : null;
+  if (preset === "EVERYTHING") {
+    return "BANNER";
+  }
+
+  if (!subject.important) {
+    return "OFF";
+  }
+
+  return preset === "IMPORTANT" ? "BANNER" : "IN_APP";
 }
 
 /**
  * The presets worth showing for this group.
  *
- * A group with one rung cannot tell "Everything" from "Important", and an
- * earlier round proved what that costs: a stop that never lights looks broken.
- * So a preset that would write what an earlier one writes is dropped here
- * rather than drawn and explained away.
+ * A group whose subjects are all important cannot tell "Everything" from
+ * "Important", and a stop that never lights looks broken. So a preset that
+ * would write what an earlier one writes is dropped rather than explained away.
  */
-export function groupPresets(group: CategoryGroup): PresetId[] {
+export function groupPresets(subjects: readonly SubjectSpec[]): PresetId[] {
   const kept: PresetId[] = [];
 
   for (const preset of PRESET_IDS) {
-    const scope = presetScope(group, preset);
-    const level = PRESET_SHAPE[preset].level;
-    const same = kept.some(
-      (earlier) =>
-        (presetScope(group, earlier) ?? scope) === scope &&
-        PRESET_SHAPE[earlier].level === level,
+    const shape = subjects.map((subject) => presetDelivery(preset, subject));
+    const same = kept.some((earlier) =>
+      subjects.every(
+        (subject, index) => presetDelivery(earlier, subject) === shape[index],
+      ),
     );
 
     if (!same) {
@@ -166,113 +140,186 @@ export function groupPresets(group: CategoryGroup): PresetId[] {
   return kept;
 }
 
-/** The stored categories rungs 0..index bring in. */
-export function scopeCategories(group: CategoryGroup, index: number) {
-  return group.rungs
-    .slice(0, index + 1)
-    .flatMap((rung) => [...rung.categories]);
-}
-
-/**
- * The rung the stored cells imply.
- *
- * Only the rungs that store something can be read back, and only while the
- * group still delivers somewhere. `-1` says the cells cannot answer, and the
- * caller falls back to what the reader picked, then to the group's default.
- */
-export function derivedScope(
-  group: CategoryGroup,
-  cells: readonly StoredCell[],
-) {
-  let derived = -1;
-
-  for (const [index, rung] of group.rungs.entries()) {
-    if (rung.categories.length === 0) {
-      break;
-    }
-
-    const on = rung.categories.every((category) =>
-      cells.some((cell) => cell.category === category && cell.enabled),
-    );
-
-    if (!on) {
-      break;
-    }
-
-    derived = index;
-  }
-
-  return derived;
-}
-
-export function tri(subset: readonly { enabled: boolean }[]): TriState {
-  if (subset.length === 0 || subset.every((cell) => !cell.enabled)) {
-    return "off";
-  }
-
-  return subset.every((cell) => cell.enabled) ? "on" : "mixed";
-}
-
-/** What one delivery level writes over the subjects a breadth includes. */
-export function cellsFor(
-  cells: readonly StoredCell[],
-  group: CategoryGroup,
-  scope: number,
-  level: GroupLevel,
-): StoredCell[] {
-  const wanted = scopeCategories(group, scope);
-
-  return cells.map((cell) => ({
-    ...cell,
-    enabled:
-      wanted.includes(cell.category) &&
-      (level === "ALL" || (level === "IN_APP" && cell.channel === "IN_APP")),
-  }));
-}
-
-function matches(cells: readonly StoredCell[], wanted: readonly StoredCell[]) {
-  return wanted.every(
-    (cell) =>
-      cells.find(
-        (candidate) =>
-          candidate.category === cell.category &&
-          candidate.channel === cell.channel,
-      )?.enabled === cell.enabled,
+export function loudest(...deliveries: Delivery[]): Delivery {
+  return deliveries.reduce(
+    (best, candidate) =>
+      DELIVERY_RANK[candidate] > DELIVERY_RANK[best] ? candidate : best,
+    "OFF",
   );
 }
 
 /**
- * Read rather than stored, so a level stays selected only while it is still
- * true. Editing one chip drops it to `CUSTOM` instead of leaving a label that
- * lies about what the group does.
+ * Turns what the reader set into what actually happens.
+ *
+ * A subject that another subject already carries cannot be quieter than its
+ * cover, so the row reports the cover's delivery instead of its own. It can be
+ * louder, and that is the one combination worth having: every message in
+ * Sokosumi, and a banner only when you are named.
  */
-export function levelOf(
-  cells: readonly StoredCell[],
-  group: CategoryGroup,
-  scope: number,
-): GroupLevelState {
+export function resolve(
+  specs: readonly SubjectSpec[],
+  own: (spec: SubjectSpec) => Delivery,
+): Omit<SubjectChoice, "stored" | "saving">[] {
+  return specs.map((spec) => {
+    const covers = specs.filter((candidate) =>
+      candidate.covers.includes(spec.id),
+    );
+    const fromCover = loudest(...covers.map((cover) => own(cover)));
+    const mine = own(spec);
+    // The cover to name. Loudest first, and a cover that is itself off carries
+    // nothing, so it is not one.
+    const strongest = covers
+      .filter((cover) => own(cover) !== "OFF")
+      .sort((a, b) => DELIVERY_RANK[own(b)] - DELIVERY_RANK[own(a)])[0];
+
+    return {
+      spec,
+      own: mine,
+      floor: fromCover,
+      effective: loudest(mine, fromCover),
+      coveredBy: strongest ?? null,
+      louder:
+        DELIVERY_RANK[mine] > DELIVERY_RANK[fromCover] &&
+        DELIVERY_RANK[fromCover] > 0,
+    };
+  });
+}
+
+export function groupPreset(group: CategoryGroup): PresetState {
   return (
-    GROUP_LEVELS.find((level) =>
-      matches(cells, cellsFor(cells, group, scope, level)),
+    groupPresets(group.subjects.map((subject) => subject.spec)).find((preset) =>
+      group.subjects.every(
+        (subject) => subject.own === presetDelivery(preset, subject.spec),
+      ),
     ) ?? "CUSTOM"
   );
 }
 
-export function presetOf(
-  cells: readonly StoredCell[],
-  group: CategoryGroup,
-  scope: number,
-): PresetState {
-  const level = levelOf(cells, group, scope);
+/**
+ * A few subjects as one phrase.
+ *
+ * Two get both names, because "Direct messages and mentions of you" is the
+ * whole answer. More than two would be a list nobody reads in a closed row, so
+ * the first one leads and the rest are counted.
+ */
+export function nameSpecs(specs: readonly SubjectSpec[]) {
+  if (specs.length === 0) {
+    return "Nothing";
+  }
 
-  return (
-    groupPresets(group).find((preset) => {
-      const wanted = presetScope(group, preset);
+  if (specs.length <= 2) {
+    return specs.map((spec) => spec.label).join(" and ");
+  }
 
-      return (
-        PRESET_SHAPE[preset].level === level &&
-        (wanted === null || wanted === scope)
-      );
-    }) ?? "CUSTOM"
+  return `${specs[0].label} and ${specs.length - 1} more`;
+}
+
+/** The subjects a summary should name: the ones no other subject speaks for. */
+export function headline(group: CategoryGroup) {
+  return group.subjects.filter(
+    (subject) =>
+      subject.effective !== "OFF" &&
+      (subject.coveredBy === null || subject.louder),
   );
+}
+
+/**
+ * One line for a closed group: what arrives, then how loudly.
+ *
+ * Covered subjects are left out of the naming. Listing "mentions" next to
+ * "every message in your rooms" is the duplication this whole screen exists to
+ * avoid.
+ */
+export function groupSummary(group: CategoryGroup) {
+  const named = headline(group);
+
+  if (named.length === 0) {
+    return "Nothing arrives";
+  }
+
+  const labels = nameSpecs(named.map((subject) => subject.spec));
+  const deliveries = new Set(named.map((subject) => subject.effective));
+  const how =
+    deliveries.size === 1
+      ? DELIVERY_COPY[[...deliveries][0]].sentence
+      : "mixed delivery";
+
+  return `${labels} · ${how}`;
+}
+
+/** The delivery one subject's stored cells describe. */
+export function deliveryOf(
+  cells: readonly StoredCell[],
+  spec: SubjectSpec,
+): Delivery {
+  const mine = cells.filter((cell) => spec.categories.includes(cell.category));
+
+  if (mine.length === 0 || mine.every((cell) => !cell.enabled)) {
+    return "OFF";
+  }
+
+  return mine.some((cell) => cell.channel === "OS_BANNER" && cell.enabled)
+    ? "BANNER"
+    : "IN_APP";
+}
+
+/** The cells one delivery writes for one subject. */
+export function cellsFor(
+  cells: readonly StoredCell[],
+  spec: SubjectSpec,
+  delivery: Delivery,
+): StoredCell[] {
+  const channels = deliveryChannels(delivery);
+
+  return cells
+    .filter((cell) => spec.categories.includes(cell.category))
+    .map((cell) => ({ ...cell, enabled: channels.includes(cell.channel) }));
+}
+
+/**
+ * What one preset would do to this group, in the group's own subjects.
+ *
+ * A preset that cannot say what it means has to be taken on trust, and the
+ * meaning differs per group: "Important" is one subject in Requests and access
+ * and two in Chat.
+ */
+export function presetHint(group: CategoryGroup, preset: PresetId) {
+  if (preset === "OFF") {
+    return "Nothing arrives";
+  }
+
+  const specs = group.subjects.map((subject) => subject.spec);
+  const on = specs.filter((spec) => presetDelivery(preset, spec) !== "OFF");
+
+  if (on.length === 0) {
+    return "Nothing arrives";
+  }
+
+  const covered = new Set(on.flatMap((spec) => spec.covers));
+  const named = on.filter((spec) => !covered.has(spec.id));
+  const labels =
+    on.length === specs.length && specs.length > 1
+      ? "Everything here"
+      : nameSpecs(named);
+
+  return `${labels} · ${DELIVERY_COPY[presetDelivery(preset, on[0])].sentence}`;
+}
+
+/**
+ * The line under one subject's name.
+ *
+ * A covered subject says so instead of repeating its hint, because "someone
+ * names you in a room you are in" is not the thing the reader needs once every
+ * message in that room already arrives.
+ */
+export function subjectNote(subject: SubjectChoice) {
+  if (subject.louder && subject.coveredBy) {
+    return `Covered by ${subject.coveredBy.label}, and louder here`;
+  }
+
+  if (subject.coveredBy) {
+    return `Covered by ${subject.coveredBy.label}`;
+  }
+
+  return subject.spec.hint;
 }

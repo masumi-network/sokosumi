@@ -17,100 +17,30 @@ import {
   getMyPreferencesQueryOptions,
 } from "@/queries/preferences";
 import {
-  type CategoryChoice,
   type CategoryGroup,
-  type ChannelChoice,
   cellsFor,
-  DISPLAY_CHANNELS,
-  type DisplayChannel,
-  derivedScope,
-  type GroupLevel,
-  type GroupLevelState,
+  type Delivery,
+  deliveryOf,
+  groupPreset,
   groupPresets,
-  levelOf,
-  type NotificationCategory,
   type PresetId,
   type PresetState,
-  presetLevel,
-  presetOf,
-  presetScope,
+  presetDelivery,
+  resolve,
   type StoredCell,
-  type StoredChannel,
-  scopeCategories,
-  type TriState,
-  tri,
 } from "./notification-model";
-import { GROUP_SCOPES } from "./notification-scopes";
-
-const CATEGORY_LABEL_KEY: Record<NotificationCategory, string> = {
-  JOB: "matrixCategoryJob",
-  TASK: "matrixCategoryTask",
-  CHAT_MENTION: "matrixCategoryChatMention",
-  CHAT_DIRECT_MESSAGE: "matrixCategoryChatDirectMessage",
-  SYSTEM: "matrixCategorySystem",
-};
-
-const STORED_CHANNEL_LABEL_KEY: Record<StoredChannel, string> = {
-  IN_APP: "matrixChannelInApp",
-  OS_BANNER: "matrixChannelOsBanner",
-};
-
-/** A record over the union, so a category Core adds fails to compile here. */
-const CATEGORY_GROUP: Record<NotificationCategory, string> = {
-  JOB: "JOB",
-  TASK: "TASK",
-  CHAT_MENTION: "CHAT",
-  CHAT_DIRECT_MESSAGE: "CHAT",
-  SYSTEM: "SYSTEM",
-};
-
-const GROUP_ORDER = ["TASK", "CHAT", "JOB", "SYSTEM"] as const;
-
-const GROUP_COPY: Record<string, { label: string; description: string }> = {
-  TASK: {
-    label: "Tasks",
-    description: "Work your coworkers hand back to you.",
-  },
-  CHAT: { label: "Chat", description: "Messages in rooms and direct." },
-  JOB: { label: "Jobs", description: "Agent runs and their status." },
-  SYSTEM: {
-    label: "Requests and access",
-    description: "Access asked for, and access decided.",
-  },
-};
-
-function cellKey(category: NotificationCategory, channel: DisplayChannel) {
-  return `${category}:${channel}`;
-}
+import {
+  GROUP_ORDER,
+  GROUP_SUBJECTS,
+  type SubjectSpec,
+} from "./notification-subjects";
 
 export interface NotificationChoices {
   groups: CategoryGroup[];
   isLoading: boolean;
   push: PushPreference;
-  /** Which rung of the breadth ladder a group is on. */
-  groupScope: (group: CategoryGroup) => number;
-  setGroupScope: (group: CategoryGroup, index: number) => Promise<void>;
-  /** The subjects the current breadth includes, in reading order. */
-  inScope: (group: CategoryGroup) => CategoryChoice[];
-  /** Where the in-scope subjects arrive, or `CUSTOM` when they disagree. */
-  groupLevel: (group: CategoryGroup) => GroupLevelState;
-  setGroupLevel: (group: CategoryGroup, level: GroupLevel) => Promise<void>;
-  groupChannelState: (
-    group: CategoryGroup,
-    channel: DisplayChannel,
-  ) => TriState;
-  setGroupChannel: (
-    group: CategoryGroup,
-    channel: DisplayChannel,
-    enabled: boolean,
-  ) => Promise<void>;
-  /** One channel of one subject. This is what creates a custom group. */
-  setChannel: (
-    category: NotificationCategory,
-    channel: DisplayChannel,
-    enabled: boolean,
-  ) => Promise<void>;
-  /** The presets that mean something different for this group. */
+  /** One row, one answer. Everything else on the screen is built from this. */
+  setSubject: (spec: SubjectSpec, delivery: Delivery) => Promise<void>;
   groupPresets: (group: CategoryGroup) => PresetId[];
   groupPreset: (group: CategoryGroup) => PresetState;
   setGroupPreset: (group: CategoryGroup, preset: PresetId) => Promise<void>;
@@ -124,8 +54,8 @@ export interface NotificationChoices {
  *
  * One model, many views. The save path, the optimistic paint and the push
  * activation live here so the layouts differ only in how they look, which is
- * the thing being compared. The arithmetic over cells, rungs and presets is
- * next door in `notification-model.ts`, where it needs no React to be read.
+ * the thing being compared. The arithmetic over subjects, covering and presets
+ * is next door in `notification-model.ts`, where it needs no React to be read.
  */
 export function useNotificationChoices(): NotificationChoices {
   const t = useTranslations("App.Account.Notifications");
@@ -136,183 +66,54 @@ export function useNotificationChoices(): NotificationChoices {
     getMyPreferencesQueryOptions(userId),
   );
   const push = usePushPreference(userId);
-  const [savingCells, setSavingCells] = useState<readonly string[]>([]);
-  // The breadth a reader picked. Nothing stores a rung yet, and a group that is
-  // off has no cells left to read one back from, so the choice is held here for
-  // the visit. A shipped version needs a column; see the note in the PR.
-  const [scopeChoice, setScopeChoice] = useState<Record<string, number>>({});
+  const [saving, setSaving] = useState<readonly string[]>([]);
+  // The subjects nothing stores yet. Held for the visit so the rows behave, and
+  // deliberately not written: there is no column to write them to.
+  const [drawn, setDrawn] = useState<Record<string, Delivery>>({});
 
-  const cells = preferences?.data.notificationPreferences ?? [];
+  const cells: StoredCell[] = preferences?.data.notificationPreferences ?? [];
 
-  const bannerUnavailableReason =
-    push.isSupported === false
-      ? t("pushUnsupported")
-      : push.isBlocked
-        ? t("pushDeviceUnavailableDescription")
-        : null;
-
-  function channelChoice(
-    category: NotificationCategory,
-    channel: DisplayChannel,
-  ): ChannelChoice {
-    if (channel === "EMAIL") {
-      return {
-        channel,
-        label: "Email",
-        enabled: false,
-        available: false,
-        saving: false,
-        unavailableReason:
-          "Not built yet. Shown so the layout holds three channels.",
-      };
-    }
-
-    const stored = cells.find(
-      (candidate) =>
-        candidate.category === category && candidate.channel === channel,
-    );
-
-    return {
-      channel,
-      label: t(STORED_CHANNEL_LABEL_KEY[channel]),
-      enabled: stored?.enabled ?? false,
-      available: stored !== undefined,
-      saving: savingCells.includes(cellKey(category, channel)),
-      unavailableReason:
-        channel === "OS_BANNER" ? bannerUnavailableReason : null,
-    };
+  function stored(spec: SubjectSpec) {
+    return spec.categories.length > 0;
   }
 
-  const categories = [...new Set(cells.map((cell) => cell.category))];
+  function own(spec: SubjectSpec): Delivery {
+    return stored(spec) ? deliveryOf(cells, spec) : (drawn[spec.id] ?? "OFF");
+  }
+
+  const present = new Set(cells.map((cell) => cell.category));
 
   const groups: CategoryGroup[] = GROUP_ORDER.flatMap((groupId) => {
-    const groupCategories = categories.filter(
-      (category) => CATEGORY_GROUP[category] === groupId,
-    );
+    const group = GROUP_SUBJECTS[groupId];
 
-    if (groupCategories.length === 0) {
+    if (!group) {
       return [];
     }
 
-    const scopes = GROUP_SCOPES[groupId];
-    // A rung whose only category this account does not have would be a promise
-    // the screen cannot keep. A rung with no categories at all is the drawn one.
-    const rungs = (scopes?.rungs ?? []).filter(
-      (rung) =>
-        rung.categories.length === 0 ||
-        rung.categories.some((category) => categories.includes(category)),
+    // A subject whose categories this account does not have would be a promise
+    // the screen cannot keep. One with no categories at all is the drawn kind.
+    const specs = group.subjects.filter(
+      (spec) =>
+        spec.categories.length === 0 ||
+        spec.categories.some((category) => present.has(category)),
     );
+
+    if (specs.every((spec) => !stored(spec))) {
+      return [];
+    }
 
     return [
       {
         id: groupId,
-        label: GROUP_COPY[groupId]?.label ?? groupId,
-        description: GROUP_COPY[groupId]?.description ?? "",
-        categories: groupCategories.map((category) => ({
-          category,
-          label: t(CATEGORY_LABEL_KEY[category]),
-          channels: DISPLAY_CHANNELS.map((channel) =>
-            channelChoice(category, channel),
-          ),
+        label: group.label,
+        subjects: resolve(specs, own).map((subject) => ({
+          ...subject,
+          stored: stored(subject.spec),
+          saving: saving.includes(subject.spec.id),
         })),
-        rungs,
-        defaultScope: Math.min(
-          scopes?.defaultIndex ?? 0,
-          Math.max(rungs.length - 1, 0),
-        ),
       },
     ];
   });
-
-  const storedCells: StoredCell[] = groups.flatMap((group) =>
-    group.categories.flatMap((category) =>
-      category.channels
-        .filter((channel) => channel.available)
-        .map((channel) => ({
-          category: category.category,
-          channel: channel.channel as StoredChannel,
-          enabled: channel.enabled,
-        })),
-    ),
-  );
-
-  function groupCells(group: CategoryGroup) {
-    const inGroup = group.categories.map((category) => category.category);
-    return storedCells.filter((cell) => inGroup.includes(cell.category));
-  }
-
-  function groupScope(group: CategoryGroup) {
-    const chosen = scopeChoice[group.id];
-
-    if (chosen !== undefined) {
-      return chosen;
-    }
-
-    const derived = derivedScope(group, groupCells(group));
-
-    return derived === -1 ? group.defaultScope : derived;
-  }
-
-  function inScopeCategories(group: CategoryGroup) {
-    return scopeCategories(group, groupScope(group));
-  }
-
-  /**
-   * The cells the group controls speak for.
-   *
-   * Out-of-scope subjects are off by construction, so counting them would make
-   * every narrowed group read as custom, and custom would stop meaning
-   * anything.
-   */
-  function inScopeCells(group: CategoryGroup) {
-    const wanted = inScopeCategories(group);
-    return groupCells(group).filter((cell) => wanted.includes(cell.category));
-  }
-
-  function groupChannelState(group: CategoryGroup, channel: DisplayChannel) {
-    return tri(inScopeCells(group).filter((cell) => cell.channel === channel));
-  }
-
-  function groupLevel(group: CategoryGroup) {
-    return levelOf(groupCells(group), group, groupScope(group));
-  }
-
-  /**
-   * Moving the ladder touches the subjects that move, and only those.
-   *
-   * A subject already being listened to keeps exactly the channels it had, so
-   * widening chat cannot quietly switch a banner back on somewhere else. A
-   * subject arriving takes the delivery its neighbours have; one arriving into
-   * a silent group turns the bell on, because asking for it is a request to
-   * hear it, not a request to store a subscription that goes nowhere.
-   */
-  function cellsForScope(group: CategoryGroup, index: number): StoredCell[] {
-    const before = inScopeCategories(group);
-    const after = scopeCategories(group, index);
-    const level = groupLevel(group);
-
-    function arriving(channel: StoredChannel) {
-      if (level === "ALL") {
-        return true;
-      }
-
-      if (level === "IN_APP" || level === "OFF") {
-        return channel === "IN_APP";
-      }
-
-      return groupChannelState(group, channel) !== "off";
-    }
-
-    return groupCells(group).map((cell) => {
-      if (!after.includes(cell.category)) {
-        return { ...cell, enabled: false };
-      }
-
-      return before.includes(cell.category)
-        ? cell
-        : { ...cell, enabled: arriving(cell.channel) };
-    });
-  }
 
   function paint(written: readonly StoredCell[]) {
     queryClient.setQueryData<GetUsersByIdPreferencesResponse>(
@@ -362,13 +163,14 @@ export function useNotificationChoices(): NotificationChoices {
           : t("pushEnabledOtherDevicesSuccess"),
       );
     } catch (error) {
-      console.error("Failed to activate push from a channel toggle", error);
+      console.error("Failed to activate push from a delivery control", error);
       toast.error(t("pushError"));
     }
   }
 
-  async function write(changes: readonly StoredCell[]) {
+  async function write(changes: readonly StoredCell[], touched: string[]) {
     if (changes.length === 0) {
+      // A subject nothing stores still has to answer the click.
       return;
     }
 
@@ -396,10 +198,7 @@ export function useNotificationChoices(): NotificationChoices {
     }
 
     paint(changes);
-    const keys = changes.map((change) =>
-      cellKey(change.category, change.channel),
-    );
-    setSavingCells((saving) => [...saving, ...keys]);
+    setSaving((current) => [...current, ...touched]);
 
     try {
       const written = await preferencesBrowserClient.patchMyPreferences({
@@ -421,62 +220,50 @@ export function useNotificationChoices(): NotificationChoices {
       paint(previous);
       toast.error(t("error"));
     } finally {
-      setSavingCells((saving) =>
-        saving.filter((candidate) => !keys.includes(candidate)),
+      setSaving((current) =>
+        current.filter((candidate) => !touched.includes(candidate)),
       );
     }
   }
 
-  function rememberScope(group: CategoryGroup, index: number) {
-    setScopeChoice((current) => ({ ...current, [group.id]: index }));
+  function remember(spec: SubjectSpec, delivery: Delivery) {
+    setDrawn((current) => ({ ...current, [spec.id]: delivery }));
   }
 
   return {
     groups,
     isLoading: isPending,
     push,
-    groupScope,
-    setGroupScope: async (group, index) => {
-      rememberScope(group, index);
-      await write(cellsForScope(group, index));
-    },
-    inScope: (group) => {
-      const wanted = inScopeCategories(group);
-      return group.categories.filter((category) =>
-        wanted.includes(category.category),
-      );
-    },
-    groupLevel,
-    setGroupLevel: (group, level) =>
-      write(cellsFor(groupCells(group), group, groupScope(group), level)),
-    groupChannelState,
-    setGroupChannel: (group, channel, enabled) =>
-      channel === "EMAIL"
-        ? Promise.resolve()
-        : write(
-            inScopeCells(group)
-              .filter((cell) => cell.channel === channel)
-              .map((cell) => ({ ...cell, enabled })),
-          ),
-    setChannel: (category, channel, enabled) =>
-      channel === "EMAIL"
-        ? Promise.resolve()
-        : write([{ category, channel, enabled }]),
-    groupPresets,
-    groupPreset: (group) =>
-      presetOf(groupCells(group), group, groupScope(group)),
-    setGroupPreset: async (group, preset) => {
-      const scope = presetScope(group, preset) ?? groupScope(group);
+    setSubject: async (spec, delivery) => {
+      if (!stored(spec)) {
+        remember(spec, delivery);
+        return;
+      }
 
-      rememberScope(group, scope);
+      await write(cellsFor(cells, spec, delivery), [spec.id]);
+    },
+    groupPresets: (group) =>
+      groupPresets(group.subjects.map((subject) => subject.spec)),
+    groupPreset,
+    setGroupPreset: async (group, preset) => {
+      const changes = group.subjects.flatMap((subject) => {
+        const delivery = presetDelivery(preset, subject.spec);
+
+        if (!subject.stored) {
+          remember(subject.spec, delivery);
+          return [];
+        }
+
+        return cellsFor(cells, subject.spec, delivery);
+      });
+
       await write(
-        cellsFor(groupCells(group), group, scope, presetLevel(preset)),
+        changes,
+        group.subjects.map((subject) => subject.spec.id),
       );
     },
     pagePreset: () => {
-      const presets = groups.map((group) =>
-        presetOf(groupCells(group), group, groupScope(group)),
-      );
+      const presets = groups.map((group) => groupPreset(group));
       const first = presets[0];
 
       return first && presets.every((preset) => preset === first)
@@ -486,15 +273,25 @@ export function useNotificationChoices(): NotificationChoices {
     setPagePreset: (preset) => {
       // Every cell this account has fits in one request, so the page cannot end
       // up half applied with the reader watching rows settle one by one.
-      const changes = groups.flatMap((group) => {
-        const scope = presetScope(group, preset) ?? groupScope(group);
+      const changes = groups.flatMap((group) =>
+        group.subjects.flatMap((subject) => {
+          const delivery = presetDelivery(preset, subject.spec);
 
-        rememberScope(group, scope);
+          if (!subject.stored) {
+            remember(subject.spec, delivery);
+            return [];
+          }
 
-        return cellsFor(groupCells(group), group, scope, presetLevel(preset));
-      });
+          return cellsFor(cells, subject.spec, delivery);
+        }),
+      );
 
-      return write(changes);
+      return write(
+        changes,
+        groups.flatMap((group) =>
+          group.subjects.map((subject) => subject.spec.id),
+        ),
+      );
     },
   };
 }

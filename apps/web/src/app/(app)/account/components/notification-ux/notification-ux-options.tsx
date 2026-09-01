@@ -1,100 +1,53 @@
 "use client";
 
 import { Separator } from "@/components/ui/separator";
-import { E1PresetStops } from "./e1-preset-stops";
-import { E2PresetMenu } from "./e2-preset-menu";
-import { E3TwoLadders } from "./e3-two-ladders";
-import { E4GlanceOnly } from "./e4-glance-only";
-import { E5TwoQuestions } from "./e5-two-questions";
-import { E6TwoPickers } from "./e6-two-pickers";
-import { E7PresetChips } from "./e7-preset-chips";
-import { E8OneMenu } from "./e8-one-menu";
-import { E9EditableSentence } from "./e9-editable-sentence";
-import { E10PagePreset } from "./e10-page-preset";
+import { F1SubjectStops } from "./f1-subject-stops";
+import { F2SubjectChannels } from "./f2-subject-channels";
+import { F3SubjectSwitches } from "./f3-subject-switches";
+import { F4NestedSubjects } from "./f4-nested-subjects";
+import { PagePresets } from "./preset-controls";
 import { useNotificationChoices } from "./use-notification-choices";
 
 /**
- * Ten layouts for the same preferences, on one page, so they can be compared by
- * using them rather than by reading about them.
+ * Four layouts for the same preferences, on one page, so they can be compared
+ * by using them rather than by reading about them.
  *
- * All ten ask the same two questions per group: what to tell you about, and
- * where it arrives. They differ in whether a preset answers both at once, in
- * what the closed row shows without being opened, and in how much of the detail
- * survives inside the fold.
+ * All four share one rule, which is the point of this round: everything you can
+ * ask for is a row, every row appears once, and a row that another row already
+ * carries says so instead of being drawn a second time. They differ only in the
+ * control on the row and in how containment is shown.
  *
  * Scaffolding. One gets picked and the rest go with this file. The copy here is
  * English only: these are evaluation labels, not product strings.
  */
 const OPTIONS = [
   {
-    id: "E1",
-    title: "Presets as stops, with a glance",
+    id: "F1",
+    title: "Three stops per subject",
     pitch:
-      "D1 grown a second question. One press settles the group; the meter and icons say how far it reaches.",
-    render: E1PresetStops,
+      "Off, in Sokosumi, banner. A covered row keeps its stops and greys out the ones below its cover, so the reader can see where “off” went.",
+    render: F1SubjectStops,
   },
   {
-    id: "E2",
-    title: "Presets in a menu",
+    id: "F2",
+    title: "Channels per subject",
     pitch:
-      "D3 grown a second question. Each preset says what it means for this group. Quietest row here.",
-    render: E2PresetMenu,
+      "The same rows with a tick per channel. The only shape that has somewhere to put email, which is not louder than a banner but elsewhere.",
+    render: F2SubjectChannels,
   },
   {
-    id: "E3",
-    title: "Both ladders on the row",
+    id: "F3",
+    title: "A switch, then the banner",
     pitch:
-      "No presets, nothing named for you. Two controls per group, and rows that stop lining up.",
-    render: E3TwoLadders,
+      "Smallest control on the page. A reader who never wants a banner never meets it, at the price of a column that moves as rows go on.",
+    render: F3SubjectSwitches,
   },
   {
-    id: "E4",
-    title: "The row reports, the panel decides",
+    id: "F4",
+    title: "Covered subjects nested",
     pitch:
-      "Readable top to bottom without touching anything. No change without opening something.",
-    render: E4GlanceOnly,
-  },
-  {
-    id: "E5",
-    title: "Two questions, no per-subject chips",
-    pitch:
-      "The honest version of the ladder: one breadth, one delivery, and the fine control gone. Test what you miss.",
-    render: E5TwoQuestions,
-  },
-  {
-    id: "E6",
-    title: "Both ladders as pickers",
-    pitch:
-      "The row keeps its width in any language. Comparing two groups means opening two menus.",
-    render: E6TwoPickers,
-  },
-  {
-    id: "E7",
-    title: "Presets as chips that wrap",
-    pitch:
-      "Room to grow a fifth preset, because nothing has to fit on one line. Tallest of the ten.",
-    render: E7PresetChips,
-  },
-  {
-    id: "E8",
-    title: "One menu, two headed sections",
-    pitch:
-      "One control per row however deep the ladder gets. Both questions are invisible until it opens.",
-    render: E8OneMenu,
-  },
-  {
-    id: "E9",
-    title: "A sentence you edit",
-    pitch:
-      "Reading it and changing it are the same act. An underlined word is a weak invitation.",
-    render: E9EditableSentence,
-  },
-  {
-    id: "E10",
-    title: "One answer for everything, then exceptions",
-    pitch:
-      "Same four words at both levels. Goes custom the moment any group differs, which is immediately.",
-    render: E10PagePreset,
+      "Same rows as F1, ordered so containment is visible before it is read. Costs an indent level and puts the widest setting first.",
+    render: F4NestedSubjects,
   },
 ] as const;
 
@@ -119,30 +72,40 @@ export function NotificationUxOptions() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-muted/40 space-y-1 rounded-lg border border-dashed p-4">
-        <p className="text-sm leading-5 font-medium">
-          Two questions per group, and ten ways to ask them
-        </p>
-        <p className="text-muted-foreground text-sm leading-6">
-          Every group now answers <strong>what</strong> to tell you about and{" "}
-          <strong>where</strong> it arrives. The first is a ladder whose rungs
-          contain each other: every message in your rooms already carries the
-          mentions, so the rungs under the one you pick show as included rather
-          than as switches that would have to disagree. A preset is a name for
-          one rung and one delivery together.
-        </p>
-        <p className="text-muted-foreground text-sm leading-6">
-          All ten edit the same preferences, so a change in one shows up in the
-          others. Asking for a banner anywhere turns push on and requests the
-          browser permission from that control. Push is currently {pushState}.
-        </p>
-        <p className="text-muted-foreground text-sm leading-6">
-          Marked <em>not stored yet</em>: threads you follow, every message in
-          your rooms, every task update, every run status change, and the email
-          channel. They are drawn so the ladders can be judged at the length
-          they will really have. What they change is remembered for this visit
-          and not saved.
-        </p>
+      <div className="bg-muted/40 space-y-3 rounded-lg border border-dashed p-4">
+        <div className="space-y-1">
+          <p className="text-sm leading-5 font-medium">
+            One row per thing you can ask for
+          </p>
+          <p className="text-muted-foreground text-sm leading-6">
+            Threads, mentions and direct messages are separate rows and are
+            chosen separately. Where one thing already carries another, the
+            narrower row stays and reports its cover: every message in your
+            rooms carries the mentions in those rooms, so that row says so
+            rather than pretending to be independent. It can still be set{" "}
+            <strong>louder</strong> than its cover, which is the combination
+            worth having: every message in Sokosumi, a banner only when you are
+            named.
+          </p>
+          <p className="text-muted-foreground text-sm leading-6">
+            A preset is a shortcut for the rows in a group, not a second
+            setting. All four layouts edit the same preferences, so a change in
+            one shows up in the others. Asking for a banner anywhere turns push
+            on and requests the browser permission from that control. Push is
+            currently {pushState}.
+          </p>
+          <p className="text-muted-foreground text-sm leading-6">
+            Marked <em>not stored yet</em>: threads you follow, every message in
+            your rooms, every task update, every run status change, and the
+            email channel. They are drawn so the covering rule can be judged
+            with something to cover. What they change is remembered for this
+            visit and not saved.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm leading-5 font-medium">Everything:</span>
+          <PagePresets choices={choices} />
+        </div>
       </div>
 
       {OPTIONS.map((option) => {
