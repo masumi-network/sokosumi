@@ -12285,6 +12285,43 @@ export const MemberRecordSchema = {
     ]
 } as const;
 
+export const NotificationPreferenceSchema = {
+    type: 'object',
+    properties: {
+        category: {
+            type: 'string',
+            enum: [
+                'JOB',
+                'TASK',
+                'CHAT_MENTION',
+                'CHAT_DIRECT_MESSAGE',
+                'SYSTEM'
+            ],
+            description: 'What the notification is about',
+            example: 'CHAT_MENTION'
+        },
+        channel: {
+            type: 'string',
+            enum: [
+                'IN_APP',
+                'OS_BANNER'
+            ],
+            description: 'Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)',
+            example: 'OS_BANNER'
+        },
+        enabled: {
+            type: 'boolean',
+            description: 'Whether the reader wants this category on this channel',
+            example: true
+        }
+    },
+    required: [
+        'category',
+        'channel',
+        'enabled'
+    ]
+} as const;
+
 export const PreferredOrganizationSchema = {
     type: 'object',
     properties: {
