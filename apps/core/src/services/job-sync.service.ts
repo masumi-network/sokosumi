@@ -1072,7 +1072,12 @@ export const jobSyncService = {
         diffProcessed = purchaseDiff.processed;
       } catch (error) {
         console.error("[sync/jobs/purchase-diff] Diff sync failed:", error);
-        Sentry.captureException(error);
+        // Through the shared helper, not Sentry directly: the transient
+        // Prisma failures this block exists for (P2028 pool timeouts, P2034,
+        // a deploy-window schema drift) would otherwise page on every tick.
+        captureExternalServiceError(error, {
+          label: "sync/jobs/purchase-diff",
+        });
       }
 
       agentPhase = await runSyncPhase(
