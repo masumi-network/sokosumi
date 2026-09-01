@@ -4155,6 +4155,8 @@
         "kindTaskAttentionHint": "A task stopped until you act, like needing approval or credits.",
         "kindTaskUpdate": "Other task updates",
         "kindTaskUpdateHint": "Anything else a task reports, like finishing or being canceled.",
+        "kindChatRoomMessage": "Every message in your rooms",
+        "kindChatRoomMessageHint": "Someone writes in a room you belong to. Off until you turn it on.",
         "kindChatMention": "Chat mentions",
         "kindChatMentionHint": "Someone names you in a chat.",
         "kindChatDirectMessage": "Direct messages",
@@ -4162,7 +4164,7 @@
         "kindSystem": "Requests and access",
         "kindSystemHint": "Someone asks for access, or a decision lands.",
         "groupChat": "Chat",
-        "groupChatDescription": "Mentions and direct messages",
+        "groupChatDescription": "Room messages, mentions, and direct messages",
         "deliveryOff": "Off",
         "deliveryInApp": "In app",
         "deliveryBanner": "Banner",
@@ -6416,7 +6418,8 @@
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",
-        "directMessage": "{authorName} sent you a message"
+        "directMessage": "{authorName} sent you a message",
+        "roomMessage": "{authorName} wrote in {roomName}"
       }
     }
   },
