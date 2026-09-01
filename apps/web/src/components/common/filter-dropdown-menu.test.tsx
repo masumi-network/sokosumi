@@ -54,4 +54,60 @@ describe("FilterDropdownMenu", () => {
     const optionLabel = screen.getByText(longTaskName);
     expect(optionLabel).toHaveClass(FILTER_DROPDOWN_OPTION_LABEL_CLASS);
   });
+
+  it("supports a controlled sheet without the built-in mobile trigger", async () => {
+    const user = userEvent.setup();
+    const onSheetOpenChange = vi.fn();
+
+    const { rerender } = render(
+      <FilterDropdownMenu
+        buttonLabel="Filter"
+        searchPlaceholder="Search..."
+        emptyResultsLabel="No results"
+        hideMobileTrigger
+        sheetOpen={false}
+        onSheetOpenChange={onSheetOpenChange}
+        sections={[
+          {
+            id: "task",
+            label: "Task",
+            icon: Folder,
+            value: null,
+            allLabel: "All",
+            onChange: vi.fn(),
+            options: [{ value: "task-1", label: "Task One" }],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Filter")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    rerender(
+      <FilterDropdownMenu
+        buttonLabel="Filter"
+        searchPlaceholder="Search..."
+        emptyResultsLabel="No results"
+        hideMobileTrigger
+        sheetOpen
+        onSheetOpenChange={onSheetOpenChange}
+        sections={[
+          {
+            id: "task",
+            label: "Task",
+            icon: Folder,
+            value: null,
+            allLabel: "All",
+            onChange: vi.fn(),
+            options: [{ value: "task-1", label: "Task One" }],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole("dialog", { name: "Filter" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /close/i }));
+    expect(onSheetOpenChange).toHaveBeenCalledWith(false);
+  });
 });

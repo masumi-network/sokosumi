@@ -6278,7 +6278,13 @@
       "loadRecentsError": "Kürzliche Dateien konnten nicht geladen werden",
       "loadMoreRecentsError": "Weitere kürzliche Dateien konnten nicht geladen werden",
       "viewList": "Liste",
-      "viewGrid": "Raster"
+      "viewGrid": "Raster",
+      "sortLabel": "Sortieren nach",
+      "sortByName": "Name",
+      "sortByDate": "Datum",
+      "sortByType": "Typ",
+      "sortAscending": "Aufsteigend",
+      "sortDescending": "Absteigend"
     },
     "SokoBot": {
       "Metadata": {

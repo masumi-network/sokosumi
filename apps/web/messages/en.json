@@ -6278,7 +6278,13 @@
       "loadRecentsError": "Failed to load recent files",
       "loadMoreRecentsError": "Failed to load more recent files",
       "viewList": "List",
-      "viewGrid": "Grid"
+      "viewGrid": "Grid",
+      "sortLabel": "Sort by",
+      "sortByName": "Name",
+      "sortByDate": "Date",
+      "sortByType": "Type",
+      "sortAscending": "Ascending",
+      "sortDescending": "Descending"
     },
     "SokoBot": {
       "Metadata": {
