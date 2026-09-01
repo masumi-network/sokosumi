@@ -4399,7 +4399,11 @@
           "title": "Channels",
           "description": "Live matched channels with roster-only visibility.",
           "loading": "Loading channels…",
-          "empty": "No matched channels yet."
+          "empty": "No matched channels yet.",
+          "tabActive": "Live",
+          "tabArchived": "Archived",
+          "descriptionArchived": "Soft-archived matched channels. Restore one to make it live again.",
+          "emptyArchived": "No archived matched channels."
         },
         "Create": {
           "title": "Create matched channel",
@@ -4458,11 +4462,22 @@
             "button": "Archive channel",
             "archiving": "Archiving…",
             "confirmTitle": "Archive {name}?",
-            "confirmDescription": "Participants lose access immediately. You can create a new matched channel later if needed.",
+            "confirmDescription": "Participants lose access immediately. You can restore this channel from the Archived tab in this hub.",
             "confirm": "Archive",
             "cancel": "Cancel",
             "success": "Matched channel archived",
             "error": "Failed to archive matched channel"
+          },
+          "archivedBadge": "Archived — roster edits are disabled until restored.",
+          "Restore": {
+            "button": "Restore channel",
+            "restoring": "Restoring…",
+            "confirmTitle": "Restore {name}?",
+            "confirmDescription": "Clears the archive flag so the channel returns to the live hub. Existing members keep their seats and regain access on their next session refresh.",
+            "confirm": "Restore",
+            "cancel": "Cancel",
+            "success": "Matched channel restored",
+            "error": "Failed to restore matched channel"
           }
         }
       }

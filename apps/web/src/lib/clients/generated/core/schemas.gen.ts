@@ -3020,13 +3020,34 @@ export const AdminMatchedChannelOptionSchema = {
         slug: {
             type: 'string',
             example: 'matched-channel'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When set, the channel is soft-archived and absent from live chat. Null while live.'
         }
     },
     required: [
         'id',
         'name',
-        'slug'
+        'slug',
+        'archivedAt'
     ]
+} as const;
+
+export const AdminMatchedChannelListStatusSchema = {
+    type: 'string',
+    enum: [
+        'active',
+        'archived'
+    ],
+    default: 'active',
+    description: 'List filter. `active` (default) returns live matched channels; `archived` returns soft-archived ones.',
+    example: 'active'
 } as const;
 
 export const AdminCreateMatchedChannelBodySchema = {
@@ -3077,6 +3098,15 @@ export const AdminMatchedChannelDetailSchema = {
             ],
             example: 'Partner coordination'
         },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When set, the channel is soft-archived. Null while live. Roster mutations require a live channel.'
+        },
         participants: {
             type: 'array',
             items: {
@@ -3089,6 +3119,7 @@ export const AdminMatchedChannelDetailSchema = {
         'name',
         'slug',
         'topic',
+        'archivedAt',
         'participants'
     ]
 } as const;

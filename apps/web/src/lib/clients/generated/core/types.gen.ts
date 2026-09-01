@@ -687,7 +687,21 @@ export type AdminMatchedChannelOption = {
     id: string;
     name: string;
     slug: string;
+    /**
+     * When set, the channel is soft-archived and absent from live chat. Null while live.
+     */
+    archivedAt: Date | null;
 };
+
+/**
+ * List filter. `active` (default) returns live matched channels; `archived` returns soft-archived ones.
+ */
+export const AdminMatchedChannelListStatus = { ACTIVE: 'active', ARCHIVED: 'archived' } as const;
+
+/**
+ * List filter. `active` (default) returns live matched channels; `archived` returns soft-archived ones.
+ */
+export type AdminMatchedChannelListStatus = typeof AdminMatchedChannelListStatus[keyof typeof AdminMatchedChannelListStatus];
 
 export type AdminCreateMatchedChannelBody = {
     /**
@@ -706,6 +720,10 @@ export type AdminMatchedChannelDetail = {
     name: string;
     slug: string;
     topic: string | null;
+    /**
+     * When set, the channel is soft-archived. Null while live. Roster mutations require a live channel.
+     */
+    archivedAt: Date | null;
     participants: Array<AdminMatchedChannelParticipantInfo>;
 };
 
@@ -7190,7 +7208,12 @@ export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUser
 export type ListAdminMatchedChannelsData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * List filter. `active` (default) returns live matched channels; `archived` returns soft-archived ones.
+         */
+        status?: AdminMatchedChannelListStatus;
+    };
     url: '/admin/matched-channels';
 };
 
@@ -7229,7 +7252,7 @@ export type ListAdminMatchedChannelsError = ListAdminMatchedChannelsErrors[keyof
 
 export type ListAdminMatchedChannelsResponses = {
     /**
-     * Live matched channels
+     * Matched channels
      */
     200: {
         data: Array<AdminMatchedChannelOption>;
@@ -7484,6 +7507,92 @@ export type ArchiveAdminMatchedChannelResponses = {
 };
 
 export type ArchiveAdminMatchedChannelResponse = ArchiveAdminMatchedChannelResponses[keyof ArchiveAdminMatchedChannelResponses];
+
+export type RestoreAdminMatchedChannelData = {
+    body?: never;
+    path: {
+        roomId: string;
+    };
+    query?: never;
+    url: '/admin/matched-channels/{roomId}/restore';
+};
+
+export type RestoreAdminMatchedChannelErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RestoreAdminMatchedChannelError = RestoreAdminMatchedChannelErrors[keyof RestoreAdminMatchedChannelErrors];
+
+export type RestoreAdminMatchedChannelResponses = {
+    /**
+     * Matched channel restored
+     */
+    200: {
+        data: AdminMatchedChannelOption;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RestoreAdminMatchedChannelResponse = RestoreAdminMatchedChannelResponses[keyof RestoreAdminMatchedChannelResponses];
 
 export type AddAdminMatchedChannelParticipantsFromOrganizationData = {
     body?: AdminAddMatchedChannelFromOrganizationBody;

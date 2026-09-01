@@ -366,6 +366,7 @@ import {
   resetMySokoBotMemory as coreResetMySokoBotMemory,
   resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
   resolveMySokoBotDecision as coreResolveMySokoBotDecision,
+  restoreAdminMatchedChannel as coreRestoreAdminMatchedChannel,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
   runMySokoBotLabIngest as coreRunMySokoBotLabIngest,
   searchAdminOrganizations as coreSearchAdminOrganizations,
@@ -1746,12 +1747,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function listAdminMatchedChannels() {
+  async function listAdminMatchedChannels(query?: {
+    status?: "active" | "archived";
+  }) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreListAdminMatchedChannels({
           client,
+          ...(query ? { query } : {}),
           cache: "no-store",
         }),
       "Failed to list matched channels",
@@ -1848,6 +1852,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to archive matched channel",
+    );
+  }
+
+  async function restoreAdminMatchedChannel(roomId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRestoreAdminMatchedChannel({
+          client,
+          path: { roomId },
+          cache: "no-store",
+        }),
+      "Failed to restore matched channel",
     );
   }
 
@@ -4863,6 +4880,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     addAdminMatchedChannelParticipantsFromOrganization,
     removeAdminMatchedChannelParticipant,
     archiveAdminMatchedChannel,
+    restoreAdminMatchedChannel,
     addAdminOrganizationMember,
     removeAdminOrganizationMember,
     updateAdminOrganizationMemberRole,

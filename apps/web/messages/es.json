@@ -4368,7 +4368,11 @@
           "title": "Canales",
           "description": "Canales emparejados en vivo con visibilidad solo por lista.",
           "loading": "Cargando canales…",
-          "empty": "Aún no hay canales emparejados."
+          "empty": "Aún no hay canales emparejados.",
+          "tabActive": "Activos",
+          "tabArchived": "Archivados",
+          "descriptionArchived": "Canales emparejados archivados. Restáuralos para volver a ponerlos en vivo.",
+          "emptyArchived": "No hay canales emparejados archivados."
         },
         "Create": {
           "title": "Crear canal emparejado",
@@ -4427,11 +4431,22 @@
             "button": "Archivar canal",
             "archiving": "Archivando…",
             "confirmTitle": "¿Archivar {name}?",
-            "confirmDescription": "Los participantes pierden el acceso de inmediato. Más adelante puedes crear un canal emparejado nuevo si lo necesitas.",
+            "confirmDescription": "Los participantes pierden el acceso de inmediato. Puedes restaurar este canal desde la pestaña Archivados en este panel.",
             "confirm": "Archivar",
             "cancel": "Cancelar",
             "success": "Canal emparejado archivado",
             "error": "No se pudo archivar el canal emparejado"
+          },
+          "archivedBadge": "Archivado: las ediciones de la lista están desactivadas hasta restaurarlo.",
+          "Restore": {
+            "button": "Restaurar canal",
+            "restoring": "Restaurando…",
+            "confirmTitle": "¿Restaurar {name}?",
+            "confirmDescription": "Quita el archivo para que el canal vuelva al panel en vivo. Los miembros existentes conservan su plaza y recuperan el acceso en la próxima actualización de sesión.",
+            "confirm": "Restaurar",
+            "cancel": "Cancelar",
+            "success": "Canal emparejado restaurado",
+            "error": "No se pudo restaurar el canal emparejado"
           }
         }
       }

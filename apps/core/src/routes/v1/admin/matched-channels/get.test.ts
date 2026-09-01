@@ -80,13 +80,21 @@ describe("GET /admin/matched-channels", () => {
     ]);
   });
 
-  it("lists live org-less matched channels", async () => {
+  it("lists live org-less matched channels by default", async () => {
+    chatRoomFindManyMock.mockResolvedValue([
+      { id: ROOM_ID, name: "Partners", slug: "partners", archivedAt: null },
+    ]);
     const response = await createApp().request("http://localhost/");
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual([
-      { id: ROOM_ID, name: "Partners", slug: "partners" },
+      {
+        id: ROOM_ID,
+        name: "Partners",
+        slug: "partners",
+        archivedAt: null,
+      },
     ]);
     expect(chatRoomFindManyMock).toHaveBeenCalledWith({
       where: {
@@ -95,7 +103,44 @@ describe("GET /admin/matched-channels", () => {
         discoverability: "matched",
         archivedAt: null,
       },
-      select: { id: true, name: true, slug: true },
+      select: { id: true, name: true, slug: true, archivedAt: true },
+      orderBy: { name: "asc" },
+    });
+  });
+
+  it("lists archived matched channels when status=archived", async () => {
+    const archivedAt = new Date("2026-03-01T12:00:00.000Z");
+    chatRoomFindManyMock.mockResolvedValue([
+      {
+        id: ROOM_ID,
+        name: "Partners",
+        slug: "partners",
+        archivedAt,
+      },
+    ]);
+
+    const response = await createApp().request(
+      "http://localhost/?status=archived",
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([
+      {
+        id: ROOM_ID,
+        name: "Partners",
+        slug: "partners",
+        archivedAt: archivedAt.toISOString(),
+      },
+    ]);
+    expect(chatRoomFindManyMock).toHaveBeenCalledWith({
+      where: {
+        organizationId: null,
+        kind: "channel",
+        discoverability: "matched",
+        archivedAt: { not: null },
+      },
+      select: { id: true, name: true, slug: true, archivedAt: true },
       orderBy: { name: "asc" },
     });
   });

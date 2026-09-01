@@ -4368,7 +4368,11 @@
           "title": "Channels",
           "description": "Live-Matched-Channels mit Sichtbarkeit nur über das Roster.",
           "loading": "Channels werden geladen…",
-          "empty": "Noch keine Matched Channels."
+          "empty": "Noch keine Matched Channels.",
+          "tabActive": "Aktiv",
+          "tabArchived": "Archiviert",
+          "descriptionArchived": "Soft-archivierte Matched Channels. Stelle einen wieder her, um ihn erneut live zu schalten.",
+          "emptyArchived": "Keine archivierten Matched Channels."
         },
         "Create": {
           "title": "Matched Channel erstellen",
@@ -4427,11 +4431,22 @@
             "button": "Channel archivieren",
             "archiving": "Wird archiviert…",
             "confirmTitle": "{name} archivieren?",
-            "confirmDescription": "Teilnehmer verlieren sofort den Zugriff. Bei Bedarf kannst du später einen neuen Matched Channel erstellen.",
+            "confirmDescription": "Teilnehmer verlieren sofort den Zugriff. Du kannst diesen Channel im Tab „Archiviert“ in diesem Hub wiederherstellen.",
             "confirm": "Archivieren",
             "cancel": "Abbrechen",
             "success": "Matched Channel archiviert",
             "error": "Matched Channel konnte nicht archiviert werden"
+          },
+          "archivedBadge": "Archiviert — Roster-Änderungen sind bis zur Wiederherstellung deaktiviert.",
+          "Restore": {
+            "button": "Channel wiederherstellen",
+            "restoring": "Wird wiederhergestellt…",
+            "confirmTitle": "{name} wiederherstellen?",
+            "confirmDescription": "Hebt die Archivierung auf, damit der Channel wieder im Live-Hub erscheint. Bestehende Mitglieder behalten ihre Plätze und erhalten beim nächsten Session-Refresh wieder Zugriff.",
+            "confirm": "Wiederherstellen",
+            "cancel": "Abbrechen",
+            "success": "Matched Channel wiederhergestellt",
+            "error": "Matched Channel konnte nicht wiederhergestellt werden"
           }
         }
       }

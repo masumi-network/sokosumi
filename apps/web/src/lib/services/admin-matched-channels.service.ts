@@ -22,8 +22,12 @@ export type {
 };
 
 export const adminMatchedChannelsService = {
-  async listMatchedChannels(): Promise<AdminMatchedChannelOption[]> {
-    const { data } = await coreClient.listAdminMatchedChannels();
+  async listMatchedChannels(options?: {
+    status?: "active" | "archived";
+  }): Promise<AdminMatchedChannelOption[]> {
+    const { data } = await coreClient.listAdminMatchedChannels(
+      options?.status ? { status: options.status } : undefined,
+    );
     return data ?? [];
   },
 
@@ -96,6 +100,16 @@ export const adminMatchedChannelsService = {
     const { data } = await coreClient.archiveAdminMatchedChannel(roomId);
     if (!data) {
       throw new Error("Matched channel archive did not return data");
+    }
+    return data;
+  },
+
+  async restoreMatchedChannel(
+    roomId: string,
+  ): Promise<AdminMatchedChannelOption> {
+    const { data } = await coreClient.restoreAdminMatchedChannel(roomId);
+    if (!data) {
+      throw new Error("Matched channel restore did not return data");
     }
     return data;
   },
