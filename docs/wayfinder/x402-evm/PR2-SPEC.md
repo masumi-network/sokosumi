@@ -97,7 +97,8 @@ client, refund policy. Ships **after** PR 1; reuses its helpers.
    auto-refund if the authorization expires unused.
 5. **No polling, no purchase sync** — the x402 job never enters the escrow
    sync selectors (`paymentRail` filter added to
-   `buildJobsNeedingPurchaseSyncWhere` / `buildJobsPendingLocalRefundWhere`
+   `buildJobsNeedingPurchaseBackfillWhere` /
+   `buildJobsPendingLocalRefundWhere`
    so selectors stay provably disjoint per rail).
 
 ## 4. Hire already-listed x402 agents

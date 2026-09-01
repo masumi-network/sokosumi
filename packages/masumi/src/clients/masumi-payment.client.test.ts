@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPaymentClient } from "./masumi-payment.client.js";
 
 const getRailReadinessMock = vi.fn();
+const getPurchaseDiffMock = vi.fn();
 const postPurchaseMock = vi.fn();
 const postPurchaseRequestRefundMock = vi.fn();
 const postPurchaseResolveBlockchainIdentifierMock = vi.fn();
 
 vi.mock("./openapi/generated/payment/index.js", () => ({
   getRailReadiness: (...args: unknown[]) => getRailReadinessMock(...args),
+  getPurchaseDiff: (...args: unknown[]) => getPurchaseDiffMock(...args),
   postPurchase: (...args: unknown[]) => postPurchaseMock(...args),
   postPurchaseRequestRefund: (...args: unknown[]) =>
     postPurchaseRequestRefundMock(...args),
@@ -33,6 +35,7 @@ const startJobResponse: StartPaidJobResponseSchemaType = {
 function createResolvedPurchase(overrides: Record<string, unknown> = {}) {
   return {
     id: "purchase_existing",
+    createdAt: new Date("2026-01-05T09:00:00.000Z"),
     blockchainIdentifier: startJobResponse.blockchainIdentifier,
     agentIdentifier: startJobResponse.agentIdentifier,
     inputHash: startJobResponse.input_hash,
@@ -52,6 +55,9 @@ function createResolvedPurchase(overrides: Record<string, unknown> = {}) {
       walletVkey: startJobResponse.sellerVKey,
     },
     SmartContractWallet: null,
+    nextActionOrOnChainStateOrResultLastChangedAt: new Date(
+      "2026-01-05T10:00:00.000Z",
+    ),
     ...overrides,
   };
 }
@@ -1378,5 +1384,135 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
     expect(postPurchaseMock).toHaveBeenCalledWith(
       expect.objectContaining({ signal }),
     );
+  });
+});
+
+describe("createPaymentClient purchase diff", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("requests the changed purchases for the configured network", async () => {
+    getPurchaseDiffMock.mockResolvedValue({
+      data: { data: { Purchases: [createResolvedPurchase()] } },
+      response: { status: 200 },
+    });
+
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.test",
+      "api-key",
+    );
+    const abortController = new AbortController();
+    const result = await client.getPurchasesDiff(
+      new Date("2026-01-05T10:00:00.000Z"),
+      "purchase_cursor",
+      25,
+      { signal: abortController.signal },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toHaveLength(1);
+    expect(getPurchaseDiffMock).toHaveBeenCalledTimes(1);
+    expect(getPurchaseDiffMock.mock.calls[0][0]).toMatchObject({
+      query: {
+        network: "Preprod",
+        lastUpdate: "2026-01-05T10:00:00.000Z",
+        cursorId: "purchase_cursor",
+        limit: 25,
+      },
+    });
+    // Without this a hung node would hold the sync lock for the whole run:
+    // toMatchObject above would not notice the signal going missing.
+    expect(getPurchaseDiffMock.mock.calls[0][0].signal).toBe(
+      abortController.signal,
+    );
+  });
+
+  it("omits the cursor on the first page", async () => {
+    getPurchaseDiffMock.mockResolvedValue({
+      data: { data: { Purchases: [] } },
+      response: { status: 200 },
+    });
+
+    const client = createPaymentClient(
+      "Mainnet",
+      "https://payment.test",
+      "api-key",
+    );
+    const result = await client.getPurchasesDiff(new Date(0), null, 25);
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual([]);
+    expect(getPurchaseDiffMock.mock.calls[0][0].query.cursorId).toBeUndefined();
+  });
+
+  it("returns an error when the node rejects the diff request", async () => {
+    getPurchaseDiffMock.mockResolvedValue({
+      error: { message: "unauthorized" },
+      response: { status: 401 },
+    });
+
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.test",
+      "api-key",
+    );
+    const result = await client.getPurchasesDiff(new Date(0), null, 25);
+
+    expect(result.isErr()).toBe(true);
+  });
+
+  it("rejects an invalid diff cursor timestamp", async () => {
+    getPurchaseDiffMock.mockResolvedValue({
+      data: {
+        data: {
+          Purchases: [
+            createResolvedPurchase({
+              nextActionOrOnChainStateOrResultLastChangedAt: new Date(
+                Number.NaN,
+              ),
+            }),
+          ],
+        },
+      },
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.test",
+      "api-key",
+    );
+
+    const result = await client.getPurchasesDiff(new Date(0), null, 25);
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toContain("invalid change timestamp");
+  });
+
+  it("rejects a diff cursor timestamp coerced from null", async () => {
+    getPurchaseDiffMock.mockResolvedValue({
+      data: {
+        data: {
+          Purchases: [
+            createResolvedPurchase({
+              // The generated transformer converts a wire-level null to epoch.
+              nextActionOrOnChainStateOrResultLastChangedAt: new Date(0),
+            }),
+          ],
+        },
+      },
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.test",
+      "api-key",
+    );
+
+    const result = await client.getPurchasesDiff(new Date(0), null, 25);
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toContain("invalid change timestamp");
   });
 });

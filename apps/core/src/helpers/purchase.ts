@@ -5,9 +5,83 @@ import {
   OnChainJobStatus,
   OnChainTransactionStatus,
 } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/database/types/job";
+import {
+  doesResolvedPurchaseSellerMatch,
+  doHexValuesMatch,
+  doMasumiPaymentAmountsMatch,
+  normalizeV2RegistryIdentifier,
+} from "@sokosumi/masumi";
 import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 
 type Purchase = PostPurchaseResponses["200"]["data"];
+
+function matchesPurchaseDeadline(
+  purchaseValue: string | null | undefined,
+  jobValue: Date | null | undefined,
+): boolean {
+  return Boolean(
+    purchaseValue && jobValue && purchaseValue === String(jobValue.getTime()),
+  );
+}
+
+function getExpectedPurchaseMetadata(
+  job: Pick<JobWithSokosumiStatus, "agentJobId" | "input">,
+): string | null {
+  if (typeof job.input !== "string") {
+    return null;
+  }
+  try {
+    return JSON.stringify({
+      inputData: JSON.parse(job.input),
+      jobId: job.agentJobId,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Checks every durable purchase term stored with a paid job. Callers use this
+ * before attaching or replacing a JobPurchase row found by blockchain id.
+ */
+export function doesPurchaseMatchJobTerms(
+  purchase: Purchase,
+  job: JobWithSokosumiStatus,
+): boolean {
+  const expectedAgentIdentifier =
+    job.agentBlockchainIdentifier ?? job.agent?.blockchainIdentifier ?? null;
+  const expectedMetadata = getExpectedPurchaseMetadata(job);
+  const purchasePaymentSourceType =
+    purchase.PaymentSource?.paymentSourceType ?? null;
+
+  return (
+    typeof job.blockchainIdentifier === "string" &&
+    doHexValuesMatch(purchase.blockchainIdentifier, job.blockchainIdentifier) &&
+    typeof job.inputHash === "string" &&
+    job.inputHash.length > 0 &&
+    doHexValuesMatch(purchase.inputHash, job.inputHash) &&
+    typeof job.sellerVkey === "string" &&
+    job.sellerVkey.length > 0 &&
+    doesResolvedPurchaseSellerMatch(purchase, job.sellerVkey) &&
+    expectedMetadata !== null &&
+    purchase.metadata === expectedMetadata &&
+    expectedAgentIdentifier !== null &&
+    normalizeV2RegistryIdentifier(purchase.agentIdentifier ?? "") ===
+      normalizeV2RegistryIdentifier(expectedAgentIdentifier) &&
+    (job.paymentSourceType === null ||
+      purchasePaymentSourceType === job.paymentSourceType) &&
+    (!job.purchaseAmountMatchRequired ||
+      doMasumiPaymentAmountsMatch(job.purchaseAmounts, purchase.PaidFunds)) &&
+    matchesPurchaseDeadline(purchase.payByTime, job.payByTime) &&
+    matchesPurchaseDeadline(purchase.submitResultTime, job.submitResultTime) &&
+    matchesPurchaseDeadline(purchase.unlockTime, job.unlockTime) &&
+    matchesPurchaseDeadline(
+      purchase.externalDisputeUnlockTime,
+      job.externalDisputeUnlockTime,
+    )
+  );
+}
 
 type PurchaseOnChainState =
   | null

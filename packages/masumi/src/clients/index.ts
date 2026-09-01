@@ -7,6 +7,7 @@ export { createAgentClient } from "./agent.client.js";
 export {
   createPaymentClient,
   doesResolvedPurchaseSellerMatch,
+  type MasumiPurchaseDiffEntry,
   type MasumiTaskPurchaseInput,
 } from "./masumi-payment.client.js";
 export type {

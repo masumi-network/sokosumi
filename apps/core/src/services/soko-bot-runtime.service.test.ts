@@ -31,6 +31,7 @@ const {
   localJobDelegationUpdateManyMock,
   provideJobInputMock,
   requireTaskAssignableCoworkerMock,
+  agentFindFirstMock,
   taskFindFirstMock,
   toolCallCreateMock,
   toolCallFindUniqueMock,
@@ -101,6 +102,7 @@ const {
   localJobDelegationUpdateManyMock: vi.fn(),
   provideJobInputMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
+  agentFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   toolCallCreateMock: vi.fn(),
   toolCallFindUniqueMock: vi.fn(),
@@ -191,6 +193,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: toolCallUpdateMock,
       updateMany: toolCallUpdateManyMock,
     },
+    agent: { findFirst: agentFindFirstMock },
     task: { findFirst: taskFindFirstMock },
     jobEvent: { findFirst: jobEventFindFirstMock },
     jobInput: {
@@ -1349,13 +1352,51 @@ describe("SokoBotRuntimeService authorization", () => {
       }),
     ).rejects.toThrow("Task not found");
 
+    // The lookup no longer filters by status: a Task in the wrong state has
+    // to be told apart from one that does not exist, or the bot is told its
+    // own id is wrong and makes a duplicate.
     expect(transactionTaskFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          status: { in: ["DRAFT", "READY"] },
-        }),
+        where: expect.not.objectContaining({ status: expect.anything() }),
       }),
     );
+  });
+
+  it("says a Task is in the wrong state rather than calling it missing", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Assign it",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["update_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      status: "FAILED",
+      ownerId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+    });
+
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_task",
+        toolCallId: "call_state",
+        input: { taskId: "task_1", name: "Changed" },
+      }),
+    ).rejects.toThrow(/FAILED/);
   });
 
   it("denies a Task mutation after workspace access is revoked", async () => {
@@ -1870,11 +1911,11 @@ describe("SokoBotRuntimeService hire decisions", () => {
       ),
     ).rejects.toThrow("Task not found");
 
+    // Status is enforced after the lookup, not inside it — see the update
+    // case above for why conflating the two misled the bot.
     expect(transactionTaskFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          status: { in: ["DRAFT", "READY"] },
-        }),
+        where: expect.not.objectContaining({ status: expect.anything() }),
       }),
     );
   });
@@ -2922,5 +2963,99 @@ describe("open_direct_chat", () => {
       }),
     ).rejects.toThrow(/already have a direct chat with your owner/i);
     expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("get_agent_input_schema", () => {
+  function armTurn() {
+    vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({
+      disabled: false,
+      disabledAt: null,
+      disabledReason: null,
+    });
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_ENABLED: true,
+      SOKO_BOT_EVE_PROJECT_ID: "prj_soko_bot",
+      SOKO_BOT_EVE_ENVIRONMENT: "production",
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["get_agent_input_schema"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "What does this agent need?",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(0);
+    transactionToolCallCreateMock.mockResolvedValue({});
+    // Re-armed rather than inherited: the describes above replace this with
+    // their own chat-shaped transaction, and clearAllMocks drops the
+    // implementation the module mock installed.
+    serializableTransactionMock.mockImplementation(
+      async (run: (tx: unknown) => unknown) =>
+        await run({
+          $queryRaw: transactionTurnLockMock,
+          sokoBotToolCall: {
+            count: transactionToolCallCountMock,
+            create: transactionToolCallCreateMock,
+            findUnique: transactionToolCallFindUniqueMock,
+            update: transactionToolCallUpdateMock,
+          },
+        }),
+    );
+  }
+
+  function ask(toolCallId: string) {
+    return new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_agent_input_schema",
+      toolCallId,
+      input: { agentId: "01960001-0001-7001-8001-0000000000aa" },
+    });
+  }
+
+  it("says an Agent is offline rather than missing", async () => {
+    // The bot had the id right; being told "not found" sent it hunting for
+    // another one instead of picking a different Agent.
+    armTurn();
+    agentFindFirstMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-0000000000aa",
+      name: "Offline Agent",
+      status: "OFFLINE",
+      blockchainIdentifier: null,
+      apiBaseUrl: "https://agent.example.com",
+      metadataOverride: null,
+    });
+
+    await expect(ask("call_offline_agent")).rejects.toThrow(
+      /not available to hire right now \(offline\)/i,
+    );
+  });
+
+  it("keeps an unlisted Agent hidden instead of confirming it exists", async () => {
+    // `isShown` stays in the query, so a bot holding a stray UUID cannot use
+    // this tool to enumerate rows `find_agents` deliberately does not return.
+    armTurn();
+    agentFindFirstMock.mockResolvedValue(null);
+
+    await expect(ask("call_hidden_agent")).rejects.toThrow("Agent not found");
+    expect(agentFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isShown: true }),
+      }),
+    );
   });
 });
