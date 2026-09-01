@@ -10,11 +10,10 @@ import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-ven
 import { getEnvPublicConfig } from "@/config/env.public";
 import { userService } from "@/lib/services";
 import { resolvePlanName } from "@/lib/utils/plan-label";
-
-import { HeaderNotificationBell } from "./header-notification-bell.client";
 import HeaderProfileSectionClient, {
   type HeaderAccountSummary,
 } from "./header-profile-section.client";
+import { HeaderTrailingTools } from "./header-trailing-tools.client";
 
 interface HeaderProfileSectionProps {
   session: Session;
@@ -43,7 +42,9 @@ export default function HeaderProfileSection({
           adminMenuEnabled={adminMenuEnabled}
         />
       </Suspense>
-      <HeaderNotificationBell />
+      <HeaderTrailingTools
+        activeOrganizationId={session.session.activeOrganizationId ?? null}
+      />
     </div>
   );
 }

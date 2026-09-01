@@ -3091,6 +3091,16 @@
       },
       "Plan": {
         "getMoreCredits": "Get more credits"
+      },
+      "Search": {
+        "open": "Search",
+        "dismiss": "Close search",
+        "searchPlaceholder": "Search...",
+        "empty": "No results found",
+        "loading": "Loading...",
+        "error": "Failed to load results",
+        "resultsHeading": "Search",
+        "dismissBackdrop": "Dismiss search"
       }
     },
     "EmailVerificationNotice": {

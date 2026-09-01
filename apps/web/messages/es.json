@@ -3091,6 +3091,16 @@
       },
       "Plan": {
         "getMoreCredits": "Obtener más créditos"
+      },
+      "Search": {
+        "open": "Buscar",
+        "dismiss": "Cerrar búsqueda",
+        "searchPlaceholder": "Buscar...",
+        "empty": "No se encontraron resultados",
+        "loading": "Cargando...",
+        "error": "No se pudieron cargar los resultados",
+        "resultsHeading": "Búsqueda",
+        "dismissBackdrop": "Descartar búsqueda"
       }
     },
     "Subscriptions": {
