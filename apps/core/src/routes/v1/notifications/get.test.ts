@@ -123,6 +123,7 @@ describe("GET /notifications", () => {
       where: {
         userId: "user_123",
         kind: { notIn: [NotificationKind.CHAT] },
+        inApp: true,
       },
       take: LIMITS.DEFAULT_PAGINATION_LIMIT + 1,
       skip: undefined,
@@ -133,6 +134,7 @@ describe("GET /notifications", () => {
       where: {
         userId: "user_123",
         kind: { notIn: [NotificationKind.CHAT] },
+        inApp: true,
       },
     });
 
@@ -162,6 +164,7 @@ describe("GET /notifications", () => {
         where: {
           userId: "user_123",
           kind: { in: [NotificationKind.JOB, NotificationKind.TASK] },
+          inApp: true,
           isRead: false,
         },
       }),
@@ -180,6 +183,7 @@ describe("GET /notifications", () => {
         where: {
           userId: "user_123",
           kind: { in: [NotificationKind.JOB] },
+          inApp: true,
           isRead: false,
         },
       }),
@@ -201,6 +205,7 @@ describe("GET /notifications", () => {
           {
             userId: "user_123",
             kind: { in: [NotificationKind.JOB] },
+            inApp: true,
             isRead: false,
           },
           { id: "notif_cursor" },
@@ -267,6 +272,7 @@ describe("GET /notifications", () => {
         where: {
           userId: "user_123",
           kind: { notIn: [NotificationKind.CHAT] },
+          inApp: true,
           NOT: {
             AND: [
               { messageKey: "notifications.vendorGrant.pending" },
@@ -280,6 +286,7 @@ describe("GET /notifications", () => {
       where: {
         userId: "user_123",
         kind: { notIn: [NotificationKind.CHAT] },
+        inApp: true,
         NOT: {
           AND: [
             { messageKey: "notifications.vendorGrant.pending" },
@@ -312,6 +319,7 @@ describe("GET /notifications", () => {
         where: {
           userId: "user_123",
           kind: { notIn: [NotificationKind.CHAT] },
+          inApp: true,
           NOT: {
             AND: [
               { messageKey: "notifications.coworkerAccess.pending" },
