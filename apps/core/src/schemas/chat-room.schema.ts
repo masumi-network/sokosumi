@@ -1,4 +1,8 @@
 import { z } from "@hono/zod-openapi";
+import {
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+  CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+} from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
@@ -500,9 +504,16 @@ export const chatRoomPinnedMessageListItemSchema = z
 
 export const createChatRoomMessageRequestSchema = z
   .object({
-    content: z.string().trim().min(1).max(10_000).openapi({
-      example: "@coworker:elena Can you summarize this launch risk?",
-    }),
+    content: z
+      .string()
+      .trim()
+      .min(1)
+      .max(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH, {
+        error: CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+      })
+      .openapi({
+        example: "@coworker:elena Can you summarize this launch risk?",
+      }),
     mentionedCoworkerIds: z
       .array(z.string().min(1))
       .optional()
@@ -542,9 +553,16 @@ export const createChatRoomMessageRequestSchema = z
 
 export const updateChatRoomMessageRequestSchema = z
   .object({
-    content: z.string().trim().min(1).max(10_000).openapi({
-      example: "Fixed typo in the launch summary",
-    }),
+    content: z
+      .string()
+      .trim()
+      .min(1)
+      .max(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH, {
+        error: CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+      })
+      .openapi({
+        example: "Fixed typo in the launch summary",
+      }),
   })
   .openapi("UpdateChatRoomMessageRequest");
 

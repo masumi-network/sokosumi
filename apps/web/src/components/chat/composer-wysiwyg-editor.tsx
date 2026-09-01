@@ -64,8 +64,15 @@ import {
   stripComposerInlineTextColors,
 } from "@/lib/utils/composer-paste-sanitize";
 import { tryExitComposerInlineFormatOnArrow } from "@/lib/utils/composer-wysiwyg-arrow-exit";
+import {
+  toggleComposerBlockquote,
+  tryExitComposerBlockquoteOnEmptyLine,
+} from "@/lib/utils/composer-wysiwyg-blockquote";
 import { toggleComposerInlineCode } from "@/lib/utils/composer-wysiwyg-code-format";
-import { replaceComposerTextRange } from "@/lib/utils/composer-wysiwyg-dom";
+import {
+  replaceComposerTextRange,
+  scrollComposerCaretIntoView,
+} from "@/lib/utils/composer-wysiwyg-dom";
 import {
   resolveComposerEnterAction,
   tryApplyComposerInputRuleAtCaret,
@@ -484,96 +491,102 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
 
-    // Drop clipboard/typing colors before markdown sync; they stick in the DOM
-    // while React state stays color-free until remount (hard refresh).
-    stripComposerInlineTextColors(editorRef.current);
-    tryApplyComposerInputRuleAtCaret(editorRef.current);
+    try {
+      // Drop clipboard/typing colors before markdown sync; they stick in the DOM
+      // while React state stays color-free until remount (hard refresh).
+      stripComposerInlineTextColors(editorRef.current);
+      tryApplyComposerInputRuleAtCaret(editorRef.current);
 
-    isInternalChange.current = true;
-    const { text, caret } = syncFromEditor();
-    publishActiveFormats();
+      isInternalChange.current = true;
+      const { text, caret } = syncFromEditor();
+      publishActiveFormats();
 
-    const exactEmoji = matchExactEmojiShortcodeClosed(text, caret);
-    if (exactEmoji) {
-      const nextChar = text[exactEmoji.end];
-      const insert = shouldAppendTrailingSpace(nextChar)
-        ? `${exactEmoji.emoji} `
-        : exactEmoji.emoji;
-      if (
-        replaceComposerTextRange(
-          editorRef.current,
-          exactEmoji.triggerStart,
-          exactEmoji.end,
-          insert,
-        )
-      ) {
-        isInternalChange.current = true;
-        syncFromEditor();
-        closeSuggestions();
+      const exactEmoji = matchExactEmojiShortcodeClosed(text, caret);
+      if (exactEmoji) {
+        const nextChar = text[exactEmoji.end];
+        const insert = shouldAppendTrailingSpace(nextChar)
+          ? `${exactEmoji.emoji} `
+          : exactEmoji.emoji;
+        if (
+          replaceComposerTextRange(
+            editorRef.current,
+            exactEmoji.triggerStart,
+            exactEmoji.end,
+            insert,
+          )
+        ) {
+          isInternalChange.current = true;
+          syncFromEditor();
+          closeSuggestions();
+          return;
+        }
+      }
+
+      // Emoticon live convert: include the closing boundary (space/punct) in the
+      // replace so caret lands after it — otherwise typing glues to the emoji and
+      // the user needs a second space for the next word.
+      // Converts only at the caret boundary (not a full-document scan); paste of
+      // multiple mid-string emoticons still converts on send via remark-emoji.
+      const emoticonMatch = matchEmoticonClosedAtBoundary(text, caret);
+      if (emoticonMatch && editorRef.current) {
+        const boundarySuffix = text.slice(emoticonMatch.end, caret);
+        const deleteEnd = emoticonMatch.end + boundarySuffix.length;
+        if (
+          replaceComposerTextRange(
+            editorRef.current,
+            emoticonMatch.start,
+            deleteEnd,
+            `${emoticonMatch.emoji}${boundarySuffix}`,
+          )
+        ) {
+          // Live path: no flushSync — next keystroke/blur/submit sees state.
+          // flushSync reserved for tryFlushTrailingEmoticon (same-tick submit).
+          isInternalChange.current = true;
+          syncFromEditor();
+          closeSuggestions();
+          return;
+        }
+      }
+
+      if (manualMentionOpenRef.current && normalizedMentions.length > 0) {
+        openSuggestions({
+          suggestion: {
+            kind: "mention",
+            query: "",
+            triggerStart: caret,
+          },
+          nextTriggerPosition: getSuggestionPopupPosition(
+            editorRef.current,
+            "mention",
+          ),
+          nextActiveIndex: 0,
+        });
         return;
       }
-    }
 
-    // Emoticon live convert: include the closing boundary (space/punct) in the
-    // replace so caret lands after it — otherwise typing glues to the emoji and
-    // the user needs a second space for the next word.
-    // Converts only at the caret boundary (not a full-document scan); paste of
-    // multiple mid-string emoticons still converts on send via remark-emoji.
-    const emoticonMatch = matchEmoticonClosedAtBoundary(text, caret);
-    if (emoticonMatch && editorRef.current) {
-      const boundarySuffix = text.slice(emoticonMatch.end, caret);
-      const deleteEnd = emoticonMatch.end + boundarySuffix.length;
-      if (
-        replaceComposerTextRange(
-          editorRef.current,
-          emoticonMatch.start,
-          deleteEnd,
-          `${emoticonMatch.emoji}${boundarySuffix}`,
-        )
-      ) {
-        // Live path: no flushSync — next keystroke/blur/submit sees state.
-        // flushSync reserved for tryFlushTrailingEmoticon (same-tick submit).
-        isInternalChange.current = true;
-        syncFromEditor();
-        closeSuggestions();
+      const suggestion = resolveComposerSuggestion(text, caret, {
+        mentionsAvailable: normalizedMentions.length > 0,
+        channels,
+      });
+
+      if (suggestion) {
+        openSuggestions({
+          suggestion,
+          nextTriggerPosition: getSuggestionPopupPosition(
+            editorRef.current,
+            suggestion.kind,
+          ),
+          nextActiveIndex: 0,
+        });
         return;
       }
+
+      closeSuggestions();
+    } finally {
+      if (editorRef.current) {
+        scrollComposerCaretIntoView(editorRef.current);
+      }
     }
-
-    if (manualMentionOpenRef.current && normalizedMentions.length > 0) {
-      openSuggestions({
-        suggestion: {
-          kind: "mention",
-          query: "",
-          triggerStart: caret,
-        },
-        nextTriggerPosition: getSuggestionPopupPosition(
-          editorRef.current,
-          "mention",
-        ),
-        nextActiveIndex: 0,
-      });
-      return;
-    }
-
-    const suggestion = resolveComposerSuggestion(text, caret, {
-      mentionsAvailable: normalizedMentions.length > 0,
-      channels,
-    });
-
-    if (suggestion) {
-      openSuggestions({
-        suggestion,
-        nextTriggerPosition: getSuggestionPopupPosition(
-          editorRef.current,
-          suggestion.kind,
-        ),
-        nextActiveIndex: 0,
-      });
-      return;
-    }
-
-    closeSuggestions();
   }, [
     channels,
     closeSuggestions,
@@ -884,9 +897,16 @@ export function ComposerWysiwygEditor<TData = unknown>({
           insertHtml(`<pre><code>${escapedText}</code></pre>`);
           return;
         }
-        case "quote":
-          execCommand("formatBlock", "blockquote");
+        case "quote": {
+          if (!editorRef.current) return;
+          editorRef.current.focus();
+          toggleComposerBlockquote(editorRef.current);
+          handleInput();
+          requestAnimationFrame(() => {
+            publishActiveFormats();
+          });
           return;
+        }
         case "bulletList":
           execCommand("insertUnorderedList");
           return;
@@ -1209,6 +1229,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
         }
 
         if (editorRef.current) {
+          if (tryExitComposerBlockquoteOnEmptyLine(editorRef.current)) {
+            handleInput();
+            requestAnimationFrame(() => {
+              publishActiveFormats();
+            });
+            return;
+          }
           insertLineBreak(editorRef.current);
           handleInput();
         }
@@ -1230,6 +1257,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       onEscape,
       onLinkShortcut,
       onSubmitShortcut,
+      publishActiveFormats,
       selectableMentions,
       setActiveSuggestionIndex,
       suggestionKind,

@@ -1,9 +1,14 @@
 "use client";
 
-import type { ChannelLinkTarget } from "@sokosumi/utils";
+import {
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+  type ChannelLinkTarget,
+  formatTaskAttachmentMarkdown,
+} from "@sokosumi/utils";
 import {
   ALargeSmall,
   AtSign,
+  FileText,
   Loader2,
   Paperclip,
   Users,
@@ -69,8 +74,12 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import {
+  buildRoomComposerMessageContent,
   type ChatParticipantHoverProfile,
   composerMentionDisplayNames,
+  createRoomComposerOverflowMarkdownFile,
+  isRoomComposerContentCountVisible,
+  isRoomComposerContentOverLimit,
   type PendingRoomQuote,
   partitionRoomMentionSuggestions,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
@@ -373,6 +382,13 @@ export function RoomComposer({
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
   const onChromeResizeRef = useRef(onChromeResize);
   onChromeResizeRef.current = onChromeResize;
+  const composedContent = buildRoomComposerMessageContent(
+    value,
+    attachments,
+    formatTaskAttachmentMarkdown,
+  );
+  const contentOverLimit = isRoomComposerContentOverLimit(composedContent);
+  const showContentCount = isRoomComposerContentCountVisible(composedContent);
   const composerMentions = showMentionShortcut ? mentions : {};
   const handleSelectedKeysChange = showMentionShortcut
     ? onSelectedKeysChange
@@ -453,14 +469,14 @@ export function RoomComposer({
   );
 
   const handleFilesSelected = useCallback(
-    async (files: FileList | File[] | null) => {
-      if (!allowAttachments) return;
+    async (files: FileList | File[] | null): Promise<boolean> => {
+      if (!allowAttachments) return false;
 
       const selectedFiles = Array.from(files ?? []).filter(
         (file) => file.size > 0,
       );
       if (selectedFiles.length === 0 || isUploadingFilesRef.current) {
-        return;
+        return false;
       }
 
       isUploadingFilesRef.current = true;
@@ -495,8 +511,10 @@ export function RoomComposer({
         toast.success(
           tToolbar("uploaded", { count: uploadedAttachments.length }),
         );
+        return uploadedAttachments.length > 0;
       } catch {
         // Error toast is handled by uploadComposeAttachments.
+        return false;
       } finally {
         isUploadingFilesRef.current = false;
         setIsUploadingFiles(false);
@@ -507,6 +525,18 @@ export function RoomComposer({
     },
     [allowAttachments, onAttachmentsChange, roomId, tToolbar],
   );
+
+  async function handleAttachOverflowAsMarkdown() {
+    if (!allowAttachments || !contentOverLimit) {
+      return;
+    }
+    const uploaded = await handleFilesSelected([
+      createRoomComposerOverflowMarkdownFile(value),
+    ]);
+    if (uploaded) {
+      onValueChange("");
+    }
+  }
 
   useImperativeHandle(
     ref,
@@ -583,7 +613,51 @@ export function RoomComposer({
           t("Toolbar.removeAttachment", { name })
         }
         isSending={isSending}
-        sendDisabled={isUploadingFiles || sendDisabled}
+        sendDisabled={isUploadingFiles || sendDisabled || contentOverLimit}
+        toolbarEnd={
+          showContentCount ? (
+            <span
+              className={cn(
+                "text-xs tabular-nums",
+                contentOverLimit ? "text-destructive" : "text-muted-foreground",
+              )}
+              aria-live="polite"
+            >
+              {t("composerCharacterCount", {
+                count: composedContent.length,
+                max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+              })}
+            </span>
+          ) : undefined
+        }
+        belowEditor={
+          contentOverLimit ? (
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 pb-1">
+              <p className="text-destructive text-xs" role="alert">
+                {t("composerTooLongHint")}
+              </p>
+              {allowAttachments ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  disabled={isUploadingFiles}
+                  onClick={() => {
+                    void handleAttachOverflowAsMarkdown();
+                  }}
+                >
+                  {isUploadingFiles ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <FileText className="size-3.5" aria-hidden />
+                  )}
+                  {t("composerConvertToFile")}
+                </Button>
+              ) : null}
+            </div>
+          ) : undefined
+        }
         sendAriaLabel={t("send")}
         onPrepareSubmit={() => editorRef.current?.flushTrailingEmoticon()}
         aboveEditor={

@@ -185,6 +185,8 @@ describe("core evlog request events", () => {
   });
 
   it("keeps expected 4xx HTTPExceptions at info on the wide event", async () => {
+    // evlog 2.28 captures `c.error` after `app.onError`. errorHandler clears
+    // that for expected 4xx so Sentry Logs do not treat them as failures.
     const app = createApp();
     app.onError(errorHandler);
     app.get("/v1/fail", () => {

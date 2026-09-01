@@ -75,6 +75,11 @@ function resolveBetterAuthApiErrorStatus(
 export const errorHandler: ErrorHandler = (error, c) => {
   if (shouldMarkWideEventError(error)) {
     recordCoreRequestError(error);
+  } else {
+    // evlog 2.28 captures `c.error` after `app.onError`. Expected 4xx and
+    // other handled client errors must stay info so Sentry Logs do not treat
+    // them as failures.
+    c.error = undefined;
   }
 
   const meta = {
