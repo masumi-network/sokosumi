@@ -6,10 +6,21 @@ import {
   publishMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import {
+  clearPersonalAssistantChromeVisible,
+  publishPersonalAssistantChromeVisible,
+} from "@/components/chat/personal-assistant-chrome-store";
+import {
   clearRoomReadOverlays,
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
 import type { ChatRoom } from "@/lib/clients/generated/core";
+
+vi.mock(
+  "@/app/components/sidebar/components/personal-assistant-nav.client",
+  () => ({
+    default: () => <div data-testid="personal-assistant-nav" />,
+  }),
+);
 
 vi.mock("@/components/chat/organization-chat-list.client", () => ({
   OrganizationChatList: ({
@@ -60,6 +71,7 @@ function room(
 describe("ChatChatsPageSkeletonHost", () => {
   afterEach(() => {
     clearMembershipVisibleRoomsSnapshot();
+    clearPersonalAssistantChromeVisible();
     clearRoomReadOverlays();
   });
 
@@ -108,5 +120,31 @@ describe("ChatChatsPageSkeletonHost", () => {
 
     const link = screen.getByRole("link", { name: /alerts/i });
     expect(link.className.includes("font-semibold")).toBe(true);
+  });
+
+  it("paints Personal Assistant chrome when session flag is set", () => {
+    publishMembershipVisibleRooms(
+      [room({ id: "room-3", name: "ops", unreadCount: 0 })],
+      "org-1",
+      "user-1",
+    );
+    publishPersonalAssistantChromeVisible(true);
+
+    render(<ChatChatsPageSkeletonHost />);
+
+    expect(screen.getByTestId("personal-assistant-nav")).toBeTruthy();
+    expect(screen.getByTestId("paint-only-list")).toBeTruthy();
+  });
+
+  it("omits Personal Assistant chrome when session flag is unset", () => {
+    publishMembershipVisibleRooms(
+      [room({ id: "room-4", name: "random", unreadCount: 0 })],
+      "org-1",
+      "user-1",
+    );
+
+    render(<ChatChatsPageSkeletonHost />);
+
+    expect(screen.queryByTestId("personal-assistant-nav")).toBeNull();
   });
 });
