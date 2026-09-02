@@ -167,6 +167,7 @@ function room(
       overrides.userMembers ??
       (overrides.memberIds ?? [SELF_ID, OTHER_ID]).map((id) => member(id)),
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 

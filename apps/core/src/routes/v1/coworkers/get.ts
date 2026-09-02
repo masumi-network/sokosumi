@@ -16,7 +16,6 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { coworkerSchema } from "@/schemas/coworker.schema";
-import { vendorSchema } from "@/schemas/vendor.schema";
 
 const capabilityQuerySchema = z
   .preprocess(
@@ -70,35 +69,6 @@ const route = createRoute({
   },
 });
 
-/** A workspace presented as the "vendor" of the Soko Bots that live in it. */
-async function workspaceAsVendor(workspaceId: string) {
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    select: {
-      id: true,
-      createdAt: true,
-      updatedAt: true,
-      organization: { select: { name: true, logo: true } },
-      user: { select: { name: true } },
-    },
-  });
-  if (!workspace) return null;
-  const name =
-    workspace.organization?.name ??
-    (workspace.user?.name ? `${workspace.user.name} (personal)` : "Workspace");
-  return vendorSchema.parse({
-    id: `workspace:${workspace.id}`,
-    createdAt: workspace.createdAt,
-    updatedAt: workspace.updatedAt,
-    name,
-    slug: `workspace-${workspace.id}`,
-    logos: {
-      light: workspace.organization?.logo ?? null,
-      dark: workspace.organization?.logo ?? null,
-    },
-  });
-}
-
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { scope, capability } = c.req.valid("query");
@@ -114,7 +84,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     } else if (scope === "available") {
       requireUserAuthContext(authContext);
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-      // Soko Bots of every member are usable by everyone in the workspace.
       baseScope = buildCoworkerUsableInWorkspaceWhere(
         workspaceContext.workspaceId,
       );
@@ -137,23 +106,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       include: coworkerInclude,
     });
 
-    const mapped = coworkers.map(mapCoworker);
-    // Soko Bots belong to the workspace, not to a marketplace vendor: group
-    // them under the workspace's own name and logo in pickers.
-    const botRows = coworkers.filter((coworker) => coworker.sokoBotId);
-    if (botRows.length > 0 && scope === "available") {
-      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-      const workspaceVendor = await workspaceAsVendor(
-        workspaceContext.workspaceId,
-      );
-      if (workspaceVendor) {
-        for (const coworker of mapped) {
-          if (botRows.some((row) => row.id === coworker.id)) {
-            coworker.vendor = workspaceVendor;
-          }
-        }
-      }
-    }
-    return ok(c, mapped);
+    return ok(c, coworkers.map(mapCoworker));
   });
 }

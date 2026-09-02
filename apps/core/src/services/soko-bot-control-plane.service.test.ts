@@ -105,7 +105,6 @@ const {
 }));
 
 vi.mock("@/services/soko-bot-chat.service", () => ({
-  ensureSokoBotCoworker: vi.fn().mockResolvedValue({ id: "cw", slug: "soko" }),
   finalizeSokoBotChatTurn: vi.fn().mockResolvedValue(undefined),
   deliverSokoBotTurnToDirectRoom: vi.fn().mockResolvedValue(undefined),
   publishSokoBotChatProgress: vi.fn().mockResolvedValue(undefined),
@@ -355,6 +354,31 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(botCreateMock).toHaveBeenCalled();
     expect(botUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("never inserts a shadow coworker when creating a personal assistant", async () => {
+    const coworkerCreate = vi.fn();
+    botFindFirstMock.mockResolvedValue(null);
+    botCreateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-00000000aaaa",
+      ingestTimezone: "UTC",
+    });
+    transactionMock.mockImplementation(
+      async (callback: (tx: ReturnType<typeof transactionClient>) => unknown) =>
+        callback({
+          ...transactionClient(),
+          coworker: { create: coworkerCreate },
+        }),
+    );
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Fresh",
+    });
+
+    expect(botCreateMock).toHaveBeenCalled();
+    expect(coworkerCreate).not.toHaveBeenCalled();
   });
 
   it("preserves an administrator pause during profile updates", async () => {

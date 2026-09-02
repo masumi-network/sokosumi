@@ -110,6 +110,7 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
 interface ValidateTaskAssigneeAssignmentParams {
   status: TaskStatus;
   assigneeId: string | null | undefined;
+  assigneeOrchestratorId?: string | null;
 }
 
 function getAllowedTransitions(
@@ -428,14 +429,17 @@ export function validateStatusTransition(
 export function validateTaskAssigneeAssignment({
   status,
   assigneeId,
+  assigneeOrchestratorId,
 }: ValidateTaskAssigneeAssignmentParams): void {
-  const hasAssigneeId = assigneeId !== null && assigneeId !== undefined;
+  const hasCoworker = assigneeId != null && assigneeId !== "";
+  const hasOrchestrator =
+    assigneeOrchestratorId != null && assigneeOrchestratorId !== "";
   const allowsMissingAssignee =
     status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
 
-  if (!allowsMissingAssignee && !hasAssigneeId) {
+  if (!allowsMissingAssignee && !hasCoworker && !hasOrchestrator) {
     throw unprocessableEntity(
-      "assigneeId is required for statuses other than draft or canceled",
+      "assigneeId or assigneeOrchestratorId is required for statuses other than draft or canceled",
     );
   }
 }
@@ -614,11 +618,29 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.owner,
   );
 
-  const taskAssigneeSummary = coworkerSummaryFromLoadedRelation(
+  const marketplaceAssignee = coworkerSummaryFromLoadedRelation(
     `Task ${task.id}`,
     task.assigneeId,
     task.assignee ?? null,
   );
+  const orchestratorAssignee = orchestratorSummaryFromLoadedRelation(
+    `Task ${task.id}`,
+    task.assigneeOrchestratorId,
+    task.assigneeOrchestrator ?? null,
+  );
+  const assignee = orchestratorAssignee
+    ? {
+        type: "orchestrator" as const,
+        id: task.assigneeOrchestratorId as string,
+        orchestrator: orchestratorAssignee,
+      }
+    : marketplaceAssignee
+      ? {
+          type: "coworker" as const,
+          id: task.assigneeId as string,
+          coworker: marketplaceAssignee,
+        }
+      : null;
 
   const creator = mapTaskCreator(task);
 
@@ -635,9 +657,10 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     projectId: task.projectId,
     organization: taskOrganizationSummary,
     assigneeId: task.assigneeId,
-    assignee: taskAssigneeSummary,
+    assigneeOrchestratorId: task.assigneeOrchestratorId ?? null,
+    assignee,
     coworkerId: task.assigneeId,
-    coworker: taskAssigneeSummary,
+    coworker: marketplaceAssignee,
     creator,
     // Deprecated aliases for legacy orchestrator-created tasks.
     orchestratorId: creator.type === "orchestrator" ? creator.id : null,

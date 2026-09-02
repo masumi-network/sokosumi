@@ -30,6 +30,7 @@ const taskOwnerAssigneeCreatorInclude = {
   owner: taskEventApiInclude.user,
   organization: { select: { id: true, name: true, slug: true } },
   assignee: taskEventApiInclude.coworker,
+  assigneeOrchestrator: taskEventApiInclude.orchestrator,
   creatorUser: taskEventApiInclude.user,
   creatorCoworker: taskEventApiInclude.coworker,
   creatorOrchestrator: taskEventApiInclude.orchestrator,

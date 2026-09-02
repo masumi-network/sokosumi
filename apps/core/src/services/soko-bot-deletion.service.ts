@@ -13,7 +13,7 @@ import { revokeAllSokoBotIntegrations } from "@/services/soko-bot-integrations.s
  *
  * Whether the row itself survives depends on what else points at it:
  *
- * - `deleted`: nothing references the bot, so the row and its coworker go too.
+ * - `deleted`: nothing references the bot, so the row goes too.
  * - `tombstoned`: Tasks, task events, billing usage or chat messages still
  *   reference it. Those are other people's records and must keep resolving, so
  *   an emptied, renamed row stays behind. The partial unique index on
@@ -35,9 +35,6 @@ export interface SokoBotDeletionResult {
     chatMessages: number;
   };
 }
-
-/** Display name for a coworker whose bot was deleted but is still referenced. */
-const TOMBSTONE_COWORKER_NAME = "Deleted assistant";
 
 /** Everything the bot exclusively owns; none of it outlives the deletion. */
 async function eraseOwnedRecords(
@@ -78,7 +75,7 @@ export async function deleteSokoBot(
   return serializableTransaction(async (tx) => {
     const bot = await tx.sokoBot.findFirst({
       where: { id: sokoBotId, deletedAt: null },
-      select: { id: true, coworker: { select: { id: true } } },
+      select: { id: true },
     });
     if (!bot) throw notFound("Soko Bot not found");
     await tx.$queryRaw`
@@ -94,46 +91,35 @@ export async function deleteSokoBot(
       data: { status: "CANCEL_REQUESTED", cancellationRequestedAt: new Date() },
     });
     await eraseOwnedRecords(tx, bot.id);
+    await tx.chatRoomOrchestratorMember.deleteMany({
+      where: { orchestratorId: bot.id },
+    });
 
-    const coworkerId = bot.coworker?.id ?? null;
-    const [tasks, taskEvents, billingRecords, chatMessages, coworkerRefs] =
-      await Promise.all([
-        tx.task.count({ where: { creatorOrchestratorId: bot.id } }),
-        tx.taskEvent.count({ where: { orchestratorId: bot.id } }),
-        tx.orchestratorUsage.count({ where: { orchestratorId: bot.id } }),
-        coworkerId
-          ? tx.chatRoomMessage.count({
-              where: { senderCoworkerId: coworkerId },
-            })
-          : Promise.resolve(0),
-        coworkerId
-          ? countCoworkerReferences(tx, coworkerId)
-          : Promise.resolve(0),
-      ]);
+    const [
+      createdTasks,
+      assignedTasks,
+      taskEvents,
+      billingRecords,
+      chatMessages,
+    ] = await Promise.all([
+      tx.task.count({ where: { creatorOrchestratorId: bot.id } }),
+      tx.task.count({ where: { assigneeOrchestratorId: bot.id } }),
+      tx.taskEvent.count({ where: { orchestratorId: bot.id } }),
+      tx.orchestratorUsage.count({ where: { orchestratorId: bot.id } }),
+      tx.chatRoomMessage.count({
+        where: { senderOrchestratorId: bot.id },
+      }),
+    ]);
+    const tasks = createdTasks + assignedTasks;
 
     const retained = { tasks, taskEvents, billingRecords, chatMessages };
     const unrevokedIntegrations = revocation.failed;
-
-    if (coworkerId && coworkerRefs === 0) {
-      // Chat membership and mentions cascade; nothing else points here.
-      await tx.coworker.delete({ where: { id: coworkerId } });
-    } else if (coworkerId) {
-      await tx.coworker.update({
-        where: { id: coworkerId },
-        data: {
-          name: TOMBSTONE_COWORKER_NAME,
-          description: null,
-          archivedAt: new Date(),
-          isWhitelisted: false,
-        },
-      });
-    }
 
     if (
       tasks === 0 &&
       taskEvents === 0 &&
       billingRecords === 0 &&
-      coworkerRefs === 0
+      chatMessages === 0
     ) {
       await tx.sokoBot.delete({ where: { id: bot.id } });
       return { outcome: "deleted" as const, retained, unrevokedIntegrations };
@@ -175,23 +161,6 @@ export async function deleteSokoBot(
     });
     return { outcome: "tombstoned" as const, retained, unrevokedIntegrations };
   }, "Soko Bot deletion collided with active work");
-}
-
-/** Records that would lose their author if the coworker row went away. */
-async function countCoworkerReferences(
-  tx: Prisma.TransactionClient,
-  coworkerId: string,
-): Promise<number> {
-  const [assigned, created, events, messages, files, usages] =
-    await Promise.all([
-      tx.task.count({ where: { assigneeId: coworkerId } }),
-      tx.task.count({ where: { creatorCoworkerId: coworkerId } }),
-      tx.taskEvent.count({ where: { coworkerId } }),
-      tx.chatRoomMessage.count({ where: { senderCoworkerId: coworkerId } }),
-      tx.taskFile.count({ where: { uploadedByCoworkerId: coworkerId } }),
-      tx.coworkerUsage.count({ where: { coworkerId } }),
-    ]);
-  return assigned + created + events + messages + files + usages;
 }
 
 export async function deleteSokoBotForUser(

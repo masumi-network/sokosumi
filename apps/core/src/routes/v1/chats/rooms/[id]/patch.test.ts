@@ -24,6 +24,9 @@ const {
   memberFindUniqueMock,
   memberFindManyMock,
   coworkerFindManyMock,
+  sokoBotFindManyMock,
+  orchestratorMemberDeleteManyMock,
+  orchestratorMemberCreateManyMock,
   workspaceFindUniqueMock,
   userFindManyMock,
   userMemberDeleteManyMock,
@@ -54,6 +57,9 @@ const {
   memberFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  sokoBotFindManyMock: vi.fn(),
+  orchestratorMemberDeleteManyMock: vi.fn(),
+  orchestratorMemberCreateManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   userFindManyMock: vi.fn(),
   userMemberDeleteManyMock: vi.fn(),
@@ -123,6 +129,9 @@ const tx = {
   coworker: {
     findMany: coworkerFindManyMock,
   },
+  sokoBot: {
+    findMany: sokoBotFindManyMock,
+  },
   workspace: {
     findUnique: workspaceFindUniqueMock,
   },
@@ -143,6 +152,10 @@ const tx = {
   chatRoomCoworkerMember: {
     deleteMany: coworkerMemberDeleteManyMock,
     createMany: coworkerMemberCreateManyMock,
+  },
+  chatRoomOrchestratorMember: {
+    deleteMany: orchestratorMemberDeleteManyMock,
+    createMany: orchestratorMemberCreateManyMock,
   },
   chatRoomMention: {
     updateMany: mentionUpdateManyMock,
@@ -210,6 +223,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
       },
     ],
     coworkerMembers: [],
+    orchestratorMembers: [],
     ...overrides,
   };
 }
@@ -280,6 +294,7 @@ beforeEach(() => {
       where.userId.in.map((userId) => ({ userId })),
   );
   coworkerFindManyMock.mockResolvedValue([]);
+  sokoBotFindManyMock.mockResolvedValue([]);
   workspaceFindUniqueMock.mockResolvedValue({ id: ORG_WORKSPACE_ID });
   userFindManyMock.mockImplementation(
     async ({ where }: { where: { id: { in: string[] } } }) =>
@@ -294,6 +309,7 @@ beforeEach(() => {
     parentMessageId: null,
     senderUserId: null,
     senderCoworkerId: null,
+    senderOrchestratorId: null,
     content: data.content,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     deletedAt: null,
@@ -303,6 +319,7 @@ beforeEach(() => {
     responsesApiResponseId: null,
     senderUser: null,
     senderCoworker: null,
+    senderOrchestrator: null,
     mentionsAsSource: [],
     reactions: [],
     replies: [],
@@ -534,6 +551,7 @@ describe("PATCH /chats/rooms/{id}", () => {
           },
         },
       ],
+      orchestratorMembers: [],
     });
     const updated = channelRoom({
       userMembers: [
@@ -566,6 +584,7 @@ describe("PATCH /chats/rooms/{id}", () => {
           },
         },
       ],
+      orchestratorMembers: [],
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     coworkerFindManyMock.mockResolvedValue([
@@ -725,6 +744,7 @@ describe("PATCH /chats/rooms/{id}", () => {
           },
         },
       ],
+      orchestratorMembers: [],
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     coworkerFindManyMock.mockResolvedValue([
@@ -1063,6 +1083,7 @@ describe("PATCH /chats/rooms/{id}", () => {
           },
         },
       ],
+      orchestratorMembers: [],
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     memberFindManyMock.mockImplementation(
@@ -1168,6 +1189,7 @@ describe("PATCH /chats/rooms/{id}", () => {
           },
         },
       ],
+      orchestratorMembers: [],
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     memberFindManyMock.mockImplementation(
@@ -1250,5 +1272,86 @@ describe("PATCH /chats/rooms/{id}", () => {
       },
       data: { access: "member" },
     });
+  });
+
+  it("adds a personal assistant as an orchestrator member", async () => {
+    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    const existing = channelRoom();
+    const updated = channelRoom({
+      orchestratorMembers: [
+        {
+          orchestrator: {
+            id: orchestratorId,
+            name: "Soko Bot",
+            avatarImageUrl: null,
+            avatarSeed: "orb:user_123",
+            userId: USER_ID,
+            user: { name: "Ada" },
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    sokoBotFindManyMock.mockResolvedValue([
+      {
+        id: orchestratorId,
+        userId: USER_ID,
+        name: "Soko Bot",
+        user: { name: "Ada" },
+      },
+    ]);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    orchestratorMemberDeleteManyMock.mockResolvedValue({ count: 0 });
+    orchestratorMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        orchestratorIds: [orchestratorId],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.orchestratorMembers).toEqual([
+      expect.objectContaining({
+        id: orchestratorId,
+        name: "Soko Bot",
+      }),
+    ]);
+    expect(orchestratorMemberCreateManyMock).toHaveBeenCalledWith({
+      data: [{ roomId: ROOM_ID, orchestratorId }],
+    });
+    expect(messageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ content: "Soko Bot joined" }),
+      }),
+    );
+  });
+
+  it("rejects adding someone else's personal assistant with 403", async () => {
+    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    roomFindFirstMock.mockResolvedValueOnce(channelRoom());
+    sokoBotFindManyMock.mockResolvedValue([
+      { id: orchestratorId, userId: OTHER_USER_ID, name: "Soko Bot" },
+    ]);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        orchestratorIds: [orchestratorId],
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.text()).toBe(
+      "Only the owner can add this personal assistant",
+    );
+    expect(orchestratorMemberCreateManyMock).not.toHaveBeenCalled();
   });
 });

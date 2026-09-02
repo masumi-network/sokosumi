@@ -32,9 +32,11 @@ import {
   mapChatRoomMessage,
   markChatRoomThreadRead,
   mergeChatRoomMessageMetadata,
+  orchestratorDisplayName,
   requireChatRoomCoworkerAccess,
   requireChatRoomUserWriteAccess,
   resolveMentionedCoworkerIds,
+  resolveMentionedOrchestratorIds,
   resolveMentionedUserIds,
   resolveRoomQuoteSnapshot,
   resolveThreadParentMessageId,
@@ -217,13 +219,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const skipCoworkerMentions =
           room.kind === "direct" &&
           room.coworkerMembers.length === 1 &&
-          room.coworkerMembers[0]?.coworker.sokoBotId == null &&
+          room.orchestratorMembers.length === 0 &&
           room.userMembers.length === 1 &&
           room.userMembers[0]?.userId === userContext.userId;
 
         const directCoworkerIds =
           room.kind === "direct" && !skipCoworkerMentions
             ? room.coworkerMembers.map(({ coworker }) => coworker.id)
+            : [];
+        const directOrchestratorIds =
+          room.kind === "direct" &&
+          room.orchestratorMembers.length === 1 &&
+          room.coworkerMembers.length === 0
+            ? room.orchestratorMembers.map(
+                ({ orchestrator }) => orchestrator.id,
+              )
             : [];
 
         const parentMessageId = await resolveThreadParentMessageId(
@@ -244,6 +254,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // A thread reply goes to every coworker already part of the thread —
         // as a sender or a mention target — without requiring a fresh @mention.
         let threadCoworkerIds: string[] = [];
+        let threadOrchestratorIds: string[] = [];
         if (parentMessageId) {
           const threadMessages = await tx.chatRoomMessage.findMany({
             where: {
@@ -252,15 +263,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
             select: {
               senderCoworkerId: true,
-              mentionsAsSource: { select: { coworkerId: true } },
+              senderOrchestratorId: true,
+              mentionsAsSource: {
+                select: { coworkerId: true, orchestratorId: true },
+              },
             },
           });
           threadCoworkerIds = threadMessages.flatMap((threadMessage) => [
             ...(threadMessage.senderCoworkerId
               ? [threadMessage.senderCoworkerId]
               : []),
-            ...threadMessage.mentionsAsSource.map(
-              (mention) => mention.coworkerId,
+            ...threadMessage.mentionsAsSource.flatMap((mention) =>
+              mention.coworkerId ? [mention.coworkerId] : [],
+            ),
+          ]);
+          threadOrchestratorIds = threadMessages.flatMap((threadMessage) => [
+            ...(threadMessage.senderOrchestratorId
+              ? [threadMessage.senderOrchestratorId]
+              : []),
+            ...threadMessage.mentionsAsSource.flatMap((mention) =>
+              mention.orchestratorId ? [mention.orchestratorId] : [],
             ),
           ]);
         }
@@ -280,6 +302,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 slug: coworker.slug,
               })),
             });
+        const mentionedOrchestratorIds = resolveMentionedOrchestratorIds({
+          content: body.content,
+          explicitOrchestratorIds: [
+            ...(body.mentionedOrchestratorIds ?? []),
+            ...directOrchestratorIds,
+            ...threadOrchestratorIds,
+          ],
+          roomOrchestrators: room.orchestratorMembers.map(
+            ({ orchestrator }) => ({
+              id: orchestrator.id,
+              name: orchestratorDisplayName(orchestrator),
+            }),
+          ),
+        });
 
         const mentionedUserIds = resolveMentionedUserIds({
           content: body.content,
@@ -300,9 +336,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...(clientId ? { clientMessageId: clientId } : {}),
             ...(metadata ? { metadata } : {}),
             mentionsAsSource: {
-              create: mentionedCoworkerIds.map((coworkerId) => ({
-                coworkerId,
-              })),
+              create: [
+                ...mentionedCoworkerIds.map((coworkerId) => ({
+                  coworkerId,
+                  orchestratorId: null,
+                })),
+                ...mentionedOrchestratorIds.map((orchestratorId) => ({
+                  coworkerId: null,
+                  orchestratorId,
+                })),
+              ],
             },
             userMentionsAsSource: {
               create: mentionedUserIds.map((mentionedUserId) => ({

@@ -109,6 +109,7 @@ const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
 const MENTION_ID = "550e8400-e29b-41d4-a716-446655440003";
 const QUOTE_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440004";
 const COWORKER_ID = "coworker_1";
+const ORCHESTRATOR_ID = "01960001-0001-7001-8001-000000000099";
 const USER_ID = "user_123";
 const ALICE_ID = "user_alice";
 const BOB_ID = "user_bob";
@@ -201,6 +202,16 @@ function roomWithMembers(
         image: string | null;
       };
     }>;
+    orchestratorMembers?: Array<{
+      orchestrator: {
+        id: string;
+        name: string | null;
+        avatarImageUrl: string | null;
+        avatarSeed: string | null;
+        userId: string;
+        user: { name: string } | null;
+      };
+    }>;
   } = {},
 ) {
   return {
@@ -227,6 +238,7 @@ function roomWithMembers(
         },
       },
     ],
+    orchestratorMembers: overrides.orchestratorMembers ?? [],
   };
 }
 
@@ -253,6 +265,7 @@ function coworkerOnlyDirectRoom() {
         },
       },
     ],
+    orchestratorMembers: [],
   };
 }
 
@@ -264,7 +277,8 @@ function createdMessage(
     metadata: Record<string, unknown> | null;
     mentionsAsSource: Array<{
       id: string;
-      coworkerId: string;
+      coworkerId: string | null;
+      orchestratorId: string | null;
       status: string;
       responseMessageId: string | null;
     }>;
@@ -276,6 +290,7 @@ function createdMessage(
     parentMessageId: overrides.parentMessageId ?? null,
     senderUserId: overrides.senderUserId ?? null,
     senderCoworkerId: overrides.senderCoworkerId ?? null,
+    senderOrchestratorId: null,
     content: "hello",
     metadata: overrides.metadata ?? null,
     createdAt: new Date("2025-01-02T00:00:00.000Z"),
@@ -298,6 +313,7 @@ function createdMessage(
           image: null,
         }
       : null,
+    senderOrchestrator: null,
     mentionsAsSource: overrides.mentionsAsSource ?? [],
     reactions: [],
     replies: [],
@@ -513,6 +529,80 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
   });
 
+  describe("orchestrator mentions", () => {
+    it("creates an orchestrator mention and dispatches a Soko Bot turn", async () => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          userMembers: [
+            {
+              userId: USER_ID,
+              user: { name: "Patrick" },
+            },
+          ],
+          coworkerMembers: [],
+          orchestratorMembers: [
+            {
+              orchestrator: {
+                id: ORCHESTRATOR_ID,
+                name: "Soko Bot",
+                avatarImageUrl: null,
+                avatarSeed: "orb:user_123",
+                userId: USER_ID,
+                user: { name: "Patrick" },
+              },
+            },
+          ],
+        }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          senderUserId: USER_ID,
+          mentionsAsSource: [
+            {
+              id: MENTION_ID,
+              coworkerId: null,
+              orchestratorId: ORCHESTRATOR_ID,
+              status: "pending",
+              responseMessageId: null,
+            },
+          ],
+        }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: `@orchestrator:${ORCHESTRATOR_ID} check the board`,
+          mentionedOrchestratorIds: [ORCHESTRATOR_ID],
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.mentions).toEqual([
+        {
+          id: MENTION_ID,
+          coworkerId: null,
+          orchestratorId: ORCHESTRATOR_ID,
+          status: "pending",
+          responseMessageId: null,
+        },
+      ]);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            mentionsAsSource: {
+              create: [{ coworkerId: null, orchestratorId: ORCHESTRATOR_ID }],
+            },
+          }),
+        }),
+      );
+      expect(dispatchMock).toHaveBeenCalledWith(MENTION_ID);
+    });
+  });
+
   describe("thread replies", () => {
     it("delivers a user thread reply to coworkers already in the thread", async () => {
       roomFindFirstMock.mockResolvedValue(roomWithMembers());
@@ -535,6 +625,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             {
               id: MENTION_ID,
               coworkerId: COWORKER_ID,
+              orchestratorId: null,
               status: "pending",
               responseMessageId: null,
             },
@@ -576,7 +667,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             mentionsAsSource: {
-              create: [{ coworkerId: COWORKER_ID }],
+              create: [{ coworkerId: COWORKER_ID, orchestratorId: null }],
             },
           }),
         }),
@@ -631,6 +722,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             {
               id: MENTION_ID,
               coworkerId: COWORKER_ID,
+              orchestratorId: null,
               status: "pending",
               responseMessageId: null,
             },
@@ -654,7 +746,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             mentionsAsSource: {
-              create: [{ coworkerId: COWORKER_ID }],
+              create: [{ coworkerId: COWORKER_ID, orchestratorId: null }],
             },
             userMentionsAsSource: {
               create: [{ userId: ALICE_ID }],
@@ -713,6 +805,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             },
           ],
           coworkerMembers: [],
+          orchestratorMembers: [],
         }),
       );
       messageCreateMock.mockResolvedValue(
@@ -755,6 +848,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             },
           ],
           coworkerMembers: [],
+          orchestratorMembers: [],
         }),
       );
       messageCreateMock.mockResolvedValue(
@@ -800,6 +894,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             },
           ],
           coworkerMembers: [],
+          orchestratorMembers: [],
         }),
       );
       messageCreateMock.mockResolvedValue(
@@ -838,6 +933,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             },
           ],
           coworkerMembers: [],
+          orchestratorMembers: [],
         }),
       );
       messageCreateMock.mockResolvedValue(
@@ -973,6 +1069,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
           {
             id: MENTION_ID,
             coworkerId: COWORKER_ID,
+            orchestratorId: null,
             status: "pending",
             responseMessageId: null,
           },
@@ -1142,6 +1239,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             {
               id: MENTION_ID,
               coworkerId: COWORKER_ID,
+              orchestratorId: null,
               status: "pending",
               responseMessageId: null,
             },

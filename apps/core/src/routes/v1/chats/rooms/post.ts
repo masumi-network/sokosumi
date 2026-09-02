@@ -31,6 +31,7 @@ import {
   resolveChannelName,
   resolveWorkspaceIdForChatRoom,
   validateChatCoworkerIds,
+  validateChatOrchestratorIds,
   validateOrganizationUserIds,
 } from "./helpers";
 
@@ -104,6 +105,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         currentUserId: userContext.userId,
         memberUserIds: body.memberUserIds ?? [],
         coworkerIds: body.coworkerIds ?? [],
+        orchestratorIds: body.orchestratorIds ?? [],
       });
 
       return direct.created ? created(c, direct.room) : ok(c, direct.room);
@@ -145,6 +147,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId,
           tx,
         );
+        const orchestratorIds = await validateChatOrchestratorIds(
+          body.orchestratorIds ?? [],
+          workspaceId,
+          userContext.userId,
+          [],
+          tx,
+        );
 
         return tx.chatRoom.create({
           data: {
@@ -165,6 +174,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
             coworkerMembers: {
               create: coworkerIds.map((coworkerId) => ({ coworkerId })),
+            },
+            orchestratorMembers: {
+              create: orchestratorIds.map((orchestratorId) => ({
+                orchestratorId,
+              })),
             },
           },
           include: chatRoomInclude,

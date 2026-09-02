@@ -52,7 +52,6 @@ describe("runSokoBotLabIngest", () => {
       workspaceId: "ws_1",
       ingestTimezone: "Europe/Zurich",
       followWholeBoard: true,
-      coworker: { id: "cow_1" },
     });
     activeIntegrationsMock.mockResolvedValue([{ id: "int_1" }]);
     activeTurnMock.mockResolvedValue(null);

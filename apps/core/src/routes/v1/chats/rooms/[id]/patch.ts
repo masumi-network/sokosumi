@@ -29,9 +29,11 @@ import {
   mapChatRoomWithSidebarFlags,
   membershipAccessForUser,
   normalizeUniqueStrings,
+  orchestratorDisplayName,
   requireChatRoomUserAccess,
   resolveWorkspaceIdForChatRoom,
   validateChatCoworkerIds,
+  validateChatOrchestratorIds,
 } from "../helpers";
 import {
   diffChannelMembershipRoster,
@@ -219,9 +221,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 name: member.coworker.name,
               }))
             : [];
+        const priorOrchestrators =
+          body.orchestratorIds !== undefined
+            ? existing.orchestratorMembers.map((member) => ({
+                id: member.orchestrator.id,
+                name: orchestratorDisplayName(member.orchestrator),
+              }))
+            : [];
 
         let nextUsers = priorUsers;
         let nextCoworkers = priorCoworkers;
+        let nextOrchestrators = priorOrchestrators;
 
         if (body.memberUserIds !== undefined) {
           // Host roster only. Guest ids echoed in memberUserIds are ignored
@@ -379,9 +389,73 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
         }
 
+        if (body.orchestratorIds !== undefined) {
+          const workspaceId = await resolveWorkspaceIdForChatRoom({
+            organizationId,
+            personalUserId: userContext.userId,
+            tx,
+          });
+          const alreadyInRoom = existing.orchestratorMembers.map(
+            (member) => member.orchestrator.id,
+          );
+          const orchestratorIds = await validateChatOrchestratorIds(
+            body.orchestratorIds,
+            workspaceId,
+            userContext.userId,
+            alreadyInRoom,
+            tx,
+          );
+          const bots = await tx.sokoBot.findMany({
+            where: { id: { in: orchestratorIds } },
+            select: {
+              id: true,
+              name: true,
+              user: { select: { name: true } },
+            },
+          });
+          const nameById = new Map(
+            bots.map((bot) => [bot.id, orchestratorDisplayName(bot)]),
+          );
+          nextOrchestrators = orchestratorIds.map((orchestratorId) => ({
+            id: orchestratorId,
+            name: nameById.get(orchestratorId) ?? orchestratorId,
+          }));
+
+          await tx.chatRoomMention.updateMany({
+            where: {
+              status: { in: ["pending", "sent"] },
+              orchestratorId: { notIn: orchestratorIds },
+              message: { roomId: existing.id },
+            },
+            data: {
+              status: "failed",
+              error: "Personal assistant is no longer a member of this room",
+            },
+          });
+          await tx.chatRoomOrchestratorMember.deleteMany({
+            where: { roomId: existing.id },
+          });
+          if (orchestratorIds.length > 0) {
+            await tx.chatRoomOrchestratorMember.createMany({
+              data: orchestratorIds.map((orchestratorId) => ({
+                roomId: existing.id,
+                orchestratorId,
+              })),
+            });
+          }
+        }
+
         const changes = diffChannelMembershipRoster({
-          prior: { users: priorUsers, coworkers: priorCoworkers },
-          next: { users: nextUsers, coworkers: nextCoworkers },
+          prior: {
+            users: priorUsers,
+            coworkers: priorCoworkers,
+            orchestrators: priorOrchestrators,
+          },
+          next: {
+            users: nextUsers,
+            coworkers: nextCoworkers,
+            orchestrators: nextOrchestrators,
+          },
         });
         const createdStatus = await recordChannelMembershipStatus(tx, {
           roomId: existing.id,

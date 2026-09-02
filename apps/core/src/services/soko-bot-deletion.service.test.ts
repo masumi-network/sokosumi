@@ -1,15 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const BOT_ID = "01960001-0001-7001-8001-000000000001";
-const COWORKER_ID = "01960001-0001-7001-8001-0000000000c0";
 
 const {
   botFindFirstMock,
   txBotFindFirstMock,
   txBotDeleteMock,
   txBotUpdateMock,
-  txCoworkerDeleteMock,
-  txCoworkerUpdateMock,
+  txOrchestratorMemberDeleteManyMock,
   txTurnUpdateManyMock,
   counts,
   deleteManyCalls,
@@ -19,19 +17,14 @@ const {
   txBotFindFirstMock: vi.fn(),
   txBotDeleteMock: vi.fn(),
   txBotUpdateMock: vi.fn(),
-  txCoworkerDeleteMock: vi.fn(),
-  txCoworkerUpdateMock: vi.fn(),
+  txOrchestratorMemberDeleteManyMock: vi.fn(),
   txTurnUpdateManyMock: vi.fn(),
   counts: {
     task: 0,
-    taskCreatorCoworker: 0,
     taskAssignee: 0,
     taskEvent: 0,
-    taskEventCoworker: 0,
     usage: 0,
     chatMessage: 0,
-    taskFile: 0,
-    coworkerUsage: 0,
   },
   deleteManyCalls: [] as string[],
   revokeIntegrationsMock: vi.fn(),
@@ -60,7 +53,9 @@ vi.mock("@/lib/db/transaction", () => ({
         delete: txBotDeleteMock,
         update: txBotUpdateMock,
       },
-      coworker: { delete: txCoworkerDeleteMock, update: txCoworkerUpdateMock },
+      chatRoomOrchestratorMember: {
+        deleteMany: txOrchestratorMemberDeleteManyMock,
+      },
       sokoBotTurn: {
         updateMany: txTurnUpdateManyMock,
         deleteMany: deleteManyRecorder("turns"),
@@ -77,22 +72,14 @@ vi.mock("@/lib/db/transaction", () => ({
       task: {
         count: vi.fn(async (args: { where: Record<string, unknown> }) => {
           if ("creatorOrchestratorId" in args.where) return counts.task;
-          if ("creatorCoworkerId" in args.where)
-            return counts.taskCreatorCoworker;
           return counts.taskAssignee;
         }),
       },
       taskEvent: {
-        count: vi.fn(async (args: { where: Record<string, unknown> }) =>
-          "orchestratorId" in args.where
-            ? counts.taskEvent
-            : counts.taskEventCoworker,
-        ),
+        count: vi.fn(async () => counts.taskEvent),
       },
       orchestratorUsage: { count: vi.fn(async () => counts.usage) },
       chatRoomMessage: { count: vi.fn(async () => counts.chatMessage) },
-      taskFile: { count: vi.fn(async () => counts.taskFile) },
-      coworkerUsage: { count: vi.fn(async () => counts.coworkerUsage) },
     }),
   ),
 }));
@@ -111,8 +98,8 @@ describe("deleteSokoBot", () => {
     botFindFirstMock.mockResolvedValue({ id: BOT_ID });
     txBotFindFirstMock.mockResolvedValue({
       id: BOT_ID,
-      coworker: { id: COWORKER_ID },
     });
+    txOrchestratorMemberDeleteManyMock.mockResolvedValue({ count: 0 });
   });
 
   it("removes the row outright when nothing references the bot", async () => {
@@ -120,8 +107,8 @@ describe("deleteSokoBot", () => {
 
     expect(result.outcome).toBe("deleted");
     expect(txBotDeleteMock).toHaveBeenCalledWith({ where: { id: BOT_ID } });
-    expect(txCoworkerDeleteMock).toHaveBeenCalledWith({
-      where: { id: COWORKER_ID },
+    expect(txOrchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { orchestratorId: BOT_ID },
     });
     expect(txBotUpdateMock).not.toHaveBeenCalled();
   });
@@ -152,19 +139,20 @@ describe("deleteSokoBot", () => {
     expect(result.retained.billingRecords).toBe(261);
   });
 
-  it("keeps the coworker as a renamed tombstone when it authored chat", async () => {
+  it("tombstones the orchestrator when it authored chat", async () => {
     counts.chatMessage = 52;
 
     const result = await deleteSokoBot(BOT_ID);
 
     expect(result.outcome).toBe("tombstoned");
-    expect(txCoworkerDeleteMock).not.toHaveBeenCalled();
-    expect(txCoworkerUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: COWORKER_ID },
-        data: expect.objectContaining({ name: "Deleted assistant" }),
-      }),
-    );
+    expect(result.retained.chatMessages).toBe(52);
+    expect(txBotDeleteMock).not.toHaveBeenCalled();
+    expect(txOrchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { orchestratorId: BOT_ID },
+    });
+    const data = txBotUpdateMock.mock.calls[0]?.[0]?.data;
+    expect(data.deletedAt).toBeInstanceOf(Date);
+    expect(data.name).toBeNull();
   });
 
   it("erases everything the bot owned on either path", async () => {

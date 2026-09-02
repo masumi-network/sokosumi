@@ -27,6 +27,7 @@ const {
   requestWorkspaceGrantMock,
   resolveEffectiveDesignMdMock,
   requireTaskAssignableCoworkerMock,
+  requireTaskAssignableOrchestratorMock,
   taskCreateMock,
   taskFindUniqueOrThrowMock,
   uploadProjectBriefingFileMock,
@@ -42,6 +43,7 @@ const {
   requestWorkspaceGrantMock: vi.fn(),
   resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   requireTaskAssignableCoworkerMock: vi.fn(),
+  requireTaskAssignableOrchestratorMock: vi.fn(),
   taskCreateMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
@@ -90,6 +92,7 @@ function buildMapTaskResponse(task: {
         }
       : null,
     assigneeId: null,
+    assigneeOrchestratorId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -139,6 +142,7 @@ function buildMapTaskResponse(task: {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  requireTaskAssignableOrchestrator: requireTaskAssignableOrchestratorMock,
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -247,6 +251,33 @@ describe("createTaskRequestSchema", () => {
         description: null,
         assigneeId: "cow_a",
         coworkerId: "cow_b",
+        status: TaskStatus.READY,
+      });
+    }).toThrow();
+  });
+
+  it("accepts READY status with assigneeOrchestratorId", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Ready task",
+      description: null,
+      assigneeOrchestratorId: "01960001-0001-7001-8001-000000000099",
+      status: TaskStatus.READY,
+    });
+
+    expect(result.status).toBe(TaskStatus.READY);
+    expect(result.assigneeOrchestratorId).toBe(
+      "01960001-0001-7001-8001-000000000099",
+    );
+    expect(result.assigneeId).toBeUndefined();
+  });
+
+  it("rejects assigneeId and assigneeOrchestratorId together", () => {
+    expect(() => {
+      createTaskRequestSchema.parse({
+        name: "Ready task",
+        description: null,
+        assigneeId: "cow_a",
+        assigneeOrchestratorId: "01960001-0001-7001-8001-000000000099",
         status: TaskStatus.READY,
       });
     }).toThrow();
@@ -471,6 +502,42 @@ describe("POST /tasks", () => {
           organizationId: "org_123",
           workspaceId: "11111111-1111-7111-8111-111111111111",
           projectId: null,
+        }),
+      }),
+    );
+  });
+
+  it("assigns a personal assistant as orchestrator", async () => {
+    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    requireTaskAssignableOrchestratorMock.mockResolvedValue(undefined);
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "PA Task",
+        description: null,
+        assigneeOrchestratorId: orchestratorId,
+        status: TaskStatus.READY,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(requireTaskAssignableOrchestratorMock).toHaveBeenCalledWith(
+      orchestratorId,
+      "11111111-1111-7111-8111-111111111111",
+      expect.anything(),
+      { kind: "user", userId: "user_123" },
+    );
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assigneeId: null,
+          assigneeOrchestratorId: orchestratorId,
         }),
       }),
     );

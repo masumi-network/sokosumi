@@ -1227,6 +1227,7 @@ function createExternalRoom(
     providerConversationId: null,
     userMembers: memberships,
     coworkerMembers: [],
+    orchestratorMembers: [],
     ...overrides,
   };
 }
@@ -1530,6 +1531,7 @@ describe("requireChatRoomUserWriteAccess guest gate", () => {
       providerConversationId: null,
       userMembers: [{ userId: GUEST_ID, access: "guest", user: { name: "G" } }],
       coworkerMembers: [],
+      orchestratorMembers: [],
     } as never);
     vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
       id: ORG_ID,

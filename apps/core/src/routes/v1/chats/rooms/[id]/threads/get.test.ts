@@ -107,6 +107,7 @@ function room() {
       },
     ],
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 

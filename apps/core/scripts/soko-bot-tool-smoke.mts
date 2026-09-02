@@ -342,10 +342,10 @@ try {
       skip("link_tasks", "peer task was not created");
     }
 
-    if (bot.coworker?.id) {
+    if (bot.id) {
       await run("assign_task", {
         taskId: created.id,
-        coworkerId: bot.coworker.id,
+        coworkerId: bot.id,
         ready: true,
       });
       await run("reply_to_task", {
@@ -363,7 +363,7 @@ try {
         "reply_to_task",
         "update_assigned_task",
       ]) {
-        skip(c, "bot has no chat identity to assign to");
+        skip(c, "bot has no orchestrator identity to assign to");
       }
     }
     scratchTaskIds.push(created.id, ...(peerId ? [peerId] : []));
@@ -410,7 +410,7 @@ try {
     where: {
       kind: "direct",
       archivedAt: null,
-      coworkerMembers: { some: { coworkerId: bot.coworker?.id ?? "" } },
+      orchestratorMembers: { some: { orchestratorId: bot.id } },
       userMembers: { some: { userId: bot.userId } },
     },
     select: { id: true },

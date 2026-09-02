@@ -61,6 +61,7 @@ describe("chatRoomSchema", () => {
     myAccess: "guest" as const,
     userMembers: [],
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 
   it("requires myAccess and organizationName", () => {

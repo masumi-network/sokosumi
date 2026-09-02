@@ -281,6 +281,7 @@ function roomWithOneCoworker(
         },
       },
     ],
+    orchestratorMembers: [],
   };
 }
 
@@ -437,6 +438,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
             },
           },
         ],
+        orchestratorMembers: [],
       }),
     );
 

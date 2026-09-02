@@ -116,6 +116,8 @@ function createTask(
       image: null,
       slug: "cow-worker",
     },
+    assigneeOrchestratorId: null,
+    assigneeOrchestrator: null,
     creatorUserId: ownerId,
     creatorUser: { id: ownerId, name: "Task Owner", image: null },
     creatorCoworkerId: null,

@@ -44,7 +44,6 @@ import {
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
 } from "@/services/soko-bot-billing.service";
-import { ensureSokoBotCoworker } from "@/services/soko-bot-chat.service";
 import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
@@ -1059,7 +1058,6 @@ export class SokoBotControlPlane {
             },
           });
         }
-        await ensureSokoBotCoworker(updated.id, tx);
         if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
@@ -1091,7 +1089,6 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
-      await ensureSokoBotCoworker(bot.id, tx);
       if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
@@ -1116,7 +1113,6 @@ export class SokoBotControlPlane {
     const bot = await prisma.sokoBot.findFirst({
       where: { userId, workspaceId, archivedAt: null },
       include: {
-        coworker: { select: { id: true, slug: true } },
         memoryRevisions: { orderBy: { version: "desc" }, take: 1 },
         legacyMessages: {
           orderBy: { createdAt: "desc" },
@@ -1131,11 +1127,6 @@ export class SokoBotControlPlane {
       },
     });
     if (!bot) return null;
-    // Bots created before chat support have no coworker row yet; heal lazily
-    // so "Open chat" works for them without a data migration.
-    if (!bot.coworker) {
-      bot.coworker = await ensureSokoBotCoworker(bot.id);
-    }
     const memoryRevisions = (bot.memoryRevisions ?? []).map(safeMemoryRevision);
     return {
       ...bot,
@@ -3514,7 +3505,6 @@ export class SokoBotControlPlane {
           eveSessionId: null,
         },
       });
-      await ensureSokoBotCoworker(bot.id, tx);
       return activeTurn;
     }, "Soko Bot archive collided with active work");
     if (!active) return;
