@@ -259,6 +259,9 @@ function roomWithOneCoworker(
     coworkerMembers?: Array<{
       coworker: { id: string; name: string; slug: string };
     }>;
+    orchestratorMembers?: Array<{
+      orchestrator: { id: string; name: string };
+    }>;
   } = {},
 ) {
   return {
@@ -281,7 +284,7 @@ function roomWithOneCoworker(
         },
       },
     ],
-    orchestratorMembers: [],
+    orchestratorMembers: overrides.orchestratorMembers ?? [],
   };
 }
 

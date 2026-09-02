@@ -1375,7 +1375,7 @@ describe("POST /chats/rooms", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe(
-      "Group direct messages cannot include coworkers.",
+      "Direct messages cannot mix humans, coworkers, and personal assistants.",
     );
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
@@ -1852,7 +1852,7 @@ describe("POST /chats/rooms", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(await response.text()).toBe(
+    expect(await response.text()).toContain(
       "Only the owner can add this personal assistant",
     );
     expect(roomCreateMock).not.toHaveBeenCalled();

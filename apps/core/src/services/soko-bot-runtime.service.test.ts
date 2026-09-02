@@ -2518,7 +2518,14 @@ describe("post_chat chain depth", () => {
 
     expect(transactionChatMentionCreateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: [{ messageId: "msg_1", coworkerId: "cow_other", chainDepth: 1 }],
+        data: [
+          {
+            messageId: "msg_1",
+            coworkerId: "cow_other",
+            orchestratorId: null,
+            chainDepth: 1,
+          },
+        ],
       }),
     );
     // Writing the row is not enough: reclaim only rescues `sent`, so a row

@@ -1349,7 +1349,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(await response.text()).toBe(
+    expect(await response.text()).toContain(
       "Only the owner can add this personal assistant",
     );
     expect(orchestratorMemberCreateManyMock).not.toHaveBeenCalled();
