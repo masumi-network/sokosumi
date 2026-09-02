@@ -2,9 +2,8 @@ import { HeaderMobileSearchControl } from "@/app/components/header/header-mobile
 import { HeaderNotificationBell } from "@/app/components/header/header-notification-bell.client";
 
 /**
- * Mobile/desktop trailing tools after desktop Workspace chrome:
+ * Mobile/desktop trailing tools after Workspace chrome:
  * Notification Center, then mobile header Search (SOK-924).
- * Mobile Workspace switch + account avatar live on You (SOK-926).
  */
 export function HeaderTrailingTools() {
   return (
