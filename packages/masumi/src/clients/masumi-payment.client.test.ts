@@ -1490,8 +1490,10 @@ describe("createPaymentClient purchase diff", () => {
     expect(failure.message).toContain("purchase-diff 521:");
     expect(failure.message).toContain("truncated from");
     // A whole error page in one log line and one Sentry title is the thing
-    // this cap exists to stop.
-    expect(failure.message.length).toBeLessThan(400);
+    // this cap exists to stop. The bound is the 19-character
+    // "purchase-diff 521: " prefix plus the 300-character cap in node-error.ts,
+    // suffix included.
+    expect(failure.message.length).toBeLessThanOrEqual(319);
     expect(failure.message).not.toContain("Ray ID");
   });
 

@@ -42,7 +42,10 @@ function truncateFallback(dump: string): string {
   if (dump.length <= MAX_FALLBACK_MESSAGE_LENGTH) {
     return dump;
   }
-  return `${dump.slice(0, MAX_FALLBACK_MESSAGE_LENGTH)}... (truncated from ${dump.length} chars)`;
+  // The suffix counts against the cap. Slicing to the cap and then appending
+  // it returns a longer string than the cap allows.
+  const suffix = `... (truncated from ${dump.length} chars)`;
+  return `${dump.slice(0, MAX_FALLBACK_MESSAGE_LENGTH - suffix.length)}${suffix}`;
 }
 
 /**
