@@ -22,6 +22,10 @@ vi.mock("@/hooks/use-self-presence", () => ({
   useSelfPresence: () => "online",
 }));
 
+vi.mock("@/components/analytics/cookie-banner", () => ({
+  openConsentPreferences: vi.fn(),
+}));
+
 import { YouPageClient } from "@/app/you/components/you-page.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
@@ -135,78 +139,102 @@ describe("YouPageClient", () => {
     expect(screen.getByTestId("you-files")).toHaveAttribute("href", "/drive");
   });
 
-  it("groups Admin and Settings before Log out when admin is enabled", () => {
+  it("shows Admin alone before account links when admin is enabled", () => {
     renderYouPage();
 
     const admin = screen.getByTestId("you-admin");
-    const settings = screen.getByTestId("you-settings");
+    const account = screen.getByTestId("you-account");
     const logout = screen.getByTestId("you-logout");
 
     expect(admin).toHaveAttribute("href", "/admin");
-    expect(settings).not.toHaveAttribute("href");
+    expect(account).toHaveAttribute("href", "/account");
+    expect(screen.queryByTestId("you-settings")).toBeNull();
     expect(
-      admin.compareDocumentPosition(settings) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      admin.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      settings.compareDocumentPosition(logout) &
+      account.compareDocumentPosition(logout) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 
-  it("opens an in-page settings drill instead of navigating to /account", () => {
+  it("flattens account and drill triggers onto the root menu", () => {
     renderYouPage();
 
-    fireEvent.click(screen.getByTestId("you-settings"));
-
-    expect(pushMock).not.toHaveBeenCalled();
-    expect(screen.getByTestId("you-settings-panel")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "account" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "developer" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "help" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "legal" })).toBeInTheDocument();
-    expect(screen.queryByTestId("you-logout")).toBeNull();
-    expect(screen.queryByTestId("you-buy-credits")).toBeNull();
-  });
-
-  it("navigates to an account destination from the settings drill", () => {
-    renderYouPage();
-
-    fireEvent.click(screen.getByTestId("you-settings"));
-    fireEvent.click(screen.getByRole("button", { name: "account" }));
-
-    expect(pushMock).toHaveBeenCalledWith("/account");
-  });
-
-  it("returns to the You root from the settings drill back control", () => {
-    renderYouPage();
-
-    fireEvent.click(screen.getByTestId("you-settings"));
-    expect(screen.getByTestId("you-settings-panel")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "back" }));
-
-    expect(screen.queryByTestId("you-settings-panel")).toBeNull();
-    expect(screen.getByTestId("you-settings")).toBeInTheDocument();
+    expect(screen.queryByTestId("you-settings")).toBeNull();
+    expect(screen.getByTestId("you-account")).toHaveAttribute(
+      "href",
+      "/account",
+    );
+    expect(screen.getByTestId("you-billing")).toHaveAttribute(
+      "href",
+      "/billing",
+    );
+    expect(screen.getByTestId("you-connections")).toHaveAttribute(
+      "href",
+      "/connections",
+    );
+    expect(screen.getByTestId("you-developer")).toBeInTheDocument();
+    expect(screen.getByTestId("you-help")).toBeInTheDocument();
+    expect(screen.getByTestId("you-legal")).toBeInTheDocument();
+    expect(screen.getByTestId("you-buy-credits")).toBeInTheDocument();
     expect(screen.getByTestId("you-logout")).toBeInTheDocument();
   });
 
-  it("drills into nested settings panels on the You page", () => {
+  it("navigates to an account destination from the flattened account link", () => {
     renderYouPage();
 
-    fireEvent.click(screen.getByTestId("you-settings"));
-    fireEvent.click(screen.getByRole("button", { name: "help" }));
+    fireEvent.click(screen.getByTestId("you-account"));
 
-    expect(
-      screen.getByRole("button", { name: "documentation" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "support" })).toBeInTheDocument();
+    expect(screen.getByTestId("you-account")).toHaveAttribute(
+      "href",
+      "/account",
+    );
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: "back" }));
+  it("drills Developer inside the section while keeping credits and logout", () => {
+    renderYouPage();
 
-    expect(screen.getByRole("button", { name: "account" })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("you-developer"));
+
+    expect(screen.getByTestId("you-drill-section")).toBeInTheDocument();
+    expect(screen.getByTestId("you-drill-back")).toBeInTheDocument();
+    expect(screen.getByTestId("you-developer-docs")).toHaveAttribute(
+      "href",
+      "/developer/docs",
+    );
+    expect(screen.getByTestId("you-buy-credits")).toBeInTheDocument();
+    expect(screen.getByTestId("you-logout")).toBeInTheDocument();
+    expect(screen.getByTestId("you-files")).toBeInTheDocument();
+    expect(screen.queryByTestId("you-developer")).toBeNull();
+    expect(screen.queryByTestId("you-settings")).toBeNull();
+  });
+
+  it("returns to root drill triggers from a nested back control", () => {
+    renderYouPage();
+
+    fireEvent.click(screen.getByTestId("you-help"));
+    expect(screen.getByTestId("you-help-documentation")).toBeInTheDocument();
+    expect(screen.getByTestId("you-buy-credits")).toBeInTheDocument();
+    expect(screen.getByTestId("you-logout")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("you-drill-back"));
+
+    expect(screen.getByTestId("you-developer")).toBeInTheDocument();
+    expect(screen.getByTestId("you-help")).toBeInTheDocument();
+    expect(screen.getByTestId("you-legal")).toBeInTheDocument();
+    expect(screen.queryByTestId("you-help-documentation")).toBeNull();
+  });
+
+  it("drills Legal nested rows including cookie consent", () => {
+    renderYouPage();
+
+    fireEvent.click(screen.getByTestId("you-legal"));
+
+    expect(screen.getByTestId("you-legal-termsOfService")).toBeInTheDocument();
+    expect(screen.getByTestId("you-cookie-consent")).toBeInTheDocument();
+    expect(screen.getByTestId("you-buy-credits")).toBeInTheDocument();
+    expect(screen.getByTestId("you-logout")).toBeInTheDocument();
   });
 
   it("hides Admin when adminMenuEnabled is false", () => {
@@ -218,7 +246,8 @@ describe("YouPageClient", () => {
     });
 
     expect(screen.queryByTestId("you-admin")).toBeNull();
-    expect(screen.getByTestId("you-settings")).toBeInTheDocument();
+    expect(screen.queryByTestId("you-settings")).toBeNull();
+    expect(screen.getByTestId("you-account")).toBeInTheDocument();
     expect(screen.getByTestId("you-logout")).toBeInTheDocument();
   });
 

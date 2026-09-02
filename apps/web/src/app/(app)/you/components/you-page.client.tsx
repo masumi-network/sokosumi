@@ -4,18 +4,28 @@ import type { SessionUser } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import {
   Calendar,
+  ChevronLeft,
   ChevronRight,
+  Code2,
   Coins,
+  Cookie,
   HardDrive,
+  LifeBuoy,
   LogOut,
-  Settings,
+  Scale,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactElement, useState } from "react";
-import { AccountPopoverDrill } from "@/app/components/sidebar/components/account-popover-drill.client";
+import {
+  getAccountNavItems,
+  HELP_LINKS,
+  type HelpLinkItem,
+  LEGAL_LINKS,
+  type LegalLinkItem,
+} from "@/app/components/sidebar/components/account-menu-config";
 import {
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
@@ -23,9 +33,9 @@ import {
 } from "@/app/components/sidebar/components/account-summary-labels";
 import type {
   AccountAdminSettingsChrome,
-  AccountPopoverPanel,
   AccountSummaryCreditProps,
 } from "@/app/components/sidebar/components/account-summary-types";
+import { getDeveloperNavItems } from "@/app/components/sidebar/components/developer-menu-config";
 import { openConsentPreferences } from "@/components/analytics/cookie-banner";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
@@ -42,6 +52,12 @@ const GRAVATAR_SIZE = 160;
 const ADMIN_HREF = "/admin";
 const DRIVE_HREF = "/drive";
 const CALENDAR_HREF = "/calendar";
+
+type YouNavPanel =
+  | { kind: "root" }
+  | { kind: "developer" }
+  | { kind: "help" }
+  | { kind: "legal" };
 
 export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
@@ -68,10 +84,13 @@ export function YouPageClient({
   const tBilling = useTranslations("App.Billing");
   const tPresence = useTranslations("App.Channels.Presence");
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
+  const tYou = useTranslations("App.You.Metadata");
+  const tDeveloper = useTranslations("App.Developer.tabs");
+  const tConsent = useTranslations("CookieConsent");
   const { showLogoutModal } = useGlobalModalsContext();
   const router = useRouter();
   const presence = useSelfPresence();
-  const [panel, setPanel] = useState<AccountPopoverPanel>({ kind: "root" });
+  const [panel, setPanel] = useState<YouNavPanel>({ kind: "root" });
   const [slideFrom, setSlideFrom] = useState<"right" | "left" | null>(null);
 
   const displayName = resolveAccountDisplayName(
@@ -89,6 +108,11 @@ export function YouPageClient({
     extraCredits === null ? null : formatCreditsForDisplay(extraCredits);
   const showExtraCredits =
     usage !== null && displayExtraCredits !== null && displayExtraCredits > 0;
+
+  const accountNavItems = getAccountNavItems({
+    activeOrganizationId: adminSettingsChrome.activeOrganizationId,
+    members: adminSettingsChrome.members,
+  });
 
   function resolveRenewalLabel(): string | null {
     if (subscriptionPeriodEndMs === null || currentTimestampMs <= 0) {
@@ -114,16 +138,9 @@ export function YouPageClient({
     showLogoutModal({ id: sessionUser.id, email: sessionUser.email });
   }
 
-  function handleNavigatePanel(next: AccountPopoverPanel) {
-    const goingDeeper =
-      panel.kind === "root" ||
-      (panel.kind === "settings" && next.kind !== "root");
-    setSlideFrom(goingDeeper ? "right" : "left");
+  function handleNavigatePanel(next: YouNavPanel) {
+    setSlideFrom(next.kind === "root" ? "left" : "right");
     setPanel(next);
-  }
-
-  function handleNavigateRoute(href: string) {
-    router.push(href);
   }
 
   function handleOpenExternal(url: string) {
@@ -134,49 +151,27 @@ export function YouPageClient({
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  if (panel.kind !== "root") {
-    return (
-      <div
-        className="mx-auto w-full py-6 md:max-w-4xl md:py-8"
-        data-testid="you-page"
-      >
-        <div
-          key={panel.kind}
-          data-testid="you-settings-panel"
-          className={cn(
-            slideFrom !== null && "animate-in fade-in duration-200",
-            slideFrom === "right" && "slide-in-from-right-4",
-            slideFrom === "left" && "slide-in-from-left-4",
-          )}
-        >
-          <AccountPopoverDrill
-            panel={panel}
-            members={adminSettingsChrome.members}
-            activeOrganizationId={adminSettingsChrome.activeOrganizationId}
-            showDeveloperVendors={adminSettingsChrome.showDeveloperVendors}
-            onNavigatePanel={handleNavigatePanel}
-            onNavigateRoute={handleNavigateRoute}
-            onOpenExternal={handleOpenExternal}
-            onOpenConsent={openConsentPreferences}
-          />
-        </div>
-      </div>
+  function getAccountItemLabel(translationKey: string): string {
+    return tCredit(
+      translationKey as "account" | "billing" | "connections" | "organization",
     );
   }
+
+  const drillTitle =
+    panel.kind === "developer"
+      ? tCredit("developer")
+      : panel.kind === "help"
+        ? tCredit("help")
+        : panel.kind === "legal"
+          ? tCredit("legal")
+          : null;
 
   return (
     <div
       className="mx-auto w-full py-6 md:max-w-4xl md:py-8"
       data-testid="you-page"
     >
-      <div
-        key="root"
-        className={cn(
-          "space-y-6",
-          slideFrom === "left" &&
-            "animate-in fade-in slide-in-from-left-4 duration-200",
-        )}
-      >
+      <div className="space-y-6">
         <header className="flex items-start gap-4">
           <YouPageAvatar sessionUser={sessionUser} displayName={displayName} />
           <div className="min-w-0 flex-1 space-y-1">
@@ -274,7 +269,7 @@ export function YouPageClient({
           </Button>
         </section>
 
-        <nav aria-label={tMenu("settings")} className="space-y-6">
+        <nav aria-label={tYou("title")} className="space-y-6">
           <YouMenuGroup>
             {calendarMenuEnabled ? (
               <YouMenuLink
@@ -292,22 +287,140 @@ export function YouPageClient({
             />
           </YouMenuGroup>
 
-          <YouMenuGroup>
-            {adminSettingsChrome.adminMenuEnabled ? (
+          {adminSettingsChrome.adminMenuEnabled ? (
+            <YouMenuGroup>
               <YouMenuLink
                 href={ADMIN_HREF}
                 icon={<ShieldCheck className="size-4 shrink-0" aria-hidden />}
                 label={tMenu("admin")}
                 testId="you-admin"
               />
-            ) : null}
-            <YouMenuAction
-              icon={<Settings className="size-4 shrink-0" aria-hidden />}
-              label={tMenu("settings")}
-              testId="you-settings"
-              onClick={() => handleNavigatePanel({ kind: "settings" })}
-            />
+            </YouMenuGroup>
+          ) : null}
+
+          <YouMenuGroup>
+            {accountNavItems.map(({ key, href, translationKey, Icon }) => (
+              <YouMenuLink
+                key={key}
+                href={href}
+                icon={<Icon className="size-4 shrink-0" aria-hidden />}
+                label={getAccountItemLabel(translationKey)}
+                testId={`you-${key}`}
+              />
+            ))}
           </YouMenuGroup>
+
+          <div
+            key={panel.kind}
+            data-testid="you-drill-section"
+            className={cn(
+              slideFrom !== null && "animate-in fade-in duration-200",
+              slideFrom === "right" && "slide-in-from-right-4",
+              slideFrom === "left" && "slide-in-from-left-4",
+            )}
+          >
+            <YouMenuGroup>
+              {panel.kind === "root" ? (
+                <>
+                  <YouMenuAction
+                    icon={<Code2 className="size-4 shrink-0" aria-hidden />}
+                    label={tCredit("developer")}
+                    testId="you-developer"
+                    onClick={() => handleNavigatePanel({ kind: "developer" })}
+                  />
+                  <YouMenuAction
+                    icon={<LifeBuoy className="size-4 shrink-0" aria-hidden />}
+                    label={tCredit("help")}
+                    testId="you-help"
+                    onClick={() => handleNavigatePanel({ kind: "help" })}
+                  />
+                  <YouMenuAction
+                    icon={<Scale className="size-4 shrink-0" aria-hidden />}
+                    label={tCredit("legal")}
+                    testId="you-legal"
+                    onClick={() => handleNavigatePanel({ kind: "legal" })}
+                  />
+                </>
+              ) : (
+                <>
+                  <YouMenuBack
+                    label={drillTitle ?? tMenu("back")}
+                    testId="you-drill-back"
+                    onClick={() => handleNavigatePanel({ kind: "root" })}
+                  />
+                  {panel.kind === "developer"
+                    ? getDeveloperNavItems({
+                        showVendors: adminSettingsChrome.showDeveloperVendors,
+                      }).map(({ key, href, translationKey, Icon }) => (
+                        <YouMenuLink
+                          key={key}
+                          href={href}
+                          icon={
+                            <Icon className="size-4 shrink-0" aria-hidden />
+                          }
+                          label={tDeveloper(translationKey)}
+                          testId={`you-developer-${key}`}
+                        />
+                      ))
+                    : null}
+                  {panel.kind === "help"
+                    ? HELP_LINKS.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <YouMenuAction
+                            key={item.translationKey}
+                            icon={
+                              Icon ? (
+                                <Icon className="size-4 shrink-0" aria-hidden />
+                              ) : (
+                                <span className="size-4 shrink-0" aria-hidden />
+                              )
+                            }
+                            label={tCredit(
+                              item.translationKey as HelpLinkItem["translationKey"],
+                            )}
+                            testId={`you-help-${item.translationKey}`}
+                            onClick={() => handleOpenExternal(item.url)}
+                          />
+                        );
+                      })
+                    : null}
+                  {panel.kind === "legal" ? (
+                    <>
+                      {LEGAL_LINKS.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <YouMenuAction
+                            key={item.translationKey}
+                            icon={
+                              Icon ? (
+                                <Icon className="size-4 shrink-0" aria-hidden />
+                              ) : (
+                                <span className="size-4 shrink-0" aria-hidden />
+                              )
+                            }
+                            label={tCredit(
+                              item.translationKey as LegalLinkItem["translationKey"],
+                            )}
+                            testId={`you-legal-${item.translationKey}`}
+                            onClick={() => handleOpenExternal(item.url)}
+                          />
+                        );
+                      })}
+                      <YouMenuAction
+                        icon={
+                          <Cookie className="size-4 shrink-0" aria-hidden />
+                        }
+                        label={tConsent("settings")}
+                        testId="you-cookie-consent"
+                        onClick={openConsentPreferences}
+                      />
+                    </>
+                  ) : null}
+                </>
+              )}
+            </YouMenuGroup>
+          </div>
         </nav>
 
         <Button
@@ -415,6 +528,31 @@ function YouMenuAction({
         <span className="truncate">{label}</span>
       </span>
       <ChevronRight className="size-4 shrink-0 opacity-60" aria-hidden />
+    </Button>
+  );
+}
+
+function YouMenuBack({
+  label,
+  testId,
+  onClick,
+}: {
+  label: string;
+  testId: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={onClick}
+      className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 rounded-none font-normal md:h-10"
+      data-testid={testId}
+      aria-label={label}
+    >
+      <ChevronLeft className="size-4 shrink-0" aria-hidden />
+      <span className="truncate">{label}</span>
     </Button>
   );
 }
