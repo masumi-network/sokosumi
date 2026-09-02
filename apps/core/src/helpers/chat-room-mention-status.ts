@@ -1,7 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
 
-import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
-
 export async function failOpenChatRoomMentions(
   params: {
     where: Prisma.ChatRoomMentionWhereInput;
@@ -28,6 +26,9 @@ export async function failOpenChatRoomMentions(
 export async function publishChatRoomMentionStatuses(
   messageIds: readonly string[],
 ): Promise<void> {
+  const { publishChatRoomMessageRealtimeById } = await import(
+    "@/helpers/chat-room-message-realtime"
+  );
   await Promise.all(
     [...new Set(messageIds)].map((messageId) =>
       publishChatRoomMessageRealtimeById(messageId, "mention_status"),
