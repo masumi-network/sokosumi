@@ -45,6 +45,20 @@ type ResolvedPurchase =
  */
 export type MasumiPurchaseDiffEntry =
   GetPurchaseDiffResponses["200"]["data"]["Purchases"][number];
+
+/**
+ * A failed diff request. The status rides alongside the message because the
+ * caller's paging policy branches on it and a message cannot be parsed for it
+ * safely: a 502/503/504 or a Cloudflare 52x was written by a proxy in front of
+ * the node, clears without a code change, and must not page a human once a
+ * minute for the length of a node restart. Null when no response arrived at
+ * all — a transport failure or an abort.
+ */
+export interface MasumiPurchaseDiffFailure {
+  message: string;
+  status: number | null;
+}
+
 type CreatedPurchase = PostPurchaseResponses["200"]["data"];
 type PurchaseRequest = NonNullable<PostPurchaseData["body"]>;
 
@@ -393,7 +407,7 @@ export function createPaymentClient(
       cursorId: string | null,
       limit: number,
       options: PaymentClientRequestOptions = {},
-    ): Promise<Result<MasumiPurchaseDiffEntry[], string>> {
+    ): Promise<Result<MasumiPurchaseDiffEntry[], MasumiPurchaseDiffFailure>> {
       try {
         const response = await getPurchaseDiff({
           client: client(),
@@ -405,14 +419,16 @@ export function createPaymentClient(
           },
           signal: options.signal,
         });
+        const status = response.response?.status ?? null;
         if (
           response.error ||
           !response.data ||
           response.response?.status !== 200
         ) {
-          return err(
-            `purchase-diff ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
-          );
+          return err({
+            message: `purchase-diff ${status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
+            status,
+          });
         }
         const purchases = response.data.data.Purchases;
         const invalidCursorPurchase = purchases.find((purchase) => {
@@ -428,13 +444,19 @@ export function createPaymentClient(
           );
         });
         if (invalidCursorPurchase) {
-          return err(
-            `purchase-diff 200: invalid change timestamp for purchase ${invalidCursorPurchase.id}`,
-          );
+          // A 200 the node itself served: the body is wrong, not the far side
+          // absent, so this must stay pageable.
+          return err({
+            message: `purchase-diff 200: invalid change timestamp for purchase ${invalidCursorPurchase.id}`,
+            status,
+          });
         }
         return ok(purchases);
       } catch (error) {
-        return err(String(error) || "Failed to fetch the purchase diff");
+        return err({
+          message: String(error) || "Failed to fetch the purchase diff",
+          status: null,
+        });
       }
     },
 

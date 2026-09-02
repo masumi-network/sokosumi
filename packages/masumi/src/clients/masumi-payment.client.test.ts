@@ -1461,6 +1461,54 @@ describe("createPaymentClient purchase diff", () => {
     const result = await client.getPurchasesDiff(new Date(0), null, 25);
 
     expect(result.isErr()).toBe(true);
+    // The status is what the caller's paging policy reads; 401 is a rejection
+    // by the node and has to keep paging.
+    expect(result._unsafeUnwrapErr()).toEqual({
+      message: 'purchase-diff 401: {"message":"unauthorized"}',
+      status: 401,
+    });
+  });
+
+  it("carries the status and caps the body when a proxy answers", async () => {
+    // Cloudflare in front of a stopped node: HTML, no error envelope. The
+    // generated client hands the raw body over once JSON.parse fails.
+    const cloudflarePage = `<!DOCTYPE html><html><head><style>${"a".repeat(600)}</style></head><body><p class="code">Error</p><ul><li>Ray ID: a34adad7dd9bd2f6</li><li>Error reference number: 521</li></ul></body></html>`;
+    getPurchaseDiffMock.mockResolvedValue({
+      error: cloudflarePage,
+      response: { status: 521 },
+    });
+
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.test",
+      "api-key",
+    );
+    const result = await client.getPurchasesDiff(new Date(0), null, 25);
+
+    const failure = result._unsafeUnwrapErr();
+    expect(failure.status).toBe(521);
+    expect(failure.message).toContain("purchase-diff 521:");
+    expect(failure.message).toContain("truncated from");
+    // A whole error page in one log line and one Sentry title is the thing
+    // this cap exists to stop.
+    expect(failure.message.length).toBeLessThan(400);
+    expect(failure.message).not.toContain("Ray ID");
+  });
+
+  it("reports no status when the request never got a response", async () => {
+    getPurchaseDiffMock.mockRejectedValue(new Error("socket hang up"));
+
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.test",
+      "api-key",
+    );
+    const result = await client.getPurchasesDiff(new Date(0), null, 25);
+
+    expect(result._unsafeUnwrapErr()).toEqual({
+      message: "Error: socket hang up",
+      status: null,
+    });
   });
 
   it("rejects an invalid diff cursor timestamp", async () => {
@@ -1487,7 +1535,9 @@ describe("createPaymentClient purchase diff", () => {
     const result = await client.getPurchasesDiff(new Date(0), null, 25);
 
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toContain("invalid change timestamp");
+    expect(result._unsafeUnwrapErr().message).toContain(
+      "invalid change timestamp",
+    );
   });
 
   it("rejects a diff cursor timestamp coerced from null", async () => {
@@ -1513,6 +1563,8 @@ describe("createPaymentClient purchase diff", () => {
     const result = await client.getPurchasesDiff(new Date(0), null, 25);
 
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toContain("invalid change timestamp");
+    expect(result._unsafeUnwrapErr().message).toContain(
+      "invalid change timestamp",
+    );
   });
 });

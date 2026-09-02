@@ -518,14 +518,19 @@ export async function syncPurchasesFromDiff(
     if (purchasesResult.isErr()) {
       // The diff is the only path that updates a job whose purchase row
       // already exists, so a request that keeps failing (an expired API key,
-      // a node outage) freezes purchase state everywhere. Page for it.
+      // say) freezes purchase state everywhere. Page for it — except when the
+      // status says a proxy answered for an absent node, which the shared
+      // helper demotes to a warning so a restart does not page once a minute.
+      // The cursor stays parked either way, so the feed resumes where it was.
+      const { message, status } = purchasesResult.error;
       console.error(
         "[sync/jobs/purchase-diff] Diff request failed; cursor not advanced:",
-        purchasesResult.error,
+        message,
       );
-      captureExternalServiceError(new Error(purchasesResult.error), {
-        label: "sync/jobs/purchase-diff",
-      });
+      captureExternalServiceError(
+        Object.assign(new Error(message), { statusCode: status }),
+        { label: "sync/jobs/purchase-diff" },
+      );
       break;
     }
 

@@ -27,9 +27,28 @@ export function readNodeErrorMessage(error: unknown): string | null {
 }
 
 /**
+ * Cap on the fallback dump below.
+ *
+ * A body that is not the node's envelope was written by whatever answered on
+ * its behalf, and that is routinely a whole HTML page: a Cloudflare 521 in
+ * front of a restarting node is ~1.2 kB of doctype, inline CSS, and a Ray ID.
+ * The opening characters already identify the far side; the rest is markup
+ * that fills a log line and a Sentry title. Only the fallback is capped — the
+ * node's OWN message is returned whole, because callers echo it.
+ */
+const MAX_FALLBACK_MESSAGE_LENGTH = 300;
+
+function truncateFallback(dump: string): string {
+  if (dump.length <= MAX_FALLBACK_MESSAGE_LENGTH) {
+    return dump;
+  }
+  return `${dump.slice(0, MAX_FALLBACK_MESSAGE_LENGTH)}... (truncated from ${dump.length} chars)`;
+}
+
+/**
  * Extracts the payment node's human-readable error message from an error
  * payload of unknown shape (`{ error: { message } }` on the documented
- * responses), falling back to a JSON dump so no detail is dropped.
+ * responses), falling back to a capped JSON dump of whatever else arrived.
  *
  * The fallback is for LOGS and Sentry. It serializes whatever the far side
  * sent, so it must not be echoed to a caller — use
@@ -41,8 +60,8 @@ export function extractNodeErrorMessage(error: unknown): string {
     return message;
   }
   try {
-    return JSON.stringify(error) ?? String(error);
+    return truncateFallback(JSON.stringify(error) ?? String(error));
   } catch {
-    return String(error);
+    return truncateFallback(String(error));
   }
 }

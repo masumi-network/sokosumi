@@ -69,6 +69,36 @@ export function isTransientFetchError(error: unknown): boolean {
 }
 
 /**
+ * Statuses that say "the far side is not answering", not "the far side
+ * rejected this request".
+ *
+ * 408/502/503/504 are written by a reverse proxy or load balancer, and
+ * Cloudflare adds its own 520-527 range for an origin it cannot reach — a
+ * restarting Masumi payment node surfaces as a 521 carrying Cloudflare's HTML
+ * page instead of the node's error envelope. None of them clears by changing
+ * code here, and callers on a one-minute cron would otherwise page once a
+ * minute for the whole outage. 429 is deliberately absent: sustained rate
+ * limiting is a quota decision someone has to make, not a wait.
+ *
+ * Reaching this needs an error object carrying `statusCode` — the shape
+ * `throwResendError` already uses (`clients/email.client.ts`).
+ */
+const TRANSIENT_UPSTREAM_STATUS_CODES = new Set([408, 502, 503, 504]);
+const CLOUDFLARE_ORIGIN_ERROR_STATUS_RANGE = { max: 527, min: 520 };
+
+export function isTransientUpstreamHttpError(error: unknown): boolean {
+  const statusCode = getErrorStatusCode(error);
+  if (typeof statusCode !== "number") {
+    return false;
+  }
+  return (
+    TRANSIENT_UPSTREAM_STATUS_CODES.has(statusCode) ||
+    (statusCode >= CLOUDFLARE_ORIGIN_ERROR_STATUS_RANGE.min &&
+      statusCode <= CLOUDFLARE_ORIGIN_ERROR_STATUS_RANGE.max)
+  );
+}
+
+/**
  * Prisma driver/adapter failures that usually clear on the next cron tick after
  * a migration or connection pool recycle.
  */
@@ -111,6 +141,7 @@ export function isSchemaDriftPrismaError(error: unknown): boolean {
 export function shouldSuppressSentryForExternalError(error: unknown): boolean {
   return (
     isTransientFetchError(error) ||
+    isTransientUpstreamHttpError(error) ||
     isTransientPrismaError(error) ||
     isSchemaDriftPrismaError(error)
   );

@@ -854,7 +854,9 @@ describe("syncPurchasesFromDiff", () => {
 
   it("keeps the initial checkpoint when the node rejects the request", async () => {
     const { err } = await import("neverthrow");
-    getPurchasesDiffMock.mockResolvedValueOnce(err("purchase-diff 500"));
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      err({ message: "purchase-diff 500", status: 500 }),
+    );
 
     const result = await syncPurchasesFromDiff(
       createOptions(vi.fn<ApplyPurchase>()),
@@ -874,6 +876,25 @@ describe("syncPurchasesFromDiff", () => {
     // The diff is the only path that updates an attached purchase, so a
     // failing request has to page rather than look like a quiet tick.
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not page when a proxy answers for an absent node", async () => {
+    const { err } = await import("neverthrow");
+    // A restarting payment node reaches us as Cloudflare's 521 page, once a
+    // minute for the length of the restart. It clears on its own.
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      err({ message: 'purchase-diff 521: "<!DOCTYPE html>..."', status: 521 }),
+    );
+
+    const result = await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>()),
+    );
+
+    expect(result).toEqual({ found: 0, processed: 0 });
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    // Quiet, but still parked: the feed has to resume where it stopped once
+    // the node answers again.
+    expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("reuses the initial checkpoint after the first purchase fails", async () => {
@@ -941,7 +962,9 @@ describe("syncPurchasesFromDiff", () => {
 
   it("keeps an epoch checkpoint when the first replay request fails", async () => {
     const { err } = await import("neverthrow");
-    getPurchasesDiffMock.mockResolvedValueOnce(err("purchase-diff 500"));
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      err({ message: "purchase-diff 500", status: 500 }),
+    );
 
     await syncPurchasesFromDiff(
       createOptions(vi.fn<ApplyPurchase>(), { resetCursor: true }),
@@ -1063,7 +1086,7 @@ describe("syncPurchasesFromDiff budget handling", () => {
     const controller = new AbortController();
     getPurchasesDiffMock.mockImplementationOnce(async () => {
       controller.abort();
-      return err("aborted");
+      return err({ message: "aborted", status: null });
     });
 
     const result = await syncPurchasesFromDiff(
@@ -1083,7 +1106,9 @@ describe("syncPurchasesFromDiff budget handling", () => {
     const timeoutSpy = vi
       .spyOn(AbortSignal, "timeout")
       .mockReturnValueOnce(timeoutController.signal);
-    getPurchasesDiffMock.mockResolvedValueOnce(err("aborted"));
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      err({ message: "aborted", status: null }),
+    );
 
     try {
       await syncPurchasesFromDiff(createOptions(vi.fn<ApplyPurchase>()));

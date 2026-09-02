@@ -8,6 +8,7 @@ export {
   createPaymentClient,
   doesResolvedPurchaseSellerMatch,
   type MasumiPurchaseDiffEntry,
+  type MasumiPurchaseDiffFailure,
   type MasumiTaskPurchaseInput,
 } from "./masumi-payment.client.js";
 export type {
