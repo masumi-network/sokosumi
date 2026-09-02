@@ -187,7 +187,7 @@ export function YouPageClient({
               {sessionUser.email}
             </p>
             <div
-              className="flex items-center justify-between gap-2 pt-1"
+              className="flex items-center gap-2"
               data-testid="you-status-plan"
             >
               <span className="text-muted-foreground flex items-center gap-1.5 text-xs">

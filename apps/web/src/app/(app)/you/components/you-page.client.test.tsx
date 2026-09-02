@@ -89,6 +89,7 @@ describe("YouPageClient", () => {
 
     const statusPlan = screen.getByTestId("you-status-plan");
     expect(statusPlan).toBeInTheDocument();
+    expect(statusPlan.className).toBe("flex items-center gap-2");
     expect(statusPlan).toHaveTextContent("online");
     expect(statusPlan).toHaveTextContent("Pro");
     expect(
