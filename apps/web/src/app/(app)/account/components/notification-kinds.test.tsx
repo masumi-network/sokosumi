@@ -207,6 +207,27 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * Custom reports a state rather than offering one, so it is the fold's own
+   * trigger. Pressing it shows the kinds the reader set one by one, which is
+   * the only place that state can be read or changed.
+   */
+  it("opens the group from the Custom stop", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    const custom = preset("groupJob", "presetCustom");
+    expect(custom).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(custom);
+
+    expect(custom).toHaveAttribute("aria-expanded", "true");
+    expect(stop("kindJobAttention", "deliveryBanner")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  /**
    * A group of one is drawn as its kind, with the delivery ladder. Its presets
    * would be that ladder under other names.
    */
@@ -382,26 +403,87 @@ describe("NotificationKinds", () => {
     });
   });
 
-  it("does not ask for push when the banner it writes was already on", async () => {
+  /**
+   * The banner cells start on and the account opt-in starts off, so a reader
+   * who never opened this page has a stored banner and no way to receive one.
+   * A preset that leaves those cells on is that reader asking for banners.
+   */
+  it("asks for push when a preset leaves a stored banner on", async () => {
     isAccountEnabled = false;
-    // Every chat kind already banner, and two of them missing an in-app cell,
-    // so the group write changes something without asking for a new banner.
-    renderKinds(
-      MATRIX.map((cell) =>
-        cell.category === "CHAT_MENTION" ||
-        cell.category === "CHAT_ROOM_MESSAGE"
-          ? { ...cell, enabled: cell.channel === "OS_BANNER" }
-          : cell,
-      ),
-    );
+    renderKinds();
 
-    await pickPreset("groupChat", "presetEverything");
+    await pickPreset("groupChat", "presetImportant");
+
+    await waitFor(() => {
+      expect(setAccountEnabled).toHaveBeenCalledWith(true);
+    });
+  });
+
+  it("does not ask for push when the write leaves no banner on", async () => {
+    isAccountEnabled = false;
+    renderKinds();
+
+    await pick("kindSystem", "deliveryInApp");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(written("CHAT_MENTION", "IN_APP")).toBe(true);
     expect(setAccountEnabled).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The stop the reader pressed has to still read as pressed once Core answers.
+   * A preset that wrote cells the same preset does not describe would settle
+   * back onto Custom, which is the reader's press being undone in front of them.
+   */
+  it("stays on the preset the reader picked once the write lands", async () => {
+    renderKinds();
+
+    await pickPreset("groupChat", "presetQuiet");
+
+    await waitFor(() => {
+      expect(preset("groupChat", "presetQuiet")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+    });
+  });
+
+  /**
+   * A stop the browser disables drops out of the tab order under the reader's
+   * finger, and a screen reader loses the control it was on. It stays
+   * reachable and says it is busy instead, and presses do nothing until the
+   * write lands.
+   */
+  it("keeps the stops reachable while a write is in flight", async () => {
+    patchMyPreferences.mockReturnValue(new Promise(() => {}));
+    renderKinds();
+
+    await pickPreset("groupChat", "presetQuiet");
+
+    const quiet = preset("groupChat", "presetQuiet");
+    await waitFor(() => {
+      expect(quiet).toHaveAttribute("aria-disabled", "true");
+    });
+    expect(quiet).toBeEnabled();
+
+    await pickPreset("groupChat", "presetOff");
+    expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  it("puts the group back on its preset when a preset write fails", async () => {
+    patchMyPreferences.mockRejectedValueOnce(new Error("nope"));
+    renderKinds();
+
+    await pickPreset("groupChat", "presetOff");
+
+    await waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalled();
+    });
+    expect(preset("groupChat", "presetImportant")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("puts the row back when the write fails", async () => {
