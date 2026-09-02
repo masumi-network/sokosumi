@@ -147,7 +147,9 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     isActive: (pathname, searchParams) =>
       classifyChatChromeSurface(pathname, searchParams) === "home" ||
       pathname === "/agents" ||
-      pathname === "/drive",
+      pathname === "/drive" ||
+      pathname === "/notifications" ||
+      pathname === "/history",
   },
   {
     id: "tasks",
