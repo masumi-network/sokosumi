@@ -14,6 +14,7 @@ describe("isAblyChannelLifecycleErrorMessage", () => {
     "Channel detach timed out",
     "Channel operation failed as channel state is failed",
     "Connection to server unavailable",
+    "Unable to connect (network unreachable)",
   ])("matches %s", (message) => {
     expect(isAblyChannelLifecycleErrorMessage(message)).toBe(true);
   });
@@ -46,6 +47,23 @@ describe("beforeSendClientEvent Ably lifecycle", () => {
               {
                 value:
                   "Attach request superseded by a subsequent detach request",
+              },
+            ],
+          },
+        }),
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Ably give-up when the client network is unreachable", () => {
+    expect(
+      beforeSendClientEvent(
+        createErrorEvent({
+          exception: {
+            values: [
+              {
+                value: "Unable to connect (network unreachable)",
               },
             ],
           },

@@ -23,7 +23,7 @@ import {
 } from "./chat-membership-revoked-event";
 import { chatRoomIdsFromAblyCapability } from "./chat-room-ids-from-ably-capability";
 import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message-event";
-import { safeDetachChannel } from "./safe-detach-channel";
+import { safeDetachChannel, safeSubscribeChannel } from "./safe-detach-channel";
 
 const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
 
@@ -220,8 +220,13 @@ export function useChatRoomRealtime({
           continue;
         }
         const channel = ably.channels.get(makeChatRoomChannelName(roomId));
-        channel.subscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
-        channel.subscribe(
+        safeSubscribeChannel(
+          channel,
+          CHAT_ROOM_MESSAGE_EVENT_NAME,
+          handleMessage,
+        );
+        safeSubscribeChannel(
+          channel,
           CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
           handlePinnedMessage,
         );
@@ -269,7 +274,8 @@ export function useChatRoomRealtime({
     const controlChannel = ably.channels.get(
       makeUserChatControlChannelName(currentUserId),
     );
-    controlChannel.subscribe(
+    safeSubscribeChannel(
+      controlChannel,
       CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
       handleMembershipRevoked,
     );

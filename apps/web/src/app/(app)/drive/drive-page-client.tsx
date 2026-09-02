@@ -13,6 +13,7 @@ import {
   FolderPlus,
   Folders,
   Home,
+  ListFilter,
   MoreHorizontal,
   Search,
   Trash2,
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsString, useQueryStates } from "nuqs";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import {
   type ReactElement,
   useCallback,
@@ -41,6 +42,10 @@ import {
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { DriveRecentsPanel } from "@/app/drive/components/drive-recents-panel";
+import {
+  DriveSortControl,
+  DriveSortMenuItems,
+} from "@/app/drive/components/drive-sort-control";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
@@ -79,6 +84,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
@@ -123,8 +129,19 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import {
+  FILES_SORT_BY_VALUES,
+  FILES_SORT_ORDER_VALUES,
+  type FilesSortSelection,
+  filesSortUrlValues,
+  parseFilesSortSelection,
+  toDriveListSortQuery,
+} from "@/lib/utils/files-sort";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import { DRIVE_ITEMS_QUERY_KEY, getDriveItemsQueryOptions } from "@/queries";
+
+const filesSortByParser = parseAsStringLiteral([...FILES_SORT_BY_VALUES]);
+const filesSortOrderParser = parseAsStringLiteral([...FILES_SORT_ORDER_VALUES]);
 
 function withoutLegacyDriveScopeParam(
   params: URLSearchParams,
@@ -246,6 +263,8 @@ function DrivePageWorkspace({
     projectId: parseAsString,
     taskId: parseAsString,
     assigneeId: parseAsString,
+    sortBy: filesSortByParser,
+    sortOrder: filesSortOrderParser,
   });
   const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
@@ -279,6 +298,7 @@ function DrivePageWorkspace({
   const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [recentsReloadToken, setRecentsReloadToken] = useState(0);
+  const [tasksFilterSheetOpen, setTasksFilterSheetOpen] = useState(false);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
   const [copying, setCopying] = useState(false);
@@ -340,6 +360,11 @@ function DrivePageWorkspace({
   const isRecentsView = !isTasksView && !isBrowseView;
   const primaryView: DrivePrimaryView =
     isBrowseView || isTasksView ? "browse" : "recents";
+  const filesSortSelection = parseFilesSortSelection(
+    driveNavQuery.sortBy,
+    driveNavQuery.sortOrder,
+  );
+  const filesSortQuery = toDriveListSortQuery(filesSortSelection);
   const layoutMode: FilesViewMode = effectiveFilesViewMode(
     filesViewMode,
     isMobile,
@@ -376,6 +401,7 @@ function DrivePageWorkspace({
       store: driveStore,
       folder: currentFolder,
       search: debouncedSearchQuery,
+      ...filesSortQuery,
     }),
     enabled: isBrowseView && !isTasksView,
   });
@@ -439,6 +465,7 @@ function DrivePageWorkspace({
               ? { projectId: projectIdParam }
               : {}),
         ...(assigneeIdParam ? { assigneeId: assigneeIdParam } : {}),
+        ...filesSortQuery,
         signal: controller.signal,
       });
 
@@ -483,6 +510,8 @@ function DrivePageWorkspace({
     projectIdParam,
     taskIdParam,
     assigneeIdParam,
+    filesSortQuery.sortBy,
+    filesSortQuery.sortOrder,
     t,
   ]);
 
@@ -507,6 +536,8 @@ function DrivePageWorkspace({
       assigneeId: assigneeIdParam,
       searchQuery: debouncedSearchQuery.trim(),
       cursor: tasksNextCursor,
+      sortBy: filesSortQuery.sortBy,
+      sortOrder: filesSortQuery.sortOrder,
     };
 
     setTasksLoadingMore(true);
@@ -526,6 +557,10 @@ function DrivePageWorkspace({
         ...(queryAtRequest.assigneeId
           ? { assigneeId: queryAtRequest.assigneeId }
           : {}),
+        ...(queryAtRequest.sortBy ? { sortBy: queryAtRequest.sortBy } : {}),
+        ...(queryAtRequest.sortOrder
+          ? { sortOrder: queryAtRequest.sortOrder }
+          : {}),
         cursor: queryAtRequest.cursor,
         signal: controller.signal,
       });
@@ -537,7 +572,9 @@ function DrivePageWorkspace({
         projectIdParam === queryAtRequest.projectId &&
         taskIdParam === queryAtRequest.taskId &&
         assigneeIdParam === queryAtRequest.assigneeId &&
-        debouncedSearchQuery.trim() === queryAtRequest.searchQuery;
+        debouncedSearchQuery.trim() === queryAtRequest.searchQuery &&
+        filesSortQuery.sortBy === queryAtRequest.sortBy &&
+        filesSortQuery.sortOrder === queryAtRequest.sortOrder;
 
       if (controller.signal.aborted || !queryStillMatches) {
         return;
@@ -583,6 +620,8 @@ function DrivePageWorkspace({
     taskIdParam,
     assigneeIdParam,
     debouncedSearchQuery,
+    filesSortQuery.sortBy,
+    filesSortQuery.sortOrder,
     t,
   ]);
 
@@ -1271,6 +1310,10 @@ function DrivePageWorkspace({
     document.cookie = serializeFilesViewModeCookie(next);
   }
 
+  function handleFilesSortChange(next: FilesSortSelection | null) {
+    void setDriveNavQuery(filesSortUrlValues(next), { history: "replace" });
+  }
+
   const filesViewModeSwitch = (
     <DriveViewModeSwitch
       value={filesViewMode}
@@ -1279,6 +1322,25 @@ function DrivePageWorkspace({
         list: t("viewList"),
         grid: t("viewGrid"),
       }}
+    />
+  );
+
+  const filesSortSurface = isTasksView ? "tasks" : "browse";
+  const filesSortLabels = {
+    sort: t("sortLabel"),
+    name: t("sortByName"),
+    date: t("sortByDate"),
+    type: t("sortByType"),
+    ascending: t("sortAscending"),
+    descending: t("sortDescending"),
+  };
+  const filesSortControl = (
+    <DriveSortControl
+      value={filesSortSelection}
+      onChange={handleFilesSortChange}
+      surface={filesSortSurface}
+      labels={filesSortLabels}
+      className="hidden md:block"
     />
   );
 
@@ -1312,6 +1374,9 @@ function DrivePageWorkspace({
                   projectId={projectIdParam}
                   taskId={taskIdParam}
                   labels={driveTasksFilterLabels}
+                  hideMobileTrigger
+                  sheetOpen={tasksFilterSheetOpen}
+                  onSheetOpenChange={setTasksFilterSheetOpen}
                 />
               </div>
             </>
@@ -1377,6 +1442,7 @@ function DrivePageWorkspace({
               </div>
             </div>
           )}
+          {!isRecentsView && filesSortControl}
           {filesViewModeSwitch}
         </div>
 
@@ -1474,13 +1540,45 @@ function DrivePageWorkspace({
               className="w-full pl-8"
             />
           </div>
-          <DriveTasksFilters
-            activeOrganizationId={activeOrganizationId}
-            assigneeId={assigneeIdParam}
-            projectId={projectIdParam}
-            taskId={taskIdParam}
-            labels={driveTasksFilterLabels}
-          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label={t("moreActions")}
+                data-testid="tasks-mobile-actions"
+                className="relative"
+              >
+                <MoreHorizontal className="size-4" aria-hidden />
+                {assigneeIdParam !== null ||
+                projectIdParam !== null ||
+                taskIdParam !== null ? (
+                  <span
+                    aria-hidden
+                    className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+                  />
+                ) : null}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DriveSortMenuItems
+                value={filesSortSelection}
+                onChange={handleFilesSortChange}
+                surface={filesSortSurface}
+                labels={filesSortLabels}
+                testIdPrefix="tasks-mobile-sort"
+              />
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => setTasksFilterSheetOpen(true)}
+                data-testid="tasks-mobile-filter"
+              >
+                <ListFilter className="size-4" aria-hidden />
+                {t("filterTitle")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
 
@@ -1496,15 +1594,36 @@ function DrivePageWorkspace({
               className="w-full pl-8"
             />
           </div>
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            onClick={openCreateFolderDialog}
-            aria-label={t("createFolder")}
-          >
-            <FolderPlus className="size-4" aria-hidden />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                aria-label={t("moreActions")}
+                data-testid="files-mobile-actions"
+              >
+                <MoreHorizontal className="size-4" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DriveSortMenuItems
+                value={filesSortSelection}
+                onChange={handleFilesSortChange}
+                surface={filesSortSurface}
+                labels={filesSortLabels}
+                testIdPrefix="files-mobile-sort"
+              />
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={openCreateFolderDialog}
+                data-testid="files-mobile-create-folder"
+              >
+                <FolderPlus className="size-4" aria-hidden />
+                {t("createFolder")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
 
@@ -1786,6 +1905,7 @@ function DrivePageWorkspace({
                                 size="icon"
                                 className="size-8"
                                 aria-label={t("moreActions")}
+                                data-testid="drive-item-more-actions"
                               >
                                 <MoreHorizontal
                                   className="size-4"
@@ -1910,6 +2030,7 @@ function DrivePageWorkspace({
                       size="icon"
                       className="size-8"
                       aria-label={t("moreActions")}
+                      data-testid="drive-item-more-actions"
                     >
                       <MoreHorizontal className="size-4" aria-hidden />
                     </Button>

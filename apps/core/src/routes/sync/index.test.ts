@@ -579,6 +579,43 @@ describe("sync routes", () => {
     );
   });
 
+  it("resets the purchase cursor when a jobs replay is requested", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/jobs?replay=true",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resetPurchaseCursor: true,
+      }),
+    );
+  });
+
+  it("leaves the purchase cursor in place on a normal jobs run", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/jobs", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncJobsMock.mock.calls[0][0]).not.toHaveProperty(
+      "resetPurchaseCursor",
+    );
+  });
+
   it("releases source import lock when sync exceeds timeout budget", async () => {
     vi.useFakeTimers();
 

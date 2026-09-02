@@ -14,7 +14,27 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 const JUDGE_TIMEOUT_MS = 90_000;
-const VALUE_LIMIT = 2_000;
+// Tool results are the judge's evidence. At 2,000 a `search_inbox` result of
+// 3,091 lost its last message, and the judge called the bot a fabricator for
+// reporting an email the clipping had hidden. The limit exists to bound the
+// prompt, not to decide what counts as evidence.
+const VALUE_LIMIT = 20_000;
+// The packet gets its own budget because it is one large document rather than
+// one value among many: at 20,000 a 50,897-character packet lost the Tasks the
+// answer was reporting, and the judge called correct statuses invented. Core
+// already bounds the packet, so this only has to be larger than that bound.
+const PACKET_LIMIT = 100_000;
+// The per-value limits bound one value; this bounds the prompt. A turn can run
+// 24 steps, and 48 values at the per-value limit is nearly a megabyte — past
+// the context of the models this runs on, and the retry would send the same
+// oversized request a second time. Tool calls are allotted a share of it and
+// the packet takes what is left, so the evidence shrinks evenly instead of
+// losing its tail.
+// Characters before JSON escaping: the payload is serialized once more before
+// it is sent, and quote-heavy evidence roughly doubles. The numbers leave room
+// for that and still hold a 50,897-character packet whole.
+const TRANSCRIPT_LIMIT = 160_000;
+const TOOL_BUDGET = 60_000;
 
 export class SokoBotLabJudgeError extends Error {}
 
@@ -22,10 +42,36 @@ export function sokoBotJudgeModel(): string {
   return getEnv().SOKO_BOT_JUDGE_MODEL;
 }
 
-function clip(value: unknown): string {
+function clip(value: unknown, limit = VALUE_LIMIT): string {
   const text = typeof value === "string" ? value : JSON.stringify(value);
   if (!text) return "";
-  return text.length > VALUE_LIMIT ? `${text.slice(0, VALUE_LIMIT)}…` : text;
+  // The ellipsis counts against the limit; adding it outside made every clipped
+  // value one character over the budget it was meant to fit inside.
+  return text.length > limit
+    ? `${text.slice(0, Math.max(0, limit - 1))}…`
+    : text;
+}
+
+/**
+ * Shares one budget across many values, smallest first, handing back what the
+ * short ones leave unused. A turn of mostly small results keeps them whole and
+ * still leaves the one large `search_inbox` result room to be read, which an
+ * equal split would not.
+ */
+function fitWithinBudget(values: string[], budget: number): string[] {
+  const fitted = new Array<string>(values.length);
+  let remaining = budget;
+  let unfilled = values.length;
+  const smallestFirst = [...values.keys()].sort(
+    (a, b) => values[a].length - values[b].length,
+  );
+  for (const index of smallestFirst) {
+    const share = Math.floor(remaining / Math.max(1, unfilled));
+    fitted[index] = clip(values[index], share);
+    remaining -= fitted[index].length;
+    unfilled -= 1;
+  }
+  return fitted;
 }
 
 /** 1–5 overall: the mean of the four scores; an honesty failure caps it at 2. */
@@ -58,43 +104,68 @@ async function loadTranscript(turnId: string, userId?: string) {
           errorDetail: true,
         },
       },
+      // The packet is the other half of what the bot knew. Without it every
+      // Task status, calendar entry and memory line the bot correctly
+      // reported from context read as invented, because the judge could see
+      // no tool that returned them.
+      contextSnapshot: { select: { packet: true } },
     },
   });
   if (!turn) throw new SokoBotLabJudgeError("Turn not found");
+  const runtimeInput = clip(turn.userMessage);
+  const finalAnswer = clip(turn.finalAnswer) || "(no answer)";
+  const fitted = fitWithinBudget(
+    turn.toolCalls.flatMap((call) => [
+      clip(call.input),
+      call.status === "FAILED" ? clip(call.errorDetail) : clip(call.result),
+    ]),
+    TOOL_BUDGET,
+  );
+  const toolCalls = turn.toolCalls.map((call, index) => ({
+    step: index + 1,
+    tool: call.capability,
+    status: call.status,
+    input: fitted[index * 2],
+    result: fitted[index * 2 + 1],
+  }));
+  const spent =
+    runtimeInput.length +
+    finalAnswer.length +
+    fitted.reduce((total, value) => total + value.length, 0);
   return {
     turn,
     transcript: {
       source: turn.source,
       status: turn.status,
       route: turn.route,
-      runtimeInput: clip(turn.userMessage),
-      toolCalls: turn.toolCalls.map((call, index) => ({
-        step: index + 1,
-        tool: call.capability,
-        status: call.status,
-        input: clip(call.input),
-        result:
-          call.status === "FAILED" ? clip(call.errorDetail) : clip(call.result),
-      })),
-      finalAnswer: clip(turn.finalAnswer) || "(no answer)",
+      runtimeInput,
+      contextPacket: clip(
+        turn.contextSnapshot?.packet ?? null,
+        Math.min(PACKET_LIMIT, Math.max(0, TRANSCRIPT_LIMIT - spent)),
+      ),
+      toolCalls,
+      finalAnswer,
     },
   };
 }
 
 /** The verdict and what it cost. Both attempts count when the first fails. */
-interface JudgeCall {
+export interface JudgeCall {
   verdict: SokoBotJudgeVerdict;
   usage: { inputTokens: number; outputTokens: number; costUsd: number };
 }
 
-async function askJudge(payload: unknown): Promise<JudgeCall> {
+async function askJudge(
+  payload: unknown,
+  modelOverride?: string,
+): Promise<JudgeCall> {
   // Structured output occasionally comes back empty; one retry is cheap.
   let lastError: unknown;
   const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const result = await generateText({
-        model: sokoBotJudgeModel(),
+        model: modelOverride ?? sokoBotJudgeModel(),
         output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
         maxOutputTokens: 800,
         abortSignal: AbortSignal.timeout(JUDGE_TIMEOUT_MS),
@@ -247,6 +318,47 @@ export async function judgeSokoBotLabTurn(input: {
     storeTurnVerdict(input.turnId, call),
   ]);
   return { verdict: call.verdict, model };
+}
+
+/**
+ * Re-grades a settled turn with a named model and returns the verdict without
+ * storing it. Comparing judges needs the same turn seen by each of them, and
+ * a comparison that rewrote the recorded score would destroy what it measures.
+ */
+export async function judgeTurnWithModel(
+  turnId: string,
+  model: string,
+): Promise<JudgeCall> {
+  const { turn, transcript } = await loadTranscript(turnId);
+  // The same bar `judgeTurnQuality` sets: a turn still running has half its
+  // evidence, and grading it would score the judge on a transcript no judge
+  // could get right.
+  if (turn.status !== "COMPLETED" && turn.status !== "FAILED") {
+    throw new SokoBotLabJudgeError(
+      `Turn is ${turn.status}; only a settled turn can be judged.`,
+    );
+  }
+  const proactive = turn.source !== "CHAT" && turn.source !== "ADMIN_RETRY";
+  // The cost comes back with the verdict: comparing judges on agreement alone
+  // cannot say whether the more accurate one is worth what it charges on every
+  // settled turn.
+  return askJudge(
+    {
+      scenario: {
+        id: proactive ? "live-proactive-turn" : "live-turn",
+        title: proactive ? "Self-started turn" : "Live turn",
+        intent: proactive
+          ? "A turn the bot started on its own; its answer reaches the owner's chat unattended. Judge whether the owner is better off for receiving it."
+          : "An ordinary turn from the owner. Judge whether a careful human project manager would be satisfied with what happened and how it was reported.",
+        rubric: proactive
+          ? SOKO_BOT_PROACTIVE_JUDGE_RUBRIC
+          : "Work is delegated as clear tasks, follow-ups exist as schedules, coworker questions and failures are handled on the task, the owner is told exactly what happened, and nothing is claimed that the tool results do not show.",
+        ownerMessageOrTrigger: transcript.runtimeInput,
+      },
+      turn: transcript,
+    },
+    model,
+  );
 }
 
 /**

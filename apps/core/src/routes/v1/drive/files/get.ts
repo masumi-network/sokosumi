@@ -8,6 +8,10 @@ import {
 import { list } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
+import {
+  paginateSortedDriveBrowseItems,
+  sortDriveBrowseItems,
+} from "@/helpers/drive-browse-sort";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import {
   badRequest,
@@ -27,6 +31,10 @@ import {
   driveFileScopeSchema,
   driveItemsSchema,
 } from "@/schemas/drive-file.schema";
+import {
+  driveListSortQueryFields,
+  resolveDriveListSort,
+} from "@/schemas/drive-list-sort.schema";
 import {
   type CursorPaginationMeta,
   cursorPaginationQuerySchema,
@@ -64,6 +72,7 @@ const querySchema = z
         description:
           "Search query for filename filtering at current folder level (case-sensitive prefix match)",
       }),
+    ...driveListSortQueryFields,
   })
   .merge(cursorPaginationQuerySchema);
 
@@ -72,9 +81,13 @@ const route = createRoute({
   path: "/",
   description: [
     "List drive items (folders and files) at the current folder level.",
-    "Personal or organization, lexicographic order by name.",
-    "Uses folded mode: one Blob page per request. Cursor is opaque (from Blob API).",
-    "Folders are next-level path segments. Files are blobs at this level (no markers).",
+    "Personal or organization scope.",
+    "Omit sortBy/sortOrder for today's default: folders then files, each name ascending (Blob page-local).",
+    "With sortBy/sortOrder (name|date|type, asc|desc): folders stay a leading bucket;",
+    "files sort by display name, uploadedAt, or mime/extension type family.",
+    "Explicit sort drains the current folder on the server and paginates with a signed cursor",
+    "so order stays correct across pages (no client full drain).",
+    "Search (q) still filters the current folder; sort applies to the filtered set.",
   ].join("\n"),
   tags: ["Drive"],
   request: {
@@ -90,6 +103,124 @@ const route = createRoute({
     503: jsonErrorResponse("Service Unavailable"),
   },
 });
+
+function mapBlobPageToItems(input: {
+  prefix: string;
+  folders: string[];
+  blobs: Array<{
+    pathname: string;
+    url: string;
+    size: number;
+    uploadedAt: Date;
+  }>;
+}): { folderItems: DriveItem[]; fileItems: DriveItem[] } {
+  const folderItems: DriveItem[] = [];
+  for (const folderPath of input.folders) {
+    if (!folderPath.startsWith(input.prefix)) {
+      continue;
+    }
+    const relativePath = folderPath.slice(input.prefix.length);
+    const normalized = relativePath.endsWith("/")
+      ? relativePath.slice(0, -1)
+      : relativePath;
+    const segments = normalized.split("/").filter((s) => s.length > 0);
+    if (segments.length > 0) {
+      const folderName = segments[0];
+      if (!folderItems.some((f) => f.name === folderName)) {
+        folderItems.push({
+          type: "folder",
+          name: folderName,
+          path: folderName,
+        });
+      }
+    }
+  }
+
+  const fileItems: DriveItem[] = [];
+  for (const blob of input.blobs) {
+    if (isDriveFolderMarker(blob.pathname)) {
+      continue;
+    }
+
+    const relativePath = blob.pathname.slice(input.prefix.length);
+    const segments = relativePath.split("/").filter((s) => s.length > 0);
+    if (segments.length > 0) {
+      const name = segments[0];
+      fileItems.push({
+        type: "file",
+        name,
+        fileUrl: blob.url,
+        pathname: blob.pathname,
+        size: blob.size,
+        uploadedAt: blob.uploadedAt.toISOString(),
+      });
+    }
+  }
+
+  return { folderItems, fileItems };
+}
+
+const MAX_BLOB_LIST_PAGES = 100;
+
+async function listAllFolderItems(input: {
+  token: string;
+  searchPrefix: string;
+  prefix: string;
+}): Promise<DriveItem[]> {
+  const folderByName = new Map<string, DriveItem>();
+  const fileByPathname = new Map<string, DriveItem>();
+  let blobCursor: string | undefined;
+  let hasMore = true;
+  let pageCount = 0;
+
+  while (hasMore) {
+    pageCount += 1;
+    if (pageCount > MAX_BLOB_LIST_PAGES) {
+      throw unprocessableEntity(
+        "This folder is too large to sort globally. Omit sortBy to use page-local ordering.",
+      );
+    }
+
+    const page = await list({
+      mode: "folded",
+      prefix: input.searchPrefix,
+      token: input.token,
+      cursor: blobCursor,
+      limit: 1000,
+    });
+
+    const { folderItems, fileItems } = mapBlobPageToItems({
+      prefix: input.prefix,
+      folders: page.folders,
+      blobs: page.blobs,
+    });
+
+    for (const folder of folderItems) {
+      folderByName.set(folder.name, folder);
+    }
+    for (const file of fileItems) {
+      if (file.type === "file") {
+        fileByPathname.set(file.pathname, file);
+      }
+    }
+
+    if (!page.hasMore) {
+      hasMore = false;
+      break;
+    }
+
+    const nextCursor = page.cursor ?? undefined;
+    if (!nextCursor || nextCursor === blobCursor) {
+      throw unprocessableEntity(
+        "Blob storage returned an incomplete page while sorting this folder. Omit sortBy to use page-local ordering.",
+      );
+    }
+
+    blobCursor = nextCursor;
+  }
+
+  return [...folderByName.values(), ...fileByPathname.values()];
+}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -110,7 +241,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const folderPath = query.folder?.trim() || "";
 
     if (query.scope === "me") {
-      // Personal drive
       ownerId = userContext.userId;
       scope = "user";
       await requireDriveFileAccess(authContext, scope, ownerId);
@@ -119,7 +249,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!query.organizationId) {
         throw unprocessableEntity("organizationId is required when scope=org");
       }
-      // Org drive (verify membership)
       ownerId = query.organizationId;
       scope = "organization";
       await requireDriveFileAccess(authContext, scope, ownerId);
@@ -128,12 +257,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
-    // Parse pagination parameters
     const { cursor, take } = parseCursorPagination(query);
+    const sort = resolveDriveListSort(query, "name");
 
-    // Apply search query to prefix if it looks like a filename prefix (at current folder)
     let searchPrefix = prefix;
-    const searchQuery = query.q?.trim();
+    const searchQuery = query.q?.trim() ?? "";
     if (searchQuery) {
       const sanitized = sanitizeDriveFileName(searchQuery);
       if (sanitized) {
@@ -141,8 +269,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    // Use folded mode: one Blob page = one GET response. No recursive drain.
-    // Blob's folders array + current-level blobs. Paginate with Blob's cursor.
+    // Explicit sort: drain current folder, sort globally, signed cursor pages.
+    if (sort) {
+      const allItems = await listAllFolderItems({
+        token,
+        searchPrefix,
+        prefix,
+      });
+      const sorted = sortDriveBrowseItems(allItems, sort);
+      const { page, nextCursor } = paginateSortedDriveBrowseItems({
+        items: sorted,
+        sort,
+        limit: take,
+        cursor,
+        cursorSecret: env.BETTER_AUTH_SECRET,
+        cursorBinding: {
+          prefix,
+          searchQuery,
+          sortBy: sort.sortBy,
+          sortOrder: sort.sortOrder,
+        },
+      });
+
+      const paginationMeta = {
+        cursor: cursor ?? null,
+        limit: take,
+        nextCursor,
+      } as CursorPaginationMeta;
+
+      return ok(c, driveItemsSchema.parse(page), paginationMeta);
+    }
+
+    // Omit sort: today's Blob page-local name sort (folders then files).
     const {
       blobs,
       folders,
@@ -156,62 +314,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       limit: take,
     });
 
-    // Map folders array to folder items
-    // folders are fully qualified paths; extract next segment relative to prefix
-    const folderItems: DriveItem[] = [];
-    for (const folderPath of folders) {
-      // folderPath is like "drive/users/123/Reports/" or "drive/users/123/Reports"
-      if (!folderPath.startsWith(prefix)) {
-        continue;
-      }
-      const relativePath = folderPath.slice(prefix.length);
-      // Remove trailing slash if present
-      const normalized = relativePath.endsWith("/")
-        ? relativePath.slice(0, -1)
-        : relativePath;
-      const segments = normalized.split("/").filter((s) => s.length > 0);
-      if (segments.length > 0) {
-        const folderName = segments[0];
-        // Deduplicate
-        if (!folderItems.some((f) => f.name === folderName)) {
-          folderItems.push({
-            type: "folder",
-            name: folderName,
-            path: folderName,
-          });
-        }
-      }
-    }
+    const { folderItems, fileItems } = mapBlobPageToItems({
+      prefix,
+      folders,
+      blobs,
+    });
 
-    // Map blobs to file items, excluding markers
-    const fileItems: DriveItem[] = [];
-    for (const blob of blobs) {
-      // Skip folder markers (never emit as file)
-      if (isDriveFolderMarker(blob.pathname)) {
-        continue;
-      }
-
-      // Extract name from pathname
-      const relativePath = blob.pathname.slice(prefix.length);
-      const segments = relativePath.split("/").filter((s) => s.length > 0);
-      if (segments.length > 0) {
-        const name = segments[0];
-        fileItems.push({
-          type: "file",
-          name,
-          fileUrl: blob.url,
-          pathname: blob.pathname,
-          size: blob.size,
-          uploadedAt: blob.uploadedAt.toISOString(),
-        });
-      }
-    }
-
-    // Sort folders and files
     folderItems.sort((a, b) => a.name.localeCompare(b.name));
     fileItems.sort((a, b) => a.name.localeCompare(b.name));
-
-    // Combine folders + files (folders first)
     const allItems: DriveItem[] = [...folderItems, ...fileItems];
 
     const paginationMeta = {
