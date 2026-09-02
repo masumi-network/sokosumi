@@ -215,6 +215,20 @@ describe("HeaderMobileSearchControl", () => {
     render(<HeaderTrailingTools />);
 
     expect(screen.getByTestId("header-trailing-tools")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Notifications" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+  });
+
+  it("keeps Notification Center and Search without Workspace chrome", () => {
+    const { container } = render(<HeaderTrailingTools />);
+
+    expect(screen.getByTestId("header-trailing-tools")).toBeInTheDocument();
+    expect(
+      container.querySelector(
+        "[data-testid='header-desktop-workspace-chrome']",
+      ),
+    ).toBeNull();
   });
 });

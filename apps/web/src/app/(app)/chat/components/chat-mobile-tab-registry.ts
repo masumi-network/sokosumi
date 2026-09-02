@@ -4,7 +4,6 @@ import {
   ListTodo,
   type LucideIcon,
   MessageCircle,
-  Search,
 } from "lucide-react";
 
 import { classifyChatChromeSurface } from "@/app/chat/utils/chat-route-base";
@@ -111,27 +110,32 @@ export function chatMobileHeightShellClass(
   return CHAT_MOBILE_HEIGHT_SHELL_CLASS;
 }
 
-export type ChatMobileTabId =
-  | "home"
-  | "tasks"
-  | "chats"
-  | "projects"
-  | "search";
+export type ChatMobileTabId = "home" | "tasks" | "chats" | "projects" | "you";
 export type ChatMobileTabLabelKey =
   | "home"
   | "tasks"
   | "chats"
   | "projects"
-  | "search";
+  | "you";
 
-export interface ChatMobileTab {
-  kind: "link";
-  id: ChatMobileTabId;
-  href: "/" | "/tasks" | "/chat" | "/projects" | "/history";
-  labelKey: ChatMobileTabLabelKey;
-  icon: LucideIcon;
-  isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
-}
+export type ChatMobileTab =
+  | {
+      kind: "link";
+      id: Exclude<ChatMobileTabId, "you">;
+      href: "/" | "/tasks" | "/chat" | "/projects";
+      labelKey: Exclude<ChatMobileTabLabelKey, "you">;
+      icon: LucideIcon;
+      isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
+    }
+  | {
+      kind: "link";
+      id: "you";
+      href: "/you";
+      labelKey: "you";
+      /** Avatar affordance rendered by the bottom nav (not a Lucide icon). */
+      affordance: "avatar";
+      isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
+    };
 
 export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
   {
@@ -171,11 +175,11 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     isActive: (pathname) => pathname === "/projects",
   },
   {
-    id: "search",
+    id: "you",
     kind: "link",
-    href: "/history",
-    labelKey: "search",
-    icon: Search,
-    isActive: (pathname) => pathname === "/history",
+    href: "/you",
+    labelKey: "you",
+    affordance: "avatar",
+    isActive: (pathname) => pathname === "/you",
   },
 ];
