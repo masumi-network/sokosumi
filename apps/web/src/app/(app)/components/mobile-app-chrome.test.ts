@@ -118,6 +118,7 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBottomNav("/tasks")).toBe(true);
       expect(shouldShowMobileBottomNav("/agents")).toBe(true);
       expect(shouldShowMobileBottomNav("/projects")).toBe(true);
+      expect(shouldShowMobileBottomNav("/you")).toBe(true);
       expect(shouldShowMobileBottomNav("/history")).toBe(true);
       expect(shouldShowMobileBottomNav("/admin")).toBe(true);
       expect(shouldShowMobileBottomNav("/notifications")).toBe(true);
@@ -143,6 +144,7 @@ describe("mobile-app-chrome", () => {
       ).toBe(true);
       expect(shouldShowMobileBrandLeading("/tasks")).toBe(true);
       expect(shouldShowMobileBrandLeading("/projects")).toBe(true);
+      expect(shouldShowMobileBrandLeading("/you")).toBe(true);
       expect(shouldShowMobileBrandLeading("/history")).toBe(true);
     });
 
