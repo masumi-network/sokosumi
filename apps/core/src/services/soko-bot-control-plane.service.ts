@@ -1142,8 +1142,11 @@ export class SokoBotControlPlane {
     activeTurnId: string | null;
     lastTurnAt: Date | null;
   } | null> {
-    // One round trip, not two: this is polled every couple of seconds by every
-    // open console, so a second query here is a second query per tab per tick.
+    // One Prisma call, though not one SQL statement: the generator does not
+    // enable `relationJoins`, so this still selects the bot and the turn
+    // separately. Both predicates are indexed and the payload is three
+    // columns, which is what makes it affordable to ask every couple of
+    // seconds — not a saved round trip, which it is not.
     const bot = await prisma.sokoBot.findFirst({
       where: { userId, workspaceId, archivedAt: null },
       select: {

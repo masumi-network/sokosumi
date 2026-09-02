@@ -28,7 +28,7 @@ function emptyState(): SokoBotChatState {
  */
 function mockEndpoints(options: {
   activity: unknown[];
-  state?: () => unknown;
+  state?: (probeIndex: number) => unknown;
   stateDelayMs?: number;
 }) {
   let index = 0;
@@ -42,9 +42,12 @@ function mockEndpoints(options: {
     if (options.stateDelayMs) {
       await new Promise((resolve) => setTimeout(resolve, options.stateDelayMs));
     }
+    const probeIndex = index;
     return {
       ok: true,
-      json: async () => ({ state: options.state?.() ?? emptyState() }),
+      json: async () => ({
+        state: options.state?.(probeIndex) ?? emptyState(),
+      }),
     };
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -74,7 +77,9 @@ describe("useSokoBotState polling", () => {
     // settles is the reported bug: the answer appears, the orb never does.
     const fetchMock = mockEndpoints({
       activity: [IDLE, RUNNING, RUNNING, SETTLED],
-      state: () => chatState("RUNNING"),
+      // The state follows the probe, so a test cannot pass by luck: while the
+      // activity says idle, the state says idle too.
+      state: (probe) => (probe <= 1 ? emptyState() : chatState("RUNNING")),
     });
     const { result } = renderHook(() => useSokoBotState(emptyState()));
 
@@ -89,7 +94,7 @@ describe("useSokoBotState polling", () => {
     // in. Drop it from the signature and this test fails.
     const fetchMock = mockEndpoints({
       activity: [IDLE, SETTLED, SETTLED],
-      state: () => chatState("COMPLETED"),
+      state: (probe) => (probe <= 1 ? emptyState() : chatState("COMPLETED")),
     });
     renderHook(() => useSokoBotState(emptyState()));
 
@@ -114,6 +119,8 @@ describe("useSokoBotState polling", () => {
     // probe interval, every response during the turn was aborted and only the
     // one after it settled ever arrived — the original symptom, restored.
     const fetchMock = mockEndpoints({
+      // Stays running throughout: this one is only about the slow read
+      // landing at all. The settle race has its own test below.
       activity: [RUNNING],
       state: () => chatState("RUNNING"),
       stateDelayMs: 6_000,
@@ -121,14 +128,50 @@ describe("useSokoBotState polling", () => {
     const { result } = renderHook(() => useSokoBotState(emptyState()));
 
     // Stepped, so the delayed read's own timer is reached and its resolution
-    // is flushed before the assertion.
-    await vi.advanceTimersByTimeAsync(7_000);
-    await vi.advanceTimersByTimeAsync(8_100);
+    // is flushed before the assertion. Kept under the abort deadline.
+    await vi.advanceTimersByTimeAsync(3_000);
+    await vi.advanceTimersByTimeAsync(3_100);
+    await vi.advanceTimersByTimeAsync(3_000);
 
     // Overlapping ticks are skipped, not cancelled, so reads complete.
     expect(result.current.state.turns[0]?.status).toBe("RUNNING");
     expect(countOf(fetchMock, "/state")).toBeLessThan(
       countOf(fetchMock, "/activity"),
     );
+  });
+
+  it("keeps reading state while a turn runs, even though the signature is unchanged", async () => {
+    // Drop the "or a turn is active" arm of the condition and this fails:
+    // the signature never changes during a turn, so tool calls and step chips
+    // would freeze at whatever the first read happened to catch.
+    const fetchMock = mockEndpoints({
+      activity: [RUNNING],
+      state: () => chatState("RUNNING"),
+    });
+    renderHook(() => useSokoBotState(emptyState()));
+
+    await vi.advanceTimersByTimeAsync(7_600);
+
+    expect(countOf(fetchMock, "/state")).toBeGreaterThanOrEqual(3);
+  });
+
+  it("still catches the settled turn when a slow read overlaps it", async () => {
+    // The race the queued follow-up exists for: the tick that sees the turn
+    // settle finds a read in flight, and the stale response lands afterwards.
+    // Without the queue the orb stays on screen for good.
+    const fetchMock = mockEndpoints({
+      activity: [RUNNING, RUNNING, SETTLED, SETTLED],
+      state: (probe) =>
+        probe >= 3 ? chatState("COMPLETED") : chatState("RUNNING"),
+      stateDelayMs: 4_000,
+    });
+    const { result } = renderHook(() => useSokoBotState(emptyState()));
+
+    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(6_000);
+
+    expect(result.current.state.turns[0]?.status).toBe("COMPLETED");
+    expect(countOf(fetchMock, "/state")).toBeGreaterThanOrEqual(2);
   });
 });
