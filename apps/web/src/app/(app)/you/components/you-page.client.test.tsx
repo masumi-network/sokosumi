@@ -228,6 +228,7 @@ describe("YouPageClient", () => {
     const logout = screen.getByTestId("you-logout");
     expect(logout.className).not.toContain("bg-destructive");
     expect(logout.className).toContain("px-0");
+    expect(logout.className).toContain("justify-center");
 
     fireEvent.click(logout);
 
