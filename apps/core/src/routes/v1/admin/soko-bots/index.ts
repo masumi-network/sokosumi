@@ -28,6 +28,7 @@ import {
   adminSokoBotQualitySchema,
   adminSokoBotVersionMigrationRequestSchema,
   adminSokoBotVersionMigrationResultSchema,
+  adminSokoBotVersionUsageSchema,
   setSokoBotAvailabilityRequestSchema,
   sokoBotAvailabilitySchema,
   sokoBotDeletionResultSchema,
@@ -502,6 +503,33 @@ app.openapi(promoteVersionRoute, async (c) => {
   const { slug } = c.req.valid("param");
   await promoteSokoBotVersion(slug);
   return ok(c, { defaultVersionId: slug });
+});
+
+// What the fleet actually runs, counted in the database rather than derived
+// from whatever page the caller happens to be holding.
+const versionUsageRoute = createRoute({
+  method: "get",
+  path: "/versions/usage",
+  operationId: "getAdminSokoBotVersionUsage",
+  tags: ["Admin"],
+  responses: {
+    200: jsonSuccessResponse(
+      adminSokoBotVersionUsageSchema,
+      "Live bots per version",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+  },
+});
+
+app.openapi(versionUsageRoute, async (c) => {
+  requireAdminAuthContext(c.var.authContext);
+  return ok(
+    c,
+    adminSokoBotVersionUsageSchema.parse({
+      versions: await sokoBotControlPlane.versionUsage(),
+    }),
+  );
 });
 
 // Promotion only decides what new bots are created on. Moving the ones that

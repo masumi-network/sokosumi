@@ -1341,6 +1341,33 @@ export const SokoBotDeletionResultSchema = {
     ]
 } as const;
 
+export const AdminSokoBotVersionUsageSchema = {
+    type: 'object',
+    properties: {
+        versions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    versionId: {
+                        type: 'string'
+                    },
+                    count: {
+                        type: 'integer'
+                    }
+                },
+                required: [
+                    'versionId',
+                    'count'
+                ]
+            }
+        }
+    },
+    required: [
+        'versions'
+    ]
+} as const;
+
 export const AdminSokoBotVersionMigrationResultSchema = {
     type: 'object',
     properties: {
@@ -1373,7 +1400,7 @@ export const AdminSokoBotVersionMigrationResultSchema = {
                     'message'
                 ]
             },
-            maxItems: 500
+            maxItems: 100
         }
     },
     required: [
@@ -1388,11 +1415,6 @@ export const AdminSokoBotVersionMigrationResultSchema = {
 export const AdminSokoBotVersionMigrationRequestSchema = {
     type: 'object',
     properties: {
-        operationId: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 200
-        },
         fromVersionId: {
             type: 'string',
             minLength: 2,
@@ -1412,7 +1434,6 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
         }
     },
     required: [
-        'operationId',
         'toVersionId',
         'reason'
     ],

@@ -187,6 +187,13 @@ export interface SokoBotTurnStartResult {
   reconciliationLeaseToken?: string;
 }
 
+/**
+ * How many failed bots a fleet migration names. The count is exact; the list
+ * is a sample, because the response schema bounds it and a migration must not
+ * throw on its own output after it has already moved bots.
+ */
+const MIGRATION_FAILURE_SAMPLE = 100;
+
 export type SokoBotAdminActionName =
   | "PAUSE"
   | "RESUME"
@@ -2610,13 +2617,40 @@ export class SokoBotControlPlane {
   }
 
   /**
+   * How many live bots run each version, counted across the whole fleet.
+   *
+   * The fleet page lists one page of bots; deriving the counts from that page
+   * would tell an operator they are about to move twenty when the migration
+   * moves every matching bot in the database.
+   */
+  async versionUsage(): Promise<{ versionId: string; count: number }[]> {
+    const rows = await prisma.sokoBot.groupBy({
+      by: ["versionId"],
+      where: { archivedAt: null, versionId: { not: null } },
+      _count: { _all: true },
+    });
+    return rows
+      .flatMap((row) =>
+        row.versionId
+          ? [{ versionId: row.versionId, count: row._count._all }]
+          : [],
+      )
+      .sort(
+        (a, b) => b.count - a.count || a.versionId.localeCompare(b.versionId),
+      );
+  }
+
+  /**
    * Moves many bots onto one version.
    *
-   * Every bot goes through {@link performAdminAction}, so each gets its own
-   * audit row with its own before/after and its own idempotency key rather
-   * than one opaque "bulk" entry — re-running the same operation id after a
-   * partial failure retries only what did not land. One bot that cannot be
-   * moved does not stop the rest; it is reported.
+   * Every bot goes through the same audited action a single-bot move uses, so
+   * each gets its own before/after record rather than one opaque "bulk" entry.
+   * One bot that cannot be moved does not stop the rest; it is reported.
+   *
+   * Re-running is safe and is the way to retry: bots already on the target are
+   * skipped before any work happens, and every attempt gets fresh operation
+   * ids, so a bot that failed last time is tried again rather than replaying
+   * its recorded failure forever.
    */
   async migrateVersions(input: {
     operatorId: string;
@@ -2624,7 +2658,6 @@ export class SokoBotControlPlane {
     fromVersionId?: string;
     toVersionId: string;
     reason: string;
-    operationId: string;
     requestId?: string;
     traceId?: string;
   }): Promise<{
@@ -2647,40 +2680,51 @@ export class SokoBotControlPlane {
       select: { id: true, versionId: true },
       orderBy: { id: "asc" },
     });
+    // One base per run, not one supplied by the caller. A caller-supplied id
+    // would make a retry replay each bot's recorded outcome, which is exactly
+    // backwards: the bots worth retrying are the ones that failed.
+    const runId = randomUUID();
     const failures: { sokoBotId: string; message: string }[] = [];
     let moved = 0;
     let alreadyOnVersion = 0;
+    let failed = 0;
     for (const bot of bots) {
+      // Skipping before the action is what makes a re-run idempotent: a bot
+      // already on the target never reaches the audit path a second time.
       if (bot.versionId === input.toVersionId) {
         alreadyOnVersion += 1;
         continue;
       }
       try {
-        await this.performAdminAction({
+        await this.applyAdminAction({
           sokoBotId: bot.id,
           operatorId: input.operatorId,
           action: "SET_VERSION",
           versionId: input.toVersionId,
           reason: input.reason,
-          // Per bot, so a retry of the whole migration skips what already
-          // succeeded instead of colliding on one shared key.
-          operationId: `${input.operationId}:${bot.id}`,
+          operationId: `${runId}:${bot.id}`,
           requestId: input.requestId,
           traceId: input.traceId,
         });
         moved += 1;
       } catch (error) {
-        failures.push({
-          sokoBotId: bot.id,
-          message: error instanceof Error ? error.message : String(error),
-        });
+        failed += 1;
+        // Counted without limit, listed with one: the response schema bounds
+        // the array, and a run where everything failed must still return the
+        // result rather than throwing on its own output after the writes.
+        if (failures.length < MIGRATION_FAILURE_SAMPLE) {
+          failures.push({
+            sokoBotId: bot.id,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     }
     return {
       total: bots.length,
       moved,
       alreadyOnVersion,
-      failed: failures.length,
+      failed,
       failures,
     };
   }
@@ -2815,7 +2859,13 @@ export class SokoBotControlPlane {
     });
   }
 
-  async performAdminAction(input: {
+  /**
+   * The operator action itself. Returns nothing: reading the bot back is a
+   * heavy query (turns with their tool calls, legacy messages, schedules,
+   * audit rows, runtime health), and a fleet migration doing that once per bot
+   * would spend most of its request budget on reads nobody looks at.
+   */
+  private async applyAdminAction(input: {
     sokoBotId: string;
     operatorId: string;
     action: SokoBotAdminActionName;
@@ -2940,7 +2990,7 @@ export class SokoBotControlPlane {
         orderBy: { createdAt: "desc" },
         select: { status: true, errorDetail: true },
       });
-      if (outcome?.status === "SUCCEEDED") return this.getForAdmin(bot.id);
+      if (outcome?.status === "SUCCEEDED") return;
       if (outcome?.status === "FAILED") {
         throw new SokoBotValidationError(
           outcome.errorDetail ?? "Admin action already failed",
@@ -3596,8 +3646,14 @@ export class SokoBotControlPlane {
         },
       });
     }
+  }
 
-    return this.getForAdmin(bot.id);
+  /** One bot, with its refreshed diagnostics for the operator screen. */
+  async performAdminAction(
+    input: Parameters<SokoBotControlPlane["applyAdminAction"]>[0],
+  ) {
+    await this.applyAdminAction(input);
+    return this.getForAdmin(input.sokoBotId);
   }
 
   async archive(userId: string, workspaceId: string): Promise<void> {

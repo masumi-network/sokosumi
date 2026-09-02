@@ -15,6 +15,7 @@ const {
   botCreateMock,
   botFindFirstMock,
   botFindManyMock,
+  botGroupByMock,
   botFindUniqueMock,
   botFindUniqueOrThrowMock,
   botCountMock,
@@ -60,6 +61,7 @@ const {
   botCreateMock: vi.fn(),
   botFindFirstMock: vi.fn(),
   botFindManyMock: vi.fn(),
+  botGroupByMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   botFindUniqueOrThrowMock: vi.fn(),
   botCountMock: vi.fn(),
@@ -131,6 +133,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: botFindManyMock,
       findUnique: botFindUniqueMock,
       findUniqueOrThrow: botFindUniqueOrThrowMock,
+      groupBy: botGroupByMock,
       update: botUpdateMock,
     },
     sokoBotTurn: {
@@ -2745,7 +2748,6 @@ describe("SET_VERSION and fleet migration", () => {
       operatorId: "admin_1",
       toVersionId: "v16",
       reason: "Bring the fleet onto the current prompt",
-      operationId: "fleet-v16-2026-09-02",
     });
 
     // One bot that cannot be moved must not strand the other thirty.
@@ -2758,9 +2760,12 @@ describe("SET_VERSION and fleet migration", () => {
     expect(result.failures[0]?.sokoBotId).toBe(stuck);
   });
 
-  it("gives each bot its own idempotency key", async () => {
-    // One shared key would make the second bot look like a replay of the
-    // first and skip it.
+  it("gives each bot its own operation id, fresh on every run", async () => {
+    // Two rows per bot — the ATTEMPTED intent and the SUCCEEDED outcome —
+    // sharing that bot's key, and a different key per bot. Fresh per run
+    // matters more than stable: a bot that failed last time has a recorded
+    // FAILED outcome, and reusing its key would replay that failure forever
+    // instead of trying the bot again.
     botFindManyMock.mockResolvedValue([
       { id: BOT_ID, versionId: "v14" },
       { id: "01960001-0001-7001-8001-0000000000aa", versionId: "v14" },
@@ -2773,26 +2778,62 @@ describe("SET_VERSION and fleet migration", () => {
       ...data,
     }));
 
-    await new SokoBotControlPlane().migrateVersions({
+    const migrate = () =>
+      new SokoBotControlPlane().migrateVersions({
+        operatorId: "admin_1",
+        toVersionId: "v16",
+        reason: "Bring the fleet onto the current prompt",
+      });
+
+    await migrate();
+    const firstRun = adminActionCreateMock.mock.calls.map(
+      (call) => call[0].data.operationId,
+    );
+    adminActionCreateMock.mockClear();
+    await migrate();
+    const secondRun = adminActionCreateMock.mock.calls.map(
+      (call) => call[0].data.operationId,
+    );
+
+    expect(new Set(firstRun).size).toBe(2);
+    expect(new Set(secondRun).size).toBe(2);
+    for (const key of secondRun) {
+      expect(firstRun).not.toContain(key);
+    }
+  });
+
+  it("counts every failure but only names a bounded sample", async () => {
+    // The response schema caps the list. Without the cap here, a run where
+    // everything failed would throw while parsing its own result, after the
+    // bots it did move were already committed.
+    const bots = Array.from({ length: 150 }, (_, index) => ({
+      id: `01960001-0001-7001-8001-${String(index).padStart(12, "0")}`,
+      versionId: "v14",
+    }));
+    botFindManyMock.mockResolvedValue(bots);
+    botFindUniqueMock.mockResolvedValue(null);
+
+    const result = await new SokoBotControlPlane().migrateVersions({
       operatorId: "admin_1",
       toVersionId: "v16",
       reason: "Bring the fleet onto the current prompt",
-      operationId: "fleet-v16-2026-09-02",
     });
 
-    // Two rows per bot — the ATTEMPTED intent and the SUCCEEDED outcome —
-    // sharing that bot's key, and a different key per bot.
-    const byBot = new Map<string, Set<string>>();
-    for (const call of adminActionCreateMock.mock.calls) {
-      const { sokoBotId, operationId } = call[0].data;
-      byBot.set(
-        sokoBotId,
-        (byBot.get(sokoBotId) ?? new Set()).add(operationId),
-      );
-    }
-    expect(byBot.size).toBe(2);
-    const keys = [...byBot.values()].flatMap((set) => [...set]);
-    expect(keys).toHaveLength(2);
-    expect(new Set(keys).size).toBe(2);
+    expect(result.failed).toBe(150);
+    expect(result.failures).toHaveLength(100);
+  });
+
+  it("counts versions across the fleet, not one page of it", async () => {
+    botGroupByMock.mockResolvedValue([
+      { versionId: "v14", _count: { _all: 12 } },
+      { versionId: "v16", _count: { _all: 19 } },
+      { versionId: null, _count: { _all: 3 } },
+    ]);
+
+    // Most bots first, and a bot with no pinned version is not a version.
+    expect(await new SokoBotControlPlane().versionUsage()).toEqual([
+      { versionId: "v16", count: 19 },
+      { versionId: "v14", count: 12 },
+    ]);
   });
 });

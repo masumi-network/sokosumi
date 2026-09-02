@@ -310,6 +310,13 @@ export type SokoBotDeletionResult = {
     };
 };
 
+export type AdminSokoBotVersionUsage = {
+    versions: Array<{
+        versionId: string;
+        count: number;
+    }>;
+};
+
 export type AdminSokoBotVersionMigrationResult = {
     total: number;
     moved: number;
@@ -322,7 +329,6 @@ export type AdminSokoBotVersionMigrationResult = {
 };
 
 export type AdminSokoBotVersionMigrationRequest = {
-    operationId: string;
     fromVersionId?: string;
     toVersionId: string;
     reason: string;
@@ -7054,6 +7060,62 @@ export type PromoteAdminSokoBotVersionResponses = {
 };
 
 export type PromoteAdminSokoBotVersionResponse = PromoteAdminSokoBotVersionResponses[keyof PromoteAdminSokoBotVersionResponses];
+
+export type GetAdminSokoBotVersionUsageData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/versions/usage';
+};
+
+export type GetAdminSokoBotVersionUsageErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotVersionUsageError = GetAdminSokoBotVersionUsageErrors[keyof GetAdminSokoBotVersionUsageErrors];
+
+export type GetAdminSokoBotVersionUsageResponses = {
+    /**
+     * Live bots per version
+     */
+    200: {
+        data: AdminSokoBotVersionUsage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotVersionUsageResponse = GetAdminSokoBotVersionUsageResponses[keyof GetAdminSokoBotVersionUsageResponses];
 
 export type MigrateAdminSokoBotVersionsData = {
     body?: AdminSokoBotVersionMigrationRequest;

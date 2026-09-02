@@ -17,12 +17,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { migrateAdminSokoBotVersionsAction } from "@/lib/actions/admin-soko-bots/action";
 import type { AdminSokoBotVersionMigrationResult } from "@/lib/clients/generated/core";
-import { newOperationId } from "@/lib/soko-bot/operation-id";
 
 interface SokoBotVersionMigrationProps {
   versions: { id: string; name: string }[];
   defaultVersionId: string;
-  /** Versions the fleet is currently spread across, most bots first. */
+  /**
+   * Every version the live fleet runs, counted in Core rather than from a page
+   * of bots, so the number on the button is the number that moves.
+   */
   inUse: { versionId: string; count: number }[];
 }
 
@@ -48,7 +50,6 @@ export function SokoBotVersionMigration({
   const [from, setFrom] = useState<string>(EVERY_BOT);
   const [to, setTo] = useState(defaultVersionId);
   const [reason, setReason] = useState("");
-  const [operationId, setOperationId] = useState(() => newOperationId());
   const [result, setResult] =
     useState<AdminSokoBotVersionMigrationResult | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -71,7 +72,6 @@ export function SokoBotVersionMigration({
           ...(from === EVERY_BOT ? {} : { fromVersionId: from }),
           toVersionId: to,
           reason: reason.trim(),
-          operationId,
         },
       });
       if (!outcome.ok) {
@@ -80,7 +80,6 @@ export function SokoBotVersionMigration({
       }
       setResult(outcome.value);
       setReason("");
-      setOperationId(newOperationId());
       toast.success(t("done", { moved: outcome.value.moved }));
       router.refresh();
     });

@@ -575,9 +575,17 @@ export const adminSokoBotActionRequestSchema = z
  * which is the "bring the fleet up to date" case; naming it is the safer
  * "move the ones still on v14" case.
  */
+/** How many live bots run each version, across the whole fleet. */
+export const adminSokoBotVersionUsageSchema = z
+  .object({
+    versions: z.array(
+      z.object({ versionId: z.string(), count: z.number().int() }),
+    ),
+  })
+  .openapi("AdminSokoBotVersionUsage");
+
 export const adminSokoBotVersionMigrationRequestSchema = z
   .object({
-    operationId: z.string().trim().min(1).max(200),
     fromVersionId: sokoBotVersionSlugSchema.optional(),
     toVersionId: sokoBotVersionSlugSchema,
     reason: z.string().trim().min(1).max(2_000),
@@ -592,10 +600,10 @@ export const adminSokoBotVersionMigrationResultSchema = z
     moved: z.number().int(),
     alreadyOnVersion: z.number().int(),
     failed: z.number().int(),
-    /** Named, so a partial run says which bots still need attention. */
+    /** A sample of the failures, so a partial run says where to look. */
     failures: z
       .array(z.object({ sokoBotId: z.string(), message: z.string() }))
-      .max(500),
+      .max(100),
   })
   .openapi("AdminSokoBotVersionMigrationResult");
 

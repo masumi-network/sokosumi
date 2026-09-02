@@ -62,7 +62,6 @@ describe("adminSokoBotActionRequestSchema", () => {
 describe("adminSokoBotVersionMigrationRequestSchema", () => {
   it("treats an absent source version as the whole fleet", () => {
     const parsed = adminSokoBotVersionMigrationRequestSchema.parse({
-      operationId: "fleet-v16-2026-09-02",
       toVersionId: "v16",
       reason: "Fleet is two versions behind",
     });
@@ -75,8 +74,19 @@ describe("adminSokoBotVersionMigrationRequestSchema", () => {
   it("keeps the reason mandatory, the same as a single-bot action", () => {
     expect(() =>
       adminSokoBotVersionMigrationRequestSchema.parse({
+        toVersionId: "v16",
+      }),
+    ).toThrow();
+  });
+
+  it("takes no operation id: every run is a fresh attempt", () => {
+    // A caller-supplied id would make a retry replay each bot's recorded
+    // outcome, and the bots worth retrying are exactly the ones that failed.
+    expect(() =>
+      adminSokoBotVersionMigrationRequestSchema.parse({
         operationId: "fleet-v16-2026-09-02",
         toVersionId: "v16",
+        reason: "Fleet is two versions behind",
       }),
     ).toThrow();
   });

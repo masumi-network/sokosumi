@@ -153,6 +153,7 @@ import {
   getAdminSokoBot as coreGetAdminSokoBot,
   getAdminSokoBotAvailability as coreGetAdminSokoBotAvailability,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
+  getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
   getAdminTask as coreGetAdminTask,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
@@ -4365,6 +4366,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getAdminSokoBotVersionUsage() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotVersionUsage({ client, cache: "no-store" }),
+      "Failed to load Soko Bot version usage",
+    );
+  }
+
   async function migrateAdminSokoBotVersions(
     body: AdminSokoBotVersionMigrationRequest,
   ) {
@@ -5078,6 +5088,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     createAdminSokoBotVersion,
     updateAdminSokoBotVersion,
     archiveAdminSokoBotVersion,
+    getAdminSokoBotVersionUsage,
     migrateAdminSokoBotVersions,
     promoteAdminSokoBotVersion,
     getAdminSokoBot,

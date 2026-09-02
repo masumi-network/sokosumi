@@ -93,7 +93,6 @@ const migrateVersionsSchema = z.object({
   /** Omitted means every live bot, not "bots with no version". */
   fromVersionId: versionSlugSchema.optional(),
   toVersionId: versionSlugSchema,
-  operationId: z.string().uuid(),
   reason: z.string().trim().min(3).max(500),
 });
 
