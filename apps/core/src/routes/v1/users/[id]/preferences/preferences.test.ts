@@ -292,6 +292,31 @@ describe("user preferences routes", () => {
     expect(notificationPreferenceUpsertMock).not.toHaveBeenCalled();
   });
 
+  /**
+   * The other half of the cap: a cap that is too small fails no test if only
+   * the rejection is checked, and the settings page writes whole groups.
+   */
+  it("accepts a write that names every cell of the matrix", async () => {
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request(
+      patchRequest("/me/preferences", {
+        notificationPreferences: NOTIFICATION_CATEGORIES.flatMap((category) =>
+          NOTIFICATION_CHANNELS.map((channel) => ({
+            category,
+            channel,
+            enabled: false,
+          })),
+        ),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(notificationPreferenceUpsertMock).toHaveBeenCalledTimes(
+      NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length,
+    );
+  });
+
   it("rejects a PATCH whose only field is an empty matrix", async () => {
     const app = createPreferencesApp(SESSION_USER);
 
