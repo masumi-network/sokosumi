@@ -41,23 +41,65 @@ describe("agents gallery mobile padding contract", () => {
   });
 });
 
-describe("agents gallery marketplace cut (SOK-805)", () => {
-  it("page is coworker gallery only — no agent catalog tier", () => {
+describe("agents gallery Agent catalog restore (SOK-922)", () => {
+  it("page stacks Coworkers above an Agent catalog Suspense tier", () => {
     const page = stripComments(
       readFileSync(path.join(agentsDir, "page.tsx"), "utf8"),
     );
 
     expect(page).toMatch(/CoworkerGallerySection/);
     expect(page).toMatch(/CreateTaskModal/);
-    expect(page).not.toMatch(/AllAgentsTier|FilteredAgents|getAllCoreAgents/);
-    expect(page).not.toMatch(/allAgentsTitle|AgentsSkeleton/);
+    expect(page).toMatch(/AllAgentsTier/);
+    expect(page).toMatch(/FilteredAgents/);
+    expect(page).toMatch(/getAllCoreAgents/);
+    expect(page).toMatch(/getCoreCategories/);
+    expect(page).toMatch(/allAgentsTitle/);
+    expect(page).toMatch(/AgentsSkeleton/);
+
+    const coworkerIdx = page.indexOf("CoworkersTier");
+    const catalogIdx = page.indexOf("AllAgentsTier");
+    expect(coworkerIdx).toBeGreaterThanOrEqual(0);
+    expect(catalogIdx).toBeGreaterThan(coworkerIdx);
   });
 
-  it("loading shell has no agent-catalog skeleton tier", () => {
+  it("catalog modules forbid Hire and price/credits chrome", () => {
+    const filteredAgents = stripComments(
+      readFileSync(
+        path.join(agentsDir, "components/filtered-agents.tsx"),
+        "utf8",
+      ),
+    );
+    const filterSection = stripComments(
+      readFileSync(
+        path.join(agentsDir, "components/filter-section.tsx"),
+        "utf8",
+      ),
+    );
+    const agentCard = stripComments(
+      readFileSync(
+        path.join(agentsDir, "../../../components/agents/agent-card.tsx"),
+        "utf8",
+      ),
+    );
+
+    for (const source of [filteredAgents, filterSection, agentCard]) {
+      expect(source).not.toMatch(
+        /CreateJobModal|LazyCreateJobModal|AgentHireButton|create-job-modal/,
+      );
+      expect(source).not.toMatch(
+        /getAgentCredits|formatCreditsForDisplay|pricing|showHireButton/,
+      );
+    }
+
+    expect(filterSection).toMatch(/useGalleryFilter/);
+    expect(filteredAgents).toMatch(/kind/);
+  });
+
+  it("loading shell includes agent-catalog skeleton tier", () => {
     const loading = stripComments(
       readFileSync(path.join(agentsDir, "loading.tsx"), "utf8"),
     );
 
-    expect(loading).not.toMatch(/AgentsSkeleton/);
+    expect(loading).toMatch(/AgentsSkeleton/);
   });
 });

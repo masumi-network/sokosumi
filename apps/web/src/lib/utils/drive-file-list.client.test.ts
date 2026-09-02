@@ -244,4 +244,45 @@ describe("listDriveItems", () => {
       throwOnError: true,
     });
   });
+
+  it("passes sortBy and sortOrder when set", async () => {
+    getDriveFilesMock.mockResolvedValue(pageResponse([], null));
+
+    await listDriveItems({
+      scope: "me",
+      sortBy: "date",
+      sortOrder: "desc",
+    });
+
+    expect(getDriveFilesMock).toHaveBeenCalledWith({
+      client: { id: "browser-core-client" },
+      query: {
+        scope: "me",
+        limit: DRIVE_FILES_PAGE_LIMIT,
+        sortBy: "date",
+        sortOrder: "desc",
+      },
+      throwOnError: true,
+    });
+  });
+
+  it("omits sort params when unset (server default)", async () => {
+    getDriveFilesMock.mockResolvedValue(pageResponse([], null));
+
+    await listDriveItems({ scope: "me" });
+
+    expect(getDriveFilesMock).toHaveBeenCalledWith({
+      client: { id: "browser-core-client" },
+      query: {
+        scope: "me",
+        limit: DRIVE_FILES_PAGE_LIMIT,
+      },
+      throwOnError: true,
+    });
+    const call = getDriveFilesMock.mock.calls[0]?.[0] as {
+      query: Record<string, unknown>;
+    };
+    expect(call.query).not.toHaveProperty("sortBy");
+    expect(call.query).not.toHaveProperty("sortOrder");
+  });
 });

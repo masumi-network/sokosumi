@@ -51,19 +51,50 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenuContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
+  DropdownMenuLabel: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
+  DropdownMenuSeparator: () => <hr />,
   DropdownMenuItem: ({
     children,
     onSelect,
     disabled,
+    ...props
   }: {
     children: ReactNode;
     onSelect?: (event: { preventDefault: () => void }) => void;
     disabled?: boolean;
-  }) => (
+  } & Record<string, unknown>) => (
     <button
       type="button"
       disabled={disabled}
       onClick={() => onSelect?.({ preventDefault: () => undefined })}
+      {...props}
+    >
+      {children}
+    </button>
+  ),
+  DropdownMenuCheckboxItem: ({
+    children,
+    checked,
+    onCheckedChange,
+    onSelect,
+    ...props
+  }: {
+    children: ReactNode;
+    checked?: boolean;
+    onCheckedChange?: (checked: boolean) => void;
+    onSelect?: (event: { preventDefault: () => void }) => void;
+  } & Record<string, unknown>) => (
+    <button
+      type="button"
+      role="menuitemcheckbox"
+      aria-checked={checked}
+      onClick={() => {
+        onCheckedChange?.(true);
+        onSelect?.({ preventDefault: () => undefined });
+      }}
+      {...props}
     >
       {children}
     </button>
@@ -132,11 +163,38 @@ vi.mock("@/lib/utils/drive-recents-list.client", () => ({
 }));
 
 vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
-  DriveTasksFilters: () => (
-    <button type="button" aria-label="filterTitle">
-      filterTitle
-    </button>
-  ),
+  DriveTasksFilters: ({
+    hideMobileTrigger,
+    sheetOpen,
+    onSheetOpenChange,
+  }: {
+    hideMobileTrigger?: boolean;
+    sheetOpen?: boolean;
+    onSheetOpenChange?: (open: boolean) => void;
+  }) => {
+    const { createPortal } = require("react-dom") as typeof import("react-dom");
+    return (
+      <>
+        {!hideMobileTrigger ? (
+          <button
+            type="button"
+            aria-label="filterTitle"
+            onClick={() => onSheetOpenChange?.(true)}
+          >
+            filterTitle
+          </button>
+        ) : null}
+        {sheetOpen
+          ? createPortal(
+              <div role="dialog" aria-label="filterTitle">
+                filter sheet
+              </div>,
+              document.body,
+            )
+          : null}
+      </>
+    );
+  },
 }));
 
 vi.mock("@/components/ui/image-viewer", () => ({
@@ -486,7 +544,7 @@ describe("DrivePage tasks mobile toolbar", () => {
     });
   });
 
-  it("places the tasks filter beside the mobile search input", async () => {
+  it("places the tasks actions menu beside the mobile search input", async () => {
     renderDrive();
 
     await waitFor(() => {
@@ -502,10 +560,27 @@ describe("DrivePage tasks mobile toolbar", () => {
     const mobileToolbar = mobileSearchInput?.closest(".md\\:hidden");
     expect(mobileToolbar).not.toBeNull();
     expect(
-      within(mobileToolbar as HTMLElement).getByRole("button", {
-        name: "filterTitle",
-      }),
+      within(mobileToolbar as HTMLElement).getByTestId("tasks-mobile-actions"),
     ).toBeVisible();
+  });
+
+  it("tasks mobile actions menu exposes sort and opens filter drawer", async () => {
+    const user = userEvent.setup();
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveTasksPageMock).toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByTestId("tasks-mobile-actions"));
+    expect(screen.getByTestId("tasks-mobile-sort-name")).toBeVisible();
+    expect(screen.getByTestId("tasks-mobile-filter")).toHaveTextContent(
+      "filterTitle",
+    );
+
+    await user.click(screen.getByTestId("tasks-mobile-filter"));
+    expect(screen.getByRole("dialog", { name: "filterTitle" })).toBeVisible();
   });
 });
 
@@ -936,9 +1011,208 @@ describe("DrivePage files view mode", () => {
     });
 
     pushMock.mockClear();
-    await user.click(screen.getByRole("button", { name: "moreActions" }));
+    await user.click(screen.getByTestId("drive-item-more-actions"));
 
     expect(pushMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("browse mobile actions menu exposes sort and create folder", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByTestId("files-mobile-actions")).toBeVisible();
+    // Desktop create-folder control remains available (md+ toolbar).
+    expect(
+      screen.getAllByRole("button", { name: "createFolder" }).length,
+    ).toBeGreaterThan(0);
+
+    await user.click(screen.getByTestId("files-mobile-actions"));
+    expect(screen.getByTestId("files-mobile-sort-name")).toBeVisible();
+    expect(screen.getByTestId("files-mobile-create-folder")).toHaveTextContent(
+      "createFolder",
+    );
+
+    await user.click(screen.getByTestId("files-mobile-create-folder"));
+    expect(
+      screen.getByRole("dialog", { name: "createFolderDialogTitle" }),
+    ).toBeVisible();
+  });
+});
+
+describe("DrivePage files sort", () => {
+  const onUrlUpdate = vi.fn();
+
+  function renderDriveWithUrlSpy(defaultFilesViewMode: FilesViewMode = "list") {
+    return render(
+      <NuqsTestingAdapter
+        searchParams={searchParams}
+        hasMemory
+        onUrlUpdate={onUrlUpdate}
+      >
+        <QueryClientProvider client={queryClient}>
+          <DrivePageClient defaultFilesViewMode={defaultFilesViewMode} />
+        </QueryClientProvider>
+      </NuqsTestingAdapter>,
+    );
+  }
+
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams("view=browse");
+    onUrlUpdate.mockReset();
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    listDriveItemsMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
+
+    fetchDriveTasksPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: {
+        data: [{ id: "org_a", name: "Org A" }],
+      },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("Browse omit default shows Name; Date stays explicit in URL and fetch", async () => {
+    const user = userEvent.setup();
+    renderDriveWithUrlSpy();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    const browseCall = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(browseCall).not.toHaveProperty("sortBy");
+    expect(browseCall).not.toHaveProperty("sortOrder");
+    expect(screen.getByTestId("files-sort-trigger")).toHaveTextContent(
+      /sortByName|Name/i,
+    );
+
+    await user.click(screen.getByTestId("files-sort-trigger"));
+    await user.click(screen.getByTestId("files-sort-date"));
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    const lastUpdate = onUrlUpdate.mock.calls.at(-1)?.[0] as {
+      searchParams: URLSearchParams;
+    };
+    expect(lastUpdate.searchParams.get("sortBy")).toBe("date");
+    expect(lastUpdate.searchParams.get("sortOrder")).toBe("desc");
+    expect(lastUpdate.searchParams.get("view")).toBe("browse");
+
+    await waitFor(() => {
+      const options = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
+        string,
+        unknown
+      >;
+      expect(options.sortBy).toBe("date");
+      expect(options.sortOrder).toBe("desc");
+    });
+
+    await user.click(screen.getByTestId("files-sort-trigger"));
+    await user.click(screen.getByTestId("files-sort-name"));
+
+    await waitFor(() => {
+      const update = onUrlUpdate.mock.calls.at(-1)?.[0] as {
+        searchParams: URLSearchParams;
+      };
+      expect(update.searchParams.get("sortBy")).toBeNull();
+      expect(update.searchParams.get("sortOrder")).toBeNull();
+    });
+  });
+
+  it("keeps view and folder params when sort is applied", async () => {
+    searchParams = new URLSearchParams("view=browse&folder=Reports");
+    const user = userEvent.setup();
+    renderDriveWithUrlSpy();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByTestId("files-sort-trigger"));
+    await user.click(screen.getByTestId("files-sort-type"));
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    const lastUpdate = onUrlUpdate.mock.calls.at(-1)?.[0] as {
+      searchParams: URLSearchParams;
+    };
+    expect(lastUpdate.searchParams.get("view")).toBe("browse");
+    expect(lastUpdate.searchParams.get("folder")).toBe("Reports");
+    expect(lastUpdate.searchParams.get("sortBy")).toBe("type");
+    expect(lastUpdate.searchParams.get("sortOrder")).toBe("asc");
+  });
+
+  it("recents omits sort params even when URL has sort", async () => {
+    searchParams = new URLSearchParams("sortBy=name&sortOrder=asc");
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+
+    expect(listDriveItemsMock).not.toHaveBeenCalled();
+    const recentsCall = fetchDriveRecentsPageMock.mock.calls.at(
+      -1,
+    )?.[0] as Record<string, unknown>;
+    expect(recentsCall).not.toHaveProperty("sortBy");
+    expect(recentsCall).not.toHaveProperty("sortOrder");
+    expect(screen.queryByTestId("files-sort-trigger")).not.toBeInTheDocument();
+  });
+
+  it("omitted default does not send a sort override on browse", async () => {
+    searchParams = new URLSearchParams();
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+    const recentsCall = fetchDriveRecentsPageMock.mock.calls.at(
+      -1,
+    )?.[0] as Record<string, unknown>;
+    expect(recentsCall).not.toHaveProperty("sortBy");
+    expect(recentsCall).not.toHaveProperty("sortOrder");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: "Org A" }));
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+    const browseCall = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(browseCall).not.toHaveProperty("sortBy");
+    expect(browseCall).not.toHaveProperty("sortOrder");
+    expect(screen.getByTestId("files-sort-trigger")).toBeVisible();
   });
 });

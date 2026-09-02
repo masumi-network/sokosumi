@@ -13,6 +13,8 @@ import { createX402PaymentMethods } from "./masumi-payment-x402.js";
 import { extractNodeErrorMessage } from "./node-error.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
+  type GetPurchaseDiffResponses,
+  getPurchaseDiff,
   getRailReadiness,
   type PostPurchaseData,
   type PostPurchaseResolveBlockchainIdentifierResponses,
@@ -35,6 +37,14 @@ export interface CardanoV2ReadySource {
 
 type ResolvedPurchase =
   PostPurchaseResolveBlockchainIdentifierResponses["200"]["data"];
+
+/**
+ * One purchase as returned by the node's diff feed. Structurally the same row
+ * the resolve endpoint returns, plus the change timestamps the cursor rides
+ * on.
+ */
+export type MasumiPurchaseDiffEntry =
+  GetPurchaseDiffResponses["200"]["data"]["Purchases"][number];
 type CreatedPurchase = PostPurchaseResponses["200"]["data"];
 type PurchaseRequest = NonNullable<PostPurchaseData["body"]>;
 
@@ -351,6 +361,81 @@ export function createPaymentClient(
       options: PaymentClientRequestOptions = {},
     ) {
       return resolvePurchase(jobBlockchainIdentifier, options);
+    },
+
+    /**
+     * Purchases whose next action, on-chain state, or result changed at or
+     * after `changedSince`, oldest first. `cursorId` breaks the tie when
+     * several purchases carry the same change timestamp, so a page boundary
+     * cannot drop or repeat a row.
+     *
+     * No payment-source filter is sent, so both rails inside the API key's
+     * wallet scope can come back. That is deliberate but version-bound.
+     *
+     * `GET /purchase`, `/payment/diff` and `/registry/diff` each default to
+     * Web3CardanoV1 when neither `filterPaymentSourceType` nor
+     * `filterSmartContractAddress` is given. `/purchase/diff` has no such
+     * default.
+     *
+     * VERIFIED against masumi-payment-service `5416f92fb^`: the deployed route
+     * applies deletedAt, network, smartContractAddress, and the API key's wallet
+     * scope. It does not filter payment source, so both rails inside that wallet
+     * scope arrive in one feed. The configured key must cover every purchasing
+     * wallet Sokosumi uses (`src/routes/api/purchases/diff/index.ts`,
+     * buildPurchaseDiffWhere).
+     *
+     * If that route ever gains `filterPaymentSourceType`, this call has to page
+     * each rail with its own cursor, because the node resolves one source type
+     * per request and Sokosumi runs V1 and V2 side by side.
+     */
+    async getPurchasesDiff(
+      changedSince: Date,
+      cursorId: string | null,
+      limit: number,
+      options: PaymentClientRequestOptions = {},
+    ): Promise<Result<MasumiPurchaseDiffEntry[], string>> {
+      try {
+        const response = await getPurchaseDiff({
+          client: client(),
+          query: {
+            network,
+            lastUpdate: changedSince.toISOString(),
+            cursorId: cursorId ?? undefined,
+            limit,
+          },
+          signal: options.signal,
+        });
+        if (
+          response.error ||
+          !response.data ||
+          response.response?.status !== 200
+        ) {
+          return err(
+            `purchase-diff ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
+          );
+        }
+        const purchases = response.data.data.Purchases;
+        const invalidCursorPurchase = purchases.find((purchase) => {
+          const changedAt =
+            purchase.nextActionOrOnChainStateOrResultLastChangedAt;
+          const createdAt = purchase.createdAt;
+          return (
+            !(changedAt instanceof Date) ||
+            Number.isNaN(changedAt.getTime()) ||
+            !(createdAt instanceof Date) ||
+            Number.isNaN(createdAt.getTime()) ||
+            changedAt.getTime() < createdAt.getTime()
+          );
+        });
+        if (invalidCursorPurchase) {
+          return err(
+            `purchase-diff 200: invalid change timestamp for purchase ${invalidCursorPurchase.id}`,
+          );
+        }
+        return ok(purchases);
+      } catch (error) {
+        return err(String(error) || "Failed to fetch the purchase diff");
+      }
     },
 
     /**

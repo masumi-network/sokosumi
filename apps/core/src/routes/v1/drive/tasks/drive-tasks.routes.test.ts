@@ -317,6 +317,92 @@ describe("Drive Tasks Routes", () => {
         );
       });
 
+      it("accepts sortBy=name and applies name orderBy", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        prismaTaskFileFindManyMock.mockResolvedValue([
+          {
+            id: "tf_a",
+            name: "alpha.txt",
+            fileUrl: "https://example.com/alpha.txt",
+            size: BigInt(10),
+            mimeType: "text/plain",
+            updatedAt: new Date("2026-03-25T12:00:00.000Z"),
+          },
+          {
+            id: "tf_b",
+            name: "beta.txt",
+            fileUrl: "https://example.com/beta.txt",
+            size: BigInt(10),
+            mimeType: "text/plain",
+            updatedAt: new Date("2026-03-26T12:00:00.000Z"),
+          },
+        ]);
+        prismaTaskFileCountMock.mockResolvedValue(2);
+        prismaTaskFileFindFirstMock.mockResolvedValue({ id: "tf_a" });
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123&sortBy=name&sortOrder=asc",
+        );
+
+        expect(res.status).toBe(200);
+        expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            orderBy: [{ name: "asc" }, { id: "asc" }],
+          }),
+        );
+        const body = await res.json();
+        expect(body.data.map((item: { name: string }) => item.name)).toEqual([
+          "alpha.txt",
+          "beta.txt",
+        ]);
+      });
+
+      it("returns 422 for invalid sortOrder", async () => {
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123&sortOrder=sideways",
+        );
+        expect(res.status).toBe(422);
+      });
+
+      it("applies sortOrder to name tie-break within the same type family", async () => {
+        requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
+
+        prismaTaskFileCountMock.mockResolvedValue(2);
+        prismaTaskFileFindManyMock.mockResolvedValue([
+          {
+            id: "tf_a",
+            name: "alpha.pdf",
+            fileUrl: "https://example.com/alpha.pdf",
+            size: BigInt(10),
+            mimeType: "application/pdf",
+            updatedAt: new Date("2026-03-25T12:00:00.000Z"),
+          },
+          {
+            id: "tf_b",
+            name: "zeta.pdf",
+            fileUrl: "https://example.com/zeta.pdf",
+            size: BigInt(10),
+            mimeType: "application/pdf",
+            updatedAt: new Date("2026-03-25T12:00:00.000Z"),
+          },
+        ]);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&taskId=tsk_123&sortBy=type&sortOrder=desc",
+        );
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.data.map((item: { name: string }) => item.name)).toEqual([
+          "zeta.pdf",
+          "alpha.pdf",
+        ]);
+      });
+
       it("omits PENDING and FAILED TaskFiles from results", async () => {
         requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
 
@@ -682,6 +768,48 @@ describe("Drive Tasks Routes", () => {
         expect(res.status).toBe(200);
         const json = await res.json();
         expect(json.data.length).toBeGreaterThan(0);
+      });
+
+      it("sorts projects by name when sortBy=name", async () => {
+        prismaTaskGroupByMock.mockResolvedValue([
+          { projectId: "prj_z" },
+          { projectId: "prj_a" },
+        ]);
+        prismaProjectFindManyMock.mockResolvedValue([
+          {
+            id: "prj_z",
+            name: "Zebra",
+            tasks: [
+              {
+                files: [{ updatedAt: new Date("2026-03-25T16:00:00.000Z") }],
+                jobs: [],
+              },
+            ],
+          },
+          {
+            id: "prj_a",
+            name: "Alpha",
+            tasks: [
+              {
+                files: [{ updatedAt: new Date("2026-03-25T10:00:00.000Z") }],
+                jobs: [],
+              },
+            ],
+          },
+        ]);
+        prismaTaskCountMock.mockResolvedValue(0);
+
+        const app = createDriveTasksApp();
+        const res = await app.request(
+          "http://localhost/?scope=me&sortBy=name&sortOrder=asc",
+        );
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.data.map((item: { name?: string }) => item.name)).toEqual([
+          "Alpha",
+          "Zebra",
+        ]);
       });
 
       it("paginates combined list correctly", async () => {

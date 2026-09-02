@@ -1,11 +1,17 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 import mountGet from "./get.js";
+
+vi.mock("@/middleware/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/middleware/auth")>();
+  const { stubAuthMiddleware } = await import(
+    "@/test-fixtures/auth-middleware"
+  );
+  return { ...actual, authMiddleware: stubAuthMiddleware };
+});
 
 const {
   workspaceRepositoryMock,
@@ -100,9 +106,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 function createRecentsApp(
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
 ) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables & RequestIdVariables;
-  }>();
+  const app = new OpenAPIHonoWithAuth();
 
   app.onError(errorHandler);
 
@@ -113,7 +117,7 @@ function createRecentsApp(
     await next();
   });
 
-  mountGet(app as unknown as OpenAPIHonoWithAuth);
+  mountGet(app);
   return app;
 }
 
@@ -257,7 +261,7 @@ describe("GET /v1/drive/recents", () => {
   it("requires organizationId for org scope", async () => {
     const app = createRecentsApp();
     const response = await app.request("/?scope=org&limit=20");
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(422);
   });
 
   it("filters drive files and task outputs when q is set", async () => {

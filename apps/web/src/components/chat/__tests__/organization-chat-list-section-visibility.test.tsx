@@ -162,4 +162,27 @@ describe("OrganizationChatList section visibility", () => {
     expect(screen.getByText("App.Channels.External.title")).toBeInTheDocument();
     expect(screen.getByText("Partners")).toBeInTheDocument();
   });
+
+  it("paintOnly keeps section chrome and skips membership refresh", async () => {
+    const channel = makeRoom({
+      id: "general",
+      kind: "channel",
+      myAccess: "member",
+      name: "general",
+    });
+
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [channel],
+      paintOnly: true,
+    });
+
+    expect(screen.getByText("App.Channels.title")).toBeInTheDocument();
+    expect(screen.getByText("general")).toBeInTheDocument();
+    expect(screen.getByText("App.Channels.directMessages")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(listRoomsMock).not.toHaveBeenCalled();
+    });
+  });
 });

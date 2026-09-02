@@ -17,6 +17,7 @@ import {
 } from "@/lib/clients/core.client";
 import {
   type AdminAddMatchedChannelFromOrganizationResult,
+  type AdminArchivedMatchedChannel,
   type AdminMatchedChannelDetail,
   type AdminMatchedChannelOption,
   type AdminMatchedChannelParticipant,
@@ -92,15 +93,33 @@ function toAdminActionError(error: unknown): ActionError {
   return toCoreApiActionError(error);
 }
 
-interface ListMatchedChannelsParameters extends AuthenticatedRequest {}
+interface ListMatchedChannelsParameters extends AuthenticatedRequest {
+  input?: unknown;
+}
+
+const listMatchedChannelsSchema = z.object({
+  status: z.enum(["active", "archived"]).optional(),
+});
 
 export const listAdminMatchedChannelsAction = withSession<
   ListMatchedChannelsParameters,
   ActionResultDto<AdminMatchedChannelOption[], ActionError>
->(async ({ session }) => {
+>(async ({ input, session }) => {
   try {
     assertAdminSession(session);
-    const channels = await adminMatchedChannelsService.listMatchedChannels();
+    const parsed = listMatchedChannelsSchema.safeParse(input ?? {});
+    if (!parsed.success) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid matched channel list input",
+        }),
+      );
+    }
+
+    const channels = await adminMatchedChannelsService.listMatchedChannels(
+      parsed.data.status ? { status: parsed.data.status } : undefined,
+    );
     return toActionResult(ok(channels));
   } catch (error) {
     return toActionResult(err(toAdminActionError(error)));
@@ -281,6 +300,106 @@ export const removeAdminMatchedChannelParticipantAction = withSession<
     );
     revalidateMatchedChannelRoutes(parsed.data.roomId);
     return toActionResult(ok(removed));
+  } catch (error) {
+    return toActionResult(err(toAdminActionError(error)));
+  }
+});
+
+const archiveMatchedChannelSchema = z.object({
+  roomId: roomIdSchema,
+});
+
+interface ArchiveMatchedChannelParameters extends AuthenticatedRequest {
+  input: unknown;
+}
+
+export const archiveAdminMatchedChannelAction = withSession<
+  ArchiveMatchedChannelParameters,
+  ActionResultDto<AdminArchivedMatchedChannel, ActionError>
+>(async ({ input, session }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = archiveMatchedChannelSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid matched channel archive input",
+        }),
+      );
+    }
+
+    const archived = await adminMatchedChannelsService.archiveMatchedChannel(
+      parsed.data.roomId,
+    );
+    revalidateMatchedChannelRoutes(parsed.data.roomId);
+    return toActionResult(ok(archived));
+  } catch (error) {
+    return toActionResult(err(toAdminActionError(error)));
+  }
+});
+
+const restoreMatchedChannelSchema = z.object({
+  roomId: roomIdSchema,
+});
+
+interface RestoreMatchedChannelParameters extends AuthenticatedRequest {
+  input: unknown;
+}
+
+export const restoreAdminMatchedChannelAction = withSession<
+  RestoreMatchedChannelParameters,
+  ActionResultDto<AdminMatchedChannelOption, ActionError>
+>(async ({ input, session }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = restoreMatchedChannelSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid matched channel restore input",
+        }),
+      );
+    }
+
+    const restored = await adminMatchedChannelsService.restoreMatchedChannel(
+      parsed.data.roomId,
+    );
+    revalidateMatchedChannelRoutes(parsed.data.roomId);
+    return toActionResult(ok(restored));
+  } catch (error) {
+    return toActionResult(err(toAdminActionError(error)));
+  }
+});
+
+const deleteMatchedChannelSchema = z.object({
+  roomId: roomIdSchema,
+});
+
+interface DeleteMatchedChannelParameters extends AuthenticatedRequest {
+  input: unknown;
+}
+
+export const deleteAdminMatchedChannelAction = withSession<
+  DeleteMatchedChannelParameters,
+  ActionResultDto<void, ActionError>
+>(async ({ input, session }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = deleteMatchedChannelSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid matched channel delete input",
+        }),
+      );
+    }
+
+    await adminMatchedChannelsService.deleteMatchedChannel(parsed.data.roomId);
+    revalidateMatchedChannelRoutes(parsed.data.roomId);
+    return toActionResult(ok(undefined));
   } catch (error) {
     return toActionResult(err(toAdminActionError(error)));
   }
