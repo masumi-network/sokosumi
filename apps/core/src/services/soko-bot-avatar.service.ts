@@ -411,10 +411,6 @@ export async function claimAvatar(
       where: { id: sokoBotId },
       data: { avatarImageUrl: avatar.imageUrl },
     });
-    await tx.coworker.updateMany({
-      where: { sokoBotId },
-      data: { image: avatar.imageUrl },
-    });
     return avatar.imageUrl;
   };
   return outerTx ? run(outerTx) : prisma.$transaction(run);
