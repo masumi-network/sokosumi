@@ -15,6 +15,7 @@ const {
   botCreateMock,
   botFindFirstMock,
   botFindManyMock,
+  botGroupByMock,
   botFindUniqueMock,
   botFindUniqueOrThrowMock,
   botCountMock,
@@ -63,6 +64,7 @@ const {
   botCreateMock: vi.fn(),
   botFindFirstMock: vi.fn(),
   botFindManyMock: vi.fn(),
+  botGroupByMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   botFindUniqueOrThrowMock: vi.fn(),
   botCountMock: vi.fn(),
@@ -136,6 +138,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: botFindManyMock,
       findUnique: botFindUniqueMock,
       findUniqueOrThrow: botFindUniqueOrThrowMock,
+      groupBy: botGroupByMock,
       update: botUpdateMock,
     },
     sokoBotTurn: {
@@ -206,6 +209,7 @@ function adminBot(overrides: Record<string, unknown> = {}) {
     eveSessionId: null,
     memoryVersion: 1,
     runtimeVersion: "eve-test",
+    versionId: null as string | null,
     turns: [],
     ...overrides,
   };
@@ -2698,5 +2702,181 @@ describe("SokoBotControlPlane lifecycle", () => {
         data: expect.objectContaining({ status: "CANCELLED" }),
       }),
     );
+  });
+});
+
+describe("SET_VERSION and fleet migration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({
+      disabled: false,
+      disabledAt: null,
+      disabledReason: null,
+    });
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_CLASSIFIER_MODE: "rules",
+      SOKO_BOT_ENABLED: true,
+    });
+    adminActionCreateMock.mockResolvedValue({});
+    adminActionFindFirstMock.mockResolvedValue(null);
+    adminActionFindUniqueMock.mockResolvedValue(null);
+    transactionQueryRawMock.mockResolvedValue([{ id: BOT_ID }]);
+    transactionMock.mockImplementation(
+      async (callback: (tx: ReturnType<typeof transactionClient>) => unknown) =>
+        callback(transactionClient()),
+    );
+  });
+
+  it("moves one bot and records where it came from", async () => {
+    let state = adminBot({ versionId: "v14" });
+    botFindUniqueMock.mockImplementation(async () => state);
+    botUpdateMock.mockImplementation(async ({ data }) => {
+      state = { ...state, ...data };
+      return state;
+    });
+
+    await new SokoBotControlPlane().performAdminAction({
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "SET_VERSION",
+      versionId: "v16",
+      reason: "Fleet is two versions behind",
+      operationId: "fleet-v16",
+    });
+
+    expect(state.versionId).toBe("v16");
+    // Nothing else on the snapshot changes, so without the version on it the
+    // audit row would record a move from and to the same apparent state.
+    const audit = adminActionCreateMock.mock.calls.at(-1)?.[0]?.data;
+    expect(audit).toMatchObject({ status: "SUCCEEDED", targetId: "v16" });
+    expect(audit.before).toMatchObject({ versionId: "v14" });
+    expect(audit.after).toMatchObject({ versionId: "v16" });
+  });
+
+  it("refuses an unknown version before it writes an intent", async () => {
+    // An ATTEMPTED row for a version that does not exist is an outbox entry
+    // no retry could ever complete.
+    botFindUniqueMock.mockResolvedValue(adminBot({ versionId: "v14" }));
+    authoredVersionFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      new SokoBotControlPlane().performAdminAction({
+        sokoBotId: BOT_ID,
+        operatorId: "admin_1",
+        action: "SET_VERSION",
+        versionId: "v99-does-not-exist",
+        reason: "Typo",
+        operationId: "fleet-typo",
+      }),
+    ).rejects.toThrow(/Unknown Soko Bot version/);
+    expect(adminActionCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("skips bots already on the version and keeps going past a failure", async () => {
+    const stuck = "01960001-0001-7001-8001-0000000000ff";
+    botFindManyMock.mockResolvedValue([
+      { id: BOT_ID, versionId: "v14" },
+      { id: "01960001-0001-7001-8001-0000000000aa", versionId: "v16" },
+      { id: stuck, versionId: "v15" },
+    ]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      where.id === stuck ? null : adminBot({ id: where.id, versionId: "v14" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v16",
+      reason: "Bring the fleet onto the current prompt",
+    });
+
+    // One bot that cannot be moved must not strand the other thirty.
+    expect(result).toMatchObject({
+      total: 3,
+      moved: 1,
+      alreadyOnVersion: 1,
+      failed: 1,
+    });
+    expect(result.failures[0]?.sokoBotId).toBe(stuck);
+  });
+
+  it("gives each bot its own operation id, fresh on every run", async () => {
+    // Two rows per bot — the ATTEMPTED intent and the SUCCEEDED outcome —
+    // sharing that bot's key, and a different key per bot. Fresh per run
+    // matters more than stable: a bot that failed last time has a recorded
+    // FAILED outcome, and reusing its key would replay that failure forever
+    // instead of trying the bot again.
+    botFindManyMock.mockResolvedValue([
+      { id: BOT_ID, versionId: "v14" },
+      { id: "01960001-0001-7001-8001-0000000000aa", versionId: "v14" },
+    ]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v14" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+
+    const migrate = () =>
+      new SokoBotControlPlane().migrateVersions({
+        operatorId: "admin_1",
+        toVersionId: "v16",
+        reason: "Bring the fleet onto the current prompt",
+      });
+
+    await migrate();
+    const firstRun = adminActionCreateMock.mock.calls.map(
+      (call) => call[0].data.operationId,
+    );
+    adminActionCreateMock.mockClear();
+    await migrate();
+    const secondRun = adminActionCreateMock.mock.calls.map(
+      (call) => call[0].data.operationId,
+    );
+
+    expect(new Set(firstRun).size).toBe(2);
+    expect(new Set(secondRun).size).toBe(2);
+    for (const key of secondRun) {
+      expect(firstRun).not.toContain(key);
+    }
+  });
+
+  it("counts every failure but only names a bounded sample", async () => {
+    // The response schema caps the list. Without the cap here, a run where
+    // everything failed would throw while parsing its own result, after the
+    // bots it did move were already committed.
+    const bots = Array.from({ length: 150 }, (_, index) => ({
+      id: `01960001-0001-7001-8001-${String(index).padStart(12, "0")}`,
+      versionId: "v14",
+    }));
+    botFindManyMock.mockResolvedValue(bots);
+    botFindUniqueMock.mockResolvedValue(null);
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v16",
+      reason: "Bring the fleet onto the current prompt",
+    });
+
+    expect(result.failed).toBe(150);
+    expect(result.failures).toHaveLength(100);
+  });
+
+  it("counts versions across the fleet, not one page of it", async () => {
+    botGroupByMock.mockResolvedValue([
+      { versionId: "v14", _count: { _all: 12 } },
+      { versionId: "v16", _count: { _all: 19 } },
+      { versionId: null, _count: { _all: 3 } },
+    ]);
+
+    // Most bots first, and a bot with no pinned version is not a version.
+    expect(await new SokoBotControlPlane().versionUsage()).toEqual([
+      { versionId: "v16", count: 19 },
+      { versionId: "v14", count: 12 },
+    ]);
   });
 });
