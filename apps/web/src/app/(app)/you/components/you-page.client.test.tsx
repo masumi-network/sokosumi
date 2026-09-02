@@ -222,11 +222,13 @@ describe("YouPageClient", () => {
     expect(screen.getByTestId("you-logout")).toBeInTheDocument();
   });
 
-  it("uses the destructive button variant and the logout confirmation flow", () => {
+  it("uses a plain link style and the logout confirmation flow", () => {
     renderYouPage();
 
     const logout = screen.getByTestId("you-logout");
-    expect(logout.className).toContain("bg-destructive");
+    expect(logout.className).not.toContain("bg-destructive");
+    expect(logout.className).toContain("px-0");
+    expect(logout.className).toContain("justify-center");
 
     fireEvent.click(logout);
 
