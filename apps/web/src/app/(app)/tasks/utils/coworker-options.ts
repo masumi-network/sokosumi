@@ -124,7 +124,7 @@ export function resolveTaskAssigneeFields(
   if (selected?.kind === "orchestrator") {
     return { assigneeId: null, assigneeOrchestratorId: selectedId };
   }
-  if (selected?.kind === "coworker") {
+  if (selected) {
     return { assigneeId: selectedId, assigneeOrchestratorId: null };
   }
 

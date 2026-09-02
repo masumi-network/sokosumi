@@ -174,6 +174,15 @@ describe("owner orchestrator option", () => {
     });
   });
 
+  it("treats options without kind as marketplace coworkers", () => {
+    expect(
+      resolveTaskAssigneeFields("coworker-2", [{ id: "coworker-2" }]),
+    ).toEqual({
+      assigneeId: "coworker-2",
+      assigneeOrchestratorId: null,
+    });
+  });
+
   it("does not treat an unknown selected id as a coworker", () => {
     const options = withOwnerOrchestratorOption(
       getCoworkerOptions([baseCoworker()]),
