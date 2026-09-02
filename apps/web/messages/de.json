@@ -4368,6 +4368,37 @@
           "disabled": "Soko Bot deaktiviert.",
           "enabled": "Soko Bot aktiviert.",
           "error": "Der Funktionsschalter konnte nicht geändert werden."
+        },
+        "Version": {
+          "title": "Agent-Version",
+          "description": "Eine Version zu befördern ändert nur, worauf neue Bots erstellt werden. Dies verschiebt diesen Bot.",
+          "versionLabel": "Verschieben auf",
+          "defaultOption": "{name} (Standard für neue Bots)",
+          "current": "Läuft derzeit auf {version}.",
+          "currentUnset": "Keine Version festgelegt; dieser Bot läuft auf dem eingebauten Standard.",
+          "reasonLabel": "Grund",
+          "reasonPlaceholder": "Warum verschieben Sie diesen Bot? (erforderlich, wird im Audit-Log festgehalten)",
+          "confirm": "Diesen Bot verschieben",
+          "working": "Wird verschoben…",
+          "done": "Auf {version} verschoben.",
+          "error": "Dieser Bot konnte nicht verschoben werden."
+        },
+        "Migration": {
+          "title": "Bots zwischen Versionen verschieben",
+          "description": "Eine Beförderung bestimmt, worauf neue Bots erstellt werden, und lässt bestehende unverändert. Jeder hier verschobene Bot erhält einen eigenen Audit-Eintrag.",
+          "fromLabel": "Bots derzeit auf",
+          "everyBot": "Alle Bots",
+          "inUseOption": "{version} ({count} Bots)",
+          "toLabel": "Verschieben auf",
+          "defaultOption": "{name} (Standard für neue Bots)",
+          "reasonLabel": "Grund",
+          "reasonPlaceholder": "Warum verschieben Sie die Flotte? (erforderlich, wird für jeden Bot festgehalten)",
+          "confirm": "{count} Bots verschieben",
+          "nothingToMove": "Für diese Auswahl gibt es nichts zu verschieben.",
+          "working": "Wird verschoben…",
+          "done": "{moved} Bots verschoben.",
+          "result": "Verschoben: {moved}. Bereits auf dieser Version: {alreadyOnVersion}. Nicht verschiebbar: {failed}.",
+          "error": "Diese Bots konnten nicht verschoben werden."
         }
       },
       "MatchedChannels": {

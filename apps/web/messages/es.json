@@ -4368,6 +4368,37 @@
           "disabled": "Soko Bot desactivado.",
           "enabled": "Soko Bot activado.",
           "error": "No se pudo cambiar el interruptor."
+        },
+        "Version": {
+          "title": "Versión del agente",
+          "description": "Promover una versión solo cambia con qué versión se crean los bots nuevos. Esto mueve este bot.",
+          "versionLabel": "Mover a",
+          "defaultOption": "{name} (predeterminada para bots nuevos)",
+          "current": "Actualmente en {version}.",
+          "currentUnset": "Sin versión fijada; este bot usa la predeterminada integrada.",
+          "reasonLabel": "Motivo",
+          "reasonPlaceholder": "¿Por qué mueve este bot? (obligatorio, queda en el registro de auditoría)",
+          "confirm": "Mover este bot",
+          "working": "Moviendo…",
+          "done": "Movido a {version}.",
+          "error": "No se pudo mover este bot."
+        },
+        "Migration": {
+          "title": "Mover bots entre versiones",
+          "description": "La promoción decide con qué versión se crean los bots nuevos y deja los existentes donde están. Cada bot movido aquí recibe su propia entrada de auditoría.",
+          "fromLabel": "Bots actualmente en",
+          "everyBot": "Todos los bots",
+          "inUseOption": "{version} ({count} bots)",
+          "toLabel": "Mover a",
+          "defaultOption": "{name} (predeterminada para bots nuevos)",
+          "reasonLabel": "Motivo",
+          "reasonPlaceholder": "¿Por qué mueve la flota? (obligatorio, queda registrado para cada bot)",
+          "confirm": "Mover {count} bots",
+          "nothingToMove": "No hay nada que mover con esta selección.",
+          "working": "Moviendo…",
+          "done": "{moved} bots movidos.",
+          "result": "Movidos: {moved}. Ya en esta versión: {alreadyOnVersion}. No se pudieron mover: {failed}.",
+          "error": "No se pudieron mover estos bots."
         }
       },
       "MatchedChannels": {
