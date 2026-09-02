@@ -15,7 +15,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactElement, useState } from "react";
-import HeaderWorkspaceSwitch from "@/app/components/header/header-workspace-switch.client";
 import { AccountPopoverDrill } from "@/app/components/sidebar/components/account-popover-drill.client";
 import {
   isLowCreditsBalance,
@@ -27,7 +26,6 @@ import type {
   AccountPopoverPanel,
   AccountSummaryCreditProps,
 } from "@/app/components/sidebar/components/account-summary-types";
-import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { openConsentPreferences } from "@/components/analytics/cookie-banner";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
@@ -35,8 +33,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useSelfPresence } from "@/hooks/use-self-presence";
-import { useSession } from "@/lib/auth/auth.client";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getInitials } from "@/lib/utils/text";
@@ -49,18 +45,12 @@ const CALENDAR_HREF = "/calendar";
 
 export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
-  members: MemberWithOrganization[];
-  hasPersonalWorkspace: boolean;
-  activeOrganizationId: string | null;
   calendarMenuEnabled: boolean;
   adminSettingsChrome: AccountAdminSettingsChrome;
 }
 
 export function YouPageClient({
   sessionUser,
-  members,
-  hasPersonalWorkspace,
-  activeOrganizationId: serverActiveOrganizationId,
   calendarMenuEnabled,
   planName,
   totalCredits,
@@ -81,22 +71,8 @@ export function YouPageClient({
   const { showLogoutModal } = useGlobalModalsContext();
   const router = useRouter();
   const presence = useSelfPresence();
-  const { data: clientSession } = useSession();
-  const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
   const [panel, setPanel] = useState<AccountPopoverPanel>({ kind: "root" });
   const [slideFrom, setSlideFrom] = useState<"right" | "left" | null>(null);
-
-  const clientActiveOrganizationId =
-    clientSession?.session.activeOrganizationId;
-  const hasClientActiveOrganization = clientActiveOrganizationId !== undefined;
-
-  const liveActiveOrganizationId = hasClientActiveOrganization
-    ? clientActiveOrganizationId
-    : serverActiveOrganizationId;
-
-  const activeOrganizationId = isPending
-    ? serverActiveOrganizationId
-    : liveActiveOrganizationId;
 
   const displayName = resolveAccountDisplayName(
     sessionUser.name,
@@ -199,52 +175,38 @@ export function YouPageClient({
           "space-y-6",
           slideFrom === "left" &&
             "animate-in fade-in slide-in-from-left-4 duration-200",
-          isPending && "pointer-events-none animate-pulse opacity-60",
         )}
       >
-        <header className="space-y-4">
-          <YouMenuGroup>
-            <HeaderWorkspaceSwitch
-              sessionUser={sessionUser}
-              members={members}
-              hasPersonalWorkspace={hasPersonalWorkspace}
-              activeOrganizationId={activeOrganizationId}
-              isPending={isPending}
-              onSelectWorkspace={handleSelectWorkspace}
-              layout="row"
-            />
-          </YouMenuGroup>
-          <div className="flex items-start gap-4">
-            <YouPageAvatar
-              sessionUser={sessionUser}
-              displayName={displayName}
-            />
-            <div className="min-w-0 flex-1 space-y-1">
-              <h1 className="truncate text-xl leading-tight font-semibold">
-                {displayName}
-              </h1>
-              <p className="text-muted-foreground truncate text-sm">
-                {sessionUser.email}
-              </p>
+        <header className="flex items-start gap-4">
+          <YouPageAvatar sessionUser={sessionUser} displayName={displayName} />
+          <div className="min-w-0 flex-1 space-y-1">
+            <h1 className="truncate text-xl leading-tight font-semibold">
+              {displayName}
+            </h1>
+            <p className="text-muted-foreground truncate text-sm">
+              {sessionUser.email}
+            </p>
+            <div
+              className="flex items-center justify-between gap-2 pt-1"
+              data-testid="you-status-plan"
+            >
+              <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <span aria-hidden="true">
+                  <PresenceDot
+                    presence={presence}
+                    label={presenceLabel}
+                    className="size-2 border-0"
+                  />
+                </span>
+                {presenceLabel}
+              </span>
+              {planName !== null ? (
+                <span className="bg-muted rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
+                  <span className="sr-only">{`${t("planLabel")}: `}</span>
+                  {planName}
+                </span>
+              ) : null}
             </div>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <span aria-hidden="true">
-                <PresenceDot
-                  presence={presence}
-                  label={presenceLabel}
-                  className="size-2 border-0"
-                />
-              </span>
-              {presenceLabel}
-            </span>
-            {planName !== null ? (
-              <span className="bg-muted rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
-                <span className="sr-only">{`${t("planLabel")}: `}</span>
-                {planName}
-              </span>
-            ) : null}
           </div>
         </header>
 

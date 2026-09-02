@@ -43,7 +43,6 @@ interface HeaderWorkspaceSwitchProps {
   activeOrganizationId: string | null;
   isPending: boolean;
   onSelectWorkspace: (workspaceId: string | null) => void | Promise<void>;
-  layout?: "chip" | "row";
 }
 
 interface WorkspaceItem {
@@ -127,9 +126,7 @@ export default function HeaderWorkspaceSwitch({
   activeOrganizationId,
   isPending,
   onSelectWorkspace,
-  layout = "chip",
 }: HeaderWorkspaceSwitchProps) {
-  const isRowLayout = layout === "row";
   const tOrganizationSwitcher = useTranslations(
     "Components.OrganizationSwitcher",
   );
@@ -253,12 +250,7 @@ export default function HeaderWorkspaceSwitch({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className={cn(
-              "text-foreground flex min-w-0 items-center text-sm transition-opacity",
-              isRowLayout
-                ? "hover:bg-accent h-11 w-full gap-2 px-3 font-normal md:h-10"
-                : "h-8 hover:opacity-80 md:h-auto",
-            )}
+            className="text-foreground hover:opacity-80 flex h-8 min-w-0 items-center text-sm transition-opacity md:h-auto"
             disabled={isPending}
             aria-busy={!activeWorkspace}
             aria-label={
@@ -266,83 +258,39 @@ export default function HeaderWorkspaceSwitch({
                 ? undefined
                 : tOrganizationSwitcher("switchWorkspace")
             }
-            data-testid={isRowLayout ? "you-workspace-switch" : undefined}
           >
-            <div
-              className={cn(
-                "grid min-w-0 items-center gap-x-1.5",
-                isRowLayout
-                  ? "w-full grid-cols-[auto_minmax(0,1fr)_auto]"
-                  : "grid-cols-[minmax(0,1fr)_auto_auto]",
-              )}
-            >
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1.5">
               {activeWorkspace ? (
                 <>
-                  {isRowLayout ? (
-                    <HeaderWorkspaceAvatar
-                      sessionUser={sessionUser}
-                      organization={activeWorkspace.organization ?? null}
-                      className="size-4 shrink-0"
-                      logoSize={12}
-                      decorative
-                    />
-                  ) : null}
-                  <span
-                    className={cn(
-                      "truncate font-medium",
-                      isRowLayout
-                        ? "min-w-0 text-left leading-tight"
-                        : "max-w-24 text-right leading-none md:max-w-none md:leading-tight",
-                    )}
-                  >
+                  <span className="max-w-24 truncate text-right leading-none font-medium md:max-w-none md:leading-tight">
                     {activeWorkspace.name}
                   </span>
-                  {isRowLayout ? null : (
-                    <HeaderWorkspaceAvatar
-                      sessionUser={sessionUser}
-                      organization={activeWorkspace.organization ?? null}
-                      className="size-4 shrink-0"
-                      logoSize={12}
-                      decorative
-                    />
-                  )}
+                  <HeaderWorkspaceAvatar
+                    sessionUser={sessionUser}
+                    organization={activeWorkspace.organization ?? null}
+                    className="size-4 shrink-0"
+                    logoSize={12}
+                    decorative
+                  />
                 </>
               ) : (
                 <span
                   data-testid="workspace-switcher-skeleton"
-                  className={cn(
-                    "col-span-2 flex items-center gap-1.5",
-                    isRowLayout ? "justify-start" : "justify-end",
-                  )}
+                  className="col-span-2 flex items-center justify-end gap-1.5"
                   aria-hidden
                 >
-                  {isRowLayout ? (
-                    <span className="bg-muted size-4 shrink-0 animate-pulse rounded-full" />
-                  ) : null}
                   <span className="bg-muted h-3 w-20 animate-pulse rounded-md" />
-                  {isRowLayout ? null : (
-                    <span className="bg-muted size-4 shrink-0 animate-pulse rounded-full" />
-                  )}
+                  <span className="bg-muted size-4 shrink-0 animate-pulse rounded-full" />
                 </span>
               )}
-              <ChevronsUpDown
-                className={cn(
-                  "text-muted-foreground size-4 shrink-0 self-center",
-                  !isRowLayout && "md:row-span-2 md:size-4.5",
-                )}
-              />
-              {isRowLayout ? null : (
-                <span className="text-muted-foreground col-span-2 col-start-1 max-md:hidden max-w-full truncate text-right text-xs leading-tight">
-                  {sessionUser.email}
-                </span>
-              )}
+              <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 self-center md:row-span-2 md:size-4.5" />
+              <span className="text-muted-foreground col-span-2 col-start-1 max-md:hidden max-w-full truncate text-right text-xs leading-tight">
+                {sessionUser.email}
+              </span>
             </div>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          className="w-72"
-          align={isRowLayout ? "start" : "end"}
-        >
+        <DropdownMenuContent className="w-72" align="end">
           {hasPersonalWorkspace ? (
             <WorkspaceMenuItem
               sessionUser={sessionUser}
