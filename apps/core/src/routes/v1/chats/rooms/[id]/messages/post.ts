@@ -5,10 +5,7 @@ import {
   shouldEmitChatDirectMessageNotifications,
 } from "@/helpers/chat-direct-message-notifications";
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
-import {
-  emitChatRoomMessageNotifications,
-  shouldEmitChatRoomMessageNotifications,
-} from "@/helpers/chat-room-message-notifications";
+import { emitChatRoomMessageNotifications } from "@/helpers/chat-room-message-notifications";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -177,18 +174,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      if (shouldEmitChatRoomMessageNotifications({ kind: room.kind })) {
-        waitUntil(
-          emitChatRoomMessageNotifications({
-            roomId: room.id,
-            roomName: room.name,
-            organizationId: room.organizationId,
-            messageId: message.id,
-            authorUserId: null,
-            authorName: message.senderCoworker?.name ?? "Someone",
-          }),
-        );
-      }
+      waitUntil(
+        emitChatRoomMessageNotifications({
+          roomId: room.id,
+          roomName: room.name,
+          roomKind: room.kind,
+          organizationId: room.organizationId,
+          messageId: message.id,
+          authorUserId: null,
+          authorName: message.senderCoworker?.name ?? "Someone",
+        }),
+      );
 
       return created(
         c,
@@ -508,19 +504,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      if (shouldEmitChatRoomMessageNotifications({ kind: room.kind })) {
-        waitUntil(
-          emitChatRoomMessageNotifications({
-            roomId: room.id,
-            roomName: room.name,
-            organizationId: room.organizationId,
-            messageId: message.id,
-            authorUserId: userContext.userId,
-            authorName: message.senderUser?.name ?? "Someone",
-            excludeUserIds: mentionedUserIds,
-          }),
-        );
-      }
+      waitUntil(
+        emitChatRoomMessageNotifications({
+          roomId: room.id,
+          roomName: room.name,
+          roomKind: room.kind,
+          organizationId: room.organizationId,
+          messageId: message.id,
+          authorUserId: userContext.userId,
+          authorName: message.senderUser?.name ?? "Someone",
+          // Read inside the write transaction, so the roster is the one the
+          // message was posted against.
+          memberUserIds: room.memberUserIds,
+          mentionedUserIds,
+        }),
+      );
 
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
     }
