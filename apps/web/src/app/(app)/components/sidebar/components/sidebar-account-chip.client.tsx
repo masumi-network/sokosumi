@@ -44,8 +44,8 @@ export interface SidebarAccountChipProps
 }
 
 /**
- * Desktop sidebar account/credits control. Mobile uses the header account
- * control instead (`HeaderAccountControl`), so this returns null on mobile.
+ * Desktop sidebar account/credits control. Mobile uses the You tab/page
+ * for account actions, so this returns null on mobile.
  *
  * Open state lives in the desktop-only child so mobile unmount drops it and
  * remount on desktop starts closed (no local-state reset Effect).
