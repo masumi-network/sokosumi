@@ -236,7 +236,14 @@ export function ChatParticipantHoverCard({
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
               <p className="truncate text-sm font-semibold">{profile.name}</p>
-              {isAi ? <AiCoworkerIcon className="size-3.5 shrink-0" /> : null}
+              {isAi ? (
+                <AiCoworkerIcon
+                  className="size-3.5 shrink-0"
+                  label={
+                    isOrchestrator ? t("personalAssistantBadge") : undefined
+                  }
+                />
+              ) : null}
             </div>
             <p className="text-muted-foreground text-xs font-medium">
               {kindLabel}

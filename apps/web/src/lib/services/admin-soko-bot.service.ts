@@ -6,6 +6,9 @@ import type {
   AdminSokoBotDetail,
   AdminSokoBotList,
   AdminSokoBotQuality,
+  AdminSokoBotVersionMigrationRequest,
+  AdminSokoBotVersionMigrationResult,
+  AdminSokoBotVersionUsage,
   SokoBotGatewayModelList,
   SokoBotVersionDetail,
   SokoBotVersionList,
@@ -94,6 +97,28 @@ export const adminSokoBotService = {
 
   async promoteVersion(slug: string): Promise<{ defaultVersionId: string }> {
     const response = await coreClient.promoteAdminSokoBotVersion(slug);
+    return response.data;
+  },
+
+  /**
+   * What the whole fleet runs, counted in Core. The fleet page holds one page
+   * of bots, so counting there would promise a migration far smaller than the
+   * one Core performs.
+   */
+  async versionUsage(): Promise<AdminSokoBotVersionUsage> {
+    const response = await coreClient.getAdminSokoBotVersionUsage();
+    return response.data;
+  },
+
+  /**
+   * Moves existing bots. Promotion only decides what new ones are created on,
+   * so without this the fleet stays where it was however often a version is
+   * promoted.
+   */
+  async migrateVersions(
+    input: AdminSokoBotVersionMigrationRequest,
+  ): Promise<AdminSokoBotVersionMigrationResult> {
+    const response = await coreClient.migrateAdminSokoBotVersions(input);
     return response.data;
   },
 

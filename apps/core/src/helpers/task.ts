@@ -622,6 +622,48 @@ function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
   );
 }
 
+function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
+  if (task.assigneeOrchestratorId != null) {
+    const orchestrator = orchestratorSummaryFromLoadedRelation(
+      `Task ${task.id}`,
+      task.assigneeOrchestratorId,
+      task.assigneeOrchestrator ?? null,
+    );
+    if (orchestrator == null) {
+      throw new Error(
+        `Task ${task.id}: assignee orchestrator summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "orchestrator" as const,
+      id: task.assigneeOrchestratorId,
+      orchestrator,
+    };
+  }
+
+  if (task.assigneeId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `Task ${task.id}`,
+      task.assigneeId,
+      task.assignee ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `Task ${task.id}: assignee coworker summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "coworker" as const,
+      id: task.assigneeId,
+      coworker,
+    };
+  }
+
+  return null;
+}
+
 function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
@@ -635,30 +677,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.owner,
   );
 
-  const marketplaceAssignee = coworkerSummaryFromLoadedRelation(
-    `Task ${task.id}`,
-    task.assigneeId,
-    task.assignee ?? null,
-  );
-  const orchestratorAssignee = orchestratorSummaryFromLoadedRelation(
-    `Task ${task.id}`,
-    task.assigneeOrchestratorId,
-    task.assigneeOrchestrator ?? null,
-  );
-  const assignee = orchestratorAssignee
-    ? {
-        type: "orchestrator" as const,
-        id: task.assigneeOrchestratorId as string,
-        orchestrator: orchestratorAssignee,
-      }
-    : marketplaceAssignee
-      ? {
-          type: "coworker" as const,
-          id: task.assigneeId as string,
-          coworker: marketplaceAssignee,
-        }
-      : null;
-
+  const assignee = mapTaskAssignee(task);
   const creator = mapTaskCreator(task);
 
   return {
@@ -677,7 +696,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     assigneeOrchestratorId: task.assigneeOrchestratorId ?? null,
     assignee,
     coworkerId: task.assigneeId,
-    coworker: marketplaceAssignee,
+    coworker: assignee?.type === "coworker" ? assignee.coworker : null,
     creator,
     // Deprecated aliases for legacy orchestrator-created tasks.
     orchestratorId: creator.type === "orchestrator" ? creator.id : null,

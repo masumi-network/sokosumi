@@ -140,6 +140,7 @@ interface TaskFormInitialValues {
   name?: string;
   description?: string;
   assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
   metadata?: string | null;
@@ -250,6 +251,14 @@ export function TaskForm({
       ""
     );
   }, [coworkerOptions, initialValues?.assigneeId]);
+
+  const knownOrchestratorId = useMemo(
+    () =>
+      coworkerOptions.find((option) => option.kind === "orchestrator")?.id ??
+      initialValues?.assigneeOrchestratorId ??
+      null,
+    [coworkerOptions, initialValues?.assigneeOrchestratorId],
+  );
 
   const coworkerTouchedRef = useRef(false);
   const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
@@ -460,7 +469,11 @@ export function TaskForm({
           const createTaskHandler = onCreateTask ?? createTask;
           const result = await createTaskHandler({
             description: trimmedDescription,
-            ...resolveTaskAssigneeFields(assigneeId, coworkerOptions),
+            ...resolveTaskAssigneeFields(
+              assigneeId,
+              coworkerOptions,
+              knownOrchestratorId,
+            ),
             context: {
               brand: {
                 enabled: contextSelection.brand.enabled,
@@ -527,7 +540,11 @@ export function TaskForm({
           taskId,
           name: trimmedName,
           description: trimmedDescription,
-          ...resolveTaskAssigneeFields(assigneeId, coworkerOptions),
+          ...resolveTaskAssigneeFields(
+            assigneeId,
+            coworkerOptions,
+            knownOrchestratorId,
+          ),
           ...(shouldShowProjectSelect ? { projectId } : {}),
           currentStatus: originalStatus,
           desiredStatus,
@@ -562,6 +579,7 @@ export function TaskForm({
       name,
       assigneeId,
       coworkerOptions,
+      knownOrchestratorId,
       projectId,
       shouldShowProjectSelect,
       originalStatus,

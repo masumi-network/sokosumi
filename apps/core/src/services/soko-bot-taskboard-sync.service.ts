@@ -81,12 +81,17 @@ interface TaskUpdate {
 function actorLabel(event: {
   userId: string | null;
   coworkerId: string | null;
+  orchestratorId: string | null;
   user: { name: string | null } | null;
   coworker: { name: string | null } | null;
+  orchestrator: { name: string | null } | null;
 }): string {
   if (event.userId) return event.user?.name?.trim() || "a teammate";
   if (event.coworkerId)
     return `Coworker ${event.coworker?.name?.trim() || ""}`.trim();
+  if (event.orchestratorId) {
+    return event.orchestrator?.name?.trim() || "a personal assistant";
+  }
   return "the system";
 }
 
@@ -285,8 +290,10 @@ export class SokoBotTaskboardSyncService {
           comment: true,
           userId: true,
           coworkerId: true,
+          orchestratorId: true,
           user: { select: { name: true } },
           coworker: { select: { name: true } },
+          orchestrator: { select: { name: true } },
         },
       });
       const alreadyHandedOver =

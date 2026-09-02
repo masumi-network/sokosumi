@@ -618,7 +618,7 @@ export function getDirectRoomParticipants(
 
 /**
  * Coworker 1:1 DM — room stream owns the assistant reply (not mention POST).
- * Matches Core skip-mention: exactly one user + one coworker.
+ * Matches Core skip-mention: exactly one user + one coworker, no orchestrator.
  */
 export function isCoworkerOnlyDirectRoom(room: {
   kind: string;
@@ -627,11 +627,13 @@ export function isCoworkerOnlyDirectRoom(room: {
     id?: string;
     coworkerId?: string;
   }[];
+  orchestratorMembers?: { id?: string; orchestratorId?: string }[];
 }): boolean {
   return (
     room.kind === "direct" &&
     room.coworkerMembers.length === 1 &&
-    room.userMembers.length === 1
+    room.userMembers.length === 1 &&
+    (room.orchestratorMembers?.length ?? 0) === 0
   );
 }
 
@@ -643,6 +645,7 @@ export function shouldUseCoworkerRoomStream(room: {
   kind: string;
   userMembers: { id?: string; userId?: string }[];
   coworkerMembers: { id?: string; coworkerId?: string }[];
+  orchestratorMembers?: { id?: string; orchestratorId?: string }[];
 }): boolean {
   return isCoworkerOnlyDirectRoom(room);
 }

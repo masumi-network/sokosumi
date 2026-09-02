@@ -57,6 +57,19 @@ describe("agent.service", () => {
     expect(result).toEqual([cardanoAgent]);
   });
 
+  it("returns no mention agents when the catalog fetch fails", async () => {
+    getAllCoreAgentsMock.mockRejectedValue(new Error("fetch failed"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const { agentService } = await import("./agent.service");
+    await expect(
+      agentService.getAvailableAgentsWithCreditsPrice(),
+    ).resolves.toEqual([]);
+
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it("returns null for an unavailable agent by id (core 404)", async () => {
     getCoreAgentByIdMock.mockResolvedValue(null);
 

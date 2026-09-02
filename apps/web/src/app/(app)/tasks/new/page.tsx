@@ -19,7 +19,9 @@ export const metadata = {
 };
 
 export default async function NewTaskPage() {
+  // Request locale first so PPR does not fill the cookie-free agent catalog at build.
   const t = await getTranslations("App.Tasks.NewTask");
+  const tTasks = await getTranslations("App.Tasks");
   const [taskCoworkers, agents, session, ownerBot] = await Promise.all([
     coworkerService.listCoworkers("tasks").catch(() => []),
     agentService.getAvailableAgentsWithCreditsPrice(),
@@ -32,6 +34,7 @@ export default async function NewTaskPage() {
   const coworkerOptions = withOwnerOrchestratorOption(
     getCoworkerOptions(taskCoworkers),
     ownerBot,
+    { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },
   );
   const canCreateTask = await hasAssignedOrganizationSeat(
     session?.session.activeOrganizationId ?? null,

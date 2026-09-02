@@ -1356,4 +1356,50 @@ describe("PATCH /chats/rooms/{id}", () => {
     );
     expect(orchestratorMemberCreateManyMock).not.toHaveBeenCalled();
   });
+
+  it("fails only orchestrator mentions when the PA roster is cleared", async () => {
+    const existing = channelRoom({
+      orchestratorMembers: [
+        {
+          orchestrator: {
+            id: "01960001-0001-7001-8001-000000000099",
+            name: "Soko Bot",
+            avatarImageUrl: null,
+            avatarSeed: "orb:user_123",
+            userId: USER_ID,
+            user: { name: "Ada" },
+          },
+        },
+      ],
+    });
+    const updated = channelRoom({ orchestratorMembers: [] });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    failOpenMentionsMock.mockResolvedValue(["message_1"]);
+    orchestratorMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orchestratorIds: [] }),
+    });
+
+    expect(response.status).toBe(200);
+    // The shared helper adds the pending/sent filter itself, and `notIn`
+    // already skips rows with no orchestrator, so the call site only has to
+    // name who is left. It returns the touched messages so the realtime
+    // mention status can be published once the transaction commits.
+    expect(failOpenMentionsMock).toHaveBeenCalledWith(
+      {
+        where: {
+          orchestratorId: { notIn: [] },
+          message: { roomId: ROOM_ID },
+        },
+        error: "Personal assistant is no longer a member of this room",
+      },
+      tx,
+    );
+    expect(publishMentionStatusesMock).toHaveBeenCalledWith(["message_1"]);
+  });
 });

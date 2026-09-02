@@ -219,6 +219,7 @@ describe("EditTaskPage", () => {
           name: "Task",
           description: "Desc",
           assigneeId: "cow_123",
+          assigneeOrchestratorId: null,
           projectId: null,
           status: "READY",
           metadata: undefined,

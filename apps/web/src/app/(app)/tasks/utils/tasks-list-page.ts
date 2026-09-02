@@ -19,6 +19,7 @@ interface GetTasksListPageParams {
   status: TaskStatus | null;
   projectId: string | null;
   coworkersById: Map<string, Coworker>;
+  personalAssistantFallback: string;
 }
 
 interface GetTasksListPageResult {
@@ -35,6 +36,7 @@ export async function getTasksListPage({
   status,
   projectId,
   coworkersById,
+  personalAssistantFallback,
 }: GetTasksListPageParams): Promise<GetTasksListPageResult> {
   const result = await taskService.listTasks({
     status: status ?? undefined,
@@ -49,7 +51,12 @@ export async function getTasksListPage({
     result.tasks.map((task) => task.description),
   );
   const tasks = result.tasks.map((task) =>
-    mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
+    mapTaskToTaskWithCoworker(
+      task,
+      coworkersById,
+      agentsById,
+      personalAssistantFallback,
+    ),
   );
 
   return {

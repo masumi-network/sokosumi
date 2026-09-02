@@ -29,6 +29,7 @@ const {
   workspaceFindUniqueMock,
   membershipFindManyMock,
   readStateFindManyMock,
+  orchestratorMemberCreateManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -44,6 +45,7 @@ const {
   workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
+  orchestratorMemberCreateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -104,6 +106,9 @@ const tx = {
   },
   workspace: {
     findUnique: workspaceFindUniqueMock,
+  },
+  chatRoomOrchestratorMember: {
+    createMany: orchestratorMemberCreateManyMock,
   },
 };
 
@@ -1856,5 +1861,83 @@ describe("POST /chats/rooms", () => {
       "Only the owner can add this personal assistant",
     );
     expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("restores orchestrator membership when reopening an existing owner direct", async () => {
+    const existing = channelRoom({
+      organizationId: null,
+      name: "Soko Bot",
+      slug: null,
+      kind: "direct",
+      directKey: ORCHESTRATOR_DIRECT_KEY,
+      discoverability: null,
+      userMembers: [
+        {
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+      coworkerMembers: [],
+      orchestratorMembers: [],
+    });
+    const restored = {
+      ...existing,
+      orchestratorMembers: [
+        {
+          orchestrator: {
+            id: ORCHESTRATOR_ID,
+            name: "Soko Bot",
+            avatarImageUrl: null,
+            avatarSeed: "orb:user_123",
+            userId: USER_ID,
+            user: { name: "Ada" },
+          },
+        },
+      ],
+    };
+    roomFindFirstMock
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce(restored);
+    sokoBotFindManyMock.mockResolvedValue([
+      {
+        id: ORCHESTRATOR_ID,
+        userId: USER_ID,
+        name: "Soko Bot",
+        user: { name: "Ada" },
+      },
+    ]);
+    orchestratorMemberCreateManyMock.mockResolvedValue({ count: 1 });
+
+    const app = createApp({
+      ...userAuthContext,
+      organizationId: null,
+    });
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        orchestratorIds: [ORCHESTRATOR_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(orchestratorMemberCreateManyMock).toHaveBeenCalledWith({
+      data: [{ roomId: ROOM_ID, orchestratorId: ORCHESTRATOR_ID }],
+      skipDuplicates: true,
+    });
+    expect(roomCreateMock).not.toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.data.orchestratorMembers).toEqual([
+      expect.objectContaining({
+        id: ORCHESTRATOR_ID,
+        name: "Soko Bot",
+      }),
+    ]);
   });
 });

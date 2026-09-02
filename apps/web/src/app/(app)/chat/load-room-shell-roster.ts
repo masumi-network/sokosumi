@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import type { ChatComposeOrchestrator } from "@/app/chat/actions";
 import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -21,10 +22,11 @@ export interface RoomShellRosterPage {
 export async function loadRoomShellRoster(
   organizationId: string | null | undefined,
 ): Promise<RoomShellRosterPage> {
-  const [membersPage, coworkers, bot] = await Promise.all([
+  const [membersPage, coworkers, bot, t] = await Promise.all([
     loadOrganizationMembers(organizationId),
     coworkerService.listCoworkers("chat"),
     sokoBotService.getMine().catch(() => null),
+    getTranslations("App.Chat"),
   ]);
 
   return {
@@ -35,7 +37,7 @@ export async function loadRoomShellRoster(
       ? [
           {
             id: bot.id,
-            name: bot.name?.trim() || "Personal assistant",
+            name: bot.name?.trim() || t("personalAssistantBadge"),
             image: bot.avatarImageUrl ?? null,
             avatarSeed: bot.avatarSeed,
           },

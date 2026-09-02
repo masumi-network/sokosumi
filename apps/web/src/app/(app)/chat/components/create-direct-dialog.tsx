@@ -236,7 +236,14 @@ export function CreateDirectDialog() {
                 <span className="truncate">{target.name}</span>
                 {target.kind === "coworker" ||
                 target.kind === "orchestrator" ? (
-                  <AiCoworkerIcon className="size-3" />
+                  <AiCoworkerIcon
+                    className="size-3"
+                    label={
+                      target.kind === "orchestrator"
+                        ? t("personalAssistantBadge")
+                        : undefined
+                    }
+                  />
                 ) : null}
               </span>
               <button

@@ -1,5 +1,6 @@
 "use server";
 
+import { getTranslations } from "next-intl/server";
 import type { KanbanColumnId } from "@/app/tasks/types/task-board";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
@@ -54,10 +55,11 @@ export async function loadMoreTasksColumn({
   status,
   projectId,
 }: LoadMoreTasksColumnParams) {
-  const [session, coworkers, ownerBot] = await Promise.all([
+  const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
     coworkerService.listCoworkers("tasks").catch(() => []),
     sokoBotService.getMine().catch(() => null),
+    getTranslations("App.Tasks"),
   ]);
 
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
@@ -91,6 +93,7 @@ export async function loadMoreTasksColumn({
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,
+    personalAssistantFallback: t("personalAssistant"),
   });
 
   return {
@@ -107,10 +110,11 @@ export async function loadMoreTasksList({
   status,
   projectId,
 }: LoadMoreTasksListParams) {
-  const [session, coworkers, ownerBot] = await Promise.all([
+  const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
     coworkerService.listCoworkers("tasks").catch(() => []),
     sokoBotService.getMine().catch(() => null),
+    getTranslations("App.Tasks"),
   ]);
 
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
@@ -143,6 +147,7 @@ export async function loadMoreTasksList({
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,
+    personalAssistantFallback: t("personalAssistant"),
   });
 
   return {

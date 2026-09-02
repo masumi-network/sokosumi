@@ -27,6 +27,7 @@ const baseLabels = {
   created: "Created",
   updated: "Updated",
   schedule: "Schedule",
+  personalAssistantFallback: "Personal assistant",
   formatOrchestratorRole: ({ owner }: { owner: string }) =>
     `${owner}'s personal assistant`,
 };
@@ -175,8 +176,7 @@ describe("TaskMetadata", () => {
   });
 
   it("shows the mascot the bot claimed, not a generated orb", () => {
-    // Claiming writes the coworker's image too, so the picture appeared in
-    // chat and the sidebar while a Task showed a blank disc for the same bot.
+    // Claimed mascot is the bot's face; the orb is only the fallback.
     render(
       <TaskMetadata
         task={createTask({

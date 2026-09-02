@@ -23,6 +23,13 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
   },
 }));
 
+vi.mock("next-intl/server", () => ({
+  getTranslations: vi.fn(
+    async () => (key: string) =>
+      key === "personalAssistantBadge" ? "Personal assistant" : key,
+  ),
+}));
+
 import { loadRoomShellRoster } from "./load-room-shell-roster";
 
 describe("loadRoomShellRoster", () => {

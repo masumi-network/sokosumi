@@ -1341,6 +1341,105 @@ export const SokoBotDeletionResultSchema = {
     ]
 } as const;
 
+export const AdminSokoBotVersionUsageSchema = {
+    type: 'object',
+    properties: {
+        versions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    versionId: {
+                        type: 'string'
+                    },
+                    count: {
+                        type: 'integer'
+                    }
+                },
+                required: [
+                    'versionId',
+                    'count'
+                ]
+            }
+        }
+    },
+    required: [
+        'versions'
+    ]
+} as const;
+
+export const AdminSokoBotVersionMigrationResultSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: 'integer'
+        },
+        moved: {
+            type: 'integer'
+        },
+        alreadyOnVersion: {
+            type: 'integer'
+        },
+        failed: {
+            type: 'integer'
+        },
+        failures: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    sokoBotId: {
+                        type: 'string'
+                    },
+                    message: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'sokoBotId',
+                    'message'
+                ]
+            },
+            maxItems: 100
+        }
+    },
+    required: [
+        'total',
+        'moved',
+        'alreadyOnVersion',
+        'failed',
+        'failures'
+    ]
+} as const;
+
+export const AdminSokoBotVersionMigrationRequestSchema = {
+    type: 'object',
+    properties: {
+        fromVersionId: {
+            type: 'string',
+            minLength: 2,
+            maxLength: 41,
+            pattern: '^[a-z0-9][a-z0-9-]*$'
+        },
+        toVersionId: {
+            type: 'string',
+            minLength: 2,
+            maxLength: 41,
+            pattern: '^[a-z0-9][a-z0-9-]*$'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        }
+    },
+    required: [
+        'toVersionId',
+        'reason'
+    ],
+    additionalProperties: false
+} as const;
+
 export const AdminSokoBotDetailSchema = {
     allOf: [
         {
@@ -2886,12 +2985,19 @@ export const AdminSokoBotActionRequestSchema = {
                 'RESET_MEMORY',
                 'RETRY_LAST_FAILED',
                 'RETRY_SCHEDULE_RUN',
-                'DISABLE_SCHEDULE'
+                'DISABLE_SCHEDULE',
+                'SET_VERSION'
             ]
         },
         targetId: {
             type: 'string',
             format: 'uuid'
+        },
+        versionId: {
+            type: 'string',
+            minLength: 2,
+            maxLength: 41,
+            pattern: '^[a-z0-9][a-z0-9-]*$'
         },
         reason: {
             type: 'string',
@@ -4365,19 +4471,16 @@ export const TaskSchema = {
             description: 'Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.'
         },
         coworker: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/CoworkerSummary'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    deprecated: true,
-                    description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
         },
         creator: {
             $ref: '#/components/schemas/TaskCreator'
@@ -4393,19 +4496,16 @@ export const TaskSchema = {
             description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         orchestrator: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/OrchestratorSummary'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    deprecated: true,
-                    description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         name: {
             type: 'string',
@@ -18176,19 +18276,16 @@ export const TaskListItemSchema = {
             description: 'Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.'
         },
         coworker: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/CoworkerSummary'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    deprecated: true,
-                    description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
         },
         creator: {
             $ref: '#/components/schemas/TaskCreator'
@@ -18204,19 +18301,16 @@ export const TaskListItemSchema = {
             description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         orchestrator: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/OrchestratorSummary'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    deprecated: true,
-                    description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         name: {
             type: 'string',

@@ -86,6 +86,7 @@ describe("getTasksListPage", () => {
       status: null,
       projectId: PROJECT_ID,
       coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-10", "task-09"]);
@@ -123,6 +124,7 @@ describe("getTasksListPage", () => {
       status: TaskStatus.READY,
       projectId: null,
       coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-ready"]);
@@ -159,6 +161,7 @@ describe("getTasksListPage", () => {
       status: null,
       projectId: null,
       coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-2"]);
@@ -195,6 +198,7 @@ describe("getTasksListPage", () => {
       status: null,
       projectId: null,
       coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
     });
 
     expect(page.nextCursor).toBeNull();

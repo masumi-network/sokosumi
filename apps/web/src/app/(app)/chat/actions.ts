@@ -146,16 +146,17 @@ export async function loadChatComposeRosterAction(): Promise<
 
   try {
     const currentUserId = session.user.id;
-    const [activeOrganization, coworkers, bot] = await Promise.all([
+    const [activeOrganization, coworkers, bot, t] = await Promise.all([
       userService.getActiveOrganization(),
       coworkerService.listCoworkers("chat"),
       sokoBotService.getMine().catch(() => null),
+      getTranslations("App.Chat"),
     ]);
     const orchestrators: ChatComposeOrchestrator[] = bot
       ? [
           {
             id: bot.id,
-            name: bot.name?.trim() || "Personal assistant",
+            name: bot.name?.trim() || t("personalAssistantBadge"),
             image: bot.avatarImageUrl ?? null,
             avatarSeed: bot.avatarSeed,
           },

@@ -1042,6 +1042,7 @@ export class SokoBotRuntimeService {
       memberUserIds: [],
       coworkerIds: [],
       orchestratorIds: [orchestratorId],
+      orchestratorActorUserId: authorized.turn.userId,
       // The sidebar flags belong to a viewer; this actor is not one.
       viewerUserId: null,
     });
@@ -1434,6 +1435,7 @@ export class SokoBotRuntimeService {
         status: true,
         updatedAt: true,
         assignee: { select: { id: true, name: true } },
+        assigneeOrchestrator: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
         events: {
           orderBy: { createdAt: "desc" },
@@ -1491,7 +1493,7 @@ export class SokoBotRuntimeService {
       name: task.name,
       status: task.status,
       description: task.description,
-      assignee: task.assignee,
+      assignee: task.assignee ?? task.assigneeOrchestrator,
       project: task.project,
       updatedAt: task.updatedAt,
       events: [...task.events].reverse().map((event) => ({

@@ -1679,6 +1679,9 @@
         "showGuide": "Show guide"
       },
       "createTaskFab": "Create task",
+      "personalAssistant": "Personal assistant",
+      "sokoBot": "Soko Bot",
+      "sokoBots": "Soko Bots",
       "Errors": {
         "updateStatus": "Failed to update task status",
         "loadMore": "Failed to load more tasks",
@@ -4399,6 +4402,37 @@
           "disabled": "Soko Bot disabled.",
           "enabled": "Soko Bot enabled.",
           "error": "Could not change the feature switch."
+        },
+        "Version": {
+          "title": "Agent version",
+          "description": "Promoting a version only changes what new bots are created on. This moves this one.",
+          "versionLabel": "Move to",
+          "defaultOption": "{name} (default for new bots)",
+          "current": "Currently on {version}.",
+          "currentUnset": "No version pinned; this bot runs the built-in default.",
+          "reasonLabel": "Reason",
+          "reasonPlaceholder": "Why are you moving this bot? (required, recorded in the audit log)",
+          "confirm": "Move this bot",
+          "working": "Moving…",
+          "done": "Moved to {version}.",
+          "error": "Could not move this bot."
+        },
+        "Migration": {
+          "title": "Move bots between versions",
+          "description": "Promotion decides what new bots are created on and leaves existing ones where they are. Each bot moved here gets its own audit entry.",
+          "fromLabel": "Bots currently on",
+          "everyBot": "Every bot",
+          "inUseOption": "{version} ({count} bots)",
+          "toLabel": "Move to",
+          "defaultOption": "{name} (default for new bots)",
+          "reasonLabel": "Reason",
+          "reasonPlaceholder": "Why are you moving the fleet? (required, recorded against every bot)",
+          "confirm": "Move {count} bots",
+          "nothingToMove": "Nothing to move for this selection.",
+          "working": "Moving…",
+          "done": "Moved {moved} bots.",
+          "result": "Moved {moved}. Already on this version: {alreadyOnVersion}. Could not move: {failed}.",
+          "error": "Could not move these bots."
         }
       },
       "MatchedChannels": {

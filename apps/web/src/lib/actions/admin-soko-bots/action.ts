@@ -15,6 +15,7 @@ import { toCoreApiActionError } from "@/lib/clients/core.client";
 import type {
   AdminSokoBotDetail,
   AdminSokoBotList,
+  AdminSokoBotVersionMigrationResult,
   SokoBotAvailability,
   SokoBotDeletionResult,
   SokoBotVersionDetail,
@@ -80,6 +81,20 @@ const versionWriteSchema = z.object({
 });
 
 const versionUpdateSchema = versionWriteSchema.omit({ slug: true });
+
+const setVersionSchema = z.object({
+  sokoBotId: z.string().trim().min(1),
+  versionId: versionSlugSchema,
+  operationId: z.string().uuid(),
+  reason: z.string().trim().min(3).max(500),
+});
+
+const migrateVersionsSchema = z.object({
+  /** Omitted means every live bot, not "bots with no version". */
+  fromVersionId: versionSlugSchema.optional(),
+  toVersionId: versionSlugSchema,
+  reason: z.string().trim().min(3).max(500),
+});
 
 function mapError(error: unknown): ActionError {
   if (isAdminAccessRequiredError(error)) {
@@ -290,6 +305,65 @@ export const archiveAdminSokoBotVersionAction = withSession<
     await adminSokoBotService.archiveVersion(parsed.data);
     revalidateVersionPaths(parsed.data);
     return toActionResult(ok(undefined));
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
+interface SetVersionParams extends AuthenticatedRequest {
+  input: unknown;
+}
+
+/** Moves one bot. The audited admin action, not the owner's own picker. */
+export const setAdminSokoBotVersionAction = withSession<
+  SetVersionParams,
+  ActionResultDto<AdminSokoBotDetail, ActionError>
+>(async ({ session, input }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = setVersionSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    }
+    const { sokoBotId, ...rest } = parsed.data;
+    const detail = await adminSokoBotService.performAction(sokoBotId, {
+      ...rest,
+      action: "SET_VERSION",
+    });
+    revalidatePath(`${ADMIN_SOKO_BOTS_ROUTE}/${sokoBotId}`);
+    revalidatePath(ADMIN_SOKO_BOTS_ROUTE);
+    return toActionResult(ok(detail));
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
+interface MigrateVersionsParams extends AuthenticatedRequest {
+  input: unknown;
+}
+
+/**
+ * Moves many bots at once. Separate from promotion on purpose: promoting a
+ * version only changes what new bots are created on, so the fleet needs this
+ * to actually move.
+ */
+export const migrateAdminSokoBotVersionsAction = withSession<
+  MigrateVersionsParams,
+  ActionResultDto<AdminSokoBotVersionMigrationResult, ActionError>
+>(async ({ session, input }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = migrateVersionsSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    }
+    const result = await adminSokoBotService.migrateVersions(parsed.data);
+    revalidateVersionPaths(parsed.data.toVersionId);
+    return toActionResult(ok(result));
   } catch (error) {
     return toActionResult(err(mapError(error)));
   }
