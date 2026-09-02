@@ -51,16 +51,24 @@ function truncateFallback(dump: string): string {
 /**
  * Extracts the payment node's human-readable error message from an error
  * payload of unknown shape (`{ error: { message } }` on the documented
- * responses), falling back to a capped JSON dump of whatever else arrived.
+ * responses), falling back to a capped dump of whatever else arrived.
  *
  * The fallback is for LOGS and Sentry. It serializes whatever the far side
  * sent, so it must not be echoed to a caller — use
  * {@link readNodeErrorMessage} where the value is going to be returned.
+ *
+ * Fetch / AbortSignal failures are `Error` instances (TimeoutError,
+ * AbortError). `Error.name` and `Error.message` are non-enumerable, so
+ * `JSON.stringify` is `"{}"` — that is the SOKOSUMI-CORE-2Z title
+ * `rail-readiness unknown: {}`. Those must use `String(error)`.
  */
 export function extractNodeErrorMessage(error: unknown): string {
   const message = readNodeErrorMessage(error);
   if (message !== null) {
     return message;
+  }
+  if (error instanceof Error) {
+    return truncateFallback(String(error));
   }
   try {
     return truncateFallback(JSON.stringify(error) ?? String(error));
