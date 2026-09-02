@@ -179,11 +179,11 @@ describe("YouPageClient", () => {
     expect(screen.getByTestId("you-logout")).toBeInTheDocument();
   });
 
-  it("uses destructive styling and the logout confirmation flow", () => {
+  it("uses the destructive button variant and the logout confirmation flow", () => {
     renderYouPage();
 
     const logout = screen.getByTestId("you-logout");
-    expect(logout.className).toContain("text-destructive");
+    expect(logout.className).toContain("bg-destructive");
 
     fireEvent.click(logout);
 
