@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import DefaultLoading from "@/components/default-loading";
-
+import { YouPageSkeleton } from "./components/you-loading-view";
 import { YouPageContent } from "./components/you-page-content";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,19 +14,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function YouPageFallback() {
-  return (
-    <div className="flex min-h-full items-center justify-center p-8">
-      <DefaultLoading />
-    </div>
-  );
-}
-
 export default async function YouPage() {
   await connection();
 
   return (
-    <Suspense fallback={<YouPageFallback />}>
+    <Suspense fallback={<YouPageSkeleton />}>
       <YouPageContent />
     </Suspense>
   );

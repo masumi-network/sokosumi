@@ -70,4 +70,9 @@ describe("mobile tab destinations Instant Nav contract", () => {
       /export\s+default\s+function[\s\S]*?return\s+<\s*YouPageSkeleton\s*\/>/,
     );
   });
+
+  it("you/page.tsx Suspense fallback paints YouPageSkeleton", () => {
+    const code = stripComments(readApp("you/page.tsx"));
+    expect(code).toMatch(/fallback=\{\s*<\s*YouPageSkeleton\s*\/>\s*\}/);
+  });
 });
