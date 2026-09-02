@@ -91,6 +91,16 @@ export async function deleteSokoBot(
       data: { status: "CANCEL_REQUESTED", cancellationRequestedAt: new Date() },
     });
     await eraseOwnedRecords(tx, bot.id);
+    await tx.chatRoomMention.updateMany({
+      where: {
+        status: { in: ["pending", "sent"] },
+        orchestratorId: bot.id,
+      },
+      data: {
+        status: "failed",
+        error: "Personal assistant is no longer a member of this room",
+      },
+    });
     await tx.chatRoomOrchestratorMember.deleteMany({
       where: { orchestratorId: bot.id },
     });

@@ -7,6 +7,7 @@ const {
   txBotFindFirstMock,
   txBotDeleteMock,
   txBotUpdateMock,
+  txMentionUpdateManyMock,
   txOrchestratorMemberDeleteManyMock,
   txTurnUpdateManyMock,
   counts,
@@ -17,6 +18,7 @@ const {
   txBotFindFirstMock: vi.fn(),
   txBotDeleteMock: vi.fn(),
   txBotUpdateMock: vi.fn(),
+  txMentionUpdateManyMock: vi.fn(),
   txOrchestratorMemberDeleteManyMock: vi.fn(),
   txTurnUpdateManyMock: vi.fn(),
   counts: {
@@ -52,6 +54,9 @@ vi.mock("@/lib/db/transaction", () => ({
         findFirst: txBotFindFirstMock,
         delete: txBotDeleteMock,
         update: txBotUpdateMock,
+      },
+      chatRoomMention: {
+        updateMany: txMentionUpdateManyMock,
       },
       chatRoomOrchestratorMember: {
         deleteMany: txOrchestratorMemberDeleteManyMock,
@@ -99,6 +104,7 @@ describe("deleteSokoBot", () => {
     txBotFindFirstMock.mockResolvedValue({
       id: BOT_ID,
     });
+    txMentionUpdateManyMock.mockResolvedValue({ count: 0 });
     txOrchestratorMemberDeleteManyMock.mockResolvedValue({ count: 0 });
   });
 
@@ -173,6 +179,27 @@ describe("deleteSokoBot", () => {
         "decisions",
         "legacy",
       ]),
+    );
+  });
+
+  it("fails pending orchestrator mentions before dropping memberships", async () => {
+    await deleteSokoBot(BOT_ID);
+
+    expect(txMentionUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        status: { in: ["pending", "sent"] },
+        orchestratorId: BOT_ID,
+      },
+      data: {
+        status: "failed",
+        error: "Personal assistant is no longer a member of this room",
+      },
+    });
+    expect(txOrchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { orchestratorId: BOT_ID },
+    });
+    expect(txMentionUpdateManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      txOrchestratorMemberDeleteManyMock.mock.invocationCallOrder[0],
     );
   });
 

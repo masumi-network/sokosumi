@@ -3,6 +3,7 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
@@ -541,6 +542,34 @@ describe("POST /tasks", () => {
         }),
       }),
     );
+  });
+
+  it("rejects assigning someone else's personal assistant with 403", async () => {
+    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    requireTaskAssignableOrchestratorMock.mockRejectedValue(
+      forbidden("Only the owner can assign work to this Soko Bot"),
+    );
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "PA Task",
+        description: null,
+        assigneeOrchestratorId: orchestratorId,
+        status: TaskStatus.READY,
+        channel: Channel.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.text()).toContain(
+      "Only the owner can assign work to this Soko Bot",
+    );
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("rejects create when the member has no assigned organization seat", async () => {

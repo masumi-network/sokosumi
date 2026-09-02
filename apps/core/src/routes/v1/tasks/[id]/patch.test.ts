@@ -1,6 +1,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -474,5 +475,37 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  it("rejects assigning someone else's personal assistant with 403", async () => {
+    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+    });
+    requireTaskAssignableOrchestratorMock.mockRejectedValue(
+      forbidden("Only the owner can assign work to this Soko Bot"),
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assigneeOrchestratorId: orchestratorId,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.text()).toContain(
+      "Only the owner can assign work to this Soko Bot",
+    );
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 });
