@@ -39,13 +39,12 @@ export default function HeaderProfileSectionClient({
   return (
     <div
       className={cn(
-        // Desktop-only Workspace switch. Mobile account/Workspace live on You.
-        "hidden h-auto items-center gap-1.5 md:flex",
+        "flex h-auto items-center gap-1.5",
         isPending
           ? "pointer-events-none animate-pulse opacity-60"
           : "transition-opacity",
       )}
-      data-testid="header-desktop-workspace-chrome"
+      data-testid="header-workspace-chrome"
     >
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}

@@ -99,7 +99,7 @@ describe("HeaderProfileSectionClient", () => {
     headerWorkspaceSwitchMock.mockClear();
   });
 
-  it("keeps Workspace switch desktop-only (hidden on mobile)", async () => {
+  it("shows Workspace switch on mobile and desktop", async () => {
     useSessionMock.mockReturnValue({
       data: {
         session: {
@@ -114,9 +114,10 @@ describe("HeaderProfileSectionClient", () => {
       activeOrganizationId: "org-a",
     });
 
-    const chrome = screen.getByTestId("header-desktop-workspace-chrome");
-    expect(chrome.className).toContain("hidden");
-    expect(chrome.className).toContain("md:flex");
+    const chrome = screen.getByTestId("header-workspace-chrome");
+    expect(chrome.className).toContain("flex");
+    expect(chrome.className).not.toContain("hidden");
+    expect(chrome.className).not.toContain("md:flex");
     expect(screen.getByTestId("header-workspace-switch-mock")).toBeTruthy();
   });
 

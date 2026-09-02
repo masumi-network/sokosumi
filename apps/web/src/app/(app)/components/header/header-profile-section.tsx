@@ -12,9 +12,9 @@ interface HeaderProfileSectionProps {
 function HeaderProfileSectionSkeleton() {
   return (
     <div
-      className="hidden h-auto items-center gap-1.5 md:flex"
+      className="flex h-auto items-center gap-1.5"
       aria-hidden
-      data-testid="header-desktop-workspace-chrome-skeleton"
+      data-testid="header-workspace-chrome-skeleton"
     >
       <div className="bg-muted h-3 w-20 animate-pulse rounded-md" />
       <div className="bg-muted size-4 shrink-0 animate-pulse rounded-full" />

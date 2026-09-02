@@ -9,7 +9,6 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getSession } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { isBetaAccessEmail } from "@/lib/beta-access";
-import { userService } from "@/lib/services";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import { YouPageClient } from "./you-page.client";
@@ -29,7 +28,6 @@ export async function YouPageContent() {
     { showVendors: showDeveloperVendors },
     creditsResult,
     { members },
-    workspaceAccess,
   ] = await Promise.all([
     getTranslations("App.Header.Plan"),
     getDeveloperVendorAdminAccess(),
@@ -38,7 +36,6 @@ export async function YouPageContent() {
       userId: session.user.id,
       activeOrganizationId,
     }),
-    userService.getWorkspaceAccess(),
   ]);
 
   const credits = mapAccountCreditsChrome(creditsResult);
@@ -51,9 +48,6 @@ export async function YouPageContent() {
   return (
     <YouPageClient
       sessionUser={session.user}
-      members={members}
-      hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}
-      activeOrganizationId={activeOrganizationId}
       calendarMenuEnabled={calendarMenuEnabled}
       planName={planName}
       totalCredits={credits.totalCredits}

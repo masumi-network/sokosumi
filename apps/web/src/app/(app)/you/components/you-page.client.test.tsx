@@ -22,23 +22,6 @@ vi.mock("@/hooks/use-self-presence", () => ({
   useSelfPresence: () => "online",
 }));
 
-vi.mock("@/lib/auth/auth.client", () => ({
-  useSession: () => ({ data: null }),
-}));
-
-const handleSelectWorkspaceMock = vi.fn();
-
-vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
-  useWorkspaceSwitcher: () => ({
-    isPending: false,
-    handleSelectWorkspace: handleSelectWorkspaceMock,
-  }),
-}));
-
-vi.mock("@/app/components/header/header-workspace-switch.client", () => ({
-  default: () => <div data-testid="you-workspace-switch">workspace</div>,
-}));
-
 import { YouPageClient } from "@/app/you/components/you-page.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
@@ -69,9 +52,6 @@ function renderYouPage(
   return render(
     <YouPageClient
       sessionUser={sessionUser}
-      members={members}
-      hasPersonalWorkspace
-      activeOrganizationId={null}
       calendarMenuEnabled={false}
       planName="Pro"
       totalCredits={15_750}
@@ -93,7 +73,7 @@ describe("YouPageClient", () => {
     vi.clearAllMocks();
   });
 
-  it("renders identity, workspace switch card row, and credits summary", () => {
+  it("renders identity with status and plan under the email", () => {
     renderYouPage();
 
     const shell = screen.getByTestId("you-page");
@@ -105,15 +85,18 @@ describe("YouPageClient", () => {
       screen.getByRole("heading", { name: "Patrick Tobler" }),
     ).toBeInTheDocument();
     expect(screen.getByText("patrick@example.com")).toBeInTheDocument();
-    const workspaceSwitch = screen.getByTestId("you-workspace-switch");
-    expect(workspaceSwitch).toBeInTheDocument();
+    expect(screen.queryByTestId("you-workspace-switch")).toBeNull();
+
+    const statusPlan = screen.getByTestId("you-status-plan");
+    expect(statusPlan).toBeInTheDocument();
+    expect(statusPlan).toHaveTextContent("online");
+    expect(statusPlan).toHaveTextContent("Pro");
     expect(
-      workspaceSwitch.compareDocumentPosition(
-        screen.getByRole("heading", { name: "Patrick Tobler" }),
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      screen
+        .getByText("patrick@example.com")
+        .compareDocumentPosition(statusPlan) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(screen.getByText(/balanceCreditsLabel 15750/)).toBeInTheDocument();
-    expect(screen.getByText("Pro")).toBeInTheDocument();
   });
 
   it("shows a large avatar with initials", () => {

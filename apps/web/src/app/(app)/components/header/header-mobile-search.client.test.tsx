@@ -232,9 +232,7 @@ describe("HeaderMobileSearchControl", () => {
 
     expect(screen.getByTestId("header-trailing-tools")).toBeInTheDocument();
     expect(
-      container.querySelector(
-        "[data-testid='header-desktop-workspace-chrome']",
-      ),
+      container.querySelector("[data-testid='header-workspace-chrome']"),
     ).toBeNull();
   });
 });
