@@ -2113,7 +2113,10 @@ export function ChatMessageRow({
     showOutboundSentTick || isOutboundSentTickActive(message.id, clientTurnId);
   const isDeleted = message.deletedAt != null;
   const thoughtView = useMemo(() => {
-    if (message.sender.type !== "coworker" || isDeleted) {
+    const isAssistantSender =
+      message.sender.type === "coworker" ||
+      message.sender.type === "orchestrator";
+    if (!isAssistantSender || isDeleted) {
       return null;
     }
     return resolveCoworkerThoughtViewModel({

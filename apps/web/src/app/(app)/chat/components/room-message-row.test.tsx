@@ -173,6 +173,27 @@ function coworkerMessage(
   };
 }
 
+function orchestratorMessage(
+  overrides: Partial<ChatRoomMessage> = {},
+): ChatRoomMessage {
+  return {
+    ...userMessage(overrides),
+    sender: {
+      type: "orchestrator",
+      orchestrator: {
+        id: "orch-1",
+        name: "Ada",
+        slug: "ada",
+        caption: "Ada's personal assistant",
+        image: null,
+        presence: "online",
+        avatarSeed: "orb:user-1",
+        ownerUserId: "user-1",
+      },
+    },
+  };
+}
+
 function renderRow({
   message = userMessage(),
   isContinuation = false,
@@ -2504,6 +2525,24 @@ describe("ChatMessageRow coworker Thought", () => {
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-1",
+        content: "",
+        metadata: { streaming: true },
+      }),
+    });
+
+    const trace = screen.getByTestId("coworker-thought-trace");
+    expect(trace).toHaveAttribute("data-working", "true");
+    expect(trace).toHaveTextContent("reasoning.thinking");
+    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-loading-state"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the Thought sparkle on an empty orchestrator stream overlay", () => {
+    renderRow({
+      message: orchestratorMessage({
+        id: "stream:asst-orch-1",
         content: "",
         metadata: { streaming: true },
       }),
