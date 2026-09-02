@@ -3,6 +3,7 @@
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { DriveTasksListItem } from "@/lib/clients/generated/core";
 import { getDriveTasks } from "@/lib/clients/generated/core";
+import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
 
 /** Core max page size for task items. */
 export const DRIVE_TASKS_PAGE_LIMIT = 100;
@@ -20,6 +21,8 @@ export interface FetchDriveTasksPageOptions {
   assigneeId?: string;
   q?: string;
   cursor?: string;
+  sortBy?: FilesSortBy;
+  sortOrder?: FilesSortOrder;
   signal?: AbortSignal;
 }
 
@@ -41,6 +44,8 @@ export async function fetchDriveTasksPage(
       ...(options.assigneeId ? { assigneeId: options.assigneeId } : {}),
       ...(options.q ? { q: options.q } : {}),
       ...(options.cursor ? { cursor: options.cursor } : {}),
+      ...(options.sortBy ? { sortBy: options.sortBy } : {}),
+      ...(options.sortOrder ? { sortOrder: options.sortOrder } : {}),
     },
     ...(options.signal ? { signal: options.signal } : {}),
     throwOnError: true,
