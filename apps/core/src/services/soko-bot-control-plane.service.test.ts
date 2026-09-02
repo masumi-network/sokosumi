@@ -26,6 +26,8 @@ const {
   contextSnapshotFindUniqueMock,
   coworkerCreateMock,
   coworkerFindManyMock,
+  orchestratorMemberDeleteManyMock,
+  mentionUpdateManyMock,
   getEnvMock,
   jobFindManyMock,
   memoryCreateMock,
@@ -72,6 +74,8 @@ const {
   contextSnapshotFindUniqueMock: vi.fn(),
   coworkerCreateMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  orchestratorMemberDeleteManyMock: vi.fn(),
+  mentionUpdateManyMock: vi.fn(),
   getEnvMock: vi.fn<
     () => {
       SOKO_BOT_CLASSIFIER_MODE: string;
@@ -226,6 +230,12 @@ function transactionClient() {
     $queryRaw: transactionQueryRawMock,
     coworker: {
       create: coworkerCreateMock,
+    },
+    chatRoomOrchestratorMember: {
+      deleteMany: orchestratorMemberDeleteManyMock,
+    },
+    chatRoomMention: {
+      updateMany: mentionUpdateManyMock,
     },
     sokoBot: {
       create: botCreateMock,
@@ -1564,6 +1574,18 @@ describe("SokoBotControlPlane lifecycle", () => {
         }),
       }),
     );
+    expect(mentionUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          orchestratorId: BOT_ID,
+          status: { in: ["pending", "sent"] },
+        }),
+        data: expect.objectContaining({ status: "failed" }),
+      }),
+    );
+    expect(orchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { orchestratorId: BOT_ID },
+    });
     expect(cancelTurn).toHaveBeenCalledWith(
       expect.objectContaining({ eveTurnId: "eve_turn_1" }),
     );

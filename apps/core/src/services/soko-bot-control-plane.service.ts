@@ -3505,6 +3505,19 @@ export class SokoBotControlPlane {
           eveSessionId: null,
         },
       });
+      await tx.chatRoomMention.updateMany({
+        where: {
+          status: { in: ["pending", "sent"] },
+          orchestratorId: bot.id,
+        },
+        data: {
+          status: "failed",
+          error: "Personal assistant is no longer a member of this room",
+        },
+      });
+      await tx.chatRoomOrchestratorMember.deleteMany({
+        where: { orchestratorId: bot.id },
+      });
       return activeTurn;
     }, "Soko Bot archive collided with active work");
     if (!active) return;

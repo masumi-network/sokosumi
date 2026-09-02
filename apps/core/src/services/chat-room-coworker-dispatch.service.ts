@@ -313,6 +313,7 @@ async function failMentionWithCoworkerShell(params: {
         sourceMessageId: params.sourceMessageId,
         mentionId: params.mentionId,
         coworkerId: params.coworkerId,
+        orchestratorId: params.orchestratorId,
         reasoningSteps: [],
         thoughtStartedAtMs: 0,
       });
@@ -408,11 +409,15 @@ async function loadRoomContextMessages(params: {
       content: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
+      senderOrchestrator: { select: { name: true } },
     },
   });
   return contextRows.reverse().map((row) => ({
     senderName:
-      row.senderCoworker?.name ?? row.senderUser?.name ?? "Unknown sender",
+      row.senderOrchestrator?.name?.trim() ||
+      row.senderCoworker?.name ||
+      row.senderUser?.name ||
+      "Unknown sender",
     isCoworker: row.senderCoworker != null,
     content: row.content,
   }));
