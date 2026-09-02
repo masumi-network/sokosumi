@@ -34,7 +34,6 @@ import {
 } from "@/app/chat/actions";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
-import { LatestPinnedMessageBanner } from "@/app/chat/components/latest-pinned-message-banner";
 import {
   PinnedMessagesHeaderButton,
   PinnedMessagesPanel,
@@ -3011,35 +3010,6 @@ export function RoomsClient({
           // useEffect). First real chrome frame = title + composer together.
           desktopHeader={
             !mobileHeaderPortaled && roomHeaderChrome ? roomHeaderChrome : null
-          }
-          belowHeader={
-            selectedRoom.kind === "channel" &&
-            ((selectedRoom.pinnedMessageCount ?? 0) > 0 ||
-              pinnedListGeneration > 0 ||
-              pinnedMessageIds.size > 0) ? (
-              <LatestPinnedMessageBanner
-                roomId={selectedRoom.id}
-                listGeneration={pinnedListGeneration}
-                onJump={(messageId) => {
-                  void handleJumpToPinnedMessage(messageId);
-                }}
-                onOpenAll={openPinnedPanel}
-                onIdsLoaded={handlePinnedIdsLoaded}
-                coworkersById={coworkersById}
-                coworkersBySlug={coworkersBySlug}
-                usersById={usersById}
-                usersBySlug={usersBySlug}
-                channelLinks={channelLinks}
-                labels={{
-                  latest: t("PinnedMessages.latest"),
-                  jumpToLatest: (author) =>
-                    t("PinnedMessages.jumpToLatest", { author }),
-                  viewAll: t("PinnedMessages.viewAll"),
-                  count: (count) => t("PinnedMessages.count", { count }),
-                  couldNotLoad: t("PinnedMessages.couldNotLoad"),
-                }}
-              />
-            ) : null
           }
           wrapColumn={(columnBody) => (
             <RoomFileDropZone
