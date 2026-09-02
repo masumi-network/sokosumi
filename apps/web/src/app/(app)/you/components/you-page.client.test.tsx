@@ -93,7 +93,7 @@ describe("YouPageClient", () => {
     vi.clearAllMocks();
   });
 
-  it("renders identity, workspace switch, and credits summary", () => {
+  it("renders identity, workspace switch card row, and credits summary", () => {
     renderYouPage();
 
     expect(screen.getByTestId("you-page")).toBeInTheDocument();
@@ -101,7 +101,13 @@ describe("YouPageClient", () => {
       screen.getByRole("heading", { name: "Patrick Tobler" }),
     ).toBeInTheDocument();
     expect(screen.getByText("patrick@example.com")).toBeInTheDocument();
-    expect(screen.getByTestId("you-workspace-switch")).toBeInTheDocument();
+    const workspaceSwitch = screen.getByTestId("you-workspace-switch");
+    expect(workspaceSwitch).toBeInTheDocument();
+    expect(
+      workspaceSwitch.compareDocumentPosition(
+        screen.getByRole("heading", { name: "Patrick Tobler" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByText(/balanceCreditsLabel 15750/)).toBeInTheDocument();
     expect(screen.getByText("Pro")).toBeInTheDocument();
   });

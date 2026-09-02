@@ -146,25 +146,26 @@ export function YouPageClient({
         )}
       >
         <header className="space-y-4">
+          <YouMenuGroup>
+            <HeaderWorkspaceSwitch
+              sessionUser={sessionUser}
+              members={members}
+              hasPersonalWorkspace={hasPersonalWorkspace}
+              activeOrganizationId={activeOrganizationId}
+              isPending={isPending}
+              onSelectWorkspace={handleSelectWorkspace}
+              layout="row"
+            />
+          </YouMenuGroup>
           <div className="flex items-start gap-4">
             <YouPageAvatar
               sessionUser={sessionUser}
               displayName={displayName}
             />
             <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <h1 className="truncate text-xl leading-tight font-semibold">
-                  {displayName}
-                </h1>
-                <HeaderWorkspaceSwitch
-                  sessionUser={sessionUser}
-                  members={members}
-                  hasPersonalWorkspace={hasPersonalWorkspace}
-                  activeOrganizationId={activeOrganizationId}
-                  isPending={isPending}
-                  onSelectWorkspace={handleSelectWorkspace}
-                />
-              </div>
+              <h1 className="truncate text-xl leading-tight font-semibold">
+                {displayName}
+              </h1>
               <p className="text-muted-foreground truncate text-sm">
                 {sessionUser.email}
               </p>
@@ -334,7 +335,7 @@ function YouPageAvatar({
 
 function YouMenuGroup({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border-border divide-border divide-y overflow-hidden rounded-lg border">
+    <div className="border-border bg-card-background divide-border divide-y overflow-hidden rounded-lg border">
       {children}
     </div>
   );

@@ -424,4 +424,24 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     expect(createPersonalWorkspaceAction).not.toHaveBeenCalled();
     expect(screen.queryByTestId("workspace-switcher-create-choice")).toBeNull();
   });
+
+  it("renders a row-layout trigger for full-width sections", () => {
+    render(
+      <HeaderWorkspaceSwitch
+        sessionUser={sessionUser}
+        members={[orgMember]}
+        hasPersonalWorkspace={true}
+        activeOrganizationId="org-a"
+        isPending={false}
+        onSelectWorkspace={vi.fn()}
+        layout="row"
+      />,
+    );
+
+    const trigger = screen.getByTestId("you-workspace-switch");
+    expect(trigger).toBeInTheDocument();
+    expect(trigger.className).toContain("w-full");
+    expect(screen.getByText("Org A")).toBeInTheDocument();
+    expect(screen.queryByText("test@example.com")).not.toBeInTheDocument();
+  });
 });
