@@ -50,5 +50,6 @@ export * from "./organization-paid-subscribe-seats.js";
 export * from "./organization-seats.js";
 export * from "./organization-subscription-credit-audience.js";
 export * from "./organization-subscription-exclusivity.js";
+export * from "./remap-pa-shadow-coworkers.js";
 export * from "./signup-bonus-credits.js";
 export * from "./subscription.js";

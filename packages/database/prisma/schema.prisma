@@ -1571,7 +1571,7 @@ model Coworker {
   vendorId String @db.Uuid
   vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict)
 
-  /// First-party Soko Bot this coworker row represents in chat (null for marketplace coworkers).
+  /// Legacy 1:1 shadow link. Empty after PA cutover; column kept (SOK-946).
   sokoBotId String?  @unique @db.Uuid
   sokoBot   SokoBot? @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
@@ -1774,8 +1774,13 @@ model SokoBot {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  /// Chat-facing coworker row for this bot (created when the bot is created).
+  /// Legacy shadow coworker. Empty after PA cutover; column kept (SOK-946).
   coworker Coworker?
+
+  chatRoomMemberships ChatRoomOrchestratorMember[]
+  chatRoomMessages    ChatRoomMessage[]            @relation("ChatRoomOrchestratorSender")
+  chatRoomMentions    ChatRoomMention[]
+  assignedTasks       Task[]                       @relation("TaskAssigneeOrchestrator")
   labRuns  SokoBotLabRun[]
   installedSkills SokoBotInstalledSkill[]
   integrations    SokoBotIntegration[]
@@ -2372,9 +2377,13 @@ model Task {
 
   status TaskStatus @default(DRAFT)
 
-  /// Marketplace coworker assignee. Never an orchestrator.
+  /// Marketplace coworker assignee. XOR with assigneeOrchestratorId (DB check).
   assigneeId String?
   assignee   Coworker? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  /// Personal assistant assignee. XOR with assigneeId (DB check).
+  assigneeOrchestratorId String?  @db.Uuid
+  assigneeOrchestrator   SokoBot? @relation("TaskAssigneeOrchestrator", fields: [assigneeOrchestratorId], references: [id], onDelete: SetNull)
 
   /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
   /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
@@ -2426,6 +2435,7 @@ model Task {
   @@index([ownerId])
   @@index([ownerId, organizationId])
   @@index([assigneeId])
+  @@index([assigneeOrchestratorId])
   @@index([projectId])
   @@index([status, nextRunAt])
   @@index([pendingVendorGrantId])
@@ -3241,9 +3251,10 @@ model ChatRoom {
   createdByUserId String
   createdByUser   User   @relation("ChatRoomCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
-  userMembers      ChatRoomUserMember[]
-  coworkerMembers  ChatRoomCoworkerMember[]
-  messages         ChatRoomMessage[]
+  userMembers         ChatRoomUserMember[]
+  coworkerMembers     ChatRoomCoworkerMember[]
+  orchestratorMembers ChatRoomOrchestratorMember[]
+  messages            ChatRoomMessage[]
   pinnedMessages   ChatRoomPinnedMessage[]
   readStates       ChatRoomReadState[]
   guestInvitations ChatRoomGuestInvitation[]
@@ -3362,6 +3373,21 @@ model ChatRoomCoworkerMember {
   @@map("chat_room_coworker_member")
 }
 
+model ChatRoomOrchestratorMember {
+  id     String   @id @default(uuid(7)) @db.Uuid
+  roomId String   @db.Uuid
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  orchestratorId String  @db.Uuid
+  orchestrator   SokoBot @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([roomId, orchestratorId])
+  @@index([orchestratorId])
+  @@map("chat_room_orchestrator_member")
+}
+
 model ChatRoomMessage {
   id     String   @id @default(uuid(7)) @db.Uuid
   roomId String   @db.Uuid
@@ -3371,10 +3397,12 @@ model ChatRoomMessage {
   parentMessage   ChatRoomMessage?  @relation("ChatRoomThread", fields: [parentMessageId], references: [id], onDelete: Cascade)
   replies         ChatRoomMessage[] @relation("ChatRoomThread")
 
-  senderUserId     String?
-  senderUser       User?     @relation("ChatRoomUserSender", fields: [senderUserId], references: [id], onDelete: SetNull)
-  senderCoworkerId String?
-  senderCoworker   Coworker? @relation("ChatRoomCoworkerSender", fields: [senderCoworkerId], references: [id], onDelete: SetNull)
+  senderUserId          String?
+  senderUser            User?     @relation("ChatRoomUserSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  senderCoworkerId      String?
+  senderCoworker        Coworker? @relation("ChatRoomCoworkerSender", fields: [senderCoworkerId], references: [id], onDelete: SetNull)
+  senderOrchestratorId  String?   @db.Uuid
+  senderOrchestrator    SokoBot?  @relation("ChatRoomOrchestratorSender", fields: [senderOrchestratorId], references: [id], onDelete: SetNull)
 
   content   String
   metadata  Json?
@@ -3405,6 +3433,7 @@ model ChatRoomMessage {
   @@index([parentMessageId, createdAt])
   @@index([senderUserId])
   @@index([senderCoworkerId])
+  @@index([senderOrchestratorId])
   @@index([deletedAt])
   @@map("chat_room_message")
 }
@@ -3507,8 +3536,12 @@ model ChatRoomMention {
   messageId String          @db.Uuid
   message   ChatRoomMessage @relation("ChatRoomMentionSource", fields: [messageId], references: [id], onDelete: Cascade)
 
-  coworkerId String
-  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+  /// Exactly one of coworkerId / orchestratorId (DB check).
+  coworkerId String?
+  coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  orchestratorId String?  @db.Uuid
+  orchestrator   SokoBot? @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
 
   status                 String           @default("pending")
   error                  String?
@@ -3529,7 +3562,9 @@ model ChatRoomMention {
   sokoBotTurn SokoBotTurn?
 
   @@unique([messageId, coworkerId])
+  @@unique([messageId, orchestratorId])
   @@index([coworkerId, status])
+  @@index([orchestratorId, status])
   @@map("chat_room_mention")
 }
 
