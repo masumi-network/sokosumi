@@ -33,8 +33,8 @@ export function readNodeErrorMessage(error: unknown): string | null {
  * its behalf, and that is routinely a whole HTML page: a Cloudflare 521 in
  * front of a restarting node is ~1.2 kB of doctype, inline CSS, and a Ray ID.
  * The opening characters already identify the far side; the rest is markup
- * that fills a log line and a Sentry title. Only the fallback is capped — the
- * node's OWN message is returned whole, because callers echo it.
+ * that fills a log line and a Sentry title. Only the fallback is capped. The
+ * node's OWN message is returned whole because callers echo it.
  */
 const MAX_FALLBACK_MESSAGE_LENGTH = 300;
 

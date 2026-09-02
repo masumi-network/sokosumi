@@ -22,7 +22,7 @@ export const PURCHASE_DIFF_SYNC_METADATA_KEY = "purchase-diff-sync:v2";
 /**
  * Rows per diff request. The run deadline, not this number, bounds a run: a
  * smaller page costs more requests to drain the same backlog, never fewer
- * rows. Held low so one response stays small for whatever serves it — the node
+ * rows. Held low so one response stays small for whatever serves it. The node
  * sits behind a proxy that answers 521 when the origin is not there.
  */
 export const PURCHASE_DIFF_PAGE_SIZE = 20;
@@ -523,19 +523,18 @@ export async function syncPurchasesFromDiff(
     if (purchasesResult.isErr()) {
       // The diff is the only path that updates a job whose purchase row
       // already exists, so a request that keeps failing (an expired API key,
-      // say) freezes purchase state everywhere. Page for it — except when the
-      // status says a proxy answered for an absent node, which the shared
-      // helper demotes to a warning so a restart does not page once a minute.
+      // say) freezes purchase state everywhere. Page when the node supplied
+      // its own error envelope. A retryable proxy response gets one warning.
       // The cursor stays parked either way, so the feed resumes where it was.
-      const { message, status } = purchasesResult.error;
-      console.error(
-        "[sync/jobs/purchase-diff] Diff request failed; cursor not advanced:",
-        message,
-      );
-      captureExternalServiceError(
-        Object.assign(new Error(message), { statusCode: status }),
-        { label: "sync/jobs/purchase-diff" },
-      );
+      const { hasNodeErrorEnvelope, message, status } = purchasesResult.error;
+      const error = Object.assign(new Error(message), { statusCode: status });
+      if (hasNodeErrorEnvelope) {
+        Sentry.captureException(error);
+      } else {
+        captureExternalServiceError(error, {
+          label: "sync/jobs/purchase-diff",
+        });
+      }
       break;
     }
 

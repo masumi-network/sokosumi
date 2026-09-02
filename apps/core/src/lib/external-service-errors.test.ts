@@ -109,7 +109,7 @@ describe("isTransientUpstreamHttpError", () => {
   });
 
   it("treats proxy gateway statuses as transient", () => {
-    for (const statusCode of [408, 502, 503, 504, 520, 527]) {
+    for (const statusCode of [408, 502, 503, 504, 520, 521, 522, 523, 524]) {
       expect(
         isTransientUpstreamHttpError(
           Object.assign(new Error(`upstream ${statusCode}`), { statusCode }),
@@ -119,7 +119,7 @@ describe("isTransientUpstreamHttpError", () => {
   });
 
   it("does not treat a rejection by the far side as transient", () => {
-    for (const statusCode of [400, 401, 429, 500, 519, 528]) {
+    for (const statusCode of [400, 401, 429, 500, 519, 525, 526, 527, 528]) {
       expect(
         isTransientUpstreamHttpError(
           Object.assign(new Error(`upstream ${statusCode}`), { statusCode }),

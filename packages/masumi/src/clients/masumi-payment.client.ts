@@ -10,7 +10,7 @@ import {
   toMasumiPaymentNodeAmounts,
 } from "../utils/payment-amounts.js";
 import { createX402PaymentMethods } from "./masumi-payment-x402.js";
-import { extractNodeErrorMessage } from "./node-error.js";
+import { extractNodeErrorMessage, readNodeErrorMessage } from "./node-error.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
   type GetPurchaseDiffResponses,
@@ -48,13 +48,13 @@ export type MasumiPurchaseDiffEntry =
 
 /**
  * A failed diff request. The status rides alongside the message because the
- * caller's paging policy branches on it and a message cannot be parsed for it
- * safely: a 502/503/504 or a Cloudflare 52x was written by a proxy in front of
- * the node, clears without a code change, and must not page a human once a
- * minute for the length of a node restart. Null when no response arrived at
- * all — a transport failure or an abort.
+ * caller's paging policy branches on it. `hasNodeErrorEnvelope` records whether
+ * the payment node supplied its documented `{ error: { message } }` envelope.
+ * A node-owned response must still page when its status also looks like a
+ * transient proxy status. `status` is null when no response arrived.
  */
 export interface MasumiPurchaseDiffFailure {
+  hasNodeErrorEnvelope: boolean;
   message: string;
   status: number | null;
 }
@@ -425,8 +425,10 @@ export function createPaymentClient(
           !response.data ||
           response.response?.status !== 200
         ) {
+          const nodeErrorMessage = readNodeErrorMessage(response.error);
           return err({
-            message: `purchase-diff ${status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
+            hasNodeErrorEnvelope: nodeErrorMessage !== null,
+            message: `purchase-diff ${status ?? "unknown"}: ${nodeErrorMessage ?? extractNodeErrorMessage(response.error)}`,
             status,
           });
         }
@@ -447,6 +449,7 @@ export function createPaymentClient(
           // A 200 the node itself served: the body is wrong, not the far side
           // absent, so this must stay pageable.
           return err({
+            hasNodeErrorEnvelope: false,
             message: `purchase-diff 200: invalid change timestamp for purchase ${invalidCursorPurchase.id}`,
             status,
           });
@@ -454,6 +457,7 @@ export function createPaymentClient(
         return ok(purchases);
       } catch (error) {
         return err({
+          hasNodeErrorEnvelope: false,
           message: String(error) || "Failed to fetch the purchase diff",
           status: null,
         });

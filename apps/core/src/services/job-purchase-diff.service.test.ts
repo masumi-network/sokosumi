@@ -855,7 +855,11 @@ describe("syncPurchasesFromDiff", () => {
   it("keeps the initial checkpoint when the node rejects the request", async () => {
     const { err } = await import("neverthrow");
     getPurchasesDiffMock.mockResolvedValueOnce(
-      err({ message: "purchase-diff 500", status: 500 }),
+      err({
+        hasNodeErrorEnvelope: true,
+        message: "purchase-diff 500",
+        status: 500,
+      }),
     );
 
     const result = await syncPurchasesFromDiff(
@@ -883,7 +887,11 @@ describe("syncPurchasesFromDiff", () => {
     // A restarting payment node reaches us as Cloudflare's 521 page, once a
     // minute for the length of the restart. It clears on its own.
     getPurchasesDiffMock.mockResolvedValueOnce(
-      err({ message: 'purchase-diff 521: "<!DOCTYPE html>..."', status: 521 }),
+      err({
+        hasNodeErrorEnvelope: false,
+        message: 'purchase-diff 521: "<!DOCTYPE html>..."',
+        status: 521,
+      }),
     );
 
     const result = await syncPurchasesFromDiff(
@@ -892,8 +900,31 @@ describe("syncPurchasesFromDiff", () => {
 
     expect(result).toEqual({ found: 0, processed: 0 });
     expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledTimes(1);
     // Quiet, but still parked: the feed has to resume where it stopped once
     // the node answers again.
+    expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("pages when the node returns its own 503 error envelope", async () => {
+    const { err } = await import("neverthrow");
+    getPurchasesDiffMock.mockResolvedValueOnce(
+      err({
+        hasNodeErrorEnvelope: true,
+        message: "purchase-diff 503: database unavailable",
+        status: 503,
+      }),
+    );
+
+    const result = await syncPurchasesFromDiff(
+      createOptions(vi.fn<ApplyPurchase>()),
+    );
+
+    expect(result).toEqual({ found: 0, processed: 0 });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(console.error).not.toHaveBeenCalled();
+    expect(console.warn).not.toHaveBeenCalled();
     expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
   });
 
@@ -963,7 +994,11 @@ describe("syncPurchasesFromDiff", () => {
   it("keeps an epoch checkpoint when the first replay request fails", async () => {
     const { err } = await import("neverthrow");
     getPurchasesDiffMock.mockResolvedValueOnce(
-      err({ message: "purchase-diff 500", status: 500 }),
+      err({
+        hasNodeErrorEnvelope: true,
+        message: "purchase-diff 500",
+        status: 500,
+      }),
     );
 
     await syncPurchasesFromDiff(

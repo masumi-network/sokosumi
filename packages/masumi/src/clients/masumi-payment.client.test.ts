@@ -1449,7 +1449,7 @@ describe("createPaymentClient purchase diff", () => {
 
   it("returns an error when the node rejects the diff request", async () => {
     getPurchaseDiffMock.mockResolvedValue({
-      error: { message: "unauthorized" },
+      error: { error: { message: "unauthorized" } },
       response: { status: 401 },
     });
 
@@ -1464,8 +1464,29 @@ describe("createPaymentClient purchase diff", () => {
     // The status is what the caller's paging policy reads; 401 is a rejection
     // by the node and has to keep paging.
     expect(result._unsafeUnwrapErr()).toEqual({
-      message: 'purchase-diff 401: {"message":"unauthorized"}',
+      hasNodeErrorEnvelope: true,
+      message: "purchase-diff 401: unauthorized",
       status: 401,
+    });
+  });
+
+  it("marks a node-owned 503 error envelope", async () => {
+    getPurchaseDiffMock.mockResolvedValue({
+      error: { error: { message: "database unavailable" } },
+      response: { status: 503 },
+    });
+
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.test",
+      "api-key",
+    );
+    const result = await client.getPurchasesDiff(new Date(0), null, 25);
+
+    expect(result._unsafeUnwrapErr()).toEqual({
+      hasNodeErrorEnvelope: true,
+      message: "purchase-diff 503: database unavailable",
+      status: 503,
     });
   });
 
@@ -1486,6 +1507,7 @@ describe("createPaymentClient purchase diff", () => {
     const result = await client.getPurchasesDiff(new Date(0), null, 25);
 
     const failure = result._unsafeUnwrapErr();
+    expect(failure.hasNodeErrorEnvelope).toBe(false);
     expect(failure.status).toBe(521);
     expect(failure.message).toContain("purchase-diff 521:");
     expect(failure.message).toContain("truncated from");
@@ -1508,6 +1530,7 @@ describe("createPaymentClient purchase diff", () => {
     const result = await client.getPurchasesDiff(new Date(0), null, 25);
 
     expect(result._unsafeUnwrapErr()).toEqual({
+      hasNodeErrorEnvelope: false,
       message: "Error: socket hang up",
       status: null,
     });
