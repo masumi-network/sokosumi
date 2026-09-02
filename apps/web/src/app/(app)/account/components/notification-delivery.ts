@@ -201,31 +201,43 @@ export function presetDelivery(preset: Preset, kind: KindSpec): Delivery {
   return preset === "IMPORTANT" ? "BANNER" : "IN_APP";
 }
 
+/** The preset whose name describes these deliveries, when one does. */
+function namedBy(shape: readonly Delivery[]): Preset | null {
+  if (shape.every((delivery) => delivery === "OFF")) {
+    return "OFF";
+  }
+
+  if (shape.every((delivery) => delivery === "BANNER")) {
+    return "EVERYTHING";
+  }
+
+  return null;
+}
+
 /**
  * The presets worth showing for this group.
  *
  * A group whose kinds all wait on the reader cannot tell "Everything" from
  * "Important": both write the same cells, and a control that never changes
- * anything reads as broken. So a preset that writes what an earlier one writes
- * is dropped rather than explained.
+ * anything reads as broken. So a preset that writes what another one writes is
+ * dropped rather than explained.
+ *
+ * Which of the two survives is the one whose name describes what it writes. A
+ * group of kinds that none of them wait on the reader turns "Important" into a
+ * stop that silences the group, and "Off" is what a reader would call that.
  */
 export function groupPresets(kinds: readonly KindSpec[]): Preset[] {
-  const kept: Preset[] = [];
+  const shapeOf = (preset: Preset): Delivery[] =>
+    kinds.map((kind) => presetDelivery(preset, kind));
+  const keyOf = (preset: Preset): string => shapeOf(preset).join("|");
+  const kept = new Map<string, Preset>();
 
   for (const preset of PRESETS) {
-    const shape = kinds.map((kind) => presetDelivery(preset, kind));
-    const same = kept.some((earlier) =>
-      kinds.every(
-        (kind, index) => presetDelivery(earlier, kind) === shape[index],
-      ),
-    );
-
-    if (!same) {
-      kept.push(preset);
-    }
+    const key = keyOf(preset);
+    kept.set(key, namedBy(shapeOf(preset)) ?? kept.get(key) ?? preset);
   }
 
-  return kept;
+  return PRESETS.filter((preset) => kept.get(keyOf(preset)) === preset);
 }
 
 /** Which preset the group is on, or that the reader set its kinds one by one. */

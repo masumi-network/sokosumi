@@ -84,6 +84,15 @@ describe("groupPresets", () => {
   it("leaves a single kind with the delivery ladder", () => {
     expect(groupPresets([ATTENTION])).toEqual(["EVERYTHING", "QUIET", "OFF"]);
   });
+
+  /**
+   * Important and Quiet both silence a group whose kinds none of them wait on
+   * the reader. Off is what a reader calls a stop that silences a group, so
+   * that is the one that survives.
+   */
+  it("keeps the preset whose name describes what it writes", () => {
+    expect(groupPresets([UPDATE])).toEqual(["EVERYTHING", "OFF"]);
+  });
 });
 
 describe("groupPreset", () => {

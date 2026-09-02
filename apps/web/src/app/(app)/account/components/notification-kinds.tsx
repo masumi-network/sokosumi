@@ -35,12 +35,13 @@ import {
 function DeliveryStops({
   kind,
   delivery,
-  disabled,
+  saving,
   onPick,
 }: {
   kind: string;
   delivery: Delivery;
-  disabled: boolean;
+  /** A write is in flight. The stops stay reachable, and do nothing. */
+  saving: boolean;
   onPick: (delivery: Delivery) => void;
 }) {
   const t = useTranslations("App.Account.Notifications");
@@ -56,16 +57,21 @@ function DeliveryStops({
           key={candidate}
           type="button"
           aria-pressed={delivery === candidate}
-          disabled={disabled}
+          aria-disabled={saving || undefined}
           title={t(DELIVERY_HINT_KEY[candidate])}
           onClick={() => {
+            if (saving) {
+              return;
+            }
+
             onPick(candidate);
           }}
           className={cn(
-            "focus-visible:ring-ring/50 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px] disabled:opacity-50",
+            "focus-visible:ring-ring/50 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px]",
+            saving && "opacity-50",
             delivery === candidate
               ? "bg-primary/10 text-primary"
-              : "text-muted-foreground enabled:hover:text-foreground",
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           {t(DELIVERY_LABEL_KEY[candidate])}
@@ -80,14 +86,14 @@ function KindRow({
   label,
   hint,
   delivery,
-  disabled,
+  saving,
   indent = false,
   onPick,
 }: {
   label: string;
   hint: string;
   delivery: Delivery;
-  disabled: boolean;
+  saving: boolean;
   indent?: boolean;
   onPick: (delivery: Delivery) => void;
 }) {
@@ -105,7 +111,7 @@ function KindRow({
       <DeliveryStops
         kind={label}
         delivery={delivery}
-        disabled={disabled}
+        saving={saving}
         onPick={onPick}
       />
     </div>
@@ -154,10 +160,7 @@ function GroupRows({
           group={t(group.spec.labelKey)}
           kinds={kinds}
           preset={group.preset}
-          disabled={group.saving}
-          onCustom={() => {
-            setOpen(true);
-          }}
+          saving={group.saving}
           onPick={(preset) => {
             void choices.setDeliveries(presetChanges(preset, kinds));
           }}
@@ -171,7 +174,7 @@ function GroupRows({
               label={t(kind.spec.labelKey)}
               hint={t(kind.spec.hintKey)}
               delivery={kind.delivery}
-              disabled={kind.saving}
+              saving={kind.saving}
               indent
               onPick={(delivery) => {
                 void choices.setDeliveries([
@@ -189,9 +192,11 @@ function GroupRows({
 /**
  * What you get notified about, and where each kind arrives.
  *
- * One row per kind, and one control on it. The switch matrix this replaces
- * asked the same question as two switches per row, which let a reader ask for a
- * banner and no entry in Sokosumi, and made the common answer two presses.
+ * One control per decision: a group that a reader settles at once carries the
+ * group's own answers, and the kinds under it stay separately selectable. The
+ * switch matrix this replaces asked the same question as two switches per row,
+ * which let a reader ask for a banner and no entry in Sokosumi, and made the
+ * common answer two presses.
  */
 export function NotificationKinds() {
   const t = useTranslations("App.Account.Notifications");
@@ -221,7 +226,7 @@ export function NotificationKinds() {
               label={t(group.spec.labelKey)}
               hint={t(only.spec.hintKey)}
               delivery={only.delivery}
-              disabled={only.saving}
+              saving={only.saving}
               onPick={(delivery) => {
                 void choices.setDeliveries([
                   { category: only.spec.category, delivery },

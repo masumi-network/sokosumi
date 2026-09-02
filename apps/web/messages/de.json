@@ -4803,7 +4803,7 @@
         "presetQuietHint": "Nur was auf dich wartet, in Sokosumi.",
         "presetOff": "Aus",
         "presetOffHint": "Nichts aus dieser Gruppe.",
-        "presetCustom": "Eigen",
+        "presetCustom": "Individuell",
         "presetCustomHint": "Einzeln gesetzt. Gruppe öffnen, um es zu sehen.",
         "presetAriaLabel": "Wie {group} ankommt"
       },

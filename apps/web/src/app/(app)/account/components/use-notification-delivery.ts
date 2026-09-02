@@ -170,13 +170,12 @@ export function useNotificationDelivery(): NotificationDelivery {
         )?.enabled ?? false,
     }));
 
-    // A banner that was already on is not a new request, so a group write that
-    // happens to carry one must not put a permission prompt on the screen.
+    // Every banner needs the account-wide opt-in, so a write that leaves one
+    // on asks for it. Asking only about a cell this write turns on would miss
+    // the reader whose banner cells were on from the start, which is where a
+    // reader starts: nothing would ever prompt, and no banner would arrive.
     const asksForBanner = written.some(
-      (change, index) =>
-        change.channel === "OS_BANNER" &&
-        change.enabled &&
-        !previous[index]?.enabled,
+      (change) => change.channel === "OS_BANNER" && change.enabled,
     );
 
     if (asksForBanner) {
