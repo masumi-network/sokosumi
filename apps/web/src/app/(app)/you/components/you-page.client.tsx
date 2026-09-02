@@ -312,10 +312,10 @@ export function YouPageClient({
 
         <Button
           type="button"
-          variant="destructive"
+          variant="link"
           size="sm"
           onClick={handleLogout}
-          className="h-11 w-full gap-2 md:h-8"
+          className="text-muted-foreground hover:text-foreground h-11 w-full justify-center gap-2 px-0 font-normal no-underline hover:no-underline md:h-8"
           data-testid="you-logout"
         >
           <LogOut className="size-4 shrink-0" aria-hidden />
