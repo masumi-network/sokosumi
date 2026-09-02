@@ -38,6 +38,47 @@ export function sokoBotCapabilityLabel(toolName: string | null): string {
   return CAPABILITY_LABELS[toolName] ?? toolName.replaceAll("_", " ");
 }
 
+export interface SokoBotDirectDeliveryRoomCandidate {
+  id: string;
+  organizationId: string | null;
+  updatedAt: Date;
+  messageCount: number;
+  isOrchestrator: boolean;
+}
+
+/**
+ * Prefer a room that already has history, then personal (null org), then
+ * orchestrator over legacy shadow coworker, then most recently updated.
+ * Prevents empty org orchestrator rooms from stealing delivery from a
+ * personal legacy DM with history.
+ */
+export function selectSokoBotDirectDeliveryRoom(
+  candidates: readonly SokoBotDirectDeliveryRoomCandidate[],
+): SokoBotDirectDeliveryRoomCandidate | null {
+  if (candidates.length === 0) {
+    return null;
+  }
+  return [...candidates].sort((left, right) => {
+    const byHistory =
+      Number(right.messageCount > 0) - Number(left.messageCount > 0);
+    if (byHistory !== 0) {
+      return byHistory;
+    }
+    const byPersonal =
+      Number(left.organizationId === null) -
+      Number(right.organizationId === null);
+    if (byPersonal !== 0) {
+      return byPersonal;
+    }
+    const byOrchestrator =
+      Number(right.isOrchestrator) - Number(left.isOrchestrator);
+    if (byOrchestrator !== 0) {
+      return byOrchestrator;
+    }
+    return right.updatedAt.getTime() - left.updatedAt.getTime();
+  })[0]!;
+}
+
 interface ChatLinkedTurn {
   id: string;
   status: string;
@@ -282,32 +323,42 @@ export async function deliverSokoBotTurnToDirectRoom(
   const answer = turn.finalAnswer?.trim() ?? "";
   if (isSokoBotSilentAnswer(answer)) return;
   const legacyCoworkerId = turn.sokoBot.coworker?.id ?? null;
-  // Prefer the orchestrator DM when both exist so proactive delivery does not
-  // land nondeterministically in a stale shadow coworker room.
-  const orchestratorRoom = await prisma.chatRoom.findFirst({
+  const candidateRooms = await prisma.chatRoom.findMany({
     where: {
       kind: "direct",
       archivedAt: null,
       userMembers: { some: { userId: turn.userId } },
-      orchestratorMembers: { some: { orchestratorId: turn.sokoBotId } },
+      OR: [
+        { orchestratorMembers: { some: { orchestratorId: turn.sokoBotId } } },
+        ...(legacyCoworkerId
+          ? [{ coworkerMembers: { some: { coworkerId: legacyCoworkerId } } }]
+          : []),
+      ],
     },
-    select: { id: true },
+    select: {
+      id: true,
+      organizationId: true,
+      updatedAt: true,
+      orchestratorMembers: {
+        where: { orchestratorId: turn.sokoBotId },
+        select: { orchestratorId: true },
+        take: 1,
+      },
+      _count: { select: { messages: true } },
+    },
   });
-  const legacyRoom =
-    orchestratorRoom || !legacyCoworkerId
-      ? null
-      : await prisma.chatRoom.findFirst({
-          where: {
-            kind: "direct",
-            archivedAt: null,
-            userMembers: { some: { userId: turn.userId } },
-            coworkerMembers: { some: { coworkerId: legacyCoworkerId } },
-          },
-          select: { id: true },
-        });
-  const room = orchestratorRoom ?? legacyRoom;
-  if (!room) return;
-  const usesOrchestrator = orchestratorRoom != null;
+  const selected = selectSokoBotDirectDeliveryRoom(
+    candidateRooms.map((candidate) => ({
+      id: candidate.id,
+      organizationId: candidate.organizationId,
+      updatedAt: candidate.updatedAt,
+      messageCount: candidate._count.messages,
+      isOrchestrator: candidate.orchestratorMembers.length > 0,
+    })),
+  );
+  if (!selected) return;
+  const room = { id: selected.id };
+  const usesOrchestrator = selected.isOrchestrator;
   const message = await prisma.$transaction(async (tx) => {
     const created = await tx.chatRoomMessage.create({
       data: {

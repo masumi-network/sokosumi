@@ -2068,8 +2068,11 @@ export async function validateChatCoworkerIds(
 }
 
 /**
- * Owner may add their own live Soko Bot (PA) to a room. Must match workspace
- * and owner; archived/deleted bots are rejected.
+ * Validate Soko Bot ids for chat room membership.
+ * - Owner-scoped (`ownerUserId` set): personal DMs / owner channels — bots
+ *   must belong to that user in the workspace.
+ * - Workspace-scoped (no `ownerUserId`): org rooms — any live PA in the
+ *   workspace (colleague approach).
  */
 export async function validateChatOrchestratorIds(
   orchestratorIds: readonly string[],
@@ -2098,7 +2101,9 @@ export async function validateChatOrchestratorIds(
 
   if (missing.length > 0) {
     throw badRequest(
-      "Room personal assistants must be your live Soko Bot in this workspace",
+      opts.ownerUserId
+        ? "Room personal assistants must be your live Soko Bot in this workspace"
+        : "Room personal assistants must be a live Soko Bot in this workspace",
     );
   }
 
@@ -2471,6 +2476,35 @@ type DirectCreateShape =
       orchestratorIds: [string];
     };
 
+/**
+ * Owner↔PA directs are always personal (`organizationId` null) so Message bot
+ * under an active org reuses the legacy personal shadow DM. Colleague approach
+ * stays org-scoped and requires an active organization.
+ */
+export function resolveOrchestratorDirectRoomOrganizationId(params: {
+  isOwner: boolean;
+  activeOrganizationId: string | null;
+}): string | null {
+  return params.isOwner ? null : params.activeOrganizationId;
+}
+
+/**
+ * Lookup order when create-or-getting an orchestrator 1:1. Owner checks
+ * personal first, then the active org (reuse a previously forked org room
+ * instead of creating another). Colleague checks only the active org.
+ */
+export function resolveOrchestratorDirectLookupOrganizationIds(params: {
+  isOwner: boolean;
+  activeOrganizationId: string | null;
+}): Array<string | null> {
+  if (params.isOwner) {
+    return params.activeOrganizationId
+      ? [null, params.activeOrganizationId]
+      : [null];
+  }
+  return [params.activeOrganizationId];
+}
+
 export async function createOrGetDirectRoom(params: {
   organizationId: string | null;
   currentUserId: string;
@@ -2562,19 +2596,68 @@ export async function createOrGetDirectRoom(params: {
       }
 
       if (shape.kind === "orchestrator-1to1") {
-        const workspaceId = await resolveWorkspaceIdForChatRoom({
-          organizationId: activeOrganizationId,
-          personalUserId: currentUserId,
-          tx,
+        const requestedOrchestratorId = requestedOrchestratorIds[0];
+        // Peek ownership before choosing room org scope / workspace. Owner↔PA
+        // DMs stay personal even when an org is active so Message bot reuses
+        // the legacy personal shadow DM instead of forking an empty org room.
+        const botPeek = await tx.sokoBot.findFirst({
+          where: {
+            id: requestedOrchestratorId,
+            archivedAt: null,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            userId: true,
+            workspaceId: true,
+            coworker: { select: { id: true } },
+          },
         });
-        // Personal DMs stay owner-scoped. Org DMs allow any live workspace PA
-        // so a bot can approach colleagues (and colleagues can be messaged)
-        // without a shadow coworker row.
+        if (!botPeek) {
+          throw badRequest(
+            "Room personal assistants must be a live Soko Bot in this workspace",
+          );
+        }
+
+        const isOwner = botPeek.userId === currentUserId;
+        if (!isOwner && !activeOrganizationId) {
+          throw badRequest(
+            "Switch to an organization to message a teammate's personal assistant.",
+          );
+        }
+
+        const roomOrganizationId = resolveOrchestratorDirectRoomOrganizationId({
+          isOwner,
+          activeOrganizationId,
+        });
+        const lookupOrganizationIds =
+          resolveOrchestratorDirectLookupOrganizationIds({
+            isOwner,
+            activeOrganizationId,
+          });
+
+        // Owner: validate against the bot's own workspace so a personal-
+        // workspace PA still opens when an org is selected. Colleague: org
+        // workspace only.
+        const workspaceId = isOwner
+          ? botPeek.workspaceId
+          : await resolveWorkspaceIdForChatRoom({
+              organizationId: activeOrganizationId,
+              personalUserId: currentUserId,
+              tx,
+            });
+
+        if (!isOwner && botPeek.workspaceId !== workspaceId) {
+          throw badRequest(
+            "Room personal assistants must be a live Soko Bot in this workspace",
+          );
+        }
+
         const orchestratorIds = await validateChatOrchestratorIds(
           requestedOrchestratorIds,
           {
             workspaceId,
-            ...(activeOrganizationId ? {} : { ownerUserId: currentUserId }),
+            ...(isOwner ? { ownerUserId: currentUserId } : {}),
           },
           tx,
         );
@@ -2585,46 +2668,41 @@ export async function createOrGetDirectRoom(params: {
           orchestratorIds,
         });
         directKeyRef.current = directKey;
-        createOrganizationIdRef.current = activeOrganizationId;
+        createOrganizationIdRef.current = roomOrganizationId;
 
-        const existing = await findOrRestoreDirectByKey(tx, {
-          organizationId: activeOrganizationId,
-          directKey,
-        });
-        if (existing) {
-          return { room: existing, created: false };
+        for (const organizationId of lookupOrganizationIds) {
+          const existing = await findOrRestoreDirectByKey(tx, {
+            organizationId,
+            directKey,
+          });
+          if (existing) {
+            return { room: existing, created: false };
+          }
         }
 
         // Prefer an existing shadow coworker DM for this PA until SOK-945
         // remaps memberships — avoids a second empty orchestrator room.
-        const bot = await tx.sokoBot.findFirst({
-          where: {
-            id: orchestratorIds[0],
-            workspaceId,
-            archivedAt: null,
-            deletedAt: null,
-          },
-          select: { coworker: { select: { id: true } } },
-        });
-        if (bot?.coworker) {
+        if (botPeek.coworker) {
           const legacyKey = buildDirectParticipantRoomKey({
             currentUserId,
             memberUserIds: [],
-            coworkerIds: [bot.coworker.id],
+            coworkerIds: [botPeek.coworker.id],
           });
-          const legacy = await findOrRestoreDirectByKey(tx, {
-            organizationId: activeOrganizationId,
-            directKey: legacyKey,
-          });
-          if (legacy) {
-            return { room: legacy, created: false };
+          for (const organizationId of lookupOrganizationIds) {
+            const legacy = await findOrRestoreDirectByKey(tx, {
+              organizationId,
+              directKey: legacyKey,
+            });
+            if (legacy) {
+              return { room: legacy, created: false };
+            }
           }
         }
 
         return createDirectRoomRecord({
           tx,
           currentUserId,
-          organizationId: activeOrganizationId,
+          organizationId: roomOrganizationId,
           directKey,
           memberUserIds: [],
           coworkerIds: [],

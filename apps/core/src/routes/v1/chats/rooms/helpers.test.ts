@@ -37,6 +37,8 @@ import {
   resolveMentionedCoworkerIds,
   resolveMentionedOrchestratorIds,
   resolveMentionedUserIds,
+  resolveOrchestratorDirectLookupOrganizationIds,
+  resolveOrchestratorDirectRoomOrganizationId,
   resolvePeerInActiveOrganization,
   resolveWorkspaceIdForChatRoom,
   usersShareExternalChannel,
@@ -1831,5 +1833,54 @@ describe("requireRoomMemberCanInviteGuests", () => {
       (error: unknown) =>
         error instanceof HTTPException && error.status === 404,
     );
+  });
+});
+
+describe("resolveOrchestratorDirectRoomOrganizationId", () => {
+  it("forces owner↔PA directs to personal scope", () => {
+    expect(
+      resolveOrchestratorDirectRoomOrganizationId({
+        isOwner: true,
+        activeOrganizationId: "org_1",
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps colleague approach org-scoped", () => {
+    expect(
+      resolveOrchestratorDirectRoomOrganizationId({
+        isOwner: false,
+        activeOrganizationId: "org_1",
+      }),
+    ).toBe("org_1");
+  });
+});
+
+describe("resolveOrchestratorDirectLookupOrganizationIds", () => {
+  it("searches personal then active org for owners", () => {
+    expect(
+      resolveOrchestratorDirectLookupOrganizationIds({
+        isOwner: true,
+        activeOrganizationId: "org_1",
+      }),
+    ).toEqual([null, "org_1"]);
+  });
+
+  it("searches only personal when the owner has no active org", () => {
+    expect(
+      resolveOrchestratorDirectLookupOrganizationIds({
+        isOwner: true,
+        activeOrganizationId: null,
+      }),
+    ).toEqual([null]);
+  });
+
+  it("searches only the active org for colleagues", () => {
+    expect(
+      resolveOrchestratorDirectLookupOrganizationIds({
+        isOwner: false,
+        activeOrganizationId: "org_1",
+      }),
+    ).toEqual(["org_1"]);
   });
 });

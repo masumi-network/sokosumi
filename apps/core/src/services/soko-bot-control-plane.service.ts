@@ -22,6 +22,8 @@ import {
   sokoBotContextPacketSchema,
 } from "@sokosumi/soko-bot";
 
+import { personalAssistantCaption } from "@sokosumi/utils";
+
 import { getEnv } from "@/config/env";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
@@ -1058,12 +1060,20 @@ export class SokoBotControlPlane {
             },
           });
         }
-        if (isReactivation) {
-          await tx.coworker.updateMany({
-            where: { sokoBotId: existing.id },
-            data: { archivedAt: null },
-          });
-        }
+        // Keep any pre-SOK-944 shadow coworker profile in sync without
+        // recreating it (name/caption; avatar claim updates image below).
+        const owner = await tx.user.findUnique({
+          where: { id: input.userId },
+          select: { name: true },
+        });
+        await tx.coworker.updateMany({
+          where: { sokoBotId: existing.id },
+          data: {
+            name,
+            caption: personalAssistantCaption(owner?.name),
+            ...(isReactivation ? { archivedAt: null } : {}),
+          },
+        });
         if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }

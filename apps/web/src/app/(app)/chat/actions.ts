@@ -308,8 +308,10 @@ export async function createDirectRoomAction(
 }
 
 /**
- * Create-or-get the `kind:direct` room for a solo coworker 1:1.
- * Uses the active organization when set (same as `/chat`); personal if none.
+ * Create-or-get the owner↔PA `kind:direct` room for an orchestrator id.
+ * Core keeps owner↔PA directs personal (organizationId null) so Message bot
+ * under an active org reuses the legacy personal shadow DM; colleague
+ * approach stays org-scoped on the Core side.
  */
 export async function ensureOrchestratorDirectRoomAction(
   orchestratorId: string,

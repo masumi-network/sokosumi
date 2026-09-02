@@ -28,6 +28,7 @@ const {
   coworkerCreateMock,
   coworkerUpsertMock,
   coworkerUpdateManyMock,
+  userFindUniqueMock,
   getEnvMock,
   jobFindManyMock,
   memoryCreateMock,
@@ -76,6 +77,7 @@ const {
   coworkerCreateMock: vi.fn(),
   coworkerUpsertMock: vi.fn(),
   coworkerUpdateManyMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
   getEnvMock: vi.fn<
     () => {
       SOKO_BOT_CLASSIFIER_MODE: string;
@@ -246,6 +248,9 @@ function transactionClient() {
       upsert: coworkerUpsertMock,
       updateMany: coworkerUpdateManyMock,
     },
+    user: {
+      findUnique: userFindUniqueMock,
+    },
     sokoBotAdminAction: {
       create: adminActionCreateMock,
       findMany: adminActionFindManyMock,
@@ -329,6 +334,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     botUpdateManyMock.mockResolvedValue({ count: 1 });
     agentFindManyMock.mockResolvedValue([]);
     coworkerFindManyMock.mockResolvedValue([]);
+    userFindUniqueMock.mockResolvedValue({ name: "Owner User" });
     jobFindManyMock.mockResolvedValue([]);
     projectFindManyMock.mockResolvedValue([]);
     taskFindManyMock.mockResolvedValue([]);
@@ -416,6 +422,9 @@ describe("SokoBotControlPlane lifecycle", () => {
           upsert: coworkerUpsertMock,
           updateMany: coworkerUpdateManyMock,
         },
+        user: {
+          findUnique: userFindUniqueMock,
+        },
       }),
     );
 
@@ -428,6 +437,37 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(botCreateMock).toHaveBeenCalled();
     expect(coworkerCreateMock).not.toHaveBeenCalled();
     expect(coworkerUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("syncs an existing shadow coworker profile on rename without creating", async () => {
+    botFindFirstMock.mockResolvedValue({
+      id: BOT_ID,
+      archivedAt: null,
+      adminPausedAt: null,
+      status: "IDLE",
+      memoryVersion: 1,
+    });
+    botUpdateMock.mockResolvedValue({ id: BOT_ID, name: "Renamed" });
+    userFindUniqueMock.mockResolvedValue({ name: "Owner User" });
+    coworkerUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Renamed",
+    });
+
+    expect(coworkerCreateMock).not.toHaveBeenCalled();
+    expect(coworkerUpsertMock).not.toHaveBeenCalled();
+    expect(coworkerUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { sokoBotId: BOT_ID },
+        data: expect.objectContaining({
+          name: "Renamed",
+          caption: expect.any(String),
+        }),
+      }),
+    );
   });
 
   it("preserves an administrator pause during profile updates", async () => {
