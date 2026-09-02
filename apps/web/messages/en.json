@@ -4388,7 +4388,18 @@
           "noBotLink": "Create it here.",
           "runsAgainst": "Every run is a real turn on {bot}, the assistant belonging to {account}.",
           "unnamedBot": "your assistant",
-          "failedChecks": "Failed: {labels}"
+          "failedChecks": "Failed: {labels}",
+          "phaseStarting": "Starting the turn…",
+          "phaseQueued": "Queued — waiting for the assistant to pick it up",
+          "phaseRunning": "Running",
+          "phaseJudging": "Turn finished — judging",
+          "liveRoute": "Route: {route}",
+          "liveNoSteps": "No tool calls yet.",
+          "stepWorking": "running",
+          "stepDone": "done",
+          "stepFailed": "failed",
+          "previousRun": "Previous run",
+          "batchProgress": "Running {done} of {total}"
         },
         "KillSwitch": {
           "title": "Feature switch",

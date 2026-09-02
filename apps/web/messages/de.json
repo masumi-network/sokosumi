@@ -4357,7 +4357,18 @@
           "noBotLink": "Hier erstellen.",
           "runsAgainst": "Jeder Lauf ist ein echter Durchlauf von {bot}, dem Assistenten von {account}.",
           "unnamedBot": "deinem Assistenten",
-          "failedChecks": "Fehlgeschlagen: {labels}"
+          "failedChecks": "Fehlgeschlagen: {labels}",
+          "phaseStarting": "Durchlauf wird gestartet…",
+          "phaseQueued": "In der Warteschlange – wartet auf den Assistenten",
+          "phaseRunning": "Läuft",
+          "phaseJudging": "Durchlauf beendet – wird bewertet",
+          "liveRoute": "Route: {route}",
+          "liveNoSteps": "Noch keine Tool-Aufrufe.",
+          "stepWorking": "läuft",
+          "stepDone": "fertig",
+          "stepFailed": "fehlgeschlagen",
+          "previousRun": "Vorheriger Durchlauf",
+          "batchProgress": "{done} von {total} werden ausgeführt"
         },
         "KillSwitch": {
           "title": "Funktionsschalter",
