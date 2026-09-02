@@ -4357,7 +4357,18 @@
           "noBotLink": "Créalo aquí.",
           "runsAgainst": "Cada ejecución es un turno real de {bot}, el asistente de {account}.",
           "unnamedBot": "tu asistente",
-          "failedChecks": "Fallaron: {labels}"
+          "failedChecks": "Fallaron: {labels}",
+          "phaseStarting": "Iniciando el turno…",
+          "phaseQueued": "En cola: esperando a que el asistente lo tome",
+          "phaseRunning": "En ejecución",
+          "phaseJudging": "Turno terminado: evaluando",
+          "liveRoute": "Ruta: {route}",
+          "liveNoSteps": "Aún no hay llamadas a herramientas.",
+          "stepWorking": "en curso",
+          "stepDone": "listo",
+          "stepFailed": "falló",
+          "previousRun": "Ejecución anterior",
+          "batchProgress": "Ejecutando {done} de {total}"
         },
         "KillSwitch": {
           "title": "Interruptor de la función",
