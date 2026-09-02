@@ -5947,11 +5947,7 @@
         "messageRequired": "El mensaje es obligatorio.",
         "roomRequired": "La sala es obligatoria.",
         "pinError": "No se pudo fijar el mensaje.",
-        "unpinError": "No se pudo desfijar el mensaje.",
-        "count": "{count, plural, =0 {Fijados} one {# fijado} other {# fijados}}",
-        "latest": "Último fijado",
-        "jumpToLatest": "Ir al mensaje fijado de {author}",
-        "viewAll": "Ver todos los mensajes fijados"
+        "unpinError": "No se pudo desfijar el mensaje."
       },
       "Quote": {
         "action": "Citar",

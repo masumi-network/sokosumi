@@ -5947,11 +5947,7 @@
         "messageRequired": "Nachricht ist erforderlich.",
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",
-        "unpinError": "Nachricht konnte nicht gelöst werden.",
-        "count": "{count, plural, =0 {Angeheftet} one {# angeheftet} other {# angeheftet}}",
-        "latest": "Neueste Anheftung",
-        "jumpToLatest": "Zur angehefteten Nachricht von {author} springen",
-        "viewAll": "Alle angehefteten Nachrichten anzeigen"
+        "unpinError": "Nachricht konnte nicht gelöst werden."
       },
       "Quote": {
         "action": "Zitieren",
