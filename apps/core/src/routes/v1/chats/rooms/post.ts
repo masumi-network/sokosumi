@@ -97,6 +97,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (isOrchestratorAuthContext(authContext)) {
       const direct = await createOrGetOrchestratorOriginatedDirect({
         orchestratorId: authContext.orchestratorId,
+        ownerUserId: authContext.userId,
         organizationId: authContext.organizationId,
         memberUserIds: body.kind === "direct" ? (body.memberUserIds ?? []) : [],
         coworkerIds: body.kind === "direct" ? (body.coworkerIds ?? []) : [],
@@ -256,6 +257,8 @@ async function createOrGetCoworkerOriginatedDirect(params: {
 
 async function createOrGetOrchestratorOriginatedDirect(params: {
   orchestratorId: string;
+  /** The bot's owner. The room's human participant is the colleague. */
+  ownerUserId: string;
   organizationId: string | null;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
@@ -284,6 +287,10 @@ async function createOrGetOrchestratorOriginatedDirect(params: {
     memberUserIds: [],
     coworkerIds: [],
     orchestratorIds: [params.orchestratorId],
+    // Who may add the assistant is the owner, not the colleague on the other
+    // side of the DM. Without this the helper asks whether the colleague owns
+    // the bot, and every colleague DM a bot opens is refused with a 403.
+    orchestratorActorUserId: params.ownerUserId,
     viewerUserId: null,
   });
 }

@@ -1047,6 +1047,8 @@ export const sokoBotDeletionResultSchema = z
       taskEvents: z.number().int().nonnegative(),
       billingRecords: z.number().int().nonnegative(),
       chatMessages: z.number().int().nonnegative(),
+      /** Files it uploaded onto Tasks; they outlive the assistant. */
+      uploadedTaskFiles: z.number().int().nonnegative(),
     }),
   })
   .openapi("SokoBotDeletionResult");

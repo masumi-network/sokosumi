@@ -10,7 +10,10 @@ import {
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserAuthContext } from "@/middleware/auth";
+import {
+  requireInteractiveUserAuthContext,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import {
   createCoworkerApiKeyRequestSchema,
   updateCoworkerApiKeyRequestSchema,
@@ -156,7 +159,7 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
   });
 
   app.openapi(createRouteDefinition, async (c) => {
-    const auth = requireUserAuthContext(c.var.authContext);
+    const auth = requireInteractiveUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
     const token = generateOrchestratorApiKeyToken();
@@ -198,7 +201,7 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
   });
 
   app.openapi(updateRoute, async (c) => {
-    const auth = requireUserAuthContext(c.var.authContext);
+    const auth = requireInteractiveUserAuthContext(c.var.authContext);
     const { id, keyId } = c.req.valid("param");
     const body = c.req.valid("json");
     const apiKey = await prisma.$transaction(async (tx) => {
@@ -238,7 +241,7 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
   });
 
   app.openapi(revokeRoute, async (c) => {
-    const auth = requireUserAuthContext(c.var.authContext);
+    const auth = requireInteractiveUserAuthContext(c.var.authContext);
     const { id, keyId } = c.req.valid("param");
     const apiKey = await prisma.$transaction(async (tx) => {
       const revokedAt = new Date();

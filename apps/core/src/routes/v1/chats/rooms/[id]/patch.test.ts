@@ -1402,4 +1402,82 @@ describe("PATCH /chats/rooms/{id}", () => {
     );
     expect(publishMentionStatusesMock).toHaveBeenCalledWith(["message_1"]);
   });
+
+  it("drops a personal assistant from a channel when its owner is removed", async () => {
+    // The ownership check that gates adding an assistant skips one already in
+    // the room, so without this another host could remove the owner and leave
+    // the assistant behind: still mentionable by everyone, still spending the
+    // departed owner's credits.
+    const orchestratorId = "01960001-0001-7001-8001-0000000000c1";
+    const ownerId = "user_owner_1";
+    const existing = channelRoom({
+      userMembers: [
+        {
+          userId: USER_ID,
+          access: "member",
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+          },
+        },
+        {
+          userId: ownerId,
+          access: "member",
+          user: {
+            id: ownerId,
+            name: "Owner",
+            email: "owner@example.com",
+            image: null,
+          },
+        },
+      ],
+      orchestratorMembers: [
+        {
+          orchestrator: {
+            id: orchestratorId,
+            name: "Soko Bot",
+            avatarImageUrl: null,
+            avatarSeed: "orb:owner",
+            userId: ownerId,
+            user: { name: "Owner" },
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    roomUpdateMock.mockResolvedValueOnce(existing);
+    userFindManyMock.mockResolvedValue([{ id: USER_ID, name: "Ada" }]);
+    sokoBotFindManyMock.mockResolvedValue([
+      {
+        id: orchestratorId,
+        userId: ownerId,
+        name: "Soko Bot",
+        user: { name: "Owner" },
+      },
+    ]);
+    failOpenMentionsMock.mockResolvedValue(["message_9"]);
+    orchestratorMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ memberUserIds: [USER_ID] }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(orchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, orchestratorId: { in: [orchestratorId] } },
+    });
+    expect(failOpenMentionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          orchestratorId: { in: [orchestratorId] },
+        }),
+      }),
+      tx,
+    );
+  });
 });

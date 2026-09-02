@@ -217,6 +217,28 @@ FROM "coworker" c
 WHERE mention."coworkerId" = c.id
   AND c."sokoBotId" IS NOT NULL;
 
+-- A shadow assignment whose Task belongs to someone other than the bot's
+-- owner is a historical inconsistency, and remapping it would hand that
+-- owner's PA key a Task it must not reach: orchestrator task authorization
+-- checks workspace and assignee, not Task ownership. Refuse the cutover
+-- rather than convert one into a durable cross-owner grant.
+DO $$
+DECLARE
+  crossed integer;
+BEGIN
+  SELECT COUNT(*)::integer INTO crossed
+  FROM "task" t
+  JOIN "coworker" c ON t."assigneeId" = c.id AND c."sokoBotId" IS NOT NULL
+  JOIN "orchestrator" o ON o.id = c."sokoBotId"
+  WHERE t."ownerId" IS DISTINCT FROM o."userId";
+
+  IF crossed > 0 THEN
+    RAISE EXCEPTION
+      'SOK-945: % task(s) assigned to a personal assistant owned by another user; resolve before cutover',
+      crossed;
+  END IF;
+END $$;
+
 UPDATE "task" t
 SET
   "assigneeOrchestratorId" = c."sokoBotId",
@@ -422,6 +444,16 @@ ALTER TABLE "chat_room_mention"
 ALTER TABLE "task"
   ADD CONSTRAINT "task_assignee_xor_check" CHECK (
     "assigneeId" IS NULL OR "assigneeOrchestratorId" IS NULL
+  );
+
+-- The column stays for rollback, but nothing may write it again. Without
+-- this, a Core pod still running the old code can call ensureSokoBotCoworker
+-- after the delete commits and quietly recreate a shadow that this one-shot
+-- remap will never see again. A failed insert is recoverable; an invisible
+-- orphan is not.
+ALTER TABLE "coworker"
+  ADD CONSTRAINT "coworker_soko_bot_shadow_retired_check" CHECK (
+    "sokoBotId" IS NULL
   );
 
 ALTER TABLE "coworker_api_key"

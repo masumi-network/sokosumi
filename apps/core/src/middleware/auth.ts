@@ -369,6 +369,27 @@ export function requireAdminAuthContext(
   return userAuthContext;
 }
 
+/**
+ * Requires a browser-backed interactive session, for issuing or revoking
+ * long-lived credentials.
+ *
+ * {@link requireUserAuthContext} accepts every user actor, OAuth and Better
+ * Auth API keys included, so without this a third-party OAuth client could
+ * mint a personal-assistant key that keeps working after its consent is
+ * revoked. The person has to be at the keyboard.
+ */
+export function requireInteractiveUserAuthContext(
+  authContext: AuthenticationContext,
+): UserAuthenticationContext {
+  const userAuthContext = requireUserAuthContext(authContext);
+
+  if (userAuthContext.authenticationMethod !== "session") {
+    throw forbidden("Interactive session required to manage credentials");
+  }
+
+  return userAuthContext;
+}
+
 /** Requires a browser-backed interactive admin session for sensitive actions. */
 export function requireInteractiveAdminAuthContext(
   authContext: AuthenticationContext,

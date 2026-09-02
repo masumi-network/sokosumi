@@ -1573,6 +1573,8 @@ model Coworker {
   vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict)
 
   /// Legacy 1:1 shadow link. Empty after PA cutover; column kept (SOK-946).
+  /// A database CHECK holds it NULL, so an old pod recreating a shadow fails
+  /// loudly rather than orphaning rows the one-shot remap can never see.
   sokoBotId String?  @unique @db.Uuid
   sokoBot   SokoBot? @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 

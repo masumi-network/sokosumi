@@ -1324,13 +1324,18 @@ export const SokoBotDeletionResultSchema = {
                 chatMessages: {
                     type: 'integer',
                     minimum: 0
+                },
+                uploadedTaskFiles: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
                 'tasks',
                 'taskEvents',
                 'billingRecords',
-                'chatMessages'
+                'chatMessages',
+                'uploadedTaskFiles'
             ]
         }
     },

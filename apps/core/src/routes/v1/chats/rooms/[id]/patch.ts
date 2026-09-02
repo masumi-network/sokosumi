@@ -452,6 +452,64 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
         }
 
+        // A channel must not keep a personal assistant whose owner has left.
+        // The ownership check that gates *adding* one skips assistants already
+        // in the room, so another host could drop the owner from the roster and
+        // leave the assistant behind — still mentionable by everyone, still
+        // spending the departed owner's credits. Directs are exempt: a
+        // colleague DM is deliberately the bot without its owner.
+        // Both rosters have to be the effective ones. `nextUsers` and
+        // `nextOrchestrators` are empty whenever the caller did not send that
+        // field, and this case is reached precisely by a request that changes
+        // only one of them.
+        const effectiveUserIds =
+          body.memberUserIds !== undefined
+            ? nextUsers.map((user) => user.id)
+            : existing.userMembers.map((member) => member.user.id);
+        const effectiveOrchestratorIds =
+          body.orchestratorIds !== undefined
+            ? nextOrchestrators.map((bot) => bot.id)
+            : existing.orchestratorMembers.map(
+                (member) => member.orchestrator.id,
+              );
+        if (
+          existing.kind === "channel" &&
+          effectiveOrchestratorIds.length > 0
+        ) {
+          const remainingUserIds = new Set(effectiveUserIds);
+          const owners = await tx.sokoBot.findMany({
+            where: { id: { in: effectiveOrchestratorIds } },
+            select: { id: true, userId: true },
+          });
+          const ownerlessIds = owners
+            .filter((bot) => !remainingUserIds.has(bot.userId))
+            .map((bot) => bot.id);
+          if (ownerlessIds.length > 0) {
+            nextOrchestrators = nextOrchestrators.filter(
+              (bot) => !ownerlessIds.includes(bot.id),
+            );
+            mentionMessageIds.push(
+              ...(await failOpenChatRoomMentions(
+                {
+                  where: {
+                    orchestratorId: { in: ownerlessIds },
+                    message: { roomId: existing.id },
+                  },
+                  error:
+                    "Personal assistant is no longer a member of this room",
+                },
+                tx,
+              )),
+            );
+            await tx.chatRoomOrchestratorMember.deleteMany({
+              where: {
+                roomId: existing.id,
+                orchestratorId: { in: ownerlessIds },
+              },
+            });
+          }
+        }
+
         const changes = diffChannelMembershipRoster({
           prior: {
             users: priorUsers,

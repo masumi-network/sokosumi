@@ -307,6 +307,7 @@ export type SokoBotDeletionResult = {
         taskEvents: number;
         billingRecords: number;
         chatMessages: number;
+        uploadedTaskFiles: number;
     };
 };
 

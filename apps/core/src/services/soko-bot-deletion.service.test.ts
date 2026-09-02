@@ -29,6 +29,7 @@ const {
     taskEvent: 0,
     usage: 0,
     chatMessage: 0,
+    uploadedTaskFile: 0,
   },
   deleteManyCalls: [] as string[],
   revokeIntegrationsMock: vi.fn(),
@@ -90,6 +91,7 @@ vi.mock("@/lib/db/transaction", () => ({
       },
       orchestratorUsage: { count: vi.fn(async () => counts.usage) },
       chatRoomMessage: { count: vi.fn(async () => counts.chatMessage) },
+      taskFile: { count: vi.fn(async () => counts.uploadedTaskFile) },
     }),
   ),
 }));
@@ -240,5 +242,17 @@ describe("deleteSokoBot", () => {
     txBotFindFirstMock.mockResolvedValue(null);
 
     await expect(deleteSokoBot(BOT_ID)).rejects.toThrow();
+  });
+
+  it("keeps a tombstone when the assistant uploaded a task file", async () => {
+    // The file outlives the bot on the Task and its uploader FK is
+    // ON DELETE SET NULL, so a hard delete would leave the file with no
+    // attribution and no way to recover it.
+    counts.uploadedTaskFile = 1;
+
+    const result = await deleteSokoBot(BOT_ID);
+
+    expect(result.outcome).toBe("tombstoned");
+    expect(result.retained.uploadedTaskFiles).toBe(1);
   });
 });

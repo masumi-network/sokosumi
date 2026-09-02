@@ -51,6 +51,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+  publishChatRoomMessageRealtimeById: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
@@ -87,6 +88,9 @@ const MEMBERSHIP_MESSAGE = {
   _count: { replies: 0 },
 };
 
+const botFindManyMock = vi.fn(async () => []);
+const orchestratorMemberDeleteManyMock = vi.fn(async () => ({ count: 0 }));
+
 const tx = {
   chatRoom: {
     findFirst: roomFindFirstMock,
@@ -101,6 +105,8 @@ const tx = {
     updateMany: guestInvitationUpdateManyMock,
   },
   chatRoomReadState: { deleteMany: readStateDeleteManyMock },
+  sokoBot: { findMany: botFindManyMock },
+  chatRoomOrchestratorMember: { deleteMany: orchestratorMemberDeleteManyMock },
   chatRoomMessage: { create: messageCreateMock },
   user: { findUnique: userFindUniqueMock },
   organization: { findUnique: organizationFindUniqueMock },

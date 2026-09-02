@@ -37,6 +37,8 @@ export interface SokoBotDeletionResult {
     taskEvents: number;
     billingRecords: number;
     chatMessages: number;
+    /** Files it uploaded onto Tasks; they outlive the assistant. */
+    uploadedTaskFiles: number;
   };
 }
 
@@ -116,6 +118,7 @@ export async function deleteSokoBot(
       taskEvents,
       billingRecords,
       chatMessages,
+      uploadedTaskFiles,
     ] = await Promise.all([
       tx.task.count({ where: { creatorOrchestratorId: bot.id } }),
       tx.task.count({ where: { assigneeOrchestratorId: bot.id } }),
@@ -124,17 +127,29 @@ export async function deleteSokoBot(
       tx.chatRoomMessage.count({
         where: { senderOrchestratorId: bot.id },
       }),
+      // A file the assistant uploaded outlives it on the Task. The FK is
+      // ON DELETE SET NULL, so hard-deleting the bot would leave the file in
+      // place with its uploader silently blanked — provenance nobody can
+      // recover. Counting it keeps the tombstone.
+      tx.taskFile.count({ where: { uploadedByOrchestratorId: bot.id } }),
     ]);
     const tasks = createdTasks + assignedTasks;
 
-    const retained = { tasks, taskEvents, billingRecords, chatMessages };
+    const retained = {
+      tasks,
+      taskEvents,
+      billingRecords,
+      chatMessages,
+      uploadedTaskFiles,
+    };
     const unrevokedIntegrations = revocation.failed;
 
     if (
       tasks === 0 &&
       taskEvents === 0 &&
       billingRecords === 0 &&
-      chatMessages === 0
+      chatMessages === 0 &&
+      uploadedTaskFiles === 0
     ) {
       await tx.sokoBot.delete({ where: { id: bot.id } });
       return {

@@ -43,7 +43,9 @@ function createRecord(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createApp() {
+function createApp(
+  authenticationMethod: "session" | "api_key" | "oauth" = "session",
+) {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -52,6 +54,7 @@ function createApp() {
       userId: "owner_123",
       organizationId: null,
       role: "user",
+      authenticationMethod,
     });
     return await next();
   });
@@ -218,5 +221,34 @@ describe("Soko Bot API keys", () => {
       },
       data: { revokedAt: expect.any(Date) },
     });
+  });
+
+  it.each(["oauth", "api_key"] as const)(
+    "refuses to mint a key for a %s actor",
+    async (authenticationMethod) => {
+      // A third-party OAuth client could otherwise mint a personal-assistant
+      // key that keeps working after its consent is revoked. Reading key
+      // metadata stays open; issuing and revoking need a person present.
+      const app = createApp(authenticationMethod);
+
+      const response = await app.request(`/${BOT_ID}/api-keys`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "minted" }),
+      });
+
+      expect(response.status).toBe(403);
+      // Refused before any write is attempted, not after.
+      expect(prismaTransactionMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still lists keys for a non-interactive actor", async () => {
+    apiKeyFindManyMock.mockResolvedValue([]);
+    const app = createApp("api_key");
+
+    const response = await app.request(`/${BOT_ID}/api-keys`);
+
+    expect(response.status).toBe(200);
   });
 });
