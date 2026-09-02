@@ -98,8 +98,6 @@ export interface ChatTurn {
   chatRoom: { id: string; name: string | null; kind: string } | null;
   /** Judge model's 1–5 overall score, once graded. */
   qualityScore: number | null;
-  /** Client-only: sent but Core has not echoed it back yet. */
-  optimistic?: boolean;
 }
 
 /** Detail route only: everything the owner needs to explain a turn. */

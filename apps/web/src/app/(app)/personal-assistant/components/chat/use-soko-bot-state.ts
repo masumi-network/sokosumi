@@ -1,33 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { ChatTurn, SokoBotChatState } from "@/lib/soko-bot/chat-state";
+import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 
 import { hasActiveTurn } from "./timeline";
 
 const STATE_ENDPOINT = "/api/personal-assistant/state";
 const ACTIVE_POLL_MS = 2_500;
-const IDLE_POLL_MS = 30_000;
+// Turns run five to twenty seconds. At thirty a turn could start and finish
+// between two ticks, so the console would only ever render the finished
+// answer. This is the cost of watching work started somewhere else.
+const IDLE_POLL_MS = 8_000;
 
 /**
  * Keeps the chat projection fresh: fast polling while a turn runs, a slow
  * heartbeat otherwise (scheduled turns can land while the tab is open), and
- * an explicit `refresh()` after any mutation. Optimistic turns survive until
- * Core echoes the real one back (matched on `clientTurnId`).
+ * an explicit `refresh()` after any mutation.
  */
 export function useSokoBotState(initial: SokoBotChatState) {
   const [state, setState] = useState(initial);
-  const optimisticRef = useRef<Map<string, ChatTurn>>(new Map());
   const inFlight = useRef<AbortController | null>(null);
 
   const merge = useCallback((next: SokoBotChatState) => {
-    const known = new Set(next.turns.map((turn) => turn.id));
-    for (const [clientTurnId, turn] of optimisticRef.current) {
-      if (known.has(clientTurnId) || next.turns.some((t) => t.id === turn.id)) {
-        optimisticRef.current.delete(clientTurnId);
-      }
-    }
-    const pending = Array.from(optimisticRef.current.values());
-    setState({ bot: next.bot, turns: [...pending, ...next.turns] });
+    setState(next);
   }, []);
 
   useEffect(() => {
@@ -54,7 +48,12 @@ export function useSokoBotState(initial: SokoBotChatState) {
     }
   }, [merge]);
 
-  const active = hasActiveTurn(state);
+  // The bot's own status counts as activity, not only a turn already in the
+  // list. Conversation moved to the chat rooms, so the console watches turns
+  // it did not start: at the idle rate a turn could begin and finish inside
+  // one tick, and the console would only ever show the finished answer — no
+  // orb, no steps, nothing to say it had been working.
+  const active = hasActiveTurn(state) || state.bot.status === "RUNNING";
   useEffect(() => {
     const interval = setInterval(
       () => {
@@ -72,64 +71,5 @@ export function useSokoBotState(initial: SokoBotChatState) {
     };
   }, [active, refresh]);
 
-  const addOptimisticTurn = useCallback(
-    (clientTurnId: string, userMessage: string) => {
-      const turn: ChatTurn = {
-        id: `optimistic:${clientTurnId}`,
-        source: "CHAT",
-        status: "QUEUED",
-        route: null,
-        userMessage,
-        finalAnswer: null,
-        errorKind: null,
-        errorDetail: null,
-        startedAt: null,
-        completedAt: null,
-        durationMs: null,
-        createdAt: new Date().toISOString(),
-        events: [],
-        delegations: [],
-        decisions: [],
-        requestedBy: null,
-        chatRoom: null,
-        qualityScore: null,
-        optimistic: true,
-      };
-      optimisticRef.current.set(clientTurnId, turn);
-      setState((current) => ({ ...current, turns: [turn, ...current.turns] }));
-    },
-    [],
-  );
-
-  const bindOptimisticTurn = useCallback(
-    (clientTurnId: string, turnId: string) => {
-      const turn = optimisticRef.current.get(clientTurnId);
-      if (!turn) return;
-      const bound = { ...turn, id: turnId, status: "STARTING" as const };
-      optimisticRef.current.set(clientTurnId, bound);
-      setState((current) => ({
-        ...current,
-        turns: current.turns.map((t) => (t.id === turn.id ? bound : t)),
-      }));
-    },
-    [],
-  );
-
-  const dropOptimisticTurn = useCallback((clientTurnId: string) => {
-    const turn = optimisticRef.current.get(clientTurnId);
-    optimisticRef.current.delete(clientTurnId);
-    if (!turn) return;
-    setState((current) => ({
-      ...current,
-      turns: current.turns.filter((t) => t.id !== turn.id),
-    }));
-  }, []);
-
-  return {
-    state,
-    refresh,
-    addOptimisticTurn,
-    bindOptimisticTurn,
-    dropOptimisticTurn,
-  };
+  return { state, refresh };
 }
