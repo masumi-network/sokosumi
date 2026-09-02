@@ -33,6 +33,7 @@ function tokenPayload(overrides: Record<string, unknown> = {}) {
     size: 11,
     uploadedByUserId: "user_123",
     uploadedByCoworkerId: null,
+    uploadedByOrchestratorId: null,
     ...overrides,
   });
 }
@@ -75,7 +76,29 @@ describe("registerTaskFileFromUploadCompleted", () => {
         size: 9n,
         uploadedByUserId: "user_123",
         uploadedByCoworkerId: null,
+        uploadedByOrchestratorId: null,
       },
+    });
+  });
+
+  it("preserves the orchestrator uploader", async () => {
+    const orchestratorId = "11111111-1111-7111-8111-111111111111";
+
+    await registerTaskFileFromUploadCompleted({
+      blob: completedBlob(),
+      tokenPayload: tokenPayload({
+        uploadedByUserId: null,
+        uploadedByOrchestratorId: orchestratorId,
+      }),
+      blobToken: BLOB_TOKEN,
+    });
+
+    expect(taskFileCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        uploadedByUserId: null,
+        uploadedByCoworkerId: null,
+        uploadedByOrchestratorId: orchestratorId,
+      }),
     });
   });
 

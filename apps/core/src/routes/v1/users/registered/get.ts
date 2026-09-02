@@ -4,7 +4,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireCoworkerAuthContext } from "@/middleware/auth";
+import { requireAgentAuthContext } from "@/middleware/auth";
 
 const querySchema = z.object({
   email: z.email().openapi({
@@ -29,7 +29,7 @@ const route = createRoute({
   method: "get",
   path: "/",
   tags: ["Users"],
-  description: "User registered and email verified status (coworker only)",
+  description: "User registered and email verified status (agent only)",
   request: {
     query: querySchema,
   },
@@ -56,7 +56,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireCoworkerAuthContext(c.var.authContext);
+    requireAgentAuthContext(c.var.authContext);
     const { email } = c.req.valid("query");
 
     const user = await prisma.user.findUnique({

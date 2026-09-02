@@ -2,7 +2,10 @@ import { createMiddleware } from "hono/factory";
 
 import { forbidden } from "@/helpers/error";
 import type { EnvVariables } from "@/lib/hono";
-import { isCoworkerAuthContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isOrchestratorAuthContext,
+} from "@/middleware/auth";
 
 import type { UserRouteVariables } from "./user-route-context";
 
@@ -11,12 +14,12 @@ type UserRouteEnv = {
 };
 
 /**
- * GET subpaths under `/users/{id}` that coworkers may call with context
- * headers. Everything else under the user tree stays session-only.
+ * GET subpaths under `/users/{id}` that agents may call for their owner
+ * context. Everything else under the user tree stays session-only.
  * Patterns are path-only today because only GET handlers exist on these shapes;
  * do not mount mutating routes on the same paths without updating this gate.
  */
-const COWORKER_ALLOWED_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
+const AGENT_ALLOWED_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
   /^\/$/,
   /^\/credits$/,
   /^\/organizations$/,
@@ -68,34 +71,38 @@ export function userRouteSubpathAfterId(
   return `/${afterSegments.join("/")}`;
 }
 
-export function isCoworkerAllowedUserSubpath(subpath: string): boolean {
+export function isAgentAllowedUserSubpath(subpath: string): boolean {
   const normalized = subpath.replace(/\/+$/, "") || "/";
-  return COWORKER_ALLOWED_USER_SUBPATH_PATTERNS.some((pattern) =>
+  return AGENT_ALLOWED_USER_SUBPATH_PATTERNS.some((pattern) =>
     pattern.test(normalized),
   );
 }
 
 /**
- * Default-deny gate for coworker actors on `/users/{id}/*`. Path resolution
- * may accept coworker + context; this middleware keeps access limited to
+ * Default-deny gate for agent actors on `/users/{id}/*`. This middleware keeps
+ * access limited to
  * user profile, credits, and organization list/credits reads.
  */
-export const coworkerUserRouteAllowlistMiddleware =
-  createMiddleware<UserRouteEnv>(async (c, next) => {
+export const agentUserRouteAllowlistMiddleware = createMiddleware<UserRouteEnv>(
+  async (c, next) => {
     const { authContext } = c.var;
-    if (!isCoworkerAuthContext(authContext)) {
+    if (
+      !isCoworkerAuthContext(authContext) &&
+      !isOrchestratorAuthContext(authContext)
+    ) {
       return await next();
     }
 
     const pathUserId = c.req.param("id");
     if (!pathUserId) {
-      throw forbidden("Coworker authentication cannot access this user route");
+      throw forbidden("Agent authentication cannot access this user route");
     }
 
     const subpath = userRouteSubpathAfterId(c.req.path, pathUserId);
-    if (!isCoworkerAllowedUserSubpath(subpath)) {
-      throw forbidden("Coworker authentication cannot access this user route");
+    if (!isAgentAllowedUserSubpath(subpath)) {
+      throw forbidden("Agent authentication cannot access this user route");
     }
 
     return await next();
-  });
+  },
+);

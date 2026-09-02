@@ -57,10 +57,16 @@ import { list, put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
+import {
+  emitChatDirectMessageNotifications,
+  shouldEmitChatDirectMessageNotifications,
+} from "@/helpers/chat-direct-message-notifications";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { createAgentJobForUser } from "@/helpers/job";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
+import { notifyTaskStatusEvent } from "@/helpers/task-notifications";
+import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
   chatChainMayWake,
@@ -71,6 +77,7 @@ import {
 } from "@/lib/soko-bot/chat-chain";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import {
+  orchestratorDisplayName,
   resolveMentionedCoworkerIds,
   resolveMentionedOrchestratorIds,
 } from "@/routes/v1/chats/rooms/helpers";
@@ -128,6 +135,31 @@ const MAX_DIRECTS_OPENED_PER_TURN = 5;
 const TOOL_RESULT_MAX_BYTES = 16_384;
 const ERROR_DETAIL_MAX_BYTES = 1_000;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
+
+function scheduleTaskEventFanout(params: {
+  taskId: string;
+  ownerId: string;
+  eventId: string;
+  status: TaskStatus | null;
+}): void {
+  waitUntil(
+    publishTaskEventData({
+      userId: params.ownerId,
+      taskId: params.taskId,
+      eventType: "task_event",
+    }).catch((error) => {
+      Sentry.captureException(error, {
+        tags: { error_type: "publish_task_event" },
+        extra: { taskId: params.taskId, userId: params.ownerId },
+      });
+    }),
+  );
+  if (params.status) {
+    waitUntil(
+      notifyTaskStatusEvent(params.taskId, params.eventId, params.status),
+    );
+  }
+}
 
 interface SellerReservationMarker {
   version: typeof SELLER_RESERVATION_MARKER_VERSION;
@@ -837,6 +869,8 @@ export class SokoBotRuntimeService {
     name: string;
     kind: string;
     orchestratorId: string;
+    organizationId: string | null;
+    authorName: string;
   }> {
     const orchestratorId = authorized.turn.sokoBotId;
     const room = await prisma.chatRoom.findFirst({
@@ -844,14 +878,38 @@ export class SokoBotRuntimeService {
         ...(await this.chatRoomScope(authorized, orchestratorId)),
         id: roomId,
       },
-      select: { id: true, name: true, kind: true },
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        organizationId: true,
+        orchestratorMembers: {
+          where: { orchestratorId },
+          take: 1,
+          select: {
+            orchestrator: {
+              select: { name: true, user: { select: { name: true } } },
+            },
+          },
+        },
+      },
     });
     if (!room) {
       throw new SokoBotRuntimeValidationError(
         "You are not a member of that chat room",
       );
     }
-    return { id: room.id, name: room.name, kind: room.kind, orchestratorId };
+    const bot = room.orchestratorMembers?.[0]?.orchestrator;
+    return {
+      id: room.id,
+      name: room.name,
+      kind: room.kind,
+      orchestratorId,
+      organizationId: room.organizationId ?? null,
+      authorName: bot
+        ? orchestratorDisplayName(bot)
+        : orchestratorDisplayName({ name: null, user: null }),
+    };
   }
 
   /**
@@ -1213,6 +1271,32 @@ export class SokoBotRuntimeService {
     // Every other message-create site publishes; without this the bot's post
     // only appears after a refresh, which reads as the tool having failed.
     await publishChatRoomMessageRealtimeById(message.id, "create");
+    if (room.kind === "direct") {
+      const memberUserIds = (
+        await prisma.chatRoomUserMember.findMany({
+          where: { roomId: room.id },
+          select: { userId: true },
+        })
+      ).map((member) => member.userId);
+      if (
+        shouldEmitChatDirectMessageNotifications({
+          kind: room.kind,
+          memberUserIds,
+        })
+      ) {
+        waitUntil(
+          emitChatDirectMessageNotifications({
+            roomId: room.id,
+            roomName: room.name,
+            organizationId: room.organizationId,
+            messageId: message.id,
+            authorUserId: null,
+            authorName: room.authorName,
+            recipientUserIds: memberUserIds,
+          }),
+        );
+      }
+    }
     for (const mentionId of mentionIds) {
       const { dispatchChatRoomMention } = await import(
         "@/services/chat-room-coworker-dispatch.service"
@@ -1460,7 +1544,7 @@ export class SokoBotRuntimeService {
       ],
       QUEUED: [TaskStatus.RUNNING, TaskStatus.COMPLETED, TaskStatus.FAILED],
     };
-    return serializableTransaction(async (tx) => {
+    const persisted = await serializableTransaction(async (tx) => {
       await this.requireMutationAuthority(tx, authorized, false);
       const task = await tx.task.findFirst({
         where: {
@@ -1470,6 +1554,7 @@ export class SokoBotRuntimeService {
         },
         select: {
           id: true,
+          ownerId: true,
           status: true,
           assigneeOrchestratorId: true,
         },
@@ -1486,7 +1571,7 @@ export class SokoBotRuntimeService {
           `Task is ${task.status}; cannot set ${input.status}`,
         );
       }
-      await tx.taskEvent.create({
+      const event = await tx.taskEvent.create({
         data: {
           taskId: task.id,
           status: next,
@@ -1494,6 +1579,7 @@ export class SokoBotRuntimeService {
           channel: Channel.SOKOSUMI,
           orchestratorId: authorized.turn.sokoBotId,
         },
+        select: { id: true },
       });
       await applyGuardedTaskStatusUpdate({
         tx,
@@ -1527,8 +1613,19 @@ export class SokoBotRuntimeService {
           taskId: task.id,
         },
       });
-      return { taskId: task.id, status: next };
+      return {
+        result: { taskId: task.id, status: next },
+        eventId: event.id,
+        ownerId: task.ownerId,
+      };
     }, "Soko Bot task update collided with another request");
+    scheduleTaskEventFanout({
+      taskId: persisted.result.taskId,
+      ownerId: persisted.ownerId,
+      eventId: persisted.eventId,
+      status: persisted.result.status,
+    });
+    return persisted.result;
   }
 
   /** Comment on a Task, optionally resuming it (INPUT_REQUIRED/FAILED/… → READY). */
@@ -1546,7 +1643,7 @@ export class SokoBotRuntimeService {
       TaskStatus.APPROVAL_REQUIRED,
       TaskStatus.AWAITING_EXTERNAL,
     ];
-    return serializableTransaction(async (tx) => {
+    const persisted = await serializableTransaction(async (tx) => {
       await this.requireMutationAuthority(tx, authorized, false);
       const task = await tx.task.findFirst({
         where: {
@@ -1554,7 +1651,14 @@ export class SokoBotRuntimeService {
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
         },
-        select: { id: true, name: true, status: true, assigneeId: true },
+        select: {
+          id: true,
+          name: true,
+          ownerId: true,
+          status: true,
+          assigneeId: true,
+          assigneeOrchestratorId: true,
+        },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");
       if (!input.status) {
@@ -1578,13 +1682,13 @@ export class SokoBotRuntimeService {
             `Task is ${task.status}; only ${resumable.join(", ")} can be set READY. To leave a comment without changing the status, omit \`status\`.`,
           );
         }
-        if (!task.assigneeId) {
+        if (!task.assigneeId && !task.assigneeOrchestratorId) {
           throw new SokoBotRuntimeValidationError(
             "Task has no assignee; use assign_task instead",
           );
         }
       }
-      await tx.taskEvent.create({
+      const event = await tx.taskEvent.create({
         data: {
           taskId: task.id,
           status: input.status ?? null,
@@ -1592,6 +1696,7 @@ export class SokoBotRuntimeService {
           channel: Channel.SOKOSUMI,
           orchestratorId: authorized.turn.sokoBotId,
         },
+        select: { id: true },
       });
       if (input.status === "READY") {
         await applyGuardedTaskStatusUpdate({
@@ -1613,8 +1718,25 @@ export class SokoBotRuntimeService {
           taskId: task.id,
         },
       });
-      return { id: task.id, name: task.name, status, commented: true };
+      return {
+        result: {
+          id: task.id,
+          name: task.name,
+          status,
+          commented: true,
+        },
+        eventId: event.id,
+        ownerId: task.ownerId,
+        eventStatus: input.status ? TaskStatus[input.status] : null,
+      };
     }, "Soko Bot task reply collided with another action");
+    scheduleTaskEventFanout({
+      taskId: persisted.result.id,
+      ownerId: persisted.ownerId,
+      eventId: persisted.eventId,
+      status: persisted.eventStatus,
+    });
+    return persisted.result;
   }
 
   private async linkTasks(

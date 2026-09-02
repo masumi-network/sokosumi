@@ -11,6 +11,7 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   isUserAuthContext,
 } from "@/middleware/auth";
 
@@ -51,13 +52,20 @@ function getWorkspaceOwnerContext(authContext: AuthenticationContext): {
     };
   }
 
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      userId: authContext.userId,
+      organizationId: authContext.organizationId,
+    };
+  }
+
   return null;
 }
 
 /**
  * Resolves the active workspace for authenticated requests that act in a
- * user workspace: interactive users and coworker keys that supply
- * `X-Context-*` headers. Bare coworker keys keep
+ * user workspace: interactive users, orchestrators fixed to an owner, and
+ * coworker keys that supply `X-Context-*` headers. Bare coworker keys keep
  * `workspaceContext` as `null`.
  */
 export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>

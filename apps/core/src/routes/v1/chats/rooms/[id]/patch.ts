@@ -4,6 +4,10 @@ import {
   expireStalePendingInvitations,
   livePendingInvitationWhere,
 } from "@/helpers/chat-room-invitation";
+import {
+  failOpenChatRoomMentions,
+  publishChatRoomMentionStatuses,
+} from "@/helpers/chat-room-mention-status";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -91,7 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Serializable so a concurrent leave cannot commit under a stale roster
     // snapshot that would re-create the leaver's membership (SSI → 409
     // concurrency_conflict). Leave still uses FOR UPDATE on the room row.
-    const { room, statusMessages, removedUserIds } =
+    const { room, statusMessages, removedUserIds, mentionMessageIds } =
       await serializableTransaction(async (tx) => {
         const existing = await requireChatRoomUserAccess(
           id,
@@ -113,6 +117,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw badRequest("Channel rooms require an organization.");
         }
         const organizationId = existing.organizationId;
+        const mentionMessageIds: string[] = [];
 
         // Guests may read/write messages but cannot manage settings or roster.
         // Fail before host-org role resolution so the message is guest-specific.
@@ -365,17 +370,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           // Fail open mentions for coworkers dropped from the roster so a
           // queued dispatch cannot post after eviction.
-          await tx.chatRoomMention.updateMany({
-            where: {
-              status: { in: ["pending", "sent"] },
-              coworkerId: { notIn: coworkerIds },
-              message: { roomId: existing.id },
-            },
-            data: {
-              status: "failed",
-              error: "Coworker is no longer a member of this room",
-            },
-          });
+          mentionMessageIds.push(
+            ...(await failOpenChatRoomMentions(
+              {
+                where: {
+                  coworkerId: { notIn: coworkerIds },
+                  message: { roomId: existing.id },
+                },
+                error: "Coworker is no longer a member of this room",
+              },
+              tx,
+            )),
+          );
           await tx.chatRoomCoworkerMember.deleteMany({
             where: { roomId: existing.id },
           });
@@ -421,17 +427,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             name: nameById.get(orchestratorId) ?? orchestratorId,
           }));
 
-          await tx.chatRoomMention.updateMany({
-            where: {
-              status: { in: ["pending", "sent"] },
-              orchestratorId: { notIn: orchestratorIds },
-              message: { roomId: existing.id },
-            },
-            data: {
-              status: "failed",
-              error: "Personal assistant is no longer a member of this room",
-            },
-          });
+          mentionMessageIds.push(
+            ...(await failOpenChatRoomMentions(
+              {
+                where: {
+                  orchestratorId: { notIn: orchestratorIds },
+                  message: { roomId: existing.id },
+                },
+                error: "Personal assistant is no longer a member of this room",
+              },
+              tx,
+            )),
+          );
           await tx.chatRoomOrchestratorMember.deleteMany({
             where: { roomId: existing.id },
           });
@@ -480,19 +487,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room,
           statusMessages: createdStatus,
           removedUserIds,
+          mentionMessageIds,
         };
       }, "Chat room was modified concurrently; please retry.");
 
     // Status timeline and revoke are independent: membership is already
     // committed; a failed status publish must not skip cap revoke.
-    const [statusResults, revokeResult] = await Promise.allSettled([
-      Promise.all(
-        statusMessages.map((message) =>
-          publishChatRoomMessageRealtime(message, "create"),
+    const [statusResults, revokeResult, mentionStatusResult] =
+      await Promise.allSettled([
+        Promise.all(
+          statusMessages.map((message) =>
+            publishChatRoomMessageRealtime(message, "create"),
+          ),
         ),
-      ),
-      publishChatMembershipRevokedToUsers(room.id, removedUserIds, "removed"),
-    ]);
+        publishChatMembershipRevokedToUsers(room.id, removedUserIds, "removed"),
+        publishChatRoomMentionStatuses(mentionMessageIds),
+      ]);
     if (statusResults.status === "rejected") {
       console.error(
         "Failed to publish chat membership status messages after roster patch",
@@ -503,6 +513,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       console.error(
         "Failed to publish chat membership revoke after roster patch",
         revokeResult.reason,
+      );
+    }
+    if (mentionStatusResult.status === "rejected") {
+      console.error(
+        "Failed to publish chat mention status after roster patch",
+        mentionStatusResult.reason,
       );
     }
 

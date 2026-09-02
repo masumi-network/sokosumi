@@ -48,6 +48,7 @@ import {
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -379,6 +380,13 @@ function resolveTaskDomainActor(
       coworkerId: authContext.coworkerId,
       vendorId: authContext.vendorId,
       enforceWorkspaceGrant: Boolean(authContext.context),
+    };
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      kind: "soko_bot",
+      sokoBotId: authContext.orchestratorId,
     };
   }
 

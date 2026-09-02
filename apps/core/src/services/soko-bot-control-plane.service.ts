@@ -23,6 +23,10 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { getEnv } from "@/config/env";
+import {
+  failOpenChatRoomMentions,
+  publishChatRoomMentionStatuses,
+} from "@/helpers/chat-room-mention-status";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -3458,7 +3462,7 @@ export class SokoBotControlPlane {
   }
 
   async archive(userId: string, workspaceId: string): Promise<void> {
-    const active = await serializableTransaction(async (tx) => {
+    const archived = await serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findFirst({
         where: { userId, workspaceId, archivedAt: null },
       });
@@ -3505,28 +3509,27 @@ export class SokoBotControlPlane {
           eveSessionId: null,
         },
       });
-      await tx.chatRoomMention.updateMany({
-        where: {
-          status: { in: ["pending", "sent"] },
-          orchestratorId: bot.id,
-        },
-        data: {
-          status: "failed",
+      const mentionMessageIds = await failOpenChatRoomMentions(
+        {
+          where: { orchestratorId: bot.id },
           error: "Personal assistant is no longer a member of this room",
         },
-      });
+        tx,
+      );
       await tx.chatRoomOrchestratorMember.deleteMany({
         where: { orchestratorId: bot.id },
       });
-      return activeTurn;
+      return { activeTurn, mentionMessageIds };
     }, "Soko Bot archive collided with active work");
-    if (!active) return;
+    if (!archived) return;
+    await publishChatRoomMentionStatuses(archived.mentionMessageIds);
+    if (!archived.activeTurn) return;
     try {
-      await this.deliverRuntimeCancellation(active);
+      await this.deliverRuntimeCancellation(archived.activeTurn);
     } catch (error) {
       console.warn("Soko Bot runtime cancellation failed during archive", {
-        sokoBotId: active.sokoBotId,
-        turnId: active.id,
+        sokoBotId: archived.activeTurn.sokoBotId,
+        turnId: archived.activeTurn.id,
         error: error instanceof Error ? error.message : "unknown",
       });
     }

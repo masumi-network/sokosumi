@@ -6,7 +6,11 @@ import { createMiddleware } from "hono/factory";
 
 import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
-import { COWORKER_API_KEY_PREFIX, hashApiKey } from "@/lib/coworker-api-key";
+import {
+  COWORKER_API_KEY_PREFIX,
+  hashApiKey,
+  ORCHESTRATOR_API_KEY_PREFIX,
+} from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import { attachAuthToLogger } from "@/lib/evlog";
 
@@ -37,9 +41,18 @@ export interface CoworkerAuthenticationContext {
   context?: WorkspaceActorRequestContext;
 }
 
+export interface OrchestratorAuthenticationContext {
+  actor: "orchestrator";
+  orchestratorId: string;
+  userId: string;
+  workspaceId: string;
+  organizationId: string | null;
+}
+
 export type AuthenticationContext =
   | UserAuthenticationContext
-  | CoworkerAuthenticationContext;
+  | CoworkerAuthenticationContext
+  | OrchestratorAuthenticationContext;
 
 export type AuthVariables = {
   isAuthenticated: boolean;
@@ -62,6 +75,20 @@ function syncSentryUser(context: AuthVariables) {
     scope.setUser({
       id: context.authContext.userId,
       organizationId: context.authContext.organizationId || undefined,
+    });
+    return;
+  }
+
+  if (isOrchestratorAuthContext(context.authContext)) {
+    const orchestrator = context.authContext;
+    scope.setUser({
+      id: `orchestrator:${orchestrator.orchestratorId}`,
+      orchestratorId: orchestrator.orchestratorId,
+    });
+    scope.setContext("orchestratorContext", {
+      userId: orchestrator.userId,
+      organizationId: orchestrator.organizationId,
+      workspaceId: orchestrator.workspaceId,
     });
     return;
   }
@@ -106,6 +133,16 @@ function syncRequestLogger(context: AuthVariables) {
     return;
   }
 
+  if (isOrchestratorAuthContext(authContext)) {
+    attachAuthToLogger({
+      actor: "orchestrator",
+      orchestratorId: authContext.orchestratorId,
+      contextUserId: authContext.userId,
+      contextOrganizationId: authContext.organizationId,
+    });
+    return;
+  }
+
   const _exhaustive: never = authContext;
   void _exhaustive;
 }
@@ -129,22 +166,31 @@ export function isCoworkerAuthContext(
   return authContext.actor === "coworker";
 }
 
+export function isOrchestratorAuthContext(
+  authContext: AuthenticationContext,
+): authContext is OrchestratorAuthenticationContext {
+  return authContext.actor === "orchestrator";
+}
+
 /**
- * True only for a coworker acting as itself — the agent, with no context headers.
+ * True for an orchestrator or a coworker acting as itself with no context headers.
  * A coworker that supplies workspace context acts in that user's workspace, so this
  * returns false for it (use {@link requireUserContext} / the user code paths in that case).
  *
- * Use to gate agent-only semantics (coworker status transitions, agent task
+ * Use to gate agent-only semantics (agent status transitions, agent task
  * payments) that must NOT apply when a coworker is impersonating a user.
  *
  * Returns a plain boolean, not a type predicate: a `false` result is not
  * necessarily a user — it may be a delegated coworker — so narrowing the
  * negative branch to `UserAuthenticationContext` would be unsound.
  */
-export function isCoworkerAgentContext(
+export function isAgentAuthContext(
   authContext: AuthenticationContext,
 ): boolean {
-  return isCoworkerAuthContext(authContext) && !authContext.context;
+  return (
+    (isCoworkerAuthContext(authContext) && !authContext.context) ||
+    isOrchestratorAuthContext(authContext)
+  );
 }
 
 /**
@@ -192,6 +238,14 @@ export function requireUserContext(
     return { source: "session", ...authContext };
   }
 
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      source: "context",
+      userId: authContext.userId,
+      organizationId: authContext.organizationId,
+    };
+  }
+
   if (isCoworkerAuthContext(authContext)) {
     const context = authContext.context;
     if (!context) {
@@ -231,22 +285,25 @@ export function requireUserAuthContext(
 }
 
 /**
- * Rejects coworker actors (bare or contextual). Use on owner-only mutations
+ * Rejects agent actors (coworkers and orchestrators). Use on owner-only mutations
  * where {@link requireUserContext} would otherwise treat `X-Context-User-Id` as
  * the resource owner (task owner, org owner/admin, etc.).
  */
-export function forbidCoworkerActor(
+export function forbidAgentActor(
   authContext: AuthenticationContext,
-  message = "Coworker authentication cannot perform this owner action",
+  message = "Agent authentication cannot perform this owner action",
 ): void {
-  if (isCoworkerAuthContext(authContext)) {
+  if (
+    isCoworkerAuthContext(authContext) ||
+    isOrchestratorAuthContext(authContext)
+  ) {
     throw forbidden(message);
   }
 }
 
 /**
- * Owner-mutation / human-only user context: session user. Rejects coworker
- * actors (bare or contextual) so
+ * Owner-mutation / human-only user context: session user. Rejects agent
+ * actors so
  * `X-Context-User-Id` cannot impersonate the resource owner.
  *
  * Use for notifications, history, billing, org member lists, and similar
@@ -254,9 +311,9 @@ export function forbidCoworkerActor(
  */
 export function requireOwnerUserContext(
   authContext: AuthenticationContext,
-  message = "Coworker authentication cannot perform this owner action",
+  message = "Agent authentication cannot perform this owner action",
 ): UserContext {
-  forbidCoworkerActor(authContext, message);
+  forbidAgentActor(authContext, message);
   return requireUserContext(authContext);
 }
 
@@ -265,6 +322,29 @@ export function requireCoworkerAuthContext(
 ): CoworkerAuthenticationContext {
   if (!isCoworkerAuthContext(authContext)) {
     throw forbidden("Coworker authentication required");
+  }
+
+  return authContext;
+}
+
+export function requireOrchestratorAuthContext(
+  authContext: AuthenticationContext,
+): OrchestratorAuthenticationContext {
+  if (!isOrchestratorAuthContext(authContext)) {
+    throw forbidden("Orchestrator authentication required");
+  }
+
+  return authContext;
+}
+
+export function requireAgentAuthContext(
+  authContext: AuthenticationContext,
+): CoworkerAuthenticationContext | OrchestratorAuthenticationContext {
+  if (
+    !isCoworkerAuthContext(authContext) &&
+    !isOrchestratorAuthContext(authContext)
+  ) {
+    throw forbidden("Agent authentication required");
   }
 
   return authContext;
@@ -340,25 +420,27 @@ async function verifyApiKey(
 }
 
 /**
- * Verifies a dedicated coworker API key and sets coworker auth context if valid.
- *
- * Expected token format: coworker_<secret>
+ * Verifies a dedicated agent API key and preserves its database owner identity.
  */
-async function verifyCoworkerApiKey(
+async function verifyAgentApiKey(
   token: string,
   c: Context<AuthEnv>,
 ): Promise<boolean> {
-  if (!token.startsWith(COWORKER_API_KEY_PREFIX)) {
+  if (
+    !token.startsWith(COWORKER_API_KEY_PREFIX) &&
+    !token.startsWith(ORCHESTRATOR_API_KEY_PREFIX)
+  ) {
     return false;
   }
 
   const keyHash = await hashApiKey(token);
-  const coworkerApiKey = await prisma.coworkerApiKey.findUnique({
+  const apiKey = await prisma.coworkerApiKey.findUnique({
     where: {
       keyHash,
     },
     select: {
       coworkerId: true,
+      orchestratorId: true,
       revokedAt: true,
       expiresAt: true,
       coworker: {
@@ -367,34 +449,66 @@ async function verifyCoworkerApiKey(
           vendorId: true,
         },
       },
+      orchestrator: {
+        select: {
+          archivedAt: true,
+          deletedAt: true,
+          userId: true,
+          workspaceId: true,
+          workspace: { select: { organizationId: true } },
+        },
+      },
     },
   });
 
-  if (!coworkerApiKey) {
+  if (!apiKey) {
     return false;
   }
 
-  if (coworkerApiKey.revokedAt) {
+  if (apiKey.revokedAt) {
     return false;
   }
 
-  if (coworkerApiKey.expiresAt && coworkerApiKey.expiresAt <= new Date()) {
+  if (apiKey.expiresAt && apiKey.expiresAt <= new Date()) {
     return false;
   }
 
-  if (coworkerApiKey.coworker.archivedAt) {
-    return false;
+  if (apiKey.coworkerId && apiKey.coworker) {
+    if (apiKey.coworker.archivedAt) {
+      return false;
+    }
+
+    setAuthContext(c, {
+      isAuthenticated: true,
+      authContext: {
+        actor: "coworker",
+        coworkerId: apiKey.coworkerId,
+        vendorId: apiKey.coworker.vendorId,
+      },
+    });
+    return true;
   }
 
-  setAuthContext(c, {
-    isAuthenticated: true,
-    authContext: {
-      actor: "coworker",
-      coworkerId: coworkerApiKey.coworkerId,
-      vendorId: coworkerApiKey.coworker.vendorId,
-    },
-  });
-  return true;
+  if (
+    apiKey.orchestratorId &&
+    apiKey.orchestrator &&
+    !apiKey.orchestrator.archivedAt &&
+    !apiKey.orchestrator.deletedAt
+  ) {
+    setAuthContext(c, {
+      isAuthenticated: true,
+      authContext: {
+        actor: "orchestrator",
+        orchestratorId: apiKey.orchestratorId,
+        userId: apiKey.orchestrator.userId,
+        workspaceId: apiKey.orchestrator.workspaceId,
+        organizationId: apiKey.orchestrator.workspace.organizationId,
+      },
+    });
+    return true;
+  }
+
+  return false;
 }
 
 const hashAccessToken = async (value: string) => {
@@ -507,15 +621,17 @@ async function verifyOAuthToken(
 
 const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
   verifyToken: async (token, c) => {
-    // Check 1: Dedicated coworker API key
-    // Coworker-prefixed tokens must not fall back to user auth schemes.
-    if (token.startsWith(COWORKER_API_KEY_PREFIX)) {
-      const coworkerApiKeyValid = await verifyCoworkerApiKey(token, c);
+    // Dedicated agent-prefixed tokens must not fall back to user auth schemes.
+    if (
+      token.startsWith(COWORKER_API_KEY_PREFIX) ||
+      token.startsWith(ORCHESTRATOR_API_KEY_PREFIX)
+    ) {
+      const coworkerApiKeyValid = await verifyAgentApiKey(token, c);
       if (coworkerApiKeyValid) {
         return true;
       }
 
-      throw unauthorized("Invalid or expired coworker token");
+      throw unauthorized("Invalid or expired agent token");
     }
 
     // Check 2: Better Auth API key

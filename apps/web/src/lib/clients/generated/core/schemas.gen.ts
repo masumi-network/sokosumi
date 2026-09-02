@@ -5759,6 +5759,9 @@ export const TaskFileUploaderSchema = {
             $ref: '#/components/schemas/TaskFileUploaderCoworker'
         },
         {
+            $ref: '#/components/schemas/TaskFileUploaderOrchestrator'
+        },
+        {
             type: 'null'
         }
     ],
@@ -5810,6 +5813,31 @@ export const TaskFileUploaderCoworkerSchema = {
         'type',
         'id',
         'coworker'
+    ]
+} as const;
+
+export const TaskFileUploaderOrchestratorSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'orchestrator'
+            ]
+        },
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        orchestrator: {
+            $ref: '#/components/schemas/OrchestratorSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'orchestrator'
     ]
 } as const;
 
@@ -11899,6 +11927,15 @@ export const HistoryTaskItemSchema = {
             ],
             description: 'Coworker ID associated with the task, when assigned',
             example: 'cow_123'
+        },
+        orchestratorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Soko Bot ID associated with the task, when assigned',
+            example: '01960001-0001-7001-8001-000000000099'
         }
     },
     required: [
@@ -11912,7 +11949,8 @@ export const HistoryTaskItemSchema = {
         'kind',
         'status',
         'projectId',
-        'coworkerId'
+        'coworkerId',
+        'orchestratorId'
     ]
 } as const;
 
@@ -16104,6 +16142,103 @@ export const PublicSharedTaskFileSchema = {
         'mimeType',
         'size',
         'createdAt'
+    ]
+} as const;
+
+export const OrchestratorApiKeySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'agentkey_123'
+        },
+        orchestratorId: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Production key'
+        },
+        keyStart: {
+            type: 'string',
+            example: 'orchestrator_abcdefgh'
+        },
+        expiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-12-31T23:59:59.000Z'
+        },
+        revokedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'orchestratorId',
+        'name',
+        'keyStart',
+        'expiresAt',
+        'revokedAt',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const CreateOrchestratorApiKeyResponseSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'agentkey_123'
+        },
+        token: {
+            type: 'string',
+            example: 'orchestrator_very_secret_value'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Production key'
+        },
+        expiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-12-31T23:59:59.000Z'
+        }
+    },
+    required: [
+        'id',
+        'token',
+        'name',
+        'expiresAt'
     ]
 } as const;
 

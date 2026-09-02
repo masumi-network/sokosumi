@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
+  OrchestratorAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -130,6 +131,13 @@ function createCoworkerContext(
 }
 
 const workspaceId = "11111111-1111-7111-8111-111111111111";
+const orchestratorAuthContext: OrchestratorAuthenticationContext = {
+  actor: "orchestrator",
+  orchestratorId: "22222222-2222-7222-8222-222222222222",
+  userId: "user_123",
+  workspaceId,
+  organizationId: "org_123",
+};
 
 const jobReadWorkspaceContext: WorkspaceContext = {
   workspaceId,
@@ -509,6 +517,27 @@ describe("requireTaskCollaboration", () => {
     });
   });
 
+  it("allows an orchestrator only on its assigned task in its workspace", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      status: TaskStatus.READY,
+      assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+    } as never);
+
+    await requireTaskCollaboration(orchestratorAuthContext, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        workspaceId,
+        assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+        status: { not: TaskStatus.DRAFT },
+        archivedAt: null,
+      },
+    });
+  });
+
   it("rejects coworkers without tasks capability before loading the task", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123");
@@ -619,6 +648,31 @@ describe("requireTaskReadForRouteVars", () => {
     ).rejects.toThrow("Workspace is missing");
 
     expect(tx.task.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("reads only the orchestrator's assigned task", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+    } as never);
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: orchestratorAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskReadForRouteVars(vars, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        workspaceId,
+        assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+        status: { not: TaskStatus.DRAFT },
+        archivedAt: null,
+      },
+    });
   });
 
   it("delegates to coworker read for coworkers", async () => {
@@ -2004,6 +2058,39 @@ describe("requireJobReadForRouteVars", () => {
     await expect(
       requireJobReadForRouteVars(vars, "job_123", tx),
     ).rejects.toThrow("Job not found");
+  });
+
+  it("allows an orchestrator to read a job on its assigned task", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+      workspaceId,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+    } as never);
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: orchestratorAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireJobReadForRouteVars(vars, "job_123", tx);
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: { id: "job_123", workspaceId },
+    });
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        workspaceId,
+        assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+        status: { not: TaskStatus.DRAFT },
+        archivedAt: null,
+      },
+    });
   });
 
   it("allows a delegated coworker to read a job assigned to it", async () => {

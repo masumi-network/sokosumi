@@ -411,6 +411,7 @@ model History {
   projectId      String?     @db.Uuid
   agentId        String?
   coworkerId     String?
+  orchestratorId String?     @db.Uuid
   bucketSlug     String?
   archivedAt     DateTime?
 
@@ -1780,6 +1781,7 @@ model SokoBot {
   chatRoomMemberships ChatRoomOrchestratorMember[]
   chatRoomMessages    ChatRoomMessage[]            @relation("ChatRoomOrchestratorSender")
   chatRoomMentions    ChatRoomMention[]
+  apiKeys             CoworkerApiKey[]
   assignedTasks       Task[]                       @relation("TaskAssigneeOrchestrator")
   labRuns  SokoBotLabRun[]
   installedSkills SokoBotInstalledSkill[]
@@ -1846,6 +1848,7 @@ model SokoBot {
 
   createdTasks       Task[]                   @relation("TaskCreatorOrchestrator")
   taskEvents         TaskEvent[]
+  uploadedTaskFiles  TaskFile[]               @relation("TaskFileUploadedByOrchestrator")
   orchestratorUsages OrchestratorUsage[]
   turns              SokoBotTurn[]
   memoryRevisions    SokoBotMemoryRevision[]
@@ -2351,10 +2354,14 @@ model CoworkerApiKey {
   expiresAt DateTime?
   revokedAt DateTime?
 
-  coworkerId String
-  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+  coworkerId String?
+  coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  orchestratorId String?  @db.Uuid
+  orchestrator   SokoBot? @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
 
   @@index([coworkerId])
+  @@index([orchestratorId])
   @@index([revokedAt, expiresAt])
   @@map("coworker_api_key")
 }
@@ -2469,6 +2476,9 @@ model TaskFile {
   uploadedByCoworkerId String?
   uploadedByCoworker   Coworker? @relation("TaskFileUploadedByCoworker", fields: [uploadedByCoworkerId], references: [id], onDelete: SetNull)
 
+  uploadedByOrchestratorId String?  @db.Uuid
+  uploadedByOrchestrator   SokoBot? @relation("TaskFileUploadedByOrchestrator", fields: [uploadedByOrchestratorId], references: [id], onDelete: SetNull)
+
   @@unique([taskId, fileUrl])
   @@unique([taskId, sourceUrl])
   @@index([taskId, createdAt])
@@ -2476,6 +2486,7 @@ model TaskFile {
   @@index([status, origin, createdAt])
   @@index([uploadedByUserId])
   @@index([uploadedByCoworkerId])
+  @@index([uploadedByOrchestratorId])
   @@map("task_file")
 }
 

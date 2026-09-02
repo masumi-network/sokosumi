@@ -13,6 +13,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
 import {
@@ -87,6 +88,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         organizationId: authContext.context?.organizationId ?? null,
         memberUserIds: body.kind === "direct" ? (body.memberUserIds ?? []) : [],
         coworkerIds: body.kind === "direct" ? (body.coworkerIds ?? []) : [],
+        kind: body.kind,
+      });
+
+      return direct.created ? created(c, direct.room) : ok(c, direct.room);
+    }
+
+    if (isOrchestratorAuthContext(authContext)) {
+      const direct = await createOrGetOrchestratorOriginatedDirect({
+        orchestratorId: authContext.orchestratorId,
+        organizationId: authContext.organizationId,
+        memberUserIds: body.kind === "direct" ? (body.memberUserIds ?? []) : [],
+        coworkerIds: body.kind === "direct" ? (body.coworkerIds ?? []) : [],
+        orchestratorIds:
+          body.kind === "direct" ? (body.orchestratorIds ?? []) : [],
         kind: body.kind,
       });
 
@@ -235,6 +250,40 @@ async function createOrGetCoworkerOriginatedDirect(params: {
     currentUserId: params.memberUserIds[0]!,
     memberUserIds: [],
     coworkerIds: [params.coworkerId],
+    viewerUserId: null,
+  });
+}
+
+async function createOrGetOrchestratorOriginatedDirect(params: {
+  orchestratorId: string;
+  organizationId: string | null;
+  memberUserIds: readonly string[];
+  coworkerIds: readonly string[];
+  orchestratorIds: readonly string[];
+  kind: "channel" | "direct";
+}): Promise<{ room: ChatRoom; created: boolean }> {
+  if (params.kind !== "direct") {
+    throw forbidden("Soko Bot API keys cannot create channels");
+  }
+
+  if (!params.organizationId) {
+    throw badRequest("Switch to an organization to message a teammate.");
+  }
+
+  if (params.coworkerIds.length > 0 || params.orchestratorIds.length > 0) {
+    throw badRequest("Soko Bot API keys cannot include agent ids");
+  }
+
+  if (params.memberUserIds.length !== 1) {
+    throw badRequest("Choose a direct message target");
+  }
+
+  return await createOrGetDirectRoom({
+    organizationId: params.organizationId,
+    currentUserId: params.memberUserIds[0]!,
+    memberUserIds: [],
+    coworkerIds: [],
+    orchestratorIds: [params.orchestratorId],
     viewerUserId: null,
   });
 }

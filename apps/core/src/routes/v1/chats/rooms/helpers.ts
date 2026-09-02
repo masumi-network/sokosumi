@@ -1898,6 +1898,39 @@ export async function requireChatRoomCoworkerAccess(
   return room;
 }
 
+export async function requireChatRoomOrchestratorAccess(
+  roomId: string,
+  orchestratorId: string,
+  tx: Prisma.TransactionClient,
+): Promise<{
+  id: string;
+  name: string;
+  kind: string;
+  organizationId: string | null;
+}> {
+  const room = await tx.chatRoom.findFirst({
+    where: {
+      id: roomId,
+      archivedAt: null,
+      orchestratorMembers: {
+        some: { orchestratorId },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      kind: true,
+      organizationId: true,
+    },
+  });
+
+  if (!room) {
+    throw notFound("Room not found");
+  }
+
+  return room;
+}
+
 export async function filterOrganizationUserIds(
   organizationId: string,
   userIds: readonly string[],

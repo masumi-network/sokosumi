@@ -1,5 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
 
+import {
+  failOpenChatRoomMentions,
+  publishChatRoomMentionStatuses,
+} from "@/helpers/chat-room-mention-status";
 import { notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -53,6 +57,7 @@ async function eraseOwnedRecords(
   await tx.sokoBotTaskWatch.deleteMany({ where: { sokoBotId } });
   await tx.sokoBotPendingDecision.deleteMany({ where: { sokoBotId } });
   await tx.sokoBotLegacyMessage.deleteMany({ where: { sokoBotId } });
+  await tx.coworkerApiKey.deleteMany({ where: { orchestratorId: sokoBotId } });
 }
 
 export async function deleteSokoBot(
@@ -72,7 +77,7 @@ export async function deleteSokoBot(
   // disconnect it. Outside the transaction because it is a remote call.
   const revocation = await revokeAllSokoBotIntegrations(sokoBotId);
 
-  return serializableTransaction(async (tx) => {
+  const deleted = await serializableTransaction(async (tx) => {
     const bot = await tx.sokoBot.findFirst({
       where: { id: sokoBotId, deletedAt: null },
       select: { id: true },
@@ -88,19 +93,19 @@ export async function deleteSokoBot(
     // Stop live work before erasing what it would write back into.
     await tx.sokoBotTurn.updateMany({
       where: { sokoBotId: bot.id, status: { in: ["STARTING", "RUNNING"] } },
-      data: { status: "CANCEL_REQUESTED", cancellationRequestedAt: new Date() },
+      data: {
+        status: "CANCEL_REQUESTED",
+        cancellationRequestedAt: new Date(),
+      },
     });
     await eraseOwnedRecords(tx, bot.id);
-    await tx.chatRoomMention.updateMany({
-      where: {
-        status: { in: ["pending", "sent"] },
-        orchestratorId: bot.id,
-      },
-      data: {
-        status: "failed",
+    const mentionMessageIds = await failOpenChatRoomMentions(
+      {
+        where: { orchestratorId: bot.id },
         error: "Personal assistant is no longer a member of this room",
       },
-    });
+      tx,
+    );
     await tx.chatRoomOrchestratorMember.deleteMany({
       where: { orchestratorId: bot.id },
     });
@@ -132,7 +137,14 @@ export async function deleteSokoBot(
       chatMessages === 0
     ) {
       await tx.sokoBot.delete({ where: { id: bot.id } });
-      return { outcome: "deleted" as const, retained, unrevokedIntegrations };
+      return {
+        result: {
+          outcome: "deleted" as const,
+          retained,
+          unrevokedIntegrations,
+        },
+        mentionMessageIds,
+      };
     }
 
     await tx.sokoBot.update({
@@ -169,8 +181,17 @@ export async function deleteSokoBot(
         consecutivePollErrors: 0,
       },
     });
-    return { outcome: "tombstoned" as const, retained, unrevokedIntegrations };
+    return {
+      result: {
+        outcome: "tombstoned" as const,
+        retained,
+        unrevokedIntegrations,
+      },
+      mentionMessageIds,
+    };
   }, "Soko Bot deletion collided with active work");
+  await publishChatRoomMentionStatuses(deleted.mentionMessageIds);
+  return deleted.result;
 }
 
 export async function deleteSokoBotForUser(

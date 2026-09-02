@@ -1478,7 +1478,7 @@ export type TaskFileOrigin = typeof TaskFileOrigin[keyof typeof TaskFileOrigin];
 /**
  * Actor that uploaded the file. Null when both uploader FKs are unset (e.g. deleted actor).
  */
-export type TaskFileUploader = TaskFileUploaderUser | TaskFileUploaderCoworker | null;
+export type TaskFileUploader = TaskFileUploaderUser | TaskFileUploaderCoworker | TaskFileUploaderOrchestrator | null;
 
 export type TaskFileUploaderUser = {
     type: 'user';
@@ -1490,6 +1490,12 @@ export type TaskFileUploaderCoworker = {
     type: 'coworker';
     id: string;
     coworker: CoworkerSummary;
+};
+
+export type TaskFileUploaderOrchestrator = {
+    type: 'orchestrator';
+    id: string;
+    orchestrator: OrchestratorSummary;
 };
 
 export type AdminTaskPaymentClaim = {
@@ -3491,6 +3497,10 @@ export type HistoryTaskItem = {
      * Coworker ID associated with the task, when assigned
      */
     coworkerId: string | null;
+    /**
+     * Soko Bot ID associated with the task, when assigned
+     */
+    orchestratorId: string | null;
 };
 
 export type HistoryOwner = {
@@ -4767,6 +4777,24 @@ export type PublicSharedTaskFile = {
     mimeType: string | null;
     size: number | null;
     createdAt: Date;
+};
+
+export type OrchestratorApiKey = {
+    id: string;
+    orchestratorId: string;
+    name: string | null;
+    keyStart: string;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type CreateOrchestratorApiKeyResponse = {
+    id: string;
+    token: string;
+    name: string | null;
+    expiresAt: Date | null;
 };
 
 export type SokoBotState = {
@@ -31121,6 +31149,367 @@ export type GetShareByTokenResponses = {
 };
 
 export type GetShareByTokenResponse = GetShareByTokenResponses[keyof GetShareByTokenResponses];
+
+export type GetSokoBotsByIdApiKeysData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/api-keys';
+};
+
+export type GetSokoBotsByIdApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotsByIdApiKeysError = GetSokoBotsByIdApiKeysErrors[keyof GetSokoBotsByIdApiKeysErrors];
+
+export type GetSokoBotsByIdApiKeysResponses = {
+    /**
+     * Retrieve Soko Bot API keys
+     */
+    200: {
+        data: Array<OrchestratorApiKey>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotsByIdApiKeysResponse = GetSokoBotsByIdApiKeysResponses[keyof GetSokoBotsByIdApiKeysResponses];
+
+export type PostSokoBotsByIdApiKeysData = {
+    body?: {
+        name?: string | null;
+        expiresAt?: Date | null;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/api-keys';
+};
+
+export type PostSokoBotsByIdApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostSokoBotsByIdApiKeysError = PostSokoBotsByIdApiKeysErrors[keyof PostSokoBotsByIdApiKeysErrors];
+
+export type PostSokoBotsByIdApiKeysResponses = {
+    /**
+     * Create Soko Bot API key
+     */
+    201: {
+        data: CreateOrchestratorApiKeyResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostSokoBotsByIdApiKeysResponse = PostSokoBotsByIdApiKeysResponses[keyof PostSokoBotsByIdApiKeysResponses];
+
+export type DeleteSokoBotsByIdApiKeysByKeyIdData = {
+    body?: never;
+    path: {
+        id: string;
+        keyId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/api-keys/{keyId}';
+};
+
+export type DeleteSokoBotsByIdApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteSokoBotsByIdApiKeysByKeyIdError = DeleteSokoBotsByIdApiKeysByKeyIdErrors[keyof DeleteSokoBotsByIdApiKeysByKeyIdErrors];
+
+export type DeleteSokoBotsByIdApiKeysByKeyIdResponses = {
+    /**
+     * Revoke Soko Bot API key
+     */
+    200: {
+        data: OrchestratorApiKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteSokoBotsByIdApiKeysByKeyIdResponse = DeleteSokoBotsByIdApiKeysByKeyIdResponses[keyof DeleteSokoBotsByIdApiKeysByKeyIdResponses];
+
+export type PatchSokoBotsByIdApiKeysByKeyIdData = {
+    body?: {
+        name?: string | null;
+        expiresAt?: Date | null;
+    };
+    path: {
+        id: string;
+        keyId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/api-keys/{keyId}';
+};
+
+export type PatchSokoBotsByIdApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchSokoBotsByIdApiKeysByKeyIdError = PatchSokoBotsByIdApiKeysByKeyIdErrors[keyof PatchSokoBotsByIdApiKeysByKeyIdErrors];
+
+export type PatchSokoBotsByIdApiKeysByKeyIdResponses = {
+    /**
+     * Update Soko Bot API key
+     */
+    200: {
+        data: OrchestratorApiKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchSokoBotsByIdApiKeysByKeyIdResponse = PatchSokoBotsByIdApiKeysByKeyIdResponses[keyof PatchSokoBotsByIdApiKeysByKeyIdResponses];
+
+export type GetMySokoBotTaskEventsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/soko-bots/me/events';
+};
+
+export type GetMySokoBotTaskEventsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetMySokoBotTaskEventsError = GetMySokoBotTaskEventsErrors[keyof GetMySokoBotTaskEventsErrors];
+
+export type GetMySokoBotTaskEventsResponses = {
+    /**
+     * Retrieve the authenticated Soko Bot's task events
+     */
+    200: {
+        data: Array<TaskEvent>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetMySokoBotTaskEventsResponse = GetMySokoBotTaskEventsResponses[keyof GetMySokoBotTaskEventsResponses];
 
 export type ArchiveMySokoBotData = {
     body?: never;

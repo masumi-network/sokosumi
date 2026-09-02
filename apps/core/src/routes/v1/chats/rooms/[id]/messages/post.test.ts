@@ -185,6 +185,14 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
   vendorId: "vendor_1",
 };
 
+const orchestratorAuthContext: AuthVariables["authContext"] = {
+  actor: "orchestrator",
+  orchestratorId: ORCHESTRATOR_ID,
+  userId: USER_ID,
+  workspaceId: "01960001-0001-7001-8001-000000000088",
+  organizationId: "org_1",
+};
+
 function roomWithMembers(
   overrides: {
     kind?: "channel" | "direct";
@@ -273,6 +281,7 @@ function createdMessage(
   overrides: Partial<{
     senderUserId: string | null;
     senderCoworkerId: string | null;
+    senderOrchestratorId: string | null;
     parentMessageId: string | null;
     metadata: Record<string, unknown> | null;
     mentionsAsSource: Array<{
@@ -290,7 +299,7 @@ function createdMessage(
     parentMessageId: overrides.parentMessageId ?? null,
     senderUserId: overrides.senderUserId ?? null,
     senderCoworkerId: overrides.senderCoworkerId ?? null,
-    senderOrchestratorId: null,
+    senderOrchestratorId: overrides.senderOrchestratorId ?? null,
     content: "hello",
     metadata: overrides.metadata ?? null,
     createdAt: new Date("2025-01-02T00:00:00.000Z"),
@@ -313,7 +322,16 @@ function createdMessage(
           image: null,
         }
       : null,
-    senderOrchestrator: null,
+    senderOrchestrator: overrides.senderOrchestratorId
+      ? {
+          id: overrides.senderOrchestratorId,
+          name: "Nora",
+          avatarImageUrl: null,
+          avatarSeed: null,
+          userId: USER_ID,
+          user: { name: "Patrick" },
+        }
+      : null,
     mentionsAsSource: overrides.mentionsAsSource ?? [],
     reactions: [],
     replies: [],
@@ -495,6 +513,47 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
       expect(response.status).toBe(404);
       expect(messageCreateMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("orchestrator actor", () => {
+    it("posts with the orchestrator sender after membership authorization", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "general",
+        kind: "channel",
+        organizationId: "org_1",
+      });
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderOrchestratorId: ORCHESTRATOR_ID }),
+      );
+
+      const app = createApp(orchestratorAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "hello" }),
+      });
+
+      expect(response.status).toBe(201);
+      expect((await response.json()).data.sender.type).toBe("orchestrator");
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            senderCoworkerId: null,
+            senderOrchestratorId: ORCHESTRATOR_ID,
+          }),
+        }),
+      );
+      expect(roomFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            orchestratorMembers: {
+              some: { orchestratorId: ORCHESTRATOR_ID },
+            },
+          }),
+        }),
+      );
     });
   });
 

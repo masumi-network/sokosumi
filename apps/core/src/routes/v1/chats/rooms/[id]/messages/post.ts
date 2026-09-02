@@ -18,6 +18,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
 import {
@@ -34,6 +35,7 @@ import {
   mergeChatRoomMessageMetadata,
   orchestratorDisplayName,
   requireChatRoomCoworkerAccess,
+  requireChatRoomOrchestratorAccess,
   requireChatRoomUserWriteAccess,
   resolveMentionedCoworkerIds,
   resolveMentionedOrchestratorIds,
@@ -57,7 +59,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/messages",
     description:
-      "Post a room message. Mentioned AI coworkers — and, for thread replies, every coworker already part of the thread — are called asynchronously and reply into the room. Coworker API keys may post as the coworker itself into rooms it is a member of. Coworker posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender (mute honored; the coworker has no user id to skip).",
+      "Post a room message. Mentioned AI coworkers and personal assistants are called asynchronously and reply into the room. Agent API keys may post as their coworker or orchestrator identity into rooms it belongs to. Agent posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -87,13 +89,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    // A coworker posts as itself into rooms it belongs to. Its messages
-    // never create mention rows — nothing to poll, and no coworker→coworker
-    // dispatch loops.
-    if (isCoworkerAuthContext(authContext)) {
-      const coworkerId = authContext.coworkerId;
+    if (
+      isCoworkerAuthContext(authContext) ||
+      isOrchestratorAuthContext(authContext)
+    ) {
       const persisted = await prisma.$transaction(async (tx) => {
-        const room = await requireChatRoomCoworkerAccess(id, coworkerId, tx);
+        const room = isCoworkerAuthContext(authContext)
+          ? await requireChatRoomCoworkerAccess(id, authContext.coworkerId, tx)
+          : await requireChatRoomOrchestratorAccess(
+              id,
+              authContext.orchestratorId,
+              tx,
+            );
 
         const parentMessageId = await resolveThreadParentMessageId(
           tx,
@@ -111,7 +118,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: {
             roomId: room.id,
             parentMessageId,
-            senderCoworkerId: coworkerId,
+            senderCoworkerId: isCoworkerAuthContext(authContext)
+              ? authContext.coworkerId
+              : null,
+            senderOrchestratorId: isOrchestratorAuthContext(authContext)
+              ? authContext.orchestratorId
+              : null,
             content: body.content,
             ...(metadata ? { metadata } : {}),
           },
@@ -153,7 +165,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               organizationId: room.organizationId,
               messageId: message.id,
               authorUserId: null,
-              authorName: message.senderCoworker?.name ?? "Someone",
+              authorName: message.senderOrchestrator
+                ? orchestratorDisplayName(message.senderOrchestrator)
+                : (message.senderCoworker?.name ?? "Someone"),
               recipientUserIds: memberUserIds,
             }),
           );

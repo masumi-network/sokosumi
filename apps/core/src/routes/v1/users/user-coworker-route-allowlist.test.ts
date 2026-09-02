@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  isCoworkerAllowedUserSubpath,
+  isAgentAllowedUserSubpath,
   userRouteSubpathAfterId,
 } from "./user-coworker-route-allowlist";
 
@@ -31,27 +31,27 @@ describe("userRouteSubpathAfterId", () => {
   });
 });
 
-describe("isCoworkerAllowedUserSubpath", () => {
+describe("isAgentAllowedUserSubpath", () => {
   it("allows profile, credits, and organization list/credits reads", () => {
-    expect(isCoworkerAllowedUserSubpath("/")).toBe(true);
-    expect(isCoworkerAllowedUserSubpath("/credits")).toBe(true);
-    expect(isCoworkerAllowedUserSubpath("/organizations")).toBe(true);
-    expect(isCoworkerAllowedUserSubpath("/organizations/org_1/credits")).toBe(
+    expect(isAgentAllowedUserSubpath("/")).toBe(true);
+    expect(isAgentAllowedUserSubpath("/credits")).toBe(true);
+    expect(isAgentAllowedUserSubpath("/organizations")).toBe(true);
+    expect(isAgentAllowedUserSubpath("/organizations/org_1/credits")).toBe(
       true,
     );
   });
 
   it("rejects other user subpaths", () => {
-    expect(isCoworkerAllowedUserSubpath("/preferences")).toBe(false);
-    expect(isCoworkerAllowedUserSubpath("/billing-details")).toBe(false);
-    expect(isCoworkerAllowedUserSubpath("/organizations/org_1")).toBe(false);
-    expect(isCoworkerAllowedUserSubpath("/organizations/org_1/member")).toBe(
+    expect(isAgentAllowedUserSubpath("/preferences")).toBe(false);
+    expect(isAgentAllowedUserSubpath("/billing-details")).toBe(false);
+    expect(isAgentAllowedUserSubpath("/organizations/org_1")).toBe(false);
+    expect(isAgentAllowedUserSubpath("/organizations/org_1/member")).toBe(
       false,
     );
-    expect(isCoworkerAllowedUserSubpath("/files")).toBe(false);
-    expect(isCoworkerAllowedUserSubpath("/deletion")).toBe(false);
-    expect(
-      isCoworkerAllowedUserSubpath("/pending-organization-invitations"),
-    ).toBe(false);
+    expect(isAgentAllowedUserSubpath("/files")).toBe(false);
+    expect(isAgentAllowedUserSubpath("/deletion")).toBe(false);
+    expect(isAgentAllowedUserSubpath("/pending-organization-invitations")).toBe(
+      false,
+    );
   });
 });

@@ -14,6 +14,7 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
+  isOrchestratorAuthContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
   requireUserContext,
@@ -599,6 +600,44 @@ async function requireCoworkerAssignedTaskRead(
   return task;
 }
 
+async function requireOrchestratorTaskRead(
+  orchestratorId: string,
+  taskId: string,
+  workspaceId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<Task>;
+async function requireOrchestratorTaskRead<I extends Prisma.TaskInclude>(
+  orchestratorId: string,
+  taskId: string,
+  workspaceId: string,
+  tx: Prisma.TransactionClient,
+  include: I,
+): Promise<Prisma.TaskGetPayload<{ include: I }>>;
+async function requireOrchestratorTaskRead(
+  orchestratorId: string,
+  taskId: string,
+  workspaceId: string,
+  tx: Prisma.TransactionClient = prisma,
+  include?: Prisma.TaskInclude,
+): Promise<Task> {
+  const task = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      workspaceId,
+      assigneeOrchestratorId: orchestratorId,
+      status: { not: TaskStatus.DRAFT },
+      archivedAt: null,
+    },
+    ...(include ? { include } : {}),
+  });
+
+  if (!task) {
+    throw notFound("Task not found");
+  }
+
+  return task;
+}
+
 /**
  * Coworker branch of task collaboration: tasks capability, task exists (non-draft), and assignment to this coworker.
  *
@@ -639,6 +678,17 @@ export async function requireTaskCollaboration(
   if (isUserAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
     const task = await requireTaskOwnership(userContext, taskId, tx);
+    requireTaskNotParked(task);
+    return task;
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    const task = await requireOrchestratorTaskRead(
+      authContext.orchestratorId,
+      taskId,
+      authContext.workspaceId,
+      tx,
+    );
     requireTaskNotParked(task);
     return task;
   }
@@ -699,6 +749,17 @@ export async function requireTaskCommentAccess(
     return task;
   }
 
+  if (isOrchestratorAuthContext(authContext)) {
+    const task = await requireOrchestratorTaskRead(
+      authContext.orchestratorId,
+      taskId,
+      authContext.workspaceId,
+      tx,
+    );
+    requireTaskNotParked(task);
+    return task;
+  }
+
   const coworker = requireCoworkerAuthContext(authContext);
   const workspaceId =
     coworker.context && workspaceContext
@@ -738,6 +799,10 @@ export async function requireTaskCancelAccess(
     }
 
     throw notFound("Task not found");
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    return await requireTaskCollaboration(authContext, taskId, tx);
   }
 
   return await requireTaskCollaboration(authContext, taskId, tx);
@@ -816,6 +881,24 @@ export async function requireTaskReadForRouteVars(
       return await requireTaskReadForWorkspace(workspace, taskId, tx, include);
     }
     return await requireTaskReadForWorkspace(workspace, taskId, tx);
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    if (include) {
+      return await requireOrchestratorTaskRead(
+        authContext.orchestratorId,
+        taskId,
+        authContext.workspaceId,
+        tx,
+        include,
+      );
+    }
+    return await requireOrchestratorTaskRead(
+      authContext.orchestratorId,
+      taskId,
+      authContext.workspaceId,
+      tx,
+    );
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
@@ -1014,6 +1097,24 @@ async function assertCoworkerCanReadJob(
   await requireCoworkerTaskRead(coworker, job.taskId, job.workspaceId, tx);
 }
 
+async function assertOrchestratorCanAccessJob(
+  orchestratorId: string,
+  workspaceId: string,
+  job: Job,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  if (job.taskId === null) {
+    throw forbidden("You can only access jobs assigned to your Soko Bot");
+  }
+
+  await requireOrchestratorTaskRead(
+    orchestratorId,
+    job.taskId,
+    workspaceId,
+    tx,
+  );
+}
+
 /**
  * Job read for a workspace-scoped user or a coworker with assignee / same-vendor sibling access.
  */
@@ -1031,6 +1132,22 @@ export async function requireJobReadForRouteVars(
       jobId,
       tx,
     );
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    const job = await tx.job.findFirst({
+      where: { id: jobId, workspaceId: authContext.workspaceId },
+    });
+    if (!job) {
+      throw notFound("Job not found");
+    }
+    await assertOrchestratorCanAccessJob(
+      authContext.orchestratorId,
+      authContext.workspaceId,
+      job,
+      tx,
+    );
+    return job;
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
@@ -1091,6 +1208,23 @@ export async function requireJobCollaboration(
   if (isUserAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
     const job = await requireJobOwnership(userContext, jobId, tx);
+    await requireParentTaskNotParked(job, tx);
+    return job;
+  }
+
+  if (isOrchestratorAuthContext(authContext)) {
+    const job = await tx.job.findFirst({
+      where: { id: jobId, workspaceId: authContext.workspaceId },
+    });
+    if (!job) {
+      throw notFound("Job not found");
+    }
+    await assertOrchestratorCanAccessJob(
+      authContext.orchestratorId,
+      authContext.workspaceId,
+      job,
+      tx,
+    );
     await requireParentTaskNotParked(job, tx);
     return job;
   }

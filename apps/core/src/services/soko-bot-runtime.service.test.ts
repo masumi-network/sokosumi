@@ -9,6 +9,7 @@ const {
   chatRoomFindFirstMock,
   chatRoomDeleteManyMock,
   chatRoomUserMemberFindFirstMock,
+  chatRoomUserMemberFindManyMock,
   workspaceFindUniqueMock,
   chatRoomFindManyMock,
   chatMessageFindManyMock,
@@ -57,6 +58,9 @@ const {
   transactionTurnFindFirstMock,
   transactionTurnUpdateManyMock,
   transactionTaskUpdateMock,
+  transactionTaskEventCountMock,
+  transactionTaskEventCreateMock,
+  transactionTaskWatchUpsertMock,
   transactionWorkspaceFindFirstMock,
   transactionMock,
   turnFindUniqueMock,
@@ -75,12 +79,18 @@ const {
   turnUpdateManyMock,
   workspaceFindFirstMock,
   availabilityMock,
+  applyGuardedTaskStatusUpdateMock,
+  emitChatDirectMessageNotificationsMock,
+  notifyTaskStatusEventMock,
+  publishTaskEventDataMock,
+  publishChatRoomMessageRealtimeByIdMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
   chatRoomDeleteManyMock: vi.fn(),
   chatRoomUserMemberFindFirstMock: vi.fn(),
+  chatRoomUserMemberFindManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   chatRoomFindManyMock: vi.fn(),
   chatMessageFindManyMock: vi.fn(),
@@ -129,6 +139,9 @@ const {
   transactionTurnFindFirstMock: vi.fn(),
   transactionTurnUpdateManyMock: vi.fn(),
   transactionTaskUpdateMock: vi.fn(),
+  transactionTaskEventCountMock: vi.fn(),
+  transactionTaskEventCreateMock: vi.fn(),
+  transactionTaskWatchUpsertMock: vi.fn(),
   transactionWorkspaceFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
@@ -147,6 +160,11 @@ const {
   turnUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   availabilityMock: vi.fn(),
+  applyGuardedTaskStatusUpdateMock: vi.fn(),
+  emitChatDirectMessageNotificationsMock: vi.fn(),
+  notifyTaskStatusEventMock: vi.fn(),
+  publishTaskEventDataMock: vi.fn(),
+  publishChatRoomMessageRealtimeByIdMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
@@ -166,7 +184,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: chatRoomFindManyMock,
       deleteMany: chatRoomDeleteManyMock,
     },
-    chatRoomUserMember: { findFirst: chatRoomUserMemberFindFirstMock },
+    chatRoomUserMember: {
+      findFirst: chatRoomUserMemberFindFirstMock,
+      findMany: chatRoomUserMemberFindManyMock,
+    },
     chatRoomMessage: {
       findMany: chatMessageFindManyMock,
       count: chatMessageCountMock,
@@ -254,6 +275,11 @@ vi.mock("@/lib/db/transaction", () => ({
           findFirst: transactionTaskFindFirstMock,
           update: transactionTaskUpdateMock,
         },
+        taskEvent: {
+          count: transactionTaskEventCountMock,
+          create: transactionTaskEventCreateMock,
+        },
+        sokoBotTaskWatch: { upsert: transactionTaskWatchUpsertMock },
         chatRoomMessage: { create: transactionChatMessageCreateMock },
         chatRoomMention: {
           createMany: transactionChatMentionCreateManyMock,
@@ -292,7 +318,22 @@ vi.mock("@/helpers/job", () => ({
 }));
 vi.mock("@/helpers/agent", () => ({ toMasumiAgent: vi.fn() }));
 vi.mock("@/helpers/task-event-charge", () => ({
-  applyGuardedTaskStatusUpdate: vi.fn(),
+  applyGuardedTaskStatusUpdate: applyGuardedTaskStatusUpdateMock,
+}));
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskStatusEvent: notifyTaskStatusEventMock,
+}));
+vi.mock("@/lib/ably/publish", () => ({
+  publishTaskEventData: publishTaskEventDataMock,
+}));
+vi.mock("@/helpers/chat-direct-message-notifications", () => ({
+  emitChatDirectMessageNotifications: emitChatDirectMessageNotificationsMock,
+  shouldEmitChatDirectMessageNotifications: vi.fn(
+    ({ kind, memberUserIds }) => kind === "direct" && memberUserIds.length <= 2,
+  ),
+}));
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtimeById: publishChatRoomMessageRealtimeByIdMock,
 }));
 vi.mock("@/helpers/task-link", () => ({
   mapTaskLinkRelationToWriteData: vi.fn(),
@@ -452,6 +493,14 @@ describe("SokoBotRuntimeService authorization", () => {
     transactionToolCallFindUniqueMock.mockResolvedValue(null);
     transactionToolCallCountMock.mockResolvedValue(0);
     transactionToolCallCreateMock.mockResolvedValue({});
+    transactionTaskEventCountMock.mockResolvedValue(0);
+    transactionTaskEventCreateMock.mockResolvedValue({ id: "event_1" });
+    transactionTaskWatchUpsertMock.mockResolvedValue({});
+    applyGuardedTaskStatusUpdateMock.mockResolvedValue(undefined);
+    emitChatDirectMessageNotificationsMock.mockResolvedValue(undefined);
+    notifyTaskStatusEventMock.mockResolvedValue(undefined);
+    publishTaskEventDataMock.mockResolvedValue(undefined);
+    publishChatRoomMessageRealtimeByIdMock.mockResolvedValue(undefined);
     transactionDecisionCreateMock.mockResolvedValue({
       id: DECISION_ID,
       status: "PENDING",
@@ -1320,6 +1369,50 @@ describe("SokoBotRuntimeService authorization", () => {
       SCOPE.workspaceId,
       expect.anything(),
       { kind: "soko_bot", sokoBotId: SCOPE.sokoBotId },
+    );
+  });
+
+  it("resumes its own assigned Task and fans out the orchestrator event", async () => {
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.INPUT_REQUIRED,
+      ownerId: SCOPE.userId,
+      assigneeId: null,
+      assigneeOrchestratorId: SCOPE.sokoBotId,
+    });
+
+    const result = await new SokoBotRuntimeService()["replyToTask"](
+      {
+        turn: {
+          id: SCOPE.turnId,
+          sokoBotId: SCOPE.sokoBotId,
+          userId: SCOPE.userId,
+          workspaceId: SCOPE.workspaceId,
+        },
+      } as never,
+      { taskId: "task_1", comment: "Inputs received", status: "READY" },
+      "call_reply",
+    );
+
+    expect(result).toMatchObject({ id: "task_1", status: "READY" });
+    expect(transactionTaskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        taskId: "task_1",
+        status: TaskStatus.READY,
+        orchestratorId: SCOPE.sokoBotId,
+      }),
+      select: { id: true },
+    });
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: SCOPE.userId,
+      taskId: "task_1",
+      eventType: "task_event",
+    });
+    expect(notifyTaskStatusEventMock).toHaveBeenCalledWith(
+      "task_1",
+      "event_1",
+      TaskStatus.READY,
     );
   });
 
@@ -2480,6 +2573,9 @@ describe("post_chat chain depth", () => {
       kind: "direct",
     });
     chatRoomUserMemberFindFirstMock.mockResolvedValue({ id: "member_1" });
+    chatRoomUserMemberFindManyMock.mockResolvedValue([
+      { userId: SCOPE.userId },
+    ]);
 
     await new SokoBotRuntimeService()["postChat"](
       { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
@@ -2487,6 +2583,15 @@ describe("post_chat chain depth", () => {
     );
 
     expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+    expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith({
+      roomId: "room_owner",
+      roomName: "Ada",
+      organizationId: null,
+      messageId: "msg_1",
+      authorUserId: null,
+      authorName: "Soko Bot",
+      recipientUserIds: [SCOPE.userId],
+    });
   });
 
   it("leaves channels alone on an unattended turn", async () => {

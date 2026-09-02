@@ -27,7 +27,8 @@ const {
   coworkerCreateMock,
   coworkerFindManyMock,
   orchestratorMemberDeleteManyMock,
-  mentionUpdateManyMock,
+  failOpenMentionsMock,
+  publishMentionStatusesMock,
   getEnvMock,
   jobFindManyMock,
   memoryCreateMock,
@@ -75,7 +76,8 @@ const {
   coworkerCreateMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
   orchestratorMemberDeleteManyMock: vi.fn(),
-  mentionUpdateManyMock: vi.fn(),
+  failOpenMentionsMock: vi.fn(),
+  publishMentionStatusesMock: vi.fn(),
   getEnvMock: vi.fn<
     () => {
       SOKO_BOT_CLASSIFIER_MODE: string;
@@ -108,6 +110,11 @@ const {
   turnUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   availabilityMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/chat-room-mention-status", () => ({
+  failOpenChatRoomMentions: failOpenMentionsMock,
+  publishChatRoomMentionStatuses: publishMentionStatusesMock,
 }));
 
 vi.mock("@/services/soko-bot-chat.service", () => ({
@@ -234,9 +241,6 @@ function transactionClient() {
     chatRoomOrchestratorMember: {
       deleteMany: orchestratorMemberDeleteManyMock,
     },
-    chatRoomMention: {
-      updateMany: mentionUpdateManyMock,
-    },
     sokoBot: {
       create: botCreateMock,
       findFirst: botFindFirstMock,
@@ -327,6 +331,8 @@ describe("SokoBotControlPlane lifecycle", () => {
     botUpdateManyMock.mockResolvedValue({ count: 1 });
     agentFindManyMock.mockResolvedValue([]);
     coworkerFindManyMock.mockResolvedValue([]);
+    failOpenMentionsMock.mockResolvedValue([]);
+    publishMentionStatusesMock.mockResolvedValue(undefined);
     jobFindManyMock.mockResolvedValue([]);
     projectFindManyMock.mockResolvedValue([]);
     taskFindManyMock.mockResolvedValue([]);
@@ -1554,6 +1560,8 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "RUNNING",
     });
     botUpdateMock.mockResolvedValue({});
+    failOpenMentionsMock.mockResolvedValue(["message_1"]);
+    publishMentionStatusesMock.mockResolvedValue(undefined);
     const cancelTurn = vi.fn<SokoBotRuntime["cancelTurn"]>();
     const runtime = runtimeWithReset(vi.fn());
     runtime.cancelTurn = cancelTurn;
@@ -1574,18 +1582,17 @@ describe("SokoBotControlPlane lifecycle", () => {
         }),
       }),
     );
-    expect(mentionUpdateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          orchestratorId: BOT_ID,
-          status: { in: ["pending", "sent"] },
-        }),
-        data: expect.objectContaining({ status: "failed" }),
-      }),
+    expect(failOpenMentionsMock).toHaveBeenCalledWith(
+      {
+        where: { orchestratorId: BOT_ID },
+        error: "Personal assistant is no longer a member of this room",
+      },
+      expect.any(Object),
     );
     expect(orchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
       where: { orchestratorId: BOT_ID },
     });
+    expect(publishMentionStatusesMock).toHaveBeenCalledWith(["message_1"]);
     expect(cancelTurn).toHaveBeenCalledWith(
       expect.objectContaining({ eveTurnId: "eve_turn_1" }),
     );

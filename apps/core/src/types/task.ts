@@ -41,6 +41,7 @@ export const taskFileApiInclude = {
   uploadedByCoworker: {
     select: { id: true, name: true, image: true, slug: true },
   },
+  uploadedByOrchestrator: taskEventApiInclude.orchestrator,
 } as const;
 
 const taskFilesInclude = {

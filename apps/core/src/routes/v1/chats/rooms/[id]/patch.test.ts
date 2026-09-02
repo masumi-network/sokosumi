@@ -37,7 +37,8 @@ const {
   readStateCreateManyMock,
   coworkerMemberDeleteManyMock,
   coworkerMemberCreateManyMock,
-  mentionUpdateManyMock,
+  failOpenMentionsMock,
+  publishMentionStatusesMock,
   messageCreateMock,
   membershipFindManyMock,
   readStateFindManyMock,
@@ -71,7 +72,8 @@ const {
   readStateCreateManyMock: vi.fn(),
   coworkerMemberDeleteManyMock: vi.fn(),
   coworkerMemberCreateManyMock: vi.fn(),
-  mentionUpdateManyMock: vi.fn(),
+  failOpenMentionsMock: vi.fn(),
+  publishMentionStatusesMock: vi.fn(),
   messageCreateMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
@@ -101,6 +103,11 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+}));
+
+vi.mock("@/helpers/chat-room-mention-status", () => ({
+  failOpenChatRoomMentions: failOpenMentionsMock,
+  publishChatRoomMentionStatuses: publishMentionStatusesMock,
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
@@ -156,9 +163,6 @@ const tx = {
   chatRoomOrchestratorMember: {
     deleteMany: orchestratorMemberDeleteManyMock,
     createMany: orchestratorMemberCreateManyMock,
-  },
-  chatRoomMention: {
-    updateMany: mentionUpdateManyMock,
   },
   chatRoomMessage: {
     create: messageCreateMock,
@@ -327,6 +331,8 @@ beforeEach(() => {
   }));
   publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
   publishChatMembershipRevokedToUsersMock.mockResolvedValue(undefined);
+  failOpenMentionsMock.mockResolvedValue([]);
+  publishMentionStatusesMock.mockResolvedValue(undefined);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
   guestInvitationCountMock.mockResolvedValue(0);
@@ -601,7 +607,6 @@ describe("PATCH /chats/rooms/{id}", () => {
     readStateCreateManyMock.mockResolvedValue({ count: 0 });
     coworkerMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
-    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {
@@ -751,7 +756,7 @@ describe("PATCH /chats/rooms/{id}", () => {
       { id: keptCoworkerId, baseURL: "https://chat.example.com" },
     ]);
     roomUpdateMock.mockResolvedValueOnce(updated);
-    mentionUpdateManyMock.mockResolvedValue({ count: 1 });
+    failOpenMentionsMock.mockResolvedValue(["message_1"]);
     coworkerMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
 
@@ -763,17 +768,17 @@ describe("PATCH /chats/rooms/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(mentionUpdateManyMock).toHaveBeenCalledWith({
-      where: {
-        status: { in: ["pending", "sent"] },
-        coworkerId: { notIn: [keptCoworkerId] },
-        message: { roomId: ROOM_ID },
-      },
-      data: {
-        status: "failed",
+    expect(failOpenMentionsMock).toHaveBeenCalledWith(
+      {
+        where: {
+          coworkerId: { notIn: [keptCoworkerId] },
+          message: { roomId: ROOM_ID },
+        },
         error: "Coworker is no longer a member of this room",
       },
-    });
+      tx,
+    );
+    expect(publishMentionStatusesMock).toHaveBeenCalledWith(["message_1"]);
     expect(coworkerMemberDeleteManyMock).toHaveBeenCalledWith({
       where: { roomId: ROOM_ID },
     });
@@ -1107,7 +1112,6 @@ describe("PATCH /chats/rooms/{id}", () => {
     readStateCreateManyMock.mockResolvedValue({ count: 0 });
     coworkerMemberDeleteManyMock.mockResolvedValue({ count: 0 });
     coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
-    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {
@@ -1213,7 +1217,6 @@ describe("PATCH /chats/rooms/{id}", () => {
     readStateCreateManyMock.mockResolvedValue({ count: 0 });
     coworkerMemberDeleteManyMock.mockResolvedValue({ count: 0 });
     coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
-    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {
@@ -1303,7 +1306,6 @@ describe("PATCH /chats/rooms/{id}", () => {
     roomUpdateMock.mockResolvedValueOnce(updated);
     orchestratorMemberDeleteManyMock.mockResolvedValue({ count: 0 });
     orchestratorMemberCreateManyMock.mockResolvedValue({ count: 1 });
-    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {

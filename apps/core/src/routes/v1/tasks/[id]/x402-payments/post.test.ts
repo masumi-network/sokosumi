@@ -189,6 +189,14 @@ const COWORKER_AGENT_CONTEXT: AuthenticationContext = {
   vendorId: "vendor_1",
 } as AuthenticationContext;
 
+const ORCHESTRATOR_CONTEXT: AuthenticationContext = {
+  actor: "orchestrator",
+  orchestratorId: "01960001-0001-7001-8001-000000000099",
+  userId: USER_ID,
+  workspaceId: "01960001-0001-7001-8001-000000000010",
+  organizationId: null,
+};
+
 interface TxMock {
   $queryRaw: ReturnType<typeof vi.fn>;
   taskX402Payment: {
@@ -617,6 +625,22 @@ describe("POST /{id}/x402-payments", () => {
       expect(response.status).toBe(403);
       expect(prismaTransactionMock).not.toHaveBeenCalled();
       expect(payX402Mock).not.toHaveBeenCalled();
+    });
+
+    it("lets an orchestrator pay for its assigned task with orchestrator attribution", async () => {
+      const app = createApp(ORCHESTRATOR_CONTEXT);
+
+      const response = await postPayment(app, validBody());
+
+      expect(response.status).toBe(200);
+      expect(tx.taskEvent.create).toHaveBeenCalledWith({
+        data: {
+          taskId: TASK_ID,
+          cents: CENTS_FOR_DEMAND,
+          transactionId: "txn_1",
+          orchestratorId: ORCHESTRATOR_CONTEXT.orchestratorId,
+        },
+      });
     });
 
     it("rejects a delegated coworker after collaboration succeeds", async () => {
