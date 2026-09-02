@@ -5,12 +5,12 @@ const {
   createNotificationMock,
   workspaceFindUniqueMock,
   membershipFindManyMock,
-  preferenceFindManyMock,
+  userFindManyMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
-  preferenceFindManyMock: vi.fn(),
+  userFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -19,15 +19,9 @@ vi.mock("@/helpers/notifications", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    workspace: {
-      findUnique: workspaceFindUniqueMock,
-    },
-    chatRoomUserMember: {
-      findMany: membershipFindManyMock,
-    },
-    notificationPreference: {
-      findMany: preferenceFindManyMock,
-    },
+    workspace: { findUnique: workspaceFindUniqueMock },
+    chatRoomUserMember: { findMany: membershipFindManyMock },
+    user: { findMany: userFindManyMock },
   },
 }));
 
@@ -35,10 +29,7 @@ vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
 }));
 
-import {
-  emitChatRoomMessageNotifications,
-  shouldEmitChatRoomMessageNotifications,
-} from "./chat-room-message-notifications";
+import { emitChatRoomMessageNotifications } from "./chat-room-message-notifications";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
@@ -47,25 +38,35 @@ const SUBSCRIBER_ID = "user_alice";
 const QUIET_ID = "user_bob";
 const MENTIONED_ID = "user_carol";
 
-/** Members of the room, as the membership query returns them. */
-function members(...userIds: string[]) {
-  return userIds.map((userId) => ({ userId }));
+/** A reader who turned every message in a room on, both channels. */
+function subscriber(id: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    pushOptIn: true,
+    notificationPreferences: [
+      { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: true },
+      { category: "CHAT_ROOM_MESSAGE", channel: "OS_BANNER", enabled: true },
+    ],
+    ...overrides,
+  };
 }
 
-/** The rows of readers who turned every message in a room on. */
-function optedIn(...userIds: string[]) {
-  return userIds.map((userId) => ({ userId }));
+/** A reader who never opened the settings page: the row is off by default. */
+function stranger(id: string) {
+  return { id, pushOptIn: true, notificationPreferences: [] };
 }
 
-function emit(excludeUserIds?: string[]) {
+function emit(overrides: Record<string, unknown> = {}) {
   return emitChatRoomMessageNotifications({
     roomId: ROOM_ID,
     roomName: "general",
+    roomKind: "channel",
     organizationId: "org_1",
     messageId: MESSAGE_ID,
     authorUserId: AUTHOR_ID,
     authorName: "Ada",
-    ...(excludeUserIds ? { excludeUserIds } : {}),
+    memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID],
+    ...overrides,
   });
 }
 
@@ -74,31 +75,11 @@ beforeEach(() => {
   createNotificationMock.mockResolvedValue({ created: true });
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
   membershipFindManyMock.mockResolvedValue([]);
-  preferenceFindManyMock.mockResolvedValue([]);
-});
-
-describe("shouldEmitChatRoomMessageNotifications", () => {
-  it("covers a channel", () => {
-    expect(shouldEmitChatRoomMessageNotifications({ kind: "channel" })).toBe(
-      true,
-    );
-  });
-
-  /** A direct message has its own row, and must not arrive twice. */
-  it("leaves a direct room alone", () => {
-    expect(shouldEmitChatRoomMessageNotifications({ kind: "direct" })).toBe(
-      false,
-    );
-  });
+  userFindManyMock.mockResolvedValue([subscriber(SUBSCRIBER_ID)]);
 });
 
 describe("emitChatRoomMessageNotifications", () => {
   it("notifies the members who asked for every message", async () => {
-    membershipFindManyMock
-      .mockResolvedValueOnce(members(AUTHOR_ID, SUBSCRIBER_ID, QUIET_ID))
-      .mockResolvedValueOnce([]);
-    preferenceFindManyMock.mockResolvedValue(optedIn(SUBSCRIBER_ID));
-
     await emit();
 
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
@@ -118,43 +99,82 @@ describe("emitChatRoomMessageNotifications", () => {
    * never opened the settings page writes nothing at all.
    */
   it("writes nothing when nobody turned the row on", async () => {
-    membershipFindManyMock.mockResolvedValue(
-      members(AUTHOR_ID, SUBSCRIBER_ID, QUIET_ID),
-    );
+    userFindManyMock.mockResolvedValue([
+      stranger(SUBSCRIBER_ID),
+      stranger(QUIET_ID),
+    ]);
+
+    await emit({ memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID, QUIET_ID] });
+
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The banner is the only channel this reader kept, and account-wide push is
+   * off, so nothing would reach them. Writing the row anyway would add one
+   * notification per member per message that no surface ever shows.
+   */
+  it("writes nothing for a reader whose only channel is a banner they cannot receive", async () => {
+    userFindManyMock.mockResolvedValue([
+      subscriber(SUBSCRIBER_ID, {
+        pushOptIn: false,
+        notificationPreferences: [
+          { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: false },
+          {
+            category: "CHAT_ROOM_MESSAGE",
+            channel: "OS_BANNER",
+            enabled: true,
+          },
+        ],
+      }),
+    ]);
 
     await emit();
 
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
-  it("asks only about the members of this room", async () => {
-    membershipFindManyMock
-      .mockResolvedValueOnce(members(AUTHOR_ID, SUBSCRIBER_ID))
-      .mockResolvedValueOnce([]);
-    preferenceFindManyMock.mockResolvedValue(optedIn(SUBSCRIBER_ID));
+  it("asks only about the members of this room, and never about the author", async () => {
+    await emit({ memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID] });
 
-    await emit();
-
-    expect(preferenceFindManyMock).toHaveBeenCalledWith({
-      where: {
-        userId: { in: [SUBSCRIBER_ID] },
-        category: "CHAT_ROOM_MESSAGE",
-        enabled: true,
+    expect(userFindManyMock).toHaveBeenCalledWith({
+      where: { id: { in: [SUBSCRIBER_ID] } },
+      select: {
+        id: true,
+        pushOptIn: true,
+        notificationPreferences: {
+          select: { category: true, channel: true, enabled: true },
+        },
       },
-      select: { userId: true },
     });
   });
 
-  /** The mention already arrived, so the same message must not arrive again. */
-  it("skips a member the caller has already notified", async () => {
+  it("reads this room's members when the caller has none to give", async () => {
+    // The roster, then the mute check the fan-out makes with the same model.
     membershipFindManyMock
-      .mockResolvedValueOnce(members(AUTHOR_ID, SUBSCRIBER_ID, MENTIONED_ID))
+      .mockResolvedValueOnce([{ userId: AUTHOR_ID }, { userId: SUBSCRIBER_ID }])
       .mockResolvedValueOnce([]);
-    preferenceFindManyMock.mockResolvedValue(
-      optedIn(SUBSCRIBER_ID, MENTIONED_ID),
-    );
 
-    await emit([MENTIONED_ID]);
+    await emit({ memberUserIds: undefined });
+
+    expect(membershipFindManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID },
+      select: { userId: true },
+    });
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+  });
+
+  /** The mention already arrived, so the same message must not arrive twice. */
+  it("skips a member whose mention reaches them", async () => {
+    userFindManyMock.mockResolvedValue([
+      subscriber(SUBSCRIBER_ID),
+      subscriber(MENTIONED_ID),
+    ]);
+
+    await emit({
+      memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID, MENTIONED_ID],
+      mentionedUserIds: [MENTIONED_ID],
+    });
 
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith(
@@ -162,11 +182,64 @@ describe("emitChatRoomMessageNotifications", () => {
     );
   });
 
+  /**
+   * Mentions off, every message on. Skipping this reader because the message
+   * named them would leave them hearing about every message in the room except
+   * the one addressed to them.
+   */
+  it("notifies a mentioned member who silenced mentions", async () => {
+    userFindManyMock.mockResolvedValue([
+      subscriber(MENTIONED_ID, {
+        notificationPreferences: [
+          { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: true },
+          {
+            category: "CHAT_ROOM_MESSAGE",
+            channel: "OS_BANNER",
+            enabled: true,
+          },
+          { category: "CHAT_MENTION", channel: "IN_APP", enabled: false },
+          { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+        ],
+      }),
+    ]);
+
+    await emit({
+      memberUserIds: [AUTHOR_ID, MENTIONED_ID],
+      mentionedUserIds: [MENTIONED_ID],
+    });
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: MENTIONED_ID }),
+    );
+  });
+
+  /** Two humans in a direct room: the direct-message row carries the message. */
+  it("leaves a direct room to the direct-message row", async () => {
+    await emit({ roomKind: "direct" });
+
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The direct-message row stops at two humans, so a bigger direct room is a
+   * room like any other here. Without this it was the one place a message
+   * reached nobody.
+   */
+  it("covers a direct room the direct-message row has given up on", async () => {
+    userFindManyMock.mockResolvedValue([subscriber(SUBSCRIBER_ID)]);
+
+    await emit({
+      roomKind: "direct",
+      memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID, QUIET_ID],
+    });
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: SUBSCRIBER_ID }),
+    );
+  });
+
   it("skips a member who muted the room", async () => {
-    membershipFindManyMock
-      .mockResolvedValueOnce(members(AUTHOR_ID, SUBSCRIBER_ID))
-      .mockResolvedValueOnce(members(SUBSCRIBER_ID));
-    preferenceFindManyMock.mockResolvedValue(optedIn(SUBSCRIBER_ID));
+    membershipFindManyMock.mockResolvedValue([{ userId: SUBSCRIBER_ID }]);
 
     await emit();
 
@@ -174,13 +247,11 @@ describe("emitChatRoomMessageNotifications", () => {
   });
 
   it("never notifies the author of their own message", async () => {
-    membershipFindManyMock
-      .mockResolvedValueOnce(members(AUTHOR_ID))
-      .mockResolvedValueOnce([]);
-    preferenceFindManyMock.mockResolvedValue(optedIn(AUTHOR_ID));
+    userFindManyMock.mockResolvedValue([subscriber(AUTHOR_ID)]);
 
-    await emit();
+    await emit({ memberUserIds: [AUTHOR_ID] });
 
+    expect(userFindManyMock).not.toHaveBeenCalled();
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 });
