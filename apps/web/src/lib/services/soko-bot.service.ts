@@ -244,16 +244,6 @@ export const sokoBotService = {
     return toSokoBotChatState(bot, turns);
   },
 
-  /**
-   * Cheap "is anything happening" probe. The console polls this every couple
-   * of seconds so it can notice a turn started elsewhere; the full chat state
-   * is far too heavy to ask for that often.
-   */
-  async getActivity() {
-    const response = await coreClient.getMySokoBotActivity();
-    return response.data;
-  },
-
   async listTurns(limit = SOKO_BOT_RECENT_TURN_LIMIT): Promise<SokoBotTurn[]> {
     const response = await coreClient.listMySokoBotTurns({ limit });
     return response.data;

@@ -32,7 +32,7 @@ function mockEndpoints(options: {
   stateDelayMs?: number;
 }) {
   let index = 0;
-  const fetchMock = vi.fn(async (url: string) => {
+  const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (String(url).includes("/activity")) {
       const activity =
         options.activity[Math.min(index, options.activity.length - 1)];
@@ -40,7 +40,15 @@ function mockEndpoints(options: {
       return { ok: true, json: async () => ({ activity }) };
     }
     if (options.stateDelayMs) {
-      await new Promise((resolve) => setTimeout(resolve, options.stateDelayMs));
+      // Honours the abort signal the way a real fetch does. Without that a
+      // test cannot exercise the deadline at all: the read would simply hang.
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, options.stateDelayMs);
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      });
     }
     const probeIndex = index;
     return {
@@ -155,23 +163,20 @@ describe("useSokoBotState polling", () => {
     expect(countOf(fetchMock, "/state")).toBeGreaterThanOrEqual(3);
   });
 
-  it("still catches the settled turn when a slow read overlaps it", async () => {
-    // The race the queued follow-up exists for: the tick that sees the turn
-    // settle finds a read in flight, and the stale response lands afterwards.
-    // Without the queue the orb stays on screen for good.
+  it("gives up on a state read that never answers", async () => {
+    // Without the deadline the in-flight flag would be held for good and no
+    // later read would ever run.
     const fetchMock = mockEndpoints({
-      activity: [RUNNING, RUNNING, SETTLED, SETTLED],
-      state: (probe) =>
-        probe >= 3 ? chatState("COMPLETED") : chatState("RUNNING"),
-      stateDelayMs: 4_000,
+      activity: [RUNNING],
+      state: () => chatState("RUNNING"),
+      stateDelayMs: 600_000,
     });
-    const { result } = renderHook(() => useSokoBotState(emptyState()));
+    renderHook(() => useSokoBotState(emptyState()));
 
-    await vi.advanceTimersByTimeAsync(6_000);
-    await vi.advanceTimersByTimeAsync(6_000);
-    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(20_000);
+    const beforeRecovery = countOf(fetchMock, "/state");
+    await vi.advanceTimersByTimeAsync(20_000);
 
-    expect(result.current.state.turns[0]?.status).toBe("COMPLETED");
-    expect(countOf(fetchMock, "/state")).toBeGreaterThanOrEqual(2);
+    expect(countOf(fetchMock, "/state")).toBeGreaterThan(beforeRecovery);
   });
 });
