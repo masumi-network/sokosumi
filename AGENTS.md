@@ -393,18 +393,19 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 ## Cursor Cloud specific instructions
 
-These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script runs `pnpm install` then provisions an ephemeral Neon agent database when secrets are present (see below). Node, tooling, and non-DB `.env` values may still come from the VM snapshot.
+These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script runs Corepack-backed `pnpm install` (`scripts/cloud-agent-db/ensure-pnpm.sh`) then provisions an ephemeral Neon agent database when secrets are present (see below). Node, tooling, and non-DB `.env` values may still come from the VM snapshot.
 
 ### Runtime versions
 
 - **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 12.2.1 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+- **pnpm via Corepack:** Environment `install`/`start` call `scripts/cloud-agent-db/ensure-pnpm.sh`, which `corepack prepare`s the `packageManager` pin and deletes `~/.local/share/pnpm/.tools/pnpm`. A leftover pnpm 12 standalone placeholder there is not a valid shell script and fails builds with `Syntax error: ")" unexpected`.
 
 ### Database (Cloud agent Neon branch)
 
 Cloud agents get a **disposable Neon branch** forked from production/`main`, not a shared mutable DB and not live production writes.
 
-- **Provision:** `.cursor/environment.json` `install` runs `node scripts/cloud-agent-db/provision.mjs` after `pnpm install` when `CURSOR_AGENT=1` and `NEON_API_KEY` + `NEON_PROJECT_ID` are set (Cursor Runtime Secrets). Branch name: `cloud-agent-<CURSOR_CONVERSATION_ID>`. Parent is always `NEON_PARENT_BRANCH` (default `main`). Resume reuses the same branch and refreshes the **72h** `expires_at` TTL. Pending migrations run via `pnpm prisma:migrate:deploy` (`DATABASE_URL_UNPOOLED`). After migrate, upserts guarded auth fixtures (`admin@sokosumi.test` / `alice@sokosumi.test` / `bob@sokosumi.test` / `zero@sokosumi.test` / `Password123!`) on agent branches only — **not** a full catalog seed.
-- **Use:** Prefer `node scripts/cloud-agent-db/with-db.mjs -- <command>` so ambient/stale `DATABASE_URL` cannot win. `start` already wraps `pnpm dev`. Login shells source `.cursor/cloud-agent-db.env` via bashrc/profile.
+- **Provision:** `.cursor/environment.json` `install` runs `bash scripts/cloud-agent-db/ensure-pnpm.sh install` then `node scripts/cloud-agent-db/provision.mjs` when `CURSOR_AGENT=1` and `NEON_API_KEY` + `NEON_PROJECT_ID` are set (Cursor Runtime Secrets). Branch name: `cloud-agent-<CURSOR_CONVERSATION_ID>`. Parent is always `NEON_PARENT_BRANCH` (default `main`). Resume reuses the same branch and refreshes the **72h** `expires_at` TTL. Pending migrations run via `pnpm prisma:migrate:deploy` (`DATABASE_URL_UNPOOLED`). After migrate, upserts guarded auth fixtures (`admin@sokosumi.test` / `alice@sokosumi.test` / `bob@sokosumi.test` / `zero@sokosumi.test` / `Password123!`) on agent branches only — **not** a full catalog seed.
+- **Use:** Prefer `node scripts/cloud-agent-db/with-db.mjs -- <command>` so ambient/stale `DATABASE_URL` cannot win. `start` already wraps `ensure-pnpm.sh dev`. Login shells source `.cursor/cloud-agent-db.env` via bashrc/profile.
 - **Teardown:** deletes only `cloud-agent-*` branches — never production/`main`. Triggers: PR merged/closed (GitHub Action parses `bc-…` from PR body), agent completes with no PR (`pnpm cloud-agent-db:teardown`), agent archived (same when possible). Idle **72h** expiry is Neon `expires_at` only (no scheduled Action GC).
 - **Do not** put a static production `DATABASE_URL` in Cursor secrets. Full runbook: [`docs/agents/cloud-agent-database.md`](./docs/agents/cloud-agent-database.md).
 
