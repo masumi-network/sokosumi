@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskForm } from "@/app/tasks/components/task-form";
@@ -20,18 +19,15 @@ export const metadata = {
 };
 
 export default async function NewTaskPage() {
-  // Defer so PPR does not prerender the Core agent catalog at build.
-  await connection();
-
-  const [t, tTasks, taskCoworkers, agents, session, ownerBot] =
-    await Promise.all([
-      getTranslations("App.Tasks.NewTask"),
-      getTranslations("App.Tasks"),
-      coworkerService.listCoworkers("tasks").catch(() => []),
-      agentService.getAvailableAgentsWithCreditsPrice(),
-      getSession(),
-      sokoBotService.getMine().catch(() => null),
-    ]);
+  // Request locale first so PPR does not fill the cookie-free agent catalog at build.
+  const t = await getTranslations("App.Tasks.NewTask");
+  const tTasks = await getTranslations("App.Tasks");
+  const [taskCoworkers, agents, session, ownerBot] = await Promise.all([
+    coworkerService.listCoworkers("tasks").catch(() => []),
+    agentService.getAvailableAgentsWithCreditsPrice(),
+    getSession(),
+    sokoBotService.getMine().catch(() => null),
+  ]);
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
