@@ -1125,6 +1125,40 @@ export class SokoBotControlPlane {
     return created;
   }
 
+  /**
+   * Is anything happening, in one indexed read.
+   *
+   * The console watches turns it did not start, so it has to poll often enough
+   * to catch one that runs for a few seconds. Polling the full chat state that
+   * often is not affordable — that loads the bot plus twenty turns with their
+   * events, delegations and decisions — so this carries only what tells the
+   * client whether to go and fetch it.
+   */
+  async getActivityForUser(
+    userId: string,
+    workspaceId: string,
+  ): Promise<{
+    status: string;
+    activeTurnId: string | null;
+    lastTurnAt: Date | null;
+  } | null> {
+    const bot = await prisma.sokoBot.findFirst({
+      where: { userId, workspaceId, archivedAt: null },
+      select: { id: true, status: true, lastTurnAt: true },
+    });
+    if (!bot) return null;
+    const active = await prisma.sokoBotTurn.findFirst({
+      where: { sokoBotId: bot.id, status: { in: [...ACTIVE_TURN_STATUSES] } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    return {
+      status: bot.status,
+      activeTurnId: active?.id ?? null,
+      lastTurnAt: bot.lastTurnAt,
+    };
+  }
+
   async getForUser(userId: string, workspaceId: string) {
     const bot = await prisma.sokoBot.findFirst({
       where: { userId, workspaceId, archivedAt: null },

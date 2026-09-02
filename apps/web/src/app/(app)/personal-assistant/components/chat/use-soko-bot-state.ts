@@ -2,31 +2,42 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 
-import { hasActiveTurn } from "./timeline";
-
 const STATE_ENDPOINT = "/api/personal-assistant/state";
-const ACTIVE_POLL_MS = 2_500;
-// Turns run five to twenty seconds. At thirty a turn could start and finish
-// between two ticks, so the console would only ever render the finished
-// answer. This is the cost of watching work started somewhere else.
-const IDLE_POLL_MS = 8_000;
+const ACTIVITY_ENDPOINT = "/api/personal-assistant/activity";
+/**
+ * How often the cheap probe runs. Turns are short — five to twenty seconds —
+ * and this surface watches ones it did not start, so anything slower means a
+ * turn begins and ends between two ticks and is only ever seen finished.
+ */
+const PROBE_MS = 2_500;
+
+interface Activity {
+  status: string;
+  activeTurnId: string | null;
+  lastTurnAt: string | null;
+}
+
+/** Everything that means "go and refetch": who is running, and what changed. */
+function activitySignature(activity: Activity): string {
+  return `${activity.status}:${activity.activeTurnId ?? ""}:${activity.lastTurnAt ?? ""}`;
+}
 
 /**
- * Keeps the chat projection fresh: fast polling while a turn runs, a slow
- * heartbeat otherwise (scheduled turns can land while the tab is open), and
- * an explicit `refresh()` after any mutation.
+ * Keeps the chat projection fresh.
+ *
+ * Two endpoints, deliberately. The probe is one indexed read and runs often
+ * enough to notice a turn while it is still running; the full state loads the
+ * bot plus twenty turns with their events and decisions, and is fetched only
+ * when the probe says something moved, or while a turn is in flight.
  */
 export function useSokoBotState(initial: SokoBotChatState) {
   const [state, setState] = useState(initial);
   const inFlight = useRef<AbortController | null>(null);
-
-  const merge = useCallback((next: SokoBotChatState) => {
-    setState(next);
-  }, []);
+  const lastSignature = useRef<string | null>(null);
 
   useEffect(() => {
-    merge(initial);
-  }, [initial, merge]);
+    setState(initial);
+  }, [initial]);
 
   const refresh = useCallback(async () => {
     inFlight.current?.abort();
@@ -42,34 +53,47 @@ export function useSokoBotState(initial: SokoBotChatState) {
       const body = (await response.json()) as {
         state?: SokoBotChatState | null;
       };
-      if (body.state && !controller.signal.aborted) merge(body.state);
+      if (body.state && !controller.signal.aborted) setState(body.state);
     } catch {
       // Aborted or offline: the next tick retries.
     }
-  }, [merge]);
+  }, []);
 
-  // The bot's own status counts as activity, not only a turn already in the
-  // list. Conversation moved to the chat rooms, so the console watches turns
-  // it did not start: at the idle rate a turn could begin and finish inside
-  // one tick, and the console would only ever show the finished answer — no
-  // orb, no steps, nothing to say it had been working.
-  const active = hasActiveTurn(state) || state.bot.status === "RUNNING";
   useEffect(() => {
-    const interval = setInterval(
-      () => {
-        if (document.visibilityState === "visible") void refresh();
-      },
-      active ? ACTIVE_POLL_MS : IDLE_POLL_MS,
-    );
+    let stopped = false;
+
+    async function tick() {
+      if (document.visibilityState !== "visible" || stopped) return;
+      try {
+        const response = await fetch(ACTIVITY_ENDPOINT, {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const body = (await response.json()) as { activity?: Activity | null };
+        if (!body.activity || stopped) return;
+        const signature = activitySignature(body.activity);
+        // Refetch while a turn is running, so its steps keep arriving, and
+        // once more on the tick where it settles.
+        const changed = signature !== lastSignature.current;
+        lastSignature.current = signature;
+        if (changed || body.activity.activeTurnId !== null) await refresh();
+      } catch {
+        // Offline or aborted: the next tick retries.
+      }
+    }
+
+    const interval = setInterval(() => void tick(), PROBE_MS);
     const onVisibility = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible") void tick();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      stopped = true;
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [active, refresh]);
+  }, [refresh]);
 
   return { state, refresh };
 }
