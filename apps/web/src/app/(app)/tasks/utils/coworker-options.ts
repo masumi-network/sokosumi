@@ -3,10 +3,11 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
 
-const PERSONAL_ASSISTANT_VENDOR: CoworkerOption["vendor"] = {
-  id: "personal-assistant",
-  name: "personal-assistant",
-  slug: "personal-assistant",
+/** First-party Soko Bots grouping in coworker-shaped pickers. */
+const SOKO_BOTS_VENDOR: CoworkerOption["vendor"] = {
+  id: "soko-bots",
+  name: "Soko Bots",
+  slug: "soko-bots",
   logos: {
     light: null,
     dark: null,
@@ -80,12 +81,12 @@ export function getOwnerOrchestratorOption(
 
   return {
     id: bot.id,
-    slug: "personal-assistant",
-    name: bot.name?.trim() || "Personal assistant",
+    slug: "soko-bots",
+    name: bot.name?.trim() || "Soko Bot",
     image: bot.avatarImageUrl ?? "",
     kind: "orchestrator",
     avatarSeed: bot.avatarSeed,
-    vendor: PERSONAL_ASSISTANT_VENDOR,
+    vendor: SOKO_BOTS_VENDOR,
   };
 }
 

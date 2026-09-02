@@ -125,10 +125,10 @@ describe("owner orchestrator option", () => {
   it("maps the owner bot as an orchestrator option", () => {
     expect(getOwnerOrchestratorOption(baseBot())).toMatchObject({
       id: "bot-1",
-      slug: "personal-assistant",
+      slug: "soko-bots",
       name: "Jarvis",
       kind: "orchestrator",
-      vendor: { id: "personal-assistant", slug: "personal-assistant" },
+      vendor: { id: "soko-bots", name: "Soko Bots", slug: "soko-bots" },
     });
   });
 
