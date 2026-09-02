@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskForm } from "@/app/tasks/components/task-form";
@@ -19,6 +20,9 @@ export const metadata = {
 };
 
 export default async function NewTaskPage() {
+  // Defer so PPR does not prerender the Core agent catalog at build.
+  await connection();
+
   const [t, tTasks, taskCoworkers, agents, session, ownerBot] =
     await Promise.all([
       getTranslations("App.Tasks.NewTask"),
