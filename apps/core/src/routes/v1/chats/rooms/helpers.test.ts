@@ -33,8 +33,10 @@ import {
   requireJoinableOrgChannel,
   requireRoomMemberCanInviteGuests,
   resolveMentionedCoworkerIds,
+  resolveMentionedOrchestratorIds,
   resolveMentionedUserIds,
   resolvePeerInActiveOrganization,
+  resolveRoomQuoteSnapshot,
   resolveWorkspaceIdForChatRoom,
   usersShareExternalChannel,
   validateChatCoworkerIds,
@@ -145,6 +147,7 @@ describe("validateChatCoworkerIds", () => {
     expect(coworkerFindManyMock).toHaveBeenCalledWith({
       where: {
         id: { in: ["cow_1"] },
+        sokoBotId: null,
         ...buildCoworkerUsableInWorkspaceWhere(workspaceId),
         AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
         capabilities: { has: "chat" },
@@ -307,6 +310,51 @@ describe("contentIncludesRoomAllMention", () => {
   });
 });
 
+describe("resolveMentionedOrchestratorIds", () => {
+  it("matches an @orchestrator:<uuid> token in the room", () => {
+    const id = "01960001-0001-7001-8001-000000000099";
+    expect(
+      resolveMentionedOrchestratorIds({
+        content: `hello @orchestrator:${id}`,
+        roomOrchestrators: [{ id, name: "Jarvis" }],
+      }),
+    ).toEqual([id]);
+  });
+
+  it("lowercases an uppercase token", () => {
+    const id = "01960001-0001-7001-8001-000000000099";
+    expect(
+      resolveMentionedOrchestratorIds({
+        content: `@ORCHESTRATOR:${id.toUpperCase()}`,
+        roomOrchestrators: [{ id, name: "Jarvis" }],
+      }),
+    ).toEqual([id]);
+  });
+
+  it("ignores orchestrators that are not in the room", () => {
+    expect(
+      resolveMentionedOrchestratorIds({
+        content: "@orchestrator:01960001-0001-7001-8001-000000000001",
+        roomOrchestrators: [
+          { id: "01960001-0001-7001-8001-000000000099", name: "Jarvis" },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("skips a shared name alias when two room orchestrators slugify the same", () => {
+    expect(
+      resolveMentionedOrchestratorIds({
+        content: "hey @soko-bot",
+        roomOrchestrators: [
+          { id: "01960001-0001-7001-8001-000000000001", name: "Soko Bot" },
+          { id: "01960001-0001-7001-8001-000000000002", name: "Soko Bot" },
+        ],
+      }),
+    ).toEqual([]);
+  });
+});
+
 describe("buildDirectRoomKey", () => {
   it("builds the same key regardless of user order", () => {
     expect(buildDirectRoomKey("user_b", "user_a")).toBe("user_a:user_b");
@@ -334,6 +382,14 @@ describe("buildDirectRoomKey", () => {
         coworkerIds: [],
       }),
     ).toBe("user_a:user_b");
+    expect(
+      buildDirectParticipantRoomKey({
+        currentUserId: "user_a",
+        memberUserIds: [],
+        coworkerIds: [],
+        orchestratorIds: ["01960001-0001-7001-8001-000000000099"],
+      }),
+    ).toBe("orchestrator:user_a:01960001-0001-7001-8001-000000000099");
   });
 });
 
@@ -505,6 +561,30 @@ describe("getChatRoomUnreadMentionCounts", () => {
   });
 });
 
+describe("resolveRoomQuoteSnapshot", () => {
+  it("names a quoted personal-assistant message from senderOrchestrator", async () => {
+    const findFirst = vi.fn().mockResolvedValue({
+      id: "550e8400-e29b-41d4-a716-446655440004",
+      content: "I can take this",
+      metadata: null,
+      senderUser: null,
+      senderCoworker: null,
+      senderOrchestrator: { name: "Ana", user: { name: "Ada" } },
+    });
+
+    await expect(
+      resolveRoomQuoteSnapshot(
+        { chatRoomMessage: { findFirst } } as never,
+        "room_1",
+        "550e8400-e29b-41d4-a716-446655440004",
+      ),
+    ).resolves.toMatchObject({
+      messageId: "550e8400-e29b-41d4-a716-446655440004",
+      authorName: "Ana",
+    });
+  });
+});
+
 describe("mapChatRoomMessage quote", () => {
   it("promotes metadata.quote onto the DTO quote field", () => {
     const quote = {
@@ -523,6 +603,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
+      senderOrchestratorId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -537,6 +618,7 @@ describe("mapChatRoomMessage quote", () => {
         image: null,
       },
       senderCoworker: null,
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -554,6 +636,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
+      senderOrchestratorId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -568,6 +651,7 @@ describe("mapChatRoomMessage quote", () => {
         image: null,
       },
       senderCoworker: null,
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -589,6 +673,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
+      senderOrchestratorId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -603,6 +688,7 @@ describe("mapChatRoomMessage quote", () => {
         image: null,
       },
       senderCoworker: null,
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -620,6 +706,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
+      senderOrchestratorId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -641,6 +728,7 @@ describe("mapChatRoomMessage quote", () => {
         image: null,
       },
       senderCoworker: null,
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -661,6 +749,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: null,
       senderCoworkerId: "coworker_1",
+      senderOrchestratorId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -675,9 +764,8 @@ describe("mapChatRoomMessage quote", () => {
         slug: "hannah",
         caption: null,
         image: null,
-        sokoBotId: null,
-        sokoBot: null,
       },
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -694,6 +782,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
+      senderOrchestratorId: null,
       content: "",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: new Date("2025-01-03T00:00:00.000Z"),
@@ -708,6 +797,7 @@ describe("mapChatRoomMessage quote", () => {
         image: null,
       },
       senderCoworker: null,
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [
         {
@@ -971,6 +1061,7 @@ describe("mapChatRoomMessage membership", () => {
       parentMessageId: null,
       senderUserId: null,
       senderCoworkerId: null,
+      senderOrchestratorId: null,
       content: "Ada joined",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -980,6 +1071,7 @@ describe("mapChatRoomMessage membership", () => {
       responsesApiResponseId: null,
       senderUser: null,
       senderCoworker: null,
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -998,6 +1090,7 @@ describe("mapChatRoomMessage membership", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
+      senderOrchestratorId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -1012,6 +1105,7 @@ describe("mapChatRoomMessage membership", () => {
         image: null,
       },
       senderCoworker: null,
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -1039,6 +1133,7 @@ describe("mapChatRoomMessage unfurls", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
+      senderOrchestratorId: null,
       content: "https://example.com/a",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -1053,6 +1148,7 @@ describe("mapChatRoomMessage unfurls", () => {
         image: null,
       },
       senderCoworker: null,
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -1069,6 +1165,7 @@ describe("mapChatRoomMessage unfurls", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
+      senderOrchestratorId: null,
       content: "gone",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: new Date("2025-01-03T00:00:00.000Z"),
@@ -1093,6 +1190,7 @@ describe("mapChatRoomMessage unfurls", () => {
         image: null,
       },
       senderCoworker: null,
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -1109,6 +1207,7 @@ describe("mapChatRoomMessage unfurls", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
+      senderOrchestratorId: null,
       content: "https://ably.com https://resend.com",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -1141,6 +1240,7 @@ describe("mapChatRoomMessage unfurls", () => {
         image: null,
       },
       senderCoworker: null,
+      senderOrchestrator: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -1227,6 +1327,7 @@ function createExternalRoom(
     providerConversationId: null,
     userMembers: memberships,
     coworkerMembers: [],
+    orchestratorMembers: [],
     ...overrides,
   };
 }
@@ -1530,6 +1631,7 @@ describe("requireChatRoomUserWriteAccess guest gate", () => {
       providerConversationId: null,
       userMembers: [{ userId: GUEST_ID, access: "guest", user: { name: "G" } }],
       coworkerMembers: [],
+      orchestratorMembers: [],
     } as never);
     vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
       id: ORG_ID,

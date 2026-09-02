@@ -2,7 +2,7 @@ import { Channel, Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
 import { canArchiveTaskStatus, convertCentsToCredits } from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
-import { isCoworkerAgentContext } from "@/middleware/auth";
+import { isAgentAuthContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
   type TaskDetailPayload,
@@ -25,7 +25,7 @@ type TaskFileForMapping = TaskWithIncludes["files"][number];
 
 export function mapTaskFile(file: TaskFileForMapping) {
   let uploader: {
-    type: "user" | "coworker";
+    type: "user" | "coworker" | "orchestrator";
     id: string;
     user?: { id: string; name: string; image: string | null };
     coworker?: {
@@ -34,6 +34,7 @@ export function mapTaskFile(file: TaskFileForMapping) {
       image: string | null;
       slug: string;
     };
+    orchestrator?: ReturnType<typeof orchestratorSummaryFromLoadedRelation>;
   } | null = null;
 
   if (file.uploadedByUserId != null) {
@@ -62,6 +63,22 @@ export function mapTaskFile(file: TaskFileForMapping) {
       type: "coworker",
       id: file.uploadedByCoworkerId,
       coworker,
+    };
+  } else if (file.uploadedByOrchestratorId != null) {
+    const orchestrator = orchestratorSummaryFromLoadedRelation(
+      `TaskFile ${file.id} uploader`,
+      file.uploadedByOrchestratorId,
+      file.uploadedByOrchestrator ?? null,
+    );
+    if (orchestrator == null) {
+      throw new Error(
+        `TaskFile ${file.id}: orchestrator uploader summary missing for API mapping`,
+      );
+    }
+    uploader = {
+      type: "orchestrator",
+      id: file.uploadedByOrchestratorId,
+      orchestrator,
     };
   }
 
@@ -110,6 +127,7 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
 interface ValidateTaskAssigneeAssignmentParams {
   status: TaskStatus;
   assigneeId: string | null | undefined;
+  assigneeOrchestratorId?: string | null;
 }
 
 function getAllowedTransitions(
@@ -117,7 +135,7 @@ function getAllowedTransitions(
 ): Record<TaskStatus, TaskStatus[]> {
   // A coworker acting as itself (the agent) uses the agent transition table.
   // A delegated coworker acts as the user, so it falls through to the user table.
-  if (isCoworkerAgentContext(authContext)) {
+  if (isAgentAuthContext(authContext)) {
     return {
       [TaskStatus.DRAFT]: [],
       [TaskStatus.QUEUED]: [
@@ -428,14 +446,17 @@ export function validateStatusTransition(
 export function validateTaskAssigneeAssignment({
   status,
   assigneeId,
+  assigneeOrchestratorId,
 }: ValidateTaskAssigneeAssignmentParams): void {
-  const hasAssigneeId = assigneeId !== null && assigneeId !== undefined;
+  const hasCoworker = assigneeId != null && assigneeId !== "";
+  const hasOrchestrator =
+    assigneeOrchestratorId != null && assigneeOrchestratorId !== "";
   const allowsMissingAssignee =
     status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
 
-  if (!allowsMissingAssignee && !hasAssigneeId) {
+  if (!allowsMissingAssignee && !hasCoworker && !hasOrchestrator) {
     throw unprocessableEntity(
-      "assigneeId is required for statuses other than draft or canceled",
+      "assigneeId or assigneeOrchestratorId is required for statuses other than draft or canceled",
     );
   }
 }
@@ -601,6 +622,48 @@ function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
   );
 }
 
+function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
+  if (task.assigneeOrchestratorId != null) {
+    const orchestrator = orchestratorSummaryFromLoadedRelation(
+      `Task ${task.id}`,
+      task.assigneeOrchestratorId,
+      task.assigneeOrchestrator ?? null,
+    );
+    if (orchestrator == null) {
+      throw new Error(
+        `Task ${task.id}: assignee orchestrator summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "orchestrator" as const,
+      id: task.assigneeOrchestratorId,
+      orchestrator,
+    };
+  }
+
+  if (task.assigneeId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `Task ${task.id}`,
+      task.assigneeId,
+      task.assignee ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `Task ${task.id}: assignee coworker summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "coworker" as const,
+      id: task.assigneeId,
+      coworker,
+    };
+  }
+
+  return null;
+}
+
 function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
@@ -614,12 +677,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     task.owner,
   );
 
-  const taskAssigneeSummary = coworkerSummaryFromLoadedRelation(
-    `Task ${task.id}`,
-    task.assigneeId,
-    task.assignee ?? null,
-  );
-
+  const assignee = mapTaskAssignee(task);
   const creator = mapTaskCreator(task);
 
   return {
@@ -635,9 +693,10 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     projectId: task.projectId,
     organization: taskOrganizationSummary,
     assigneeId: task.assigneeId,
-    assignee: taskAssigneeSummary,
+    assigneeOrchestratorId: task.assigneeOrchestratorId ?? null,
+    assignee,
     coworkerId: task.assigneeId,
-    coworker: taskAssigneeSummary,
+    coworker: assignee?.type === "coworker" ? assignee.coworker : null,
     creator,
     // Deprecated aliases for legacy orchestrator-created tasks.
     orchestratorId: creator.type === "orchestrator" ? creator.id : null,

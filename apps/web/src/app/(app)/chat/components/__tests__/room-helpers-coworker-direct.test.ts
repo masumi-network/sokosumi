@@ -56,6 +56,27 @@ describe("isCoworkerOnlyDirectRoom", () => {
     ).toBe(false);
   });
 
+  it("returns false for a personal-assistant 1:1 (not a coworker stream)", () => {
+    expect(
+      isCoworkerOnlyDirectRoom({
+        kind: "direct",
+        userMembers: [{ id: "user-1" }],
+        coworkerMembers: [],
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false when an orchestrator is also in the room", () => {
+    expect(
+      isCoworkerOnlyDirectRoom({
+        kind: "direct",
+        userMembers: [{ id: "user-1" }],
+        coworkerMembers: [{ id: "coworker-1" }],
+        orchestratorMembers: [{ id: "bot-1" }],
+      }),
+    ).toBe(false);
+  });
+
   it("returns false when coworker count is not exactly one", () => {
     expect(
       isCoworkerOnlyDirectRoom({

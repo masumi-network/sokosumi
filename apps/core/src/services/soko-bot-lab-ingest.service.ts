@@ -69,7 +69,6 @@ export async function runSokoBotLabIngest(input: {
       workspaceId: true,
       ingestTimezone: true,
       followWholeBoard: true,
-      coworker: { select: { id: true } },
     },
   });
   if (!bot) throw new SokoBotLabIngestError("Soko Bot not found");
@@ -103,7 +102,6 @@ export async function runSokoBotLabIngest(input: {
           await buildSystemBeatMessage({
             bot: {
               id: bot.id,
-              coworkerId: bot.coworker?.id ?? null,
               workspaceId: bot.workspaceId,
               ingestTimezone: bot.ingestTimezone,
               followWholeBoard: bot.followWholeBoard,

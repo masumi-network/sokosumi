@@ -19,6 +19,7 @@ import {
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
+  type ChatComposeOrchestrator,
   deleteRoomMessageAction,
   editRoomMessageAction,
   getRoomThreadAction,
@@ -165,6 +166,7 @@ import {
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
   messageDayKey,
+  orchestratorMentionSlug,
   type PendingRoomQuote,
   pendingQuoteFromMessage,
   ROOM_MENTION_ALL_ID,
@@ -213,6 +215,7 @@ interface RoomsClientProps {
   organizationMembers: Member[];
   currentUserId: string;
   coworkers: Coworker[];
+  orchestrators?: ChatComposeOrchestrator[];
   selectedRoomId: string | null;
   messageLoadFailed: boolean;
   /** Org roster soft-fail; false for personal workspace (no org roster). */
@@ -331,7 +334,8 @@ function RoomParticipantStack({
             <AvatarFallback
               className={cn(
                 "text-[0.625rem]",
-                participant.kind === "coworker"
+                participant.kind === "coworker" ||
+                  participant.kind === "orchestrator"
                   ? "bg-primary/10 text-primary"
                   : "bg-muted text-muted-foreground",
               )}
@@ -342,7 +346,10 @@ function RoomParticipantStack({
           <LiveMemberPresenceDot
             className="absolute -right-0.5 -bottom-0.5"
             fallback={participant.presence}
-            isCoworker={participant.kind === "coworker"}
+            isCoworker={
+              participant.kind === "coworker" ||
+              participant.kind === "orchestrator"
+            }
             userId={participant.id}
           />
         </span>
@@ -374,6 +381,7 @@ interface RoomHeaderChromeProps {
   currentUserId: string;
   organizationMembers: Member[];
   coworkers: Coworker[];
+  orchestrators: ChatComposeOrchestrator[];
   canEditMembers: boolean;
   canManageSettings: boolean;
   canArchive: boolean;
@@ -398,6 +406,7 @@ function RoomHeaderChrome({
   currentUserId,
   organizationMembers,
   coworkers,
+  orchestrators,
   canEditMembers,
   canManageSettings,
   canArchive,
@@ -429,6 +438,7 @@ function RoomHeaderChrome({
               channel={room}
               members={organizationMembers}
               coworkers={coworkers}
+              orchestrators={orchestrators}
               currentUserId={currentUserId}
               canEditMembers={canEditMembers}
               canManageSettings={canManageSettings}
@@ -515,6 +525,7 @@ export function RoomsClient({
   organizationMembers: organizationMembersProp,
   currentUserId,
   coworkers: coworkersProp,
+  orchestrators: orchestratorsProp = [],
   selectedRoomId,
   messageLoadFailed,
   membersLoadFailed: membersLoadFailedProp,
@@ -636,6 +647,10 @@ export function RoomsClient({
     rosterPromise != null
       ? (deferredRoster?.coworkers ?? coworkersProp)
       : coworkersProp;
+  const orchestrators =
+    rosterPromise != null
+      ? (deferredRoster?.orchestrators ?? orchestratorsProp)
+      : orchestratorsProp;
   const membersLoadFailed =
     rosterPromise != null
       ? (deferredRoster?.membersLoadFailed ?? membersLoadFailedProp)
@@ -1398,6 +1413,22 @@ export function RoomsClient({
       ]),
     );
   }, [selectedRoom]);
+  const orchestratorsById = useMemo(() => {
+    return new Map(
+      (selectedRoom?.orchestratorMembers ?? []).map((orchestrator) => [
+        orchestrator.id,
+        orchestrator,
+      ]),
+    );
+  }, [selectedRoom]);
+  const orchestratorsBySlug = useMemo(() => {
+    return new Map(
+      (selectedRoom?.orchestratorMembers ?? []).map((orchestrator) => [
+        orchestratorMentionSlug(orchestrator),
+        orchestrator,
+      ]),
+    );
+  }, [selectedRoom]);
   const usersById = useMemo(() => {
     return new Map(
       (selectedRoom?.userMembers ?? []).map((user) => [user.id, user]),
@@ -1452,7 +1483,31 @@ export function RoomsClient({
         ] as const;
       },
     );
-    const entries = [...humanEntries, ...coworkerEntries];
+    const orchestratorEntries = (selectedRoom?.orchestratorMembers ?? []).map(
+      (orchestrator) => {
+        const slug = orchestratorMentionSlug(orchestrator);
+        const participant: RoomMentionParticipant = {
+          kind: "orchestrator",
+          id: orchestrator.id,
+          name: orchestrator.name,
+          slug,
+          image: orchestrator.image,
+        };
+        return [
+          orchestrator.id,
+          {
+            value: orchestrator.name,
+            slug,
+            data: participant,
+          },
+        ] as const;
+      },
+    );
+    const entries = [
+      ...humanEntries,
+      ...coworkerEntries,
+      ...orchestratorEntries,
+    ];
     if (
       selectedRoom &&
       shouldIncludeRoomAllMention(selectedRoom, currentUserId)
@@ -1468,18 +1523,22 @@ export function RoomsClient({
 
   function partitionMentionIds(selectedKeys: string[]): {
     mentionedCoworkerIds: string[];
+    mentionedOrchestratorIds: string[];
     mentionedUserIds: string[];
   } {
     const mentionedCoworkerIds: string[] = [];
+    const mentionedOrchestratorIds: string[] = [];
     const mentionedUserIds: string[] = [];
     for (const id of selectedKeys) {
       if (coworkersById.has(id)) {
         mentionedCoworkerIds.push(id);
+      } else if (orchestratorsById.has(id)) {
+        mentionedOrchestratorIds.push(id);
       } else if (usersById.has(id) && id !== currentUserId) {
         mentionedUserIds.push(id);
       }
     }
-    return { mentionedCoworkerIds, mentionedUserIds };
+    return { mentionedCoworkerIds, mentionedOrchestratorIds, mentionedUserIds };
   }
 
   useEffect(() => {
@@ -2471,6 +2530,7 @@ export function RoomsClient({
       job.mentionedCoworkerIds,
       {
         mentionedUserIds: job.mentionedUserIds,
+        mentionedOrchestratorIds: job.mentionedOrchestratorIds,
         parentMessageId: job.parentMessageId,
         quote: job.quote,
         clientMessageId: job.clientMessageId,
@@ -2623,9 +2683,11 @@ export function RoomsClient({
         return { ok: false };
       }
 
-      const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
-        request.mentionedIds,
-      );
+      const {
+        mentionedCoworkerIds,
+        mentionedOrchestratorIds,
+        mentionedUserIds,
+      } = partitionMentionIds(request.mentionedIds);
 
       const pendingQuoteForShell = pendingQuote;
       const pending = createPendingRoomMessage({
@@ -2634,6 +2696,7 @@ export function RoomsClient({
         content: request.content,
         senderUser,
         mentionedCoworkerIds,
+        mentionedOrchestratorIds,
         quote: pendingQuoteForShell
           ? {
               messageId: pendingQuoteForShell.messageId,
@@ -2659,6 +2722,7 @@ export function RoomsClient({
         roomId,
         content: request.content,
         mentionedCoworkerIds,
+        mentionedOrchestratorIds,
         mentionedUserIds,
         quote: request.quote,
         clientMessageId: request.clientMessageId,
@@ -2717,9 +2781,11 @@ export function RoomsClient({
         return { ok: false };
       }
 
-      const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
-        request.mentionedIds,
-      );
+      const {
+        mentionedCoworkerIds,
+        mentionedOrchestratorIds,
+        mentionedUserIds,
+      } = partitionMentionIds(request.mentionedIds);
 
       const pendingQuoteForShell = pendingThreadQuote;
       const pending = createPendingRoomMessage({
@@ -2729,6 +2795,7 @@ export function RoomsClient({
         senderUser,
         parentMessageId,
         mentionedCoworkerIds,
+        mentionedOrchestratorIds,
         quote: pendingQuoteForShell
           ? {
               messageId: pendingQuoteForShell.messageId,
@@ -2753,6 +2820,7 @@ export function RoomsClient({
         roomId,
         content: request.content,
         mentionedCoworkerIds,
+        mentionedOrchestratorIds,
         mentionedUserIds,
         quote: request.quote,
         clientMessageId: request.clientMessageId,
@@ -2804,6 +2872,7 @@ export function RoomsClient({
         currentUserId={currentUserId}
         organizationMembers={organizationMembers}
         coworkers={coworkers}
+        orchestrators={orchestrators}
         canEditMembers={canEditSelectedRoomMembers}
         canManageSettings={canManageSelectedRoomSettings}
         canArchive={canArchiveSelectedRoom}
@@ -2901,6 +2970,8 @@ export function RoomsClient({
                       message={message}
                       coworkersById={coworkersById}
                       coworkersBySlug={coworkersBySlug}
+                      orchestratorsById={orchestratorsById}
+                      orchestratorsBySlug={orchestratorsBySlug}
                       usersById={usersById}
                       usersBySlug={usersBySlug}
                       mentions={mentionRecords}
@@ -3042,6 +3113,8 @@ export function RoomsClient({
               usersBySlug={usersBySlug}
               coworkersById={coworkersById}
               coworkersBySlug={coworkersBySlug}
+              orchestratorsById={orchestratorsById}
+              orchestratorsBySlug={orchestratorsBySlug}
               channels={channelOptions}
               channelLinks={channelLinks}
               placeholder={
@@ -3083,6 +3156,8 @@ export function RoomsClient({
                 onLoadOlder={handleLoadOlderThreadMessages}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 mentionRecords={mentionRecords}
@@ -3157,6 +3232,8 @@ export function RoomsClient({
                 listGeneration={pinnedListGeneration}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 channelLinks={channelLinks}
@@ -3209,6 +3286,7 @@ export function RoomsClient({
                   close: t("RoomRoster.close"),
                   empty: t("RoomRoster.empty"),
                   coworkerBadge: t("coworkerBadge"),
+                  personalAssistantBadge: t("personalAssistantBadge"),
                   message: (name) => t("RoomRoster.message", { name }),
                   copy: (value) => t("RoomRoster.copy", { value }),
                   copySuccess: t("RoomRoster.copySuccess"),

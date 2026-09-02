@@ -81,12 +81,17 @@ interface TaskUpdate {
 function actorLabel(event: {
   userId: string | null;
   coworkerId: string | null;
+  orchestratorId: string | null;
   user: { name: string | null } | null;
   coworker: { name: string | null } | null;
+  orchestrator: { name: string | null } | null;
 }): string {
   if (event.userId) return event.user?.name?.trim() || "a teammate";
   if (event.coworkerId)
     return `Coworker ${event.coworker?.name?.trim() || ""}`.trim();
+  if (event.orchestratorId) {
+    return event.orchestrator?.name?.trim() || "a personal assistant";
+  }
   return "the system";
 }
 
@@ -150,7 +155,6 @@ export class SokoBotTaskboardSyncService {
       where: withBetaBotOwner({
         archivedAt: null,
         adminPausedAt: null,
-        coworker: { isNot: null },
       }),
       select: {
         id: true,
@@ -159,7 +163,6 @@ export class SokoBotTaskboardSyncService {
         workspaceId: true,
         followWholeBoard: true,
         ingestTimezone: true,
-        coworker: { select: { id: true } },
         memoryRevisions: {
           orderBy: { version: "desc" },
           take: 1,
@@ -169,7 +172,6 @@ export class SokoBotTaskboardSyncService {
     });
     for (const bot of bots) {
       if (!input.shouldContinue()) break;
-      if (!bot.coworker) continue;
       result.bots += 1;
       try {
         await ensureSystemSchedules(bot);
@@ -179,7 +181,6 @@ export class SokoBotTaskboardSyncService {
             name: bot.name,
             userId: bot.userId,
             workspaceId: bot.workspaceId,
-            coworkerId: bot.coworker.id,
             followWholeBoard: bot.followWholeBoard,
             ingestTimezone: bot.ingestTimezone,
             memoryTokens: tokens(bot.memoryRevisions[0]?.markdown ?? ""),
@@ -209,7 +210,6 @@ export class SokoBotTaskboardSyncService {
       name: string | null;
       userId: string;
       workspaceId: string;
-      coworkerId: string;
       followWholeBoard: boolean;
       ingestTimezone: string;
       memoryTokens: Set<string>;
@@ -234,7 +234,10 @@ export class SokoBotTaskboardSyncService {
         workspaceId: bot.workspaceId,
         archivedAt: null,
         OR: [
-          { assigneeId: bot.coworkerId, status: { notIn: [...TERMINAL] } },
+          {
+            assigneeOrchestratorId: bot.id,
+            status: { notIn: [...TERMINAL] },
+          },
           { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },
           ...(bot.followWholeBoard
             ? [{ status: { notIn: [...TERMINAL] }, updatedAt: { gte: since } }]
@@ -246,6 +249,7 @@ export class SokoBotTaskboardSyncService {
         name: true,
         status: true,
         assigneeId: true,
+        assigneeOrchestratorId: true,
         updatedAt: true,
         sokoBotWatches: {
           where: { sokoBotId: bot.id },
@@ -261,7 +265,7 @@ export class SokoBotTaskboardSyncService {
       [];
     for (const task of tasks) {
       const watch = task.sokoBotWatches[0] ?? null;
-      const assignedToBot = task.assigneeId === bot.coworkerId;
+      const assignedToBot = task.assigneeOrchestratorId === bot.id;
       const work = assignedToBot && WORK_STATUSES.has(task.status);
       // Board-only Tasks: the bot neither owns nor created them.
       const boardOnly = !assignedToBot && !taskIds.has(task.id);
@@ -286,8 +290,10 @@ export class SokoBotTaskboardSyncService {
           comment: true,
           userId: true,
           coworkerId: true,
+          orchestratorId: true,
           user: { select: { name: true } },
           coworker: { select: { name: true } },
+          orchestrator: { select: { name: true } },
         },
       });
       const alreadyHandedOver =
@@ -336,7 +342,6 @@ export class SokoBotTaskboardSyncService {
     await this.stamp(bot.id, baselines, now);
     const attention = await findAttentionItems({
       id: bot.id,
-      coworkerId: bot.coworkerId,
       workspaceId: bot.workspaceId,
       followWholeBoard: bot.followWholeBoard,
       now,

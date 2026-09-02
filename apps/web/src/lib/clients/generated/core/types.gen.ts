@@ -307,6 +307,7 @@ export type SokoBotDeletionResult = {
         taskEvents: number;
         billingRecords: number;
         chatMessages: number;
+        uploadedTaskFiles: number;
     };
 };
 
@@ -650,10 +651,6 @@ export type SokoBot = {
     ingestTimezone?: string;
     proactivePaused?: boolean;
     proactiveDailyLimit?: number;
-    coworker?: {
-        id: string;
-        slug: string;
-    } | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -1075,17 +1072,29 @@ export type Task = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Never an orchestrator.
+     * Marketplace coworker assignee. Null when the assignee is an orchestrator.
      */
     assigneeId: string | null;
-    assignee: CoworkerSummary;
     /**
-     * Deprecated. Use assigneeId instead.
+     * Personal-assistant orchestrator assignee. Null when the assignee is a coworker.
+     */
+    assigneeOrchestratorId: string | null;
+    /**
+     * Discriminated assignee: coworker, orchestrator, or unassigned.
+     */
+    assignee: TaskAssigneeCoworker | TaskAssigneeOrchestrator | null;
+    /**
+     * Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.
      *
      * @deprecated
      */
     coworkerId: string | null;
-    coworker: CoworkerSummary & unknown;
+    /**
+     * Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.
+     *
+     * @deprecated
+     */
+    coworker: CoworkerSummary | null;
     creator: TaskCreator;
     /**
      * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
@@ -1093,9 +1102,12 @@ export type Task = {
      * @deprecated
      */
     orchestratorId: string | null;
-    orchestrator: OrchestratorSummary & ({
-        [key: string]: unknown;
-    } | null);
+    /**
+     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     *
+     * @deprecated
+     */
+    orchestrator: OrchestratorSummary | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -1143,12 +1155,32 @@ export type OrganizationSummary = {
     slug: string;
 } | null;
 
+export type TaskAssigneeCoworker = {
+    type: 'coworker';
+    id: string;
+    coworker: CoworkerSummary;
+};
+
 export type CoworkerSummary = {
     id: string;
     name: string;
     image?: string | null;
     slug: string;
-} | null;
+};
+
+export type TaskAssigneeOrchestrator = {
+    type: 'orchestrator';
+    id: string;
+    orchestrator: OrchestratorSummary;
+};
+
+export type OrchestratorSummary = {
+    id: string;
+    name: string | null;
+    avatarSeed: string | null;
+    avatarImageUrl: string | null;
+    owner: UserSummary;
+};
 
 /**
  * Actor that created the task. Exactly one of user, coworker, or orchestrator.
@@ -1177,14 +1209,6 @@ export type TaskCreatorOrchestrator = {
     type: 'orchestrator';
     id: string;
     orchestrator: OrchestratorSummary;
-};
-
-export type OrchestratorSummary = {
-    id: string;
-    name: string | null;
-    avatarSeed: string | null;
-    avatarImageUrl: string | null;
-    owner: UserSummary;
 };
 
 export type TaskEvent = {
@@ -1486,7 +1510,7 @@ export type TaskFileOrigin = typeof TaskFileOrigin[keyof typeof TaskFileOrigin];
 /**
  * Actor that uploaded the file. Null when both uploader FKs are unset (e.g. deleted actor).
  */
-export type TaskFileUploader = TaskFileUploaderUser | TaskFileUploaderCoworker | null;
+export type TaskFileUploader = TaskFileUploaderUser | TaskFileUploaderCoworker | TaskFileUploaderOrchestrator | null;
 
 export type TaskFileUploaderUser = {
     type: 'user';
@@ -1498,6 +1522,12 @@ export type TaskFileUploaderCoworker = {
     type: 'coworker';
     id: string;
     coworker: CoworkerSummary;
+};
+
+export type TaskFileUploaderOrchestrator = {
+    type: 'orchestrator';
+    id: string;
+    orchestrator: OrchestratorSummary;
 };
 
 export type AdminTaskPaymentClaim = {
@@ -2250,6 +2280,7 @@ export type ChatRoom = {
     peerInActiveOrganization?: boolean;
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
+    orchestratorMembers: Array<ChatRoomOrchestratorParticipant>;
 };
 
 /**
@@ -2286,8 +2317,15 @@ export type ChatRoomCoworkerParticipant = {
     caption: string | null;
     image: string | null;
     presence: ChatRoomPresence;
-    sokoBotId?: string | null;
-    sokoBotAvatarSeed?: string | null;
+};
+
+export type ChatRoomOrchestratorParticipant = {
+    id: string;
+    name: string;
+    caption: string | null;
+    image: string | null;
+    avatarSeed: string | null;
+    presence: ChatRoomPresence;
 };
 
 /**
@@ -2342,12 +2380,16 @@ export type CreateChatRoomRequest = {
      */
     memberUserIds?: Array<string>;
     /**
-     * AI coworker IDs to add to the room.
+     * Marketplace AI coworker IDs to add to the room.
      */
     coworkerIds?: Array<string>;
+    /**
+     * Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.
+     */
+    orchestratorIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
+     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (orchestrator). Human, coworker, and orchestrator targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/orchestrator DMs with an active org are org-scoped. Coworker and orchestrator DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -2355,9 +2397,13 @@ export type CreateChatRoomRequest = {
      */
     memberUserIds?: Array<string>;
     /**
-     * AI coworker IDs to add to the room.
+     * Marketplace AI coworker IDs to add to the room.
      */
     coworkerIds?: Array<string>;
+    /**
+     * Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.
+     */
+    orchestratorIds?: Array<string>;
 };
 
 export type DiscoverableChatRoom = {
@@ -2466,12 +2512,16 @@ export type ChatRoomMessageSender = {
     type: 'coworker';
     coworker: ChatRoomCoworkerParticipant;
 } | {
+    type: 'orchestrator';
+    orchestrator: ChatRoomOrchestratorParticipant;
+} | {
     type: 'unknown';
 };
 
 export type ChatRoomMessageMention = {
     id: string;
-    coworkerId: string;
+    coworkerId: string | null;
+    orchestratorId: string | null;
     status: ChatRoomMentionStatus;
     responseMessageId: string | null;
 };
@@ -2526,6 +2576,10 @@ export type ChatRoomMessageMembershipSubject = {
     type: 'coworker';
     id: string;
     name: string;
+} | {
+    type: 'orchestrator';
+    id: string;
+    name: string;
 };
 
 export type ChatRoomMessageUnfurl = {
@@ -2549,6 +2603,10 @@ export type UpdateChatRoomRequest = {
      */
     memberUserIds?: Array<string>;
     coworkerIds?: Array<string>;
+    /**
+     * Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.
+     */
+    orchestratorIds?: Array<string>;
 };
 
 /**
@@ -2648,6 +2706,10 @@ export type ChatRoomThreadReadState = {
 export type CreateChatRoomMessageRequest = {
     content: string;
     mentionedCoworkerIds?: Array<string>;
+    /**
+     * Personal assistants addressed in the message.
+     */
+    mentionedOrchestratorIds?: Array<string>;
     /**
      * Human room members addressed in the message. Validated against room membership; does not create ChatRoomMention rows or AI dispatch.
      */
@@ -3467,6 +3529,10 @@ export type HistoryTaskItem = {
      * Coworker ID associated with the task, when assigned
      */
     coworkerId: string | null;
+    /**
+     * Soko Bot ID associated with the task, when assigned
+     */
+    orchestratorId: string | null;
 };
 
 export type HistoryOwner = {
@@ -4745,6 +4811,24 @@ export type PublicSharedTaskFile = {
     createdAt: Date;
 };
 
+export type OrchestratorApiKey = {
+    id: string;
+    orchestratorId: string;
+    name: string | null;
+    keyStart: string;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type CreateOrchestratorApiKeyResponse = {
+    id: string;
+    token: string;
+    name: string | null;
+    expiresAt: Date | null;
+};
+
 export type SokoBotState = {
     sokoBot: SokoBot | null;
 };
@@ -4922,7 +5006,6 @@ export type SokoBotTeam = {
             avatarImageUrl: string | null;
             avatarSeed: string | null;
             status: SokoBotStatus;
-            coworkerId: string | null;
         } | null;
     }>;
 };
@@ -5211,17 +5294,29 @@ export type TaskListItem = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Never an orchestrator.
+     * Marketplace coworker assignee. Null when the assignee is an orchestrator.
      */
     assigneeId: string | null;
-    assignee: CoworkerSummary;
     /**
-     * Deprecated. Use assigneeId instead.
+     * Personal-assistant orchestrator assignee. Null when the assignee is a coworker.
+     */
+    assigneeOrchestratorId: string | null;
+    /**
+     * Discriminated assignee: coworker, orchestrator, or unassigned.
+     */
+    assignee: TaskAssigneeCoworker | TaskAssigneeOrchestrator | null;
+    /**
+     * Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.
      *
      * @deprecated
      */
     coworkerId: string | null;
-    coworker: CoworkerSummary & unknown;
+    /**
+     * Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.
+     *
+     * @deprecated
+     */
+    coworker: CoworkerSummary | null;
     creator: TaskCreator;
     /**
      * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
@@ -5229,9 +5324,12 @@ export type TaskListItem = {
      * @deprecated
      */
     orchestratorId: string | null;
-    orchestrator: OrchestratorSummary & ({
-        [key: string]: unknown;
-    } | null);
+    /**
+     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     *
+     * @deprecated
+     */
+    orchestrator: OrchestratorSummary | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -31216,6 +31314,367 @@ export type GetShareByTokenResponses = {
 
 export type GetShareByTokenResponse = GetShareByTokenResponses[keyof GetShareByTokenResponses];
 
+export type GetSokoBotsByIdApiKeysData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/api-keys';
+};
+
+export type GetSokoBotsByIdApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotsByIdApiKeysError = GetSokoBotsByIdApiKeysErrors[keyof GetSokoBotsByIdApiKeysErrors];
+
+export type GetSokoBotsByIdApiKeysResponses = {
+    /**
+     * Retrieve Soko Bot API keys
+     */
+    200: {
+        data: Array<OrchestratorApiKey>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotsByIdApiKeysResponse = GetSokoBotsByIdApiKeysResponses[keyof GetSokoBotsByIdApiKeysResponses];
+
+export type PostSokoBotsByIdApiKeysData = {
+    body?: {
+        name?: string | null;
+        expiresAt?: Date | null;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/api-keys';
+};
+
+export type PostSokoBotsByIdApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostSokoBotsByIdApiKeysError = PostSokoBotsByIdApiKeysErrors[keyof PostSokoBotsByIdApiKeysErrors];
+
+export type PostSokoBotsByIdApiKeysResponses = {
+    /**
+     * Create Soko Bot API key
+     */
+    201: {
+        data: CreateOrchestratorApiKeyResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostSokoBotsByIdApiKeysResponse = PostSokoBotsByIdApiKeysResponses[keyof PostSokoBotsByIdApiKeysResponses];
+
+export type DeleteSokoBotsByIdApiKeysByKeyIdData = {
+    body?: never;
+    path: {
+        id: string;
+        keyId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/api-keys/{keyId}';
+};
+
+export type DeleteSokoBotsByIdApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteSokoBotsByIdApiKeysByKeyIdError = DeleteSokoBotsByIdApiKeysByKeyIdErrors[keyof DeleteSokoBotsByIdApiKeysByKeyIdErrors];
+
+export type DeleteSokoBotsByIdApiKeysByKeyIdResponses = {
+    /**
+     * Revoke Soko Bot API key
+     */
+    200: {
+        data: OrchestratorApiKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteSokoBotsByIdApiKeysByKeyIdResponse = DeleteSokoBotsByIdApiKeysByKeyIdResponses[keyof DeleteSokoBotsByIdApiKeysByKeyIdResponses];
+
+export type PatchSokoBotsByIdApiKeysByKeyIdData = {
+    body?: {
+        name?: string | null;
+        expiresAt?: Date | null;
+    };
+    path: {
+        id: string;
+        keyId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/api-keys/{keyId}';
+};
+
+export type PatchSokoBotsByIdApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchSokoBotsByIdApiKeysByKeyIdError = PatchSokoBotsByIdApiKeysByKeyIdErrors[keyof PatchSokoBotsByIdApiKeysByKeyIdErrors];
+
+export type PatchSokoBotsByIdApiKeysByKeyIdResponses = {
+    /**
+     * Update Soko Bot API key
+     */
+    200: {
+        data: OrchestratorApiKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchSokoBotsByIdApiKeysByKeyIdResponse = PatchSokoBotsByIdApiKeysByKeyIdResponses[keyof PatchSokoBotsByIdApiKeysByKeyIdResponses];
+
+export type GetMySokoBotTaskEventsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/soko-bots/me/events';
+};
+
+export type GetMySokoBotTaskEventsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetMySokoBotTaskEventsError = GetMySokoBotTaskEventsErrors[keyof GetMySokoBotTaskEventsErrors];
+
+export type GetMySokoBotTaskEventsResponses = {
+    /**
+     * Retrieve the authenticated Soko Bot's task events
+     */
+    200: {
+        data: Array<TaskEvent>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetMySokoBotTaskEventsResponse = GetMySokoBotTaskEventsResponses[keyof GetMySokoBotTaskEventsResponses];
+
 export type ArchiveMySokoBotData = {
     body?: never;
     path?: never;
@@ -35368,6 +35827,10 @@ export type GetTasksData = {
          */
         coworkerId?: string;
         /**
+         * Filter tasks by personal-assistant orchestrator assignee
+         */
+        assigneeOrchestratorId?: string;
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -35454,6 +35917,7 @@ export type PostTasksData = {
          * @deprecated
          */
         coworkerId?: string | null;
+        assigneeOrchestratorId?: string | null;
         status?: 'DRAFT' | 'READY';
         channel?: Channel;
         origin?: Channel & unknown;
@@ -36153,6 +36617,7 @@ export type PatchTasksByIdData = {
          * @deprecated
          */
         coworkerId?: string | null;
+        assigneeOrchestratorId?: string | null;
     };
     path: {
         id: string;

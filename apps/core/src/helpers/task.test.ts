@@ -1376,6 +1376,68 @@ describe("mapTask", () => {
     });
   });
 
+  it("maps an orchestrator assignee from assigneeOrchestratorId", () => {
+    const assigneeOrchestrator = {
+      id: "01960001-0001-7001-8001-000000000099",
+      name: "Soko Bot",
+      avatarSeed: null,
+      avatarImageUrl: null,
+      userId: defaultTaskUser.id,
+      user: defaultTaskUser,
+    };
+    const task = {
+      id: "tsk_pa_assignee",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: null,
+      assignee: null,
+      assigneeOrchestratorId: assigneeOrchestrator.id,
+      assigneeOrchestrator,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorOrchestratorId: null,
+      creatorOrchestrator: null,
+      name: "PA assigned task",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task)).toMatchObject({
+      assigneeId: null,
+      assigneeOrchestratorId: assigneeOrchestrator.id,
+      coworkerId: null,
+      coworker: null,
+      assignee: {
+        type: "orchestrator",
+        id: assigneeOrchestrator.id,
+        orchestrator: {
+          id: assigneeOrchestrator.id,
+          name: assigneeOrchestrator.name,
+          avatarSeed: null,
+          avatarImageUrl: null,
+          owner: defaultTaskUser,
+        },
+      },
+    });
+  });
+
   it("maps nested creator and deprecated owner/assignee/orchestrator aliases", () => {
     const creatorOrchestrator = {
       id: "01960001-0001-7001-8001-000000000099",

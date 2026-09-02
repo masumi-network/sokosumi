@@ -6,6 +6,7 @@ import { LIMITS } from "@/config/constants";
 import {
   requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
+  requireTaskAssignableOrchestrator,
 } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, forbidden, notFound } from "@/helpers/error";
@@ -14,7 +15,8 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { ok } from "@/helpers/response";
 import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
 import {
-  refineAssigneeIdAliasConflict,
+  nextAssigneeWrite,
+  refineAssigneeXorConflict,
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
@@ -52,21 +54,25 @@ export const patchTaskRequestSchema = z
       deprecated: true,
       description: "Deprecated. Use assigneeId instead.",
     }),
+    assigneeOrchestratorId: z.string().uuid().nullish().openapi({
+      example: "01960001-0001-7001-8001-000000000099",
+    }),
   })
   .superRefine((data, ctx) => {
-    refineAssigneeIdAliasConflict(data, ctx);
+    refineAssigneeXorConflict(data, ctx);
 
     if (
       data.name === undefined &&
       data.description === undefined &&
       data.projectId === undefined &&
       data.assigneeId === undefined &&
-      data.coworkerId === undefined
+      data.coworkerId === undefined &&
+      data.assigneeOrchestratorId === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId or assigneeId is required",
+          "At least one of name, description, projectId, assigneeId or assigneeOrchestratorId is required",
         path: ["name"],
       });
     }
@@ -114,7 +120,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
-    const { name, description, projectId, assigneeId } = c.req.valid("json");
+    const { name, description, projectId, assigneeId, assigneeOrchestratorId } =
+      c.req.valid("json");
 
     const task = await prisma.$transaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskOwnership(
@@ -161,20 +168,43 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden("You can only update draft, queued, or ready tasks");
       }
 
-      const assigneeIdWasProvided = assigneeId !== undefined;
-      const nextAssigneeId = assigneeIdWasProvided
-        ? assigneeId
+      const assigneeWrite = nextAssigneeWrite({
+        assigneeId,
+        assigneeOrchestratorId,
+      });
+      const nextAssigneeId = assigneeWrite
+        ? assigneeWrite.assigneeId
         : task.assigneeId;
+      const nextAssigneeOrchestratorId = assigneeWrite
+        ? assigneeWrite.assigneeOrchestratorId
+        : task.assigneeOrchestratorId;
       validateTaskAssigneeAssignment({
         status: task.status,
         assigneeId: nextAssigneeId,
+        assigneeOrchestratorId: nextAssigneeOrchestratorId,
       });
 
-      if (assigneeIdWasProvided && assigneeId !== null) {
-        await requireTaskAssignableCoworker(assigneeId, task.workspaceId, tx, {
-          kind: "user",
-          userId: userContext.userId,
-        });
+      if (assigneeWrite?.assigneeId) {
+        await requireTaskAssignableCoworker(
+          assigneeWrite.assigneeId,
+          task.workspaceId,
+          tx,
+          {
+            kind: "user",
+            userId: userContext.userId,
+          },
+        );
+      }
+      if (assigneeWrite?.assigneeOrchestratorId) {
+        await requireTaskAssignableOrchestrator(
+          assigneeWrite.assigneeOrchestratorId,
+          task.workspaceId,
+          tx,
+          {
+            kind: "user",
+            userId: userContext.userId,
+          },
+        );
       }
 
       const updatedTask = await tx.task.update({
@@ -190,7 +220,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name,
           description,
           projectId,
-          assigneeId,
+          ...(assigneeWrite ?? {}),
         },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });

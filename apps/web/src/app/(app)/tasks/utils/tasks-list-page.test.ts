@@ -40,6 +40,7 @@ function buildTask({
     createdAt: new Date(updatedAt),
     updatedAt: new Date(updatedAt),
     assigneeId: null,
+    assigneeOrchestratorId: null,
     description: null,
     commentsCount: 0,
     jobsCount: 0,
@@ -81,9 +82,11 @@ describe("getTasksListPage", () => {
       limit: 2,
       scope: "workspace",
       assigneeId: "coworker-1",
+      assigneeOrchestratorId: null,
       status: null,
       projectId: PROJECT_ID,
       coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-10", "task-09"]);
@@ -93,6 +96,7 @@ describe("getTasksListPage", () => {
       status: undefined,
       scope: "workspace",
       assigneeId: "coworker-1",
+      assigneeOrchestratorId: undefined,
       projectId: PROJECT_ID,
       cursor: null,
       limit: 2,
@@ -116,9 +120,11 @@ describe("getTasksListPage", () => {
       limit: 10,
       scope: "owned",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: TaskStatus.READY,
       projectId: null,
       coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-ready"]);
@@ -127,6 +133,7 @@ describe("getTasksListPage", () => {
       status: TaskStatus.READY,
       scope: "owned",
       assigneeId: undefined,
+      assigneeOrchestratorId: undefined,
       projectId: undefined,
       cursor: null,
       limit: 10,
@@ -150,9 +157,11 @@ describe("getTasksListPage", () => {
       limit: 1,
       scope: "owned",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: null,
       projectId: null,
       coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
     });
 
     expect(page.tasks.map((task) => task.id)).toEqual(["task-2"]);
@@ -161,6 +170,7 @@ describe("getTasksListPage", () => {
       status: undefined,
       scope: "owned",
       assigneeId: undefined,
+      assigneeOrchestratorId: undefined,
       projectId: undefined,
       cursor: "cursor-1",
       limit: 1,
@@ -184,9 +194,11 @@ describe("getTasksListPage", () => {
       limit: 10,
       scope: "owned",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: null,
       projectId: null,
       coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
     });
 
     expect(page.nextCursor).toBeNull();

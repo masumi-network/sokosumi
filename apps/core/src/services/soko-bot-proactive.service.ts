@@ -166,7 +166,6 @@ export interface AttentionItem {
  */
 export async function findAttentionItems(bot: {
   id: string;
-  coworkerId: string;
   workspaceId: string;
   followWholeBoard: boolean;
   now: Date;
@@ -193,14 +192,17 @@ export async function findAttentionItems(bot: {
       // lets the bot answer when a comment names it. Sweeping every stuck or
       // failed Task in the workspace made it chase a week of other people's
       // abandoned work and, now that it can act rather than draft, restart it.
-      OR: [{ assigneeId: bot.coworkerId }, { id: { in: delegatedIds } }],
+      id: { in: delegatedIds },
+      NOT: { assigneeOrchestratorId: bot.id },
     },
     select: {
       id: true,
       name: true,
       status: true,
       assigneeId: true,
-      assignee: { select: { name: true, sokoBotId: true } },
+      assigneeOrchestratorId: true,
+      assignee: { select: { name: true } },
+      assigneeOrchestrator: { select: { name: true } },
       events: {
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -211,12 +213,12 @@ export async function findAttentionItems(bot: {
   });
   const candidates: AttentionItem[] = [];
   for (const task of tasks) {
-    if (task.assignee?.sokoBotId === bot.id) continue; // its own work is handled elsewhere
     const last = task.events[0];
     const age = bot.now.getTime() - (last?.createdAt ?? bot.now).getTime();
     if (age > ATTENTION_MAX_AGE_MS) continue;
     const name = task.name ?? "Untitled task";
-    const who = task.assignee?.name ?? "the assignee";
+    const who =
+      task.assignee?.name ?? task.assigneeOrchestrator?.name ?? "the assignee";
     if (task.status === "RUNNING" && age > STALE_RUNNING_MS) {
       candidates.push({
         key: `stale:${task.id}`,
@@ -300,7 +302,7 @@ export async function followUpsBlock(
 export async function buildSystemBeatMessage(input: {
   bot: {
     id: string;
-    coworkerId: string | null;
+    coworkerId?: string | null;
     workspaceId: string;
     ingestTimezone: string;
     followWholeBoard: boolean;
@@ -363,10 +365,9 @@ export async function buildSystemBeatMessage(input: {
       lines.push("");
     }
   }
-  if (bot.coworkerId) {
+  {
     const items = await findAttentionItems({
       id: bot.id,
-      coworkerId: bot.coworkerId,
       workspaceId: bot.workspaceId,
       followWholeBoard: bot.followWholeBoard,
       now,
@@ -379,11 +380,11 @@ export async function buildSystemBeatMessage(input: {
       workspaceId: bot.workspaceId,
       archivedAt: null,
       status: { notIn: ["COMPLETED", "CANCELED"] },
-      ...(bot.followWholeBoard || !bot.coworkerId
+      ...(bot.followWholeBoard
         ? {}
         : {
             OR: [
-              { assigneeId: bot.coworkerId },
+              { assigneeOrchestratorId: bot.id },
               { sokoBotWatches: { some: { sokoBotId: bot.id } } },
             ],
           }),

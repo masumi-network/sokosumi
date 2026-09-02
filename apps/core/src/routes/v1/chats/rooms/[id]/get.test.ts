@@ -120,6 +120,7 @@ function room() {
       },
     ],
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 

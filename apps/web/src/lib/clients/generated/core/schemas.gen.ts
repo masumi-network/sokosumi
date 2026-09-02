@@ -1324,13 +1324,18 @@ export const SokoBotDeletionResultSchema = {
                 chatMessages: {
                     type: 'integer',
                     minimum: 0
+                },
+                uploadedTaskFiles: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
                 'tasks',
                 'taskEvents',
                 'billingRecords',
-                'chatMessages'
+                'chatMessages',
+                'uploadedTaskFiles'
             ]
         }
     },
@@ -2934,24 +2939,6 @@ export const SokoBotSchema = {
         proactiveDailyLimit: {
             type: 'integer'
         },
-        coworker: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string'
-                },
-                slug: {
-                    type: 'string'
-                }
-            },
-            required: [
-                'id',
-                'slug'
-            ]
-        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -4453,10 +4440,31 @@ export const TaskSchema = {
                 'null'
             ],
             example: 'cow_123',
-            description: 'Marketplace coworker assignee. Never an orchestrator.'
+            description: 'Marketplace coworker assignee. Null when the assignee is an orchestrator.'
+        },
+        assigneeOrchestratorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099',
+            description: 'Personal-assistant orchestrator assignee. Null when the assignee is a coworker.'
         },
         assignee: {
-            $ref: '#/components/schemas/CoworkerSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskAssigneeCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/TaskAssigneeOrchestrator'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Discriminated assignee: coworker, orchestrator, or unassigned.',
+            example: null
         },
         coworkerId: {
             type: [
@@ -4465,18 +4473,19 @@ export const TaskSchema = {
             ],
             example: 'cow_123',
             deprecated: true,
-            description: 'Deprecated. Use assigneeId instead.'
+            description: 'Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.'
         },
         coworker: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/CoworkerSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use assignee instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
         },
         creator: {
             $ref: '#/components/schemas/TaskCreator'
@@ -4492,19 +4501,16 @@ export const TaskSchema = {
             description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         orchestrator: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/OrchestratorSummary'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    deprecated: true,
-                    description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         name: {
             type: 'string',
@@ -4634,6 +4640,7 @@ export const TaskSchema = {
         'organization',
         'projectId',
         'assigneeId',
+        'assigneeOrchestratorId',
         'assignee',
         'coworkerId',
         'coworker',
@@ -4708,11 +4715,32 @@ export const OrganizationSummarySchema = {
     ]
 } as const;
 
+export const TaskAssigneeCoworkerSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'coworker'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        coworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'coworker'
+    ]
+} as const;
+
 export const CoworkerSummarySchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -4738,6 +4766,73 @@ export const CoworkerSummarySchema = {
         'id',
         'name',
         'slug'
+    ]
+} as const;
+
+export const TaskAssigneeOrchestratorSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'orchestrator'
+            ]
+        },
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        orchestrator: {
+            $ref: '#/components/schemas/OrchestratorSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'orchestrator'
+    ]
+} as const;
+
+export const OrchestratorSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Atlas'
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'orb:jewel-sky:user_123'
+        },
+        avatarImageUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://blob.example/mascot.png'
+        },
+        owner: {
+            $ref: '#/components/schemas/UserSummary'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'avatarSeed',
+        'avatarImageUrl',
+        'owner'
     ]
 } as const;
 
@@ -4834,48 +4929,6 @@ export const TaskCreatorOrchestratorSchema = {
         'type',
         'id',
         'orchestrator'
-    ]
-} as const;
-
-export const OrchestratorSummarySchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099'
-        },
-        name: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Atlas'
-        },
-        avatarSeed: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'orb:jewel-sky:user_123'
-        },
-        avatarImageUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://blob.example/mascot.png'
-        },
-        owner: {
-            $ref: '#/components/schemas/UserSummary'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'avatarSeed',
-        'avatarImageUrl',
-        'owner'
     ]
 } as const;
 
@@ -5811,6 +5864,9 @@ export const TaskFileUploaderSchema = {
             $ref: '#/components/schemas/TaskFileUploaderCoworker'
         },
         {
+            $ref: '#/components/schemas/TaskFileUploaderOrchestrator'
+        },
+        {
             type: 'null'
         }
     ],
@@ -5862,6 +5918,31 @@ export const TaskFileUploaderCoworkerSchema = {
         'type',
         'id',
         'coworker'
+    ]
+} as const;
+
+export const TaskFileUploaderOrchestratorSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'orchestrator'
+            ]
+        },
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        orchestrator: {
+            $ref: '#/components/schemas/OrchestratorSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'orchestrator'
     ]
 } as const;
 
@@ -8347,6 +8428,12 @@ export const ChatRoomSchema = {
             items: {
                 $ref: '#/components/schemas/ChatRoomCoworkerParticipant'
             }
+        },
+        orchestratorMembers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomOrchestratorParticipant'
+            }
         }
     },
     required: [
@@ -8369,7 +8456,8 @@ export const ChatRoomSchema = {
         'markedUnread',
         'myAccess',
         'userMembers',
-        'coworkerMembers'
+        'coworkerMembers',
+        'orchestratorMembers'
     ]
 } as const;
 
@@ -8469,18 +8557,6 @@ export const ChatRoomCoworkerParticipantSchema = {
         },
         presence: {
             $ref: '#/components/schemas/ChatRoomPresence'
-        },
-        sokoBotId: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        sokoBotAvatarSeed: {
-            type: [
-                'string',
-                'null'
-            ]
         }
     },
     required: [
@@ -8489,6 +8565,53 @@ export const ChatRoomCoworkerParticipantSchema = {
         'slug',
         'caption',
         'image',
+        'presence'
+    ]
+} as const;
+
+export const ChatRoomOrchestratorParticipantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        name: {
+            type: 'string',
+            example: 'Soko Bot'
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Jane\'s personal assistant'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/soko-bot.png'
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'orb:user_123'
+        },
+        presence: {
+            $ref: '#/components/schemas/ChatRoomPresence'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'caption',
+        'image',
+        'avatarSeed',
         'presence'
     ]
 } as const;
@@ -8607,9 +8730,21 @@ export const CreateChatRoomRequestSchema = {
                         minLength: 1
                     },
                     maxItems: 50,
-                    description: 'AI coworker IDs to add to the room.',
+                    description: 'Marketplace AI coworker IDs to add to the room.',
                     example: [
                         'cow_123'
+                    ]
+                },
+                orchestratorIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    maxItems: 50,
+                    description: 'Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.',
+                    example: [
+                        '01960001-0001-7001-8001-000000000099'
                     ]
                 }
             },
@@ -8625,7 +8760,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'direct'
                     ],
-                    description: 'Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.'
+                    description: 'Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (orchestrator). Human, coworker, and orchestrator targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/orchestrator DMs with an active org are org-scoped. Coworker and orchestrator DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -8647,9 +8782,21 @@ export const CreateChatRoomRequestSchema = {
                         minLength: 1
                     },
                     maxItems: 50,
-                    description: 'AI coworker IDs to add to the room.',
+                    description: 'Marketplace AI coworker IDs to add to the room.',
                     example: [
                         'cow_123'
+                    ]
+                },
+                orchestratorIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    maxItems: 50,
+                    description: 'Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.',
+                    example: [
+                        '01960001-0001-7001-8001-000000000099'
                     ]
                 }
             },
@@ -9110,6 +9257,24 @@ export const ChatRoomMessageSenderSchema = {
                 type: {
                     type: 'string',
                     enum: [
+                        'orchestrator'
+                    ]
+                },
+                orchestrator: {
+                    $ref: '#/components/schemas/ChatRoomOrchestratorParticipant'
+                }
+            },
+            required: [
+                'type',
+                'orchestrator'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
                         'unknown'
                     ]
                 }
@@ -9129,7 +9294,17 @@ export const ChatRoomMessageMentionSchema = {
             format: 'uuid'
         },
         coworkerId: {
-            type: 'string'
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        orchestratorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
         },
         status: {
             $ref: '#/components/schemas/ChatRoomMentionStatus'
@@ -9145,6 +9320,7 @@ export const ChatRoomMessageMentionSchema = {
     required: [
         'id',
         'coworkerId',
+        'orchestratorId',
         'status',
         'responseMessageId'
     ]
@@ -9347,6 +9523,28 @@ export const ChatRoomMessageMembershipSubjectSchema = {
                 'id',
                 'name'
             ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'orchestrator'
+                    ]
+                },
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'type',
+                'id',
+                'name'
+            ]
         }
     ]
 } as const;
@@ -9443,6 +9641,18 @@ export const UpdateChatRoomRequestSchema = {
             maxItems: 50,
             example: [
                 'cow_123'
+            ]
+        },
+        orchestratorIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 50,
+            description: 'Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.',
+            example: [
+                '01960001-0001-7001-8001-000000000099'
             ]
         }
     }
@@ -9725,6 +9935,17 @@ export const CreateChatRoomMessageRequestSchema = {
             },
             example: [
                 'cow_123'
+            ]
+        },
+        mentionedOrchestratorIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            description: 'Personal assistants addressed in the message.',
+            example: [
+                '01960001-0001-7001-8001-000000000099'
             ]
         },
         mentionedUserIds: {
@@ -11811,6 +12032,15 @@ export const HistoryTaskItemSchema = {
             ],
             description: 'Coworker ID associated with the task, when assigned',
             example: 'cow_123'
+        },
+        orchestratorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Soko Bot ID associated with the task, when assigned',
+            example: '01960001-0001-7001-8001-000000000099'
         }
     },
     required: [
@@ -11824,7 +12054,8 @@ export const HistoryTaskItemSchema = {
         'kind',
         'status',
         'projectId',
-        'coworkerId'
+        'coworkerId',
+        'orchestratorId'
     ]
 } as const;
 
@@ -16019,6 +16250,103 @@ export const PublicSharedTaskFileSchema = {
     ]
 } as const;
 
+export const OrchestratorApiKeySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'agentkey_123'
+        },
+        orchestratorId: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Production key'
+        },
+        keyStart: {
+            type: 'string',
+            example: 'orchestrator_abcdefgh'
+        },
+        expiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-12-31T23:59:59.000Z'
+        },
+        revokedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'orchestratorId',
+        'name',
+        'keyStart',
+        'expiresAt',
+        'revokedAt',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const CreateOrchestratorApiKeyResponseSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'agentkey_123'
+        },
+        token: {
+            type: 'string',
+            example: 'orchestrator_very_secret_value'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Production key'
+        },
+        expiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-12-31T23:59:59.000Z'
+        }
+    },
+    required: [
+        'id',
+        'token',
+        'name',
+        'expiresAt'
+    ]
+} as const;
+
 export const SokoBotStateSchema = {
     type: 'object',
     properties: {
@@ -16788,12 +17116,6 @@ export const SokoBotTeamSchema = {
                             },
                             status: {
                                 $ref: '#/components/schemas/SokoBotStatus'
-                            },
-                            coworkerId: {
-                                type: [
-                                    'string',
-                                    'null'
-                                ]
                             }
                         },
                         required: [
@@ -16801,8 +17123,7 @@ export const SokoBotTeamSchema = {
                             'name',
                             'avatarImageUrl',
                             'avatarSeed',
-                            'status',
-                            'coworkerId'
+                            'status'
                         ]
                     }
                 },
@@ -17924,10 +18245,31 @@ export const TaskListItemSchema = {
                 'null'
             ],
             example: 'cow_123',
-            description: 'Marketplace coworker assignee. Never an orchestrator.'
+            description: 'Marketplace coworker assignee. Null when the assignee is an orchestrator.'
+        },
+        assigneeOrchestratorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099',
+            description: 'Personal-assistant orchestrator assignee. Null when the assignee is a coworker.'
         },
         assignee: {
-            $ref: '#/components/schemas/CoworkerSummary'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskAssigneeCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/TaskAssigneeOrchestrator'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Discriminated assignee: coworker, orchestrator, or unassigned.',
+            example: null
         },
         coworkerId: {
             type: [
@@ -17936,18 +18278,19 @@ export const TaskListItemSchema = {
             ],
             example: 'cow_123',
             deprecated: true,
-            description: 'Deprecated. Use assigneeId instead.'
+            description: 'Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.'
         },
         coworker: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/CoworkerSummary'
                 },
                 {
-                    deprecated: true,
-                    description: 'Deprecated. Use assignee instead.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
         },
         creator: {
             $ref: '#/components/schemas/TaskCreator'
@@ -17963,19 +18306,16 @@ export const TaskListItemSchema = {
             description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         orchestrator: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/OrchestratorSummary'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    deprecated: true,
-                    description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         name: {
             type: 'string',
@@ -18071,6 +18411,7 @@ export const TaskListItemSchema = {
         'organization',
         'projectId',
         'assigneeId',
+        'assigneeOrchestratorId',
         'assignee',
         'coworkerId',
         'coworker',

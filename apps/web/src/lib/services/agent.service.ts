@@ -18,10 +18,18 @@ export const agentService = (() => {
     },
 
     getAvailableAgentsWithCreditsPrice: async (): Promise<Agent[]> => {
-      const items = await getAllCoreAgents();
-      return items.filter(
-        (item): item is CardanoAgentListItem => item.kind === "cardano",
-      );
+      try {
+        const items = await getAllCoreAgents();
+        return items.filter(
+          (item): item is CardanoAgentListItem => item.kind === "cardano",
+        );
+      } catch (error) {
+        // Outside `'use cache'` so a failed fill is not stored as [].
+        console.warn("[agent.service] mention catalog fetch failed", {
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return [];
+      }
     },
 
     async canUserRateAgent(agentId: string): Promise<boolean> {

@@ -14,6 +14,7 @@ import {
 } from "./src/lib/clients/utils/core-api-base-url.shared";
 
 const coreNetwork = resolveCoreNetwork(process.env.NETWORK);
+const isWebpackDev = process.env.NEXT_WEBPACK_DEV === "1";
 const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
   withRelatedProject({
     projectName: getCoreRelatedProjectName(coreNetwork),
@@ -60,7 +61,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "20mb",
     },
-    turbopackRustReactCompiler: true,
+    ...(!isWebpackDev && { turbopackRustReactCompiler: true }),
     optimizePackageImports: ["lucide-react", "radix-ui"],
   },
   serverExternalPackages: ["ably", "@sparticuz/chromium", "puppeteer-core"],

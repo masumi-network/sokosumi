@@ -299,11 +299,6 @@ export const sokoBotSchema = z
     ingestTimezone: z.string().optional(),
     proactivePaused: z.boolean().optional(),
     proactiveDailyLimit: z.number().int().optional(),
-    /** Chat-facing coworker row; open a direct with it to chat with the bot. */
-    coworker: z
-      .object({ id: z.string(), slug: z.string() })
-      .nullable()
-      .optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -903,7 +898,6 @@ export const sokoBotTeamSchema = z
             avatarImageUrl: z.string().nullable(),
             avatarSeed: z.string().nullable(),
             status: sokoBotStatusSchema,
-            coworkerId: z.string().nullable(),
           })
           .nullable(),
       }),
@@ -1053,6 +1047,8 @@ export const sokoBotDeletionResultSchema = z
       taskEvents: z.number().int().nonnegative(),
       billingRecords: z.number().int().nonnegative(),
       chatMessages: z.number().int().nonnegative(),
+      /** Files it uploaded onto Tasks; they outlive the assistant. */
+      uploadedTaskFiles: z.number().int().nonnegative(),
     }),
   })
   .openapi("SokoBotDeletionResult");

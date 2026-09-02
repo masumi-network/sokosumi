@@ -72,6 +72,7 @@ function createUpdatedTask() {
     },
     projectId: null,
     assigneeId: null,
+    assigneeOrchestratorId: null,
     assignee: null,
     creatorUserId: owner.id,
     creatorUser: owner,

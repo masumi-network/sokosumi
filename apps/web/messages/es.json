@@ -1679,6 +1679,9 @@
         "showGuide": "Show guide"
       },
       "createTaskFab": "Crear tarea",
+      "personalAssistant": "Asistente personal",
+      "sokoBot": "Soko Bot",
+      "sokoBots": "Soko Bots",
       "Errors": {
         "updateStatus": "No se pudo actualizar el estado del Task",
         "loadMore": "No se pudieron cargar más tareas",
@@ -5814,6 +5817,7 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "personalAssistantBadge": "Asistente personal",
       "humanBadge": "Humano",
       "openDirectMessage": "Mensaje",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
@@ -5862,6 +5866,7 @@
         "cannotRemoveSelf": "No puedes quitarte a ti mismo",
         "humans": "Humans",
         "coworkers": "AI coworkers",
+        "personalAssistants": "Asistentes personales",
         "cancel": "Cancel",
         "create": "Create",
         "save": "Save changes"
@@ -5890,7 +5895,8 @@
         "organizationRequiredForGroup": "Cambia a una organización para escribir a un compañero.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Los mensajes directos de grupo son solo entre personas.",
-        "coworkerDirectOneToOneOnly": "Los mensajes directos con coworkers son 1:1."
+        "coworkerDirectOneToOneOnly": "Los mensajes directos con coworkers son 1:1.",
+        "personalAssistantDirectOneToOneOnly": "Los mensajes directos con asistentes personales son solo 1:1."
       },
       "RoomSearch": {
         "open": "Buscar en este chat",
@@ -6002,7 +6008,8 @@
       },
       "MentionSections": {
         "people": "Personas",
-        "coworkers": "Coworkers"
+        "coworkers": "Coworkers",
+        "personalAssistants": "Asistentes personales"
       },
       "Copy": {
         "action": "Copiar",

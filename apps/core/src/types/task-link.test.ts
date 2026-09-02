@@ -99,4 +99,30 @@ describe("buildVisibleTaskLinksInclude", () => {
       toTask: { is: peerWhere },
     });
   });
+
+  it("scopes orchestrator peers to its assigned non-draft tasks", () => {
+    const include = buildVisibleTaskLinksInclude(
+      {
+        actor: "orchestrator",
+        orchestratorId: "30000000-0000-4000-8000-000000000001",
+        userId: "user_1",
+        workspaceId: "10000000-0000-4000-8000-000000000001",
+        organizationId: null,
+      },
+      "10000000-0000-4000-8000-000000000001",
+    );
+
+    const peerWhere = {
+      workspaceId: "10000000-0000-4000-8000-000000000001",
+      assigneeOrchestratorId: "30000000-0000-4000-8000-000000000001",
+      status: { not: TaskStatus.DRAFT },
+      archivedAt: null,
+    };
+    expect(include.linksFrom?.where).toEqual({
+      toTask: { is: peerWhere },
+    });
+    expect(include.linksTo?.where).toEqual({
+      fromTask: { is: peerWhere },
+    });
+  });
 });

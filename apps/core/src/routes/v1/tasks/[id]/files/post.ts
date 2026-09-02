@@ -22,6 +22,7 @@ import {
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   isUserAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
@@ -41,7 +42,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/files",
   description: [
-    "Mint a direct upload session for a task file (owner or assigned coworker).",
+    "Mint a direct upload session for a task file (owner or assigned agent).",
     "Bytes go client → Vercel Blob (not through this API).",
     "When the Blob PUT completes, Core auto-creates the TaskFile row via",
     "`POST /v1/webhooks/tasks/files/uploaded` (Blob `onUploadCompleted` webhook).",
@@ -124,6 +125,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const uploadedByCoworkerId = isCoworkerAuthContext(authContext)
       ? authContext.coworkerId
       : null;
+    const uploadedByOrchestratorId = isOrchestratorAuthContext(authContext)
+      ? authContext.orchestratorId
+      : null;
 
     const callbackUrl = resolveBlobUploadCallbackUrl(
       TASK_FILE_UPLOAD_COMPLETED_PATH,
@@ -141,6 +145,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       {
         uploadedByUserId,
         uploadedByCoworkerId,
+        uploadedByOrchestratorId,
         callbackUrl,
       },
     );

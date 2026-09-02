@@ -143,7 +143,6 @@ async function startScenario(
         workspaceId: true,
         ingestTimezone: true,
         followWholeBoard: true,
-        coworker: { select: { id: true } },
       },
     });
     const beat = scenario.trigger.beat;
@@ -154,7 +153,6 @@ async function startScenario(
             await buildSystemBeatMessage({
               bot: {
                 id: bot.id,
-                coworkerId: bot.coworker?.id ?? null,
                 workspaceId: bot.workspaceId,
                 ingestTimezone: bot.ingestTimezone,
                 followWholeBoard: bot.followWholeBoard,

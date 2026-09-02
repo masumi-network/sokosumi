@@ -73,6 +73,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      orchestratorId: null,
       owner: null,
     };
 
@@ -100,6 +101,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      orchestratorId: null,
       owner: null,
     } as unknown as HistoryItem;
 
@@ -129,6 +131,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      orchestratorId: null,
       owner: null,
     };
 
@@ -155,6 +158,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      orchestratorId: null,
       owner: null,
     };
 
@@ -182,6 +186,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      orchestratorId: null,
       owner: null,
     };
     const job: HistoryItem = {
@@ -272,6 +277,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      orchestratorId: null,
       owner: null,
     };
     const taskWithoutDescription: HistoryItem = {

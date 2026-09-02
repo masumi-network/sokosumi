@@ -23,6 +23,10 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { getEnv } from "@/config/env";
+import {
+  failOpenChatRoomMentions,
+  publishChatRoomMentionStatuses,
+} from "@/helpers/chat-room-mention-status";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -44,7 +48,6 @@ import {
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
 } from "@/services/soko-bot-billing.service";
-import { ensureSokoBotCoworker } from "@/services/soko-bot-chat.service";
 import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
@@ -1071,7 +1074,6 @@ export class SokoBotControlPlane {
             },
           });
         }
-        await ensureSokoBotCoworker(updated.id, tx);
         if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
@@ -1103,7 +1105,6 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
-      await ensureSokoBotCoworker(bot.id, tx);
       if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
@@ -1128,7 +1129,6 @@ export class SokoBotControlPlane {
     const bot = await prisma.sokoBot.findFirst({
       where: { userId, workspaceId, archivedAt: null },
       include: {
-        coworker: { select: { id: true, slug: true } },
         memoryRevisions: { orderBy: { version: "desc" }, take: 1 },
         legacyMessages: {
           orderBy: { createdAt: "desc" },
@@ -1143,11 +1143,6 @@ export class SokoBotControlPlane {
       },
     });
     if (!bot) return null;
-    // Bots created before chat support have no coworker row yet; heal lazily
-    // so "Open chat" works for them without a data migration.
-    if (!bot.coworker) {
-      bot.coworker = await ensureSokoBotCoworker(bot.id);
-    }
     const memoryRevisions = (bot.memoryRevisions ?? []).map(safeMemoryRevision);
     return {
       ...bot,
@@ -3657,7 +3652,7 @@ export class SokoBotControlPlane {
   }
 
   async archive(userId: string, workspaceId: string): Promise<void> {
-    const active = await serializableTransaction(async (tx) => {
+    const archived = await serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findFirst({
         where: { userId, workspaceId, archivedAt: null },
       });
@@ -3704,16 +3699,27 @@ export class SokoBotControlPlane {
           eveSessionId: null,
         },
       });
-      await ensureSokoBotCoworker(bot.id, tx);
-      return activeTurn;
+      const mentionMessageIds = await failOpenChatRoomMentions(
+        {
+          where: { orchestratorId: bot.id },
+          error: "Personal assistant is no longer a member of this room",
+        },
+        tx,
+      );
+      await tx.chatRoomOrchestratorMember.deleteMany({
+        where: { orchestratorId: bot.id },
+      });
+      return { activeTurn, mentionMessageIds };
     }, "Soko Bot archive collided with active work");
-    if (!active) return;
+    if (!archived) return;
+    await publishChatRoomMentionStatuses(archived.mentionMessageIds);
+    if (!archived.activeTurn) return;
     try {
-      await this.deliverRuntimeCancellation(active);
+      await this.deliverRuntimeCancellation(archived.activeTurn);
     } catch (error) {
       console.warn("Soko Bot runtime cancellation failed during archive", {
-        sokoBotId: active.sokoBotId,
-        turnId: active.id,
+        sokoBotId: archived.activeTurn.sokoBotId,
+        turnId: archived.activeTurn.id,
         error: error instanceof Error ? error.message : "unknown",
       });
     }

@@ -23,6 +23,7 @@ const {
   prismaTransactionMock,
   requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworkerMock,
+  requireTaskAssignableOrchestratorMock,
   refreshTaskSchedulePlannedOccurrencesMock,
   resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
@@ -38,6 +39,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requireMutableTaskOwnershipMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
+  requireTaskAssignableOrchestratorMock: vi.fn(),
   refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
@@ -51,6 +53,7 @@ const {
 vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  requireTaskAssignableOrchestrator: requireTaskAssignableOrchestratorMock,
 }));
 
 vi.mock("@/helpers/organization", () => ({
@@ -169,11 +172,16 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
             slug: "current-org",
           },
     assigneeId: "cow_123",
+    assigneeOrchestratorId: null,
     assignee: {
+      type: "coworker" as const,
       id: "cow_123",
-      name: "Current Coworker",
-      image: null,
-      slug: "current-coworker",
+      coworker: {
+        id: "cow_123",
+        name: "Current Coworker",
+        image: null,
+        slug: "current-coworker",
+      },
     },
     coworkerId: "cow_123",
     coworker: {

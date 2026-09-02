@@ -159,6 +159,7 @@ function externalRoom(
     archivedAt: null,
     userMembers: members,
     coworkerMembers: [],
+    orchestratorMembers: [],
     ...overrides,
   };
 }

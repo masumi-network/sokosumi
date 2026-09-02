@@ -5,7 +5,7 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import type { AuthVariables } from "./auth";
 import {
   authMiddleware,
-  forbidCoworkerActor,
+  forbidAgentActor,
   requireAdminAuthContext,
   requireInteractiveAdminAuthContext,
   requireOwnerUserContext,
@@ -93,6 +93,7 @@ describe("authMiddleware", () => {
   it("authenticates from dedicated coworker API key bearer token", async () => {
     coworkerApiKeyFindUniqueMock.mockResolvedValue({
       coworkerId: "cow_123",
+      orchestratorId: null,
       revokedAt: null,
       expiresAt: null,
       coworker: {
@@ -120,6 +121,7 @@ describe("authMiddleware", () => {
       },
       select: {
         coworkerId: true,
+        orchestratorId: true,
         revokedAt: true,
         expiresAt: true,
         coworker: {
@@ -128,12 +130,56 @@ describe("authMiddleware", () => {
             vendorId: true,
           },
         },
+        orchestrator: {
+          select: {
+            archivedAt: true,
+            deletedAt: true,
+            userId: true,
+            workspaceId: true,
+            workspace: { select: { organizationId: true } },
+          },
+        },
       },
     });
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
+
+  it.each(["coworker_legacytoken", "orchestrator_currenttoken"])(
+    "authenticates %s for a remapped Soko Bot key as the orchestrator",
+    async (token) => {
+      coworkerApiKeyFindUniqueMock.mockResolvedValue({
+        coworkerId: null,
+        orchestratorId: "01960001-0001-7001-8001-000000000099",
+        revokedAt: null,
+        expiresAt: null,
+        coworker: null,
+        orchestrator: {
+          archivedAt: null,
+          deletedAt: null,
+          userId: "user_123",
+          workspaceId: "01960001-0001-7001-8001-000000000010",
+          workspace: { organizationId: "org_123" },
+        },
+      });
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        actor: "orchestrator",
+        orchestratorId: "01960001-0001-7001-8001-000000000099",
+        userId: "user_123",
+        workspaceId: "01960001-0001-7001-8001-000000000010",
+        organizationId: "org_123",
+      });
+      expect(verifyApiKeyMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects the removed orchestrator service token", async () => {
     verifyApiKeyMock.mockResolvedValue({ valid: false, key: null });
@@ -690,10 +736,10 @@ describe("requireInteractiveAdminAuthContext", () => {
   );
 });
 
-describe("forbidCoworkerActor", () => {
+describe("forbidAgentActor", () => {
   it("allows user actors", () => {
     expect(() =>
-      forbidCoworkerActor({
+      forbidAgentActor({
         actor: "user",
         userId: "user_123",
         organizationId: null,
@@ -702,15 +748,15 @@ describe("forbidCoworkerActor", () => {
     ).not.toThrow();
   });
 
-  it("rejects coworker actors", () => {
+  it("rejects agent actors", () => {
     expect(() =>
-      forbidCoworkerActor({
+      forbidAgentActor({
         actor: "coworker",
         coworkerId: "cow_123",
         vendorId: TEST_VENDOR_ID,
         context: { userId: "user_123", organizationId: null },
       }),
-    ).toThrowError("Coworker authentication cannot perform this owner action");
+    ).toThrowError("Agent authentication cannot perform this owner action");
   });
 });
 
@@ -732,7 +778,7 @@ describe("requireOwnerUserContext", () => {
     });
   });
 
-  it("rejects coworker even with matching context user", () => {
+  it("rejects an agent even with a matching owner user", () => {
     expect(() =>
       requireOwnerUserContext({
         actor: "coworker",
@@ -740,6 +786,6 @@ describe("requireOwnerUserContext", () => {
         vendorId: TEST_VENDOR_ID,
         context: { userId: "user_123", organizationId: null },
       }),
-    ).toThrowError("Coworker authentication cannot perform this owner action");
+    ).toThrowError("Agent authentication cannot perform this owner action");
   });
 });

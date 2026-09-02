@@ -106,6 +106,7 @@ function createTask() {
     projectId: null,
     organization: { id: "org_123", name: "Acme Corp", slug: "acme-corp" },
     assigneeId: null,
+    assigneeOrchestratorId: null,
     assignee: null,
     creatorUserId: "user_123",
     creatorUser: {

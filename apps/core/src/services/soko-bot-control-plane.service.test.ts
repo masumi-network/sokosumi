@@ -25,7 +25,11 @@ const {
   settingFindUniqueMock,
   authoredVersionFindFirstMock,
   contextSnapshotFindUniqueMock,
+  coworkerCreateMock,
   coworkerFindManyMock,
+  orchestratorMemberDeleteManyMock,
+  failOpenMentionsMock,
+  publishMentionStatusesMock,
   getEnvMock,
   jobFindManyMock,
   memoryCreateMock,
@@ -71,7 +75,11 @@ const {
   settingFindUniqueMock: vi.fn(),
   authoredVersionFindFirstMock: vi.fn(),
   contextSnapshotFindUniqueMock: vi.fn(),
+  coworkerCreateMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  orchestratorMemberDeleteManyMock: vi.fn(),
+  failOpenMentionsMock: vi.fn(),
+  publishMentionStatusesMock: vi.fn(),
   getEnvMock: vi.fn<
     () => {
       SOKO_BOT_CLASSIFIER_MODE: string;
@@ -106,8 +114,12 @@ const {
   availabilityMock: vi.fn(),
 }));
 
+vi.mock("@/helpers/chat-room-mention-status", () => ({
+  failOpenChatRoomMentions: failOpenMentionsMock,
+  publishChatRoomMentionStatuses: publishMentionStatusesMock,
+}));
+
 vi.mock("@/services/soko-bot-chat.service", () => ({
-  ensureSokoBotCoworker: vi.fn().mockResolvedValue({ id: "cw", slug: "soko" }),
   finalizeSokoBotChatTurn: vi.fn().mockResolvedValue(undefined),
   deliverSokoBotTurnToDirectRoom: vi.fn().mockResolvedValue(undefined),
   publishSokoBotChatProgress: vi.fn().mockResolvedValue(undefined),
@@ -227,6 +239,12 @@ function runtimeWithReset(
 function transactionClient() {
   return {
     $queryRaw: transactionQueryRawMock,
+    coworker: {
+      create: coworkerCreateMock,
+    },
+    chatRoomOrchestratorMember: {
+      deleteMany: orchestratorMemberDeleteManyMock,
+    },
     sokoBot: {
       create: botCreateMock,
       findFirst: botFindFirstMock,
@@ -317,6 +335,8 @@ describe("SokoBotControlPlane lifecycle", () => {
     botUpdateManyMock.mockResolvedValue({ count: 1 });
     agentFindManyMock.mockResolvedValue([]);
     coworkerFindManyMock.mockResolvedValue([]);
+    failOpenMentionsMock.mockResolvedValue([]);
+    publishMentionStatusesMock.mockResolvedValue(undefined);
     jobFindManyMock.mockResolvedValue([]);
     projectFindManyMock.mockResolvedValue([]);
     taskFindManyMock.mockResolvedValue([]);
@@ -359,6 +379,23 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(botCreateMock).toHaveBeenCalled();
     expect(botUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("never inserts a shadow coworker when creating a personal assistant", async () => {
+    botFindFirstMock.mockResolvedValue(null);
+    botCreateMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-00000000aaaa",
+      ingestTimezone: "UTC",
+    });
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Fresh",
+    });
+
+    expect(botCreateMock).toHaveBeenCalled();
+    expect(coworkerCreateMock).not.toHaveBeenCalled();
   });
 
   it("preserves an administrator pause during profile updates", async () => {
@@ -1527,6 +1564,8 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "RUNNING",
     });
     botUpdateMock.mockResolvedValue({});
+    failOpenMentionsMock.mockResolvedValue(["message_1"]);
+    publishMentionStatusesMock.mockResolvedValue(undefined);
     const cancelTurn = vi.fn<SokoBotRuntime["cancelTurn"]>();
     const runtime = runtimeWithReset(vi.fn());
     runtime.cancelTurn = cancelTurn;
@@ -1547,6 +1586,17 @@ describe("SokoBotControlPlane lifecycle", () => {
         }),
       }),
     );
+    expect(failOpenMentionsMock).toHaveBeenCalledWith(
+      {
+        where: { orchestratorId: BOT_ID },
+        error: "Personal assistant is no longer a member of this room",
+      },
+      expect.any(Object),
+    );
+    expect(orchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { orchestratorId: BOT_ID },
+    });
+    expect(publishMentionStatusesMock).toHaveBeenCalledWith(["message_1"]);
     expect(cancelTurn).toHaveBeenCalledWith(
       expect.objectContaining({ eveTurnId: "eve_turn_1" }),
     );

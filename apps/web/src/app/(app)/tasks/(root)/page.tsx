@@ -12,6 +12,7 @@ import {
 import {
   findCoworkerIdBySlug,
   getCoworkerOptions,
+  withOwnerOrchestratorOption,
 } from "@/app/tasks/utils/coworker-options";
 import {
   parseJobsListFilters,
@@ -31,6 +32,7 @@ import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 import { projectService } from "@/lib/services/project.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
@@ -48,6 +50,7 @@ interface TasksPageProps {
     prompt?: string;
     scope?: string | string[];
     assigneeId?: string | string[];
+    assigneeOrchestratorId?: string | string[];
     /** @deprecated Use `assigneeId`. Kept for bookmarked URLs. */
     coworkerId?: string | string[];
     status?: string | string[];
@@ -73,6 +76,7 @@ async function loadTasksPageData() {
   return await Promise.all([
     coworkerService.listCoworkers("tasks").catch(() => []),
     projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+    sokoBotService.getMine().catch(() => null),
   ]);
 }
 
@@ -88,6 +92,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     prompt: promptParam,
     scope,
     assigneeId,
+    assigneeOrchestratorId,
     coworkerId: legacyCoworkerId,
     status,
     projectId,
@@ -115,9 +120,16 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
     "normal";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [taskCoworkers, projectsPage] = await loadTasksPageData();
+  const [taskCoworkers, projectsPage, ownerBot] = await loadTasksPageData();
   const filters = parseTasksFilters(
-    { scope, assigneeId, coworkerId: legacyCoworkerId, status, projectId },
+    {
+      scope,
+      assigneeId,
+      assigneeOrchestratorId,
+      coworkerId: legacyCoworkerId,
+      status,
+      projectId,
+    },
     activeOrganizationId,
   );
   const jobsListFilters = {
@@ -167,12 +179,21 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   const validCoworkerIds = new Set(
     taskCoworkers.map((coworker) => coworker.id),
   );
+  const ownerOrchestratorId = ownerBot?.id ?? null;
   const validProjectIds = new Set(projectOptions.map((project) => project.id));
   const activeFilters = {
     ...filters,
     assigneeId:
-      filters.assigneeId && validCoworkerIds.has(filters.assigneeId)
+      filters.assigneeId &&
+      validCoworkerIds.has(filters.assigneeId) &&
+      filters.assigneeId !== ownerOrchestratorId
         ? filters.assigneeId
+        : null,
+    assigneeOrchestratorId:
+      filters.assigneeOrchestratorId &&
+      ownerOrchestratorId &&
+      filters.assigneeOrchestratorId === ownerOrchestratorId
+        ? filters.assigneeOrchestratorId
         : null,
     projectId:
       filters.projectId && validProjectIds.has(filters.projectId)
@@ -196,9 +217,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: activeFilters.scope,
     assigneeId: activeFilters.assigneeId,
+    assigneeOrchestratorId: activeFilters.assigneeOrchestratorId,
     status: activeFilters.status,
     projectId: activeFilters.projectId,
     coworkersById,
+    personalAssistantFallback: t("personalAssistant"),
   };
 
   const [tasksPageResult, parkedTasksPage] = await Promise.all([
@@ -225,6 +248,8 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           status: TaskStatus.GRANT_PENDING,
           scope: activeFilters.scope,
           assigneeId: activeFilters.assigneeId ?? undefined,
+          assigneeOrchestratorId:
+            activeFilters.assigneeOrchestratorId ?? undefined,
           projectId: activeFilters.projectId ?? undefined,
           limit: 1,
         })
@@ -247,7 +272,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           ]),
         ) as Record<KanbanColumnId, string | null>);
 
-  const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
+  const coworkerOptions: CoworkerOption[] = withOwnerOrchestratorOption(
+    getCoworkerOptions(taskCoworkers),
+    ownerBot,
+    { fallbackName: t("sokoBot"), vendorName: t("sokoBots") },
+  );
   const canCreateTask = await hasAssignedOrganizationSeat(activeOrganizationId);
   const initialCreateTaskOpen = create === "true";
   const resolvedAssigneeSlug = assigneeSlugParam ?? legacyCoworkerSlugParam;

@@ -16,7 +16,11 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isOrchestratorAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
@@ -181,6 +185,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         scope,
         status,
         coworkerId,
+        orchestratorId: isOrchestratorAuthContext(c.var.authContext)
+          ? c.var.authContext.orchestratorId
+          : undefined,
         cursor,
         take,
         skip,
