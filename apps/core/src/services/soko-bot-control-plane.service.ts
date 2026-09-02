@@ -1142,19 +1142,25 @@ export class SokoBotControlPlane {
     activeTurnId: string | null;
     lastTurnAt: Date | null;
   } | null> {
+    // One round trip, not two: this is polled every couple of seconds by every
+    // open console, so a second query here is a second query per tab per tick.
     const bot = await prisma.sokoBot.findFirst({
       where: { userId, workspaceId, archivedAt: null },
-      select: { id: true, status: true, lastTurnAt: true },
+      select: {
+        status: true,
+        lastTurnAt: true,
+        turns: {
+          where: { status: { in: [...ACTIVE_TURN_STATUSES] } },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { id: true },
+        },
+      },
     });
     if (!bot) return null;
-    const active = await prisma.sokoBotTurn.findFirst({
-      where: { sokoBotId: bot.id, status: { in: [...ACTIVE_TURN_STATUSES] } },
-      orderBy: { createdAt: "desc" },
-      select: { id: true },
-    });
     return {
       status: bot.status,
-      activeTurnId: active?.id ?? null,
+      activeTurnId: bot.turns[0]?.id ?? null,
       lastTurnAt: bot.lastTurnAt,
     };
   }

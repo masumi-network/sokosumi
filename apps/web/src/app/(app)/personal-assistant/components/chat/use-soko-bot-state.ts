@@ -32,7 +32,7 @@ function activitySignature(activity: Activity): string {
  */
 export function useSokoBotState(initial: SokoBotChatState) {
   const [state, setState] = useState(initial);
-  const inFlight = useRef<AbortController | null>(null);
+  const refreshing = useRef(false);
   const lastSignature = useRef<string | null>(null);
 
   useEffect(() => {
@@ -40,22 +40,27 @@ export function useSokoBotState(initial: SokoBotChatState) {
   }, [initial]);
 
   const refresh = useCallback(async () => {
-    inFlight.current?.abort();
-    const controller = new AbortController();
-    inFlight.current = controller;
+    // Skipped, never cancelled. Aborting the previous read meant that if
+    // /state took longer than one probe interval, every response while the
+    // turn was running got cancelled by the next tick and only the one after
+    // it settled ever landed — the exact "finished answer, no orb" symptom
+    // this set out to fix.
+    if (refreshing.current) return;
+    refreshing.current = true;
     try {
       const response = await fetch(STATE_ENDPOINT, {
         credentials: "same-origin",
         cache: "no-store",
-        signal: controller.signal,
       });
       if (!response.ok) return;
       const body = (await response.json()) as {
         state?: SokoBotChatState | null;
       };
-      if (body.state && !controller.signal.aborted) setState(body.state);
+      if (body.state) setState(body.state);
     } catch {
-      // Aborted or offline: the next tick retries.
+      // Offline: the next tick retries.
+    } finally {
+      refreshing.current = false;
     }
   }, []);
 
@@ -83,6 +88,10 @@ export function useSokoBotState(initial: SokoBotChatState) {
       }
     }
 
+    // Probe once on mount, not only after the first interval: a turn can start
+    // between the server render and hydration, and waiting a full interval to
+    // ask would miss a short one entirely.
+    void tick();
     const interval = setInterval(() => void tick(), PROBE_MS);
     const onVisibility = () => {
       if (document.visibilityState === "visible") void tick();
