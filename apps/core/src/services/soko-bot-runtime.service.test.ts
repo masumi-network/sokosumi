@@ -2706,6 +2706,7 @@ describe("open_direct_chat", () => {
       memberUserIds: [],
       coworkerIds: [],
       orchestratorIds: [SCOPE.sokoBotId],
+      orchestratorActorUserId: SCOPE.userId,
       viewerUserId: null,
     });
     expect(result).toMatchObject({ roomId: "room_new", created: true });

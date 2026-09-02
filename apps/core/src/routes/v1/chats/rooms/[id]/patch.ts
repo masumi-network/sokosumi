@@ -368,7 +368,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           await tx.chatRoomMention.updateMany({
             where: {
               status: { in: ["pending", "sent"] },
-              coworkerId: { notIn: coworkerIds },
+              coworkerId: { not: null, notIn: coworkerIds },
               message: { roomId: existing.id },
             },
             data: {
@@ -424,7 +424,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           await tx.chatRoomMention.updateMany({
             where: {
               status: { in: ["pending", "sent"] },
-              orchestratorId: { notIn: orchestratorIds },
+              orchestratorId: { not: null, notIn: orchestratorIds },
               message: { roomId: existing.id },
             },
             data: {

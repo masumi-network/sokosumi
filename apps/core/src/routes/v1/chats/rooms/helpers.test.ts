@@ -36,6 +36,7 @@ import {
   resolveMentionedOrchestratorIds,
   resolveMentionedUserIds,
   resolvePeerInActiveOrganization,
+  resolveRoomQuoteSnapshot,
   resolveWorkspaceIdForChatRoom,
   usersShareExternalChannel,
   validateChatCoworkerIds,
@@ -557,6 +558,30 @@ describe("getChatRoomUnreadMentionCounts", () => {
 
     expect(counts.size).toBe(0);
     expect(groupBy).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveRoomQuoteSnapshot", () => {
+  it("names a quoted personal-assistant message from senderOrchestrator", async () => {
+    const findFirst = vi.fn().mockResolvedValue({
+      id: "550e8400-e29b-41d4-a716-446655440004",
+      content: "I can take this",
+      metadata: null,
+      senderUser: null,
+      senderCoworker: null,
+      senderOrchestrator: { name: "Ana", user: { name: "Ada" } },
+    });
+
+    await expect(
+      resolveRoomQuoteSnapshot(
+        { chatRoomMessage: { findFirst } } as never,
+        "room_1",
+        "550e8400-e29b-41d4-a716-446655440004",
+      ),
+    ).resolves.toMatchObject({
+      messageId: "550e8400-e29b-41d4-a716-446655440004",
+      authorName: "Ana",
+    });
   });
 });
 

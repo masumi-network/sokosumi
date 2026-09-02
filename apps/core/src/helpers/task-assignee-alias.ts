@@ -45,7 +45,7 @@ export function refineAssigneeIdAliasConflict(
 }
 
 function hasAssigneeValue(value: string | null | undefined): boolean {
-  return value != null && value !== "";
+  return value != null && value.trim() !== "";
 }
 
 /** Coworker and orchestrator assignee FKs are XOR. */
@@ -79,14 +79,13 @@ export function nextAssigneeWrite(input: {
   const hasCoworker = input.assigneeId !== undefined;
   const hasOrchestrator = input.assigneeOrchestratorId !== undefined;
   if (!hasCoworker && !hasOrchestrator) return undefined;
-  if (hasCoworker && input.assigneeId != null) {
-    return { assigneeId: input.assigneeId, assigneeOrchestratorId: null };
+  const coworkerId = input.assigneeId?.trim() || null;
+  const orchestratorId = input.assigneeOrchestratorId?.trim() || null;
+  if (hasCoworker && coworkerId) {
+    return { assigneeId: coworkerId, assigneeOrchestratorId: null };
   }
-  if (hasOrchestrator && input.assigneeOrchestratorId != null) {
-    return {
-      assigneeId: null,
-      assigneeOrchestratorId: input.assigneeOrchestratorId,
-    };
+  if (hasOrchestrator && orchestratorId) {
+    return { assigneeId: null, assigneeOrchestratorId: orchestratorId };
   }
   return { assigneeId: null, assigneeOrchestratorId: null };
 }

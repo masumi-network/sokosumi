@@ -766,7 +766,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     expect(mentionUpdateManyMock).toHaveBeenCalledWith({
       where: {
         status: { in: ["pending", "sent"] },
-        coworkerId: { notIn: [keptCoworkerId] },
+        coworkerId: { not: null, notIn: [keptCoworkerId] },
         message: { roomId: ROOM_ID },
       },
       data: {
@@ -1353,5 +1353,47 @@ describe("PATCH /chats/rooms/{id}", () => {
       "Only the owner can add this personal assistant",
     );
     expect(orchestratorMemberCreateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("fails only orchestrator mentions when the PA roster is cleared", async () => {
+    const existing = channelRoom({
+      orchestratorMembers: [
+        {
+          orchestrator: {
+            id: "01960001-0001-7001-8001-000000000099",
+            name: "Soko Bot",
+            avatarImageUrl: null,
+            avatarSeed: "orb:user_123",
+            userId: USER_ID,
+            user: { name: "Ada" },
+          },
+        },
+      ],
+    });
+    const updated = channelRoom({ orchestratorMembers: [] });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    mentionUpdateManyMock.mockResolvedValue({ count: 1 });
+    orchestratorMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orchestratorIds: [] }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mentionUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        status: { in: ["pending", "sent"] },
+        orchestratorId: { not: null, notIn: [] },
+        message: { roomId: ROOM_ID },
+      },
+      data: {
+        status: "failed",
+        error: "Personal assistant is no longer a member of this room",
+      },
+    });
   });
 });

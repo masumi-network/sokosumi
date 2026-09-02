@@ -296,12 +296,15 @@ async function TaskDetailAutoSwitch({
   );
 }
 
-function taskAssigneeDisplayName(assignee: Task["assignee"]): string | null {
+function taskAssigneeDisplayName(
+  assignee: Task["assignee"],
+  personalAssistantFallback: string,
+): string | null {
   if (!assignee) {
     return null;
   }
   if (assignee.type === "orchestrator") {
-    return assignee.orchestrator.name ?? null;
+    return assignee.orchestrator.name?.trim() || personalAssistantFallback;
   }
   return assignee.coworker.name ?? null;
 }
@@ -317,6 +320,8 @@ async function TaskVendorGrantApprovalBannerSlot({
   membersPromise: Promise<MembersResult>;
   sessionPromise: Promise<SessionResult>;
 }) {
+  const tTasks = await getTranslations("App.Tasks");
+  const personalAssistantFallback = tTasks("personalAssistant");
   if (forceReadOnly || task.status !== "GRANT_PENDING") {
     return null;
   }
@@ -347,7 +352,10 @@ async function TaskVendorGrantApprovalBannerSlot({
   if (!canApprove) {
     return (
       <TaskVendorGrantPendingInfoBanner
-        coworkerName={taskAssigneeDisplayName(task.assignee)}
+        coworkerName={taskAssigneeDisplayName(
+          task.assignee,
+          personalAssistantFallback,
+        )}
       />
     );
   }
@@ -364,7 +372,10 @@ async function TaskVendorGrantApprovalBannerSlot({
   return (
     <TaskVendorGrantApprovalBanner
       grantId={grantId}
-      coworkerName={taskAssigneeDisplayName(task.assignee)}
+      coworkerName={taskAssigneeDisplayName(
+        task.assignee,
+        personalAssistantFallback,
+      )}
       organizationId={orgId}
       reviewHref={reviewHref}
     />

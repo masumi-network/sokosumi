@@ -1298,6 +1298,9 @@ export async function resolveRoomQuoteSnapshot(
       metadata: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
+      senderOrchestrator: {
+        select: { name: true, user: { select: { name: true } } },
+      },
     },
   });
 
@@ -1312,7 +1315,11 @@ export async function resolveRoomQuoteSnapshot(
   return {
     messageId: quoted.id,
     authorName:
-      quoted.senderUser?.name ?? quoted.senderCoworker?.name ?? "Someone",
+      quoted.senderUser?.name ??
+      quoted.senderCoworker?.name ??
+      (quoted.senderOrchestrator
+        ? orchestratorDisplayName(quoted.senderOrchestrator)
+        : "Someone"),
     snippet,
     attachment,
   };
@@ -2309,6 +2316,42 @@ async function findOrRestoreDirectByKey(
     include: chatRoomInclude,
   });
 }
+
+async function ensureDirectOrchestratorMembership(
+  tx: {
+    chatRoom: Pick<typeof prisma.chatRoom, "findFirst">;
+    chatRoomOrchestratorMember: Pick<
+      typeof prisma.chatRoomOrchestratorMember,
+      "createMany"
+    >;
+  },
+  room: NonNullable<Awaited<ReturnType<typeof findOrRestoreDirectByKey>>>,
+  orchestratorIds: readonly string[],
+): Promise<NonNullable<Awaited<ReturnType<typeof findOrRestoreDirectByKey>>>> {
+  const present = new Set(
+    room.orchestratorMembers.map((member) => member.orchestrator.id),
+  );
+  const missing = orchestratorIds.filter(
+    (orchestratorId) => !present.has(orchestratorId),
+  );
+  if (missing.length === 0) {
+    return room;
+  }
+
+  await tx.chatRoomOrchestratorMember.createMany({
+    data: missing.map((orchestratorId) => ({
+      roomId: room.id,
+      orchestratorId,
+    })),
+    skipDuplicates: true,
+  });
+  const restored = await tx.chatRoom.findFirst({
+    where: { id: room.id },
+    include: chatRoomInclude,
+  });
+  return restored ?? room;
+}
+
 async function serializeDirectRoomForViewer(
   room: Parameters<typeof mapChatRoom>[0],
   viewerUserId: string | null,
@@ -2428,10 +2471,18 @@ export async function createOrGetDirectRoom(params: {
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
   orchestratorIds?: readonly string[];
+  /**
+   * User allowed to add the personal assistant. Defaults to `currentUserId`.
+   * Server-initiated colleague DMs pass the bot owner while the colleague
+   * remains the room's human participant.
+   */
+  orchestratorActorUserId?: string;
   /** Sidebar viewer. Null skips pin/mute/unread (coworker actor has none). */
   viewerUserId?: string | null;
 }): Promise<{ room: ChatRoom; created: boolean }> {
   const { currentUserId } = params;
+  const orchestratorActorUserId =
+    params.orchestratorActorUserId ?? currentUserId;
   const viewerUserId =
     params.viewerUserId === undefined ? currentUserId : params.viewerUserId;
   const shape = parseDirectCreateShape({
@@ -2521,7 +2572,7 @@ export async function createOrGetDirectRoom(params: {
         const orchestratorIds = await validateChatOrchestratorIds(
           requestedOrchestratorIds,
           workspaceId,
-          currentUserId,
+          orchestratorActorUserId,
           [],
           tx,
         );
@@ -2539,7 +2590,14 @@ export async function createOrGetDirectRoom(params: {
           directKey,
         });
         if (existing) {
-          return { room: existing, created: false };
+          return {
+            room: await ensureDirectOrchestratorMembership(
+              tx,
+              existing,
+              orchestratorIds,
+            ),
+            created: false,
+          };
         }
 
         return createDirectRoomRecord({
@@ -2646,9 +2704,17 @@ export async function createOrGetDirectRoom(params: {
             );
 
       if (existing) {
+        const room =
+          shape.kind === "orchestrator-1to1"
+            ? await ensureDirectOrchestratorMembership(
+                prisma,
+                existing,
+                requestedOrchestratorIds,
+              )
+            : existing;
         return {
           room: await serializeDirectRoomForViewer(
-            existing,
+            room,
             viewerUserId,
             activeOrganizationId,
           ),

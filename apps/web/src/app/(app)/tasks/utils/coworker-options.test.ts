@@ -183,15 +183,28 @@ describe("owner orchestrator option", () => {
     });
   });
 
-  it("does not treat an unknown selected id as a coworker", () => {
+  it("does not treat an unknown selected id as an orchestrator", () => {
     const options = withOwnerOrchestratorOption(
       getCoworkerOptions([baseCoworker()]),
       baseBot(),
       OWNER_ORCHESTRATOR_COPY,
     );
-    expect(resolveTaskAssigneeFields("missing-bot", options)).toEqual({
+    expect(resolveTaskAssigneeFields("missing-coworker", options)).toEqual({
+      assigneeId: "missing-coworker",
+      assigneeOrchestratorId: null,
+    });
+  });
+
+  it("keeps a known orchestrator id when getMine options are missing", () => {
+    expect(
+      resolveTaskAssigneeFields(
+        "bot-1",
+        getCoworkerOptions([baseCoworker()]),
+        "bot-1",
+      ),
+    ).toEqual({
       assigneeId: null,
-      assigneeOrchestratorId: "missing-bot",
+      assigneeOrchestratorId: "bot-1",
     });
   });
 

@@ -115,6 +115,7 @@ export function withOwnerOrchestratorOption(
 export function resolveTaskAssigneeFields(
   selectedId: string | null | undefined,
   options: ReadonlyArray<Pick<CoworkerOption, "id" | "kind">>,
+  knownOrchestratorId?: string | null,
 ): { assigneeId: string | null; assigneeOrchestratorId: string | null } {
   if (!selectedId) {
     return { assigneeId: null, assigneeOrchestratorId: null };
@@ -128,9 +129,11 @@ export function resolveTaskAssigneeFields(
     return { assigneeId: selectedId, assigneeOrchestratorId: null };
   }
 
-  // Picker ids that are not in the loaded options are the current PA when
-  // getMine failed — not a marketplace coworker.
-  return { assigneeId: null, assigneeOrchestratorId: selectedId };
+  if (knownOrchestratorId && selectedId === knownOrchestratorId) {
+    return { assigneeId: null, assigneeOrchestratorId: selectedId };
+  }
+
+  return { assigneeId: selectedId, assigneeOrchestratorId: null };
 }
 
 export function taskFormAssigneeId(task: {

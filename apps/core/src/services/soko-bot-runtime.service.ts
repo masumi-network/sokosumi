@@ -984,6 +984,7 @@ export class SokoBotRuntimeService {
       memberUserIds: [],
       coworkerIds: [],
       orchestratorIds: [orchestratorId],
+      orchestratorActorUserId: authorized.turn.userId,
       // The sidebar flags belong to a viewer; this actor is not one.
       viewerUserId: null,
     });
