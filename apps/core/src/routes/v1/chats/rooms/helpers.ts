@@ -2391,9 +2391,11 @@ function parseDirectCreateShape(params: {
  * they share an External channel. Multi-human groups stay org-scoped.
  */
 /**
- * Valid direct create targets: human-direct (≥1 humans, no coworkers) or
- * coworker-1to1 (exactly one coworker, no humans). Mix / multi-coworker /
- * empty are invalid.
+ * Valid direct create targets: human-direct (≥1 humans, no coworkers or
+ * orchestrators), coworker-1to1 (exactly one coworker, no humans or
+ * orchestrators), or orchestrator-1to1 (exactly one personal assistant, no
+ * humans or coworkers). Mix / multi-coworker / multi-orchestrator / empty
+ * are invalid.
  */
 type DirectCreateShape =
   | {

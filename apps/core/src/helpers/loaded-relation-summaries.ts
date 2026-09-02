@@ -110,7 +110,7 @@ export interface OrchestratorSummaryFields {
 }
 
 /**
- * When `orchestratorId` is null, there is no creator orchestrator summary.
+ * When `orchestratorId` is null, there is no orchestrator summary.
  * When it is set, the orchestrator relation (including owner user) must be loaded.
  */
 export function orchestratorSummaryFromLoadedRelation(
@@ -132,8 +132,6 @@ export function orchestratorSummaryFromLoadedRelation(
     id: orchestrator.id,
     name: orchestrator.name,
     avatarSeed: orchestrator.avatarSeed,
-    // Claiming a mascot writes both this and the coworker's image, which is
-    // why one showed in chat and not here: only chat read the coworker.
     avatarImageUrl: orchestrator.avatarImageUrl,
     owner: userSummaryFromLoadedRelation(
       `${context} orchestrator owner`,
