@@ -949,6 +949,29 @@ describe("getCardanoV2RailReadiness", () => {
     );
   });
 
+  it("surfaces a timed-out fetch instead of rail-readiness unknown: {}", async () => {
+    // hey-api catch returns { error: TimeoutError, response: undefined }.
+    // JSON.stringify(TimeoutError) is "{}" because name/message are
+    // non-enumerable — that is the SOKOSUMI-CORE-2Z Sentry title.
+    getRailReadinessMock.mockResolvedValue({
+      data: undefined,
+      error: new DOMException("The operation was aborted.", "TimeoutError"),
+      response: undefined,
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.getCardanoV2RailReadiness();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toBe(
+      "rail-readiness unknown: TimeoutError: The operation was aborted.",
+    );
+  });
+
   it("returns an error when the readiness endpoint reports an error", async () => {
     getRailReadinessMock.mockResolvedValue({
       data: undefined,
