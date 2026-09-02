@@ -124,7 +124,7 @@ export function ChatMobileBottomNav(): React.ReactElement {
                 )}
               >
                 <span className="relative">
-                  {"affordance" in tab && tab.affordance === "avatar" ? (
+                  {"affordance" in tab ? (
                     <YouTabAvatar sessionUser={sessionUser} />
                   ) : (
                     <tab.icon className="size-5" aria-hidden />
