@@ -2,7 +2,9 @@
  * Ably attach/detach races reject with ErrorInfo code 90000 / status 409 when
  * the opposite operation wins (SOKOSUMI-QK, SOKOSUMI-QQ). Detach timeout and
  * already-detached states are also expected during fast membership sync and
- * unmount. None of these are product bugs.
+ * unmount. Connection give-up (80002 / 80003) is expected when the tab is
+ * offline — subscribe() awaits attach() and rejects with the same ErrorInfo
+ * (SOKOSUMI-RN). None of these are product bugs.
  */
 const EXPECTED_ABLY_CHANNEL_LIFECYCLE_MESSAGE_PATTERNS: RegExp[] = [
   /attach request superseded by a subsequent detach request/i,
@@ -11,6 +13,7 @@ const EXPECTED_ABLY_CHANNEL_LIFECYCLE_MESSAGE_PATTERNS: RegExp[] = [
   /channel detach timed out/i,
   /channel operation failed as channel state is failed/i,
   /connection to server unavailable/i,
+  /unable to connect \(network unreachable\)/i,
   /^connection closed\.?$/i,
 ];
 
@@ -50,10 +53,14 @@ export function isExpectedAblyChannelLifecycleError(error: unknown): boolean {
   }
 
   // Conflict on attach/detach supersede (ErrorInfo 90000 / HTTP 409).
+  // Connection give-up (ErrorInfo 80003 / HTTP 404) when the network is gone.
   if (typeof error === "object" && error !== null) {
     const code = (error as AblyErrorLike).code;
     const statusCode = (error as AblyErrorLike).statusCode;
     if (code === 90000 && statusCode === 409) {
+      return true;
+    }
+    if (code === 80003) {
       return true;
     }
   }
@@ -87,6 +94,43 @@ export function safeDetachChannel(channel: DetachableChannel): void {
   } catch (error) {
     if (!isExpectedAblyChannelLifecycleError(error)) {
       console.error("Ably channel detach failed", error);
+    }
+  }
+}
+
+interface SubscribableChannel {
+  subscribe: (...args: never[]) => Promise<unknown> | unknown;
+}
+
+/**
+ * Fire-and-forget subscribe that never leaves an unhandled rejection.
+ * Ably registers the listener then awaits attach(); a failed connection
+ * rejects that promise (ErrorInfo 80003) even though the listener stays.
+ * Unexpected failures are logged; connectivity give-up is swallowed.
+ */
+export function safeSubscribeChannel(
+  channel: SubscribableChannel,
+  ...args: unknown[]
+): void {
+  try {
+    const result = (
+      channel.subscribe as (...subscribeArgs: unknown[]) => unknown
+    )(...args);
+    if (
+      result != null &&
+      typeof result === "object" &&
+      "then" in result &&
+      typeof (result as PromiseLike<unknown>).then === "function"
+    ) {
+      void Promise.resolve(result).catch((error: unknown) => {
+        if (!isExpectedAblyChannelLifecycleError(error)) {
+          console.error("Ably channel subscribe failed", error);
+        }
+      });
+    }
+  } catch (error) {
+    if (!isExpectedAblyChannelLifecycleError(error)) {
+      console.error("Ably channel subscribe failed", error);
     }
   }
 }

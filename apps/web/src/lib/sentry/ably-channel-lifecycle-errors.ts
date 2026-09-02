@@ -1,6 +1,6 @@
 /**
  * Ably Realtime attach/detach lifecycle noise (SOKOSUMI-QK, QQ, QP, QS, KE,
- * QR). These surface as unhandled rejections or useChannel failures when
+ * QR, RN). These surface as unhandled rejections or useChannel failures when
  * React unmounts, membership sync races, or the tab loses connectivity —
  * not application defects.
  */
@@ -11,6 +11,7 @@ export const ablyChannelLifecycleIgnoreErrors: RegExp[] = [
   /channel detach timed out/i,
   /channel operation failed as channel state is failed/i,
   /connection to server unavailable/i,
+  /unable to connect \(network unreachable\)/i,
 ];
 
 export function isAblyChannelLifecycleErrorMessage(message: string): boolean {

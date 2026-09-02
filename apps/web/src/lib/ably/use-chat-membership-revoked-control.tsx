@@ -10,6 +10,7 @@ import {
   type ChatMembershipRevokedEvent,
   chatMembershipRevokedEventSchema,
 } from "./chat-membership-revoked-event";
+import { safeSubscribeChannel } from "./safe-detach-channel";
 
 export type { ChatMembershipRevokedEvent };
 
@@ -52,7 +53,8 @@ export function useChatMembershipRevokedControl({
     const controlChannel = ably.channels.get(
       makeUserChatControlChannelName(currentUserId),
     );
-    controlChannel.subscribe(
+    safeSubscribeChannel(
+      controlChannel,
       CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
       handleMembershipRevoked,
     );
