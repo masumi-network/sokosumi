@@ -1058,6 +1058,12 @@ export class SokoBotControlPlane {
             },
           });
         }
+        if (isReactivation) {
+          await tx.coworker.updateMany({
+            where: { sokoBotId: existing.id },
+            data: { archivedAt: null },
+          });
+        }
         if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
@@ -3504,6 +3510,11 @@ export class SokoBotControlPlane {
           status: "PAUSED",
           eveSessionId: null,
         },
+      });
+      // Keep any pre-existing shadow coworker in sync without recreating it.
+      await tx.coworker.updateMany({
+        where: { sokoBotId: bot.id },
+        data: { archivedAt: new Date() },
       });
       return activeTurn;
     }, "Soko Bot archive collided with active work");

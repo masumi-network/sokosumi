@@ -2073,7 +2073,7 @@ export async function validateChatCoworkerIds(
  */
 export async function validateChatOrchestratorIds(
   orchestratorIds: readonly string[],
-  opts: { workspaceId: string; ownerUserId: string },
+  opts: { workspaceId: string; ownerUserId?: string },
   tx: Prisma.TransactionClient,
 ): Promise<string[]> {
   const uniqueOrchestratorIds = normalizeUniqueStrings(orchestratorIds);
@@ -2085,7 +2085,7 @@ export async function validateChatOrchestratorIds(
     where: {
       id: { in: uniqueOrchestratorIds },
       workspaceId: opts.workspaceId,
-      userId: opts.ownerUserId,
+      ...(opts.ownerUserId ? { userId: opts.ownerUserId } : {}),
       archivedAt: null,
       deletedAt: null,
     },
@@ -2567,9 +2567,15 @@ export async function createOrGetDirectRoom(params: {
           personalUserId: currentUserId,
           tx,
         });
+        // Personal DMs stay owner-scoped. Org DMs allow any live workspace PA
+        // so a bot can approach colleagues (and colleagues can be messaged)
+        // without a shadow coworker row.
         const orchestratorIds = await validateChatOrchestratorIds(
           requestedOrchestratorIds,
-          { workspaceId, ownerUserId: currentUserId },
+          {
+            workspaceId,
+            ...(activeOrganizationId ? {} : { ownerUserId: currentUserId }),
+          },
           tx,
         );
         const directKey = buildDirectParticipantRoomKey({
@@ -2587,6 +2593,32 @@ export async function createOrGetDirectRoom(params: {
         });
         if (existing) {
           return { room: existing, created: false };
+        }
+
+        // Prefer an existing shadow coworker DM for this PA until SOK-945
+        // remaps memberships — avoids a second empty orchestrator room.
+        const bot = await tx.sokoBot.findFirst({
+          where: {
+            id: orchestratorIds[0],
+            workspaceId,
+            archivedAt: null,
+            deletedAt: null,
+          },
+          select: { coworker: { select: { id: true } } },
+        });
+        if (bot?.coworker) {
+          const legacyKey = buildDirectParticipantRoomKey({
+            currentUserId,
+            memberUserIds: [],
+            coworkerIds: [bot.coworker.id],
+          });
+          const legacy = await findOrRestoreDirectByKey(tx, {
+            organizationId: activeOrganizationId,
+            directKey: legacyKey,
+          });
+          if (legacy) {
+            return { room: legacy, created: false };
+          }
         }
 
         return createDirectRoomRecord({

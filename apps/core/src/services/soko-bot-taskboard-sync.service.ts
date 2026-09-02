@@ -151,7 +151,6 @@ export class SokoBotTaskboardSyncService {
       where: withBetaBotOwner({
         archivedAt: null,
         adminPausedAt: null,
-        coworker: { isNot: null },
       }),
       select: {
         id: true,
@@ -170,7 +169,6 @@ export class SokoBotTaskboardSyncService {
     });
     for (const bot of bots) {
       if (!input.shouldContinue()) break;
-      if (!bot.coworker) continue;
       result.bots += 1;
       try {
         await ensureSystemSchedules(bot);
@@ -180,7 +178,7 @@ export class SokoBotTaskboardSyncService {
             name: bot.name,
             userId: bot.userId,
             workspaceId: bot.workspaceId,
-            coworkerId: bot.coworker.id,
+            coworkerId: bot.coworker?.id ?? null,
             followWholeBoard: bot.followWholeBoard,
             ingestTimezone: bot.ingestTimezone,
             memoryTokens: tokens(bot.memoryRevisions[0]?.markdown ?? ""),
@@ -210,7 +208,7 @@ export class SokoBotTaskboardSyncService {
       name: string | null;
       userId: string;
       workspaceId: string;
-      coworkerId: string;
+      coworkerId: string | null;
       followWholeBoard: boolean;
       ingestTimezone: string;
       memoryTokens: Set<string>;
@@ -236,7 +234,9 @@ export class SokoBotTaskboardSyncService {
         archivedAt: null,
         OR: [
           { assigneeOrchestratorId: bot.id, status: { notIn: [...TERMINAL] } },
-          { assigneeId: bot.coworkerId, status: { notIn: [...TERMINAL] } },
+          ...(bot.coworkerId
+            ? [{ assigneeId: bot.coworkerId, status: { notIn: [...TERMINAL] } }]
+            : []),
           { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },
           ...(bot.followWholeBoard
             ? [{ status: { notIn: [...TERMINAL] }, updatedAt: { gte: since } }]

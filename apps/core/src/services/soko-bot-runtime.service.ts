@@ -757,14 +757,14 @@ export class SokoBotRuntimeService {
   /** Everything a project manager needs to act on a Task without opening it. */
   /**
    * Rooms the bot itself belongs to. Membership is the whole authorization
-   * boundary here: the bot is a Coworker in chat, so it sees exactly the rooms
-   * a person added it to and nothing else in the workspace.
+   * boundary here: the bot is an orchestrator in chat (legacy bots may still
+   * sit as a shadow Coworker), so it sees exactly the rooms it was added to
+   * and nothing else in the workspace.
    */
   private async listChats(authorized: AuthorizedSokoBotRuntime) {
-    const coworkerId = await this.chatCoworkerId(authorized);
-    if (!coworkerId) return { rooms: [] };
+    const identity = await this.chatIdentity(authorized);
     const rooms = await prisma.chatRoom.findMany({
-      where: await this.chatRoomScope(authorized, coworkerId),
+      where: await this.chatRoomScope(authorized, identity),
       orderBy: { updatedAt: "desc" },
       take: 50,
       select: {
@@ -787,14 +787,15 @@ export class SokoBotRuntimeService {
   }
 
   /**
-   * Rooms the bot may touch: its own coworker's memberships, bounded to the
-   * workspace the turn runs in. Membership alone is not enough — a coworker
-   * could in principle be added to a room in another organization, and a turn
-   * must never reach outside its own workspace.
+   * Rooms the bot may touch: orchestrator memberships, plus legacy shadow
+   * coworker memberships until SOK-945 remaps them, bounded to the workspace
+   * the turn runs in. Membership alone is not enough — a participant could in
+   * principle be added to a room in another organization, and a turn must
+   * never reach outside its own workspace.
    */
   private async chatRoomScope(
     authorized: AuthorizedSokoBotRuntime,
-    coworkerId: string,
+    identity: { orchestratorId: string; coworkerId: string | null },
   ): Promise<Prisma.ChatRoomWhereInput> {
     const workspace = await prisma.workspace.findUnique({
       where: { id: authorized.turn.workspaceId },
@@ -802,26 +803,52 @@ export class SokoBotRuntimeService {
     });
     return {
       archivedAt: null,
-      coworkerMembers: { some: { coworkerId } },
       organizationId: workspace?.organizationId ?? null,
+      OR: [
+        {
+          orchestratorMembers: {
+            some: { orchestratorId: identity.orchestratorId },
+          },
+        },
+        ...(identity.coworkerId
+          ? [
+              {
+                coworkerMembers: {
+                  some: { coworkerId: identity.coworkerId },
+                },
+              },
+            ]
+          : []),
+      ],
     };
   }
 
-  /** The bot's chat identity; absent until it has a coworker row. */
-  private async chatCoworkerId(
+  /**
+   * Chat identity for a PA: always the orchestrator (`bot.id`). A legacy
+   * shadow coworker id is kept only so existing rooms stay reachable until
+   * SOK-945 remaps them.
+   */
+  private async chatIdentity(
     authorized: AuthorizedSokoBotRuntime,
-  ): Promise<string | null> {
+  ): Promise<{ orchestratorId: string; coworkerId: string | null }> {
     const bot = await prisma.sokoBot.findUnique({
       where: { id: authorized.turn.sokoBotId },
-      select: { coworker: { select: { id: true } } },
+      select: { id: true, coworker: { select: { id: true } } },
     });
-    return bot?.coworker?.id ?? null;
+    if (!bot) {
+      throw new SokoBotRuntimeValidationError("This Soko Bot was not found");
+    }
+    return {
+      orchestratorId: bot.id,
+      coworkerId: bot.coworker?.id ?? null,
+    };
   }
 
   /**
    * The single authorization boundary for chat: the bot may only touch rooms
-   * its coworker belongs to, in its own workspace. Re-checked on every call
-   * because the room id comes from the model, so removal takes effect at once.
+   * it belongs to (as orchestrator, or via a legacy shadow coworker), in its
+   * own workspace. Re-checked on every call because the room id comes from
+   * the model, so removal takes effect at once.
    */
   private async requireChatMembership(
     authorized: AuthorizedSokoBotRuntime,
@@ -830,24 +857,66 @@ export class SokoBotRuntimeService {
     id: string;
     name: string;
     kind: string;
-    coworkerId: string;
+    orchestratorId: string;
+    coworkerId: string | null;
+    sendAs: "orchestrator" | "coworker";
   }> {
-    const coworkerId = await this.chatCoworkerId(authorized);
-    const room = coworkerId
-      ? await prisma.chatRoom.findFirst({
-          where: {
-            ...(await this.chatRoomScope(authorized, coworkerId)),
-            id: roomId,
-          },
-          select: { id: true, name: true, kind: true },
-        })
-      : null;
-    if (!room || !coworkerId) {
+    const identity = await this.chatIdentity(authorized);
+    const room = await prisma.chatRoom.findFirst({
+      where: {
+        ...(await this.chatRoomScope(authorized, identity)),
+        id: roomId,
+      },
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        orchestratorMembers: {
+          where: { orchestratorId: identity.orchestratorId },
+          select: { id: true },
+          take: 1,
+        },
+        coworkerMembers: identity.coworkerId
+          ? {
+              where: { coworkerId: identity.coworkerId },
+              select: { id: true },
+              take: 1,
+            }
+          : false,
+      },
+    });
+    if (!room) {
       throw new SokoBotRuntimeValidationError(
         "You are not a member of that chat room",
       );
     }
-    return { id: room.id, name: room.name, kind: room.kind, coworkerId };
+    const viaOrchestrator = (room.orchestratorMembers?.length ?? 0) > 0;
+    const viaCoworker =
+      Boolean(identity.coworkerId) &&
+      Array.isArray(room.coworkerMembers) &&
+      room.coworkerMembers.length > 0;
+    // Prefer orchestrator when the room matched scope but the select omitted
+    // membership rows (tests), or when both are present.
+    const sendAs = viaOrchestrator
+      ? "orchestrator"
+      : viaCoworker
+        ? "coworker"
+        : identity.orchestratorId
+          ? "orchestrator"
+          : null;
+    if (!sendAs) {
+      throw new SokoBotRuntimeValidationError(
+        "You are not a member of that chat room",
+      );
+    }
+    return {
+      id: room.id,
+      name: room.name,
+      kind: room.kind,
+      orchestratorId: identity.orchestratorId,
+      coworkerId: identity.coworkerId,
+      sendAs,
+    };
   }
 
   /**
@@ -888,12 +957,7 @@ export class SokoBotRuntimeService {
         `One turn may open at most ${MAX_DIRECTS_OPENED_PER_TURN} direct chats. Tell the owner who else you would approach.`,
       );
     }
-    const coworkerId = await this.chatCoworkerId(authorized);
-    if (!coworkerId) {
-      throw new SokoBotRuntimeValidationError(
-        "This Soko Bot has no chat identity",
-      );
-    }
+    const identity = await this.chatIdentity(authorized);
     const workspace = await prisma.workspace.findUnique({
       where: { id: authorized.turn.workspaceId },
       select: { organizationId: true },
@@ -983,7 +1047,8 @@ export class SokoBotRuntimeService {
       organizationId,
       currentUserId: member.user.id,
       memberUserIds: [],
-      coworkerIds: [coworkerId],
+      coworkerIds: [],
+      orchestratorIds: [identity.orchestratorId],
       // The sidebar flags belong to a viewer; this actor is not one.
       viewerUserId: null,
     });
@@ -1103,7 +1168,12 @@ export class SokoBotRuntimeService {
     // traffic, only how much of it a room has taken lately.
     const roomCoworkers = chatChainMayWake(chainDepth)
       ? await prisma.chatRoomCoworkerMember.findMany({
-          where: { roomId: room.id, coworkerId: { not: room.coworkerId } },
+          where: {
+            roomId: room.id,
+            ...(room.coworkerId
+              ? { coworkerId: { not: room.coworkerId } }
+              : {}),
+          },
           select: {
             coworker: { select: { id: true, name: true, slug: true } },
           },
@@ -1123,7 +1193,10 @@ export class SokoBotRuntimeService {
       const botMessagesThisHour = await tx.chatRoomMessage.count({
         where: {
           roomId: room.id,
-          senderCoworkerId: { not: null },
+          OR: [
+            { senderCoworkerId: { not: null } },
+            { senderOrchestratorId: { not: null } },
+          ],
           deletedAt: null,
           createdAt: {
             gte: new Date(Date.now() - ROOM_BOT_MESSAGE_WINDOW_MS),
@@ -1138,7 +1211,12 @@ export class SokoBotRuntimeService {
       const created = await tx.chatRoomMessage.create({
         data: {
           roomId: room.id,
-          senderCoworkerId: room.coworkerId,
+          ...(room.sendAs === "orchestrator"
+            ? {
+                senderOrchestratorId: room.orchestratorId,
+                senderCoworkerId: null,
+              }
+            : { senderCoworkerId: room.coworkerId }),
           content: input.content,
           // Lets the reader see, on hover, that this is part of an assistant
           // exchange and how close it is to the point where it stops.
@@ -1280,6 +1358,8 @@ export class SokoBotRuntimeService {
         createdAt: true,
         senderUser: { select: { name: true } },
         senderCoworker: { select: { id: true, name: true } },
+        senderOrchestratorId: true,
+        senderOrchestrator: { select: { id: true, name: true } },
       },
     });
     return {
@@ -1289,9 +1369,15 @@ export class SokoBotRuntimeService {
         id: message.id,
         at: message.createdAt.toISOString(),
         from:
-          message.senderUser?.name ?? message.senderCoworker?.name ?? "unknown",
+          message.senderUser?.name ??
+          message.senderOrchestrator?.name ??
+          message.senderCoworker?.name ??
+          "unknown",
         /** True when the bot itself wrote it. */
-        fromYou: message.senderCoworker?.id === room.coworkerId,
+        fromYou:
+          message.senderOrchestratorId === room.orchestratorId ||
+          (room.coworkerId != null &&
+            message.senderCoworker?.id === room.coworkerId),
         // Chat is untrusted text: the operating contract already tells the bot
         // never to follow instructions found in content it reads.
         content: message.content.slice(0, 4_000),

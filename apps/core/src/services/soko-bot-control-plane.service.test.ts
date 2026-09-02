@@ -25,6 +25,9 @@ const {
   authoredVersionFindFirstMock,
   contextSnapshotFindUniqueMock,
   coworkerFindManyMock,
+  coworkerCreateMock,
+  coworkerUpsertMock,
+  coworkerUpdateManyMock,
   getEnvMock,
   jobFindManyMock,
   memoryCreateMock,
@@ -70,6 +73,9 @@ const {
   authoredVersionFindFirstMock: vi.fn(),
   contextSnapshotFindUniqueMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  coworkerCreateMock: vi.fn(),
+  coworkerUpsertMock: vi.fn(),
+  coworkerUpdateManyMock: vi.fn(),
   getEnvMock: vi.fn<
     () => {
       SOKO_BOT_CLASSIFIER_MODE: string;
@@ -121,11 +127,17 @@ vi.mock("@/lib/db/prisma", () => ({
     // Creation resolves the promoted default version before its transaction.
     sokoBotSetting: { findUnique: settingFindUniqueMock },
     sokoBotAuthoredVersion: { findFirst: authoredVersionFindFirstMock },
-    coworker: { findMany: coworkerFindManyMock },
+    coworker: {
+      findMany: coworkerFindManyMock,
+      create: coworkerCreateMock,
+      upsert: coworkerUpsertMock,
+      updateMany: coworkerUpdateManyMock,
+    },
     job: { findMany: jobFindManyMock },
     project: { findMany: projectFindManyMock },
     sokoBot: {
       count: botCountMock,
+      create: botCreateMock,
       findFirst: botFindFirstMock,
       findMany: botFindManyMock,
       findUnique: botFindUniqueMock,
@@ -228,6 +240,11 @@ function transactionClient() {
       findUnique: botFindUniqueMock,
       update: botUpdateMock,
       updateMany: botUpdateManyMock,
+    },
+    coworker: {
+      create: coworkerCreateMock,
+      upsert: coworkerUpsertMock,
+      updateMany: coworkerUpdateManyMock,
     },
     sokoBotAdminAction: {
       create: adminActionCreateMock,
@@ -369,6 +386,48 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     expect(bot?.id).toBe(BOT_ID);
     expect(bot).not.toHaveProperty("coworker");
+    expect(coworkerCreateMock).not.toHaveBeenCalled();
+    expect(coworkerUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("create does not insert a shadow coworker for a new PA", async () => {
+    botFindFirstMock.mockResolvedValue(null);
+    const createdBot = {
+      id: BOT_ID,
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Soko",
+      memoryVersion: 1,
+      archivedAt: null,
+      adminPausedAt: null,
+      status: "IDLE",
+    };
+    botCreateMock.mockResolvedValue(createdBot);
+    transactionMock.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        sokoBot: {
+          findFirst: botFindFirstMock,
+          create: botCreateMock,
+          update: botUpdateMock,
+        },
+        sokoBotMemoryRevision: { create: vi.fn().mockResolvedValue({}) },
+        coworker: {
+          create: coworkerCreateMock,
+          upsert: coworkerUpsertMock,
+          updateMany: coworkerUpdateManyMock,
+        },
+      }),
+    );
+
+    await new SokoBotControlPlane().create({
+      userId: "user_1",
+      workspaceId: "ws_1",
+      name: "Soko",
+    });
+
+    expect(botCreateMock).toHaveBeenCalled();
+    expect(coworkerCreateMock).not.toHaveBeenCalled();
+    expect(coworkerUpsertMock).not.toHaveBeenCalled();
   });
 
   it("preserves an administrator pause during profile updates", async () => {

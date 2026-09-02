@@ -166,7 +166,7 @@ export interface AttentionItem {
  */
 export async function findAttentionItems(bot: {
   id: string;
-  coworkerId: string;
+  coworkerId: string | null;
   workspaceId: string;
   followWholeBoard: boolean;
   now: Date;
@@ -194,7 +194,7 @@ export async function findAttentionItems(bot: {
       // failed Task in the workspace made it chase a week of other people's
       // abandoned work and, now that it can act rather than draft, restart it.
       OR: [
-        { assigneeId: bot.coworkerId },
+        ...(bot.coworkerId ? [{ assigneeId: bot.coworkerId }] : []),
         { assigneeOrchestratorId: bot.id },
         { id: { in: delegatedIds } },
       ],
@@ -367,7 +367,7 @@ export async function buildSystemBeatMessage(input: {
       lines.push("");
     }
   }
-  if (bot.coworkerId) {
+  {
     const items = await findAttentionItems({
       id: bot.id,
       coworkerId: bot.coworkerId,
@@ -383,11 +383,12 @@ export async function buildSystemBeatMessage(input: {
       workspaceId: bot.workspaceId,
       archivedAt: null,
       status: { notIn: ["COMPLETED", "CANCELED"] },
-      ...(bot.followWholeBoard || !bot.coworkerId
+      ...(bot.followWholeBoard
         ? {}
         : {
             OR: [
-              { assigneeId: bot.coworkerId },
+              { assigneeOrchestratorId: bot.id },
+              ...(bot.coworkerId ? [{ assigneeId: bot.coworkerId }] : []),
               { sokoBotWatches: { some: { sokoBotId: bot.id } } },
             ],
           }),
