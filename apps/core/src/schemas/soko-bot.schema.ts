@@ -506,7 +506,12 @@ export const adminSokoBotDetailSchema = sokoBotSchema
     pendingDecisions: z.array(sokoBotPendingDecisionSchema),
     schedules: z.array(adminSokoBotScheduleSchema),
     adminActions: z.array(sokoBotAdminActionSchema),
-    runtimeHealth: sokoBotRuntimeHealthSchema.nullable(),
+    // Union-with-null instead of `.nullable()`: `.nullable()` on a named
+    // `.openapi(...)` schema drops `| null` from the generated client and
+    // makes the transformer convert `checkedAt` unconditionally (crash when
+    // Core returns null health for a bot with no Eve session or turns).
+    // Mirrors `sokoBotTurnSchema.qualityVerdict` and `taskSchema.share`.
+    runtimeHealth: z.union([sokoBotRuntimeHealthSchema, z.null()]),
     usage: sokoBotUsageSchema,
   })
   .openapi("AdminSokoBotDetail");

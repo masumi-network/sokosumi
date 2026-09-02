@@ -1411,7 +1411,14 @@ export const AdminSokoBotDetailSchema = {
                     }
                 },
                 runtimeHealth: {
-                    $ref: '#/components/schemas/SokoBotRuntimeHealth'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotRuntimeHealth'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 },
                 usage: {
                     $ref: '#/components/schemas/SokoBotUsage'
@@ -2598,10 +2605,7 @@ export const SokoBotAdminActionSchema = {
 } as const;
 
 export const SokoBotRuntimeHealthSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         healthy: {
             type: 'boolean'

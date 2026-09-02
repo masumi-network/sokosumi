@@ -321,7 +321,7 @@ export type AdminSokoBotDetail = SokoBot & {
     turns: Array<AdminSokoBotTurn>;
     memoryRevisions: Array<SokoBotMemory>;
     adminActions: Array<SokoBotAdminAction>;
-    runtimeHealth: SokoBotRuntimeHealth;
+    runtimeHealth: SokoBotRuntimeHealth | null;
     usage: SokoBotUsage;
 };
 
@@ -584,7 +584,7 @@ export type SokoBotRuntimeHealth = {
     sessionStatus: string | null;
     checkedAt: Date;
     errorKind: string | null;
-} | null;
+};
 
 export type SokoBotUsage = {
     turns: number;

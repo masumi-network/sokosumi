@@ -293,7 +293,9 @@ const adminSokoBotDetailSchemaResponseTransformer = (data: any) => {
     data.turns = data.turns.map((item: any) => adminSokoBotTurnSchemaResponseTransformer(item));
     data.memoryRevisions = data.memoryRevisions.map((item: any) => sokoBotMemorySchemaResponseTransformer(item));
     data.adminActions = data.adminActions.map((item: any) => sokoBotAdminActionSchemaResponseTransformer(item));
-    data.runtimeHealth = sokoBotRuntimeHealthSchemaResponseTransformer(data.runtimeHealth);
+    if (data.runtimeHealth) {
+        data.runtimeHealth = sokoBotRuntimeHealthSchemaResponseTransformer(data.runtimeHealth);
+    }
     return data;
 };
 
