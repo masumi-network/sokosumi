@@ -1363,7 +1363,7 @@ describe("POST /chats/rooms", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe(
-      "Group direct messages cannot include coworkers.",
+      "Group direct messages cannot include coworkers or personal assistants.",
     );
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
