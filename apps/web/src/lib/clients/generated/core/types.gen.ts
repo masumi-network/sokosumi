@@ -310,6 +310,24 @@ export type SokoBotDeletionResult = {
     };
 };
 
+export type AdminSokoBotVersionMigrationResult = {
+    total: number;
+    moved: number;
+    alreadyOnVersion: number;
+    failed: number;
+    failures: Array<{
+        sokoBotId: string;
+        message: string;
+    }>;
+};
+
+export type AdminSokoBotVersionMigrationRequest = {
+    operationId: string;
+    fromVersionId?: string;
+    toVersionId: string;
+    reason: string;
+};
+
 export type AdminSokoBotDetail = SokoBot & {
     schedules: Array<AdminSokoBotSchedule>;
     adminPausedAt: Date | null;
@@ -636,8 +654,9 @@ export type SokoBot = {
 
 export type AdminSokoBotActionRequest = {
     operationId: string;
-    action: 'PAUSE' | 'RESUME' | 'RESET_SESSION' | 'RESET_MEMORY' | 'RETRY_LAST_FAILED' | 'RETRY_SCHEDULE_RUN' | 'DISABLE_SCHEDULE';
+    action: 'PAUSE' | 'RESUME' | 'RESET_SESSION' | 'RESET_MEMORY' | 'RETRY_LAST_FAILED' | 'RETRY_SCHEDULE_RUN' | 'DISABLE_SCHEDULE' | 'SET_VERSION';
     targetId?: string;
+    versionId?: string;
     reason: string;
 };
 
@@ -7035,6 +7054,76 @@ export type PromoteAdminSokoBotVersionResponses = {
 };
 
 export type PromoteAdminSokoBotVersionResponse = PromoteAdminSokoBotVersionResponses[keyof PromoteAdminSokoBotVersionResponses];
+
+export type MigrateAdminSokoBotVersionsData = {
+    body?: AdminSokoBotVersionMigrationRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/versions/migrate';
+};
+
+export type MigrateAdminSokoBotVersionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type MigrateAdminSokoBotVersionsError = MigrateAdminSokoBotVersionsErrors[keyof MigrateAdminSokoBotVersionsErrors];
+
+export type MigrateAdminSokoBotVersionsResponses = {
+    /**
+     * What the migration moved, skipped and could not move
+     */
+    200: {
+        data: AdminSokoBotVersionMigrationResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type MigrateAdminSokoBotVersionsResponse = MigrateAdminSokoBotVersionsResponses[keyof MigrateAdminSokoBotVersionsResponses];
 
 export type PerformAdminSokoBotActionData = {
     body?: AdminSokoBotActionRequest;

@@ -7,6 +7,7 @@ import { FleetHealthSummary } from "@/components/admin/soko-bots/fleet-health-su
 import { QualityOverview } from "@/components/admin/soko-bots/quality-overview";
 import { SokoBotFleetTable } from "@/components/admin/soko-bots/soko-bot-fleet-table.client";
 import { SokoBotKillSwitch } from "@/components/admin/soko-bots/soko-bot-kill-switch.client";
+import { SokoBotVersionMigration } from "@/components/admin/soko-bots/soko-bot-version-migration.client";
 import { Button } from "@/components/ui/button";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
@@ -31,7 +32,7 @@ export default async function AdminSokoBotsPage({
     typeof params.qualityVersion === "string"
       ? params.qualityVersion.trim() || undefined
       : undefined;
-  const [t, list, quality, availability] = await Promise.all([
+  const [t, list, quality, availability, versionList] = await Promise.all([
     getTranslations("App.Admin.SokoBots"),
     adminSokoBotService.list({ limit: FLEET_PAGE_LIMIT }),
     adminSokoBotService.quality({ versionId: qualityVersion }),
@@ -40,7 +41,21 @@ export default async function AdminSokoBotsPage({
       disabledAt: null,
       disabledReason: null,
     })),
+    adminSokoBotService.listVersions(),
   ]);
+  // What the fleet actually runs today, counted from this page's own list, so
+  // the migration control can say how many bots a choice would move before it
+  // moves them. Bots with no version sit on the code default already.
+  const inUse = [
+    ...list.items
+      .filter((item) => item.versionId && !item.archivedAt)
+      .reduce((counts, item) => {
+        const versionId = item.versionId as string;
+        return counts.set(versionId, (counts.get(versionId) ?? 0) + 1);
+      }, new Map<string, number>()),
+  ]
+    .map(([versionId, count]) => ({ versionId, count }))
+    .sort((a, b) => b.count - a.count);
   const selectedVersionId = quality.versions.some(
     (version) => version.versionId === qualityVersion,
   )
@@ -78,6 +93,14 @@ export default async function AdminSokoBotsPage({
         <QualityOverview
           quality={quality}
           selectedVersionId={selectedVersionId}
+        />
+        <SokoBotVersionMigration
+          versions={versionList.versions.map((version) => ({
+            id: version.id,
+            name: version.name,
+          }))}
+          defaultVersionId={versionList.defaultVersionId}
+          inUse={inUse}
         />
         <SokoBotFleetTable initialList={list} limit={FLEET_PAGE_LIMIT} />
       </div>

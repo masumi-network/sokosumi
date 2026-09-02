@@ -194,7 +194,8 @@ export type SokoBotAdminActionName =
   | "RESET_MEMORY"
   | "RETRY_LAST_FAILED"
   | "RETRY_SCHEDULE_RUN"
-  | "DISABLE_SCHEDULE";
+  | "DISABLE_SCHEDULE"
+  | "SET_VERSION";
 
 interface AdminActionSnapshotInput {
   status: string;
@@ -202,6 +203,7 @@ interface AdminActionSnapshotInput {
   eveSessionId: string | null;
   memoryVersion: number;
   archivedAt: Date | null;
+  versionId: string | null;
 }
 
 interface AdminActionIntentInput {
@@ -220,6 +222,9 @@ function adminActionSnapshot(bot: AdminActionSnapshotInput) {
     hasEveSession: bot.eveSessionId !== null,
     memoryVersion: bot.memoryVersion,
     archivedAt: bot.archivedAt,
+    // Which version the bot ran before and after. `SET_VERSION` is otherwise
+    // invisible in the audit trail: nothing else on the snapshot changes.
+    versionId: bot.versionId,
   };
 }
 
@@ -2604,6 +2609,82 @@ export class SokoBotControlPlane {
       throw new SokoBotNotFoundError("Soko Bot not found");
   }
 
+  /**
+   * Moves many bots onto one version.
+   *
+   * Every bot goes through {@link performAdminAction}, so each gets its own
+   * audit row with its own before/after and its own idempotency key rather
+   * than one opaque "bulk" entry — re-running the same operation id after a
+   * partial failure retries only what did not land. One bot that cannot be
+   * moved does not stop the rest; it is reported.
+   */
+  async migrateVersions(input: {
+    operatorId: string;
+    /** Only bots on this version. Omitted, every live bot is moved. */
+    fromVersionId?: string;
+    toVersionId: string;
+    reason: string;
+    operationId: string;
+    requestId?: string;
+    traceId?: string;
+  }): Promise<{
+    total: number;
+    moved: number;
+    alreadyOnVersion: number;
+    failed: number;
+    failures: { sokoBotId: string; message: string }[];
+  }> {
+    if (!(await isKnownSokoBotVersionId(input.toVersionId))) {
+      throw new SokoBotValidationError(
+        `Unknown Soko Bot version ${input.toVersionId}`,
+      );
+    }
+    const bots = await prisma.sokoBot.findMany({
+      where: {
+        archivedAt: null,
+        ...(input.fromVersionId ? { versionId: input.fromVersionId } : {}),
+      },
+      select: { id: true, versionId: true },
+      orderBy: { id: "asc" },
+    });
+    const failures: { sokoBotId: string; message: string }[] = [];
+    let moved = 0;
+    let alreadyOnVersion = 0;
+    for (const bot of bots) {
+      if (bot.versionId === input.toVersionId) {
+        alreadyOnVersion += 1;
+        continue;
+      }
+      try {
+        await this.performAdminAction({
+          sokoBotId: bot.id,
+          operatorId: input.operatorId,
+          action: "SET_VERSION",
+          versionId: input.toVersionId,
+          reason: input.reason,
+          // Per bot, so a retry of the whole migration skips what already
+          // succeeded instead of colliding on one shared key.
+          operationId: `${input.operationId}:${bot.id}`,
+          requestId: input.requestId,
+          traceId: input.traceId,
+        });
+        moved += 1;
+      } catch (error) {
+        failures.push({
+          sokoBotId: bot.id,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    return {
+      total: bots.length,
+      moved,
+      alreadyOnVersion,
+      failed: failures.length,
+      failures,
+    };
+  }
+
   async createSchedule(input: CreateSokoBotScheduleInput) {
     return translateScheduleErrors(() => createSokoBotSchedule(input));
   }
@@ -2739,6 +2820,8 @@ export class SokoBotControlPlane {
     operatorId: string;
     action: SokoBotAdminActionName;
     targetId?: string;
+    /** `SET_VERSION` only: the version slug to move the bot to. */
+    versionId?: string;
     reason: string;
     operationId?: string;
     requestId?: string;
@@ -2747,6 +2830,19 @@ export class SokoBotControlPlane {
     const reason = input.reason.trim();
     if (!reason)
       throw new SokoBotValidationError("Admin action reason is required");
+    if (input.action === "SET_VERSION") {
+      if (!input.versionId) {
+        throw new SokoBotValidationError("SET_VERSION requires a versionId");
+      }
+      // Checked before the intent is recorded: a slug that does not exist is a
+      // bad request, not a failed operation, and writing an ATTEMPTED row for
+      // it would leave an outbox entry nothing can ever complete.
+      if (!(await isKnownSokoBotVersionId(input.versionId))) {
+        throw new SokoBotValidationError(
+          `Unknown Soko Bot version ${input.versionId}`,
+        );
+      }
+    }
     const requestId = normalizeAdminActionIdentifier(
       input.requestId,
       "Request ID",
@@ -2767,7 +2863,15 @@ export class SokoBotControlPlane {
         operationId_status: { operationId, status: "ATTEMPTED" },
       },
     });
-    let resolvedTargetId = input.targetId ?? null;
+    // The version slug rides in `targetId`, the column that already holds
+    // whatever an action points at (a turn for RETRY_LAST_FAILED, a schedule
+    // for DISABLE_SCHEDULE). Keeping it there means the idempotency check
+    // below compares it for free: the same operation id with a different
+    // target version is rejected rather than silently accepted.
+    let resolvedTargetId =
+      input.action === "SET_VERSION"
+        ? (input.versionId ?? null)
+        : (input.targetId ?? null);
     if (
       existing &&
       resolvedTargetId === null &&
@@ -3076,6 +3180,36 @@ export class SokoBotControlPlane {
             },
           });
         }, "Soko Bot memory changed concurrently");
+      } catch (error) {
+        await recordFailure(error);
+        throw error;
+      }
+    } else if (input.action === "SET_VERSION") {
+      const versionId = input.versionId as string;
+      try {
+        await serializableTransaction(async (tx) => {
+          const current = await tx.sokoBot.findUnique({
+            where: { id: bot.id },
+          });
+          if (!current || current.archivedAt) {
+            throw new SokoBotNotFoundError("Soko Bot not found");
+          }
+          const updated = await tx.sokoBot.update({
+            where: { id: bot.id },
+            data: { versionId },
+          });
+          await tx.sokoBotAdminAction.create({
+            data: {
+              operationId,
+              status: "SUCCEEDED",
+              ...intent,
+              before: jsonInput(before),
+              after: jsonInput(adminActionSnapshot(updated)),
+              requestId,
+              traceId,
+            },
+          });
+        }, "Soko Bot version changed concurrently");
       } catch (error) {
         await recordFailure(error);
         throw error;

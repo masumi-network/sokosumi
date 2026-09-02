@@ -511,6 +511,13 @@ export const adminSokoBotDetailSchema = sokoBotSchema
   })
   .openapi("AdminSokoBotDetail");
 
+/** Built-in ids (`v16`) and authored slugs share one namespace and one shape. */
+export const sokoBotVersionSlugSchema = z
+  .string()
+  .min(2)
+  .max(41)
+  .regex(/^[a-z0-9][a-z0-9-]*$/, "lowercase letters, numbers and dashes");
+
 export const adminSokoBotActionRequestSchema = z
   .object({
     operationId: z.string().trim().min(1).max(200),
@@ -522,8 +529,11 @@ export const adminSokoBotActionRequestSchema = z
       "RETRY_LAST_FAILED",
       "RETRY_SCHEDULE_RUN",
       "DISABLE_SCHEDULE",
+      "SET_VERSION",
     ]),
     targetId: z.string().uuid().optional(),
+    /** `SET_VERSION` only: the version to move this bot onto. */
+    versionId: sokoBotVersionSlugSchema.optional(),
     reason: z.string().trim().min(1).max(2_000),
   })
   .strict()
@@ -544,8 +554,50 @@ export const adminSokoBotActionRequestSchema = z
         message: "targetId is only valid for schedule actions",
       });
     }
+    if (input.action === "SET_VERSION" && !input.versionId) {
+      context.addIssue({
+        code: "custom",
+        path: ["versionId"],
+        message: "SET_VERSION requires versionId",
+      });
+    } else if (input.action !== "SET_VERSION" && input.versionId) {
+      context.addIssue({
+        code: "custom",
+        path: ["versionId"],
+        message: "versionId is only valid for SET_VERSION",
+      });
+    }
   })
   .openapi("AdminSokoBotActionRequest");
+
+/**
+ * Moving many bots at once. `fromVersionId` omitted means every live bot,
+ * which is the "bring the fleet up to date" case; naming it is the safer
+ * "move the ones still on v14" case.
+ */
+export const adminSokoBotVersionMigrationRequestSchema = z
+  .object({
+    operationId: z.string().trim().min(1).max(200),
+    fromVersionId: sokoBotVersionSlugSchema.optional(),
+    toVersionId: sokoBotVersionSlugSchema,
+    reason: z.string().trim().min(1).max(2_000),
+  })
+  .strict()
+  .openapi("AdminSokoBotVersionMigrationRequest");
+
+export const adminSokoBotVersionMigrationResultSchema = z
+  .object({
+    /** Bots that matched the filter, including ones already on the target. */
+    total: z.number().int(),
+    moved: z.number().int(),
+    alreadyOnVersion: z.number().int(),
+    failed: z.number().int(),
+    /** Named, so a partial run says which bots still need attention. */
+    failures: z
+      .array(z.object({ sokoBotId: z.string(), message: z.string() }))
+      .max(500),
+  })
+  .openapi("AdminSokoBotVersionMigrationResult");
 
 export const sokoBotAvatarSchema = z
   .object({
@@ -708,11 +760,7 @@ export const sokoBotVersionListSchema = z
 
 export const sokoBotVersionWriteSchema = z
   .object({
-    slug: z
-      .string()
-      .min(2)
-      .max(41)
-      .regex(/^[a-z0-9][a-z0-9-]*$/, "lowercase letters, numbers and dashes"),
+    slug: sokoBotVersionSlugSchema,
     name: z.string().min(1).max(120),
     summary: z.string().max(2_000).default(""),
     model: z.string().min(1).max(200),
