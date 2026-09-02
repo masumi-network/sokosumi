@@ -125,7 +125,11 @@ function RoomMentionSuggestion({
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-medium">{displayName}</span>
-          {isCoworker || isOrchestrator ? <AiCoworkerIcon /> : null}
+          {isCoworker || isOrchestrator ? (
+            <AiCoworkerIcon
+              label={isOrchestrator ? t("personalAssistantBadge") : undefined}
+            />
+          ) : null}
         </div>
         <div className="text-muted-foreground truncate text-xs">
           @{mention.slug}

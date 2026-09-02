@@ -174,6 +174,18 @@ describe("owner orchestrator option", () => {
     });
   });
 
+  it("does not treat an unknown selected id as a coworker", () => {
+    const options = withOwnerOrchestratorOption(
+      getCoworkerOptions([baseCoworker()]),
+      baseBot(),
+      OWNER_ORCHESTRATOR_COPY,
+    );
+    expect(resolveTaskAssigneeFields("missing-bot", options)).toEqual({
+      assigneeId: null,
+      assigneeOrchestratorId: "missing-bot",
+    });
+  });
+
   it("prefers orchestrator id for the task form initial value", () => {
     expect(
       taskFormAssigneeId({

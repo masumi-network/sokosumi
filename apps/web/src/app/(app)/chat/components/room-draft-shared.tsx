@@ -19,13 +19,19 @@ import type {
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
-export function AiCoworkerIcon({ className }: { className?: string }) {
+export function AiCoworkerIcon({
+  className,
+  label,
+}: {
+  className?: string;
+  label?: string;
+}) {
   const t = useTranslations("App.Channels");
 
   return (
     <Bot
       className={cn("text-muted-foreground size-3.5 shrink-0", className)}
-      aria-label={t("coworkerBadge")}
+      aria-label={label ?? t("coworkerBadge")}
     />
   );
 }
@@ -191,6 +197,7 @@ export function DirectDraftTargetRow({
   disabled?: boolean;
   disabledReason?: string;
 }) {
+  const t = useTranslations("App.Channels");
   const row = (
     <button
       type="button"
@@ -221,7 +228,13 @@ export function DirectDraftTargetRow({
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-sm font-medium">{target.name}</span>
           {target.kind === "coworker" || target.kind === "orchestrator" ? (
-            <AiCoworkerIcon />
+            <AiCoworkerIcon
+              label={
+                target.kind === "orchestrator"
+                  ? t("personalAssistantBadge")
+                  : undefined
+              }
+            />
           ) : null}
         </span>
         {target.detail ? (

@@ -69,6 +69,17 @@ interface PendingGrantState {
   grantResumeStatus: GrantResumeStatus;
 }
 
+function requireAssigneeXor(
+  assigneeId: string | null | undefined,
+  assigneeOrchestratorId: string | null | undefined,
+): void {
+  if (assigneeId != null && assigneeId !== "" && assigneeOrchestratorId) {
+    throw unprocessableEntity(
+      "assigneeId and assigneeOrchestratorId cannot both be set",
+    );
+  }
+}
+
 function requireAssigneeForExecutableStatus(
   status: TaskStatus,
   assigneeId: string | null | undefined,
@@ -227,6 +238,7 @@ export async function createTaskForActor(
   input: CreateTaskDomainInput,
   tx: Prisma.TransactionClient,
 ): Promise<Task> {
+  requireAssigneeXor(input.assigneeId, input.assigneeOrchestratorId);
   requireAssigneeForExecutableStatus(
     input.status,
     input.assigneeId,
@@ -335,6 +347,7 @@ export async function updateTaskForActor(
     );
   }
 
+  requireAssigneeXor(input.assigneeId, input.assigneeOrchestratorId);
   const assigneeWrite = nextAssigneeWrite({
     assigneeId: input.assigneeId,
     assigneeOrchestratorId: input.assigneeOrchestratorId,

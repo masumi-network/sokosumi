@@ -438,6 +438,26 @@ describe("tasks-filters", () => {
       ).toBe(false);
     });
 
+    it("gives a valid orchestrator filter precedence over a valid coworker filter", () => {
+      const params = new URLSearchParams({
+        assigneeId: "coworker-1",
+        assigneeOrchestratorId: "bot-1",
+      });
+
+      expect(
+        getTasksFiltersFromSearchParams(params, "org-1", [
+          { id: "coworker-1" },
+          { id: "bot-1", kind: "orchestrator" },
+        ]),
+      ).toEqual({
+        scope: "workspace",
+        assigneeId: null,
+        assigneeOrchestratorId: "bot-1",
+        status: null,
+        projectId: null,
+      });
+    });
+
     it("rejects a personal-assistant id in assigneeId and keeps orchestrator filter", () => {
       const params = new URLSearchParams({
         assigneeId: "bot-1",

@@ -2168,17 +2168,22 @@ export function resolveMentionedOrchestratorIds(params: {
     }
   }
 
+  const aliasCounts = new Map<string, number>();
   for (const bot of params.roomOrchestrators) {
-    const aliases = new Set([slugifyRoomName(bot.name)]);
-    for (const alias of aliases) {
-      if (!alias) continue;
-      const aliasRegex = new RegExp(
-        `(^|\\s)@${escapeRegExp(alias)}(?=$|[\\s.,!?;:])`,
-        "i",
-      );
-      if (aliasRegex.test(params.content)) {
-        mentionedIds.add(bot.id);
-      }
+    const alias = slugifyRoomName(bot.name);
+    if (!alias) continue;
+    aliasCounts.set(alias, (aliasCounts.get(alias) ?? 0) + 1);
+  }
+
+  for (const bot of params.roomOrchestrators) {
+    const alias = slugifyRoomName(bot.name);
+    if (!alias || (aliasCounts.get(alias) ?? 0) > 1) continue;
+    const aliasRegex = new RegExp(
+      `(^|\\s)@${escapeRegExp(alias)}(?=$|[\\s.,!?;:])`,
+      "i",
+    );
+    if (aliasRegex.test(params.content)) {
+      mentionedIds.add(bot.id);
     }
   }
 

@@ -124,8 +124,13 @@ export function resolveTaskAssigneeFields(
   if (selected?.kind === "orchestrator") {
     return { assigneeId: null, assigneeOrchestratorId: selectedId };
   }
+  if (selected?.kind === "coworker") {
+    return { assigneeId: selectedId, assigneeOrchestratorId: null };
+  }
 
-  return { assigneeId: selectedId, assigneeOrchestratorId: null };
+  // Picker ids that are not in the loaded options are the current PA when
+  // getMine failed — not a marketplace coworker.
+  return { assigneeId: null, assigneeOrchestratorId: selectedId };
 }
 
 export function taskFormAssigneeId(task: {

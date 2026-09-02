@@ -171,16 +171,17 @@ export function getTasksFiltersFromSearchParams(
       validCoworkerIds.add(option.id);
     }
   }
-  const assigneeId =
-    parsed.assigneeId &&
-    validCoworkerIds.has(parsed.assigneeId) &&
-    !validOrchestratorIds.has(parsed.assigneeId)
-      ? parsed.assigneeId
-      : null;
   const assigneeOrchestratorId =
     parsed.assigneeOrchestratorId &&
     validOrchestratorIds.has(parsed.assigneeOrchestratorId)
       ? parsed.assigneeOrchestratorId
+      : null;
+  const assigneeId =
+    !assigneeOrchestratorId &&
+    parsed.assigneeId &&
+    validCoworkerIds.has(parsed.assigneeId) &&
+    !validOrchestratorIds.has(parsed.assigneeId)
+      ? parsed.assigneeId
       : null;
   const projectId =
     projectOptions === undefined ||

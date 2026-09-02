@@ -33,6 +33,7 @@ import {
   requireJoinableOrgChannel,
   requireRoomMemberCanInviteGuests,
   resolveMentionedCoworkerIds,
+  resolveMentionedOrchestratorIds,
   resolveMentionedUserIds,
   resolvePeerInActiveOrganization,
   resolveWorkspaceIdForChatRoom,
@@ -308,6 +309,51 @@ describe("contentIncludesRoomAllMention", () => {
   });
 });
 
+describe("resolveMentionedOrchestratorIds", () => {
+  it("matches an @orchestrator:<uuid> token in the room", () => {
+    const id = "01960001-0001-7001-8001-000000000099";
+    expect(
+      resolveMentionedOrchestratorIds({
+        content: `hello @orchestrator:${id}`,
+        roomOrchestrators: [{ id, name: "Jarvis" }],
+      }),
+    ).toEqual([id]);
+  });
+
+  it("lowercases an uppercase token", () => {
+    const id = "01960001-0001-7001-8001-000000000099";
+    expect(
+      resolveMentionedOrchestratorIds({
+        content: `@ORCHESTRATOR:${id.toUpperCase()}`,
+        roomOrchestrators: [{ id, name: "Jarvis" }],
+      }),
+    ).toEqual([id]);
+  });
+
+  it("ignores orchestrators that are not in the room", () => {
+    expect(
+      resolveMentionedOrchestratorIds({
+        content: "@orchestrator:01960001-0001-7001-8001-000000000001",
+        roomOrchestrators: [
+          { id: "01960001-0001-7001-8001-000000000099", name: "Jarvis" },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("skips a shared name alias when two room orchestrators slugify the same", () => {
+    expect(
+      resolveMentionedOrchestratorIds({
+        content: "hey @soko-bot",
+        roomOrchestrators: [
+          { id: "01960001-0001-7001-8001-000000000001", name: "Soko Bot" },
+          { id: "01960001-0001-7001-8001-000000000002", name: "Soko Bot" },
+        ],
+      }),
+    ).toEqual([]);
+  });
+});
+
 describe("buildDirectRoomKey", () => {
   it("builds the same key regardless of user order", () => {
     expect(buildDirectRoomKey("user_b", "user_a")).toBe("user_a:user_b");
@@ -335,6 +381,14 @@ describe("buildDirectRoomKey", () => {
         coworkerIds: [],
       }),
     ).toBe("user_a:user_b");
+    expect(
+      buildDirectParticipantRoomKey({
+        currentUserId: "user_a",
+        memberUserIds: [],
+        coworkerIds: [],
+        orchestratorIds: ["01960001-0001-7001-8001-000000000099"],
+      }),
+    ).toBe("orchestrator:user_a:01960001-0001-7001-8001-000000000099");
   });
 });
 

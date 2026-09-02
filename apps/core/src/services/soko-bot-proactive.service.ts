@@ -192,7 +192,8 @@ export async function findAttentionItems(bot: {
       // lets the bot answer when a comment names it. Sweeping every stuck or
       // failed Task in the workspace made it chase a week of other people's
       // abandoned work and, now that it can act rather than draft, restart it.
-      OR: [{ assigneeOrchestratorId: bot.id }, { id: { in: delegatedIds } }],
+      id: { in: delegatedIds },
+      NOT: { assigneeOrchestratorId: bot.id },
     },
     select: {
       id: true,
@@ -212,7 +213,6 @@ export async function findAttentionItems(bot: {
   });
   const candidates: AttentionItem[] = [];
   for (const task of tasks) {
-    if (task.assigneeOrchestratorId === bot.id) continue; // its own work is handled elsewhere
     const last = task.events[0];
     const age = bot.now.getTime() - (last?.createdAt ?? bot.now).getTime();
     if (age > ATTENTION_MAX_AGE_MS) continue;

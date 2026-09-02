@@ -284,7 +284,7 @@ export function ParticipantCheckboxes({
                           <span className="truncate text-sm font-medium">
                             {orchestrator.name}
                           </span>
-                          <AiCoworkerIcon />
+                          <AiCoworkerIcon label={t("personalAssistantBadge")} />
                         </span>
                       </span>
                       <Checkbox

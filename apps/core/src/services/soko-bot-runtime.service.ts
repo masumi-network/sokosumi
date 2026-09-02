@@ -1350,6 +1350,7 @@ export class SokoBotRuntimeService {
         status: true,
         updatedAt: true,
         assignee: { select: { id: true, name: true } },
+        assigneeOrchestrator: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
         events: {
           orderBy: { createdAt: "desc" },
@@ -1407,7 +1408,7 @@ export class SokoBotRuntimeService {
       name: task.name,
       status: task.status,
       description: task.description,
-      assignee: task.assignee,
+      assignee: task.assignee ?? task.assigneeOrchestrator,
       project: task.project,
       updatedAt: task.updatedAt,
       events: [...task.events].reverse().map((event) => ({
@@ -1554,7 +1555,13 @@ export class SokoBotRuntimeService {
           workspaceId: authorized.turn.workspaceId,
           archivedAt: null,
         },
-        select: { id: true, name: true, status: true, assigneeId: true },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          assigneeId: true,
+          assigneeOrchestratorId: true,
+        },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");
       if (!input.status) {
@@ -1578,7 +1585,7 @@ export class SokoBotRuntimeService {
             `Task is ${task.status}; only ${resumable.join(", ")} can be set READY. To leave a comment without changing the status, omit \`status\`.`,
           );
         }
-        if (!task.assigneeId) {
+        if (!task.assigneeId && !task.assigneeOrchestratorId) {
           throw new SokoBotRuntimeValidationError(
             "Task has no assignee; use assign_task instead",
           );
