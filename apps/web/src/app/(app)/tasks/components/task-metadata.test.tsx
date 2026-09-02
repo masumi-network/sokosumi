@@ -61,10 +61,14 @@ function createTask(
       overrides.assigneeName === null
         ? null
         : {
+            type: "coworker" as const,
             id: "cw_1",
-            name: overrides.assigneeName ?? "Hepha",
-            image: null,
-            slug: "hepha",
+            coworker: {
+              id: "cw_1",
+              name: overrides.assigneeName ?? "Hepha",
+              image: null,
+              slug: "hepha",
+            },
           },
     credits: overrides.credits ?? 0,
     metadata: null,
@@ -228,5 +232,33 @@ describe("TaskMetadata", () => {
     expect(
       screen.getAllByText("Ada Lovelace's personal assistant"),
     ).toHaveLength(1);
+  });
+
+  it("renders an orchestrator assignee with the assistant orb", () => {
+    render(
+      <TaskMetadata
+        task={{
+          ...createTask({ assigneeName: null }),
+          assignee: {
+            type: "orchestrator",
+            id: "bot-1",
+            orchestrator: {
+              id: "bot-1",
+              name: "Jarvis",
+              avatarSeed: null,
+              avatarImageUrl: null,
+              owner: { id: "user_1", name: "Andreas Osberghaus", image: null },
+            },
+          },
+        }}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    expect(screen.getByText("Jarvis")).toBeInTheDocument();
+    expect(screen.getByTestId("assistant-orb")).toBeInTheDocument();
   });
 });

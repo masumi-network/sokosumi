@@ -944,6 +944,7 @@ export function TasksView({
           cursor,
           scope: routeFilters.scope,
           assigneeId: routeFilters.assigneeId,
+          assigneeOrchestratorId: routeFilters.assigneeOrchestratorId,
           status: routeFilters.status,
           projectId: routeFilters.projectId,
         });
@@ -978,6 +979,7 @@ export function TasksView({
       isTaskPaginationInSync,
       labels.loadMoreError,
       routeFilters.assigneeId,
+      routeFilters.assigneeOrchestratorId,
       routeFilters.projectId,
       routeFilters.scope,
       routeFilters.status,
@@ -998,6 +1000,7 @@ export function TasksView({
         cursor,
         scope: routeFilters.scope,
         assigneeId: routeFilters.assigneeId,
+        assigneeOrchestratorId: routeFilters.assigneeOrchestratorId,
         status: routeFilters.status,
         projectId: routeFilters.projectId,
       });
@@ -1017,6 +1020,7 @@ export function TasksView({
     isTaskPaginationInSync,
     labels.loadMoreError,
     routeFilters.assigneeId,
+    routeFilters.assigneeOrchestratorId,
     routeFilters.projectId,
     routeFilters.scope,
     routeFilters.status,

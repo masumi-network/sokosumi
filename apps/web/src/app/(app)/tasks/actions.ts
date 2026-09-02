@@ -20,6 +20,7 @@ import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 
 import { getTasksColumnPage } from "./utils/tasks-column-page";
@@ -30,6 +31,7 @@ interface LoadMoreTasksColumnParams {
   cursor: string | null;
   scope: TasksScope | null;
   assigneeId: string | null;
+  assigneeOrchestratorId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
 }
@@ -38,6 +40,7 @@ interface LoadMoreTasksListParams {
   cursor: string | null;
   scope: TasksScope | null;
   assigneeId: string | null;
+  assigneeOrchestratorId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
 }
@@ -47,12 +50,14 @@ export async function loadMoreTasksColumn({
   cursor,
   scope,
   assigneeId,
+  assigneeOrchestratorId,
   status,
   projectId,
 }: LoadMoreTasksColumnParams) {
-  const [session, coworkers] = await Promise.all([
+  const [session, coworkers, ownerBot] = await Promise.all([
     getSession(),
     coworkerService.listCoworkers("tasks").catch(() => []),
+    sokoBotService.getMine().catch(() => null),
   ]);
 
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
@@ -61,8 +66,19 @@ export async function loadMoreTasksColumn({
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
+  const ownerOrchestratorId = ownerBot?.id ?? null;
   const sanitizedAssigneeId =
-    assigneeId && coworkersById.has(assigneeId) ? assigneeId : null;
+    assigneeId &&
+    coworkersById.has(assigneeId) &&
+    assigneeId !== ownerOrchestratorId
+      ? assigneeId
+      : null;
+  const sanitizedAssigneeOrchestratorId =
+    assigneeOrchestratorId &&
+    ownerOrchestratorId &&
+    assigneeOrchestratorId === ownerOrchestratorId
+      ? assigneeOrchestratorId
+      : null;
   const sanitizedStatus = sanitizeTasksStatusInput(status);
   const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
   const page = await getTasksColumnPage({
@@ -71,6 +87,7 @@ export async function loadMoreTasksColumn({
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
     assigneeId: sanitizedAssigneeId,
+    assigneeOrchestratorId: sanitizedAssigneeOrchestratorId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,
@@ -86,12 +103,14 @@ export async function loadMoreTasksList({
   cursor,
   scope,
   assigneeId,
+  assigneeOrchestratorId,
   status,
   projectId,
 }: LoadMoreTasksListParams) {
-  const [session, coworkers] = await Promise.all([
+  const [session, coworkers, ownerBot] = await Promise.all([
     getSession(),
     coworkerService.listCoworkers("tasks").catch(() => []),
+    sokoBotService.getMine().catch(() => null),
   ]);
 
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
@@ -100,8 +119,19 @@ export async function loadMoreTasksList({
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
+  const ownerOrchestratorId = ownerBot?.id ?? null;
   const sanitizedAssigneeId =
-    assigneeId && coworkersById.has(assigneeId) ? assigneeId : null;
+    assigneeId &&
+    coworkersById.has(assigneeId) &&
+    assigneeId !== ownerOrchestratorId
+      ? assigneeId
+      : null;
+  const sanitizedAssigneeOrchestratorId =
+    assigneeOrchestratorId &&
+    ownerOrchestratorId &&
+    assigneeOrchestratorId === ownerOrchestratorId
+      ? assigneeOrchestratorId
+      : null;
   const sanitizedStatus = sanitizeTasksStatusInput(status);
   const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
   const page = await getTasksListPage({
@@ -109,6 +139,7 @@ export async function loadMoreTasksList({
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
     assigneeId: sanitizedAssigneeId,
+    assigneeOrchestratorId: sanitizedAssigneeOrchestratorId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,

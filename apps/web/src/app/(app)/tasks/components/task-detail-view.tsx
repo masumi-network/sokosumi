@@ -20,7 +20,11 @@ import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-r
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
-import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import {
+  getCoworkerOptions,
+  taskFormAssigneeId,
+  withOwnerOrchestratorOption,
+} from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import {
@@ -37,6 +41,7 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 import { projectService } from "@/lib/services/project.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
 import { formatShortDateTime } from "@/lib/utils/datetime";
@@ -53,6 +58,7 @@ type AgentsResult = Awaited<
 type CoworkersResult = Awaited<
   ReturnType<typeof coworkerService.listCoworkers>
 >;
+type OwnerBotResult = Awaited<ReturnType<typeof sokoBotService.getMine>>;
 type MembersResult = Awaited<
   ReturnType<typeof userService.getMyMembersWithOrganizations>
 >;
@@ -88,6 +94,7 @@ export async function TaskDetailView({
 }: TaskDetailViewProps) {
   const taskId = task.id;
   const coworkersPromise = coworkerService.listCoworkers().catch(() => []);
+  const ownerBotPromise = sokoBotService.getMine().catch(() => null);
   const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
   const membersPromise = userService.getMyMembersWithOrganizations();
   const workspaceAccessPromise = userService.getWorkspaceAccess();
@@ -151,6 +158,7 @@ export async function TaskDetailView({
                 forceReadOnly={forceReadOnly}
                 hasAssignedSeatPromise={hasAssignedSeatPromise}
                 coworkersPromise={coworkersPromise}
+                ownerBotPromise={ownerBotPromise}
                 agentsPromise={agentsPromise}
                 membersPromise={membersPromise}
                 workspaceAccessPromise={workspaceAccessPromise}
@@ -287,6 +295,16 @@ async function TaskDetailAutoSwitch({
   );
 }
 
+function taskAssigneeDisplayName(assignee: Task["assignee"]): string | null {
+  if (!assignee) {
+    return null;
+  }
+  if (assignee.type === "orchestrator") {
+    return assignee.orchestrator.name ?? null;
+  }
+  return assignee.coworker.name ?? null;
+}
+
 async function TaskVendorGrantApprovalBannerSlot({
   task,
   forceReadOnly,
@@ -328,7 +346,7 @@ async function TaskVendorGrantApprovalBannerSlot({
   if (!canApprove) {
     return (
       <TaskVendorGrantPendingInfoBanner
-        coworkerName={task.assignee?.name ?? null}
+        coworkerName={taskAssigneeDisplayName(task.assignee)}
       />
     );
   }
@@ -345,7 +363,7 @@ async function TaskVendorGrantApprovalBannerSlot({
   return (
     <TaskVendorGrantApprovalBanner
       grantId={grantId}
-      coworkerName={task.assignee?.name ?? null}
+      coworkerName={taskAssigneeDisplayName(task.assignee)}
       organizationId={orgId}
       reviewHref={reviewHref}
     />
@@ -430,6 +448,7 @@ async function TaskDetailActionsSlot({
   forceReadOnly,
   hasAssignedSeatPromise,
   coworkersPromise,
+  ownerBotPromise,
   agentsPromise,
   membersPromise,
   workspaceAccessPromise,
@@ -440,6 +459,7 @@ async function TaskDetailActionsSlot({
   forceReadOnly: boolean;
   hasAssignedSeatPromise: Promise<boolean>;
   coworkersPromise: Promise<CoworkersResult>;
+  ownerBotPromise: Promise<OwnerBotResult | null>;
   agentsPromise: Promise<AgentsResult>;
   membersPromise: Promise<MembersResult>;
   workspaceAccessPromise: Promise<
@@ -449,6 +469,7 @@ async function TaskDetailActionsSlot({
 }) {
   const [
     coworkers,
+    ownerBot,
     agents,
     members,
     workspaceAccess,
@@ -458,6 +479,7 @@ async function TaskDetailActionsSlot({
     tMembersTableHeader,
   ] = await Promise.all([
     coworkersPromise,
+    ownerBotPromise,
     agentsPromise,
     membersPromise,
     workspaceAccessPromise,
@@ -473,7 +495,7 @@ async function TaskDetailActionsSlot({
     task: taskWithCoworker,
     agentNameById,
     coworkerOptions,
-  } = buildTaskDetailContext(task, coworkers, agents);
+  } = buildTaskDetailContext(task, coworkers, agents, ownerBot);
   const isReadOnlyWorkspaceView = isReadOnlyForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
     taskOwnerId: task.ownerId,
@@ -510,7 +532,7 @@ async function TaskDetailActionsSlot({
       taskLinks={task.links}
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
-      defaultAssigneeId={task.assigneeId}
+      defaultAssigneeId={taskFormAssigneeId(task) || undefined}
       initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
@@ -667,6 +689,7 @@ function buildTaskDetailContext(
   task: Task,
   coworkers: CoworkersResult,
   agents: AgentsResult,
+  ownerBot: OwnerBotResult | null = null,
 ) {
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
@@ -676,7 +699,10 @@ function buildTaskDetailContext(
   return {
     task: mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
     agentNameById: buildAgentNameById(agents),
-    coworkerOptions: getCoworkerOptions(coworkers),
+    coworkerOptions: withOwnerOrchestratorOption(
+      getCoworkerOptions(coworkers),
+      ownerBot,
+    ),
   };
 }
 

@@ -3,12 +3,16 @@ import { getTranslations } from "next-intl/server";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
-import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import {
+  getCoworkerOptions,
+  withOwnerOrchestratorOption,
+} from "@/app/tasks/utils/coworker-options";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 export const metadata = {
   title: "New Task",
@@ -16,15 +20,19 @@ export const metadata = {
 
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
-  const [taskCoworkers, agents, session] = await Promise.all([
+  const [taskCoworkers, agents, session, ownerBot] = await Promise.all([
     coworkerService.listCoworkers("tasks").catch(() => []),
     agentService.getAvailableAgentsWithCreditsPrice(),
     getSession(),
+    sokoBotService.getMine().catch(() => null),
   ]);
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
-  const coworkerOptions = getCoworkerOptions(taskCoworkers);
+  const coworkerOptions = withOwnerOrchestratorOption(
+    getCoworkerOptions(taskCoworkers),
+    ownerBot,
+  );
   const canCreateTask = await hasAssignedOrganizationSeat(
     session?.session.activeOrganizationId ?? null,
   );

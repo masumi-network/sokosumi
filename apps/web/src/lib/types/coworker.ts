@@ -23,6 +23,10 @@ export interface CoworkerOption {
   slug: string;
   name: string;
   image: string;
+  /** Marketplace coworker by default. Owner personal assistant is `orchestrator`. */
+  kind?: "coworker" | "orchestrator";
+  /** Present for orchestrator options without a claimed mascot. */
+  avatarSeed?: string | null;
   description?: string;
   caption?: string;
   vendor: Pick<Vendor, "id" | "name" | "slug" | "logos">;

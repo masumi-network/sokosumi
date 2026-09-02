@@ -117,6 +117,35 @@ function resolveTaskCreatorDisplay(
   }
 }
 
+function resolveTaskAssigneeDisplay(assignee: Task["assignee"]): {
+  name: string;
+  image: string | null;
+  avatarSeed?: string | null;
+} {
+  if (!assignee) {
+    return { name: "—", image: null };
+  }
+
+  if (assignee.type === "orchestrator") {
+    const orchestrator = assignee.orchestrator;
+    const claimed = orchestrator.avatarImageUrl
+      ? resolveIpfsOrHttpUrl(orchestrator.avatarImageUrl)
+      : null;
+    return {
+      name: orchestrator.name?.trim() || "Personal assistant",
+      image: claimed,
+      avatarSeed: claimed
+        ? null
+        : (orchestrator.avatarSeed ?? defaultOrbSeed(orchestrator.owner.id)),
+    };
+  }
+
+  return {
+    name: assignee.coworker.name,
+    image: getCoworkerImage(assignee.coworker),
+  };
+}
+
 interface TaskMetadataProps {
   task: TaskMetadataTask;
   project: { id: string; name: string } | null;
@@ -135,7 +164,7 @@ export function TaskMetadata({
   const ownerImage = task.owner.image
     ? resolveIpfsOrHttpUrl(task.owner.image)
     : null;
-  const assigneeImage = getCoworkerImage(task.assignee);
+  const assignee = resolveTaskAssigneeDisplay(task.assignee);
   const creator = resolveTaskCreatorDisplay(
     task,
     labels.formatOrchestratorRole,
@@ -205,20 +234,33 @@ export function TaskMetadata({
             {labels.coworker}
           </span>
           <div className="flex min-w-0 items-center gap-2">
-            <Avatar className="size-5">
-              {assigneeImage ? (
-                <AvatarImage
-                  src={assigneeImage}
-                  alt={task.assignee?.name ?? "Coworker"}
-                  className="object-cover"
-                />
-              ) : null}
-              <AvatarFallback className="bg-muted text-[0.625rem]">
-                {task.assignee?.name?.slice(0, 1).toUpperCase() ?? "?"}
-              </AvatarFallback>
-            </Avatar>
+            {assignee.avatarSeed ? (
+              <AssistantOrb
+                seed={assignee.avatarSeed}
+                expression="idle"
+                animate={false}
+                size={20}
+                className="size-5 shrink-0"
+                alt={assignee.name}
+              />
+            ) : (
+              <Avatar className="size-5">
+                {assignee.image ? (
+                  <AvatarImage
+                    src={assignee.image}
+                    alt={assignee.name}
+                    className="object-cover"
+                  />
+                ) : null}
+                <AvatarFallback className="bg-muted text-[0.625rem]">
+                  {assignee.name === "—"
+                    ? "?"
+                    : assignee.name.slice(0, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            )}
             <span className="truncate text-right text-sm font-medium">
-              {task.assignee?.name ?? "—"}
+              {assignee.name}
             </span>
           </div>
         </div>

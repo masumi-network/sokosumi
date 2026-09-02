@@ -1,4 +1,7 @@
-import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
+import type {
+  TaskAssigneeView,
+  TaskWithCoworker,
+} from "@/app/tasks/types/task-board";
 import { getColumnId } from "@/app/tasks/utils/task-column";
 import type { Coworker } from "@/lib/clients/generated/core";
 import type {
@@ -70,15 +73,58 @@ function replaceMentionsWithAgentNames(
   return result;
 }
 
+function mapTaskAssignee(
+  task: TaskListItem | Task,
+  coworkersById: Map<string, Coworker>,
+): TaskAssigneeView | null {
+  if (task.assignee?.type === "orchestrator") {
+    const orchestrator = task.assignee.orchestrator;
+    return {
+      id: task.assignee.id,
+      name: orchestrator.name?.trim() || "Personal assistant",
+      image: orchestrator.avatarImageUrl,
+      kind: "orchestrator",
+      avatarSeed: orchestrator.avatarSeed,
+    };
+  }
+
+  if (task.assignee?.type === "coworker") {
+    const coworker =
+      coworkersById.get(task.assignee.id) ?? task.assignee.coworker;
+    return {
+      id: coworker.id,
+      name: coworker.name,
+      image: coworker.image,
+      slug: coworker.slug,
+      kind: "coworker",
+    };
+  }
+
+  if (task.assigneeId) {
+    const coworker = coworkersById.get(task.assigneeId);
+    if (!coworker) {
+      return null;
+    }
+
+    return {
+      id: coworker.id,
+      name: coworker.name,
+      image: coworker.image,
+      slug: coworker.slug,
+      kind: "coworker",
+    };
+  }
+
+  return null;
+}
+
 /** Maps a Core Task DTO into the tasks-board view model. */
 export function mapTaskToTaskWithCoworker(
   task: TaskListItem | Task,
   coworkersById: Map<string, Coworker>,
   agentsById: Map<string, CoreAgentDto>,
 ): TaskWithCoworker {
-  const assignee = task.assigneeId
-    ? (coworkersById.get(task.assigneeId) ?? null)
-    : null;
+  const assignee = mapTaskAssignee(task, coworkersById);
   const agentIds = parseAgentMentions(task.description, agentsById);
   const agents = agentIds
     .map((id) => agentsById.get(id))

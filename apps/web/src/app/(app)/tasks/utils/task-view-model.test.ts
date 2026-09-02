@@ -22,9 +22,10 @@ function buildTask(
     user: { id: "user-1", name: "Test User", image: null },
     organization: null,
     assigneeId: null,
+    assigneeOrchestratorId: null,
     assignee: null,
     coworkerId: null,
-    coworker: null,
+    coworker: null as unknown as TaskListItem["coworker"],
     creator: {
       type: "user",
       id: "user-1",
@@ -169,5 +170,33 @@ describe("mapTaskToTaskWithCoworker", () => {
 
     expect(mapped.owner).toEqual(task.owner);
     expect(mapped.ownerId).toBe("user-2");
+  });
+
+  it("maps an orchestrator assignee without looking it up in coworkers", () => {
+    const task = buildTask(TaskStatus.READY, {
+      assigneeId: null,
+      assigneeOrchestratorId: "bot-1",
+      assignee: {
+        type: "orchestrator",
+        id: "bot-1",
+        orchestrator: {
+          id: "bot-1",
+          name: "Jarvis",
+          avatarSeed: "orb:jewel-sky:user-1",
+          avatarImageUrl: null,
+          owner: { id: "user-1", name: "Ada", image: null },
+        },
+      },
+    });
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.assignee).toEqual({
+      id: "bot-1",
+      name: "Jarvis",
+      image: null,
+      kind: "orchestrator",
+      avatarSeed: "orb:jewel-sky:user-1",
+    });
   });
 });
