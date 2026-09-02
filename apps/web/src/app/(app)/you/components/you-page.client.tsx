@@ -161,7 +161,7 @@ export function YouPageClient({
   if (panel.kind !== "root") {
     return (
       <div
-        className="mx-auto w-full max-w-lg px-4 py-6 md:py-8"
+        className="mx-auto w-full py-6 md:max-w-4xl md:py-8"
         data-testid="you-page"
       >
         <div
@@ -190,7 +190,7 @@ export function YouPageClient({
 
   return (
     <div
-      className="mx-auto w-full max-w-lg px-4 py-6 md:py-8"
+      className="mx-auto w-full py-6 md:max-w-4xl md:py-8"
       data-testid="you-page"
     >
       <div
