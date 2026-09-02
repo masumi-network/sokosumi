@@ -321,6 +321,14 @@ USING "coworker" c
 WHERE assignment."coworkerId" = c.id
   AND c."sokoBotId" IS NOT NULL;
 
+DELETE FROM "notification" notification
+USING "coworker_workspace_access" access, "coworker" c
+WHERE notification."referenceId" = access.id::text
+  AND notification."kind" = 'SYSTEM'::"NotificationKind"
+  AND notification."messageKey" = 'notifications.coworkerAccess.pending'
+  AND access."coworkerId" = c.id
+  AND c."sokoBotId" IS NOT NULL;
+
 DELETE FROM "coworker_workspace_access" access
 USING "coworker" c
 WHERE access."coworkerId" = c.id

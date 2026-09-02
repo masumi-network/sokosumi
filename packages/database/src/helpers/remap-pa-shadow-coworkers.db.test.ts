@@ -160,8 +160,30 @@ async function insertPreCutoverFixture(client: Client): Promise<void> {
       '45000000-0000-4000-8000-000000000001',
       'shadow-a',
       '10000000-0000-4000-8000-000000000001',
-      'GRANTED',
+      'PENDING',
       NOW(),
+      NOW()
+    );
+
+    INSERT INTO notification (
+      id,
+      "userId",
+      kind,
+      "referenceId",
+      "eventId",
+      "messageKey",
+      "messageParams",
+      metadata,
+      "createdAt"
+    ) VALUES (
+      'cutover-access-notification',
+      'cutover-user',
+      'SYSTEM',
+      '45000000-0000-4000-8000-000000000001',
+      '45000000-0000-4000-8000-000000000001',
+      'notifications.coworkerAccess.pending',
+      '{}',
+      '{"coworkerId":"shadow-a"}',
       NOW()
     );
 
@@ -354,6 +376,7 @@ describeDatabase("PA orchestrator cutover migration against PostgreSQL", () => {
         legacyDirectKey: string;
         membershipOrchestratorIds: string;
         mentionOrchestratorId: string | null;
+        notificationCount: string;
         senderOrchestratorId: string | null;
         taskOrchestratorId: string | null;
         usageOrchestratorId: string | null;
@@ -376,7 +399,8 @@ describeDatabase("PA orchestrator cutover migration against PostgreSQL", () => {
             (SELECT COUNT(*) FROM coworker_usage WHERE "transactionId" = 'cutover-usage-transaction')::text AS "coworkerUsageCount",
             (SELECT "orchestratorId"::text FROM orchestrator_usage WHERE "transactionId" = 'cutover-usage-transaction') AS "usageOrchestratorId",
             (SELECT COUNT(*) FROM coworker_assignment WHERE "coworkerId" = 'shadow-a')::text AS "assignmentCount",
-            (SELECT COUNT(*) FROM coworker_workspace_access WHERE "coworkerId" = 'shadow-a')::text AS "workspaceAccessCount"
+            (SELECT COUNT(*) FROM coworker_workspace_access WHERE "coworkerId" = 'shadow-a')::text AS "workspaceAccessCount",
+            (SELECT COUNT(*) FROM notification WHERE id = 'cutover-access-notification')::text AS "notificationCount"
         `);
 
       expect(result.rows[0]).toEqual({
@@ -400,6 +424,7 @@ describeDatabase("PA orchestrator cutover migration against PostgreSQL", () => {
         usageOrchestratorId: "30000000-0000-4000-8000-000000000002",
         assignmentCount: "0",
         workspaceAccessCount: "0",
+        notificationCount: "0",
       });
     });
   });
@@ -435,6 +460,7 @@ describeDatabase("PA orchestrator cutover migration against PostgreSQL", () => {
         cutoverTable: string | null;
         fileCoworkerId: string | null;
         memberCount: string;
+        notificationCount: string;
         senderCoworkerId: string | null;
         shadowCount: string;
       }>(`
@@ -443,7 +469,8 @@ describeDatabase("PA orchestrator cutover migration against PostgreSQL", () => {
             (SELECT COUNT(*) FROM coworker WHERE "sokoBotId" IS NOT NULL)::text AS "shadowCount",
             (SELECT COUNT(*) FROM chat_room_coworker_member)::text AS "memberCount",
             (SELECT "senderCoworkerId" FROM chat_room_message WHERE id = '42000000-0000-4000-8000-000000000001') AS "senderCoworkerId",
-            (SELECT "uploadedByCoworkerId" FROM task_file WHERE id = 'cutover-file') AS "fileCoworkerId"
+            (SELECT "uploadedByCoworkerId" FROM task_file WHERE id = 'cutover-file') AS "fileCoworkerId",
+            (SELECT COUNT(*) FROM notification WHERE id = 'cutover-access-notification')::text AS "notificationCount"
         `);
 
       expect(result.rows[0]).toEqual({
@@ -452,6 +479,7 @@ describeDatabase("PA orchestrator cutover migration against PostgreSQL", () => {
         memberCount: "2",
         senderCoworkerId: "shadow-a",
         fileCoworkerId: "shadow-a",
+        notificationCount: "1",
       });
     });
   });
