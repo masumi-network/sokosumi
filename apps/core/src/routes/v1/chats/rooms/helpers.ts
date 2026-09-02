@@ -102,6 +102,19 @@ export function mapChatRoomOrchestratorParticipant(
   };
 }
 
+/** Live PA rows on a room roster (archived/deleted tombstones stay in membership). */
+export function liveChatOrchestratorMembers<
+  T extends {
+    orchestrator: { archivedAt?: Date | null; deletedAt?: Date | null };
+  },
+>(members: readonly T[] | null | undefined): T[] {
+  return (members ?? []).filter(
+    (member) =>
+      member.orchestrator.archivedAt == null &&
+      member.orchestrator.deletedAt == null,
+  );
+}
+
 export const chatRoomInclude = {
   userMembers: {
     include: {
@@ -882,8 +895,10 @@ export function mapChatRoom(
       sokoBotId: coworker.sokoBotId ?? null,
       sokoBotAvatarSeed: sokoBotAvatarSeedFor(coworker),
     })),
-    orchestratorMembers: (room.orchestratorMembers ?? []).map(
-      ({ orchestrator }) => mapChatRoomOrchestratorParticipant(orchestrator),
+    orchestratorMembers: liveChatOrchestratorMembers(
+      room.orchestratorMembers,
+    ).map(({ orchestrator }) =>
+      mapChatRoomOrchestratorParticipant(orchestrator),
     ),
   };
 }
@@ -1714,6 +1729,8 @@ const chatRoomWriteSelect = {
           avatarImageUrl: true,
           avatarSeed: true,
           userId: true,
+          archivedAt: true,
+          deletedAt: true,
           user: { select: { name: true } },
         },
       },

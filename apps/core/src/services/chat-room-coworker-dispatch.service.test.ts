@@ -960,6 +960,43 @@ describe("dispatchChatRoomMention claim", () => {
     );
   });
 
+  it("does not start a turn when the orchestrator is deleted", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      coworkerId: null,
+      coworker: null,
+      orchestratorId: "orch_1",
+      orchestrator: {
+        id: "orch_1",
+        userId: "user_1",
+        archivedAt: null,
+        deletedAt: new Date("2026-09-01T00:00:00.000Z"),
+        name: "Ada",
+        avatarImageUrl: null,
+        avatarSeed: "orb:user_1",
+      },
+      message: {
+        ...pendingMention().message,
+        content: "@ada hello",
+        room: {
+          ...pendingMention().message.room,
+          kind: "channel",
+        },
+      },
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(startTurnMock).not.toHaveBeenCalled();
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID, status: { not: "responded" } },
+      data: expect.objectContaining({
+        status: "failed",
+        error: "This Soko Bot is no longer active",
+      }),
+    });
+  });
+
   it("keeps a failed Thought shell when mention dispatch fails after stream", async () => {
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });

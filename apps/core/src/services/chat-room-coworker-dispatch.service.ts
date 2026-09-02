@@ -582,6 +582,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           id: true,
           userId: true,
           archivedAt: true,
+          deletedAt: true,
           name: true,
           avatarImageUrl: true,
           avatarSeed: true,
@@ -1344,6 +1345,7 @@ async function runSokoBotOrchestratorMentionDispatch(params: {
       id: string;
       userId: string;
       archivedAt: Date | null;
+      deletedAt: Date | null;
       name: string | null;
     };
   };
@@ -1363,7 +1365,7 @@ async function runSokoBotOrchestratorMentionDispatch(params: {
     chainDepth,
   } = params;
   const bot = mention.orchestrator;
-  if (bot.archivedAt) {
+  if (bot.archivedAt || bot.deletedAt) {
     await failWithShell("This Soko Bot is no longer active");
     return;
   }

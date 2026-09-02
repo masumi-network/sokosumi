@@ -718,6 +718,51 @@ describe("SOK-942 PA as orchestrator member / mention / picker", () => {
     expect(body.data.coworkerMembers).toEqual([]);
   });
 
+  it("GET room omits archived and deleted orchestrator members from the picker", async () => {
+    const live = {
+      id: ORCHESTRATOR_ID,
+      name: "Ada",
+      avatarImageUrl: null,
+      avatarSeed: `orb:${USER_ID}`,
+      userId: USER_ID,
+      archivedAt: null,
+      deletedAt: null,
+      user: { name: "Owner User" },
+    };
+    roomFindFirstMock.mockResolvedValue({
+      ...baseRoom,
+      orchestratorMembers: [
+        { orchestrator: live },
+        {
+          orchestrator: {
+            ...live,
+            id: "orch_archived",
+            name: "Old Ada",
+            archivedAt: new Date("2026-01-01T00:00:00.000Z"),
+          },
+        },
+        {
+          orchestrator: {
+            ...live,
+            id: "orch_deleted",
+            name: "Gone Ada",
+            deletedAt: new Date("2026-01-02T00:00:00.000Z"),
+          },
+        },
+      ],
+    });
+
+    const response = await buildGetRoomApp().request(
+      `http://localhost/${ROOM_ID}`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(
+      body.data.orchestratorMembers.map((member: { id: string }) => member.id),
+    ).toEqual([ORCHESTRATOR_ID]);
+  });
+
   it("GET messages returns Thought sender as orchestrator identity", async () => {
     roomFindFirstMock.mockResolvedValue({
       ...baseRoom,

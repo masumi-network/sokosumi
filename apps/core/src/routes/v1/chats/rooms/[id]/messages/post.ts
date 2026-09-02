@@ -29,6 +29,7 @@ import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unf
 
 import {
   chatRoomMessageInclude,
+  liveChatOrchestratorMembers,
   mapChatRoomMessage,
   mapChatRoomOrchestratorParticipant,
   markChatRoomThreadRead,
@@ -218,7 +219,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // A Soko Bot direct is mention-driven (its reply is a Core turn),
         // so it never takes the coworker stream shortcut. Native orchestrator
         // PA membership (SOK-942) is also mention-driven.
-        const orchestratorMembers = room.orchestratorMembers ?? [];
+        const orchestratorMembers = liveChatOrchestratorMembers(
+          room.orchestratorMembers,
+        );
         const skipCoworkerMentions =
           room.kind === "direct" &&
           room.coworkerMembers.length === 1 &&

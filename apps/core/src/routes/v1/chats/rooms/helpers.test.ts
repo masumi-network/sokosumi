@@ -230,6 +230,60 @@ describe("resolveMentionedOrchestratorIds", () => {
   });
 });
 
+describe("mapChatRoom orchestrator members", () => {
+  it("omits archived and deleted personal assistants from the roster DTO", () => {
+    const room = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      {
+        orchestratorMembers: [
+          {
+            orchestrator: {
+              id: "orch_live",
+              name: "Ada",
+              avatarImageUrl: null,
+              avatarSeed: "orb:u1",
+              userId: MEMBER_ID,
+              archivedAt: null,
+              deletedAt: null,
+              user: { name: "Ada Owner" },
+            },
+          },
+          {
+            orchestrator: {
+              id: "orch_archived",
+              name: "Old Ada",
+              avatarImageUrl: null,
+              avatarSeed: "orb:u1",
+              userId: MEMBER_ID,
+              archivedAt: new Date("2026-01-01T00:00:00.000Z"),
+              deletedAt: null,
+              user: { name: "Ada Owner" },
+            },
+          },
+          {
+            orchestrator: {
+              id: "orch_deleted",
+              name: "Gone Ada",
+              avatarImageUrl: null,
+              avatarSeed: "orb:u1",
+              userId: MEMBER_ID,
+              archivedAt: null,
+              deletedAt: new Date("2026-01-02T00:00:00.000Z"),
+              user: { name: "Ada Owner" },
+            },
+          },
+        ],
+      },
+    );
+
+    expect(
+      mapChatRoom(room as never, MEMBER_ID).orchestratorMembers.map(
+        (member) => member.id,
+      ),
+    ).toEqual(["orch_live"]);
+  });
+});
+
 describe("resolveMentionedUserIds", () => {
   it("resolves selected user IDs only when they belong to the room", () => {
     expect(
