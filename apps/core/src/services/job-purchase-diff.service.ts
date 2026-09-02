@@ -19,8 +19,13 @@ import { captureExternalServiceError } from "@/lib/external-service-errors";
  */
 export const PURCHASE_DIFF_SYNC_METADATA_KEY = "purchase-diff-sync:v2";
 
-/** Rows per diff request. The run deadline, not this number, bounds a run. */
-export const PURCHASE_DIFF_PAGE_SIZE = 50;
+/**
+ * Rows per diff request. The run deadline, not this number, bounds a run: a
+ * smaller page costs more requests to drain the same backlog, never fewer
+ * rows. Held low so one response stays small for whatever serves it — the node
+ * sits behind a proxy that answers 521 when the origin is not there.
+ */
+export const PURCHASE_DIFF_PAGE_SIZE = 20;
 
 /**
  * How far back the FIRST run reaches when no cursor exists yet.
