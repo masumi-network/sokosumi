@@ -6,14 +6,20 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export function YouPageSkeleton(): React.ReactElement {
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 pb-8">
+    <div
+      className="mx-auto flex w-full flex-col gap-6 py-6 md:max-w-4xl md:py-8"
+      data-testid="you-loading"
+    >
       <div
         data-testid="you-loading-identity"
-        className="flex flex-col items-center gap-3 pt-4"
+        className="flex items-start gap-4"
       >
-        <Skeleton className="size-20 rounded-full" />
-        <Skeleton className="h-6 w-40" />
-        <Skeleton className="h-10 w-full max-w-xs rounded-md" />
+        <Skeleton className="size-16 shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-4 w-28" />
+        </div>
       </div>
       <div data-testid="you-loading-credits" className="space-y-2">
         <Skeleton className="h-4 w-28" />
