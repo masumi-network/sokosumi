@@ -344,7 +344,8 @@ export function YouPageClient({
               ) : (
                 <>
                   <YouMenuBack
-                    label={drillTitle ?? tMenu("back")}
+                    title={drillTitle ?? tMenu("back")}
+                    backLabel={tMenu("back")}
                     testId="you-drill-back"
                     onClick={() => handleNavigatePanel({ kind: "root" })}
                   />
@@ -381,6 +382,7 @@ export function YouPageClient({
                             )}
                             testId={`you-help-${item.translationKey}`}
                             onClick={() => handleOpenExternal(item.url)}
+                            chevron={false}
                           />
                         );
                       })
@@ -404,6 +406,7 @@ export function YouPageClient({
                             )}
                             testId={`you-legal-${item.translationKey}`}
                             onClick={() => handleOpenExternal(item.url)}
+                            chevron={false}
                           />
                         );
                       })}
@@ -414,6 +417,7 @@ export function YouPageClient({
                         label={tConsent("settings")}
                         testId="you-cookie-consent"
                         onClick={openConsentPreferences}
+                        chevron={false}
                       />
                     </>
                   ) : null}
@@ -508,11 +512,13 @@ function YouMenuAction({
   label,
   testId,
   onClick,
+  chevron = true,
 }: {
   icon: ReactElement;
   label: string;
   testId: string;
   onClick: () => void;
+  chevron?: boolean;
 }) {
   return (
     <Button
@@ -527,17 +533,21 @@ function YouMenuAction({
         {icon}
         <span className="truncate">{label}</span>
       </span>
-      <ChevronRight className="size-4 shrink-0 opacity-60" aria-hidden />
+      {chevron ? (
+        <ChevronRight className="size-4 shrink-0 opacity-60" aria-hidden />
+      ) : null}
     </Button>
   );
 }
 
 function YouMenuBack({
-  label,
+  title,
+  backLabel,
   testId,
   onClick,
 }: {
-  label: string;
+  title: string;
+  backLabel: string;
   testId: string;
   onClick: () => void;
 }) {
@@ -549,10 +559,10 @@ function YouMenuBack({
       onClick={onClick}
       className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 rounded-none font-normal md:h-10"
       data-testid={testId}
-      aria-label={label}
+      aria-label={backLabel}
     >
       <ChevronLeft className="size-4 shrink-0" aria-hidden />
-      <span className="truncate">{label}</span>
+      <span className="truncate">{title}</span>
     </Button>
   );
 }
