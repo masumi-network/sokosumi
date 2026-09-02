@@ -155,7 +155,7 @@ describe("YouPageClient", () => {
     const logout = screen.getByTestId("you-logout");
 
     expect(admin).toHaveAttribute("href", "/admin");
-    expect(settings).toHaveAttribute("href", "/account");
+    expect(settings).not.toHaveAttribute("href");
     expect(
       admin.compareDocumentPosition(settings) &
         Node.DOCUMENT_POSITION_FOLLOWING,
@@ -164,6 +164,61 @@ describe("YouPageClient", () => {
       settings.compareDocumentPosition(logout) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it("opens an in-page settings drill instead of navigating to /account", () => {
+    renderYouPage();
+
+    fireEvent.click(screen.getByTestId("you-settings"));
+
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("you-settings-panel")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "account" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "developer" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "help" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "legal" })).toBeInTheDocument();
+    expect(screen.queryByTestId("you-logout")).toBeNull();
+    expect(screen.queryByTestId("you-buy-credits")).toBeNull();
+  });
+
+  it("navigates to an account destination from the settings drill", () => {
+    renderYouPage();
+
+    fireEvent.click(screen.getByTestId("you-settings"));
+    fireEvent.click(screen.getByRole("button", { name: "account" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/account");
+  });
+
+  it("returns to the You root from the settings drill back control", () => {
+    renderYouPage();
+
+    fireEvent.click(screen.getByTestId("you-settings"));
+    expect(screen.getByTestId("you-settings-panel")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "back" }));
+
+    expect(screen.queryByTestId("you-settings-panel")).toBeNull();
+    expect(screen.getByTestId("you-settings")).toBeInTheDocument();
+    expect(screen.getByTestId("you-logout")).toBeInTheDocument();
+  });
+
+  it("drills into nested settings panels on the You page", () => {
+    renderYouPage();
+
+    fireEvent.click(screen.getByTestId("you-settings"));
+    fireEvent.click(screen.getByRole("button", { name: "help" }));
+
+    expect(
+      screen.getByRole("button", { name: "documentation" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "support" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "back" }));
+
+    expect(screen.getByRole("button", { name: "account" })).toBeInTheDocument();
   });
 
   it("hides Admin when adminMenuEnabled is false", () => {

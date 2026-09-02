@@ -14,8 +14,9 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactElement } from "react";
+import { type ReactElement, useState } from "react";
 import HeaderWorkspaceSwitch from "@/app/components/header/header-workspace-switch.client";
+import { AccountPopoverDrill } from "@/app/components/sidebar/components/account-popover-drill.client";
 import {
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
@@ -23,9 +24,11 @@ import {
 } from "@/app/components/sidebar/components/account-summary-labels";
 import type {
   AccountAdminSettingsChrome,
+  AccountPopoverPanel,
   AccountSummaryCreditProps,
 } from "@/app/components/sidebar/components/account-summary-types";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { openConsentPreferences } from "@/components/analytics/cookie-banner";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -41,7 +44,6 @@ import { getInitials } from "@/lib/utils/text";
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const GRAVATAR_SIZE = 160;
 const ADMIN_HREF = "/admin";
-const SETTINGS_HREF = "/account";
 const DRIVE_HREF = "/drive";
 const CALENDAR_HREF = "/calendar";
 
@@ -81,6 +83,8 @@ export function YouPageClient({
   const presence = useSelfPresence();
   const { data: clientSession } = useSession();
   const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
+  const [panel, setPanel] = useState<AccountPopoverPanel>({ kind: "root" });
+  const [slideFrom, setSlideFrom] = useState<"right" | "left" | null>(null);
 
   const clientActiveOrganizationId =
     clientSession?.session.activeOrganizationId;
@@ -134,14 +138,67 @@ export function YouPageClient({
     showLogoutModal({ id: sessionUser.id, email: sessionUser.email });
   }
 
+  function handleNavigatePanel(next: AccountPopoverPanel) {
+    const goingDeeper =
+      panel.kind === "root" ||
+      (panel.kind === "settings" && next.kind !== "root");
+    setSlideFrom(goingDeeper ? "right" : "left");
+    setPanel(next);
+  }
+
+  function handleNavigateRoute(href: string) {
+    router.push(href);
+  }
+
+  function handleOpenExternal(url: string) {
+    if (url.startsWith("mailto:")) {
+      window.location.href = url;
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  if (panel.kind !== "root") {
+    return (
+      <div
+        className="mx-auto w-full max-w-lg px-4 py-6 md:py-8"
+        data-testid="you-page"
+      >
+        <div
+          key={panel.kind}
+          data-testid="you-settings-panel"
+          className={cn(
+            slideFrom !== null && "animate-in fade-in duration-200",
+            slideFrom === "right" && "slide-in-from-right-4",
+            slideFrom === "left" && "slide-in-from-left-4",
+          )}
+        >
+          <AccountPopoverDrill
+            panel={panel}
+            members={adminSettingsChrome.members}
+            activeOrganizationId={adminSettingsChrome.activeOrganizationId}
+            showDeveloperVendors={adminSettingsChrome.showDeveloperVendors}
+            onNavigatePanel={handleNavigatePanel}
+            onNavigateRoute={handleNavigateRoute}
+            onOpenExternal={handleOpenExternal}
+            onOpenConsent={openConsentPreferences}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="mx-auto w-full max-w-lg px-4 py-6 md:py-8"
       data-testid="you-page"
     >
       <div
+        key="root"
         className={cn(
           "space-y-6",
+          slideFrom === "left" &&
+            "animate-in fade-in slide-in-from-left-4 duration-200",
           isPending && "pointer-events-none animate-pulse opacity-60",
         )}
       >
@@ -282,11 +339,11 @@ export function YouPageClient({
                 testId="you-admin"
               />
             ) : null}
-            <YouMenuLink
-              href={SETTINGS_HREF}
+            <YouMenuAction
               icon={<Settings className="size-4 shrink-0" aria-hidden />}
               label={tMenu("settings")}
               testId="you-settings"
+              onClick={() => handleNavigatePanel({ kind: "settings" })}
             />
           </YouMenuGroup>
         </nav>
@@ -367,6 +424,35 @@ function YouMenuLink({
         </span>
         <ChevronRight className="size-4 shrink-0 opacity-60" aria-hidden />
       </Link>
+    </Button>
+  );
+}
+
+function YouMenuAction({
+  icon,
+  label,
+  testId,
+  onClick,
+}: {
+  icon: ReactElement;
+  label: string;
+  testId: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={onClick}
+      className="text-muted-foreground hover:text-foreground h-11 w-full justify-between gap-2 rounded-none font-normal md:h-10"
+      data-testid={testId}
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        {icon}
+        <span className="truncate">{label}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 opacity-60" aria-hidden />
     </Button>
   );
 }
