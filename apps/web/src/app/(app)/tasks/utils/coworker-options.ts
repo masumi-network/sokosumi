@@ -3,16 +3,22 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
 
-/** First-party Soko Bots grouping in coworker-shaped pickers. */
-const SOKO_BOTS_VENDOR: CoworkerOption["vendor"] = {
-  id: "soko-bots",
-  name: "Soko Bots",
-  slug: "soko-bots",
-  logos: {
-    light: null,
-    dark: null,
-  },
-};
+export interface OwnerOrchestratorCopy {
+  fallbackName: string;
+  vendorName: string;
+}
+
+function sokoBotsVendor(vendorName: string): CoworkerOption["vendor"] {
+  return {
+    id: "soko-bots",
+    name: vendorName,
+    slug: "soko-bots",
+    logos: {
+      light: null,
+      dark: null,
+    },
+  };
+}
 
 function normalizeCoworkerSlug(slug: string): string {
   return slug.trim().toLowerCase();
@@ -74,6 +80,7 @@ export function findCoworkerIdBySlug(
 
 export function getOwnerOrchestratorOption(
   bot: SokoBot | null,
+  copy: OwnerOrchestratorCopy,
 ): CoworkerOption | null {
   if (!bot) {
     return null;
@@ -82,19 +89,20 @@ export function getOwnerOrchestratorOption(
   return {
     id: bot.id,
     slug: "soko-bots",
-    name: bot.name?.trim() || "Soko Bot",
+    name: bot.name?.trim() || copy.fallbackName,
     image: bot.avatarImageUrl ?? "",
     kind: "orchestrator",
     avatarSeed: bot.avatarSeed,
-    vendor: SOKO_BOTS_VENDOR,
+    vendor: sokoBotsVendor(copy.vendorName),
   };
 }
 
 export function withOwnerOrchestratorOption(
   options: CoworkerOption[],
   bot: SokoBot | null,
+  copy: OwnerOrchestratorCopy,
 ): CoworkerOption[] {
-  const option = getOwnerOrchestratorOption(bot);
+  const option = getOwnerOrchestratorOption(bot, copy);
   if (!option) {
     return options;
   }

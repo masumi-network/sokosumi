@@ -259,7 +259,7 @@ const taskBaseSchema = z.object({
       "Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.",
   }),
   /** @deprecated Marketplace-only. Use `assignee` when type is coworker. */
-  coworker: coworkerSummarySchema.nullable().openapi({
+  coworker: z.union([coworkerSummarySchema, z.null()]).openapi({
     deprecated: true,
     description:
       "Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.",
@@ -276,7 +276,7 @@ const taskBaseSchema = z.object({
       "Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.",
   }),
   /** @deprecated Use `creator` when `creator.type === "orchestrator"`. */
-  orchestrator: orchestratorSummarySchema.nullable().openapi({
+  orchestrator: z.union([orchestratorSummarySchema, z.null()]).openapi({
     deprecated: true,
     description:
       "Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.",

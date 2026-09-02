@@ -1679,6 +1679,9 @@
         "showGuide": "Show guide"
       },
       "createTaskFab": "Create task",
+      "personalAssistant": "Personal assistant",
+      "sokoBot": "Soko Bot",
+      "sokoBots": "Soko Bots",
       "Errors": {
         "updateStatus": "Failed to update task status",
         "loadMore": "Failed to load more tasks",

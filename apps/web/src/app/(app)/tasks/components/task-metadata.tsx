@@ -26,6 +26,7 @@ interface TaskMetadataLabels {
   created: string;
   updated: string;
   schedule: string;
+  personalAssistantFallback: string;
   formatOrchestratorRole: (values: { owner: string }) => string;
 }
 
@@ -50,7 +51,10 @@ interface TaskCreatorDisplay {
 
 function resolveTaskCreatorDisplay(
   task: TaskMetadataTask,
-  formatOrchestratorRole: TaskMetadataLabels["formatOrchestratorRole"],
+  labels: Pick<
+    TaskMetadataLabels,
+    "formatOrchestratorRole" | "personalAssistantFallback"
+  >,
 ): TaskCreatorDisplay | null {
   switch (task.creator.type) {
     case "user": {
@@ -66,13 +70,7 @@ function resolveTaskCreatorDisplay(
       };
     }
     case "coworker": {
-      // Generated CoworkerSummary is `| null` because assignee uses the same
-      // named schema as nullable; creator.coworker is always present at runtime.
       const coworker = task.creator.coworker;
-      if (!coworker) {
-        return null;
-      }
-
       return {
         name: coworker.name,
         image: getCoworkerImage(coworker),
@@ -88,11 +86,13 @@ function resolveTaskCreatorDisplay(
       // underneath says what it is and who it belongs to. Without it a Task
       // created by "Jarvis" gives the reader no way to tell that a colleague's
       // assistant did it, or on whose behalf.
-      const assistantName = orchestrator.name ?? "Assistant";
-      const role = formatOrchestratorRole({ owner: orchestrator.owner.name });
+      const assistantName =
+        orchestrator.name?.trim() || labels.personalAssistantFallback;
+      const role = labels.formatOrchestratorRole({
+        owner: orchestrator.owner.name,
+      });
       // A claimed mascot is the bot's face everywhere else, so the orb is the
-      // fallback, not the rule. Claiming writes the coworker's image too,
-      // which is why chat showed the picture and this showed a blank disc.
+      // fallback, not the rule.
       const claimed = orchestrator.avatarImageUrl
         ? resolveIpfsOrHttpUrl(orchestrator.avatarImageUrl)
         : null;
@@ -117,7 +117,10 @@ function resolveTaskCreatorDisplay(
   }
 }
 
-function resolveTaskAssigneeDisplay(assignee: Task["assignee"]): {
+function resolveTaskAssigneeDisplay(
+  assignee: Task["assignee"],
+  personalAssistantFallback: string,
+): {
   name: string;
   image: string | null;
   avatarSeed?: string | null;
@@ -132,7 +135,7 @@ function resolveTaskAssigneeDisplay(assignee: Task["assignee"]): {
       ? resolveIpfsOrHttpUrl(orchestrator.avatarImageUrl)
       : null;
     return {
-      name: orchestrator.name?.trim() || "Personal assistant",
+      name: orchestrator.name?.trim() || personalAssistantFallback,
       image: claimed,
       avatarSeed: claimed
         ? null
@@ -164,11 +167,11 @@ export function TaskMetadata({
   const ownerImage = task.owner.image
     ? resolveIpfsOrHttpUrl(task.owner.image)
     : null;
-  const assignee = resolveTaskAssigneeDisplay(task.assignee);
-  const creator = resolveTaskCreatorDisplay(
-    task,
-    labels.formatOrchestratorRole,
+  const assignee = resolveTaskAssigneeDisplay(
+    task.assignee,
+    labels.personalAssistantFallback,
   );
+  const creator = resolveTaskCreatorDisplay(task, labels);
 
   return (
     <div className="space-y-4">

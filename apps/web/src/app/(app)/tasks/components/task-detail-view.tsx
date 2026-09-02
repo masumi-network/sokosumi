@@ -22,6 +22,7 @@ import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-ve
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   getCoworkerOptions,
+  type OwnerOrchestratorCopy,
   taskFormAssigneeId,
   withOwnerOrchestratorOption,
 } from "@/app/tasks/utils/coworker-options";
@@ -382,18 +383,23 @@ async function TaskOverviewSection({
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
     : Promise.resolve(null);
-  const [coworkers, agents, project, t, tStatus, locale] = await Promise.all([
-    coworkersPromise,
-    agentsPromise,
-    projectPromise,
-    getTranslations("App.Tasks.Detail"),
-    getTranslations("App.Tasks.Filters.statusOptions"),
-    getLocale(),
-  ]);
+  const [coworkers, agents, project, t, tTasks, tStatus, locale] =
+    await Promise.all([
+      coworkersPromise,
+      agentsPromise,
+      projectPromise,
+      getTranslations("App.Tasks.Detail"),
+      getTranslations("App.Tasks"),
+      getTranslations("App.Tasks.Filters.statusOptions"),
+      getLocale(),
+    ]);
   const { task: taskWithCoworker, agentNameById } = buildTaskDetailContext(
     task,
     coworkers,
     agents,
+    null,
+    tTasks("personalAssistant"),
+    { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },
   );
 
   return (
@@ -434,6 +440,7 @@ async function TaskOverviewSection({
           created: t("created"),
           updated: t("updated"),
           schedule: t("schedule"),
+          personalAssistantFallback: tTasks("personalAssistant"),
           formatOrchestratorRole: (values) =>
             t("actorOrchestratorRole", values),
         }}
@@ -476,6 +483,7 @@ async function TaskDetailActionsSlot({
     session,
     hasAssignedSeat,
     t,
+    tTasks,
     tMembersTableHeader,
   ] = await Promise.all([
     coworkersPromise,
@@ -486,6 +494,7 @@ async function TaskDetailActionsSlot({
     sessionPromise,
     hasAssignedSeatPromise,
     getTranslations("App.Tasks.Detail"),
+    getTranslations("App.Tasks"),
     getTranslations("Components.MembersTable.Header"),
   ]);
   const initialDesignMdAttachment = session?.user.id
@@ -495,7 +504,14 @@ async function TaskDetailActionsSlot({
     task: taskWithCoworker,
     agentNameById,
     coworkerOptions,
-  } = buildTaskDetailContext(task, coworkers, agents, ownerBot);
+  } = buildTaskDetailContext(
+    task,
+    coworkers,
+    agents,
+    ownerBot,
+    tTasks("personalAssistant"),
+    { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },
+  );
   const isReadOnlyWorkspaceView = isReadOnlyForViewer({
     taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
     taskOwnerId: task.ownerId,
@@ -689,7 +705,9 @@ function buildTaskDetailContext(
   task: Task,
   coworkers: CoworkersResult,
   agents: AgentsResult,
-  ownerBot: OwnerBotResult | null = null,
+  ownerBot: OwnerBotResult | null,
+  personalAssistantFallback: string,
+  orchestratorCopy: OwnerOrchestratorCopy,
 ) {
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
@@ -697,11 +715,17 @@ function buildTaskDetailContext(
   const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
 
   return {
-    task: mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
+    task: mapTaskToTaskWithCoworker(
+      task,
+      coworkersById,
+      agentsById,
+      personalAssistantFallback,
+    ),
     agentNameById: buildAgentNameById(agents),
     coworkerOptions: withOwnerOrchestratorOption(
       getCoworkerOptions(coworkers),
       ownerBot,
+      orchestratorCopy,
     ),
   };
 }

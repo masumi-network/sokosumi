@@ -19,19 +19,22 @@ export const metadata = {
 };
 
 export default async function NewTaskPage() {
-  const t = await getTranslations("App.Tasks.NewTask");
-  const [taskCoworkers, agents, session, ownerBot] = await Promise.all([
-    coworkerService.listCoworkers("tasks").catch(() => []),
-    agentService.getAvailableAgentsWithCreditsPrice(),
-    getSession(),
-    sokoBotService.getMine().catch(() => null),
-  ]);
+  const [t, tTasks, taskCoworkers, agents, session, ownerBot] =
+    await Promise.all([
+      getTranslations("App.Tasks.NewTask"),
+      getTranslations("App.Tasks"),
+      coworkerService.listCoworkers("tasks").catch(() => []),
+      agentService.getAvailableAgentsWithCreditsPrice(),
+      getSession(),
+      sokoBotService.getMine().catch(() => null),
+    ]);
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
   const coworkerOptions = withOwnerOrchestratorOption(
     getCoworkerOptions(taskCoworkers),
     ownerBot,
+    { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },
   );
   const canCreateTask = await hasAssignedOrganizationSeat(
     session?.session.activeOrganizationId ?? null,

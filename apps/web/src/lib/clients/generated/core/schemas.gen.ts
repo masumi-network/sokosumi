@@ -4365,19 +4365,16 @@ export const TaskSchema = {
             description: 'Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.'
         },
         coworker: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/CoworkerSummary'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    deprecated: true,
-                    description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
         },
         creator: {
             $ref: '#/components/schemas/TaskCreator'
@@ -4393,19 +4390,16 @@ export const TaskSchema = {
             description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         orchestrator: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/OrchestratorSummary'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    deprecated: true,
-                    description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         name: {
             type: 'string',
@@ -18041,19 +18035,16 @@ export const TaskListItemSchema = {
             description: 'Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.'
         },
         coworker: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/CoworkerSummary'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    deprecated: true,
-                    description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
         },
         creator: {
             $ref: '#/components/schemas/TaskCreator'
@@ -18069,19 +18060,16 @@ export const TaskListItemSchema = {
             description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         orchestrator: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/OrchestratorSummary'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    deprecated: true,
-                    description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
+                    type: 'null'
                 }
-            ]
+            ],
+            deprecated: true,
+            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
         name: {
             type: 'string',

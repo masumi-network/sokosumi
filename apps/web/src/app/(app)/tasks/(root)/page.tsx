@@ -221,6 +221,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     status: activeFilters.status,
     projectId: activeFilters.projectId,
     coworkersById,
+    personalAssistantFallback: t("personalAssistant"),
   };
 
   const [tasksPageResult, parkedTasksPage] = await Promise.all([
@@ -274,6 +275,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   const coworkerOptions: CoworkerOption[] = withOwnerOrchestratorOption(
     getCoworkerOptions(taskCoworkers),
     ownerBot,
+    { fallbackName: t("sokoBot"), vendorName: t("sokoBots") },
   );
   const canCreateTask = await hasAssignedOrganizationSeat(activeOrganizationId);
   const initialCreateTaskOpen = create === "true";

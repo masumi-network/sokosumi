@@ -91,6 +91,11 @@ describe("findCoworkerIdBySlug", () => {
   });
 });
 
+const OWNER_ORCHESTRATOR_COPY = {
+  fallbackName: "Soko Bot",
+  vendorName: "Soko Bots",
+};
+
 function baseBot(overrides: Partial<SokoBot> = {}): SokoBot {
   return {
     id: "bot-1",
@@ -119,11 +124,15 @@ function baseBot(overrides: Partial<SokoBot> = {}): SokoBot {
 
 describe("owner orchestrator option", () => {
   it("returns null when the signed-in user has no bot", () => {
-    expect(getOwnerOrchestratorOption(null)).toBeNull();
+    expect(
+      getOwnerOrchestratorOption(null, OWNER_ORCHESTRATOR_COPY),
+    ).toBeNull();
   });
 
   it("maps the owner bot as an orchestrator option", () => {
-    expect(getOwnerOrchestratorOption(baseBot())).toMatchObject({
+    expect(
+      getOwnerOrchestratorOption(baseBot(), OWNER_ORCHESTRATOR_COPY),
+    ).toMatchObject({
       id: "bot-1",
       slug: "soko-bots",
       name: "Jarvis",
@@ -134,17 +143,22 @@ describe("owner orchestrator option", () => {
 
   it("prepends the owner option once", () => {
     const options = getCoworkerOptions([baseCoworker()]);
-    const withBot = withOwnerOrchestratorOption(options, baseBot());
-    expect(withBot[0]?.kind).toBe("orchestrator");
-    expect(withOwnerOrchestratorOption(withBot, baseBot())).toHaveLength(
-      withBot.length,
+    const withBot = withOwnerOrchestratorOption(
+      options,
+      baseBot(),
+      OWNER_ORCHESTRATOR_COPY,
     );
+    expect(withBot[0]?.kind).toBe("orchestrator");
+    expect(
+      withOwnerOrchestratorOption(withBot, baseBot(), OWNER_ORCHESTRATOR_COPY),
+    ).toHaveLength(withBot.length);
   });
 
   it("resolves selected ids onto the matching assignee field", () => {
     const options = withOwnerOrchestratorOption(
       getCoworkerOptions([baseCoworker()]),
       baseBot(),
+      OWNER_ORCHESTRATOR_COPY,
     );
     expect(resolveTaskAssigneeFields("bot-1", options)).toEqual({
       assigneeId: null,
@@ -170,5 +184,17 @@ describe("owner orchestrator option", () => {
     expect(
       taskFormAssigneeId({ assigneeId: "cow_1", assigneeOrchestratorId: null }),
     ).toBe("cow_1");
+  });
+
+  it("uses translated copy for an unnamed bot and the Soko Bots group", () => {
+    expect(
+      getOwnerOrchestratorOption(
+        baseBot({ name: "  " }),
+        OWNER_ORCHESTRATOR_COPY,
+      ),
+    ).toMatchObject({
+      name: "Soko Bot",
+      vendor: { name: "Soko Bots" },
+    });
   });
 });

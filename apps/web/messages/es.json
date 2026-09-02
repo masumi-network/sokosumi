@@ -1679,6 +1679,9 @@
         "showGuide": "Show guide"
       },
       "createTaskFab": "Crear tarea",
+      "personalAssistant": "Asistente personal",
+      "sokoBot": "Soko Bot",
+      "sokoBots": "Soko Bots",
       "Errors": {
         "updateStatus": "No se pudo actualizar el estado del Task",
         "loadMore": "No se pudieron cargar más tareas",

@@ -72,16 +72,19 @@ export default async function EditTaskPage({
     );
   }
 
-  const [taskCoworkers, agents, projectsPage, ownerBot] = await Promise.all([
-    coworkerService.listCoworkers("tasks").catch(() => []),
-    agentService.getAvailableAgentsWithCreditsPrice(),
-    projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
-    sokoBotService.getMine().catch(() => null),
-  ]);
+  const [taskCoworkers, agents, projectsPage, ownerBot, tTasks] =
+    await Promise.all([
+      coworkerService.listCoworkers("tasks").catch(() => []),
+      agentService.getAvailableAgentsWithCreditsPrice(),
+      projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+      sokoBotService.getMine().catch(() => null),
+      getTranslations("App.Tasks"),
+    ]);
 
   const coworkerOptions = withOwnerOrchestratorOption(
     getCoworkerOptions(taskCoworkers),
     ownerBot,
+    { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },
   );
   const projectOptions = await buildProjectOptions(
     projectsPage.projects,

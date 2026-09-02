@@ -5,7 +5,10 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 vi.mock("next-intl/server", () => ({
-  getTranslations: vi.fn(),
+  getTranslations: vi.fn(
+    async () => (key: string) =>
+      key === "personalAssistantBadge" ? "Personal assistant" : key,
+  ),
 }));
 vi.mock("@/app/components/private-sidebar-cache", () => ({
   invalidatePrivateSidebarChrome: vi.fn(),

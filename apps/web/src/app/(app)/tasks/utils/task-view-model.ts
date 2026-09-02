@@ -76,12 +76,13 @@ function replaceMentionsWithAgentNames(
 function mapTaskAssignee(
   task: TaskListItem | Task,
   coworkersById: Map<string, Coworker>,
+  personalAssistantFallback: string,
 ): TaskAssigneeView | null {
   if (task.assignee?.type === "orchestrator") {
     const orchestrator = task.assignee.orchestrator;
     return {
       id: task.assignee.id,
-      name: orchestrator.name?.trim() || "Personal assistant",
+      name: orchestrator.name?.trim() || personalAssistantFallback,
       image: orchestrator.avatarImageUrl,
       kind: "orchestrator",
       avatarSeed: orchestrator.avatarSeed,
@@ -123,8 +124,13 @@ export function mapTaskToTaskWithCoworker(
   task: TaskListItem | Task,
   coworkersById: Map<string, Coworker>,
   agentsById: Map<string, CoreAgentDto>,
+  personalAssistantFallback: string,
 ): TaskWithCoworker {
-  const assignee = mapTaskAssignee(task, coworkersById);
+  const assignee = mapTaskAssignee(
+    task,
+    coworkersById,
+    personalAssistantFallback,
+  );
   const agentIds = parseAgentMentions(task.description, agentsById);
   const agents = agentIds
     .map((id) => agentsById.get(id))

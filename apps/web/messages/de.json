@@ -1679,6 +1679,9 @@
         "showGuide": "Show guide"
       },
       "createTaskFab": "Aufgabe erstellen",
+      "personalAssistant": "Persönlicher Assistent",
+      "sokoBot": "Soko Bot",
+      "sokoBots": "Soko Bots",
       "Errors": {
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",

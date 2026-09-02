@@ -1063,9 +1063,12 @@ export type Task = {
      * @deprecated
      */
     coworkerId: string | null;
-    coworker: CoworkerSummary & ({
-        [key: string]: unknown;
-    } | null);
+    /**
+     * Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.
+     *
+     * @deprecated
+     */
+    coworker: CoworkerSummary | null;
     creator: TaskCreator;
     /**
      * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
@@ -1073,9 +1076,12 @@ export type Task = {
      * @deprecated
      */
     orchestratorId: string | null;
-    orchestrator: OrchestratorSummary & ({
-        [key: string]: unknown;
-    } | null);
+    /**
+     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     *
+     * @deprecated
+     */
+    orchestrator: OrchestratorSummary | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -5251,9 +5257,12 @@ export type TaskListItem = {
      * @deprecated
      */
     coworkerId: string | null;
-    coworker: CoworkerSummary & ({
-        [key: string]: unknown;
-    } | null);
+    /**
+     * Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.
+     *
+     * @deprecated
+     */
+    coworker: CoworkerSummary | null;
     creator: TaskCreator;
     /**
      * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
@@ -5261,9 +5270,12 @@ export type TaskListItem = {
      * @deprecated
      */
     orchestratorId: string | null;
-    orchestrator: OrchestratorSummary & ({
-        [key: string]: unknown;
-    } | null);
+    /**
+     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     *
+     * @deprecated
+     */
+    orchestrator: OrchestratorSummary | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
