@@ -96,7 +96,11 @@ describe("YouPageClient", () => {
   it("renders identity, workspace switch card row, and credits summary", () => {
     renderYouPage();
 
-    expect(screen.getByTestId("you-page")).toBeInTheDocument();
+    const shell = screen.getByTestId("you-page");
+    expect(shell).toBeInTheDocument();
+    expect(shell.className).toContain("md:max-w-4xl");
+    expect(shell.className).not.toContain("px-4");
+    expect(shell.className).not.toContain("max-w-lg");
     expect(
       screen.getByRole("heading", { name: "Patrick Tobler" }),
     ).toBeInTheDocument();
