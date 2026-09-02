@@ -489,9 +489,13 @@ describe("POST /chats/rooms/{id}/messages", () => {
         authorName: "Hannah",
         recipientUserIds: [ALICE_ID],
       });
-      // A direct room has its own row, so nothing is emitted as a room message.
-      expect(emitChatRoomMessageNotificationsMock).not.toHaveBeenCalled();
-      expect(waitUntilMock).toHaveBeenCalledTimes(2);
+      // Scheduled for every room. The emitter reads the roster and leaves a
+      // direct room of two to the direct-message row, which is the only place
+      // that decision can see how many humans are in it.
+      expect(emitChatRoomMessageNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ roomKind: "direct" }),
+      );
+      expect(waitUntilMock).toHaveBeenCalledTimes(3);
     });
 
     it("emits a room message for coworker posts in a channel", async () => {
@@ -518,6 +522,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(emitChatRoomMessageNotificationsMock).toHaveBeenCalledWith({
         roomId: ROOM_ID,
         roomName: "general",
+        roomKind: "channel",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
         authorUserId: null,
@@ -609,7 +614,49 @@ describe("POST /chats/rooms/{id}/messages", () => {
       );
       expect(dispatchMock).not.toHaveBeenCalled();
       expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
-      expect(waitUntilMock).toHaveBeenCalledTimes(1);
+      // The unfurl, and the room message the subscribed members asked for.
+      expect(waitUntilMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("room message notifications", () => {
+    /**
+     * The human path hands the emitter what it read inside the write
+     * transaction: the roster the message was posted against, and the members
+     * it named. Without the names, a mentioned reader is notified twice.
+     */
+    it("tells the emitter who was posted to and who was named", async () => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          userMembers: [
+            { userId: USER_ID, user: { name: "Patrick" } },
+            { userId: ALICE_ID, user: { name: "Alice" } },
+            { userId: BOB_ID, user: { name: "Bob" } },
+          ],
+          coworkerMembers: [],
+        }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderUserId: USER_ID }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "hello @alice" }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(emitChatRoomMessageNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: ROOM_ID,
+          roomKind: "channel",
+          authorUserId: USER_ID,
+          memberUserIds: [USER_ID, ALICE_ID, BOB_ID],
+          mentionedUserIds: [ALICE_ID],
+        }),
+      );
     });
   });
 

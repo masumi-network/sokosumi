@@ -53,10 +53,7 @@ export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
  * A default of off there would instead silence a reader who did opt in and
  * never touched the matrix.
  */
-export const NOTIFICATION_CHANNEL_DEFAULT: Record<
-  NotificationChannel,
-  boolean
-> = {
+const NOTIFICATION_CHANNEL_DEFAULT: Record<NotificationChannel, boolean> = {
   IN_APP: true,
   OS_BANNER: true,
 };
@@ -70,8 +67,9 @@ export const NOTIFICATION_CHANNEL_DEFAULT: Record<
  * everyone would turn a busy room into a stream of notifications the reader
  * never asked for. So it is off, and an absent row means no rather than yes.
  */
-export const NOTIFICATION_CATEGORY_OFF_BY_DEFAULT: readonly NotificationCategory[] =
-  ["CHAT_ROOM_MESSAGE"];
+const NOTIFICATION_CATEGORY_OFF_BY_DEFAULT: readonly NotificationCategory[] = [
+  "CHAT_ROOM_MESSAGE",
+];
 
 /** Whether a category and channel is delivered when the reader stored nothing. */
 export function notificationDefault(
