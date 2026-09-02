@@ -5783,6 +5783,7 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "personalAssistantBadge": "Persönlicher Assistent",
       "humanBadge": "Mensch",
       "openDirectMessage": "Nachricht",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
@@ -5831,6 +5832,7 @@
         "cannotRemoveSelf": "Du kannst dich nicht selbst entfernen",
         "humans": "Humans",
         "coworkers": "AI coworkers",
+        "personalAssistants": "Persönliche Assistenten",
         "cancel": "Cancel",
         "create": "Create",
         "save": "Save changes"
@@ -5859,7 +5861,8 @@
         "organizationRequiredForGroup": "Wechsle zu einer Organisation, um einem Teammitglied zu schreiben.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
-        "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1."
+        "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1.",
+        "personalAssistantDirectOneToOneOnly": "Direktnachrichten mit persönlichen Assistenten sind nur 1:1."
       },
       "RoomSearch": {
         "open": "In diesem Chat suchen",
@@ -5975,7 +5978,8 @@
       },
       "MentionSections": {
         "people": "Personen",
-        "coworkers": "Coworkers"
+        "coworkers": "Coworkers",
+        "personalAssistants": "Persönliche Assistenten"
       },
       "Copy": {
         "action": "Kopieren",

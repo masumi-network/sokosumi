@@ -239,6 +239,7 @@ function channelRoom(): ChatRoom {
       },
     ],
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 
@@ -841,6 +842,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       organizationMembers: [];
       membersLoadFailed: boolean;
       coworkers: [];
+      orchestrators: [];
     }>(() => undefined);
 
     render(
@@ -873,6 +875,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       organizationMembers: [];
       membersLoadFailed: boolean;
       coworkers: [];
+      orchestrators: [];
     }>(() => undefined);
 
     render(
@@ -903,6 +906,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       organizationMembers: [];
       membersLoadFailed: boolean;
       coworkers: [];
+      orchestrators: [];
     }>(() => undefined);
 
     render(
@@ -990,6 +994,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
         organizationMembers: [hydratedMember],
         membersLoadFailed: true,
         coworkers: [hydratedCoworker],
+        orchestrators: [],
       });
       await rosterPromise;
     });

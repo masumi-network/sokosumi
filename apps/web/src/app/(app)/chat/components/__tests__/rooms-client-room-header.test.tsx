@@ -247,6 +247,7 @@ function channelRoom(): ChatRoom {
       participant("user-3", "Cara"),
     ],
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 

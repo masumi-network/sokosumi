@@ -56,6 +56,16 @@ describe("isCoworkerOnlyDirectRoom", () => {
     ).toBe(false);
   });
 
+  it("returns false for a personal-assistant 1:1 (not a coworker stream)", () => {
+    expect(
+      isCoworkerOnlyDirectRoom({
+        kind: "direct",
+        userMembers: [{ id: "user-1" }],
+        coworkerMembers: [],
+      }),
+    ).toBe(false);
+  });
+
   it("returns false when coworker count is not exactly one", () => {
     expect(
       isCoworkerOnlyDirectRoom({

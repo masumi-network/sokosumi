@@ -626,10 +626,6 @@ export type SokoBot = {
     ingestTimezone?: string;
     proactivePaused?: boolean;
     proactiveDailyLimit?: number;
-    coworker?: {
-        id: string;
-        slug: string;
-    } | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -1050,17 +1046,26 @@ export type Task = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Never an orchestrator.
+     * Marketplace coworker assignee. Null when the assignee is an orchestrator.
      */
     assigneeId: string | null;
-    assignee: CoworkerSummary;
     /**
-     * Deprecated. Use assigneeId instead.
+     * Personal-assistant orchestrator assignee. Null when the assignee is a coworker.
+     */
+    assigneeOrchestratorId: string | null;
+    /**
+     * Discriminated assignee: coworker, orchestrator, or unassigned.
+     */
+    assignee: TaskAssigneeCoworker | TaskAssigneeOrchestrator | null;
+    /**
+     * Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.
      *
      * @deprecated
      */
     coworkerId: string | null;
-    coworker: CoworkerSummary & unknown;
+    coworker: CoworkerSummary & ({
+        [key: string]: unknown;
+    } | null);
     creator: TaskCreator;
     /**
      * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
@@ -1118,12 +1123,32 @@ export type OrganizationSummary = {
     slug: string;
 } | null;
 
+export type TaskAssigneeCoworker = {
+    type: 'coworker';
+    id: string;
+    coworker: CoworkerSummary;
+};
+
 export type CoworkerSummary = {
     id: string;
     name: string;
     image?: string | null;
     slug: string;
-} | null;
+};
+
+export type TaskAssigneeOrchestrator = {
+    type: 'orchestrator';
+    id: string;
+    orchestrator: OrchestratorSummary;
+};
+
+export type OrchestratorSummary = {
+    id: string;
+    name: string | null;
+    avatarSeed: string | null;
+    avatarImageUrl: string | null;
+    owner: UserSummary;
+};
 
 /**
  * Actor that created the task. Exactly one of user, coworker, or orchestrator.
@@ -1152,14 +1177,6 @@ export type TaskCreatorOrchestrator = {
     type: 'orchestrator';
     id: string;
     orchestrator: OrchestratorSummary;
-};
-
-export type OrchestratorSummary = {
-    id: string;
-    name: string | null;
-    avatarSeed: string | null;
-    avatarImageUrl: string | null;
-    owner: UserSummary;
 };
 
 export type TaskEvent = {
@@ -2225,6 +2242,7 @@ export type ChatRoom = {
     peerInActiveOrganization?: boolean;
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
+    orchestratorMembers: Array<ChatRoomOrchestratorParticipant>;
 };
 
 /**
@@ -2261,8 +2279,15 @@ export type ChatRoomCoworkerParticipant = {
     caption: string | null;
     image: string | null;
     presence: ChatRoomPresence;
-    sokoBotId?: string | null;
-    sokoBotAvatarSeed?: string | null;
+};
+
+export type ChatRoomOrchestratorParticipant = {
+    id: string;
+    name: string;
+    caption: string | null;
+    image: string | null;
+    avatarSeed: string | null;
+    presence: ChatRoomPresence;
 };
 
 /**
@@ -2317,12 +2342,16 @@ export type CreateChatRoomRequest = {
      */
     memberUserIds?: Array<string>;
     /**
-     * AI coworker IDs to add to the room.
+     * Marketplace AI coworker IDs to add to the room.
      */
     coworkerIds?: Array<string>;
+    /**
+     * Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.
+     */
+    orchestratorIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
+     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (orchestrator). Human, coworker, and orchestrator targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/orchestrator DMs with an active org are org-scoped. Coworker and orchestrator DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -2330,9 +2359,13 @@ export type CreateChatRoomRequest = {
      */
     memberUserIds?: Array<string>;
     /**
-     * AI coworker IDs to add to the room.
+     * Marketplace AI coworker IDs to add to the room.
      */
     coworkerIds?: Array<string>;
+    /**
+     * Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.
+     */
+    orchestratorIds?: Array<string>;
 };
 
 export type DiscoverableChatRoom = {
@@ -2441,12 +2474,16 @@ export type ChatRoomMessageSender = {
     type: 'coworker';
     coworker: ChatRoomCoworkerParticipant;
 } | {
+    type: 'orchestrator';
+    orchestrator: ChatRoomOrchestratorParticipant;
+} | {
     type: 'unknown';
 };
 
 export type ChatRoomMessageMention = {
     id: string;
-    coworkerId: string;
+    coworkerId: string | null;
+    orchestratorId: string | null;
     status: ChatRoomMentionStatus;
     responseMessageId: string | null;
 };
@@ -2501,6 +2538,10 @@ export type ChatRoomMessageMembershipSubject = {
     type: 'coworker';
     id: string;
     name: string;
+} | {
+    type: 'orchestrator';
+    id: string;
+    name: string;
 };
 
 export type ChatRoomMessageUnfurl = {
@@ -2524,6 +2565,10 @@ export type UpdateChatRoomRequest = {
      */
     memberUserIds?: Array<string>;
     coworkerIds?: Array<string>;
+    /**
+     * Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.
+     */
+    orchestratorIds?: Array<string>;
 };
 
 /**
@@ -2623,6 +2668,10 @@ export type ChatRoomThreadReadState = {
 export type CreateChatRoomMessageRequest = {
     content: string;
     mentionedCoworkerIds?: Array<string>;
+    /**
+     * Personal assistants addressed in the message.
+     */
+    mentionedOrchestratorIds?: Array<string>;
     /**
      * Human room members addressed in the message. Validated against room membership; does not create ChatRoomMention rows or AI dispatch.
      */
@@ -4897,7 +4946,6 @@ export type SokoBotTeam = {
             avatarImageUrl: string | null;
             avatarSeed: string | null;
             status: SokoBotStatus;
-            coworkerId: string | null;
         } | null;
     }>;
 };
@@ -5186,17 +5234,26 @@ export type TaskListItem = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Never an orchestrator.
+     * Marketplace coworker assignee. Null when the assignee is an orchestrator.
      */
     assigneeId: string | null;
-    assignee: CoworkerSummary;
     /**
-     * Deprecated. Use assigneeId instead.
+     * Personal-assistant orchestrator assignee. Null when the assignee is a coworker.
+     */
+    assigneeOrchestratorId: string | null;
+    /**
+     * Discriminated assignee: coworker, orchestrator, or unassigned.
+     */
+    assignee: TaskAssigneeCoworker | TaskAssigneeOrchestrator | null;
+    /**
+     * Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.
      *
      * @deprecated
      */
     coworkerId: string | null;
-    coworker: CoworkerSummary & unknown;
+    coworker: CoworkerSummary & ({
+        [key: string]: unknown;
+    } | null);
     creator: TaskCreator;
     /**
      * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
@@ -35217,6 +35274,10 @@ export type GetTasksData = {
          */
         coworkerId?: string;
         /**
+         * Filter tasks by personal-assistant orchestrator assignee
+         */
+        assigneeOrchestratorId?: string;
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -35303,6 +35364,7 @@ export type PostTasksData = {
          * @deprecated
          */
         coworkerId?: string | null;
+        assigneeOrchestratorId?: string | null;
         status?: 'DRAFT' | 'READY';
         channel?: Channel;
         origin?: Channel & unknown;
@@ -36002,6 +36064,7 @@ export type PatchTasksByIdData = {
          * @deprecated
          */
         coworkerId?: string | null;
+        assigneeOrchestratorId?: string | null;
     };
     path: {
         id: string;

@@ -16,10 +16,11 @@ import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomOrchestratorParticipant,
   ChatRoomPresence,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
-import { parseMentions } from "@/lib/utils/mention-parser";
+import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { chatRoomHref } from "../utils/chat-route-base";
 
 /**
@@ -39,10 +40,10 @@ export interface DirectParticipantPreview {
   detail: string | null;
   image: string | null;
   presence: ChatRoomPresence;
-  kind: "human" | "coworker";
+  kind: "human" | "coworker" | "orchestrator";
 }
 
-/** Shared hover / roster shape for humans vs AI coworkers in a room. */
+/** Shared hover / roster shape for humans, marketplace coworkers, and PAs. */
 export type ChatParticipantHoverProfile =
   | {
       kind: "human";
@@ -60,8 +61,15 @@ export type ChatParticipantHoverProfile =
       caption: string | null;
       image: string | null;
       presence: ChatRoomPresence;
-      /** Generative avatar seed when the coworker is a Soko Bot. */
-      sokoBotAvatarSeed?: string | null;
+    }
+  | {
+      kind: "orchestrator";
+      id: string;
+      name: string;
+      caption: string | null;
+      image: string | null;
+      avatarSeed: string | null;
+      presence: ChatRoomPresence;
     };
 
 export type RoomParticipantPreview = ChatParticipantHoverProfile;
@@ -93,12 +101,16 @@ export function composerMentionDisplayNames({
   usersBySlug,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   mentionCatalog,
 }: {
   usersById?: Map<string, { name: string }>;
   usersBySlug?: Map<string, { name: string }>;
   coworkersById?: Map<string, { name: string }>;
   coworkersBySlug?: Map<string, { name: string }>;
+  orchestratorsById?: Map<string, { name: string }>;
+  orchestratorsBySlug?: Map<string, { name: string }>;
   mentionCatalog?: Record<string, { value?: string; slug?: string | null }>;
 }): { byKey: Map<string, string>; bySlug: Map<string, string> } {
   const byKey = new Map<string, string>();
@@ -125,13 +137,19 @@ export function composerMentionDisplayNames({
   for (const [slug, coworker] of coworkersBySlug ?? []) {
     bySlug.set(slug, coworker.name);
   }
+  for (const [id, orchestrator] of orchestratorsById ?? []) {
+    byKey.set(id, orchestrator.name);
+  }
+  for (const [slug, orchestrator] of orchestratorsBySlug ?? []) {
+    bySlug.set(slug, orchestrator.name);
+  }
 
   return { byKey, bySlug };
 }
 
-/** Shared mention-picker payload for humans, coworkers, and synthetic @all. */
+/** Shared mention-picker payload for humans, coworkers, PAs, and synthetic @all. */
 export interface RoomMentionParticipant {
-  kind: "human" | "coworker" | "all";
+  kind: "human" | "coworker" | "orchestrator" | "all";
   id: string;
   name: string;
   slug: string;
@@ -176,14 +194,21 @@ export function omitCoworkerMentionRecords<
 
 export function partitionRoomMentionSuggestions(
   filtered: NormalizedMention<RoomMentionParticipant>[],
-  labels: { peopleLabel: string; coworkersLabel: string },
+  labels: {
+    peopleLabel: string;
+    coworkersLabel: string;
+    personalAssistantsLabel: string;
+  },
 ): MentionSuggestionGroup<RoomMentionParticipant>[] {
   const people: NormalizedMention<RoomMentionParticipant>[] = [];
   const coworkers: NormalizedMention<RoomMentionParticipant>[] = [];
+  const orchestrators: NormalizedMention<RoomMentionParticipant>[] = [];
 
   for (const mention of filtered) {
     if (mention.data?.kind === "coworker") {
       coworkers.push(mention);
+    } else if (mention.data?.kind === "orchestrator") {
+      orchestrators.push(mention);
     } else {
       // human | all | missing kind → People (safe fallback for humans-shaped rows)
       people.push(mention);
@@ -203,6 +228,13 @@ export function partitionRoomMentionSuggestions(
       id: "coworkers",
       label: labels.coworkersLabel,
       items: coworkers,
+    });
+  }
+  if (orchestrators.length > 0) {
+    groups.push({
+      id: "orchestrators",
+      label: labels.personalAssistantsLabel,
+      items: orchestrators,
     });
   }
   return groups;
@@ -426,7 +458,18 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
       caption: coworker.caption,
       image: coworker.image,
       presence: coworker.presence,
-      sokoBotAvatarSeed: coworker.sokoBotAvatarSeed ?? null,
+    };
+  }
+  if (message.sender.type === "orchestrator") {
+    const orchestrator = message.sender.orchestrator;
+    return {
+      kind: "orchestrator",
+      id: orchestrator.id,
+      name: orchestrator.name,
+      caption: orchestrator.caption,
+      image: orchestrator.image,
+      avatarSeed: orchestrator.avatarSeed,
+      presence: orchestrator.presence,
     };
   }
   return {
@@ -443,6 +486,9 @@ export function messageSenderKey(message: ChatRoomMessage): string | null {
   }
   if (message.sender.type === "coworker") {
     return `coworker:${message.sender.coworker.id}`;
+  }
+  if (message.sender.type === "orchestrator") {
+    return `orchestrator:${message.sender.orchestrator.id}`;
   }
   return null;
 }
@@ -556,7 +602,18 @@ export function getDirectRoomParticipants(
     }))
     .toSorted(compareByDisplayNameThenId);
 
-  return [...humans, ...coworkers];
+  const orchestrators = room.orchestratorMembers
+    .map((orchestrator) => ({
+      id: orchestrator.id,
+      name: orchestrator.name,
+      detail: orchestrator.caption,
+      image: orchestrator.image,
+      presence: orchestrator.presence,
+      kind: "orchestrator" as const,
+    }))
+    .toSorted(compareByDisplayNameThenId);
+
+  return [...humans, ...coworkers, ...orchestrators];
 }
 
 /**
@@ -569,15 +626,11 @@ export function isCoworkerOnlyDirectRoom(room: {
   coworkerMembers: {
     id?: string;
     coworkerId?: string;
-    sokoBotId?: string | null;
   }[];
 }): boolean {
   return (
     room.kind === "direct" &&
     room.coworkerMembers.length === 1 &&
-    // A Soko Bot direct answers through Core turns (message POST + mention),
-    // never the coworker stream.
-    room.coworkerMembers[0]?.sokoBotId == null &&
     room.userMembers.length === 1
   );
 }
@@ -616,11 +669,17 @@ export function shouldShowRoomMentionShortcut(room: {
   kind: string;
   userMembers: readonly unknown[];
   coworkerMembers: readonly unknown[];
+  orchestratorMembers?: readonly unknown[];
 }): boolean {
   if (room.kind !== "direct") {
     return true;
   }
-  return room.userMembers.length + room.coworkerMembers.length > 2;
+  return (
+    room.userMembers.length +
+      room.coworkerMembers.length +
+      (room.orchestratorMembers?.length ?? 0) >
+    2
+  );
 }
 
 /**
@@ -632,6 +691,7 @@ export function shouldIncludeRoomAllMention(
     kind: string;
     userMembers: ReadonlyArray<{ id: string }>;
     coworkerMembers: readonly unknown[];
+    orchestratorMembers?: readonly unknown[];
   },
   currentUserId: string,
 ): boolean {
@@ -700,7 +760,21 @@ export function getRoomParticipantPreviews(
     )
     .toSorted(compareByDisplayNameThenId);
 
-  return [...humans, ...coworkers];
+  const orchestrators = room.orchestratorMembers
+    .map(
+      (orchestrator): ChatParticipantHoverProfile => ({
+        kind: "orchestrator",
+        id: orchestrator.id,
+        name: orchestrator.name,
+        caption: orchestrator.caption,
+        image: orchestrator.image,
+        avatarSeed: orchestrator.avatarSeed,
+        presence: orchestrator.presence,
+      }),
+    )
+    .toSorted(compareByDisplayNameThenId);
+
+  return [...humans, ...coworkers, ...orchestrators];
 }
 
 export function presenceLabel(
@@ -725,7 +799,7 @@ export function escapeHtml(value: string): string {
 }
 
 export interface MentionDirectTarget {
-  kind: "human" | "coworker";
+  kind: "human" | "coworker" | "orchestrator";
   id: string;
 }
 
@@ -750,7 +824,10 @@ export function mentionDirectTargetFromAttributes(
     attributes["data-directId"];
   const kind = typeof kindRaw === "string" ? kindRaw : null;
   const id = typeof idRaw === "string" ? idRaw : null;
-  if ((kind !== "human" && kind !== "coworker") || !id) {
+  if (
+    (kind !== "human" && kind !== "coworker" && kind !== "orchestrator") ||
+    !id
+  ) {
     return null;
   }
   return { kind, id };
@@ -780,6 +857,7 @@ export function chatParticipantProfileForDirectTarget(
   target: MentionDirectTarget,
   lookups: {
     coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+    orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
     usersById?: Map<string, MentionHoverUserLookup>;
   },
 ): ChatParticipantHoverProfile | null {
@@ -796,6 +874,21 @@ export function chatParticipantProfileForDirectTarget(
       caption: coworker.caption,
       image: coworker.image,
       presence: coworker.presence,
+    };
+  }
+  if (target.kind === "orchestrator") {
+    const orchestrator = lookups.orchestratorsById?.get(target.id);
+    if (!orchestrator) {
+      return null;
+    }
+    return {
+      kind: "orchestrator",
+      id: orchestrator.id,
+      name: orchestrator.name,
+      caption: orchestrator.caption,
+      image: orchestrator.image,
+      avatarSeed: orchestrator.avatarSeed,
+      presence: orchestrator.presence,
     };
   }
   const user = lookups.usersById?.get(target.id);
@@ -817,6 +910,8 @@ export function resolveMentionDirectTarget({
   mentionSlug,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
 }: {
@@ -824,6 +919,8 @@ export function resolveMentionDirectTarget({
   mentionSlug: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
 }): MentionDirectTarget | null {
@@ -834,6 +931,11 @@ export function resolveMentionDirectTarget({
     coworkersById.get(mentionId) ?? coworkersBySlug.get(mentionSlug);
   if (coworker) {
     return { kind: "coworker", id: coworker.id };
+  }
+  const orchestrator =
+    orchestratorsById?.get(mentionId) ?? orchestratorsBySlug?.get(mentionSlug);
+  if (orchestrator) {
+    return { kind: "orchestrator", id: orchestrator.id };
   }
   const user = usersById?.get(mentionId) ?? usersBySlug?.get(mentionSlug);
   if (!user) {
@@ -857,12 +959,16 @@ export function formatRoomMarkdownMentions({
   content,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
 }): string {
@@ -879,10 +985,12 @@ export function formatRoomMarkdownMentions({
     }
     const coworker =
       coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
+    const orchestrator =
+      orchestratorsById?.get(match.id) ?? orchestratorsBySlug?.get(match.slug);
     const user = usersById?.get(match.id) ?? usersBySlug?.get(match.slug);
     const displayName = isRoomMentionAllId(match.id)
       ? ROOM_MENTION_ALL_ID
-      : (coworker?.name ?? user?.name);
+      : (coworker?.name ?? orchestrator?.name ?? user?.name);
     if (displayName) {
       formatted += mentionChipHtml(
         displayName,
@@ -891,6 +999,8 @@ export function formatRoomMarkdownMentions({
           mentionSlug: match.slug,
           coworkersById,
           coworkersBySlug,
+          orchestratorsById,
+          orchestratorsBySlug,
           usersById,
           usersBySlug,
         }),
@@ -976,6 +1086,8 @@ export function formatRoomMarkdownContent({
   content,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
   channelLinks = [],
@@ -983,6 +1095,8 @@ export function formatRoomMarkdownContent({
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
   channelLinks?: readonly ChannelLinkTarget[];
@@ -992,9 +1106,17 @@ export function formatRoomMarkdownContent({
       content,
       coworkersById,
       coworkersBySlug,
+      orchestratorsById,
+      orchestratorsBySlug,
       usersById,
       usersBySlug,
     }),
     channelLinks,
   );
+}
+
+export function orchestratorMentionSlug(
+  orchestrator: Pick<ChatRoomOrchestratorParticipant, "id" | "name">,
+): string {
+  return slugifyMentionValue(orchestrator.name) || orchestrator.id;
 }

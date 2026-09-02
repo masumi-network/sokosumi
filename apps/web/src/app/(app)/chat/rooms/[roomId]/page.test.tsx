@@ -92,6 +92,7 @@ function room(
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
     userMembers: [],
     coworkerMembers: [],
+    orchestratorMembers: [],
     unreadCount: 0,
     unreadMentionCount: 0,
     starredAt: null,

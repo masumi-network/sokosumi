@@ -6,6 +6,7 @@ import { Pin } from "lucide-react";
 import { listPinnedMessagesAction } from "@/app/chat/actions";
 import type {
   ChatRoomCoworkerParticipant,
+  ChatRoomOrchestratorParticipant,
   ChatRoomPinnedMessageListItem,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,8 @@ export interface LatestPinnedMessageBannerProps {
   onIdsLoaded: (messageIds: readonly string[]) => void;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
   channelLinks?: readonly ChannelLinkTarget[];
@@ -44,6 +47,10 @@ export interface LatestPinnedMessageBannerProps {
 export const LATEST_PINNED_FETCH_LIMIT = 8;
 
 const EMPTY_COWORKER_MAP = new Map<string, ChatRoomCoworkerParticipant>();
+const EMPTY_ORCHESTRATOR_MAP = new Map<
+  string,
+  ChatRoomOrchestratorParticipant
+>();
 const EMPTY_USER_MAP = new Map<string, MentionHoverUserLookup>();
 const EMPTY_CHANNEL_LINKS: ChannelLinkTarget[] = [];
 
@@ -93,6 +100,8 @@ export function LatestPinnedMessageBanner({
   onIdsLoaded,
   coworkersById = EMPTY_COWORKER_MAP,
   coworkersBySlug = EMPTY_COWORKER_MAP,
+  orchestratorsById = EMPTY_ORCHESTRATOR_MAP,
+  orchestratorsBySlug = EMPTY_ORCHESTRATOR_MAP,
   usersById = EMPTY_USER_MAP,
   usersBySlug = EMPTY_USER_MAP,
   channelLinks = EMPTY_CHANNEL_LINKS,
@@ -183,6 +192,8 @@ export function LatestPinnedMessageBanner({
                   markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
                   coworkersById={coworkersById}
                   coworkersBySlug={coworkersBySlug}
+                  orchestratorsById={orchestratorsById}
+                  orchestratorsBySlug={orchestratorsBySlug}
                   usersById={usersById}
                   usersBySlug={usersBySlug}
                   channelLinks={channelLinks}

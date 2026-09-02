@@ -5783,6 +5783,7 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "personalAssistantBadge": "Personal assistant",
       "humanBadge": "Human",
       "openDirectMessage": "Message",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
@@ -5831,6 +5832,7 @@
         "cannotRemoveSelf": "You can't remove yourself",
         "humans": "Humans",
         "coworkers": "AI coworkers",
+        "personalAssistants": "Personal assistants",
         "cancel": "Cancel",
         "create": "Create",
         "save": "Save changes"
@@ -5859,7 +5861,8 @@
         "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
-        "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1."
+        "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1.",
+        "personalAssistantDirectOneToOneOnly": "Personal assistant direct messages are 1:1."
       },
       "RoomSearch": {
         "open": "Search in this chat",
@@ -5986,7 +5989,8 @@
       },
       "MentionSections": {
         "people": "People",
-        "coworkers": "Coworkers"
+        "coworkers": "Coworkers",
+        "personalAssistants": "Personal assistants"
       },
       "Browse": {
         "trigger": "Browse channels",

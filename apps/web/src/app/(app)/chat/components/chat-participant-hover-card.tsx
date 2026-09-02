@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { AuroraOrb } from "@/components/aurora-orb";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -161,11 +162,19 @@ export function ChatParticipantHoverCard({
   }
 
   const isCoworker = profile.kind === "coworker";
-  const kindLabel = isCoworker ? t("coworkerBadge") : t("humanBadge");
+  const isOrchestrator = profile.kind === "orchestrator";
+  const isAi = isCoworker || isOrchestrator;
+  const kindLabel = isOrchestrator
+    ? t("personalAssistantBadge")
+    : isCoworker
+      ? t("coworkerBadge")
+      : t("humanBadge");
   const detail =
     profile.kind === "human"
       ? profile.email
-      : profile.caption?.trim() || (profile.slug ? `@${profile.slug}` : null);
+      : profile.kind === "orchestrator"
+        ? profile.caption?.trim() || null
+        : profile.caption?.trim() || (profile.slug ? `@${profile.slug}` : null);
   const showOpenDirect = canShowOpenDirect({
     profile,
     currentUserId,
@@ -193,24 +202,33 @@ export function ChatParticipantHoverCard({
       >
         <div className="flex gap-3">
           <div className="relative size-12 shrink-0 self-start">
-            <Avatar className="size-12">
-              <AvatarImage src={profile.image ?? undefined} alt="" />
-              <AvatarFallback
-                className={cn(
-                  "text-sm",
-                  profile.kind === "coworker"
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {getInitials(profile.name)}
-              </AvatarFallback>
-            </Avatar>
+            {isOrchestrator && profile.avatarSeed && !profile.image ? (
+              <AuroraOrb
+                seed={profile.avatarSeed}
+                size={96}
+                alt=""
+                className="ring-border/40 size-12 ring-1"
+              />
+            ) : (
+              <Avatar className="size-12">
+                <AvatarImage src={profile.image ?? undefined} alt="" />
+                <AvatarFallback
+                  className={cn(
+                    "text-sm",
+                    isAi
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {getInitials(profile.name)}
+                </AvatarFallback>
+              </Avatar>
+            )}
             <span aria-hidden="true">
               <LiveMemberPresenceDot
                 className="absolute -right-0.5 -bottom-0.5 size-3"
                 fallback={profile.presence}
-                isCoworker={isCoworker}
+                isCoworker={isAi}
                 userId={profile.id}
               />
             </span>
@@ -218,9 +236,7 @@ export function ChatParticipantHoverCard({
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
               <p className="truncate text-sm font-semibold">{profile.name}</p>
-              {profile.kind === "coworker" ? (
-                <AiCoworkerIcon className="size-3.5 shrink-0" />
-              ) : null}
+              {isAi ? <AiCoworkerIcon className="size-3.5 shrink-0" /> : null}
             </div>
             <p className="text-muted-foreground text-xs font-medium">
               {kindLabel}

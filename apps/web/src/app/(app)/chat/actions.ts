@@ -34,6 +34,7 @@ import type {
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 /** Chat action wire shape — ActionResultDto (neverthrow at boundary). */
 export type RoomActionResult<T> = ActionResultDto<T, ActionError>;
@@ -67,6 +68,7 @@ interface CreateChannelInput {
   discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
   coworkerIds?: string[];
+  orchestratorIds?: string[];
 }
 
 interface UpdateRoomInput {
@@ -75,6 +77,7 @@ interface UpdateRoomInput {
   discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
   coworkerIds?: string[];
+  orchestratorIds?: string[];
 }
 
 interface CreateDirectRoomInput {
@@ -82,6 +85,14 @@ interface CreateDirectRoomInput {
   coworkerId?: string;
   memberUserIds?: string[];
   coworkerIds?: string[];
+  orchestratorIds?: string[];
+}
+
+export interface ChatComposeOrchestrator {
+  id: string;
+  name: string;
+  image: string | null;
+  avatarSeed: string | null;
 }
 
 export interface ChatComposeRoster {
@@ -91,6 +102,7 @@ export interface ChatComposeRoster {
   canCreateExternal: boolean;
   members: Member[];
   coworkers: Coworker[];
+  orchestrators: ChatComposeOrchestrator[];
   membersLoadFailed: boolean;
 }
 
@@ -134,10 +146,21 @@ export async function loadChatComposeRosterAction(): Promise<
 
   try {
     const currentUserId = session.user.id;
-    const [activeOrganization, coworkers] = await Promise.all([
+    const [activeOrganization, coworkers, bot] = await Promise.all([
       userService.getActiveOrganization(),
       coworkerService.listCoworkers("chat"),
+      sokoBotService.getMine().catch(() => null),
     ]);
+    const orchestrators: ChatComposeOrchestrator[] = bot
+      ? [
+          {
+            id: bot.id,
+            name: bot.name?.trim() || "Personal assistant",
+            image: bot.avatarImageUrl ?? null,
+            avatarSeed: bot.avatarSeed,
+          },
+        ]
+      : [];
 
     if (!activeOrganization) {
       return roomOk({
@@ -147,6 +170,7 @@ export async function loadChatComposeRosterAction(): Promise<
         canCreateExternal: false,
         members: [],
         coworkers,
+        orchestrators,
         membersLoadFailed: false,
       });
     }
@@ -165,6 +189,7 @@ export async function loadChatComposeRosterAction(): Promise<
       ),
       members: membersPage.members,
       coworkers,
+      orchestrators,
       membersLoadFailed: membersPage.failed,
     });
   } catch (error) {
@@ -220,6 +245,7 @@ export async function createChannelAction(
       discoverability: cleanDiscoverability(input.discoverability) ?? "public",
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
+      orchestratorIds: cleanIds(input.orchestratorIds),
     });
     await invalidateSidebarChatList();
     revalidatePath("/");
@@ -254,8 +280,13 @@ export async function createDirectRoomAction(
     ...(cleanCoworkerId ? [cleanCoworkerId] : []),
     ...(input.coworkerIds ?? []),
   ]);
+  const orchestratorIds = cleanIds(input.orchestratorIds);
 
-  const shapeError = directCreateShapeError(memberUserIds, coworkerIds);
+  const shapeError = directCreateShapeError(
+    memberUserIds,
+    coworkerIds,
+    orchestratorIds,
+  );
   if (shapeError) {
     return roomFail(shapeError);
   }
@@ -274,6 +305,7 @@ export async function createDirectRoomAction(
       kind: "direct",
       memberUserIds,
       coworkerIds,
+      orchestratorIds,
     });
     await invalidateSidebarChatList();
     revalidatePath("/");
@@ -309,6 +341,32 @@ export async function ensureCoworkerDirectRoomAction(
   }
 }
 
+/**
+ * Create-or-get the `kind:direct` room for a solo personal-assistant 1:1.
+ * Uses the active organization when set (same as `/chat`); personal if none.
+ */
+export async function ensureOrchestratorDirectRoomAction(
+  orchestratorId: string,
+): Promise<RoomActionResult<ChatRoom | null>> {
+  const cleanOrchestratorId = cleanString(orchestratorId);
+  if (!cleanOrchestratorId) {
+    return roomFail("Personal assistant is required.");
+  }
+
+  try {
+    const room = await chatRoomService.createRoom({
+      kind: "direct",
+      memberUserIds: [],
+      coworkerIds: [],
+      orchestratorIds: [cleanOrchestratorId],
+    });
+    await invalidateSidebarChatList();
+    return roomOk(room);
+  } catch (error) {
+    return roomCatch(error, "Could not ensure personal assistant direct room.");
+  }
+}
+
 export async function updateRoomAction(
   roomId: string,
   input: UpdateRoomInput,
@@ -324,6 +382,9 @@ export async function updateRoomAction(
     }),
     ...(input.coworkerIds !== undefined && {
       coworkerIds: cleanIds(input.coworkerIds),
+    }),
+    ...(input.orchestratorIds !== undefined && {
+      orchestratorIds: cleanIds(input.orchestratorIds),
     }),
   };
 
@@ -663,6 +724,7 @@ export async function sendRoomMessageAction(
   mentionedCoworkerIds: string[],
   options?: {
     mentionedUserIds?: string[];
+    mentionedOrchestratorIds?: string[];
     parentMessageId?: string;
     /** Same-room quote target; does not set parentMessageId. */
     quote?: { messageId: string };
@@ -683,6 +745,7 @@ export async function sendRoomMessageAction(
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(mentionedCoworkerIds),
       mentionedUserIds: cleanIds(options?.mentionedUserIds),
+      mentionedOrchestratorIds: cleanIds(options?.mentionedOrchestratorIds),
       ...(options?.parentMessageId && {
         parentMessageId: options.parentMessageId,
       }),

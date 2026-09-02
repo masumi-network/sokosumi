@@ -24,6 +24,7 @@ import type { ComposerChannelOption } from "@/components/chat/composer-suggestio
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import type {
   ChatRoomCoworkerParticipant,
+  ChatRoomOrchestratorParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 
@@ -68,6 +69,8 @@ interface RoomSessionComposerProps {
   usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   channels?: readonly ComposerChannelOption[];
   channelLinks?: readonly ChannelLinkTarget[];
   placeholder: string;
@@ -102,6 +105,8 @@ export function RoomSessionComposer({
   usersBySlug,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   channels,
   channelLinks,
   placeholder,
@@ -234,6 +239,8 @@ export function RoomSessionComposer({
       usersBySlug={usersBySlug}
       coworkersById={coworkersById}
       coworkersBySlug={coworkersBySlug}
+      orchestratorsById={orchestratorsById}
+      orchestratorsBySlug={orchestratorsBySlug}
       channels={channels}
       channelLinks={channelLinks}
       onSelectedKeysChange={setMentionedIds}

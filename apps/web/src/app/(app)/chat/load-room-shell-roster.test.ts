@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 const loadOrganizationMembersMock = vi.fn();
 const listCoworkersMock = vi.fn();
+const getMineMock = vi.fn();
 
 vi.mock("./load-organization-members", () => ({
   loadOrganizationMembers: (...args: unknown[]) =>
@@ -16,11 +17,18 @@ vi.mock("@/lib/services/coworker.service", () => ({
   },
 }));
 
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: {
+    getMine: (...args: unknown[]) => getMineMock(...args),
+  },
+}));
+
 import { loadRoomShellRoster } from "./load-room-shell-roster";
 
 describe("loadRoomShellRoster", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getMineMock.mockResolvedValue(null);
   });
 
   it("loads members and coworkers in parallel", async () => {
@@ -36,6 +44,7 @@ describe("loadRoomShellRoster", () => {
       organizationMembers: members,
       membersLoadFailed: false,
       coworkers,
+      orchestrators: [],
     });
     expect(loadOrganizationMembersMock).toHaveBeenCalledWith("org_1");
     expect(listCoworkersMock).toHaveBeenCalledWith("chat");
@@ -52,6 +61,7 @@ describe("loadRoomShellRoster", () => {
       organizationMembers: [],
       membersLoadFailed: true,
       coworkers: [],
+      orchestrators: [],
     });
   });
 
@@ -66,6 +76,7 @@ describe("loadRoomShellRoster", () => {
       organizationMembers: [],
       membersLoadFailed: false,
       coworkers: [{ id: "c1" }],
+      orchestrators: [],
     });
     expect(loadOrganizationMembersMock).toHaveBeenCalledWith(null);
   });

@@ -3,6 +3,7 @@
 import { Bot } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { ChatComposeOrchestrator } from "@/app/chat/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -110,15 +111,17 @@ export interface DirectDraftTarget {
   name: string;
   detail: string;
   image: string | null;
-  kind: "human" | "coworker";
+  kind: "human" | "coworker" | "orchestrator";
   slug?: string;
   caption?: string | null;
+  avatarSeed?: string | null;
   presence?: ChatRoomPresence;
 }
 
 export function buildDirectDraftTargets(
   members: Member[],
   coworkers: Coworker[],
+  orchestrators: ChatComposeOrchestrator[],
   currentUserId: string,
 ): DirectDraftTarget[] {
   // Humans first so org members stay reachable when many AI coworkers exist;
@@ -143,6 +146,16 @@ export function buildDirectDraftTargets(
       kind: "coworker" as const,
       slug: coworker.slug,
       caption: coworker.caption,
+      presence: "online" as const,
+    })),
+    ...orchestrators.map((orchestrator) => ({
+      key: `orchestrator:${orchestrator.id}`,
+      id: orchestrator.id,
+      name: orchestrator.name,
+      detail: "",
+      image: orchestrator.image,
+      kind: "orchestrator" as const,
+      avatarSeed: orchestrator.avatarSeed,
       presence: "online" as const,
     })),
   ];
@@ -207,7 +220,9 @@ export function DirectDraftTargetRow({
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-sm font-medium">{target.name}</span>
-          {target.kind === "coworker" ? <AiCoworkerIcon /> : null}
+          {target.kind === "coworker" || target.kind === "orchestrator" ? (
+            <AiCoworkerIcon />
+          ) : null}
         </span>
         {target.detail ? (
           <span className="text-muted-foreground block truncate text-xs">
@@ -250,12 +265,26 @@ export function DirectDraftTargetList({
   const coworkerTargets = targets.filter(
     (target) => target.kind === "coworker",
   );
-  const showSectionLabels = humans.length > 0 && coworkerTargets.length > 0;
+  const orchestratorTargets = targets.filter(
+    (target) => target.kind === "orchestrator",
+  );
+  const sectionCount = [
+    humans.length > 0,
+    coworkerTargets.length > 0,
+    orchestratorTargets.length > 0,
+  ].filter(Boolean).length;
+  const showSectionLabels = sectionCount > 1;
 
   return (
     <>
       {humans.length > 0 ? (
-        <div className={coworkerTargets.length > 0 ? "pb-1" : undefined}>
+        <div
+          className={
+            coworkerTargets.length > 0 || orchestratorTargets.length > 0
+              ? "pb-1"
+              : undefined
+          }
+        >
           {showSectionLabels ? (
             <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
               {t("Dialog.humans")}
@@ -276,13 +305,34 @@ export function DirectDraftTargetList({
         </div>
       ) : null}
       {coworkerTargets.length > 0 ? (
-        <div>
+        <div className={orchestratorTargets.length > 0 ? "pb-1" : undefined}>
           {showSectionLabels ? (
             <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
               {t("Dialog.coworkers")}
             </div>
           ) : null}
           {coworkerTargets.map((target) => {
+            const disabled = isTargetDisabled?.(target) ?? false;
+            return (
+              <DirectDraftTargetRow
+                key={target.key}
+                target={target}
+                onSelect={onSelect}
+                disabled={disabled}
+                disabledReason={disabled ? disabledReason : undefined}
+              />
+            );
+          })}
+        </div>
+      ) : null}
+      {orchestratorTargets.length > 0 ? (
+        <div>
+          {showSectionLabels ? (
+            <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
+              {t("Dialog.personalAssistants")}
+            </div>
+          ) : null}
+          {orchestratorTargets.map((target) => {
             const disabled = isTargetDisabled?.(target) ?? false;
             return (
               <DirectDraftTargetRow

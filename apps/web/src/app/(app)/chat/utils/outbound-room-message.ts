@@ -128,19 +128,32 @@ export interface CreatePendingRoomMessageParams {
   createdAt?: Date;
   /** Coworker ids mentioned on this send — shown as pending chips until confirm. */
   mentionedCoworkerIds?: readonly string[];
+  /** Personal-assistant ids mentioned on this send. */
+  mentionedOrchestratorIds?: readonly string[];
 }
 
-/** Build provisional coworker mention rows for a pending shell (no blink on confirm). */
+/** Build provisional mention rows for a pending shell (no blink on confirm). */
 export function buildPendingCoworkerMentions(
   clientTurnId: string,
   mentionedCoworkerIds: readonly string[],
+  mentionedOrchestratorIds: readonly string[] = [],
 ): ChatRoomMessageMention[] {
-  return mentionedCoworkerIds.map((coworkerId) => ({
-    id: `pending-mention:${clientTurnId}:${coworkerId}`,
-    coworkerId,
-    status: ChatRoomMentionStatus.PENDING,
-    responseMessageId: null,
-  }));
+  return [
+    ...mentionedCoworkerIds.map((coworkerId) => ({
+      id: `pending-mention:${clientTurnId}:${coworkerId}`,
+      coworkerId,
+      orchestratorId: null,
+      status: ChatRoomMentionStatus.PENDING,
+      responseMessageId: null,
+    })),
+    ...mentionedOrchestratorIds.map((orchestratorId) => ({
+      id: `pending-mention:${clientTurnId}:orchestrator:${orchestratorId}`,
+      coworkerId: null,
+      orchestratorId,
+      status: ChatRoomMentionStatus.PENDING,
+      responseMessageId: null,
+    })),
+  ];
 }
 
 export function createPendingRoomMessage(
@@ -162,6 +175,7 @@ export function createPendingRoomMessage(
     mentions: buildPendingCoworkerMentions(
       clientTurnId,
       params.mentionedCoworkerIds ?? [],
+      params.mentionedOrchestratorIds ?? [],
     ),
     reactions: [],
     threadReplyCount: 0,
