@@ -10,7 +10,7 @@ Maintained source for verifying user-facing Sokosumi behavior. Read this index b
   `export WEB_URL="$(pnpm portless:url web)" CORE_URL="$(pnpm portless:url core)"`
   (or copy `web_url=` / `core_url=` from doctor).
 - Export `AGENT_BROWSER_SESSION_NAME=sokosumi`. `verify-sokosumi` aliases that to `AGENT_BROWSER_SESSION` (agent-browser 0.35+ session isolation) when `AGENT_BROWSER_SESSION` is unset. Manual drives should set both or rely on the harness.
-- Prefer fixture `alice@sokosumi.test` / `Password123!` on cloud-agent Neon branches. On a coworker machine or shared Neon, use the `sokosumi` vault (`sign-in --method vault`) or a disposable user (see [Sign up](./sign-up.md)). Do **not** seed Alice onto a shared/preprod database.
+- Auth order: `VERIFY_SOKOSUMI_EMAIL` / `VERIFY_SOKOSUMI_PASSWORD` first (`verify-sokosumi credentials-status` / doctor). Then fixture `alice@sokosumi.test` / `Password123!` only when `fixture_auth=ok` on cloud-agent Neon. On a coworker machine or shared Neon, use the `sokosumi` vault (`sign-in --method vault`). Disposable signup (see [Sign up](./sign-up.md)) is **only** for testing signup — never invent random users as a computer-use fallback. Do **not** seed Alice onto a shared/preprod database.
 - Use the doctor `web_url=` (a `*.localhost` name), not `127.0.0.1`. Better Auth origin/cookies follow that host.
 - Confirm `apps/core/.env` does not set a production `BETTER_AUTH_COOKIE_DOMAIN`. Doctor allows `localhost` or `sokosumi.localhost`. Portless injects `sokosumi.localhost` in process env.
 - After doctor, authenticate with `.cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in` (fixtures, then vault). Expect `fixture_auth=ok` only on agent Neon branches.
