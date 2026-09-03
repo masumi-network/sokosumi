@@ -983,14 +983,27 @@ describe("NotificationKinds", () => {
    */
   it("asks for push once while a push write is in flight", async () => {
     isAccountEnabled = false;
-    isSaving = true;
+    // The write the first press starts, reported the way the hook reports it:
+    // busy from the press, and never settling.
+    setAccountEnabled.mockImplementation(() => {
+      isSaving = true;
+      return new Promise(() => {});
+    });
     renderKinds();
 
+    // Two kinds whose push is stored off, so each press is a kind asking for
+    // one. A press that turned a push off would ask for nothing and prove
+    // nothing.
     await openGroup("groupJob");
-    await toggle("kindJobAttention", "channelPush");
     await toggle("kindJobUpdate", "channelPush");
 
-    expect(setAccountEnabled).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(setAccountEnabled).toHaveBeenCalledTimes(1);
+    });
+
+    await toggle("kindSystem", "channelPush");
+
+    expect(setAccountEnabled).toHaveBeenCalledTimes(1);
   });
 
   it("asks for nothing when the browser already pushes", async () => {
@@ -1208,6 +1221,48 @@ describe("NotificationKinds", () => {
     expect(preset("groupChat", "presetImportant")).toHaveAttribute(
       "aria-pressed",
       "true",
+    );
+  });
+
+  /**
+   * The row speaks the moment its write stops being busy. A rollback that
+   * lands later than that flag is a row that says the kind now arrives where
+   * the write failed to put it, and then falls silent: the correction changes
+   * the sentence to nothing, and a region that goes empty says nothing at all.
+   */
+  it("never speaks the channels a failed write did not store", async () => {
+    patchMyPreferences.mockRejectedValueOnce(new Error("nope"));
+    renderKinds();
+
+    // Every sentence the region ever holds, not just the one it ends on: a
+    // wrong sentence is spoken when it lands, and taking it down again does
+    // not unsay it.
+    const said: string[] = [];
+    const row = stops("kindSystem");
+    const observer = new MutationObserver(() => {
+      said.push(spoken(row));
+    });
+    observer.observe(row, {
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+
+    await toggle("kindSystem", "channelPush");
+
+    await waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(cellFor("kindSystem", "channelPush")).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+    });
+    observer.disconnect();
+
+    expect(said.filter(Boolean)).not.toContain(
+      "channelsAnnounce kindSystem channelInApp, channelPush",
     );
   });
 

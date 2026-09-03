@@ -261,6 +261,17 @@ export function useNotificationDelivery(): NotificationDelivery {
       console.error("Failed to update the notification preference", error);
       paint(previous);
       toast.error(t("error"));
+
+      // The cache notifies its readers on a macrotask, so this rollback is
+      // not on screen yet, and the busy flag below is plain state that lands
+      // sooner. A row reads "the write settled" from that flag and says where
+      // the kind arrives now: cleared first, it would read the channels the
+      // write failed to store and report them as stored, then fall silent
+      // when the rollback took the sentence back down. Same delay, queued
+      // after the cache's, so the flag follows the paint.
+      await new Promise((resolve) => {
+        setTimeout(resolve, 0);
+      });
     } finally {
       setSaving((current) =>
         current.filter((candidate) => !categories.includes(candidate)),

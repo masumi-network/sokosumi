@@ -134,6 +134,32 @@ export function DeadCell({
 }
 
 /**
+ * Every channel of the matrix, on a row that none of them carries.
+ *
+ * Derived from the same list the heads are, so a channel Core adds later gets
+ * a cell here rather than a head with nothing under it.
+ */
+export function UnusedChannelCells({ kind }: { kind: string }) {
+  const t = useTranslations("App.Account.Notifications");
+
+  return (
+    <>
+      {CHANNEL_SPECS.map((spec) => (
+        <DeadCell
+          key={spec.id}
+          icon={CHANNEL_ICON[spec.id]}
+          label={t("channelUnavailableLabel", {
+            channel: t(spec.labelKey),
+            kind,
+          })}
+          hint={t("marketingEmailOnlyHint")}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
  * Email on one row.
  *
  * What it writes is an account switch rather than a cell of the matrix, so one

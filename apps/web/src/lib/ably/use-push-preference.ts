@@ -156,7 +156,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   );
 
   /**
-   * Which read of the browser may still write the device row.
+   * Which read of the browser may still write what this browser reports.
    *
    * Reads land out of order. Two overlap whenever the reader regains focus
    * while an earlier read is still open, and the older one carries the browser
@@ -215,8 +215,8 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     // Re-read the permission when the reader changes it in browser settings,
     // so the blocked message clears without a reload. The subscription is read
     // again with it: revoking the permission takes the subscription with it,
-    // and a device row still reading as on would sit there checked beside its
-    // own "not available in this browser".
+    // and a cell still drawn on would sit there beside its own "not
+    // available in this browser".
     const unsubscribe = subscribeBrowserNotificationPermission((next) => {
       setPermission(next);
       refreshSubscriptionRow();
@@ -281,9 +281,9 @@ export function usePushPreference(userId: string | undefined): PushPreference {
 
   /**
    * Turns this browser into a push device, and reports whether it managed to.
-   * Either row can be the first thing a reader touches, so both subscribe
-   * through here, and they read a refused prompt differently: for the account
-   * row it answers for this browser only, for the device row it is the whole
+   * Either axis can be the first thing a reader asks for, so both subscribe
+   * through here, and they read a refused prompt differently: for consent it
+   * answers for this browser only, for the subscription it is the whole
    * request. Anything else throws for both.
    */
   const subscribeThisBrowser = useCallback(async (sessionUserId: string) => {
@@ -340,12 +340,14 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       }
 
       // Turning consent on also subscribes this browser, so the common case is
-      // still one gesture. The device row then only ever touches this browser.
+      // still one gesture, and subscribing on its own then only ever touches
+      // this browser.
       //
-      // That row moves on the answer, not ahead of it. The reader is holding
-      // an OS prompt open, and the account row cannot move until its write
-      // lands, so painting this one on first would sit a checked switch beside
-      // its own "push is off for your account" for as long as the prompt is up.
+      // What this browser reports moves on the answer, not ahead of it. The
+      // reader is holding an OS prompt open, and consent cannot land until its
+      // write does, so reporting a subscription first would draw a cell on
+      // beside its own "push is off for your account" for as long as the
+      // prompt is up.
       return runSave(async (sessionUserId) => {
         // Register the device first. If the Core write then fails, the device
         // is known to Ably but Core sends nothing, so the reader gets silence
@@ -399,9 +401,8 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     isSupported,
     isBlocked,
     canToggleAccount: hasSession && accountOptIn !== null,
-    // The account row is the master switch: with consent withdrawn, no device
-    // receives anything, so this row greys out rather than offering a change
-    // that would alter nothing the reader can hear.
+    // Consent is the master switch: with it withdrawn, no device receives
+    // anything, so subscribing here would buy the reader nothing.
     canToggleDevice: hasSession && canSubscribeHere && isAccountEnabled,
     isSaving,
     setAccountEnabled,

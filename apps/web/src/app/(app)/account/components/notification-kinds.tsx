@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, ChevronRight, Smartphone } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -12,9 +12,9 @@ import {
 import {
   ChannelGrid,
   ColumnHeads,
-  DeadCell,
   EmailCell,
   type EmailChoice,
+  UnusedChannelCells,
 } from "./notification-cells";
 import {
   type PushBlock,
@@ -139,22 +139,7 @@ function NewsRow({ news }: { news: EmailChoice }) {
             aria-label={t("newsDeliveryAriaLabel")}
             className="flex shrink-0 items-center justify-end gap-1"
           >
-            <DeadCell
-              icon={Bell}
-              label={t("channelUnavailableLabel", {
-                channel: t("channelInApp"),
-                kind: label,
-              })}
-              hint={t("marketingEmailOnlyHint")}
-            />
-            <DeadCell
-              icon={Smartphone}
-              label={t("channelUnavailableLabel", {
-                channel: t("channelPush"),
-                kind: label,
-              })}
-              hint={t("marketingEmailOnlyHint")}
-            />
+            <UnusedChannelCells kind={label} />
             <EmailCell
               // Its own name rather than "Email for Marketing emails", which
               // is what composing gives on a row that is already about email.

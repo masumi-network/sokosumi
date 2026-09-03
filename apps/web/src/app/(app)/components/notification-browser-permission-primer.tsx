@@ -24,7 +24,7 @@ import { NOTIFICATION_PREFERENCES_HREF } from "../account/constants";
  * The most this browser can do, which decides what the card offers.
  *
  * `push` links to the settings. `in-app` asks for the permission here,
- * because the settings switch cannot subscribe this browser and the
+ * because the account page cannot subscribe this browser and the
  * permission still buys the banners the app renders while a tab is open.
  * `none` has no worker to render through, and ADR-0023 makes that
  * registration the only renderer, so the card offers nothing rather than a

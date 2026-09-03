@@ -51,8 +51,8 @@ export async function activatePush(userId: string): Promise<void> {
  * The browser's own request, held while the stand-in answers for it, and how
  * many activations are holding it.
  *
- * Both live at module scope because two activations can overlap: a reader can
- * work the account switch and the device switch inside one page. Saving the
+ * Both live at module scope because two activations can overlap: a page can
+ * ask for one while another is still running. Saving the
  * previous value per call, the second call would save the first call's
  * stand-in as if it were the browser's own, and the last release would install
  * that stand-in for good. The page could then never prompt again, so a reader
@@ -124,8 +124,8 @@ async function subscribeThisDevice(
  * `deactivate()` drops Ably's own device record but leaves the browser's push
  * subscription in place: `ably@2.28.0` touches `pushManager` only to register
  * and subscribe (`build/push.js:223`, `:229`), never to unsubscribe. The
- * settings switch reads that subscription, so it has to go too, or the switch
- * reads on again after a reload.
+ * The account page reads that subscription, so it has to go too, or a Push
+ * cell reads on again after a reload.
  *
  * Every step is attempted, whatever the ones before it did, and the first
  * failure is thrown once they have all had their turn. Chaining them on one
