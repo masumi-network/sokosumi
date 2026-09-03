@@ -21,6 +21,9 @@ const painted: Record<
   news: [],
 };
 
+/** What the toast rendered, once the write it followed had settled. */
+const toasted: string[] = [];
+
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
@@ -68,9 +71,20 @@ vi.mock("./notification-kinds", () => ({
 vi.mock("sonner", () => ({
   toast: {
     // The real one subscribes to the promise, so a rejection is handled and
-    // the chain behind it runs to the end.
-    promise: (promise: Promise<unknown>) => {
-      promise.catch(() => {});
+    // the chain behind it runs to the end. It also calls the renderer for the
+    // side the promise took, which is where the wording lives: a card that
+    // named the wrong setting would look right everywhere else.
+    promise: (
+      promise: Promise<unknown>,
+      options: { success: () => string; error: () => string },
+    ) => {
+      promise
+        .then(() => {
+          toasted.push(options.success());
+        })
+        .catch(() => {
+          toasted.push(options.error());
+        });
     },
   },
 }));
@@ -90,6 +104,7 @@ describe("NotificationPreferences", () => {
     vi.clearAllMocks();
     painted.email.length = 0;
     painted.news.length = 0;
+    toasted.length = 0;
     updateUser.mockResolvedValue({ data: {}, error: null });
   });
 
@@ -157,6 +172,43 @@ describe("NotificationPreferences", () => {
 
     await waitFor(() => {
       expect(painted.email.at(-1)).toEqual({ enabled: false, saving: false });
+    });
+  });
+
+  /**
+   * Both rows write through one handler, so the wording is the only thing that
+   * says which setting moved. Named for the wrong one, the toast would report
+   * a change to a setting the reader can see is untouched.
+   */
+  it("names the setting the write actually moved", async () => {
+    const user = userEvent.setup();
+    renderPreferences();
+
+    await user.click(cell("email"));
+
+    await waitFor(() => {
+      expect(toasted).toEqual(["jobStatusEmailsDisabledSuccess"]);
+    });
+
+    await user.click(cell("news"));
+
+    await waitFor(() => {
+      expect(toasted).toEqual([
+        "jobStatusEmailsDisabledSuccess",
+        "marketingEmailsEnabledSuccess",
+      ]);
+    });
+  });
+
+  it("says one thing about a write that failed", async () => {
+    const user = userEvent.setup();
+    updateUser.mockResolvedValue({ data: null, error: { message: "nope" } });
+    renderPreferences();
+
+    await user.click(cell("news"));
+
+    await waitFor(() => {
+      expect(toasted).toEqual(["error"]);
     });
   });
 

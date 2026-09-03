@@ -19,6 +19,8 @@ let isDeviceEnabled = true;
 /** Null until the capability read lands, which is not an answer. */
 let isSupported: boolean | null = true;
 let isBlocked = false;
+/** A push write of any kind is already running. */
+let isSaving = false;
 let jobEmails = true;
 let marketing = false;
 let session: { user: { id: string } } | null = { user: { id: "user_1" } };
@@ -50,7 +52,7 @@ vi.mock("@/lib/ably/use-push-preference", () => ({
     // The real hook's rule: a session, a browser that can subscribe, and
     // consent already standing.
     canToggleDevice: isSupported === true && !isBlocked && isAccountEnabled,
-    isSaving: false,
+    isSaving,
     setAccountEnabled,
     setDeviceEnabled,
   }),
@@ -258,6 +260,7 @@ describe("NotificationKinds", () => {
     isDeviceEnabled = true;
     isSupported = true;
     isBlocked = false;
+    isSaving = false;
     jobEmails = true;
     marketing = false;
     emailWriteFails = false;
@@ -795,12 +798,6 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * Consent standing does not mean this browser holds a subscription. Signing
-   * out drops the subscription and leaves the consent, and clearing site data
-   * drops it without telling anyone. The press has to cover that, or the cells
-   * sit on and this browser never pushes again, with nothing left to press.
-   */
-  /**
    * The cell writes one preference for the account, not one per browser, so a
    * browser that cannot show a push is still where the reader silences or
    * wakes the devices that can. It keeps the press, and says what it will and
@@ -828,12 +825,34 @@ describe("NotificationKinds", () => {
    * is reported as blocked, and a browser that cannot push at all is told that
    * first, because it can be both.
    */
+  /**
+   * The tooltip is where a cell says what its column means, and the trigger
+   * writes its own `aria-describedby` to point at it. A cell that set that
+   * attribute itself, to anything at all, would take the sentence away from
+   * every reader who cannot see the tooltip open.
+   */
+  it("keeps the tooltip's own description on a cell that is not blocked", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    const cell = cellFor("kindSystem", "channelInApp");
+
+    expect(cell).not.toHaveAttribute("aria-describedby");
+
+    await user.hover(cell);
+
+    await waitFor(() => {
+      expect(cell).toHaveAttribute("aria-describedby");
+    });
+    expect(describedBy(cell)).toContain("channelInAppHint");
+  });
+
   it("says which of the two the browser is", () => {
     isBlocked = true;
     renderKinds();
 
     expect(describedBy(cellFor("kindSystem", "channelPush"))).toBe(
-      "browserPermissionDeniedDescription pushOtherDevicesHint",
+      "pushBlockedHint pushOtherDevicesHint",
     );
   });
 
@@ -862,6 +881,12 @@ describe("NotificationKinds", () => {
     expect(screen.queryByText("pushUnsupported")).toBeNull();
   });
 
+  /**
+   * Consent standing does not mean this browser holds a subscription. Signing
+   * out drops the subscription and leaves the consent, and clearing site data
+   * drops it without telling anyone. The press has to cover that, or the cells
+   * sit on and this browser never pushes again, with nothing left to press.
+   */
   it("subscribes a browser that lost its subscription", async () => {
     isDeviceEnabled = false;
     renderKinds();
@@ -871,6 +896,24 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(setDeviceEnabled).toHaveBeenCalledWith(true);
     });
+    expect(setAccountEnabled).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The busy flag the rows hold is per kind, so two kinds can ask for push
+   * within one write of each other. Both would read the same stale answer,
+   * subscribe on top of one another, and the first to finish would release a
+   * shared read while the second still ran.
+   */
+  it("asks for push once while a push write is in flight", async () => {
+    isAccountEnabled = false;
+    isSaving = true;
+    renderKinds();
+
+    await openGroup("groupJob");
+    await toggle("kindJobAttention", "channelPush");
+    await toggle("kindJobUpdate", "channelPush");
+
     expect(setAccountEnabled).not.toHaveBeenCalled();
   });
 
@@ -1375,14 +1418,40 @@ describe("NotificationKinds", () => {
     }
 
     const email = within(row).getByRole("button", {
-      name: "channelCellLabel channelEmail marketingEmailsTitle",
+      name: "marketingEmailsTitle",
     });
 
     expect(email).toHaveAttribute("aria-pressed", "false");
+    expect(describedBy(email)).toBe("marketingEmailsDescription");
 
     await user.click(email);
 
     expect(setMarketing).toHaveBeenCalledWith(true);
+  });
+
+  /**
+   * One cell can sit on a value that several rows share, so every email cell
+   * speaks for the value rather than for its row. This row's value is its own,
+   * and saying "Job status emails on" here would name a different setting on
+   * the same card, one the reader did not touch.
+   */
+  it("says which emails moved when the marketing row is pressed", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    const row = newsRow();
+
+    expect(spoken(row)).toBe("");
+
+    await user.click(
+      within(row).getByRole("button", {
+        name: "marketingEmailsTitle",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(spoken(row)).toBe("newsAnnounceOn");
+    });
   });
 
   /**
@@ -1394,7 +1463,7 @@ describe("NotificationKinds", () => {
 
     expect(
       within(newsRow()).getByRole("button", {
-        name: "channelCellLabel channelEmail marketingEmailsTitle",
+        name: "marketingEmailsTitle",
       }),
     ).toBeInTheDocument();
   });

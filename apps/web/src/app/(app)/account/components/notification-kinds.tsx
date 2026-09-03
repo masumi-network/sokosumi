@@ -156,7 +156,9 @@ function NewsRow({ news }: { news: EmailChoice }) {
               hint={t("marketingEmailOnlyHint")}
             />
             <EmailCell
-              label={label}
+              // Its own name rather than "Email for Marketing emails", which
+              // is what composing gives on a row that is already about email.
+              name={label}
               hint={t("marketingEmailsDescription")}
               announceOn={t("newsAnnounceOn")}
               announceOff={t("newsAnnounceOff")}
@@ -186,7 +188,10 @@ function EmailRow({ email }: { email: EmailChoice }) {
         </p>
       </div>
       <EmailCell
-        label={t("channelEmailLabel")}
+        name={t("channelCellLabel", {
+          channel: t("channelEmail"),
+          kind: t("channelEmailLabel"),
+        })}
         hint={t("channelEmailFallbackHint")}
         announceOn={t("emailAnnounceOn")}
         announceOff={t("emailAnnounceOff")}
@@ -296,9 +301,9 @@ export function NotificationKinds({
   // The job emails wait, because whether they need a row of their own is
   // something only the matrix can say.
   //
-  // A cache that is already warm still reads as loading while it refetches,
-  // and the kinds it holds are the answer to an older question. They wait for
-  // the new one rather than settling under the reader.
+  // Only a read with no answer yet holds the kinds back. A refetch over a
+  // warm cache reports success, so the rows it already has stay on screen
+  // rather than blanking and coming back.
   const showKinds = !choices.loading && choices.groups.length > 0;
 
   return (

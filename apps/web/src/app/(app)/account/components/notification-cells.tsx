@@ -141,14 +141,18 @@ export function DeadCell({
  * the reader to discover it by pressing.
  */
 export function EmailCell({
-  label,
+  name,
   hint,
   announceOn,
   announceOff,
   email,
 }: {
-  /** The row this cell belongs to, for its name. */
-  label: string;
+  /**
+   * What a reader hears instead of the icon. Given whole rather than composed
+   * here: on a row whose own name is already about email, "Email for Marketing
+   * emails" is the name that composing produces.
+   */
+  name: string;
   /** What the switch reaches, for its description and its tooltip. */
   hint: string;
   /** What the row says once the write lands. Named for the value it wrote,
@@ -158,7 +162,6 @@ export function EmailCell({
   announceOff: string;
   email: EmailChoice;
 }) {
-  const t = useTranslations("App.Account.Notifications");
   const hintId = useId();
 
   // One value can sit behind two rows, so a press here moves the cell on the
@@ -197,14 +200,10 @@ export function EmailCell({
         <TooltipTrigger
           aria-pressed={email.enabled}
           aria-disabled={email.saving || undefined}
-          // Named for its row like every other cell in it, and described by
-          // what it reaches beyond the row. The name has to differ per row or
-          // two cells on one value answer to one name; the description is
-          // where that shared value gets said.
-          aria-label={t("channelCellLabel", {
-            channel: t("channelEmail"),
-            kind: label,
-          })}
+          // The name has to differ per row, or two cells on one value answer
+          // to one name. What that shared value reaches is said in the
+          // description instead.
+          aria-label={name}
           aria-describedby={hintId}
           onClick={() => {
             if (email.saving) {
@@ -259,7 +258,6 @@ function KindCells({
   onToggle: (channel: StoredChannel, on: boolean) => void;
 }) {
   const t = useTranslations("App.Account.Notifications");
-  const tCenter = useTranslations("Components.NotificationCenter");
   const { channels, saving } = kind;
   const label = t(kind.spec.labelKey);
   const pushHintId = useId();
@@ -272,7 +270,7 @@ function KindCells({
     ? `${
         pushBlock === "unsupported"
           ? t("pushUnsupported")
-          : tCenter("browserPermissionDeniedDescription")
+          : t("pushBlockedHint")
       } ${t("pushOtherDevicesHint")}`
     : null;
 
@@ -343,10 +341,12 @@ function KindCells({
                 channel: t(spec.labelKey),
                 kind: label,
               })}
-              // Only the blocked cell describes itself. Said on every cell,
-              // the row would read its own column names back at the reader
-              // three times over.
-              aria-describedby={blocked ? pushHintId : undefined}
+              // Spread rather than set to undefined. The trigger writes its
+              // own `aria-describedby` for the tooltip, and this prop is
+              // applied over it: an undefined here deletes it, and every cell
+              // that is not blocked loses the one sentence that says what its
+              // column means to a reader who cannot see the tooltip.
+              {...(blocked ? { "aria-describedby": pushHintId } : {})}
               onClick={() => {
                 if (saving) {
                   return;
@@ -378,7 +378,10 @@ function KindCells({
       ) : null}
       {kind.spec.email ? (
         <EmailCell
-          label={label}
+          name={t("channelCellLabel", {
+            channel: t("channelEmail"),
+            kind: label,
+          })}
           hint={t("channelEmailHint")}
           announceOn={t("emailAnnounceOn")}
           announceOff={t("emailAnnounceOff")}

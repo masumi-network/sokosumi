@@ -51,15 +51,16 @@ async function readPushSubscription(): Promise<boolean> {
 }
 
 /**
- * Push consent has two independent axes, and one switch could not say which
- * one the reader meant. The account axis is `pushOptIn`, stored on the user and
- * read by Core's publish gate: off silences every browser at once. The device
- * axis is this browser's own Web Push subscription: off silences only here and
- * leaves the reader's other devices alone.
+ * Push consent has two independent axes, and neither implies the other. The
+ * account axis is `pushOptIn`, stored on the user and read by Core's publish
+ * gate: off silences every browser at once. The device axis is this browser's
+ * own Web Push subscription: gone, this browser stays quiet while the reader's
+ * other devices carry on.
  *
- * Splitting them also reaches a state one switch could not. A browser holding
- * no subscription used to read as off, so the disable dialog never opened and
- * account-wide consent could not be withdrawn from it at all.
+ * The account page carries no switch for either any more. Its Push cells ask
+ * for whichever axis is missing, so both stay separately readable here: a
+ * browser that lost its subscription while consent stands is a state the cells
+ * have to tell apart, and a single answer could not.
  */
 export interface PushPreference {
   /** Account-wide consent. Off means no browser receives a push. */
@@ -80,23 +81,25 @@ export interface PushPreference {
    */
   isBlocked: boolean;
   /**
-   * Whether the account row may be toggled. False while the session or the
+   * Whether account consent may be written. False while the session or the
    * account opt-in is unknown, which covers a read still in flight and one that
-   * failed past its retries. Deliberately ignores a save in flight, so
-   * the row keeps focus across a save, and deliberately ignores whether this
-   * browser can push: the account axis is a Core write, and a reader whose
-   * browser cannot subscribe still owns the switch that silences or wakes
-   * their other devices.
+   * failed past its retries. Deliberately ignores a save in flight, and
+   * deliberately ignores whether this browser can push: the account axis is a
+   * Core write, and a reader whose browser cannot subscribe still owns what
+   * silences or wakes their other devices.
    */
   canToggleAccount: boolean;
   /**
-   * Whether the device row may be toggled. Adds to `canToggleAccount` that this
-   * browser can subscribe, and that account consent stands. The account row is
-   * the master switch: with consent withdrawn, no device receives anything, so
-   * this row greys out rather than offering a change nobody could hear.
+   * Whether this browser may subscribe. Adds to `canToggleAccount` that this
+   * browser can push at all, and that account consent stands. Consent is the
+   * master switch: with it withdrawn, no device receives anything, so
+   * subscribing here would buy the reader nothing.
    */
   canToggleDevice: boolean;
-  /** Whether a save is in flight. Each row refuses a second change until it lands. */
+  /**
+   * Whether a save is in flight. The caller refuses a second change until it
+   * lands: two saves read the same answer and race over one subscription.
+   */
   isSaving: boolean;
   /**
    * Rejects on failure so the view can surface its own error toast. Resolves
@@ -228,15 +231,15 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   });
 
   /**
-   * Runs one save against the session user, and leaves the device row reading
-   * the browser however that save went. Hands the session user id to the
-   * callback so callers need no cast.
+   * Runs one save against the session user, and leaves the reported device
+   * state reading the browser however that save went. Hands the session user
+   * id to the callback so callers need no cast.
    *
-   * The row is held for the save and read once at the end, and both belong
-   * here together. A save that held the row without reading would drop the
-   * refreshes it suppressed rather than defer them: the reader could revoke
-   * the permission mid-save and leave a checked row beside its own "not
-   * available in this browser". Withdrawing account consent touches no
+   * The subscription read is held for the save and run once at the end, and
+   * both belong here together. A save that held it without reading would drop
+   * the refreshes it suppressed rather than defer them: the reader could
+   * revoke the permission mid-save and leave a cell drawn on beside a browser
+   * that can no longer push. Withdrawing account consent touches no
    * subscription and still pays the read, which costs one local lookup.
    *
    * The read runs after the hold is released, so a permission change landing
@@ -305,8 +308,8 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   /**
    * A missing push API and a blocked permission both stop a subscription here,
    * so `canSubscribeHere` merges them. `isBlocked` stays apart because the view
-   * names the two in different words. Neither gates the account row: that row
-   * is a Core write, and it still silences or wakes the other devices.
+   * names the two in different words. Neither gates account consent: that is a
+   * Core write, and it still silences or wakes the other devices.
    */
   const isDenied = permission === "denied";
   const isBlocked = isSupported === true && isDenied;
@@ -316,8 +319,9 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     (next: boolean): Promise<boolean> => {
       if (!next) {
         // Consent only. Registrations stay, so the reader's other browsers do
-        // not have to activate again when consent comes back (ADR-0022), and
-        // this row stays reachable from a browser that never subscribed.
+        // not have to activate again when consent comes back (ADR-0022). No
+        // control writes this today: the account page silences push by
+        // clearing its cells, which Core's publish gate reads per kind.
         return runSave(async () => {
           await recordAccountOptIn(false);
           return false;
@@ -326,8 +330,8 @@ export function usePushPreference(userId: string | undefined): PushPreference {
 
       if (!canSubscribeHere) {
         // This browser cannot become a push device: no push API, or the reader
-        // blocked notifications for the site. It still owns the account axis,
-        // so the write wakes the reader's other devices. Subscribing first
+        // blocked notifications for the site. It still writes the account
+        // axis, so the write wakes the reader's other devices. Subscribing
         // here would throw and lose the consent write with it.
         return runSave(async () => {
           await recordAccountOptIn(true);

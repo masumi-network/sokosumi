@@ -165,7 +165,11 @@ export function useNotificationDelivery(): NotificationDelivery {
    * that, the cells would sit on and this browser would never push again.
    */
   async function activatePushIfNeeded() {
-    if (!push.canToggleAccount) {
+    // One push write at a time, across every row. The busy flag the rows hold
+    // is per kind, so two kinds can ask within one write of each other: the
+    // second would read the same stale answer as the first, subscribe on top
+    // of it, and release the shared row while the first is still running.
+    if (push.isSaving || !push.canToggleAccount) {
       return;
     }
 
