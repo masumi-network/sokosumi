@@ -76,7 +76,8 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/chat")).toBe("chats");
     expect(resolveChatMobileActiveTabId("/projects")).toBe("projects");
     expect(resolveChatMobileActiveTabId("/you")).toBe("you");
-    expect(resolveChatMobileActiveTabId("/history")).toBeNull();
+    expect(resolveChatMobileActiveTabId("/history")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/notifications")).toBe("home");
   });
 
   it("returns null on rooms and nested routes", () => {
@@ -98,6 +99,7 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/agents")).toBe("home");
     expect(resolveChatMobileActiveTabId("/agents/a1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/drive")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/notifications/n1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/projects/p1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/account")).toBeNull();
   });
@@ -230,8 +232,34 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
-  it("does not set aria-current on any tab for unmatched paths", () => {
+  it("sets aria-current on Home for /history", () => {
     mockPathname = "/history";
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "tasks" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("sets aria-current on Home for /notifications", () => {
+    mockPathname = "/notifications";
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "chats" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("does not set aria-current on any tab for unmatched paths", () => {
+    mockPathname = "/account";
     render(<ChatMobileBottomNav />);
 
     for (const name of ["home", "tasks", "chats", "projects", "you"]) {
