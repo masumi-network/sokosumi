@@ -453,6 +453,24 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * The common write needs no consent at all, and it still paints before the
+   * network answers. That is the whole point of painting: the row moves under
+   * the press rather than a round trip later.
+   */
+  it("shows the picked delivery before the write lands", async () => {
+    patchMyPreferences.mockReturnValue(new Promise(() => {}));
+    renderKinds();
+
+    await pick("kindSystem", "deliveryOff");
+
+    expect(setAccountEnabled).not.toHaveBeenCalled();
+    expect(stop("kindSystem", "deliveryOff")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  /**
    * Recording the account-wide consent writes its own preferences PATCH and
    * seeds this cache with the answer that write returned. That answer predates
    * the delivery this reader just picked, so a paint before the consent is
