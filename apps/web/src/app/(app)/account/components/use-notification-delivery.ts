@@ -178,16 +178,21 @@ export function useNotificationDelivery(): NotificationDelivery {
       (change) => change.channel === "OS_BANNER" && change.enabled,
     );
 
-    paint(written);
+    // Marked busy before the prompt, which waits on a person. A second press
+    // on the same group while it stands would land its write, then have this
+    // one overwrite it on the way back.
     setSaving((current) => [...current, ...categories]);
 
     try {
-      // Marked busy first. The permission prompt waits on a person, and a
-      // second press on the same group while it stands would land its write,
-      // then have this one overwrite it on the way back.
       if (asksForBanner) {
         await activatePushIfNeeded();
       }
+
+      // Painted after the consent, never before it. Recording the consent
+      // seeds this same cache with the answer its own write returned, and
+      // that answer predates this one: painting first would show the new
+      // delivery, then drop back to the old one under a busy row.
+      paint(written);
 
       const stored = await preferencesBrowserClient.patchMyPreferences({
         notificationPreferences: written.map((cell) => ({
