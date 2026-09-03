@@ -19,8 +19,8 @@ import {
   readWorkspaceCalendar,
 } from "@/routes/v1/workspaces/[id]/calendar/get";
 import {
+  projectCalendarQuerySchema,
   workspaceCalendarItemSchema,
-  workspaceCalendarQuerySchema,
 } from "@/schemas/workspace-calendar.schema";
 
 const paramsSchema = z.object({
@@ -42,7 +42,7 @@ const route = withCoworkerContextHeaderParameters(
     tags: ["Projects"],
     request: {
       params: paramsSchema,
-      query: workspaceCalendarQuerySchema,
+      query: projectCalendarQuerySchema,
     },
     responses: {
       200: jsonPaginatedSuccessResponse(

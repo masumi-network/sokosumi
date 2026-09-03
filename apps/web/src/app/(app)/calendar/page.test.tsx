@@ -86,4 +86,30 @@ describe("CalendarPage", () => {
       expect.objectContaining({ status: "READY" }),
     );
   });
+
+  it("passes the selected Project filter to the initial Calendar read", async () => {
+    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
+
+    await CalendarPage({
+      searchParams: Promise.resolve({ projectId: "project-1" }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "project-1" }),
+    );
+  });
+
+  it("passes the selected non-Project source filter to the initial Calendar read", async () => {
+    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
+
+    await CalendarPage({
+      searchParams: Promise.resolve({
+        sourceId: "legacy-unknown:workspace-1",
+      }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceId: "legacy-unknown:workspace-1" }),
+    );
+  });
 });

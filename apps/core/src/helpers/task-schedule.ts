@@ -4,6 +4,7 @@ import {
   isValidTimezone,
   type TaskScheduleMetadata,
   type TaskScheduleMetadataV1,
+  type TaskScheduleMetadataV2,
 } from "@sokosumi/utils";
 
 import { computeNextRun } from "@/helpers/cron";
@@ -248,6 +249,45 @@ export function buildTaskScheduleMetadata(
     ...(input.occurrences != null ? { occurrences: input.occurrences } : {}),
     ...(input.intervalDays != null ? { intervalDays: input.intervalDays } : {}),
     ...(input.anchorAt ? { anchorAt: input.anchorAt } : {}),
+  };
+}
+
+export function buildTaskScheduleMetadataV2(
+  input: TaskScheduleInput,
+  createdAt: Date,
+  epochId: string,
+): TaskScheduleMetadataV2 {
+  const createdAtIso = createdAt.toISOString();
+
+  if (input.mode === "once") {
+    return {
+      version: 2,
+      epochId,
+      mode: "once",
+      createdAt: createdAtIso,
+      ruleEffectiveFrom: createdAtIso,
+      timezone: "UTC",
+      sourceRunAt: input.runAt,
+      effectiveRunAt: input.runAt,
+    };
+  }
+
+  return {
+    version: 2,
+    epochId,
+    mode: "recurring",
+    createdAt: createdAtIso,
+    ruleEffectiveFrom: createdAtIso,
+    timezone: input.timezone ?? "UTC",
+    expr: input.expr,
+    endsMode: input.endsMode ?? "never",
+    ...(input.endsOn ? { endsOn: input.endsOn } : {}),
+    ...(input.occurrences != null
+      ? { targetReleaseCount: input.occurrences }
+      : {}),
+    ...(input.intervalDays != null ? { intervalDays: input.intervalDays } : {}),
+    anchorAt: input.anchorAt ?? createdAtIso,
+    epochReleaseCount: 0,
   };
 }
 

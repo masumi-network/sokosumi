@@ -54,6 +54,8 @@ const PROJECT = {
   name: "Launch plan",
   logo: null,
   websiteUrl: null,
+  closingAt: null,
+  closedAt: null,
   createdAt: new Date("2026-06-01T00:00:00.000Z"),
   updatedAt: new Date("2026-06-02T00:00:00.000Z"),
 };
@@ -91,6 +93,8 @@ describe("ProjectCalendarPage", () => {
         searchParams: Promise.resolve({
           assigneeId: "coworker-1",
           date: "2026-06-18",
+          projectId: "project-2",
+          sourceId: "workspace:workspace-1",
           scope: "owned",
           status: "READY",
         }),
@@ -109,6 +113,13 @@ describe("ProjectCalendarPage", () => {
         status: "READY",
       }),
     );
+    expect(getProjectCalendarMock).toHaveBeenCalledWith(
+      PROJECT.id,
+      expect.not.objectContaining({
+        projectId: expect.anything(),
+        sourceId: expect.anything(),
+      }),
+    );
     expect(screen.getByRole("link", { name: "backToProject" })).toHaveAttribute(
       "href",
       "/projects/project-1",
@@ -116,16 +127,42 @@ describe("ProjectCalendarPage", () => {
     expect(
       screen.getByRole("link", { name: "backToProject" }).className,
     ).not.toContain("hidden");
-    expect(workspaceCalendarMock).toHaveBeenCalledWith(
+    const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
+      lockedProjectId?: string;
+      projectId?: string;
+      sources: Array<{
+        isSchedulable: boolean;
+        sourceId: string;
+        sourceType: string;
+      }>;
+    };
+    expect(calendarProps.lockedProjectId).toBe(PROJECT.id);
+    expect(calendarProps).not.toHaveProperty("projectId");
+    expect(calendarProps.sources).toEqual([
       expect.objectContaining({
-        projectId: PROJECT.id,
-        sources: [
-          expect.objectContaining({
-            sourceId: "project:project-1",
-            sourceType: "PROJECT",
-          }),
-        ],
+        isSchedulable: true,
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+      }),
+    ]);
+  });
+
+  it("passes a closed Project as an unschedulable source", async () => {
+    getProjectByIdMock.mockResolvedValue({
+      ...PROJECT,
+      closedAt: new Date("2026-06-03T00:00:00.000Z"),
+    });
+
+    render(
+      await ProjectCalendarPage({
+        params: Promise.resolve({ projectId: PROJECT.id }),
+        searchParams: Promise.resolve({}),
       }),
     );
+
+    const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
+      sources: Array<{ isSchedulable: boolean }>;
+    };
+    expect(calendarProps.sources[0]?.isSchedulable).toBe(false);
   });
 });
