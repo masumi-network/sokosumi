@@ -113,6 +113,7 @@ export function DeadCell({
             otherwise pass the row and never learn that this channel is one of
             the places a notification can reach them. */}
         <TooltipTrigger
+          type="button"
           aria-disabled="true"
           aria-label={label}
           aria-describedby={hintId}
@@ -153,8 +154,12 @@ export function EmailCell({
    * emails" is the name that composing produces.
    */
   name: string;
-  /** What the switch reaches, for its description and its tooltip. */
-  hint: string;
+  /**
+   * What the switch reaches, for its description and its tooltip. Left out on
+   * a row whose own visible line already says it: described as well, a reader
+   * hears that sentence twice, once as the row and once as the control.
+   */
+  hint?: string;
   /** What the row says once the write lands. Named for the value it wrote,
       rather than for this row: one switch can sit on several rows, and the
       reader needs to hear which of their settings just moved. */
@@ -198,13 +203,16 @@ export function EmailCell({
     <>
       <Tooltip>
         <TooltipTrigger
+          type="button"
           aria-pressed={email.enabled}
           aria-disabled={email.saving || undefined}
           // The name has to differ per row, or two cells on one value answer
           // to one name. What that shared value reaches is said in the
           // description instead.
           aria-label={name}
-          aria-describedby={hintId}
+          // Spread, so a row with nothing extra to say leaves the trigger's
+          // own tooltip description alone rather than deleting it.
+          {...(hint ? { "aria-describedby": hintId } : {})}
           onClick={() => {
             if (email.saving) {
               return;
@@ -221,11 +229,13 @@ export function EmailCell({
         >
           <Mail className="size-4" aria-hidden="true" />
         </TooltipTrigger>
-        <TooltipContent>{hint}</TooltipContent>
+        {hint ? <TooltipContent>{hint}</TooltipContent> : null}
       </Tooltip>
-      <span aria-hidden="true" id={hintId} className="sr-only">
-        {hint}
-      </span>
+      {hint ? (
+        <span aria-hidden="true" id={hintId} className="sr-only">
+          {hint}
+        </span>
+      ) : null}
       <span role="status" aria-live="polite" className="sr-only">
         {arrival?.text ?? ""}
       </span>
@@ -266,12 +276,19 @@ function KindCells({
   // The cell writes the account rather than the browser, so it keeps working:
   // it is the reader's only way to silence or wake the devices that can push.
   // What changes is what the cell says.
+  //
+  // Three sentences, in the order a reader needs them: what the column is for,
+  // why it will not happen here, and that the press still counts elsewhere.
+  // The first is kept rather than replaced, or a reader who meets Push on a
+  // blocked browser never learns what the column would have done.
   const pushHint = pushBlock
-    ? `${
+    ? [
+        t("channelPushHint"),
         pushBlock === "unsupported"
           ? t("pushUnsupported")
-          : t("pushBlockedHint")
-      } ${t("pushOtherDevicesHint")}`
+          : t("pushBlockedHint"),
+        t("pushOtherDevicesHint"),
+      ].join(" ")
     : null;
 
   // Silent until the reader presses something in this row, so opening a group
@@ -335,6 +352,7 @@ function KindCells({
         return (
           <Tooltip key={spec.id}>
             <TooltipTrigger
+              type="button"
               aria-pressed={pressed}
               aria-disabled={saving || undefined}
               aria-label={t("channelCellLabel", {

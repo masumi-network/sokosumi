@@ -158,8 +158,8 @@ function NewsRow({ news }: { news: EmailChoice }) {
             <EmailCell
               // Its own name rather than "Email for Marketing emails", which
               // is what composing gives on a row that is already about email.
+              // No hint either: the row's visible line is that sentence.
               name={label}
-              hint={t("marketingEmailsDescription")}
               announceOn={t("newsAnnounceOn")}
               announceOff={t("newsAnnounceOff")}
               email={news}
@@ -188,11 +188,9 @@ function EmailRow({ email }: { email: EmailChoice }) {
         </p>
       </div>
       <EmailCell
-        name={t("channelCellLabel", {
-          channel: t("channelEmail"),
-          kind: t("channelEmailLabel"),
-        })}
-        hint={t("channelEmailFallbackHint")}
+        // Named for the row, like the marketing row below it. Composed, it
+        // would read "Email for Job status emails".
+        name={t("channelEmailLabel")}
         announceOn={t("emailAnnounceOn")}
         announceOff={t("emailAnnounceOff")}
         email={email}

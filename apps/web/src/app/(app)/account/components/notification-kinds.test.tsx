@@ -10,6 +10,7 @@ import { getMyPreferencesQueryKey } from "@/queries/preferences";
 import { NotificationKinds } from "./notification-kinds";
 
 const patchMyPreferences = vi.fn();
+const getMyPreferences = vi.fn();
 const setAccountEnabled = vi.fn();
 const setDeviceEnabled = vi.fn();
 const setJobEmails = vi.fn();
@@ -37,7 +38,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 
 vi.mock("@/lib/clients/core.preferences.browser.client", () => ({
   preferencesBrowserClient: {
-    getMyPreferences: vi.fn(),
+    getMyPreferences: (...args: unknown[]) => getMyPreferences(...args),
     patchMyPreferences: (body: unknown) => patchMyPreferences(body),
   },
 }));
@@ -164,6 +165,20 @@ function renderKinds(notificationPreferences = MATRIX) {
   );
 }
 
+/** Renders with the read still out, the way a first visit meets the page. */
+function renderPending() {
+  getMyPreferences.mockReturnValue(new Promise(() => {}));
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AccountHost />
+    </QueryClientProvider>,
+  );
+}
+
 function lastWrite() {
   const calls = patchMyPreferences.mock.calls;
   return calls[calls.length - 1][0].notificationPreferences;
@@ -223,7 +238,7 @@ function newsRow() {
 /** The account switch on a row of its own, when no kind row carries it. */
 function fallbackEmailCell() {
   return screen.getByRole("button", {
-    name: "channelCellLabel channelEmail channelEmailLabel",
+    name: "channelEmailLabel",
   });
 }
 
@@ -462,6 +477,22 @@ describe("NotificationKinds", () => {
   });
 
   /** Every kind answers the same three questions, in the same three places. */
+  /**
+   * An opened group is where the reader reads what each kind is. The cells
+   * name their kind to a screen reader either way, so nothing else here would
+   * notice a grid that lost every visible name and hint.
+   */
+  it("names every kind of an opened group, and says what it is", async () => {
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    for (const kind of ["kindJobAttention", "kindJobUpdate"]) {
+      expect(screen.getByText(kind)).toBeInTheDocument();
+      expect(screen.getByText(`${kind}Hint`)).toBeInTheDocument();
+    }
+  });
+
   it("gives every kind the whole row of channels", async () => {
     renderKinds();
 
@@ -481,6 +512,36 @@ describe("NotificationKinds", () => {
    * expects it and loses the press, so the column has no hole in it and the
    * row still says what email would mean here.
    */
+  /**
+   * Every cell names its own channel, so the heads above them are for the eye.
+   * Read out as well, the row would say "In app" three times before the
+   * reader reached a control. The same holds for the sentence a dead cell is
+   * described by: in the tree as well, it is read twice.
+   */
+  it("keeps the column names and the dead hints out of the tree", async () => {
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const heads = screen.getAllByText("channelInApp");
+
+    expect(heads.length).toBeGreaterThan(0);
+    for (const head of heads) {
+      expect(head.closest('[aria-hidden="true"]')).not.toBeNull();
+    }
+
+    const dead = within(newsRow()).getByRole("button", {
+      name: "channelUnavailableLabel channelInApp marketingEmailsTitle",
+    });
+    const hintId = dead.getAttribute("aria-describedby");
+
+    expect(hintId).not.toBeNull();
+    expect(document.getElementById(hintId ?? "")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+  });
+
   it("marks a kind Sokosumi never mails, and presses nowhere", async () => {
     const user = userEvent.setup();
     renderKinds();
@@ -810,7 +871,9 @@ describe("NotificationKinds", () => {
     const cell = cellFor("kindSystem", "channelPush");
 
     expect(cell).toHaveAttribute("aria-pressed", "false");
-    expect(describedBy(cell)).toBe("pushUnsupported pushOtherDevicesHint");
+    expect(describedBy(cell)).toBe(
+      "channelPushHint pushUnsupported pushOtherDevicesHint",
+    );
 
     await toggle("kindSystem", "channelPush");
 
@@ -819,12 +882,6 @@ describe("NotificationKinds", () => {
     });
   });
 
-  /**
-   * Two different states, and the reader can act on one of them: a block is
-   * their own setting and reversible, and no browser support is not. Blocked
-   * is reported as blocked, and a browser that cannot push at all is told that
-   * first, because it can be both.
-   */
   /**
    * The tooltip is where a cell says what its column means, and the trigger
    * writes its own `aria-describedby` to point at it. A cell that set that
@@ -847,13 +904,32 @@ describe("NotificationKinds", () => {
     expect(describedBy(cell)).toContain("channelInAppHint");
   });
 
-  it("says which of the two the browser is", () => {
+  /**
+   * Two different states, and the reader can act on one of them: a block is
+   * their own setting and reversible, and no browser support is not. Blocked
+   * is reported as blocked, and a browser that cannot push at all is told that
+   * first, because it can be both.
+   */
+  it("says which of the two the browser is", async () => {
+    const user = userEvent.setup();
     isBlocked = true;
     renderKinds();
 
-    expect(describedBy(cellFor("kindSystem", "channelPush"))).toBe(
-      "pushBlockedHint pushOtherDevicesHint",
+    const cell = cellFor("kindSystem", "channelPush");
+
+    expect(describedBy(cell)).toBe(
+      "channelPushHint pushBlockedHint pushOtherDevicesHint",
     );
+
+    // The same words a sighted reader gets. Left on the generic channel hint,
+    // the cell would say what a push is for while doing nothing here.
+    await user.hover(cell);
+
+    await waitFor(() => {
+      expect(screen.getByRole("tooltip")).toHaveTextContent(
+        "channelPushHint pushBlockedHint pushOtherDevicesHint",
+      );
+    });
   });
 
   it("says the browser cannot push before it says it is blocked", () => {
@@ -862,7 +938,7 @@ describe("NotificationKinds", () => {
     renderKinds();
 
     expect(describedBy(cellFor("kindSystem", "channelPush"))).toBe(
-      "pushUnsupported pushOtherDevicesHint",
+      "channelPushHint pushUnsupported pushOtherDevicesHint",
     );
   });
 
@@ -1288,6 +1364,23 @@ describe("NotificationKinds", () => {
    * at once. An empty card for the length of a round trip loses a control that
    * never needed the answer.
    */
+  /**
+   * The session is only half of the wait. The preferences read is the other,
+   * and a page that watched the session alone would draw the kinds from an
+   * empty matrix: every cell off, then the stored answer a moment later.
+   */
+  it("waits for the preferences read as well as the session", () => {
+    renderPending();
+
+    expect(newsRow()).toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: /^deliveryAriaLabel/ }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "channelEmailLabel" }),
+    ).toBeNull();
+  });
+
   it("waits for the read before drawing the kinds, and not before the news", () => {
     sessionPending = true;
 
@@ -1304,7 +1397,7 @@ describe("NotificationKinds", () => {
     // something only the matrix can say.
     expect(
       screen.queryByRole("button", {
-        name: "channelCellLabel channelEmail channelEmailLabel",
+        name: "channelEmailLabel",
       }),
     ).toBeNull();
   });
@@ -1333,7 +1426,7 @@ describe("NotificationKinds", () => {
 
     expect(
       screen.queryByRole("button", {
-        name: "channelCellLabel channelEmail channelEmailLabel",
+        name: "channelEmailLabel",
       }),
     ).toBeNull();
 
@@ -1342,7 +1435,7 @@ describe("NotificationKinds", () => {
     expect(emailCell("kindJobAttention")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
-        name: "channelCellLabel channelEmail channelEmailLabel",
+        name: "channelEmailLabel",
       }),
     ).toBeNull();
 
@@ -1422,7 +1515,10 @@ describe("NotificationKinds", () => {
     });
 
     expect(email).toHaveAttribute("aria-pressed", "false");
-    expect(describedBy(email)).toBe("marketingEmailsDescription");
+    // The row's own line is that sentence. Described by it as well, a reader
+    // hears it twice: once as the row, once as the control.
+    expect(email).not.toHaveAttribute("aria-describedby");
+    expect(screen.getByText("marketingEmailsDescription")).toBeInTheDocument();
 
     await user.click(email);
 
@@ -1466,5 +1562,9 @@ describe("NotificationKinds", () => {
         name: "marketingEmailsTitle",
       }),
     ).toBeInTheDocument();
+    // The heading describes the groups. Left standing over a box holding one
+    // row about marketing, it tells the reader to set groups that are not
+    // there.
+    expect(screen.queryByText("kindsTitle")).toBeNull();
   });
 });
