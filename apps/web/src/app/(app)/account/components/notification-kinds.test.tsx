@@ -593,15 +593,20 @@ describe("NotificationKinds", () => {
       .getAllByRole("button")
       .filter((button) => button.className.includes("size-9"));
 
+    expect(cells.length).toBeGreaterThan(0);
     for (const cell of cells) {
+      // Waited for, because a trigger writes its description when it opens
+      // and not before. Read on the way past, every cell would look
+      // undescribed and this would pass without seeing anything.
       await user.hover(cell);
-      cell.focus();
 
-      const id = cell.getAttribute("aria-describedby");
+      await waitFor(() => {
+        expect(cell).toHaveAttribute("aria-describedby");
+      });
 
-      if (id !== null) {
-        expect(document.getElementById(id)).not.toBeNull();
-      }
+      const id = cell.getAttribute("aria-describedby") ?? "";
+
+      expect(document.getElementById(id)).not.toBeNull();
 
       await user.unhover(cell);
     }
