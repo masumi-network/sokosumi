@@ -27,17 +27,7 @@ import {
   initiateProjectSocialConnection,
 } from "@/lib/actions/project/action";
 import type { ProjectSocialConnection } from "@/lib/clients/generated/core/types.gen";
-import {
-  COMPOSIO_OAUTH_ACK_TYPE,
-  getComposioOAuthBroadcastChannelName,
-  getComposioOAuthPopupName,
-  isComposioOAuthCallbackPayload,
-  readPopupClosed,
-} from "@/lib/composio/oauth-popup-protocol";
-
-const POPUP_FEATURES = "popup=yes,width=560,height=720,noopener=no";
-const POPUP_POLL_INTERVAL_MS = 500;
-const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
+import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
 
 interface ProjectSocialAccountsProps {
   connections: ProjectSocialConnection[];
@@ -55,12 +45,6 @@ interface Feedback {
 }
 
 type OAuthAction = "connect" | "reconnect" | "replace";
-
-type OAuthWaitResult =
-  | { kind: "callback"; payload: unknown }
-  | { kind: "closed" }
-  | { kind: "timeout" }
-  | { kind: "cancelled" };
 
 const STATUS_TRANSLATION_KEYS: Record<
   ProjectSocialConnection["status"],
@@ -90,8 +74,8 @@ export function ProjectSocialAccounts({
 }: ProjectSocialAccountsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
-  const activeFlowCleanupRef = useRef<(() => void) | null>(null);
-  const inFlightRef = useRef(false);
+  const { runPopupOAuth } = useComposioOAuthPopup();
+  const disconnectInFlightRef = useRef(false);
   const isMountedRef = useRef(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [pendingAction, setPendingAction] = useState<
@@ -106,9 +90,6 @@ export function ProjectSocialAccounts({
 
     return () => {
       isMountedRef.current = false;
-      activeFlowCleanupRef.current?.();
-      activeFlowCleanupRef.current = null;
-      inFlightRef.current = false;
     };
   });
 
@@ -123,115 +104,9 @@ export function ProjectSocialAccounts({
   }
 
   function finishAction(): void {
-    inFlightRef.current = false;
-    activeFlowCleanupRef.current = null;
     if (isMountedRef.current) {
       setPendingAction(null);
     }
-  }
-
-  function closePopup(popup: Window): void {
-    if (readPopupClosed(popup) === true) return;
-    try {
-      popup.close();
-    } catch {
-      // The OAuth provider may have isolated its browsing context.
-    }
-  }
-
-  function sendCallbackAck(
-    target: MessageEventSource | null,
-    nonce: string,
-  ): void {
-    if (!target || !("postMessage" in target)) return;
-    try {
-      (target as Window).postMessage(
-        { type: COMPOSIO_OAUTH_ACK_TYPE, nonce },
-        window.location.origin,
-      );
-    } catch {
-      // The callback popup closes quickly, so acknowledgement is best effort.
-    }
-  }
-
-  async function waitForOAuthCallback(
-    popup: Window,
-    nonce: string,
-  ): Promise<OAuthWaitResult> {
-    return new Promise((resolve) => {
-      let settled = false;
-      let channel: BroadcastChannel | null = null;
-      let poller: number | null = null;
-      let timeout: number | null = null;
-
-      function cleanup(): void {
-        window.removeEventListener("message", onMessage);
-        channel?.close();
-        if (poller !== null) {
-          window.clearInterval(poller);
-          poller = null;
-        }
-        if (timeout !== null) {
-          window.clearTimeout(timeout);
-          timeout = null;
-        }
-        if (activeFlowCleanupRef.current === cancel) {
-          activeFlowCleanupRef.current = null;
-        }
-      }
-
-      function settle(result: OAuthWaitResult): void {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        resolve(result);
-      }
-
-      function cancel(): void {
-        settle({ kind: "cancelled" });
-      }
-
-      function handlePayload(
-        payload: unknown,
-        target: MessageEventSource | null,
-      ) {
-        if (
-          !isComposioOAuthCallbackPayload(payload) ||
-          payload.nonce !== nonce
-        ) {
-          return;
-        }
-        sendCallbackAck(target, nonce);
-        settle({ kind: "callback", payload });
-      }
-
-      function onMessage(event: MessageEvent): void {
-        if (event.origin !== window.location.origin) return;
-        handlePayload(event.data, event.source);
-      }
-
-      window.addEventListener("message", onMessage);
-      try {
-        channel = new BroadcastChannel(
-          getComposioOAuthBroadcastChannelName(nonce),
-        );
-        channel.onmessage = (event: MessageEvent) => {
-          handlePayload(event.data, popup);
-        };
-      } catch {
-        channel?.close();
-        channel = null;
-      }
-      poller = window.setInterval(() => {
-        if (readPopupClosed(popup) === true) {
-          settle({ kind: "closed" });
-        }
-      }, POPUP_POLL_INTERVAL_MS);
-      timeout = window.setTimeout(() => {
-        settle({ kind: "timeout" });
-      }, POPUP_TIMEOUT_MS);
-      activeFlowCleanupRef.current = cancel;
-    });
   }
 
   function showActionError(error: ActionError, fallback: string): void {
@@ -252,120 +127,107 @@ export function ProjectSocialAccounts({
     action: OAuthAction,
     socialConnectionId?: string,
   ): Promise<void> {
-    if (inFlightRef.current) {
-      showFeedback({ kind: "error", message: t("errors.inFlight") });
-      return;
-    }
-
-    const nonce = crypto.randomUUID();
-    const popup = window.open(
-      "about:blank",
-      getComposioOAuthPopupName(nonce),
-      POPUP_FEATURES,
-    );
-    if (!popup) {
-      showFeedback({ kind: "error", message: t("errors.popupBlocked") });
-      return;
-    }
-
-    inFlightRef.current = true;
-    setFeedback(null);
-    setPendingAction(action);
-    activeFlowCleanupRef.current = () => closePopup(popup);
-    const refreshAfterReplace = action === "replace";
-    let refreshed = false;
-
     try {
-      const initiation = await initiateProjectSocialConnection({
-        projectId,
-        action,
-        ...(socialConnectionId ? { socialConnectionId } : {}),
+      const popupRun = await runPopupOAuth(async (flow) => {
+        setFeedback(null);
+        setPendingAction(action);
+        const refreshAfterReplace = action === "replace";
+        let refreshed = false;
+
+        try {
+          const initiation = await initiateProjectSocialConnection({
+            projectId,
+            action,
+            ...(socialConnectionId ? { socialConnectionId } : {}),
+          });
+          if (!initiation.ok) {
+            showActionError(initiation.error, t("errors.intent"));
+            return;
+          }
+
+          if (!isMountedRef.current) return;
+
+          const { connectionId, redirectUrl } = initiation.value;
+          flow.navigate(redirectUrl);
+          const callback = await flow.waitForCallback();
+
+          if (callback.kind === "cancelled") return;
+          if (callback.kind === "closed") {
+            showFeedback({ kind: "error", message: t("errors.popupClosed") });
+            return;
+          }
+          if (callback.kind === "timeout") {
+            showFeedback({ kind: "error", message: t("errors.timeout") });
+            return;
+          }
+
+          const { payload } = callback;
+          if (payload.status === "error") {
+            showFeedback({
+              kind: "error",
+              message: t("errors.providerCallback"),
+            });
+            return;
+          }
+          if (!payload.sessionUri) {
+            showFeedback({
+              kind: "error",
+              message: t("errors.legacyCallback"),
+            });
+            return;
+          }
+
+          const completion = await completeComposioAuthCallbackAction({
+            connectionId,
+            sessionUri: payload.sessionUri,
+          });
+          if (!completion.ok) {
+            showActionError(completion.error, t("errors.verifier"));
+            return;
+          }
+
+          const finalization = await finalizeProjectSocialConnection({
+            projectId,
+            connectionId,
+          });
+          if (!finalization.ok) {
+            showActionError(finalization.error, t("errors.finalize"));
+            return;
+          }
+
+          showFeedback({ kind: "success", message: t("success.connected") });
+          router.refresh();
+          refreshed = true;
+        } catch {
+          showFeedback({ kind: "error", message: t("errors.finalize") });
+        } finally {
+          if (refreshAfterReplace && !refreshed) {
+            router.refresh();
+          }
+          finishAction();
+        }
       });
-      if (!initiation.ok) {
-        closePopup(popup);
-        showActionError(initiation.error, t("errors.intent"));
-        return;
-      }
 
-      if (!isMountedRef.current || !inFlightRef.current) {
-        closePopup(popup);
-        return;
+      if (popupRun.kind === "in_flight") {
+        showFeedback({ kind: "error", message: t("errors.inFlight") });
       }
-
-      const { connectionId, redirectUrl } = initiation.value;
-      try {
-        popup.location.href = redirectUrl;
-      } catch {
-        popup.location.replace(redirectUrl);
+      if (popupRun.kind === "popup_blocked") {
+        showFeedback({ kind: "error", message: t("errors.popupBlocked") });
       }
-      popup.focus();
-
-      const callback = await waitForOAuthCallback(popup, nonce);
-      closePopup(popup);
-
-      if (callback.kind === "cancelled") return;
-      if (callback.kind === "closed") {
-        showFeedback({ kind: "error", message: t("errors.popupClosed") });
-        return;
-      }
-      if (callback.kind === "timeout") {
-        showFeedback({ kind: "error", message: t("errors.timeout") });
-        return;
-      }
-      if (!isComposioOAuthCallbackPayload(callback.payload)) {
-        showFeedback({ kind: "error", message: t("errors.providerCallback") });
-        return;
-      }
-      if (callback.payload.status === "error") {
-        showFeedback({ kind: "error", message: t("errors.providerCallback") });
-        return;
-      }
-      if (!callback.payload.sessionUri) {
-        showFeedback({ kind: "error", message: t("errors.legacyCallback") });
-        return;
-      }
-
-      const completion = await completeComposioAuthCallbackAction({
-        connectionId,
-        sessionUri: callback.payload.sessionUri,
-      });
-      if (!completion.ok) {
-        showActionError(completion.error, t("errors.verifier"));
-        return;
-      }
-
-      const finalization = await finalizeProjectSocialConnection({
-        projectId,
-        connectionId,
-      });
-      if (!finalization.ok) {
-        showActionError(finalization.error, t("errors.finalize"));
-        return;
-      }
-
-      showFeedback({ kind: "success", message: t("success.connected") });
-      router.refresh();
-      refreshed = true;
     } catch {
-      closePopup(popup);
       showFeedback({ kind: "error", message: t("errors.finalize") });
-    } finally {
-      if (refreshAfterReplace && !refreshed) {
-        router.refresh();
-      }
-      finishAction();
     }
   }
 
   async function handleDisconnect(
     connection: ProjectSocialConnection,
   ): Promise<void> {
-    if (inFlightRef.current) {
+    if (disconnectInFlightRef.current || isBusy) {
       showFeedback({ kind: "error", message: t("errors.inFlight") });
       return;
     }
 
-    inFlightRef.current = true;
+    disconnectInFlightRef.current = true;
     setFeedback(null);
     setPendingAction("disconnect");
     try {
@@ -383,6 +245,7 @@ export function ProjectSocialAccounts({
     } catch {
       showFeedback({ kind: "error", message: t("errors.disconnect") });
     } finally {
+      disconnectInFlightRef.current = false;
       finishAction();
     }
   }
