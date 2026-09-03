@@ -5,14 +5,18 @@ vi.mock("server-only", () => ({}));
 const coreClientMock = {
   deleteProjectsById: vi.fn(),
   deleteProjectsByIdJobsByJobId: vi.fn(),
+  deleteProjectsByIdSocialConnectionsByConnectionId: vi.fn(),
   deleteProjectsByIdTasksByTaskId: vi.fn(),
   getProjects: vi.fn(),
   getProjectsById: vi.fn(),
   getProjectsByIdCalendar: vi.fn(),
   getProjectsByIdContextMd: vi.fn(),
+  getProjectsByIdSocialConnections: vi.fn(),
   getProjectsStats: vi.fn(),
   patchProjectsById: vi.fn(),
   postProjects: vi.fn(),
+  postProjectsByIdSocialConnectionsFinalize: vi.fn(),
+  postProjectsByIdSocialConnectionsInitiate: vi.fn(),
   putProjectsByIdDesignMd: vi.fn(),
   deleteProjectsByIdDesignMd: vi.fn(),
   postProjectsByIdJobs: vi.fn(),
@@ -310,5 +314,116 @@ describe("project.service", () => {
     expect(coreClientMock.deleteProjectsByIdDesignMd).toHaveBeenCalledWith(
       "project-1",
     );
+  });
+
+  it("lists a project's active social connections", async () => {
+    const connections = [
+      {
+        id: "connection-1",
+        provider: "x" as const,
+        externalHandle: "sokosumi",
+        status: "active" as const,
+        connectedAt: new Date("2026-09-03T10:00:00.000Z"),
+        disconnectedAt: null,
+      },
+    ];
+    coreClientMock.getProjectsByIdSocialConnections.mockResolvedValue({
+      data: connections,
+    });
+
+    const { projectService } = await import("./project.service");
+
+    await expect(
+      projectService.listSocialConnections("project-1"),
+    ).resolves.toEqual(connections);
+    expect(
+      coreClientMock.getProjectsByIdSocialConnections,
+    ).toHaveBeenCalledWith("project-1");
+  });
+
+  it("initiates a social connection with the generated request DTO", async () => {
+    const initiation = {
+      connectionId: "ca_123",
+      redirectUrl: "https://connect.composio.dev/link-token",
+    };
+    coreClientMock.postProjectsByIdSocialConnectionsInitiate.mockResolvedValue({
+      data: initiation,
+    });
+
+    const { projectService } = await import("./project.service");
+
+    await expect(
+      projectService.initiateSocialConnection("project-1", {
+        action: "connect",
+        provider: "x",
+      }),
+    ).resolves.toEqual(initiation);
+    expect(
+      coreClientMock.postProjectsByIdSocialConnectionsInitiate,
+    ).toHaveBeenCalledWith("project-1", {
+      action: "connect",
+      provider: "x",
+    });
+  });
+
+  it("finalizes a social connection with its opaque connection id", async () => {
+    const connection = {
+      id: "connection-1",
+      provider: "x" as const,
+      externalHandle: "sokosumi",
+      status: "active" as const,
+      connectedAt: new Date("2026-09-03T10:00:00.000Z"),
+      disconnectedAt: null,
+    };
+    coreClientMock.postProjectsByIdSocialConnectionsFinalize.mockResolvedValue({
+      data: connection,
+    });
+
+    const { projectService } = await import("./project.service");
+
+    await expect(
+      projectService.finalizeSocialConnection("project-1", "ca_123"),
+    ).resolves.toEqual(connection);
+    expect(
+      coreClientMock.postProjectsByIdSocialConnectionsFinalize,
+    ).toHaveBeenCalledWith("project-1", { connectionId: "ca_123" });
+  });
+
+  it("disconnects a social connection by its Project row id", async () => {
+    const connection = {
+      id: "connection-1",
+      provider: "x" as const,
+      externalHandle: "sokosumi",
+      status: "disconnected" as const,
+      connectedAt: new Date("2026-09-03T10:00:00.000Z"),
+      disconnectedAt: new Date("2026-09-03T10:05:00.000Z"),
+    };
+    coreClientMock.deleteProjectsByIdSocialConnectionsByConnectionId.mockResolvedValue(
+      { data: connection },
+    );
+
+    const { projectService } = await import("./project.service");
+
+    await expect(
+      projectService.disconnectSocialConnection("project-1", "connection-1"),
+    ).resolves.toEqual(connection);
+    expect(
+      coreClientMock.deleteProjectsByIdSocialConnectionsByConnectionId,
+    ).toHaveBeenCalledWith({ id: "project-1", connectionId: "connection-1" });
+  });
+
+  it("does not turn a Core request error into a social-connection success", async () => {
+    coreClientMock.postProjectsByIdSocialConnectionsInitiate.mockRejectedValue(
+      new Error("Core unavailable"),
+    );
+
+    const { projectService } = await import("./project.service");
+
+    await expect(
+      projectService.initiateSocialConnection("project-1", {
+        action: "connect",
+        provider: "x",
+      }),
+    ).rejects.toThrow("Core unavailable");
   });
 });

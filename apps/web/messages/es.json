@@ -2237,6 +2237,53 @@
         "save": "Guardar",
         "cancel": "Cancelar"
       },
+      "ProjectSocialAccounts": {
+        "title": "Cuentas sociales",
+        "description": "Conecta cuentas de X que este proyecto podrá usar para publicar en el futuro.",
+        "account": "Cuenta de X",
+        "connect": "Conectar cuenta de X",
+        "reconnect": "Volver a conectar",
+        "replace": "Reemplazar",
+        "disconnect": "Desconectar",
+        "connecting": "Conectando…",
+        "disconnecting": "Desconectando…",
+        "unknownHandle": "Cuenta de X desconocida",
+        "status": {
+          "active": "Conectada",
+          "pending": "Conexión pendiente",
+          "reauthorization_required": "Se requiere volver a autorizar",
+          "disconnected": "Desconectada"
+        },
+        "replaceDialog": {
+          "title": "¿Reemplazar esta cuenta de X?",
+          "description": "La cuenta actual se desconectará antes de conectar un reemplazo.",
+          "confirm": "Reemplazar cuenta"
+        },
+        "disconnectDialog": {
+          "title": "¿Desconectar esta cuenta de X?",
+          "description": "Este proyecto dejará de estar autorizado para usar esta cuenta.",
+          "confirm": "Desconectar cuenta"
+        },
+        "cancel": "Cancelar",
+        "success": {
+          "connected": "Cuenta de X conectada.",
+          "disconnected": "Cuenta de X desconectada."
+        },
+        "errors": {
+          "inFlight": "Ya hay otra acción de cuenta de X en curso.",
+          "popupBlocked": "Tu navegador bloqueó la ventana de autorización de X. Permite las ventanas emergentes e inténtalo de nuevo.",
+          "popupClosed": "La ventana de autorización de X se cerró antes de terminar la configuración. Inténtalo de nuevo.",
+          "timeout": "La autorización de X tardó demasiado. Inténtalo de nuevo.",
+          "providerCallback": "La autorización de X no se completó. Vuelve a Configuración del proyecto e inténtalo de nuevo.",
+          "legacyCallback": "Esta devolución de OAuth no puede verificar tu cuenta de X. Actualiza la configuración de devolución de Composio e inténtalo de nuevo.",
+          "verifier": "No pudimos verificar tu cuenta de X. Inicia la conexión de nuevo.",
+          "intent": "Esta solicitud de conexión caducó o ya no es válida. Iníciala de nuevo.",
+          "duplicate": "Esa cuenta de X ya está conectada a este proyecto. Elige una cuenta diferente.",
+          "reconnectMismatch": "Vuelve a conectar la misma cuenta de X que ya está vinculada a este proyecto.",
+          "finalize": "No pudimos terminar de conectar esta cuenta de X. Inténtalo de nuevo.",
+          "disconnect": "No pudimos desconectar esta cuenta de X. Inténtalo de nuevo."
+        }
+      },
       "Detail": {
         "back": "Volver a proyectos",
         "header": {

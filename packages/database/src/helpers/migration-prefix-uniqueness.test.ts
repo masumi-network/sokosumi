@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { createPrismaClient } from "../client.js";
 import {
   ALLOWED_DUPLICATE_MIGRATION_PREFIX_FOLDERS,
   findDuplicateMigrationPrefixViolations,
@@ -105,6 +106,22 @@ describe("prisma/migrations prefixes", () => {
       ALLOWED_DUPLICATE_MIGRATION_PREFIX_FOLDERS,
     ).flat()) {
       expect(folders.has(expected), expected).toBe(true);
+    }
+  });
+});
+
+describe("Project social connection Prisma API", () => {
+  it("exposes the Project social connection delegates", async () => {
+    const prisma = createPrismaClient(
+      "postgresql://user:password@localhost:5432/sokosumi",
+    );
+
+    try {
+      expect(prisma.projectSocialConnection).toBeDefined();
+      expect(prisma.projectSocialConnectionIntent).toBeDefined();
+      expect(prisma.projectSocialConnectionAudit).toBeDefined();
+    } finally {
+      await prisma.$disconnect();
     }
   });
 });

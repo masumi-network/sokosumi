@@ -2237,6 +2237,53 @@
         "save": "Speichern",
         "cancel": "Abbrechen"
       },
+      "ProjectSocialAccounts": {
+        "title": "Social-Media-Konten",
+        "description": "Verbinde X-Konten, die dieses Projekt künftig zum Veröffentlichen verwenden kann.",
+        "account": "X-Konto",
+        "connect": "X-Konto verbinden",
+        "reconnect": "Erneut verbinden",
+        "replace": "Ersetzen",
+        "disconnect": "Trennen",
+        "connecting": "Wird verbunden…",
+        "disconnecting": "Wird getrennt…",
+        "unknownHandle": "Unbekanntes X-Konto",
+        "status": {
+          "active": "Verbunden",
+          "pending": "Verbindung ausstehend",
+          "reauthorization_required": "Erneute Autorisierung erforderlich",
+          "disconnected": "Getrennt"
+        },
+        "replaceDialog": {
+          "title": "Dieses X-Konto ersetzen?",
+          "description": "Das aktuelle Konto wird getrennt, bevor du ein Ersatzkonto verbindest.",
+          "confirm": "Konto ersetzen"
+        },
+        "disconnectDialog": {
+          "title": "Dieses X-Konto trennen?",
+          "description": "Dieses Projekt ist dann nicht mehr berechtigt, dieses Konto zu verwenden.",
+          "confirm": "Konto trennen"
+        },
+        "cancel": "Abbrechen",
+        "success": {
+          "connected": "X-Konto verbunden.",
+          "disconnected": "X-Konto getrennt."
+        },
+        "errors": {
+          "inFlight": "Eine andere X-Konto-Aktion wird bereits ausgeführt.",
+          "popupBlocked": "Dein Browser hat das X-Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
+          "popupClosed": "Das X-Autorisierungsfenster wurde geschlossen, bevor die Einrichtung abgeschlossen war. Versuche es erneut.",
+          "timeout": "Die X-Autorisierung hat zu lange gedauert. Versuche es erneut.",
+          "providerCallback": "Die X-Autorisierung wurde nicht abgeschlossen. Kehre zu den Projekteinstellungen zurück und versuche es erneut.",
+          "legacyCallback": "Dieser OAuth-Rückruf kann dein X-Konto nicht verifizieren. Aktualisiere die Composio-Rückrufkonfiguration und versuche es erneut.",
+          "verifier": "Dein X-Konto konnte nicht verifiziert werden. Starte die Verbindung erneut.",
+          "intent": "Diese Verbindungsanfrage ist abgelaufen oder nicht mehr gültig. Starte erneut.",
+          "duplicate": "Dieses X-Konto ist bereits mit diesem Projekt verbunden. Wähle ein anderes Konto.",
+          "reconnectMismatch": "Verbinde erneut dasselbe X-Konto, das bereits mit diesem Projekt verknüpft ist.",
+          "finalize": "Das Verbinden dieses X-Kontos konnte nicht abgeschlossen werden. Versuche es erneut.",
+          "disconnect": "Dieses X-Konto konnte nicht getrennt werden. Versuche es erneut."
+        }
+      },
       "Detail": {
         "back": "Zurück zu Projekten",
         "header": {

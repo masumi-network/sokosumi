@@ -4,11 +4,14 @@ import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   GetProjectsByIdCalendarData,
+  InitiateProjectSocialConnectionRequest,
+  InitiateProjectSocialConnectionResponse,
   JobSummary,
   Project,
   ProjectContextMd,
   ProjectDeleted,
   ProjectListItem,
+  ProjectSocialConnection,
   ProjectStatsEntry,
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
@@ -153,6 +156,47 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function listSocialConnections(
+    projectId: string,
+  ): Promise<ProjectSocialConnection[]> {
+    const result = await coreClient.getProjectsByIdSocialConnections(projectId);
+    return result.data;
+  }
+
+  async function initiateSocialConnection(
+    projectId: string,
+    input: InitiateProjectSocialConnectionRequest,
+  ): Promise<InitiateProjectSocialConnectionResponse> {
+    const result = await coreClient.postProjectsByIdSocialConnectionsInitiate(
+      projectId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function finalizeSocialConnection(
+    projectId: string,
+    connectionId: string,
+  ): Promise<ProjectSocialConnection> {
+    const result = await coreClient.postProjectsByIdSocialConnectionsFinalize(
+      projectId,
+      { connectionId },
+    );
+    return result.data;
+  }
+
+  async function disconnectSocialConnection(
+    projectId: string,
+    socialConnectionId: string,
+  ): Promise<ProjectSocialConnection> {
+    const result =
+      await coreClient.deleteProjectsByIdSocialConnectionsByConnectionId({
+        id: projectId,
+        connectionId: socialConnectionId,
+      });
+    return result.data;
+  }
+
   async function listProjectJobs(
     projectId: string,
     params: ListProjectResourcesParams = {},
@@ -256,6 +300,10 @@ export const projectService = (() => {
     patchProject,
     removeProjectDesignMd,
     deleteProject,
+    listSocialConnections,
+    initiateSocialConnection,
+    finalizeSocialConnection,
+    disconnectSocialConnection,
     listProjectJobs,
     listProjectTasks,
     addJob,
