@@ -10,7 +10,7 @@ import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 
 /**
- * App-wide mobile chrome: Home/Chats/Search tab bar + content clearance.
+ * App-wide mobile chrome: Home/Chats/You tab bar + content clearance.
  * Visible on chat shell (except rooms/drafts) and main Home-hub list routes.
  *
  * Clearance is an in-flow spacer under `{children}` so main's overflow scroll

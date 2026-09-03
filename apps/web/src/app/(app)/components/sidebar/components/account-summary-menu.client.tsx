@@ -1,6 +1,6 @@
 "use client";
 
-import type { SessionUser } from "@sokosumi/utils";
+import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import { Coins, HardDrive, LogOut, Settings, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -21,7 +21,6 @@ import { AccountPopoverDrill } from "./account-popover-drill.client";
 import {
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
-  resolveAccountDisplayName,
 } from "./account-summary-labels";
 import type {
   AccountAdminSettingsChrome,

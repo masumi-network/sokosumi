@@ -1,11 +1,15 @@
 "use client";
 
+import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { mobileChromeSurfaceClass } from "@/app/components/mobile-chrome-surface";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
+import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
+import { getInitials } from "@/lib/utils/text";
 
 import {
   CHAT_MOBILE_TABS,
@@ -32,6 +36,34 @@ export function resolveChatMobileActiveTabId(
   return null;
 }
 
+function YouTabAvatar({ sessionUser }: { sessionUser: SessionUser | null }) {
+  if (!sessionUser) {
+    return (
+      <span
+        data-testid="mobile-you-tab-avatar-skeleton"
+        className="bg-muted size-5 animate-pulse rounded-full"
+        aria-hidden
+      />
+    );
+  }
+
+  const displayName = resolveAccountDisplayName(
+    sessionUser.name,
+    sessionUser.email,
+  );
+
+  return (
+    <Avatar data-testid="mobile-you-tab-avatar" className="size-5" aria-hidden>
+      {sessionUser.image ? (
+        <AvatarImage src={sessionUser.image} alt="" />
+      ) : null}
+      <AvatarFallback className="bg-muted text-muted-foreground text-[0.5rem] font-medium">
+        {getInitials(displayName)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 export function ChatMobileBottomNav(): React.ReactElement {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -39,6 +71,8 @@ export function ChatMobileBottomNav(): React.ReactElement {
   const activeTabId = resolveChatMobileActiveTabId(pathname, searchParams);
   const isApple = useIsApplePlatform();
   const { showUnreadDot } = useChatTabUnreadPresence();
+  const { data: session } = useSession();
+  const sessionUser = session?.user ?? null;
 
   return (
     <nav
@@ -58,7 +92,6 @@ export function ChatMobileBottomNav(): React.ReactElement {
         )}
       >
         {CHAT_MOBILE_TABS.map((tab) => {
-          const Icon = tab.icon;
           const label = t(tab.labelKey);
           const isActive = activeTabId === tab.id;
           const showChatsUnreadDot = tab.id === "chats" && showUnreadDot;
@@ -80,7 +113,11 @@ export function ChatMobileBottomNav(): React.ReactElement {
                 )}
               >
                 <span className="relative">
-                  <Icon className="size-5" aria-hidden />
+                  {"affordance" in tab ? (
+                    <YouTabAvatar sessionUser={sessionUser} />
+                  ) : (
+                    <tab.icon className="size-5" aria-hidden />
+                  )}
                   {showChatsUnreadDot ? (
                     <span
                       aria-label={t("chatsUnread")}

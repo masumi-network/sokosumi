@@ -112,7 +112,6 @@ export default async function AuthenticatedAppFrame({
                             // shared h-16 hairline with SidebarHeader.
                             className="px-4 py-3 md:px-4 md:py-0"
                             session={session}
-                            adminMenuEnabled={adminMenuEnabled}
                           />
                           <main
                             className={cn(

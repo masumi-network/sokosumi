@@ -3,21 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
-  resolveAccountDisplayName,
   resolveAccountSummaryLabel,
 } from "@/app/components/sidebar/components/account-summary-labels";
-
-describe("resolveAccountDisplayName", () => {
-  it("prefers a non-empty trimmed name", () => {
-    expect(resolveAccountDisplayName("  Ada  ", "ada@example.com")).toBe("Ada");
-  });
-
-  it("falls back to email when the name is blank", () => {
-    expect(resolveAccountDisplayName("   ", "ada@example.com")).toBe(
-      "ada@example.com",
-    );
-  });
-});
 
 describe("resolveAccountCreditsLabel", () => {
   it("returns null when total credits are unknown", () => {

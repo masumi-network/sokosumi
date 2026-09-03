@@ -1430,6 +1430,9 @@
         "placeholder": "Buscar en el historial...",
         "clear": "Borrar búsqueda"
       },
+      "ResultsCount": {
+        "resultsCount": "{count, plural, =0 {No se encontraron resultados} =1 {1 resultado encontrado} other {# resultados encontrados}}"
+      },
       "Filters": {
         "title": "Filtros",
         "searchPlaceholder": "Filtrar...",
@@ -3094,6 +3097,11 @@
       },
       "Plan": {
         "getMoreCredits": "Obtener más créditos"
+      },
+      "Search": {
+        "open": "Buscar",
+        "inputLabel": "Buscar en el historial",
+        "searchPlaceholder": "Buscar..."
       }
     },
     "Subscriptions": {
@@ -5779,7 +5787,7 @@
         "chats": "Chats",
         "projects": "Proyectos",
         "chatsUnread": "Chats no leídos",
-        "search": "Buscar",
+        "you": "Tú",
         "ariaLabel": "Navegación principal",
         "backToChats": "Volver a chats",
         "back": "Volver",
@@ -6811,6 +6819,12 @@
         "title": "No se pudo cargar el calendario",
         "description": "Vuelve a intentarlo en un momento.",
         "retry": "Intentar de nuevo"
+      }
+    },
+    "You": {
+      "Metadata": {
+        "title": "Tú",
+        "description": "Tu cuenta, workspace, créditos y ajustes"
       }
     }
   },
