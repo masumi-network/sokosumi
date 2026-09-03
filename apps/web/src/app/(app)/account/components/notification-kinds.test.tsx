@@ -84,10 +84,13 @@ function response(notificationPreferences = current) {
   };
 }
 
+/** Held so a test can write into the same cache the page reads. */
+let queryClient: QueryClient;
+
 function renderKinds(notificationPreferences = MATRIX) {
   current = notificationPreferences;
 
-  const queryClient = new QueryClient({
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   queryClient.setQueryData(getMyPreferencesQueryKey("user_1"), response());
@@ -447,6 +450,35 @@ describe("NotificationKinds", () => {
         "true",
       );
     });
+  });
+
+  /**
+   * Recording the account-wide consent writes its own preferences PATCH and
+   * seeds this cache with the answer that write returned. That answer predates
+   * the delivery this reader just picked, so a paint before the consent is
+   * dropped again the moment the consent lands.
+   */
+  it("keeps the picked delivery on the row after the consent lands", async () => {
+    isAccountEnabled = false;
+    setAccountEnabled.mockImplementation(async () => {
+      queryClient.setQueryData(getMyPreferencesQueryKey("user_1"), {
+        data: { ...response(MATRIX).data, pushOptIn: true },
+      });
+      return true;
+    });
+    // Still in flight, so the row shows the optimistic paint and nothing else.
+    patchMyPreferences.mockReturnValue(new Promise(() => {}));
+    renderKinds();
+
+    await pick("kindSystem", "deliveryBanner");
+
+    await waitFor(() => {
+      expect(setAccountEnabled).toHaveBeenCalledWith(true);
+    });
+    expect(stop("kindSystem", "deliveryBanner")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   /**
