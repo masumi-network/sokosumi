@@ -48,7 +48,7 @@ vi.mock("sonner", () => ({
 
 /**
  * Jobs sit on no preset, so the group reports Custom. Tasks are Quiet and chat
- * is Important, so both report the preset they are on. Requests and access is
+ * is Important, so both report the preset they are on. Access requests is
  * a single kind, so it is drawn as a plain row with the delivery stops.
  */
 const MATRIX = [
