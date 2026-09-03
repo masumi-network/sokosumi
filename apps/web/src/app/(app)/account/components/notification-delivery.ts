@@ -20,10 +20,11 @@ interface ChannelSpec {
  * means the kind does not arrive. The one pairing the row does not offer is a
  * push with no entry behind it: see `withChannel`.
  *
- * Email is drawn beside these and is not one of them: it is not a cell this
- * page writes, and it does not exist for every kind. See `emailChipKeys`.
+ * Email is drawn beside these and is not one of them: it is one switch for the
+ * whole account rather than a cell per kind, and it does not exist for every
+ * kind. See `KindSpec.email`.
  *
- * A channel Core adds later needs a chip here. Without one it is drawn
+ * A channel Core adds later needs a cell here. Without one it is drawn
  * nowhere, and `cellsFor` still writes it `enabled: false` on every press from
  * this page, so the page would quietly turn off a channel it never showed.
  */
@@ -53,29 +54,12 @@ export interface KindSpec {
   /**
    * Whether Sokosumi ever sends this kind by email.
    *
-   * Only job status is mailed, and one account-wide switch further up this
-   * page gates it. Nothing else has any email behind it, so the row says that
-   * rather than pointing the reader at a switch that would not reach it.
+   * Only job status is mailed, and one account-wide switch gates it, so the
+   * two job kinds hold the same answer and move together. Nothing else has an
+   * email behind it yet, and a row says so rather than offering a control that
+   * would reach nothing.
    */
   email: boolean;
-}
-
-/**
- * What the Email chip says on one kind's row.
- *
- * The chip is drawn on every row and pressed on none, because email is that
- * one account-wide switch rather than a cell per kind. What it can honestly
- * claim differs by kind: a job row points at the switch, and every other row
- * says plainly that no email is sent, so nobody goes looking for a setting
- * that would not reach them.
- */
-export function emailChipKeys(sendsEmail: boolean): {
-  hintKey: string;
-  nameKey: string;
-} {
-  return sendsEmail
-    ? { hintKey: "channelEmailHint", nameKey: "channelEmailUnavailable" }
-    : { hintKey: "channelEmailNoneHint", nameKey: "channelEmailNone" };
 }
 
 export interface GroupSpec {
@@ -225,7 +209,7 @@ export function sameChannels(
  * The entry on its own stays available, which is the quiet answer: it does not
  * interrupt. Chat is the exception, and not one this page can fix: `CHAT` is a
  * browser-only kind, so it never reaches the feed whatever its in-app cell
- * says. The chips still write honestly; no hint here promises an entry that
+ * says. The cells still write honestly; no hint here promises an entry that
  * waits.
  */
 export function withChannel(

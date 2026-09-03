@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
+import { cn } from "@/lib/utils";
 import { NOTIFICATION_PREFERENCES_ANCHOR } from "../constants";
 import { NotificationKinds } from "./notification-kinds";
 import { PushNotificationSetting } from "./push-notification-setting";
@@ -33,47 +34,55 @@ export function NotificationPreferences({
     initialNotificationsOptIn,
   );
   const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn);
-  const [isJobStatusSaving, setIsJobStatusSaving] = useState(false);
-  const [isMarketingSaving, setIsMarketingSaving] = useState(false);
+  // One flag for both fields: a write of either refuses the other, so there is
+  // no state where they differ and no control that reports only its own.
+  const [isSaving, setIsSaving] = useState(false);
 
   const createToggleHandler = (
     field: "notificationsOptIn" | "marketingOptIn",
     currentValue: boolean,
     setValue: (value: boolean) => void,
-    setLoading: (loading: boolean) => void,
     enabledSuccessKey: string,
     disabledSuccessKey: string,
   ) => {
     return (nextValue: boolean) => {
-      if (isJobStatusSaving || isMarketingSaving) {
+      if (isSaving) {
         return;
       }
 
       const previous = currentValue;
       setValue(nextValue);
-      setLoading(true);
+      setIsSaving(true);
 
-      const updatePromise = authClient
-        .updateUser({
-          [field]: nextValue,
-        })
+      // The value goes back on the chain rather than inside the toast, so it
+      // is put back whether or not the toast renders its error, and never
+      // after the flag that tells a row the write has settled. React coalesces
+      // the two updates today, so a row reads one settled pair either way;
+      // this does not lean on that. `useNotificationDelivery` orders the
+      // channel writes the same way.
+      // Called inside the chain, so a throw on the way out is a rejection the
+      // catch and the finally still see. Thrown before it, the flag would stay
+      // set for the life of the page and every control would refuse forever.
+      const updatePromise = Promise.resolve()
+        .then(() => authClient.updateUser({ [field]: nextValue }))
         .then((result: UpdateUserResult) => {
           if (result.error) {
             throw new Error(result.error.message ?? "update_failed");
           }
         })
+        .catch((error: unknown) => {
+          setValue(previous);
+          throw error;
+        })
         .finally(() => {
-          setLoading(false);
+          setIsSaving(false);
         });
 
       toast.promise(updatePromise, {
         loading: t("loading"),
         success: () =>
           nextValue ? t(enabledSuccessKey) : t(disabledSuccessKey),
-        error: () => {
-          setValue(previous);
-          return t("error");
-        },
+        error: () => t("error"),
       });
     };
   };
@@ -82,7 +91,6 @@ export function NotificationPreferences({
     "notificationsOptIn",
     notificationsOptIn,
     setNotificationsOptIn,
-    setIsJobStatusSaving,
     "jobStatusEmailsEnabledSuccess",
     "jobStatusEmailsDisabledSuccess",
   );
@@ -91,7 +99,6 @@ export function NotificationPreferences({
     "marketingOptIn",
     marketingOptIn,
     setMarketingOptIn,
-    setIsMarketingSaving,
     "marketingEmailsEnabledSuccess",
     "marketingEmailsDisabledSuccess",
   );
@@ -103,22 +110,21 @@ export function NotificationPreferences({
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm leading-5 font-medium">
-              {t("jobStatusEmailsTitle")}
-            </p>
-            <p className="text-muted-foreground text-sm leading-6">
-              {t("jobStatusEmailsDescription")}
-            </p>
-          </div>
-          <Switch
-            checked={notificationsOptIn}
-            onCheckedChange={handleNotificationsOptInToggle}
-            disabled={isJobStatusSaving}
-            aria-label={t("jobStatusEmailsAriaLabel")}
-          />
-        </div>
+        {/* The matrix first: it is the decision the reader came for, and the
+            rows under it are what each of its columns needs to arrive.
+            Marketing sits apart at the end because it is not a notification
+            about their work, and no row of the matrix reaches it. */}
+        {/* Busy while either write is in flight, because the handler refuses
+            both then. A cell that took the press and did nothing would look
+            broken; dimmed and marked busy, it says why. */}
+        <NotificationKinds
+          email={{
+            enabled: notificationsOptIn,
+            saving: isSaving,
+            onChange: handleNotificationsOptInToggle,
+          }}
+        />
+        <PushNotificationSetting />
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm leading-5 font-medium">
@@ -128,15 +134,19 @@ export function NotificationPreferences({
               {t("marketingEmailsDescription")}
             </p>
           </div>
+          {/* Busy while either write is in flight, for the same reason the
+              email cell is: the handler refuses both, and a switch that took
+              the press and snapped back would say nothing about why. Marked
+              rather than disabled, so it keeps its place in the tab order and
+              a reader who is on it is not dropped somewhere else. */}
           <Switch
             checked={marketingOptIn}
             onCheckedChange={handleMarketingOptInToggle}
-            disabled={isMarketingSaving}
+            aria-disabled={isSaving || undefined}
+            className={cn(isSaving && "opacity-50")}
             aria-label={t("marketingEmailsAriaLabel")}
           />
         </div>
-        <PushNotificationSetting />
-        <NotificationKinds />
       </CardContent>
     </Card>
   );

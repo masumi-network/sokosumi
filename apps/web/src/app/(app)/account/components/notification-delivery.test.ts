@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   categoryChannels,
   cellsFor,
-  emailChipKeys,
   groupPreset,
   groupPresets,
   type KindSpec,
@@ -232,27 +231,6 @@ describe("cellsFor", () => {
     ).toEqual([
       { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
     ]);
-  });
-});
-
-describe("emailChipKeys", () => {
-  /**
-   * Only job status is mailed. A row that says "set further up this page"
-   * where no email exists sends the reader to a switch that cannot reach it,
-   * so the two cases say different things.
-   */
-  it("points a mailed kind at the account switch", () => {
-    expect(emailChipKeys(ATTENTION.email)).toEqual({
-      hintKey: "channelEmailHint",
-      nameKey: "channelEmailUnavailable",
-    });
-  });
-
-  it("says plainly that a kind with no email is not mailed", () => {
-    expect(emailChipKeys(MENTION.email)).toEqual({
-      hintKey: "channelEmailNoneHint",
-      nameKey: "channelEmailNone",
-    });
   });
 });
 

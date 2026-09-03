@@ -46,6 +46,18 @@ export interface GroupChoice {
 export interface NotificationDelivery {
   groups: GroupChoice[];
   /**
+   * An answer is still coming.
+   *
+   * Told apart from an answer with nothing in it, because the two want
+   * different pages: one waits, and the other has to say so.
+   *
+   * A read that cannot run is not waiting. Without a session the preferences
+   * query stays disabled, and a disabled query reports pending for as long as
+   * the page is open, so asking it alone would wait for an answer nobody is
+   * fetching.
+   */
+  loading: boolean;
+  /**
    * Writes every named category, each on its own channels, in one request.
    *
    * One request rather than one per kind, so a preset cannot land half applied
@@ -64,10 +76,12 @@ export interface NotificationDelivery {
  */
 export function useNotificationDelivery(): NotificationDelivery {
   const t = useTranslations("App.Account.Notifications");
-  const { data: session } = useSession();
+  const { data: session, isPending: sessionPending } = useSession();
   const userId = session?.user.id;
   const queryClient = useQueryClient();
-  const { data: preferences } = useQuery(getMyPreferencesQueryOptions(userId));
+  const { data: preferences, isPending } = useQuery(
+    getMyPreferencesQueryOptions(userId),
+  );
   const push = usePushPreference(userId);
   const [saving, setSaving] = useState<readonly NotificationCategory[]>([]);
 
@@ -219,5 +233,9 @@ export function useNotificationDelivery(): NotificationDelivery {
     }
   }
 
-  return { groups, setDeliveries };
+  return {
+    groups,
+    loading: sessionPending || (Boolean(userId) && isPending),
+    setDeliveries,
+  };
 }
