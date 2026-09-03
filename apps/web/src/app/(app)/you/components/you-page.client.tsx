@@ -1,7 +1,6 @@
 "use client";
 
-import type { SessionUser } from "@sokosumi/utils";
-import gravatarUrl from "gravatar-url";
+import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import {
   Calendar,
   ChevronLeft,
@@ -29,7 +28,6 @@ import {
 import {
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
-  resolveAccountDisplayName,
 } from "@/app/components/sidebar/components/account-summary-labels";
 import type {
   AccountAdminSettingsChrome,
@@ -48,7 +46,6 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getInitials } from "@/lib/utils/text";
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
-const GRAVATAR_SIZE = 160;
 const ADMIN_HREF = "/admin";
 const DRIVE_HREF = "/drive";
 const CALENDAR_HREF = "/calendar";
@@ -452,16 +449,9 @@ function YouPageAvatar({
 }) {
   return (
     <Avatar className="size-16 shrink-0">
-      <AvatarImage
-        src={
-          sessionUser.image ??
-          gravatarUrl(sessionUser.email, {
-            size: GRAVATAR_SIZE,
-            default: "404",
-          })
-        }
-        alt=""
-      />
+      {sessionUser.image ? (
+        <AvatarImage src={sessionUser.image} alt="" />
+      ) : null}
       <AvatarFallback className="bg-muted text-muted-foreground text-lg font-medium">
         {getInitials(displayName)}
       </AvatarFallback>

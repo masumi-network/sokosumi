@@ -1,12 +1,10 @@
 "use client";
 
-import type { SessionUser } from "@sokosumi/utils";
-import gravatarUrl from "gravatar-url";
+import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { mobileChromeSurfaceClass } from "@/app/components/mobile-chrome-surface";
-import { resolveAccountDisplayName } from "@/app/components/sidebar/components/account-summary-labels";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useSession } from "@/lib/auth/auth.client";
@@ -24,8 +22,6 @@ type SearchParamsLike =
   | { get?: (key: string) => string | null }
   | null
   | undefined;
-
-const YOU_TAB_GRAVATAR_SIZE = 80;
 
 export function resolveChatMobileActiveTabId(
   pathname: string,
@@ -58,16 +54,9 @@ function YouTabAvatar({ sessionUser }: { sessionUser: SessionUser | null }) {
 
   return (
     <Avatar data-testid="mobile-you-tab-avatar" className="size-5" aria-hidden>
-      <AvatarImage
-        src={
-          sessionUser.image ??
-          gravatarUrl(sessionUser.email, {
-            size: YOU_TAB_GRAVATAR_SIZE,
-            default: "404",
-          })
-        }
-        alt=""
-      />
+      {sessionUser.image ? (
+        <AvatarImage src={sessionUser.image} alt="" />
+      ) : null}
       <AvatarFallback className="bg-muted text-muted-foreground text-[0.5rem] font-medium">
         {getInitials(displayName)}
       </AvatarFallback>

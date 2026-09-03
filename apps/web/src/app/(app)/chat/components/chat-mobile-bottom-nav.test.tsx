@@ -45,10 +45,6 @@ vi.mock("@/lib/auth/auth.client", () => ({
   }),
 }));
 
-vi.mock("gravatar-url", () => ({
-  default: () => "https://gravatar.example/ada",
-}));
-
 vi.mock("next/link", () => ({
   default: ({
     children,
@@ -140,6 +136,22 @@ describe("ChatMobileBottomNav", () => {
   });
 
   it("uses the signed-in user avatar as the You tab affordance", () => {
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByTestId("mobile-you-tab-avatar")).toBeTruthy();
+    expect(screen.queryByTestId("mobile-you-tab-avatar-skeleton")).toBeNull();
+    expect(screen.getByTestId("mobile-you-tab-avatar").textContent).toContain(
+      "AL",
+    );
+  });
+
+  it("still shows the You avatar when a first-party image URL is present", () => {
+    mockSessionUser = {
+      id: "user-1",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      image: "https://cdn.example/ada.png",
+    };
     render(<ChatMobileBottomNav />);
 
     expect(screen.getByTestId("mobile-you-tab-avatar")).toBeTruthy();

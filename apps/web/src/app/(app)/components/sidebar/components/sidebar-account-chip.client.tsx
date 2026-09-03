@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveAccountDisplayName } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import { AlertTriangle, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -24,7 +25,6 @@ import {
   ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS,
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
-  resolveAccountDisplayName,
   resolveAccountSummaryLabel,
 } from "./account-summary-labels";
 import { AccountSummaryMenu } from "./account-summary-menu.client";
