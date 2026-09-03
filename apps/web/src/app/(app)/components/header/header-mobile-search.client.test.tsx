@@ -186,6 +186,49 @@ describe("HeaderMobileSearchControl", () => {
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 
+  it("applies a query typed before /history navigation finishes", async () => {
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    const { rerender } = render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(pushMock).toHaveBeenCalledWith("/history");
+
+    await user.type(screen.getByPlaceholderText("Search..."), "brief");
+
+    // Debounce may fire while still off /history and no-op.
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(replaceMock).not.toHaveBeenCalled();
+
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    rerender(<HeaderMobileSearchControl />);
+
+    expect(replaceMock).toHaveBeenCalledWith("/history?q=brief");
+    expect(screen.getByPlaceholderText("Search...")).toHaveValue("brief");
+  });
+
+  it("flushes a still-pending query when /history navigation completes", async () => {
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    const { rerender } = render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await user.type(screen.getByPlaceholderText("Search..."), "brief");
+
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    rerender(<HeaderMobileSearchControl />);
+
+    expect(replaceMock).toHaveBeenCalledWith("/history?q=brief");
+  });
+
   it("cancels pending history query updates after navigating away", async () => {
     mockPathname = "/history";
     window.history.replaceState({}, "", "/history");

@@ -52,6 +52,8 @@ export function HeaderMobileSearchControl() {
   const pathname = usePathname();
   const previousPathnameRef = useRef(pathname);
   const navigatedToHistoryRef = useRef(false);
+  const queryRef = useRef(query);
+  queryRef.current = query;
 
   function replaceHistoryQuery(nextQuery: string | null) {
     const currentPath =
@@ -82,16 +84,32 @@ export function HeaderMobileSearchControl() {
   useEffect(() => {
     const previousPathname = previousPathnameRef.current;
     previousPathnameRef.current = pathname;
-    debouncedReplaceHistoryQuery.cancel();
 
     if (
       expanded &&
       isHistoryPath(previousPathname) &&
       !isHistoryPath(pathname)
     ) {
+      debouncedReplaceHistoryQuery.cancel();
       navigatedToHistoryRef.current = false;
       setExpanded(false);
       setQuery("");
+      return;
+    }
+
+    // Opened search from a non-history route: typing can race `router.push`.
+    // Debounced replaces no-op off /history and used to be cancelled on arrival.
+    // Flush the local query once navigation lands so `?q=` reaches the URL.
+    if (
+      expanded &&
+      !isHistoryPath(previousPathname) &&
+      isHistoryPath(pathname)
+    ) {
+      debouncedReplaceHistoryQuery.cancel();
+      const trimmedQuery = queryRef.current.trim();
+      if (trimmedQuery) {
+        replaceHistoryQuery(trimmedQuery);
+      }
     }
   }, [pathname, expanded, debouncedReplaceHistoryQuery]);
 
