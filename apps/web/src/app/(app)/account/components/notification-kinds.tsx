@@ -127,18 +127,18 @@ function NewsRow({ news }: { news: EmailChoice }) {
       <div>
         <div
           aria-hidden="true"
-          className="flex items-end justify-end gap-1 pb-1"
+          className="flex items-end justify-end gap-2 pb-1"
         >
           <ColumnHeads />
         </div>
-        <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-1">
+        <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
           <div
             role="group"
             // Its own sentence rather than the one every kind row uses,
             // which reads "Where {kind} arrives" and is written for a row of
             // the matrix. Marketing emails are not a kind the matrix carries.
             aria-label={t("newsDeliveryAriaLabel")}
-            className="flex shrink-0 items-center justify-end gap-1"
+            className="flex shrink-0 items-center justify-end gap-2"
           >
             <UnusedChannelCells kind={label} />
             <EmailCell

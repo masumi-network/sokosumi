@@ -34,7 +34,7 @@ const CELL_OFF =
  * outlined one is off, and this one carries no box at all. A border here would
  * make the one cell that cannot be pressed the most drawn of the row.
  */
-const CELL_DEAD = "text-muted-foreground cursor-default border-transparent";
+const CELL_DEAD = "text-muted-foreground/45 cursor-default border-transparent";
 
 /**
  * The face of each channel in the grid.
@@ -348,7 +348,7 @@ function KindCells({
     <div
       role="group"
       aria-label={t("deliveryAriaLabel", { kind: label })}
-      className="flex shrink-0 items-center justify-end gap-1"
+      className="flex shrink-0 items-center justify-end gap-2"
     >
       {CHANNEL_SPECS.map((spec) => {
         const pressed = channels.includes(spec.id);
@@ -463,7 +463,7 @@ export function ChannelGrid({
       <div
         aria-hidden="true"
         className={cn(
-          "items-end justify-end gap-1 pb-1",
+          "items-end justify-end gap-2 pb-1",
           showNames ? "hidden sm:flex" : "flex",
         )}
       >
@@ -476,7 +476,7 @@ export function ChannelGrid({
           // right edge either way, so they stay under their own heads.
           <div
             key={kind.spec.category}
-            className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-1"
+            className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2"
           >
             {showNames ? (
               <div className="min-w-0 pr-3 pl-6 break-words sm:flex-1 sm:pl-10">
@@ -489,7 +489,7 @@ export function ChannelGrid({
             {showNames ? (
               <div
                 aria-hidden="true"
-                className="flex items-end justify-end gap-1 sm:hidden"
+                className="flex items-end justify-end gap-2 sm:hidden"
               >
                 <ColumnHeads />
               </div>
