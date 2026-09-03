@@ -4800,7 +4800,7 @@
         "channelEmailSoonLabel": "Email, todavía no se envía para {kind}",
         "channelEmailSoonHint": "Pronto. Sokosumi todavía no envía email para este tipo.",
         "deliveryAriaLabel": "Entrega para {kind}",
-        "newsDeliveryAriaLabel": "Dónde llegan los emails de marketing"
+        "newsDeliveryAriaLabel": "Entrega para los emails de marketing"
       },
       "BillingDetails": {
         "title": "Información de facturación",

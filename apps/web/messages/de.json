@@ -4800,7 +4800,7 @@
         "channelEmailSoonLabel": "E-Mail, noch nicht für {kind}",
         "channelEmailSoonHint": "Bald. Sokosumi sendet dafür noch keine E-Mail.",
         "deliveryAriaLabel": "Zustellung für {kind}",
-        "newsDeliveryAriaLabel": "Wo Marketing-E-Mails ankommen"
+        "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails"
       },
       "BillingDetails": {
         "title": "Rechnungsinformationen",
