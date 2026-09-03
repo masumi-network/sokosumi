@@ -450,6 +450,30 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * The permission prompt waits on a person, and it can stand for as long as
+   * they leave it standing. The group is busy from the press, not from the
+   * answer, so a second press cannot land a write the first one then
+   * overwrites on its way back.
+   */
+  it("marks the group busy while the permission prompt stands", async () => {
+    isAccountEnabled = false;
+    setAccountEnabled.mockReturnValue(new Promise(() => {}));
+    renderKinds();
+
+    await pickPreset("groupChat", "presetEverything");
+
+    await waitFor(() => {
+      expect(preset("groupChat", "presetEverything")).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    });
+
+    await pickPreset("groupChat", "presetQuiet");
+    expect(patchMyPreferences).not.toHaveBeenCalled();
+  });
+
+  /**
    * A stop the browser disables drops out of the tab order under the reader's
    * finger, and a screen reader loses the control it was on. It stays
    * reachable and says it is busy instead, and presses do nothing until the
