@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  categoryChannels,
   cellsFor,
+  emailChipKeys,
   groupPreset,
   groupPresets,
   type KindSpec,
   presetChanges,
-  presetDelivery,
+  presetChannels,
+  sameChannels,
+  withChannel,
 } from "./notification-delivery";
 
 const ATTENTION: KindSpec = {
@@ -14,6 +18,7 @@ const ATTENTION: KindSpec = {
   labelKey: "kindJobAttention",
   hintKey: "kindJobAttentionHint",
   important: true,
+  email: true,
 };
 
 const UPDATE: KindSpec = {
@@ -21,6 +26,7 @@ const UPDATE: KindSpec = {
   labelKey: "kindJobUpdate",
   hintKey: "kindJobUpdateHint",
   important: false,
+  email: true,
 };
 
 const MENTION: KindSpec = {
@@ -28,6 +34,7 @@ const MENTION: KindSpec = {
   labelKey: "kindChatMention",
   hintKey: "kindChatMentionHint",
   important: true,
+  email: false,
 };
 
 function cells(...rows: [string, string, boolean][]) {
@@ -38,23 +45,91 @@ function cells(...rows: [string, string, boolean][]) {
   })) as Parameters<typeof groupPreset>[0];
 }
 
-describe("presetDelivery", () => {
-  it("gives everything a banner", () => {
-    expect(presetDelivery("EVERYTHING", UPDATE)).toBe("BANNER");
+describe("presetChannels", () => {
+  it("puts everything on every channel", () => {
+    expect(presetChannels("EVERYTHING", UPDATE)).toEqual([
+      "IN_APP",
+      "OS_BANNER",
+    ]);
   });
 
   it("keeps what waits on the reader and drops the rest", () => {
-    expect(presetDelivery("IMPORTANT", ATTENTION)).toBe("BANNER");
-    expect(presetDelivery("IMPORTANT", UPDATE)).toBe("OFF");
+    expect(presetChannels("IMPORTANT", ATTENTION)).toEqual([
+      "IN_APP",
+      "OS_BANNER",
+    ]);
+    expect(presetChannels("IMPORTANT", UPDATE)).toEqual([]);
   });
 
-  it("keeps the same kinds quietly", () => {
-    expect(presetDelivery("QUIET", ATTENTION)).toBe("IN_APP");
-    expect(presetDelivery("QUIET", UPDATE)).toBe("OFF");
+  it("keeps the same kinds in the app alone", () => {
+    expect(presetChannels("QUIET", ATTENTION)).toEqual(["IN_APP"]);
+    expect(presetChannels("QUIET", UPDATE)).toEqual([]);
   });
 
   it("silences everything", () => {
-    expect(presetDelivery("OFF", ATTENTION)).toBe("OFF");
+    expect(presetChannels("OFF", ATTENTION)).toEqual([]);
+  });
+});
+
+describe("categoryChannels", () => {
+  /**
+   * A push with nothing waiting in Sokosumi is a combination the matrix can
+   * hold, so the row reports it rather than rounding it to a louder answer.
+   */
+  it("names the channels a kind is on", () => {
+    expect(
+      categoryChannels(
+        cells(
+          ["JOB_ATTENTION", "IN_APP", false],
+          ["JOB_ATTENTION", "OS_BANNER", true],
+        ),
+        "JOB_ATTENTION",
+      ),
+    ).toEqual(["OS_BANNER"]);
+  });
+
+  it("reads a kind with no channels as silent", () => {
+    expect(
+      categoryChannels(
+        cells(
+          ["JOB_UPDATE", "IN_APP", false],
+          ["JOB_UPDATE", "OS_BANNER", false],
+        ),
+        "JOB_UPDATE",
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("withChannel", () => {
+  it("adds one channel in the order the page draws them", () => {
+    expect(withChannel(["OS_BANNER"], "IN_APP", true)).toEqual([
+      "IN_APP",
+      "OS_BANNER",
+    ]);
+  });
+
+  it("drops the push and keeps the entry", () => {
+    expect(withChannel(["IN_APP", "OS_BANNER"], "OS_BANNER", false)).toEqual([
+      "IN_APP",
+    ]);
+  });
+
+  it("leaves nothing when the last one goes", () => {
+    expect(withChannel(["IN_APP"], "IN_APP", false)).toEqual([]);
+  });
+
+  /**
+   * A push the reader cannot find again once the banner is gone is the one
+   * pairing the row does not offer: the feed and the unread count both read
+   * the in-app cell.
+   */
+  it("turns the entry on with the push", () => {
+    expect(withChannel([], "OS_BANNER", true)).toEqual(["IN_APP", "OS_BANNER"]);
+  });
+
+  it("takes the push with the entry", () => {
+    expect(withChannel(["IN_APP", "OS_BANNER"], "IN_APP", false)).toEqual([]);
   });
 });
 
@@ -81,7 +156,7 @@ describe("groupPresets", () => {
     ]);
   });
 
-  it("leaves a single kind with the delivery ladder", () => {
+  it("leaves a single kind its three answers", () => {
     expect(groupPresets([ATTENTION])).toEqual(["EVERYTHING", "QUIET", "OFF"]);
   });
 
@@ -126,7 +201,7 @@ describe("groupPreset", () => {
 });
 
 describe("cellsFor", () => {
-  it("writes each category at its own loudness", () => {
+  it("writes each category on its own channels", () => {
     expect(
       cellsFor(
         cells(
@@ -152,10 +227,55 @@ describe("cellsFor", () => {
           ["JOB_ATTENTION", "IN_APP", false],
           ["CHAT_MENTION", "IN_APP", true],
         ),
-        [{ category: "JOB_ATTENTION", delivery: "BANNER" }],
+        [{ category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] }],
       ),
     ).toEqual([
       { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
     ]);
+  });
+});
+
+describe("emailChipKeys", () => {
+  /**
+   * Only job status is mailed. A row that says "set further up this page"
+   * where no email exists sends the reader to a switch that cannot reach it,
+   * so the two cases say different things.
+   */
+  it("points a mailed kind at the account switch", () => {
+    expect(emailChipKeys(ATTENTION.email)).toEqual({
+      hintKey: "channelEmailHint",
+      nameKey: "channelEmailUnavailable",
+    });
+  });
+
+  it("says plainly that a kind with no email is not mailed", () => {
+    expect(emailChipKeys(MENTION.email)).toEqual({
+      hintKey: "channelEmailNoneHint",
+      nameKey: "channelEmailNone",
+    });
+  });
+});
+
+describe("sameChannels", () => {
+  /**
+   * The row reads this to tell its own write from someone else's, so an order
+   * or a repeat must not read as a different set and take a live sentence down
+   * that is still true.
+   */
+  it("ignores the order each side names them in", () => {
+    expect(sameChannels(["OS_BANNER", "IN_APP"], ["IN_APP", "OS_BANNER"])).toBe(
+      true,
+    );
+  });
+
+  it("does not read a repeated entry as a second channel", () => {
+    expect(sameChannels(["IN_APP", "IN_APP"], ["IN_APP", "OS_BANNER"])).toBe(
+      false,
+    );
+  });
+
+  it("separates a kind that lost a channel", () => {
+    expect(sameChannels(["IN_APP", "OS_BANNER"], ["IN_APP"])).toBe(false);
+    expect(sameChannels([], ["IN_APP"])).toBe(false);
   });
 });

@@ -2,7 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   Collapsible,
@@ -11,11 +11,12 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-  DELIVERIES,
-  DELIVERY_HINT_KEY,
-  DELIVERY_LABEL_KEY,
-  type Delivery,
+  CHANNEL_SPECS,
+  emailChipKeys,
   presetChanges,
+  type StoredChannel,
+  sameChannels,
+  withChannel,
 } from "./notification-delivery";
 import { PresetStops } from "./notification-presets";
 import {
@@ -24,59 +25,156 @@ import {
   useNotificationDelivery,
 } from "./use-notification-delivery";
 
+const CHIP =
+  "rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors";
+
 /**
- * Where one kind arrives: off, in Sokosumi, or a banner as well.
+ * Which channels one kind arrives on.
  *
- * Three stops on the row rather than a menu, because the answer is worth
- * reading without opening anything and the choices are worth comparing. The
- * labels are short for the same reason: three of them share a line with the
- * name they belong to, in every language this ships in.
+ * One chip per channel, each its own answer, because a channel is a place
+ * rather than a step. Nothing picked means the kind does not arrive, so there
+ * is no separate stop that says off. Picking a push picks the in-app entry
+ * with it, so on every kind the feed carries, a push leaves something the
+ * reader can find again.
+ *
+ * That pairing is why the group carries a live region. The chips read as two
+ * independent choices, and pressing one of them moves the other, which a
+ * reader who cannot see the row would otherwise never learn. So every change
+ * says where the kind now arrives, once, in the reader's own words.
+ *
+ * Email is drawn and cannot be picked, because it is one switch for the whole
+ * account rather than a cell per kind. It says which of the two it is: the
+ * switch further up this page, or no email at all.
  */
-function DeliveryStops({
+function ChannelToggles({
   kind,
-  delivery,
+  channels,
+  sendsEmail,
   saving,
-  onPick,
+  onToggle,
 }: {
   kind: string;
-  delivery: Delivery;
-  /** A write is in flight. The stops stay reachable, and do nothing. */
+  channels: readonly StoredChannel[];
+  /** Whether email exists for this kind. Changes what the Email chip claims. */
+  sendsEmail: boolean;
+  /** A write is in flight. The chips stay reachable, and do nothing. */
   saving: boolean;
-  onPick: (delivery: Delivery) => void;
+  onToggle: (channel: StoredChannel, on: boolean) => void;
 }) {
   const t = useTranslations("App.Account.Notifications");
+  const email = emailChipKeys(sendsEmail);
+
+  // Silent until the reader presses something in this row, so opening a group
+  // does not read its rows out. Silent again until that press lands, because
+  // `channels` still holds what the row said before it: turning a push on
+  // waits on the account consent, which waits on a person, and a region that
+  // spoke on the press would read out the state the reader changed away from.
+  //
+  // Said once, by an effect that clears the flag. A group preset writes every
+  // row at once under its own control, so a row that spoke again on someone
+  // else's write would report one row of three as if it were all that moved.
+  //
+  // The channels it spoke about are kept beside the words. A write from
+  // anywhere else then takes the sentence back down, because a region only
+  // speaks when its text changes: leaving the old sentence up would both
+  // contradict the chips and silence the next press that lands on the same
+  // channels, which is exactly the press that pulls its sibling along.
+  const [arrival, setArrival] = useState<{
+    channels: readonly StoredChannel[];
+    text: string;
+  } | null>(null);
+  const [awaiting, setAwaiting] = useState(false);
+
+  useEffect(() => {
+    if (awaiting) {
+      if (saving) {
+        return;
+      }
+
+      const on = CHANNEL_SPECS.filter((spec) => channels.includes(spec.id)).map(
+        (spec) => t(spec.labelKey),
+      );
+
+      setAwaiting(false);
+      setArrival({
+        channels,
+        text: t("channelsAnnounce", {
+          kind,
+          channels: on.length > 0 ? on.join(", ") : t("channelsNone"),
+        }),
+      });
+      return;
+    }
+
+    if (arrival && !sameChannels(arrival.channels, channels)) {
+      setArrival(null);
+    }
+  }, [arrival, awaiting, saving, channels, kind, t]);
 
   return (
     <div
       role="group"
       aria-label={t("deliveryAriaLabel", { kind })}
-      className="border-input bg-background inline-flex shrink-0 rounded-full border p-0.5"
+      className="border-input bg-background inline-flex shrink-0 gap-0.5 rounded-full border p-0.5"
     >
-      {DELIVERIES.map((candidate) => (
-        <button
-          key={candidate}
-          type="button"
-          aria-pressed={delivery === candidate}
-          aria-disabled={saving || undefined}
-          title={t(DELIVERY_HINT_KEY[candidate])}
-          onClick={() => {
-            if (saving) {
-              return;
-            }
+      {CHANNEL_SPECS.map((spec) => {
+        const channel = spec.id;
+        const pressed = channels.includes(channel);
 
-            onPick(candidate);
-          }}
-          className={cn(
-            "focus-visible:ring-ring/50 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px]",
-            saving && "opacity-50",
-            delivery === candidate
-              ? "bg-primary/10 text-primary"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {t(DELIVERY_LABEL_KEY[candidate])}
-        </button>
-      ))}
+        return (
+          <button
+            key={channel}
+            type="button"
+            aria-pressed={pressed}
+            aria-disabled={saving || undefined}
+            title={t(spec.hintKey)}
+            onClick={() => {
+              if (saving) {
+                return;
+              }
+
+              setAwaiting(true);
+              onToggle(channel, !pressed);
+            }}
+            className={cn(
+              CHIP,
+              "focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
+              saving && "opacity-50",
+              pressed
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t(spec.labelKey)}
+          </button>
+        );
+      })}
+      {/* Stays a button, and stays in the tab order. A reader who never uses a
+          mouse would otherwise pass the row and never learn that email is one
+          of the places this kind can reach them. `aria-disabled` rather than
+          `disabled` for the same reason, and the accessible name carries the
+          reason, which a `title` alone does not reach.
+
+          Struck through where no email exists for the kind. The accessible
+          name says which of the two it is, but a sighted reader on a keyboard
+          or a touchscreen never opens a `title`, so without this the row that
+          can be mailed and the row that cannot look the same. */}
+      <button
+        type="button"
+        aria-disabled="true"
+        aria-label={t(email.nameKey)}
+        title={t(email.hintKey)}
+        className={cn(
+          CHIP,
+          "text-muted-foreground focus-visible:ring-ring/50 cursor-default outline-none focus-visible:ring-[3px]",
+          !sendsEmail && "line-through",
+        )}
+      >
+        {t("channelEmail")}
+      </button>
+      <span role="status" aria-live="polite" className="sr-only">
+        {arrival?.text ?? ""}
+      </span>
     </div>
   );
 }
@@ -85,17 +183,19 @@ function DeliveryStops({
 function KindRow({
   label,
   hint,
-  delivery,
+  channels,
+  sendsEmail,
   saving,
   indent = false,
-  onPick,
+  onToggle,
 }: {
   label: string;
   hint: string;
-  delivery: Delivery;
+  channels: readonly StoredChannel[];
+  sendsEmail: boolean;
   saving: boolean;
   indent?: boolean;
-  onPick: (delivery: Delivery) => void;
+  onToggle: (channel: StoredChannel, on: boolean) => void;
 }) {
   return (
     <div
@@ -108,11 +208,12 @@ function KindRow({
         <p className="text-sm leading-5">{label}</p>
         <p className="text-muted-foreground text-sm leading-5">{hint}</p>
       </div>
-      <DeliveryStops
+      <ChannelToggles
         kind={label}
-        delivery={delivery}
+        channels={channels}
+        sendsEmail={sendsEmail}
         saving={saving}
-        onPick={onPick}
+        onToggle={onToggle}
       />
     </div>
   );
@@ -173,12 +274,16 @@ function GroupRows({
               key={kind.spec.category}
               label={t(kind.spec.labelKey)}
               hint={t(kind.spec.hintKey)}
-              delivery={kind.delivery}
+              channels={kind.channels}
+              sendsEmail={kind.spec.email}
               saving={kind.saving}
               indent
-              onPick={(delivery) => {
+              onToggle={(channel, on) => {
                 void choices.setDeliveries([
-                  { category: kind.spec.category, delivery },
+                  {
+                    category: kind.spec.category,
+                    channels: withChannel(kind.channels, channel, on),
+                  },
                 ]);
               }}
             />
@@ -193,10 +298,10 @@ function GroupRows({
  * What you get notified about, and where each kind arrives.
  *
  * One control per decision: a group that a reader settles at once carries the
- * group's own answers, and the kinds under it stay separately selectable. The
- * switch matrix this replaces asked the same question as two switches per row,
- * which let a reader ask for a banner and no entry in Sokosumi, and made the
- * common answer two presses.
+ * group's own answers, and the kinds under it stay separately selectable. Each
+ * kind then names its channels one by one, because that is what they are: a
+ * push and an entry in Sokosumi are two places, not two volumes of the same
+ * one.
  */
 export function NotificationKinds() {
   const t = useTranslations("App.Account.Notifications");
@@ -225,11 +330,15 @@ export function NotificationKinds() {
               key={group.spec.id}
               label={t(group.spec.labelKey)}
               hint={t(only.spec.hintKey)}
-              delivery={only.delivery}
+              channels={only.channels}
+              sendsEmail={only.spec.email}
               saving={only.saving}
-              onPick={(delivery) => {
+              onToggle={(channel, on) => {
                 void choices.setDeliveries([
-                  { category: only.spec.category, delivery },
+                  {
+                    category: only.spec.category,
+                    channels: withChannel(only.channels, channel, on),
+                  },
                 ]);
               }}
             />
@@ -238,9 +347,7 @@ export function NotificationKinds() {
           );
         })}
       </div>
-      <p className="text-muted-foreground text-sm leading-6">
-        {t("bannerHint")}
-      </p>
+      <p className="text-muted-foreground text-sm leading-6">{t("pushHint")}</p>
     </div>
   );
 }

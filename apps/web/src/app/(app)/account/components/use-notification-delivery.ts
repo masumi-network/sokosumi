@@ -17,9 +17,8 @@ import {
   getMyPreferencesQueryOptions,
 } from "@/queries/preferences";
 import {
-  categoryDelivery,
+  categoryChannels,
   cellsFor,
-  type Delivery,
   type DeliveryChange,
   type GroupSpec,
   groupPreset,
@@ -27,11 +26,12 @@ import {
   NOTIFICATION_GROUPS,
   type NotificationCategory,
   type PresetState,
+  type StoredChannel,
 } from "./notification-delivery";
 
 export interface KindChoice {
   spec: KindSpec;
-  delivery: Delivery;
+  channels: StoredChannel[];
   saving: boolean;
 }
 
@@ -46,7 +46,7 @@ export interface GroupChoice {
 export interface NotificationDelivery {
   groups: GroupChoice[];
   /**
-   * Writes every named category, each at its own loudness, in one request.
+   * Writes every named category, each on its own channels, in one request.
    *
    * One request rather than one per kind, so a preset cannot land half applied
    * with the reader watching its kinds settle one by one.
@@ -87,7 +87,7 @@ export function useNotificationDelivery(): NotificationDelivery {
         preset: groupPreset(cells, kinds),
         kinds: kinds.map((kind) => ({
           spec: kind,
-          delivery: categoryDelivery(cells, kind.category),
+          channels: categoryChannels(cells, kind.category),
           saving: saving.includes(kind.category),
         })),
         saving: kinds.some((kind) => saving.includes(kind.category)),
@@ -129,7 +129,7 @@ export function useNotificationDelivery(): NotificationDelivery {
   /**
    * Turns push on from the control the reader actually pressed.
    *
-   * Asking for a banner is a clear enough request to prompt for the browser
+   * Asking for a push is a clear enough request to prompt for the browser
    * permission. A refusal still records the preference: account consent and
    * this browser's subscription are separate, and dropping the preference
    * because one browser said no would be the wrong half to lose.
@@ -170,11 +170,11 @@ export function useNotificationDelivery(): NotificationDelivery {
         )?.enabled ?? false,
     }));
 
-    // Every banner needs the account-wide opt-in, so a write that leaves one
-    // on asks for it. Asking only about a cell this write turns on would miss
-    // the reader whose banner cells were on from the start, which is where a
-    // reader starts: nothing would ever prompt, and no banner would arrive.
-    const asksForBanner = written.some(
+    // Every push needs the account-wide opt-in, so a write that leaves one on
+    // asks for it. Asking only about a cell this write turns on would miss the
+    // reader whose push cells were on from the start, which is where a reader
+    // starts: nothing would ever prompt, and no push would arrive.
+    const asksForPush = written.some(
       (change) => change.channel === "OS_BANNER" && change.enabled,
     );
 
@@ -184,7 +184,7 @@ export function useNotificationDelivery(): NotificationDelivery {
     setSaving((current) => [...current, ...categories]);
 
     try {
-      if (asksForBanner) {
+      if (asksForPush) {
         await activatePushIfNeeded();
       }
 

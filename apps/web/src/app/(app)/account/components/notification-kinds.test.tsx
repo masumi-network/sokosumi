@@ -49,7 +49,7 @@ vi.mock("sonner", () => ({
 /**
  * Jobs sit on no preset, so the group reports Custom. Tasks are Quiet and chat
  * is Important, so both report the preset they are on. Access requests is
- * a single kind, so it is drawn as a plain row with the delivery stops.
+ * a single kind, so it is drawn as a plain row with its channel chips.
  */
 const MATRIX = [
   { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
@@ -132,13 +132,13 @@ async function pickPreset(group: string, name: string) {
   await user.click(preset(group, name));
 }
 
-function stop(kind: string, delivery: string) {
-  return within(stops(kind)).getByRole("button", { name: delivery });
+function chip(kind: string, channel: string) {
+  return within(stops(kind)).getByRole("button", { name: channel });
 }
 
-async function pick(kind: string, delivery: string) {
+async function toggle(kind: string, channel: string) {
   const user = userEvent.setup();
-  await user.click(stop(kind, delivery));
+  await user.click(chip(kind, channel));
 }
 
 describe("NotificationKinds", () => {
@@ -170,11 +170,11 @@ describe("NotificationKinds", () => {
   it("marks where each kind arrives, without opening anything", () => {
     renderKinds();
 
-    expect(stop("kindSystem", "deliveryInApp")).toHaveAttribute(
+    expect(chip("kindSystem", "channelInApp")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(stop("kindSystem", "deliveryBanner")).toHaveAttribute(
+    expect(chip("kindSystem", "channelPush")).toHaveAttribute(
       "aria-pressed",
       "false",
     );
@@ -224,17 +224,17 @@ describe("NotificationKinds", () => {
     await user.click(custom);
 
     expect(custom).toHaveAttribute("aria-expanded", "true");
-    expect(stop("kindJobAttention", "deliveryBanner")).toHaveAttribute(
+    expect(chip("kindJobAttention", "channelPush")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
   });
 
   /**
-   * A group of one is drawn as its kind, with the delivery ladder. Its presets
-   * would be that ladder under other names.
+   * A group of one is drawn as its kind, with its channels. Its presets would
+   * be those same channels under other names.
    */
-  it("leaves a single kind with its delivery stops", () => {
+  it("leaves a single kind with its channel chips", () => {
     renderKinds();
 
     expect(
@@ -246,24 +246,36 @@ describe("NotificationKinds", () => {
   it("writes both channels of the kind the reader changed", async () => {
     renderKinds();
 
-    await pick("kindSystem", "deliveryOff");
+    await toggle("kindSystem", "channelInApp");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
+    // Both cells, not only the one pressed: the row says where the kind
+    // arrives, so a write states every channel it names.
     expect(lastWrite()).toHaveLength(2);
     expect(written("SYSTEM", "IN_APP")).toBe(false);
     expect(written("SYSTEM", "OS_BANNER")).toBe(false);
-    expect(stop("kindSystem", "deliveryOff")).toHaveAttribute(
+    expect(chip("kindSystem", "channelInApp")).toHaveAttribute(
       "aria-pressed",
-      "true",
+      "false",
     );
   });
 
-  it("turns a banner into both channels, so nothing arrives unseen", async () => {
+  /**
+   * A push that leaves nothing behind cannot be found again once the banner is
+   * gone: the feed and the unread count both read the in-app cell. So picking
+   * a push picks the entry with it.
+   */
+  it("turns the in-app entry on with the push", async () => {
     renderKinds();
 
-    await pick("kindSystem", "deliveryBanner");
+    await toggle("kindSystem", "channelInApp");
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+
+    await toggle("kindSystem", "channelPush");
 
     await waitFor(() => {
       expect(written("SYSTEM", "OS_BANNER")).toBe(true);
@@ -271,22 +283,205 @@ describe("NotificationKinds", () => {
     expect(written("SYSTEM", "IN_APP")).toBe(true);
   });
 
+  /** The same rule the other way: dropping the entry drops the push with it. */
+  it("takes the push away with the in-app entry", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await user.click(screen.getByRole("button", { name: /^groupJob/ }));
+    await toggle("kindJobAttention", "channelInApp");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(written("JOB_ATTENTION", "IN_APP")).toBe(false);
+    expect(written("JOB_ATTENTION", "OS_BANNER")).toBe(false);
+  });
+
+  /**
+   * Email reaches the reader for job status and for nothing else. Naming it
+   * keeps the row honest about where a kind can arrive; saying the same thing
+   * on every row would send most readers to a switch that cannot reach them.
+   */
+  it("names email, reachable, and says it cannot be set here", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await user.click(screen.getByRole("button", { name: /^groupJob/ }));
+
+    const email = within(stops("kindJobAttention")).getByRole("button", {
+      name: "channelEmailUnavailable",
+    });
+
+    // Reachable by keyboard and marked unavailable, rather than dropped from
+    // the tab order: a reader who never uses a mouse still learns email is one
+    // of the places this kind can reach them, and why it is not theirs to set.
+    expect(email).toHaveAttribute("aria-disabled", "true");
+    expect(email).toBeEnabled();
+    expect(email).toHaveTextContent("channelEmail");
+
+    await user.click(email);
+    expect(patchMyPreferences).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Core mails job status and nothing else. The chip on every other row would
+   * otherwise point at the account switch, which would never mail that kind.
+   */
+  it("says no email is sent for a kind that is never mailed", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    const unmailed = within(stops("kindSystem")).getByRole("button", {
+      name: "channelEmailNone",
+    });
+
+    expect(unmailed).toBeInTheDocument();
+    expect(
+      within(stops("kindSystem")).queryByRole("button", {
+        name: "channelEmailUnavailable",
+      }),
+    ).not.toBeInTheDocument();
+
+    // The accessible name carries the difference, and the `title` only opens
+    // under a mouse. Struck through, a sighted reader on a keyboard or a
+    // touchscreen can see this row apart from one that can be mailed.
+    expect(unmailed).toHaveClass("line-through");
+
+    await user.click(screen.getByRole("button", { name: /^groupJob/ }));
+    expect(
+      within(stops("kindJobAttention")).getByRole("button", {
+        name: "channelEmailUnavailable",
+      }),
+    ).not.toHaveClass("line-through");
+  });
+
+  /**
+   * The chips read as two independent choices and one moves the other, so a
+   * reader who cannot see the row is told where the kind now arrives.
+   */
+  it("says where a kind arrives after a channel moves its sibling", async () => {
+    renderKinds();
+
+    const row = stops("kindSystem");
+    expect(within(row).getByRole("status")).toHaveTextContent("");
+
+    await toggle("kindSystem", "channelPush");
+
+    // The push took the in-app entry with it, and the announcement names both
+    // rather than only the chip the reader pressed.
+    await waitFor(() => {
+      expect(within(row).getByRole("status")).toHaveTextContent(
+        "channelsAnnounce kindSystem channelInApp, channelPush",
+      );
+    });
+
+    await toggle("kindSystem", "channelInApp");
+
+    await waitFor(() => {
+      expect(within(row).getByRole("status")).toHaveTextContent(
+        "channelsAnnounce kindSystem channelsNone",
+      );
+    });
+  });
+
+  /**
+   * Turning a push on waits on the account consent, which waits on a person.
+   * The row still holds the old channels for all of that time, so a region
+   * that spoke on the press would read out the state the reader just changed
+   * away from, in the one case it exists for.
+   */
+  it("says nothing until the write that asked for push has landed", async () => {
+    isAccountEnabled = false;
+
+    let allowPush: (subscribedHere: boolean) => void = () => {};
+    setAccountEnabled.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          allowPush = resolve;
+        }),
+    );
+
+    renderKinds();
+
+    const row = stops("kindSystem");
+    await toggle("kindSystem", "channelPush");
+
+    // The consent still stands. `kindSystem` starts on the in-app entry alone,
+    // so a region reading the cache here would announce exactly that.
+    expect(within(row).getByRole("status")).toHaveTextContent("");
+
+    allowPush(true);
+
+    await waitFor(() => {
+      expect(within(row).getByRole("status")).toHaveTextContent(
+        "channelsAnnounce kindSystem channelInApp, channelPush",
+      );
+    });
+  });
+
+  /**
+   * A preset writes every row in the group at once, under its own control,
+   * which says what it did. A row that spoke again on that write would report
+   * one row of three as if it were all that moved.
+   *
+   * The sentence comes down all the same. A live region speaks when its text
+   * changes, so a sentence left standing would both contradict the chips and
+   * swallow the next press that lands back on the channels it names.
+   */
+  it("takes its sentence down when a preset writes the row", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await user.click(screen.getByRole("button", { name: /^groupChat/ }));
+    await toggle("kindChatMention", "channelPush");
+
+    const row = stops("kindChatMention");
+
+    await waitFor(() => {
+      expect(within(row).getByRole("status")).toHaveTextContent(
+        "channelsAnnounce kindChatMention channelInApp",
+      );
+    });
+
+    await pickPreset("groupChat", "presetOff");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(2);
+    });
+    expect(chip("kindChatMention", "channelInApp")).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(within(row).getByRole("status")).toHaveTextContent("");
+
+    // Back to both channels, which is what the row said before the preset.
+    // With the old sentence still up this press would say nothing at all.
+    await toggle("kindChatMention", "channelPush");
+
+    await waitFor(() => {
+      expect(within(row).getByRole("status")).toHaveTextContent(
+        "channelsAnnounce kindChatMention channelInApp, channelPush",
+      );
+    });
+  });
+
   it("splits a job that needs you from one that merely happened", async () => {
     const user = userEvent.setup();
     renderKinds();
 
     await user.click(screen.getByRole("button", { name: /^groupJob/ }));
-    await pick("kindJobUpdate", "deliveryOff");
+    await toggle("kindJobUpdate", "channelInApp");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    // The loud row keeps its banner while the quiet one goes silent, which is
+    // The loud row keeps its push while the quiet one goes silent, which is
     // the split this vocabulary exists for.
     expect(lastWrite()).toHaveLength(2);
     expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
     expect(written("JOB_ATTENTION", "OS_BANNER")).toBeUndefined();
-    expect(stop("kindJobAttention", "deliveryBanner")).toHaveAttribute(
+    expect(chip("kindJobAttention", "channelPush")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -366,12 +561,16 @@ describe("NotificationKinds", () => {
 
     await user.click(screen.getByRole("button", { name: /^groupChat/ }));
 
-    expect(stop("kindChatRoomMessage", "deliveryOff")).toHaveAttribute(
+    expect(chip("kindChatRoomMessage", "channelInApp")).toHaveAttribute(
       "aria-pressed",
-      "true",
+      "false",
+    );
+    expect(chip("kindChatRoomMessage", "channelPush")).toHaveAttribute(
+      "aria-pressed",
+      "false",
     );
 
-    await pick("kindChatRoomMessage", "deliveryInApp");
+    await toggle("kindChatRoomMessage", "channelInApp");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
@@ -385,21 +584,22 @@ describe("NotificationKinds", () => {
     renderKinds();
 
     await user.click(screen.getByRole("button", { name: /^groupChat/ }));
-    await pick("kindChatDirectMessage", "deliveryOff");
+    await toggle("kindChatDirectMessage", "channelPush");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
     expect(lastWrite()).toHaveLength(2);
-    expect(written("CHAT_DIRECT_MESSAGE", "IN_APP")).toBe(false);
+    expect(written("CHAT_DIRECT_MESSAGE", "OS_BANNER")).toBe(false);
+    expect(written("CHAT_DIRECT_MESSAGE", "IN_APP")).toBe(true);
     expect(written("CHAT_MENTION", "IN_APP")).toBeUndefined();
   });
 
-  it("turns push on from the control that asked for a banner", async () => {
+  it("turns push on from the control that asked for it", async () => {
     isAccountEnabled = false;
     renderKinds();
 
-    await pick("kindSystem", "deliveryBanner");
+    await toggle("kindSystem", "channelPush");
 
     await waitFor(() => {
       expect(setAccountEnabled).toHaveBeenCalledWith(true);
@@ -407,11 +607,11 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * The banner cells start on and the account opt-in starts off, so a reader
-   * who never opened this page has a stored banner and no way to receive one.
-   * A preset that leaves those cells on is that reader asking for banners.
+   * The push cells start on and the account opt-in starts off, so a reader who
+   * never opened this page has a stored push and no way to receive one. A
+   * preset that leaves those cells on is that reader asking for pushes.
    */
-  it("asks for push when a preset leaves a stored banner on", async () => {
+  it("asks for push when a preset leaves a stored push on", async () => {
     isAccountEnabled = false;
     renderKinds();
 
@@ -422,11 +622,11 @@ describe("NotificationKinds", () => {
     });
   });
 
-  it("does not ask for push when the write leaves no banner on", async () => {
+  it("does not ask for push when the write leaves no push on", async () => {
     isAccountEnabled = false;
     renderKinds();
 
-    await pick("kindSystem", "deliveryInApp");
+    await toggle("kindSystem", "channelInApp");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
@@ -457,16 +657,16 @@ describe("NotificationKinds", () => {
    * network answers. That is the whole point of painting: the row moves under
    * the press rather than a round trip later.
    */
-  it("shows the picked delivery before the write lands", async () => {
+  it("shows the picked channels before the write lands", async () => {
     patchMyPreferences.mockReturnValue(new Promise(() => {}));
     renderKinds();
 
-    await pick("kindSystem", "deliveryOff");
+    await toggle("kindSystem", "channelInApp");
 
     expect(setAccountEnabled).not.toHaveBeenCalled();
-    expect(stop("kindSystem", "deliveryOff")).toHaveAttribute(
+    expect(chip("kindSystem", "channelInApp")).toHaveAttribute(
       "aria-pressed",
-      "true",
+      "false",
     );
   });
 
@@ -476,7 +676,7 @@ describe("NotificationKinds", () => {
    * the delivery this reader just picked, so a paint before the consent is
    * dropped again the moment the consent lands.
    */
-  it("keeps the picked delivery on the row after the consent lands", async () => {
+  it("keeps the picked channel on the row after the consent lands", async () => {
     isAccountEnabled = false;
     setAccountEnabled.mockImplementation(async () => {
       queryClient.setQueryData(getMyPreferencesQueryKey("user_1"), {
@@ -488,12 +688,12 @@ describe("NotificationKinds", () => {
     patchMyPreferences.mockReturnValue(new Promise(() => {}));
     renderKinds();
 
-    await pick("kindSystem", "deliveryBanner");
+    await toggle("kindSystem", "channelPush");
 
     await waitFor(() => {
       expect(setAccountEnabled).toHaveBeenCalledWith(true);
     });
-    expect(stop("kindSystem", "deliveryBanner")).toHaveAttribute(
+    expect(chip("kindSystem", "channelPush")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -524,12 +724,12 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * A stop the browser disables drops out of the tab order under the reader's
-   * finger, and a screen reader loses the control it was on. It stays
+   * A control the browser disables drops out of the tab order under the
+   * reader's finger, and a screen reader loses the control it was on. It stays
    * reachable and says it is busy instead, and presses do nothing until the
    * write lands.
    */
-  it("keeps the stops reachable while a write is in flight", async () => {
+  it("keeps the controls reachable while a write is in flight", async () => {
     patchMyPreferences.mockReturnValue(new Promise(() => {}));
     renderKinds();
 
@@ -564,12 +764,12 @@ describe("NotificationKinds", () => {
     patchMyPreferences.mockRejectedValueOnce(new Error("nope"));
     renderKinds();
 
-    await pick("kindSystem", "deliveryOff");
+    await toggle("kindSystem", "channelInApp");
 
     await waitFor(() => {
       expect(vi.mocked(toast.error)).toHaveBeenCalled();
     });
-    expect(stop("kindSystem", "deliveryInApp")).toHaveAttribute(
+    expect(chip("kindSystem", "channelInApp")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
