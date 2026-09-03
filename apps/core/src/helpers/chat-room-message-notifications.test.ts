@@ -134,6 +134,41 @@ describe("emitChatRoomMessageNotifications", () => {
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
+  /**
+   * The other half of the same question: one channel is enough. A reader who
+   * kept only the banner and opted in to push hears about the message, and so
+   * does one who kept only the in-app row.
+   */
+  it("notifies a reader who kept one channel of the two", async () => {
+    userFindManyMock.mockResolvedValue([
+      subscriber(SUBSCRIBER_ID, {
+        notificationPreferences: [
+          { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: false },
+          {
+            category: "CHAT_ROOM_MESSAGE",
+            channel: "OS_BANNER",
+            enabled: true,
+          },
+        ],
+      }),
+      subscriber(QUIET_ID, {
+        pushOptIn: false,
+        notificationPreferences: [
+          { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: true },
+          {
+            category: "CHAT_ROOM_MESSAGE",
+            channel: "OS_BANNER",
+            enabled: false,
+          },
+        ],
+      }),
+    ]);
+
+    await emit({ memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID, QUIET_ID] });
+
+    expect(createNotificationMock).toHaveBeenCalledTimes(2);
+  });
+
   it("asks only about the members of this room, and never about the author", async () => {
     await emit({ memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID] });
 
