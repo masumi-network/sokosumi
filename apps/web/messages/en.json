@@ -4840,7 +4840,7 @@
         "channelEmailLabel": "Job status emails",
         "channelEmailSoonLabel": "Email, not sent for {kind} yet",
         "channelEmailSoonHint": "Soon. Sokosumi sends no email for this kind yet.",
-        "deliveryAriaLabel": "Where {kind} arrives",
+        "deliveryAriaLabel": "Delivery for {kind}",
         "emailAnnounceOn": "Job status emails on",
         "emailAnnounceOff": "Job status emails off"
       },

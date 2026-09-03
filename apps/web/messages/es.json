@@ -4807,9 +4807,9 @@
         "channelsNone": "ninguno",
         "channelCellLabel": "{channel} para {kind}",
         "channelEmailLabel": "Emails de estado de trabajos",
-        "channelEmailSoonLabel": "Email, todavía no para {kind}",
+        "channelEmailSoonLabel": "Email, todavía no se envía para {kind}",
         "channelEmailSoonHint": "Pronto. Sokosumi todavía no envía email para este tipo.",
-        "deliveryAriaLabel": "Dónde llega {kind}",
+        "deliveryAriaLabel": "Entrega para {kind}",
         "emailAnnounceOn": "Emails de estado de trabajos activados",
         "emailAnnounceOff": "Emails de estado de trabajos desactivados"
       },
