@@ -1608,6 +1608,11 @@ describe("NotificationKinds", () => {
     const email = fallbackEmailCell();
 
     expect(email).toHaveAttribute("aria-pressed", "true");
+    // Described by the row's own line, like the marketing cell under it.
+    expect(describedBy(email)).toBe("channelEmailFallbackHint");
+    // And a row of the same box. Outside it, this row draws unpadded and out
+    // of column, directly below a marketing row that is neither.
+    expect(newsRow().closest("div.divide-y")).toContainElement(email);
 
     await user.click(email);
 
