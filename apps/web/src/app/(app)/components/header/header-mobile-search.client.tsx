@@ -52,6 +52,8 @@ export function HeaderMobileSearchControl() {
   const pathname = usePathname();
   const previousPathnameRef = useRef(pathname);
   const navigatedToHistoryRef = useRef(false);
+  /** Dismissed before `router.push(/history)` committed — bounce on arrival. */
+  const abortPendingHistoryNavigationRef = useRef(false);
   const queryRef = useRef(query);
   queryRef.current = query;
 
@@ -85,6 +87,16 @@ export function HeaderMobileSearchControl() {
     const previousPathname = previousPathnameRef.current;
     previousPathnameRef.current = pathname;
 
+    if (abortPendingHistoryNavigationRef.current && isHistoryPath(pathname)) {
+      abortPendingHistoryNavigationRef.current = false;
+      navigatedToHistoryRef.current = false;
+      debouncedReplaceHistoryQuery.cancel();
+      setExpanded(false);
+      setQuery("");
+      router.back();
+      return;
+    }
+
     if (
       expanded &&
       isHistoryPath(previousPathname) &&
@@ -92,6 +104,7 @@ export function HeaderMobileSearchControl() {
     ) {
       debouncedReplaceHistoryQuery.cancel();
       navigatedToHistoryRef.current = false;
+      abortPendingHistoryNavigationRef.current = false;
       setExpanded(false);
       setQuery("");
       return;
@@ -111,7 +124,7 @@ export function HeaderMobileSearchControl() {
         replaceHistoryQuery(trimmedQuery);
       }
     }
-  }, [pathname, expanded, debouncedReplaceHistoryQuery]);
+  }, [pathname, expanded, debouncedReplaceHistoryQuery, router]);
 
   useEffect(() => {
     return () => {
@@ -121,6 +134,7 @@ export function HeaderMobileSearchControl() {
 
   function openSearch() {
     setExpanded(true);
+    abortPendingHistoryNavigationRef.current = false;
     if (!isHistoryPath(pathname)) {
       setQuery("");
       navigatedToHistoryRef.current = true;
@@ -141,9 +155,17 @@ export function HeaderMobileSearchControl() {
     setQuery("");
     setExpanded(false);
     if (shouldNavigateBack) {
-      router.back();
+      // Only back once /history has committed; otherwise `router.back()` leaves
+      // the originating route for whatever was before it.
+      if (isHistoryPath(pathname)) {
+        abortPendingHistoryNavigationRef.current = false;
+        router.back();
+      } else {
+        abortPendingHistoryNavigationRef.current = true;
+      }
       return;
     }
+    abortPendingHistoryNavigationRef.current = false;
     if (isHistoryPath(pathname) && hadQuery) {
       replaceHistoryQuery(null);
     }

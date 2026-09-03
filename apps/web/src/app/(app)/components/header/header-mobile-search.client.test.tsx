@@ -124,7 +124,7 @@ describe("HeaderMobileSearchControl", () => {
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    render(<HeaderMobileSearchControl />);
+    const { rerender } = render(<HeaderMobileSearchControl />);
 
     await user.click(screen.getByRole("button", { name: "Search" }));
     const back = screen.getByRole("button", { name: "Back" });
@@ -132,7 +132,11 @@ describe("HeaderMobileSearchControl", () => {
     expect(back.className).toMatch(/hover:bg-accent/);
     expect(back.className).toMatch(/rounded-md/);
 
-    await user.click(back);
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    rerender(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
 
     expect(
       screen.queryByTestId("header-mobile-search-expanded"),
@@ -140,6 +144,31 @@ describe("HeaderMobileSearchControl", () => {
     expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
     expect(backMock).toHaveBeenCalledTimes(1);
     expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("does not router.back when dismissed before /history push commits", async () => {
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    const { rerender } = render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(pushMock).toHaveBeenCalledWith("/history");
+    expect(mockPathname).toBe("/chat");
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(backMock).not.toHaveBeenCalled();
+    expect(
+      screen.queryByTestId("header-mobile-search-expanded"),
+    ).not.toBeInTheDocument();
+
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    rerender(<HeaderMobileSearchControl />);
+
+    expect(backMock).toHaveBeenCalledTimes(1);
   });
 
   it("collapses search on /history without router.back", async () => {
