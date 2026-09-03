@@ -489,12 +489,17 @@ describe("POST /chats/rooms/{id}/messages", () => {
         authorName: "Hannah",
         recipientUserIds: [ALICE_ID],
       });
-      // Scheduled for every room. The emitter reads the roster and leaves a
-      // direct room of two to the direct-message row, which is the only place
-      // that decision can see how many humans are in it.
+      // Scheduled for every room. The emitter leaves a direct room of two to
+      // the direct-message row, which is the only place that decision can see
+      // how many humans are in it. The roster this route already read goes
+      // with it, so the emitter does not ask for it again.
       expect(emitChatRoomMessageNotificationsMock).toHaveBeenCalledWith(
-        expect.objectContaining({ roomKind: "direct" }),
+        expect.objectContaining({
+          roomKind: "direct",
+          memberUserIds: [ALICE_ID],
+        }),
       );
+      expect(membershipFindManyMock).toHaveBeenCalledTimes(1);
       expect(waitUntilMock).toHaveBeenCalledTimes(3);
     });
 
