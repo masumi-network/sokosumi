@@ -2,7 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import {
   Collapsible,
@@ -114,12 +114,13 @@ function GroupRows({
 function NewsRow({ news }: { news: EmailChoice }) {
   const t = useTranslations("App.Account.Notifications");
   const label = t("marketingEmailsTitle");
+  const hintId = useId();
 
   return (
     <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <div className="min-w-0">
         <p className="text-sm leading-5">{label}</p>
-        <p className="text-muted-foreground text-sm leading-5">
+        <p id={hintId} className="text-muted-foreground text-sm leading-5">
           {t("marketingEmailsDescription")}
         </p>
       </div>
@@ -133,9 +134,9 @@ function NewsRow({ news }: { news: EmailChoice }) {
         <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-1">
           <div
             role="group"
-            // Its own sentence rather than the one every kind row uses: those
-            // name a single kind, and "Where Marketing emails arrives" is not
-            // a sentence in any of the three languages.
+            // Its own sentence rather than the one every kind row uses,
+            // which reads "Where {kind} arrives" and is written for a row of
+            // the matrix. Marketing emails are not a kind the matrix carries.
             aria-label={t("newsDeliveryAriaLabel")}
             className="flex shrink-0 items-center justify-end gap-1"
           >
@@ -143,10 +144,10 @@ function NewsRow({ news }: { news: EmailChoice }) {
             <EmailCell
               // Its own name rather than "Email for Marketing emails", which
               // is what composing gives on a row that is already about email.
-              // No hint either: the row's visible line is that sentence.
+              // Described by the row's own line rather than by a sentence of
+              // its own: that line is already on screen and says the same.
               name={label}
-              announceOn={t("newsAnnounceOn")}
-              announceOff={t("newsAnnounceOff")}
+              describedById={hintId}
               email={news}
             />
           </div>
@@ -159,16 +160,15 @@ function NewsRow({ news }: { news: EmailChoice }) {
 /** The account switch on a row of its own, for when no kind row carries it. */
 function EmailRow({ email }: { email: EmailChoice }) {
   const t = useTranslations("App.Account.Notifications");
+  const hintId = useId();
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="text-sm leading-5 font-medium">
-          {t("channelEmailLabel")}
-        </p>
+    <div className="flex items-center justify-between gap-4 px-4 py-3">
+      <div className="min-w-0">
+        <p className="text-sm leading-5">{t("channelEmailLabel")}</p>
         {/* No rows to be shared with here, so this one says what the emails
             are rather than which rows hold the same switch. */}
-        <p className="text-muted-foreground text-sm leading-6">
+        <p id={hintId} className="text-muted-foreground text-sm leading-5">
           {t("channelEmailFallbackHint")}
         </p>
       </div>
@@ -176,8 +176,7 @@ function EmailRow({ email }: { email: EmailChoice }) {
         // Named for the row, like the marketing row below it. Composed, it
         // would read "Email for Job status emails".
         name={t("channelEmailLabel")}
-        announceOn={t("emailAnnounceOn")}
-        announceOff={t("emailAnnounceOff")}
+        describedById={hintId}
         email={email}
       />
     </div>
@@ -314,9 +313,12 @@ export function NotificationKinds({
             work, and the only one Sokosumi sends rather than reports. It is
             also the row that does not come from the matrix, so it stands
             whether or not the read landed. */}
+        {/* A row of the box like the rest, rather than a control adrift under
+            it: the box is always drawn now, so a row outside it would stand
+            unpadded and out of column right below the marketing row. */}
+        {choices.loading || mailedByARow ? null : <EmailRow email={email} />}
         <NewsRow news={news} />
       </div>
-      {choices.loading || mailedByARow ? null : <EmailRow email={email} />}
     </div>
   );
 }

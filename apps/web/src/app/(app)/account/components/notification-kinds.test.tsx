@@ -1291,57 +1291,30 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * One value behind both job rows, so a press moves a cell the reader may not
-   * have been looking at. The row that was pressed says what the value is now;
-   * the other one stays quiet rather than reporting the same change twice.
-   *
-   * Not before the write settles, either. The account switch is what mails,
-   * and a sentence spoken on the press would claim a state Core has not been
-   * told about yet.
+   * One value behind both job rows, and only one voice for it. The write
+   * raises a toast that names the account switch, so a sentence here as well
+   * would announce one press twice, in two wordings, on a row the reader may
+   * not have pressed. The channel cells raise no toast and still speak.
    */
-  it("says what the job emails do now, once the write has landed", async () => {
+  it("leaves the job email cells to the toast behind them", async () => {
     const user = userEvent.setup();
     renderKinds();
 
     await openGroup("groupJob");
 
     const pressed = stops("kindJobAttention");
-    const sibling = stops("kindJobUpdate");
 
-    expect(spoken(pressed)).toBe("");
-
-    await user.click(emailCell("kindJobAttention"));
-
-    expect(spoken(pressed)).toBe("");
-
-    act(finishEmailWrite);
-
-    await waitFor(() => {
-      expect(spoken(pressed)).toBe("emailAnnounceOff");
-    });
-    expect(spoken(sibling)).toBe("");
-  });
-
-  /**
-   * A region only speaks when its text changes, so a sentence left standing
-   * would silence the next press that lands on the same value. The value here
-   * moves from the other job row, which holds the same switch.
-   */
-  it("takes the email sentence down when the value moves under it", async () => {
-    const user = userEvent.setup();
-    renderKinds();
-
-    await openGroup("groupJob");
     await user.click(emailCell("kindJobAttention"));
     act(finishEmailWrite);
 
     await waitFor(() => {
-      expect(spoken(stops("kindJobAttention"))).toBe("emailAnnounceOff");
+      expect(emailCell("kindJobAttention")).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
     });
-
-    await user.click(emailCell("kindJobUpdate"));
-
-    expect(spoken(stops("kindJobAttention"))).toBe("");
+    expect(spoken(pressed)).toBe("");
+    expect(spoken(stops("kindJobUpdate"))).toBe("");
   });
 
   /**
@@ -1384,11 +1357,11 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * A failed write leaves the row where it started, and the sentence has to
-   * report that rather than the press. The account page puts the value back
-   * before it stops being busy, which is what makes this readable here.
+   * A failed write leaves the row where it started. The cell reads from the
+   * account switch above it, so a cell that kept the press would be reporting
+   * a setting the card knows it failed to store.
    */
-  it("reports the value the row ended on when the write fails", async () => {
+  it("puts the email cell back when the write fails", async () => {
     const user = userEvent.setup();
     emailWriteFails = true;
     renderKinds();
@@ -1399,12 +1372,11 @@ describe("NotificationKinds", () => {
     act(finishEmailWrite);
 
     await waitFor(() => {
-      expect(spoken(stops("kindJobAttention"))).toBe("emailAnnounceOn");
+      expect(emailCell("kindJobAttention")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
     });
-    expect(emailCell("kindJobAttention")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
   });
 
   /**
@@ -1570,10 +1542,11 @@ describe("NotificationKinds", () => {
     });
 
     expect(email).toHaveAttribute("aria-pressed", "false");
-    // The row's own line is that sentence. Described by it as well, a reader
-    // hears it twice: once as the row, once as the control.
-    expect(email).not.toHaveAttribute("aria-describedby");
-    expect(screen.getByText("marketingEmailsDescription")).toBeInTheDocument();
+    // Described by the row's own visible line rather than by a copy of it.
+    // Undescribed, this one live control would be the only cell of the row a
+    // reader meets with nothing said about it, between two dead ones that
+    // both carry a reason.
+    expect(describedBy(email)).toBe("marketingEmailsDescription");
 
     await user.click(email);
 
@@ -1581,18 +1554,15 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * One cell can sit on a value that several rows share, so every email cell
-   * speaks for the value rather than for its row. This row's value is its own,
-   * and saying "Job status emails on" here would name a different setting on
-   * the same card, one the reader did not touch.
+   * The write behind this row raises a toast that names the setting, so the
+   * row says nothing of its own. Two voices for one press would report the
+   * same change twice, in two wordings.
    */
-  it("says which emails moved when the marketing row is pressed", async () => {
+  it("leaves the marketing row to the toast behind it", async () => {
     const user = userEvent.setup();
     renderKinds();
 
     const row = newsRow();
-
-    expect(spoken(row)).toBe("");
 
     await user.click(
       within(row).getByRole("button", {
@@ -1601,8 +1571,9 @@ describe("NotificationKinds", () => {
     );
 
     await waitFor(() => {
-      expect(spoken(row)).toBe("newsAnnounceOn");
+      expect(setMarketing).toHaveBeenCalledWith(true);
     });
+    expect(within(row).queryAllByRole("status")).toHaveLength(0);
   });
 
   /**

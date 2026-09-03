@@ -4831,11 +4831,7 @@
         "channelEmailSoonLabel": "Email, not sent for {kind} yet",
         "channelEmailSoonHint": "Soon. Sokosumi sends no email for this kind yet.",
         "deliveryAriaLabel": "Delivery for {kind}",
-        "newsDeliveryAriaLabel": "Where marketing emails arrive",
-        "emailAnnounceOn": "Job status emails on",
-        "emailAnnounceOff": "Job status emails off",
-        "newsAnnounceOn": "Marketing emails on",
-        "newsAnnounceOff": "Marketing emails off"
+        "newsDeliveryAriaLabel": "Where marketing emails arrive"
       },
       "BillingDetails": {
         "title": "Billing information",

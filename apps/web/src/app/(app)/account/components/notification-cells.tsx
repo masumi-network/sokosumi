@@ -166,12 +166,16 @@ export function UnusedChannelCells({ kind }: { kind: string }) {
  * value can sit on more than one row: both job rows hold the job emails and
  * move together. The cell says that in its own description rather than leaving
  * the reader to discover it by pressing.
+ *
+ * It does not speak what it wrote. The write behind it raises a toast, and the
+ * toast names the account switch that moved, which is the fact a reader on a
+ * shared value needs. Said here as well, one press would be announced twice in
+ * two wordings. The channel cells raise no toast, so they still speak.
  */
 export function EmailCell({
   name,
   hint,
-  announceOn,
-  announceOff,
+  describedById,
   email,
 }: {
   /**
@@ -181,89 +185,64 @@ export function EmailCell({
    */
   name: string;
   /**
-   * What the switch reaches, for its description and its tooltip. Left out on
-   * a row whose own visible line already says it: described as well, a reader
-   * hears that sentence twice, once as the row and once as the control.
+   * What the switch reaches, when the row does not already say it on screen.
+   * Shown as a tooltip and read as the description.
    */
   hint?: string;
-  /** What the row says once the write lands. Named for the value it wrote,
-      rather than for this row: one switch can sit on several rows, and the
-      reader needs to hear which of their settings just moved. */
-  announceOn: string;
-  announceOff: string;
+  /**
+   * The row's own visible sentence, for a row that already carries one. The
+   * cell describes itself with that element rather than repeating it, and a
+   * cell with neither would be the only one in the grid a reader meets
+   * undescribed.
+   */
+  describedById?: string;
   email: EmailChoice;
 }) {
-  const hintId = useId();
+  const ownHintId = useId();
+  const describedBy = hint ? ownHintId : describedById;
 
-  // One value can sit behind two rows, so a press here moves the cell on the
-  // other one as well. Nothing on screen says that to a reader who cannot see
-  // it, so this cell speaks, on the same terms as the channel cells beside it:
-  // only the cell that was pressed, only once the write has landed, and the
-  // sentence comes down again when the value moves under it.
-  const [arrival, setArrival] = useState<{
-    enabled: boolean;
-    text: string;
-  } | null>(null);
-  const [awaiting, setAwaiting] = useState(false);
+  const button = (
+    <button
+      type="button"
+      aria-pressed={email.enabled}
+      aria-disabled={email.saving || undefined}
+      // The name has to differ per row, or two cells on one value answer
+      // to one name. What that shared value reaches is said in the
+      // description instead.
+      aria-label={name}
+      aria-describedby={describedBy}
+      onClick={() => {
+        if (email.saving) {
+          return;
+        }
 
-  useEffect(() => {
-    if (awaiting) {
-      if (email.saving) {
-        return;
-      }
+        email.onChange(!email.enabled);
+      }}
+      className={cn(
+        CELL,
+        email.saving && "opacity-50",
+        email.enabled ? CELL_ON : CELL_OFF,
+      )}
+    >
+      <Mail className="size-4" aria-hidden="true" />
+    </button>
+  );
 
-      setAwaiting(false);
-      setArrival({
-        enabled: email.enabled,
-        text: email.enabled ? announceOn : announceOff,
-      });
-      return;
-    }
-
-    if (arrival && arrival.enabled !== email.enabled) {
-      setArrival(null);
-    }
-  }, [announceOff, announceOn, arrival, awaiting, email.saving, email.enabled]);
+  // Wrapped only when there is something to show. A trigger with no content
+  // still points its description at the content's id, so a bare wrapper leaves
+  // the cell describing an element that was never rendered.
+  if (!hint) {
+    return button;
+  }
 
   return (
     <>
       <Tooltip>
-        <TooltipTrigger
-          type="button"
-          aria-pressed={email.enabled}
-          aria-disabled={email.saving || undefined}
-          // The name has to differ per row, or two cells on one value answer
-          // to one name. What that shared value reaches is said in the
-          // description instead.
-          aria-label={name}
-          // Spread, so a row with nothing extra to say leaves the trigger's
-          // own tooltip description alone rather than deleting it.
-          {...(hint ? { "aria-describedby": hintId } : {})}
-          onClick={() => {
-            if (email.saving) {
-              return;
-            }
-
-            setAwaiting(true);
-            email.onChange(!email.enabled);
-          }}
-          className={cn(
-            CELL,
-            email.saving && "opacity-50",
-            email.enabled ? CELL_ON : CELL_OFF,
-          )}
-        >
-          <Mail className="size-4" aria-hidden="true" />
-        </TooltipTrigger>
-        {hint ? <TooltipContent>{hint}</TooltipContent> : null}
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent>{hint}</TooltipContent>
       </Tooltip>
-      {hint ? (
-        <span aria-hidden="true" id={hintId} className="sr-only">
-          {hint}
-        </span>
-      ) : null}
-      <span role="status" aria-live="polite" className="sr-only">
-        {arrival?.text ?? ""}
+      <span aria-hidden="true" id={ownHintId} className="sr-only">
+        {hint}
       </span>
     </>
   );
@@ -427,8 +406,6 @@ function KindCells({
             kind: label,
           })}
           hint={t("channelEmailHint")}
-          announceOn={t("emailAnnounceOn")}
-          announceOff={t("emailAnnounceOff")}
           email={email}
         />
       ) : (
