@@ -2,9 +2,10 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pushMock, replaceMock } = vi.hoisted(() => ({
+const { pushMock, replaceMock, backMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   replaceMock: vi.fn(),
+  backMock: vi.fn(),
 }));
 
 let mockPathname = "/chat";
@@ -13,6 +14,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
     replace: replaceMock,
+    back: backMock,
   }),
   usePathname: () => mockPathname,
 }));
@@ -36,6 +38,9 @@ vi.mock("next-intl", () => ({
         loading: "Loading...",
         error: "Failed to load results",
         resultsHeading: "Search",
+      },
+      "App.Channels.MobileNav": {
+        back: "Back",
       },
       "Components.NotificationCenter": {
         notifications: "Notifications",
@@ -120,7 +125,7 @@ describe("HeaderMobileSearchControl", () => {
     ).toBeInTheDocument();
   });
 
-  it("dismisses expanded search and restores the trigger", async () => {
+  it("uses the shared mobile back control and navigates back after opening from another page", async () => {
     const user = userEvent.setup({
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
@@ -128,12 +133,37 @@ describe("HeaderMobileSearchControl", () => {
     render(<HeaderMobileSearchControl />);
 
     await user.click(screen.getByRole("button", { name: "Search" }));
-    await user.click(screen.getByTestId("header-mobile-search-dismiss"));
+    const back = screen.getByRole("button", { name: "Back" });
+    expect(back).toHaveAttribute("data-testid", "header-mobile-search-dismiss");
+    expect(back.className).toMatch(/hover:bg-accent/);
+    expect(back.className).toMatch(/rounded-md/);
+
+    await user.click(back);
 
     expect(
       screen.queryByTestId("header-mobile-search-expanded"),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+    expect(backMock).toHaveBeenCalledTimes(1);
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("collapses search on /history without router.back", async () => {
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(
+      screen.queryByTestId("header-mobile-search-expanded"),
+    ).not.toBeInTheDocument();
+    expect(backMock).not.toHaveBeenCalled();
   });
 
   it("filters the history page via URL q instead of opening a results popup", async () => {
