@@ -2,9 +2,10 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pushMock, replaceMock } = vi.hoisted(() => ({
+const { pushMock, replaceMock, backMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   replaceMock: vi.fn(),
+  backMock: vi.fn(),
 }));
 
 let mockPathname = "/chat";
@@ -13,6 +14,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
     replace: replaceMock,
+    back: backMock,
   }),
   usePathname: () => mockPathname,
 }));
@@ -36,6 +38,9 @@ vi.mock("next-intl", () => ({
         loading: "Loading...",
         error: "Failed to load results",
         resultsHeading: "Search",
+      },
+      "App.Channels.MobileNav": {
+        back: "Back",
       },
       "Components.NotificationCenter": {
         notifications: "Notifications",
@@ -120,7 +125,7 @@ describe("HeaderMobileSearchControl", () => {
     ).toBeInTheDocument();
   });
 
-  it("dismisses expanded search and restores the trigger", async () => {
+  it("uses the shared mobile back control and navigates back after opening from another page", async () => {
     const user = userEvent.setup({
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
@@ -128,12 +133,37 @@ describe("HeaderMobileSearchControl", () => {
     render(<HeaderMobileSearchControl />);
 
     await user.click(screen.getByRole("button", { name: "Search" }));
-    await user.click(screen.getByTestId("header-mobile-search-dismiss"));
+    const back = screen.getByRole("button", { name: "Back" });
+    expect(back).toHaveAttribute("data-testid", "header-mobile-search-dismiss");
+    expect(back.className).toMatch(/hover:bg-accent/);
+    expect(back.className).toMatch(/rounded-md/);
+
+    await user.click(back);
 
     expect(
       screen.queryByTestId("header-mobile-search-expanded"),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+    expect(backMock).toHaveBeenCalledTimes(1);
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("collapses search on /history without router.back", async () => {
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(
+      screen.queryByTestId("header-mobile-search-expanded"),
+    ).not.toBeInTheDocument();
+    expect(backMock).not.toHaveBeenCalled();
   });
 
   it("filters the history page via URL q instead of opening a results popup", async () => {
@@ -154,6 +184,75 @@ describe("HeaderMobileSearchControl", () => {
 
     expect(replaceMock).toHaveBeenCalledWith("/history?q=brief");
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
+  it("applies a query typed before /history navigation finishes", async () => {
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    const { rerender } = render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(pushMock).toHaveBeenCalledWith("/history");
+
+    await user.type(screen.getByPlaceholderText("Search..."), "brief");
+
+    // Debounce may fire while still off /history and no-op.
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(replaceMock).not.toHaveBeenCalled();
+
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    rerender(<HeaderMobileSearchControl />);
+
+    expect(replaceMock).toHaveBeenCalledWith("/history?q=brief");
+    expect(screen.getByPlaceholderText("Search...")).toHaveValue("brief");
+  });
+
+  it("flushes a still-pending query when /history navigation completes", async () => {
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    const { rerender } = render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await user.type(screen.getByPlaceholderText("Search..."), "brief");
+
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    rerender(<HeaderMobileSearchControl />);
+
+    expect(replaceMock).toHaveBeenCalledWith("/history?q=brief");
+  });
+
+  it("cancels pending history query updates after navigating away", async () => {
+    mockPathname = "/history";
+    window.history.replaceState({}, "", "/history");
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
+
+    const { rerender } = render(<HeaderMobileSearchControl />);
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await user.type(screen.getByPlaceholderText("Search..."), "brief");
+
+    mockPathname = "/chat";
+    window.history.replaceState({}, "", "/chat");
+    rerender(<HeaderMobileSearchControl />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(replaceMock).not.toHaveBeenCalled();
+    expect(
+      screen.queryByTestId("header-mobile-search-expanded"),
+    ).not.toBeInTheDocument();
   });
 
   it("clears the history q param when dismissing expanded search", async () => {
@@ -189,6 +288,24 @@ describe("HeaderMobileSearchControl", () => {
     render(<HeaderTrailingTools />);
 
     expect(screen.getByTestId("header-trailing-tools")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+    const notifications = screen.getByRole("button", {
+      name: "Notifications",
+    });
+    const search = screen.getByRole("button", { name: "Search" });
+    expect(notifications).toBeInTheDocument();
+    expect(search).toBeInTheDocument();
+    expect(
+      notifications.compareDocumentPosition(search) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("keeps Notification Center and Search without Workspace chrome", () => {
+    const { container } = render(<HeaderTrailingTools />);
+
+    expect(screen.getByTestId("header-trailing-tools")).toBeInTheDocument();
+    expect(
+      container.querySelector("[data-testid='header-workspace-chrome']"),
+    ).toBeNull();
   });
 });

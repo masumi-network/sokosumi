@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowLeft, Search } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDebouncedCallback } from "use-debounce";
 import {
@@ -19,6 +19,10 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { cn } from "@/lib/utils";
 
 const HISTORY_PATH = "/history";
+
+/** Same chrome as `HeaderLeadingControl` mobile back. */
+const MOBILE_HEADER_BACK_BUTTON_CLASS =
+  "text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md";
 
 function isHistoryPath(pathname: string): boolean {
   return pathname === HISTORY_PATH || pathname.endsWith(HISTORY_PATH);
@@ -41,15 +45,24 @@ function readHistoryQueryFromLocation(): string {
 
 export function HeaderMobileSearchControl() {
   const t = useTranslations("App.Header.Search");
+  const tNav = useTranslations("App.Channels.MobileNav");
   const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState("");
   const router = useRouter();
   const pathname = usePathname();
+  const previousPathnameRef = useRef(pathname);
+  const navigatedToHistoryRef = useRef(false);
+  const queryRef = useRef(query);
+  queryRef.current = query;
 
   function replaceHistoryQuery(nextQuery: string | null) {
-    const paramsForMerge = new URLSearchParams(
-      isHistoryPath(pathname) ? readLocationSearch() : "",
-    );
+    const currentPath =
+      typeof window !== "undefined" ? window.location.pathname : pathname;
+    if (!isHistoryPath(currentPath)) {
+      return;
+    }
+
+    const paramsForMerge = new URLSearchParams(readLocationSearch());
 
     if (nextQuery) {
       paramsForMerge.set(HISTORY_FILTER_PARAM_KEYS.q, nextQuery);
@@ -68,23 +81,69 @@ export function HeaderMobileSearchControl() {
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
 
+  useEffect(() => {
+    const previousPathname = previousPathnameRef.current;
+    previousPathnameRef.current = pathname;
+
+    if (
+      expanded &&
+      isHistoryPath(previousPathname) &&
+      !isHistoryPath(pathname)
+    ) {
+      debouncedReplaceHistoryQuery.cancel();
+      navigatedToHistoryRef.current = false;
+      setExpanded(false);
+      setQuery("");
+      return;
+    }
+
+    // Opened search from a non-history route: typing can race `router.push`.
+    // Debounced replaces no-op off /history and used to be cancelled on arrival.
+    // Flush the local query once navigation lands so `?q=` reaches the URL.
+    if (
+      expanded &&
+      !isHistoryPath(previousPathname) &&
+      isHistoryPath(pathname)
+    ) {
+      debouncedReplaceHistoryQuery.cancel();
+      const trimmedQuery = queryRef.current.trim();
+      if (trimmedQuery) {
+        replaceHistoryQuery(trimmedQuery);
+      }
+    }
+  }, [pathname, expanded, debouncedReplaceHistoryQuery]);
+
+  useEffect(() => {
+    return () => {
+      debouncedReplaceHistoryQuery.cancel();
+    };
+  }, [debouncedReplaceHistoryQuery]);
+
   function openSearch() {
     setExpanded(true);
     if (!isHistoryPath(pathname)) {
       setQuery("");
+      navigatedToHistoryRef.current = true;
       router.push(HISTORY_PATH);
       return;
     }
+    navigatedToHistoryRef.current = false;
     setQuery(readHistoryQueryFromLocation());
   }
 
   function collapse() {
     debouncedReplaceHistoryQuery.cancel();
+    const shouldNavigateBack = navigatedToHistoryRef.current;
     const hadQuery =
       query.trim().length > 0 ||
       (isHistoryPath(pathname) && readHistoryQueryFromLocation().length > 0);
+    navigatedToHistoryRef.current = false;
     setQuery("");
     setExpanded(false);
+    if (shouldNavigateBack) {
+      router.back();
+      return;
+    }
     if (isHistoryPath(pathname) && hadQuery) {
       replaceHistoryQuery(null);
     }
@@ -125,12 +184,12 @@ export function HeaderMobileSearchControl() {
               <div className="relative z-10 flex h-16 w-full items-center gap-2 px-2">
                 <button
                   type="button"
-                  className="hover:bg-muted flex size-8 shrink-0 items-center justify-center rounded-full transition-colors"
-                  aria-label={t("dismiss")}
+                  className={MOBILE_HEADER_BACK_BUTTON_CLASS}
+                  aria-label={tNav("back")}
                   data-testid="header-mobile-search-dismiss"
                   onClick={collapse}
                 >
-                  <ArrowLeft className="text-foreground size-4" aria-hidden />
+                  <ChevronLeft className="size-5" aria-hidden />
                 </button>
                 <Input
                   autoFocus

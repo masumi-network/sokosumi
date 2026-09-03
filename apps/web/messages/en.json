@@ -5749,7 +5749,7 @@
         "chats": "Chats",
         "projects": "Projects",
         "chatsUnread": "Unread chats",
-        "search": "Search",
+        "you": "You",
         "ariaLabel": "Main navigation",
         "backToChats": "Back to chats",
         "back": "Back",
@@ -6775,6 +6775,12 @@
         "title": "Unable to load the calendar",
         "description": "Please try again in a moment.",
         "retry": "Try again"
+      }
+    },
+    "You": {
+      "Metadata": {
+        "title": "You",
+        "description": "Your account, workspace, credits, and settings"
       }
     }
   },

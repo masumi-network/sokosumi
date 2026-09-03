@@ -5,6 +5,17 @@ let mockPathname = "/chat";
 let mockSearchParams = new URLSearchParams();
 let mockIsApple = false;
 let mockShowUnreadDot = false;
+let mockSessionUser: {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+} | null = {
+  id: "user-1",
+  name: "Ada Lovelace",
+  email: "ada@example.com",
+  image: null,
+};
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
@@ -21,6 +32,21 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
 
 vi.mock("./use-chat-tab-unread-presence", () => ({
   useChatTabUnreadPresence: () => ({ showUnreadDot: mockShowUnreadDot }),
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: mockSessionUser
+      ? {
+          user: mockSessionUser,
+          session: { activeOrganizationId: null },
+        }
+      : null,
+  }),
+}));
+
+vi.mock("gravatar-url", () => ({
+  default: () => "https://gravatar.example/ada",
 }));
 
 vi.mock("next/link", () => ({
@@ -49,7 +75,9 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/tasks")).toBe("tasks");
     expect(resolveChatMobileActiveTabId("/chat")).toBe("chats");
     expect(resolveChatMobileActiveTabId("/projects")).toBe("projects");
-    expect(resolveChatMobileActiveTabId("/history")).toBe("search");
+    expect(resolveChatMobileActiveTabId("/you")).toBe("you");
+    expect(resolveChatMobileActiveTabId("/history")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/notifications")).toBe("home");
   });
 
   it("returns null on rooms and nested routes", () => {
@@ -71,6 +99,7 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/agents")).toBe("home");
     expect(resolveChatMobileActiveTabId("/agents/a1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/drive")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/notifications/n1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/projects/p1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/account")).toBeNull();
   });
@@ -82,9 +111,15 @@ describe("ChatMobileBottomNav", () => {
     mockSearchParams = new URLSearchParams();
     mockIsApple = false;
     mockShowUnreadDot = false;
+    mockSessionUser = {
+      id: "user-1",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      image: null,
+    };
   });
 
-  it("renders Home, Tasks, Chats, Projects, Search in order with Spec hrefs", () => {
+  it("renders Home, Tasks, Chats, Projects, You in order with Spec hrefs", () => {
     render(<ChatMobileBottomNav />);
 
     const links = screen.getAllByRole("link");
@@ -93,14 +128,30 @@ describe("ChatMobileBottomNav", () => {
       "/tasks",
       "/chat",
       "/projects",
-      "/history",
+      "/you",
     ]);
     expect(screen.getByRole("link", { name: "home" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "tasks" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "chats" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "projects" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "search" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "you" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "search" })).toBeNull();
     expect(screen.queryByRole("link", { name: "agents" })).toBeNull();
+  });
+
+  it("uses the signed-in user avatar as the You tab affordance", () => {
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByTestId("mobile-you-tab-avatar")).toBeTruthy();
+    expect(screen.queryByTestId("mobile-you-tab-avatar-skeleton")).toBeNull();
+  });
+
+  it("shows an avatar skeleton while session user is unavailable", () => {
+    mockSessionUser = null;
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByTestId("mobile-you-tab-avatar-skeleton")).toBeTruthy();
+    expect(screen.queryByTestId("mobile-you-tab-avatar")).toBeNull();
   });
 
   it("sets aria-current on the Chats link for /chat", () => {
@@ -114,7 +165,7 @@ describe("ChatMobileBottomNav", () => {
     expect(screen.getByRole("link", { name: "tasks" })).not.toHaveAttribute(
       "aria-current",
     );
-    expect(screen.getByRole("link", { name: "search" })).not.toHaveAttribute(
+    expect(screen.getByRole("link", { name: "you" })).not.toHaveAttribute(
       "aria-current",
     );
   });
@@ -155,11 +206,11 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
-  it("sets aria-current on the Search link for /history", () => {
-    mockPathname = "/history";
+  it("sets aria-current on the You link for /you", () => {
+    mockPathname = "/you";
     render(<ChatMobileBottomNav />);
 
-    expect(screen.getByRole("link", { name: "search" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "you" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -181,11 +232,37 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
+  it("sets aria-current on Home for /history", () => {
+    mockPathname = "/history";
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "tasks" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("sets aria-current on Home for /notifications", () => {
+    mockPathname = "/notifications";
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "chats" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
   it("does not set aria-current on any tab for unmatched paths", () => {
     mockPathname = "/account";
     render(<ChatMobileBottomNav />);
 
-    for (const name of ["home", "tasks", "chats", "projects", "search"]) {
+    for (const name of ["home", "tasks", "chats", "projects", "you"]) {
       expect(screen.getByRole("link", { name })).not.toHaveAttribute(
         "aria-current",
       );

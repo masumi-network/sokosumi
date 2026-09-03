@@ -5749,7 +5749,7 @@
         "chats": "Chats",
         "projects": "Projekte",
         "chatsUnread": "Ungelesene Chats",
-        "search": "Suche",
+        "you": "Du",
         "ariaLabel": "Hauptnavigation",
         "backToChats": "Zurück zu Chats",
         "back": "Zurück",
@@ -6775,6 +6775,12 @@
         "title": "Kalender konnte nicht geladen werden",
         "description": "Bitte versuche es gleich noch einmal.",
         "retry": "Erneut versuchen"
+      }
+    },
+    "You": {
+      "Metadata": {
+        "title": "Du",
+        "description": "Dein Konto, Workspace, Credits und Einstellungen"
       }
     }
   },

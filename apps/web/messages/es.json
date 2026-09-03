@@ -5749,7 +5749,7 @@
         "chats": "Chats",
         "projects": "Proyectos",
         "chatsUnread": "Chats no leídos",
-        "search": "Buscar",
+        "you": "Tú",
         "ariaLabel": "Navegación principal",
         "backToChats": "Volver a chats",
         "back": "Volver",
@@ -6775,6 +6775,12 @@
         "title": "No se pudo cargar el calendario",
         "description": "Vuelve a intentarlo en un momento.",
         "retry": "Intentar de nuevo"
+      }
+    },
+    "You": {
+      "Metadata": {
+        "title": "Tú",
+        "description": "Tu cuenta, workspace, créditos y ajustes"
       }
     }
   },
