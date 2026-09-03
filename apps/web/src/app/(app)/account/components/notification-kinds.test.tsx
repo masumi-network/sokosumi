@@ -519,27 +519,143 @@ describe("NotificationKinds", () => {
    * described by: in the tree as well, it is read twice.
    */
   it("keeps the column names and the dead hints out of the tree", async () => {
+    isBlocked = true;
     renderKinds();
 
     await openGroup("groupJob");
 
-    const heads = screen.getAllByText("channelInApp");
+    // Every column, not just the first: a head that went missing entirely
+    // would leave the eye a nameless column and read as nothing at all.
+    for (const channel of ["channelInApp", "channelPush", "channelEmail"]) {
+      const heads = screen.getAllByText(channel);
 
-    expect(heads.length).toBeGreaterThan(0);
-    for (const head of heads) {
-      expect(head.closest('[aria-hidden="true"]')).not.toBeNull();
+      expect(heads.length).toBeGreaterThan(0);
+      for (const head of heads) {
+        expect(head.closest('[aria-hidden="true"]')).not.toBeNull();
+      }
     }
 
-    const dead = within(newsRow()).getByRole("button", {
-      name: "channelUnavailableLabel channelInApp marketingEmailsTitle",
-    });
-    const hintId = dead.getAttribute("aria-describedby");
+    // Both kinds of hidden sentence: the one a dead cell is described by, and
+    // the one a blocked push cell carries. In the tree as well, each is read
+    // twice, once as text and once as the description.
+    const described = [
+      within(newsRow()).getByRole("button", {
+        name: "channelUnavailableLabel channelInApp marketingEmailsTitle",
+      }),
+      cellFor("kindSystem", "channelPush"),
+    ];
 
-    expect(hintId).not.toBeNull();
-    expect(document.getElementById(hintId ?? "")).toHaveAttribute(
-      "aria-hidden",
-      "true",
+    for (const cell of described) {
+      const hintId = cell.getAttribute("aria-describedby");
+
+      expect(hintId).not.toBeNull();
+      expect(document.getElementById(hintId ?? "")).toHaveAttribute(
+        "aria-hidden",
+        "true",
+      );
+    }
+  });
+
+  /**
+   * Every cell is a button inside a card that may one day sit in a form. Left
+   * to the default, each one is a submit button: a press would send the form
+   * rather than write the preference, and the page would navigate away.
+   */
+  it("presses without submitting anything", async () => {
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const cells = screen
+      .getAllByRole("button")
+      .filter((button) => button.className.includes("size-9"));
+
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) {
+      expect(cell).toHaveAttribute("type", "button");
+    }
+  });
+
+  /**
+   * A description that names an element nobody rendered is read as nothing,
+   * and the cell that carries it is the one cell of its row a reader meets
+   * with no explanation. Radix writes one of these on every tooltip trigger
+   * the moment it opens, whether or not the tooltip has any content, so this
+   * walks the card with every cell open as well as at rest.
+   */
+  it("describes every cell with something that is on the page", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const cells = screen
+      .getAllByRole("button")
+      .filter((button) => button.className.includes("size-9"));
+
+    for (const cell of cells) {
+      await user.hover(cell);
+      cell.focus();
+
+      const id = cell.getAttribute("aria-describedby");
+
+      if (id !== null) {
+        expect(document.getElementById(id)).not.toBeNull();
+      }
+
+      await user.unhover(cell);
+    }
+  });
+
+  /**
+   * The push column's reason belongs to the push cell. Given to the row, the
+   * In-app cell would tell a reader their browser is blocked from showing
+   * banners, about a channel that never leaves the page.
+   */
+  it("keeps the push reason off the cells beside it", async () => {
+    isBlocked = true;
+    renderKinds();
+
+    expect(describedBy(cellFor("kindSystem", "channelPush"))).toBe(
+      "channelPushHint pushBlockedHint pushOtherDevicesHint",
     );
+    expect(describedBy(cellFor("kindSystem", "channelInApp"))).toBeUndefined();
+  });
+
+  /**
+   * A polite region is how the sentence reaches a reader who cannot see the
+   * row. Silenced, every announcement test here still passes on the text in
+   * the DOM, and no reader ever hears it.
+   */
+  it("speaks its sentences politely", async () => {
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const regions = screen.getAllByRole("status");
+
+    expect(regions.length).toBeGreaterThan(0);
+    for (const region of regions) {
+      expect(region).toHaveAttribute("aria-live", "polite");
+    }
+  });
+
+  /**
+   * The cells stay in the tree while a write is in flight, and say they are
+   * busy. Dimming is the same answer for the eye, and the card's own comment
+   * promises it.
+   */
+  it("dims a cell whose write is in flight", async () => {
+    patchMyPreferences.mockReturnValue(new Promise(() => {}));
+    renderKinds();
+
+    await toggle("kindSystem", "channelInApp");
+
+    await waitFor(() => {
+      expect(cellFor("kindSystem", "channelInApp").className).toContain(
+        "opacity-50",
+      );
+    });
   });
 
   it("marks a kind Sokosumi never mails, and presses nowhere", async () => {
