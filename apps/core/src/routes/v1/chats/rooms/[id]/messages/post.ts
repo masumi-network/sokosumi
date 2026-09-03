@@ -144,34 +144,43 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
 
-      if (room.kind === "direct") {
-        const memberUserIds = (
-          await prisma.chatRoomUserMember.findMany({
-            where: { roomId: room.id },
-            select: { userId: true },
-          })
-        ).map((member) => member.userId);
+      // Only a direct room needs the roster here, to count the humans in it.
+      // A channel leaves the read to the emitter, which runs after the
+      // response rather than in front of it.
+      const memberUserIds =
+        room.kind === "direct"
+          ? (
+              await prisma.chatRoomUserMember.findMany({
+                where: { roomId: room.id },
+                select: { userId: true },
+              })
+            ).map((member) => member.userId)
+          : undefined;
 
-        if (
-          shouldEmitChatDirectMessageNotifications({
-            kind: room.kind,
-            memberUserIds,
-          })
-        ) {
-          waitUntil(
-            emitChatDirectMessageNotifications({
-              roomId: room.id,
-              roomName: room.name,
-              organizationId: room.organizationId,
-              messageId: message.id,
-              authorUserId: null,
-              authorName: message.senderOrchestrator
-                ? orchestratorDisplayName(message.senderOrchestrator)
-                : (message.senderCoworker?.name ?? "Someone"),
-              recipientUserIds: memberUserIds,
-            }),
-          );
-        }
+      // The author is a coworker or the orchestrator, never a human, so the
+      // name comes from whichever one sent it.
+      const authorName = message.senderOrchestrator
+        ? orchestratorDisplayName(message.senderOrchestrator)
+        : (message.senderCoworker?.name ?? "Someone");
+
+      if (
+        memberUserIds &&
+        shouldEmitChatDirectMessageNotifications({
+          kind: room.kind,
+          memberUserIds,
+        })
+      ) {
+        waitUntil(
+          emitChatDirectMessageNotifications({
+            roomId: room.id,
+            roomName: room.name,
+            organizationId: room.organizationId,
+            messageId: message.id,
+            authorUserId: null,
+            authorName,
+            recipientUserIds: memberUserIds,
+          }),
+        );
       }
 
       waitUntil(
@@ -182,7 +191,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           organizationId: room.organizationId,
           messageId: message.id,
           authorUserId: null,
-          authorName: message.senderCoworker?.name ?? "Someone",
+          authorName,
+          // Already read for the direct-message decision, so the emitter is
+          // not asked to read the same roster again.
+          memberUserIds,
         }),
       );
 
