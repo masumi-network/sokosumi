@@ -38,6 +38,15 @@ const STORED_CHANNELS: readonly StoredChannel[] = CHANNEL_SPECS.map(
   (spec) => spec.id,
 );
 
+/**
+ * Why this browser cannot show a push, when it cannot.
+ *
+ * The column stays where it is and its cells lose the press, because the
+ * reason is about the browser rather than about the kind, and a column that
+ * disappeared would read as a kind that cannot push.
+ */
+export type PushBlock = "unsupported" | "denied";
+
 export interface KindSpec {
   category: NotificationCategory;
   labelKey: string;

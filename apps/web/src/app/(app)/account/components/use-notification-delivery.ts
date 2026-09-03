@@ -26,6 +26,7 @@ import {
   NOTIFICATION_GROUPS,
   type NotificationCategory,
   type PresetState,
+  type PushBlock,
   type StoredChannel,
 } from "./notification-delivery";
 
@@ -45,6 +46,15 @@ export interface GroupChoice {
 
 export interface NotificationDelivery {
   groups: GroupChoice[];
+  /**
+   * Why this browser cannot show a push, when it cannot.
+   *
+   * Null covers both a browser that can and one that has not answered yet: the
+   * capability read needs `window`, so it lands after the first paint, and a
+   * column drawn dead in the meantime would tell every reader on every browser
+   * that theirs cannot push.
+   */
+  pushBlock: PushBlock | null;
   /**
    * An answer is still coming.
    *
@@ -233,8 +243,19 @@ export function useNotificationDelivery(): NotificationDelivery {
     }
   }
 
+  // `isSupported` is null until the mount read lands, so only an explicit
+  // false is an answer. A blocked browser can be told apart from one that
+  // cannot push at all, and the two need different words.
+  const pushBlock: PushBlock | null =
+    push.isSupported === false
+      ? "unsupported"
+      : push.isBlocked
+        ? "denied"
+        : null;
+
   return {
     groups,
+    pushBlock,
     loading: sessionPending || (Boolean(userId) && isPending),
     setDeliveries,
   };

@@ -6,8 +6,20 @@ import { NotificationPreferences } from "./notification-preferences";
 
 const updateUser = vi.fn();
 
-/** Every value the email control was handed, in the order it was handed them. */
-const painted: { enabled: boolean; saving: boolean }[] = [];
+interface Choice {
+  enabled: boolean;
+  saving: boolean;
+  onChange: (next: boolean) => void;
+}
+
+/** Every value each account row was handed, in the order it was handed them. */
+const painted: Record<
+  "email" | "news",
+  { enabled: boolean; saving: boolean }[]
+> = {
+  email: [],
+  news: [],
+};
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -20,37 +32,37 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 /**
- * Stood in for, so the assertions read the prop rather than a cell. What the
- * grid does with the value has its own tests; this file is about the write.
+ * Stood in for, so the assertions read the props rather than two cells of a
+ * grid. What the grid does with them has its own tests; this file is about the
+ * writes behind them, and both account switches are rows of that grid now.
  */
 vi.mock("./notification-kinds", () => ({
-  NotificationKinds: ({
-    email,
-  }: {
-    email: {
-      enabled: boolean;
-      saving: boolean;
-      onChange: (next: boolean) => void;
-    };
-  }) => {
-    painted.push({ enabled: email.enabled, saving: email.saving });
+  NotificationKinds: ({ email, news }: { email: Choice; news: Choice }) => {
+    painted.email.push({ enabled: email.enabled, saving: email.saving });
+    painted.news.push({ enabled: news.enabled, saving: news.saving });
 
     return (
-      <button
-        type="button"
-        aria-pressed={email.enabled}
-        onClick={() => {
-          email.onChange(!email.enabled);
-        }}
-      >
-        email
-      </button>
+      <>
+        {(["email", "news"] as const).map((name) => {
+          const choice = name === "email" ? email : news;
+
+          return (
+            <button
+              key={name}
+              type="button"
+              aria-pressed={choice.enabled}
+              aria-disabled={choice.saving || undefined}
+              onClick={() => {
+                choice.onChange(!choice.enabled);
+              }}
+            >
+              {name}
+            </button>
+          );
+        })}
+      </>
     );
   },
-}));
-
-vi.mock("./push-notification-setting", () => ({
-  PushNotificationSetting: () => null,
 }));
 
 vi.mock("sonner", () => ({
@@ -69,18 +81,15 @@ function renderPreferences() {
   );
 }
 
-function emailControl() {
-  return screen.getByRole("button", { name: "email" });
-}
-
-function marketingSwitch() {
-  return screen.getByRole("switch", { name: "marketingEmailsAriaLabel" });
+function cell(name: "email" | "news") {
+  return screen.getByRole("button", { name });
 }
 
 describe("NotificationPreferences", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    painted.length = 0;
+    painted.email.length = 0;
+    painted.news.length = 0;
     updateUser.mockResolvedValue({ data: {}, error: null });
   });
 
@@ -89,10 +98,27 @@ describe("NotificationPreferences", () => {
     updateUser.mockReturnValue(new Promise(() => {}));
     renderPreferences();
 
-    await user.click(emailControl());
+    await user.click(cell("email"));
 
     expect(updateUser).toHaveBeenCalledWith({ notificationsOptIn: false });
-    expect(painted.at(-1)).toEqual({ enabled: false, saving: true });
+    expect(painted.email.at(-1)).toEqual({ enabled: false, saving: true });
+  });
+
+  /**
+   * The marketing switch is a row of the grid rather than a control under it,
+   * so the card has to hand it down the same way. Written apart from the email
+   * row, because the two write different fields and a row wired to the wrong
+   * one would still look right on screen.
+   */
+  it("writes the marketing field from its own row", async () => {
+    const user = userEvent.setup();
+    updateUser.mockReturnValue(new Promise(() => {}));
+    renderPreferences();
+
+    await user.click(cell("news"));
+
+    expect(updateUser).toHaveBeenCalledWith({ marketingOptIn: true });
+    expect(painted.news.at(-1)).toEqual({ enabled: true, saving: true });
   });
 
   /**
@@ -111,23 +137,23 @@ describe("NotificationPreferences", () => {
     });
     renderPreferences();
 
-    await user.click(emailControl());
+    await user.click(cell("email"));
 
     await waitFor(() => {
-      expect(painted.at(-1)).toEqual({ enabled: true, saving: false });
+      expect(painted.email.at(-1)).toEqual({ enabled: true, saving: false });
     });
     // The state the write failed to store is never on screen unbusy.
-    expect(painted).not.toContainEqual({ enabled: false, saving: false });
+    expect(painted.email).not.toContainEqual({ enabled: false, saving: false });
   });
 
   it("keeps the picked value when the write lands", async () => {
     const user = userEvent.setup();
     renderPreferences();
 
-    await user.click(emailControl());
+    await user.click(cell("email"));
 
     await waitFor(() => {
-      expect(painted.at(-1)).toEqual({ enabled: false, saving: false });
+      expect(painted.email.at(-1)).toEqual({ enabled: false, saving: false });
     });
   });
 
@@ -143,32 +169,31 @@ describe("NotificationPreferences", () => {
     });
     renderPreferences();
 
-    await user.click(emailControl());
+    await user.click(cell("email"));
 
     await waitFor(() => {
-      expect(painted.at(-1)).toEqual({ enabled: true, saving: false });
+      expect(painted.email.at(-1)).toEqual({ enabled: true, saving: false });
     });
   });
 
   /**
-   * The handler refuses a second write while one is in flight, so both
-   * controls report busy. Marked rather than disabled: a control the browser
-   * disables leaves the tab order under the reader's finger, and a screen
-   * reader loses the control it was on.
+   * The handler refuses a second write while one is in flight, so both rows
+   * report busy and neither writes. They share one flag because they share one
+   * handler, and a row that looked free while its press did nothing would read
+   * as broken.
    */
-  it("keeps the marketing switch reachable while the other write is in flight", async () => {
+  it("reports the other row busy while a write is in flight", async () => {
     const user = userEvent.setup();
     updateUser.mockReturnValue(new Promise(() => {}));
     renderPreferences();
 
-    await user.click(emailControl());
+    await user.click(cell("email"));
 
     await waitFor(() => {
-      expect(marketingSwitch()).toHaveAttribute("aria-disabled", "true");
+      expect(painted.news.at(-1)).toEqual({ enabled: false, saving: true });
     });
-    expect(marketingSwitch()).toBeEnabled();
 
-    await user.click(marketingSwitch());
+    await user.click(cell("news"));
 
     expect(updateUser).toHaveBeenCalledTimes(1);
   });

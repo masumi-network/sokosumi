@@ -12,8 +12,10 @@ import { NotificationKinds } from "./notification-kinds";
 const patchMyPreferences = vi.fn();
 const setAccountEnabled = vi.fn();
 const setJobEmails = vi.fn();
+const setMarketing = vi.fn();
 let isAccountEnabled = true;
 let jobEmails = true;
+let marketing = false;
 let session: { user: { id: string } } | null = { user: { id: "user_1" } };
 let sessionPending = false;
 
@@ -98,14 +100,15 @@ let emailWriteFails = false;
 let finishEmailWrite: () => void = () => {};
 
 /**
- * The account switch lives above this component, and the page hands its value
- * back down. This host writes the way the account page writes: it paints the
- * new value, marks itself busy, and on a failure puts the value back before it
- * stops being busy.
+ * The two account switches live above this component, and the page hands their
+ * values back down. This host writes the way the account page writes: it
+ * paints the new value, marks itself busy, and on a failure puts the value
+ * back before it stops being busy.
  */
-function EmailHost() {
+function AccountHost() {
   const [enabled, setEnabled] = useState(jobEmails);
   const [saving, setSaving] = useState(false);
+  const [news, setNews] = useState(marketing);
 
   return (
     <NotificationKinds
@@ -125,6 +128,14 @@ function EmailHost() {
           };
         },
       }}
+      news={{
+        enabled: news,
+        saving: false,
+        onChange: (next: boolean) => {
+          setMarketing(next);
+          setNews(next);
+        },
+      }}
     />
   );
 }
@@ -139,7 +150,7 @@ function renderKinds(notificationPreferences = MATRIX) {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <EmailHost />
+      <AccountHost />
     </QueryClientProvider>,
   );
 }
@@ -195,6 +206,13 @@ function emailCell(kind: string) {
   });
 }
 
+/** The account switch on a row of its own, when no kind row carries it. */
+function fallbackEmailCell() {
+  return screen.getByRole("button", {
+    name: "channelCellLabel channelEmail channelEmailLabel",
+  });
+}
+
 /** What a screen reader reads out after the control's own name. */
 function describedBy(element: HTMLElement) {
   const id = element.getAttribute("aria-describedby");
@@ -226,6 +244,7 @@ describe("NotificationKinds", () => {
     vi.clearAllMocks();
     isAccountEnabled = true;
     jobEmails = true;
+    marketing = false;
     emailWriteFails = false;
     finishEmailWrite = () => {};
     session = { user: { id: "user_1" } };
@@ -1000,9 +1019,7 @@ describe("NotificationKinds", () => {
 
     renderKinds();
 
-    expect(
-      screen.getByRole("button", { name: "channelEmailLabel" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    expect(fallbackEmailCell()).toHaveAttribute("aria-pressed", "true");
   });
 
   /**
@@ -1018,7 +1035,7 @@ describe("NotificationKinds", () => {
     // The rows Core did send are still drawn.
     expect(presets("groupChat")).toBeInTheDocument();
 
-    const email = screen.getByRole("button", { name: "channelEmailLabel" });
+    const email = fallbackEmailCell();
 
     expect(email).toHaveAttribute("aria-pressed", "true");
 
@@ -1040,12 +1057,59 @@ describe("NotificationKinds", () => {
       screen.queryByRole("group", { name: /^presetAriaLabel/ }),
     ).toBeNull();
 
-    const email = screen.getByRole("button", { name: "channelEmailLabel" });
+    const email = fallbackEmailCell();
 
     expect(email).toHaveAttribute("aria-pressed", "true");
 
     await user.click(email);
 
     expect(setJobEmails).toHaveBeenCalledWith(false);
+  });
+
+  /**
+   * Marketing is the one thing here Sokosumi sends rather than reports, and it
+   * arrives by email only. It answers the same question in the same columns as
+   * everything else, and the two columns it cannot use say why rather than
+   * leaving a hole where an answer should be.
+   */
+  it("answers for the marketing emails in the grid, by email only", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    const row = stops("marketingEmailsTitle");
+
+    for (const channel of ["channelInApp", "channelPush"]) {
+      const dead = within(row).getByRole("button", {
+        name: `channelUnavailableLabel ${channel} marketingEmailsTitle`,
+      });
+
+      expect(dead).toHaveAttribute("aria-disabled", "true");
+      expect(dead).not.toHaveAttribute("aria-pressed");
+      expect(describedBy(dead)).toBe("marketingEmailOnlyHint");
+    }
+
+    const email = within(row).getByRole("button", {
+      name: "channelCellLabel channelEmail marketingEmailsTitle",
+    });
+
+    expect(email).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(email);
+
+    expect(setMarketing).toHaveBeenCalledWith(true);
+  });
+
+  /**
+   * The marketing row comes from the account rather than the matrix, so a read
+   * that failed takes every other row with it and leaves this one standing.
+   */
+  it("keeps the marketing emails reachable with no matrix at all", () => {
+    renderKinds([]);
+
+    expect(
+      within(stops("marketingEmailsTitle")).getByRole("button", {
+        name: "channelCellLabel channelEmail marketingEmailsTitle",
+      }),
+    ).toBeInTheDocument();
   });
 });

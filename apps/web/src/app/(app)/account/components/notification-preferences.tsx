@@ -11,12 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
-import { cn } from "@/lib/utils";
 import { NOTIFICATION_PREFERENCES_ANCHOR } from "../constants";
 import { NotificationKinds } from "./notification-kinds";
-import { PushNotificationSetting } from "./push-notification-setting";
 
 interface NotificationPreferencesProps {
   notificationsOptIn: boolean;
@@ -109,11 +106,12 @@ export function NotificationPreferences({
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* The matrix first: it is the decision the reader came for, and the
-            rows under it are what each of its columns needs to arrive.
-            Marketing sits apart at the end because it is not a notification
-            about their work, and no row of the matrix reaches it. */}
+      <CardContent>
+        {/* Everything the card can answer is in the one grid: what Sokosumi
+            tells you about, and where each of those things reaches you. Both
+            account switches are rows of it, so a reader answers one question
+            in one place rather than meeting a second kind of control below.
+            Push has no row of its own at all: a cell asks the browser. */}
         {/* Busy while either write is in flight, because the handler refuses
             both then. A cell that took the press and did nothing would look
             broken; dimmed and marked busy, it says why. */}
@@ -123,30 +121,12 @@ export function NotificationPreferences({
             saving: isSaving,
             onChange: handleNotificationsOptInToggle,
           }}
+          news={{
+            enabled: marketingOptIn,
+            saving: isSaving,
+            onChange: handleMarketingOptInToggle,
+          }}
         />
-        <PushNotificationSetting />
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm leading-5 font-medium">
-              {t("marketingEmailsTitle")}
-            </p>
-            <p className="text-muted-foreground text-sm leading-6">
-              {t("marketingEmailsDescription")}
-            </p>
-          </div>
-          {/* Busy while either write is in flight, for the same reason the
-              email cell is: the handler refuses both, and a switch that took
-              the press and snapped back would say nothing about why. Marked
-              rather than disabled, so it keeps its place in the tab order and
-              a reader who is on it is not dropped somewhere else. */}
-          <Switch
-            checked={marketingOptIn}
-            onCheckedChange={handleMarketingOptInToggle}
-            aria-disabled={isSaving || undefined}
-            className={cn(isSaving && "opacity-50")}
-            aria-label={t("marketingEmailsAriaLabel")}
-          />
-        </div>
       </CardContent>
     </Card>
   );
