@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveAccountDisplayName } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import { AlertTriangle, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -24,7 +25,6 @@ import {
   ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS,
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
-  resolveAccountDisplayName,
   resolveAccountSummaryLabel,
 } from "./account-summary-labels";
 import { AccountSummaryMenu } from "./account-summary-menu.client";
@@ -44,8 +44,8 @@ export interface SidebarAccountChipProps
 }
 
 /**
- * Desktop sidebar account/credits control. Mobile uses the header account
- * control instead (`HeaderAccountControl`), so this returns null on mobile.
+ * Desktop sidebar account/credits control. Mobile uses the You tab/page
+ * for account actions, so this returns null on mobile.
  *
  * Open state lives in the desktop-only child so mobile unmount drops it and
  * remount on desktop starts closed (no local-state reset Effect).

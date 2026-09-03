@@ -1,8 +1,8 @@
 "use client";
 
-import type { SessionUser } from "@sokosumi/utils";
+import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
-import { Coins, HardDrive, LogOut, Settings, ShieldCheck } from "lucide-react";
+import { Coins, LogOut, Settings, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactElement, useRef, useState } from "react";
@@ -21,7 +21,6 @@ import { AccountPopoverDrill } from "./account-popover-drill.client";
 import {
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
-  resolveAccountDisplayName,
 } from "./account-summary-labels";
 import type {
   AccountAdminSettingsChrome,
@@ -108,11 +107,6 @@ export function AccountSummaryMenu({
   function handleLogout() {
     onRequestClose();
     showLogoutModal({ id: sessionUser.id, email: sessionUser.email });
-  }
-
-  function handleDrive() {
-    onRequestClose();
-    router.push("/drive");
   }
 
   function handleAdmin() {
@@ -265,16 +259,6 @@ export function AccountSummaryMenu({
               {buyCreditsLabel}
             </Button>
             <div className="divide-border divide-y">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleDrive}
-                className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
-              >
-                <HardDrive className="size-4 shrink-0" aria-hidden />
-                {tMenu("drive")}
-              </Button>
               {adminSettingsChrome.adminMenuEnabled ? (
                 <Button
                   type="button"

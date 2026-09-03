@@ -23,17 +23,17 @@ describe("mobile tab destinations Instant Nav contract", () => {
   const pages = [
     "(welcome)/page.tsx",
     "chat/page.tsx",
-    "history/page.tsx",
+    "you/page.tsx",
   ] as const;
 
   const loadingShells = [
     "(welcome)/loading.tsx",
     "chat/loading.tsx",
-    "history/loading.tsx",
+    "you/loading.tsx",
     "chat/components/chat-home-loading-view.tsx",
     "chat/components/chat-chats-loading-view.tsx",
     "chat/components/chat-chats-page-skeleton-host.tsx",
-    "history/components/history-loading-view.tsx",
+    "you/components/you-loading-view.tsx",
   ] as const;
 
   for (const rel of pages) {
@@ -64,10 +64,15 @@ describe("mobile tab destinations Instant Nav contract", () => {
     );
   });
 
-  it("history/loading.tsx default export returns HistoryPageSkeleton", () => {
-    const code = stripComments(readApp("history/loading.tsx"));
+  it("you/loading.tsx default export returns YouPageSkeleton", () => {
+    const code = stripComments(readApp("you/loading.tsx"));
     expect(code).toMatch(
-      /export\s+default\s+function[\s\S]*?return\s+<\s*HistoryPageSkeleton\s*\/>/,
+      /export\s+default\s+function[\s\S]*?return\s+<\s*YouPageSkeleton\s*\/>/,
     );
+  });
+
+  it("you/page.tsx Suspense fallback paints YouPageSkeleton", () => {
+    const code = stripComments(readApp("you/page.tsx"));
+    expect(code).toMatch(/fallback=\{\s*<\s*YouPageSkeleton\s*\/>\s*\}/);
   });
 });

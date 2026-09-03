@@ -6,6 +6,7 @@ import {
   getFallbackUserName,
   getFirstName,
   getStoredUserName,
+  resolveAccountDisplayName,
 } from "./user-name.js";
 
 test("getStoredUserName preserves a trimmed name", () => {
@@ -17,6 +18,17 @@ test("getStoredUserName preserves a trimmed name", () => {
 
 test("getStoredUserName falls back to the email prefix for blank names", () => {
   assert.equal(getStoredUserName("   ", "magic@example.com"), "magic");
+});
+
+test("resolveAccountDisplayName prefers a non-empty trimmed name", () => {
+  assert.equal(resolveAccountDisplayName("  Ada  ", "ada@example.com"), "Ada");
+});
+
+test("resolveAccountDisplayName falls back to the full email when the name is blank", () => {
+  assert.equal(
+    resolveAccountDisplayName("   ", "ada@example.com"),
+    "ada@example.com",
+  );
 });
 
 test("getFallbackUserName falls back to the full email when the local part is empty", () => {

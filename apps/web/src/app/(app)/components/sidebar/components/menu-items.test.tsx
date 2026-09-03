@@ -54,7 +54,7 @@ vi.mock("@/components/ui/sidebar", () => ({
     <li>{children}</li>
   ),
   useSidebar: () => ({
-    isMobile: true,
+    isMobile: sidebarIsMobile,
     setOpenMobile: setOpenMobileMock,
   }),
 }));
@@ -72,7 +72,14 @@ vi.mock("next/link", () => ({
 import MenuItems from "@/app/components/sidebar/components/menu-items";
 import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 
-function renderMenu(hasAssignedSeat = true, calendarMenuEnabled = false) {
+let sidebarIsMobile = true;
+
+function renderMenu(
+  hasAssignedSeat = true,
+  calendarMenuEnabled = false,
+  isMobile = true,
+) {
+  sidebarIsMobile = isMobile;
   return render(
     <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
       <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
@@ -83,6 +90,7 @@ function renderMenu(hasAssignedSeat = true, calendarMenuEnabled = false) {
 describe("MenuItems search action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sidebarIsMobile = true;
     historySearchValue = {
       openHistorySearch: openHistorySearchMock,
       searchShortcutLabel: "Ctrl+K",
@@ -147,6 +155,7 @@ describe("MenuItems search action", () => {
 
     expect(screen.queryByRole("link", { name: /calendar/i })).toBeNull();
 
+    sidebarIsMobile = true;
     rerender(
       <OrganizationSeatProvider hasAssignedSeat>
         <MenuItems calendarMenuEnabled />
@@ -156,6 +165,39 @@ describe("MenuItems search action", () => {
     expect(screen.getByRole("link", { name: /calendar/i })).toHaveAttribute(
       "href",
       "/calendar",
+    );
+  });
+
+  it("hides Files from the main menu on mobile", () => {
+    renderMenu(true, true, true);
+
+    expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
+  });
+
+  it("shows Files after Schedules on desktop", () => {
+    const { container } = renderMenu(true, true, false);
+    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
+      (element) => element.textContent ?? "",
+    );
+
+    const primaryOrder = [
+      "search",
+      "exploreAgents",
+      "projects",
+      "taskManager",
+      "calendar",
+      "drive",
+      "history",
+    ];
+    const positions = primaryOrder.map((label) =>
+      menuLabels.findIndex((text) => text.includes(label)),
+    );
+
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(screen.getByRole("link", { name: /drive/i })).toHaveAttribute(
+      "href",
+      "/drive",
     );
   });
 
