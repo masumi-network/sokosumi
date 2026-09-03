@@ -27,6 +27,7 @@ const {
   getWorkspaceCalendarMock,
   interactionPluginMock,
   metadataToSelectionMock,
+  pushMock,
   refreshMock,
   saveTaskScheduleMock,
   taskScheduleSectionMock,
@@ -40,6 +41,7 @@ const {
   getWorkspaceCalendarMock: vi.fn(),
   interactionPluginMock: {},
   metadataToSelectionMock: vi.fn(),
+  pushMock: vi.fn(),
   refreshMock: vi.fn(),
   saveTaskScheduleMock: vi.fn(),
   taskScheduleSectionMock: vi.fn(),
@@ -89,7 +91,7 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: refreshMock }),
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
 }));
 
 vi.mock("@/components/common/filter-dropdown-menu", () => ({
@@ -164,6 +166,7 @@ import { WorkspaceCalendar } from "./workspace-calendar";
 const ITEM: WorkspaceCalendarItem = {
   id: "occurrence-1",
   taskId: "task-1",
+  canEditSchedule: true,
   taskName: "Prepare release notes",
   taskStatus: "QUEUED",
   taskAssigneeId: "coworker-1",
@@ -183,6 +186,11 @@ const SECOND_ITEM: WorkspaceCalendarItem = {
   id: "occurrence-2",
   taskId: "task-2",
   taskName: "Publish release notes",
+};
+
+const READ_ONLY_ITEM: WorkspaceCalendarItem = {
+  ...ITEM,
+  canEditSchedule: false,
 };
 
 const SOURCES: WorkspaceCalendarSource[] = [
@@ -445,6 +453,22 @@ describe("WorkspaceCalendar editing", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("does not open task creation from an unschedulable calendar slot", async () => {
+    const user = userEvent.setup();
+    renderCalendar({
+      sources: SOURCES.map((source) => ({
+        ...source,
+        isSchedulable: false,
+      })),
+    });
+
+    await user.click(
+      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("does not offer unschedulable sources when creating a task", async () => {
     const user = userEvent.setup();
     renderCalendar({
@@ -468,7 +492,7 @@ describe("WorkspaceCalendar editing", () => {
     ).toBeInTheDocument();
   });
 
-  it("blocks creation when the locked Project source is unschedulable", async () => {
+  it("does not open locked Project creation when its source is unschedulable", async () => {
     const user = userEvent.setup();
     renderCalendar({
       lockedProjectId: "project-1",
@@ -482,12 +506,8 @@ describe("WorkspaceCalendar editing", () => {
     await user.click(
       screen.getAllByRole("button", { name: "empty calendar slot" })[0],
     );
-    await user.type(screen.getByLabelText("create.name"), "New release");
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "create.sourceUnavailable",
-    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(createScheduledTaskMock).not.toHaveBeenCalled();
   });
 
@@ -516,6 +536,19 @@ describe("WorkspaceCalendar editing", () => {
     await waitFor(() =>
       expect(clearTaskScheduleMock).toHaveBeenCalledWith({ taskId: "task-1" }),
     );
+  });
+
+  it("opens a non-editable event in its read-only task detail", async () => {
+    const user = userEvent.setup();
+    renderCalendar({ items: [READ_ONLY_ITEM] });
+
+    await user.click(
+      screen.getAllByRole("button", { name: READ_ONLY_ITEM.taskName })[0],
+    );
+
+    expect(pushMock).toHaveBeenCalledWith(`/tasks/${READ_ONLY_ITEM.taskId}`);
+    expect(getTaskByIdMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("keeps the newest event selection when an earlier event fetch resolves last", async () => {

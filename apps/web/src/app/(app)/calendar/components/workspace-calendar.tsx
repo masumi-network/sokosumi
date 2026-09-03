@@ -274,7 +274,7 @@ function CalendarView({
   date,
   items,
   onDateClick,
-  onEdit,
+  onEventClick,
   sources,
   timeZone,
   view,
@@ -282,7 +282,7 @@ function CalendarView({
   date: Date;
   items: WorkspaceCalendarItem[];
   onDateClick: (date: Date) => void;
-  onEdit: (taskId: string) => void;
+  onEventClick: (item: WorkspaceCalendarItem) => void;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: (typeof CALENDAR_VIEWS)[number];
@@ -338,7 +338,7 @@ function CalendarView({
         eventClick={(eventInfo) => {
           const item = items.find(({ id }) => id === eventInfo.event.id);
           if (item) {
-            onEdit(item.taskId);
+            onEventClick(item);
           }
         }}
         dateClick={(dateInfo) => onDateClick(dateInfo.date)}
@@ -606,6 +606,7 @@ export function WorkspaceCalendar({
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
   const formatDate = useFormatter().dateTime;
+  const router = useRouter();
   const [state, setState] = useQueryStates(calendarParsers);
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
@@ -705,6 +706,9 @@ export function WorkspaceCalendar({
   }
 
   function handleDateClick(clickedAt: Date) {
+    if (!canCreate) {
+      return;
+    }
     openCreateDialog(utcToDateTimeLocalInTimezone(clickedAt, timeZone));
   }
 
@@ -733,6 +737,15 @@ export function WorkspaceCalendar({
         setEventLoadError(true);
       }
     }
+  }
+
+  function handleEventClick(item: WorkspaceCalendarItem) {
+    if (!item.canEditSchedule) {
+      router.push(`/tasks/${item.taskId}`);
+      return;
+    }
+
+    void handleEventEdit(item.taskId);
   }
 
   async function handleLoadMore() {
@@ -950,7 +963,7 @@ export function WorkspaceCalendar({
           date={date}
           items={visibleItems}
           onDateClick={handleDateClick}
-          onEdit={handleEventEdit}
+          onEventClick={handleEventClick}
           sources={sources}
           timeZone={timeZone}
           view={view}
@@ -961,7 +974,7 @@ export function WorkspaceCalendar({
           date={date}
           items={visibleItems}
           onDateClick={handleDateClick}
-          onEdit={handleEventEdit}
+          onEventClick={handleEventClick}
           sources={sources}
           timeZone={timeZone}
           view={view}

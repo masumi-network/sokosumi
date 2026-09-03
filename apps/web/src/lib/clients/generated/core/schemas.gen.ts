@@ -14894,6 +14894,11 @@ export const WorkspaceCalendarItemSchema = {
             type: 'string',
             example: 'tsk_123'
         },
+        canEditSchedule: {
+            type: 'boolean',
+            description: 'Whether the caller owns this Task and may edit or remove its schedule',
+            example: true
+        },
         taskName: {
             type: 'string',
             example: 'Prepare release notes'
@@ -14998,6 +15003,7 @@ export const WorkspaceCalendarItemSchema = {
     required: [
         'id',
         'taskId',
+        'canEditSchedule',
         'taskName',
         'taskStatus',
         'taskAssigneeId',
