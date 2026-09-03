@@ -30,7 +30,14 @@ const UPDATE_MESSAGE_KEYS: readonly string[] = [
 
 const SOURCE_ROOT = join(process.cwd(), "src");
 
-/** Every job and task message key Core can put on a notification. */
+/**
+ * Every job and task message key written anywhere in Core.
+ *
+ * A string literal rather than an emit site, so an OpenAPI example counts too.
+ * That is the wider net on purpose: a key is worth classifying wherever it is
+ * written down, and reading the emit sites alone would need a parser to tell an
+ * example apart from a call.
+ */
 function emittedMessageKeys(): string[] {
   const keys = new Set<string>();
 
@@ -68,7 +75,7 @@ function emittedMessageKeys(): string[] {
   return [...keys].sort();
 }
 
-describe("the job and task keys Core emits", () => {
+describe("the job and task keys Core names", () => {
   it("are each classified as waiting on the reader or not", () => {
     const classified = new Set([
       ...JOB_ATTENTION_MESSAGE_KEYS,

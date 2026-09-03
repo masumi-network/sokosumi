@@ -16,6 +16,11 @@
 --
 -- Idempotent: a reader who already has a row for a new category keeps it, and
 -- a database with no old rows is left untouched.
+--
+-- The existing row wins, and the old row's answer is dropped rather than
+-- merged into it. A row for a new category can only exist because the reader
+-- wrote it from the settings page, while the old row is the account-wide
+-- default an earlier migration wrote for them.
 
 INSERT INTO "notification_preference" (
   "id",
