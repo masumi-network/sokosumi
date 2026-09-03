@@ -1431,8 +1431,7 @@
         "clear": "Clear search"
       },
       "ResultsCount": {
-        "resultsCount": "{count, plural, =0 {No results found} =1 {1 result found} other {# results found}}",
-        "resultsCountLoaded": "{found} of {total} results found"
+        "resultsCount": "{count, plural, =0 {No results found} =1 {1 result found} other {# results found}}"
       },
       "Filters": {
         "title": "Filters",
@@ -3102,13 +3101,7 @@
       "Search": {
         "open": "Search",
         "inputLabel": "Search history",
-        "dismiss": "Close search",
-        "searchPlaceholder": "Search...",
-        "empty": "No results found",
-        "loading": "Loading...",
-        "error": "Failed to load results",
-        "resultsHeading": "Search",
-        "dismissBackdrop": "Dismiss search"
+        "searchPlaceholder": "Search..."
       }
     },
     "EmailVerificationNotice": {

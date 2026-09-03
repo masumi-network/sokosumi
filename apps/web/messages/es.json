@@ -1431,8 +1431,7 @@
         "clear": "Borrar búsqueda"
       },
       "ResultsCount": {
-        "resultsCount": "{count, plural, =0 {No se encontraron resultados} =1 {1 resultado encontrado} other {# resultados encontrados}}",
-        "resultsCountLoaded": "{found} de {total} resultados encontrados"
+        "resultsCount": "{count, plural, =0 {No se encontraron resultados} =1 {1 resultado encontrado} other {# resultados encontrados}}"
       },
       "Filters": {
         "title": "Filtros",
@@ -3102,13 +3101,7 @@
       "Search": {
         "open": "Buscar",
         "inputLabel": "Buscar en el historial",
-        "dismiss": "Cerrar búsqueda",
-        "searchPlaceholder": "Buscar...",
-        "empty": "No se encontraron resultados",
-        "loading": "Cargando...",
-        "error": "No se pudieron cargar los resultados",
-        "resultsHeading": "Búsqueda",
-        "dismissBackdrop": "Descartar búsqueda"
+        "searchPlaceholder": "Buscar..."
       }
     },
     "Subscriptions": {

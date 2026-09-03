@@ -102,14 +102,9 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
 
   const historyTotal =
     historyPage.pagination?.total ?? historyPage.history.length;
-  const historyLoaded = historyPage.history.length;
-  const historyHasMore = historyPage.pagination?.nextCursor != null;
-  const resultsCountLabel = historyHasMore
-    ? t("ResultsCount.resultsCountLoaded", {
-        found: historyLoaded,
-        total: historyTotal,
-      })
-    : t("ResultsCount.resultsCount", { count: historyTotal });
+  const resultsCountLabel = t("ResultsCount.resultsCount", {
+    count: historyTotal,
+  });
 
   return (
     <div className="w-full px-2">

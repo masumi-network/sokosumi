@@ -31,13 +31,7 @@ vi.mock("next-intl", () => ({
       "App.Header.Search": {
         open: "Search",
         inputLabel: "Search history",
-        dismiss: "Close search",
-        dismissBackdrop: "Dismiss search",
         searchPlaceholder: "Search...",
-        empty: "No results found",
-        loading: "Loading...",
-        error: "Failed to load results",
-        resultsHeading: "Search",
       },
       "App.Channels.MobileNav": {
         back: "Back",
