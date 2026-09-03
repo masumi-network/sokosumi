@@ -171,6 +171,8 @@ describe("SidebarAccountChip", () => {
     renderChip();
     openChip();
 
+    expect(screen.queryByRole("button", { name: "drive" })).toBeNull();
+
     const admin = screen.getByRole("button", { name: "admin" });
     const settings = screen.getByRole("button", { name: "settings" });
     const logout = screen.getByRole("button", { name: "logout" });
