@@ -87,6 +87,11 @@ export const workspaceCalendarItemSchema = z
       example: "v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
     }),
     taskId: z.string().openapi({ example: "tsk_123" }),
+    canEditSchedule: z.boolean().openapi({
+      description:
+        "Whether the caller owns this Task and may edit or remove its schedule",
+      example: true,
+    }),
     taskName: z.string().openapi({ example: "Prepare release notes" }),
     taskStatus: z.enum(TaskStatus).openapi({ example: "QUEUED" }),
     taskAssigneeId: z.string().nullable().openapi({ example: "coworker_123" }),

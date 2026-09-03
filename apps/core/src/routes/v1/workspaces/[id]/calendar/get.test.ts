@@ -138,6 +138,7 @@ function createLedgerOccurrence(overrides: Record<string, unknown> = {}) {
     seriesTask: {
       id: "tsk_history",
       name: "Released task",
+      ownerId: "user_123",
       status: TaskStatus.QUEUED,
       assigneeId: null,
     },
@@ -196,6 +197,7 @@ describe("GET /workspaces/{id}/calendar", () => {
           id: "00000000-0000-7000-8000-000000000001",
           taskId: "tsk_history",
           taskName: "Released task",
+          canEditSchedule: true,
           taskStatus: "QUEUED",
           taskAssigneeId: null,
           scheduledAt: "2026-06-03T09:00:00.000Z",
@@ -221,6 +223,36 @@ describe("GET /workspaces/{id}/calendar", () => {
     });
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
     expect(taskFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("marks calendar items owned by another user as read-only", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createLedgerOccurrence({
+        seriesTask: {
+          id: "tsk_other",
+          name: "Another user's task",
+          ownerId: "user_456",
+          status: TaskStatus.QUEUED,
+          assigneeId: null,
+        },
+      }),
+    ]);
+
+    const { items } = await readWorkspaceCalendar(WORKSPACE_ID, "user_123", {
+      from: new Date(FROM),
+      scope: "workspace",
+      to: new Date(TO),
+      cursor: null,
+      requestedCursor: null,
+      limit: 20,
+    });
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        taskId: "tsk_other",
+        canEditSchedule: false,
+      }),
+    ]);
   });
 
   it("rejects non-NMKR users before reading calendar data", async () => {

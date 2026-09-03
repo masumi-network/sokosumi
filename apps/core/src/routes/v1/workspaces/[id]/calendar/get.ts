@@ -59,6 +59,7 @@ const route = createRoute({
           {
             id: "v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
             taskId: "tsk_123",
+            canEditSchedule: true,
             taskName: "Prepare release notes",
             taskStatus: "QUEUED",
             taskAssigneeId: null,
@@ -346,6 +347,7 @@ export async function readWorkspaceCalendar(
           select: {
             id: true,
             name: true,
+            ownerId: true,
             status: true,
             assigneeId: true,
           },
@@ -354,6 +356,7 @@ export async function readWorkspaceCalendar(
           select: {
             id: true,
             name: true,
+            ownerId: true,
             status: true,
             assigneeId: true,
           },
@@ -377,6 +380,7 @@ export async function readWorkspaceCalendar(
       return workspaceCalendarItemSchema.parse({
         id: occurrence.id,
         taskId: task.id,
+        canEditSchedule: task.ownerId === userId,
         taskName: task.name,
         taskStatus: task.status,
         taskAssigneeId: task.assigneeId,

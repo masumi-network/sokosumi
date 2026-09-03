@@ -4440,6 +4440,10 @@ export type WorkspaceCalendarItem = {
      */
     id: string;
     taskId: string;
+    /**
+     * Whether the caller owns this Task and may edit or remove its schedule
+     */
+    canEditSchedule: boolean;
     taskName: string;
     taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
     taskAssigneeId: string | null;
