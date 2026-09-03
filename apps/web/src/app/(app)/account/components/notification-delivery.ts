@@ -41,9 +41,10 @@ const STORED_CHANNELS: readonly StoredChannel[] = CHANNEL_SPECS.map(
 /**
  * Why this browser cannot show a push, when it cannot.
  *
- * The column stays where it is and its cells lose the press, because the
- * reason is about the browser rather than about the kind, and a column that
- * disappeared would read as a kind that cannot push.
+ * The cells keep the press. What they write is one preference for the account,
+ * not one per browser, so this browser is still where the reader silences or
+ * wakes the devices that can push. Only the words change: the cell says why
+ * nothing will arrive here, and that the reader's other devices still hear it.
  */
 export type PushBlock = "unsupported" | "denied";
 

@@ -133,7 +133,10 @@ function NewsRow({ news }: { news: EmailChoice }) {
         <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-1">
           <div
             role="group"
-            aria-label={t("deliveryAriaLabel", { kind: label })}
+            // Its own sentence rather than the one every kind row uses: those
+            // name a single kind, and "Where Marketing emails arrives" is not
+            // a sentence in any of the three languages.
+            aria-label={t("newsDeliveryAriaLabel")}
             className="flex shrink-0 items-center justify-end gap-1"
           >
             <DeadCell
@@ -155,6 +158,8 @@ function NewsRow({ news }: { news: EmailChoice }) {
             <EmailCell
               label={label}
               hint={t("marketingEmailsDescription")}
+              announceOn={t("newsAnnounceOn")}
+              announceOff={t("newsAnnounceOff")}
               email={news}
             />
           </div>
@@ -183,6 +188,8 @@ function EmailRow({ email }: { email: EmailChoice }) {
       <EmailCell
         label={t("channelEmailLabel")}
         hint={t("channelEmailFallbackHint")}
+        announceOn={t("emailAnnounceOn")}
+        announceOff={t("emailAnnounceOff")}
         email={email}
       />
     </div>
@@ -261,7 +268,7 @@ function KindGroups({
  * Everything Sokosumi sends answers here, including the switches that used to
  * sit under the card. Push is no longer a preference of its own: asking for
  * one in a cell asks the browser, and a browser that cannot show one says so
- * in the column rather than in a row about the browser.
+ * in the cell rather than in a row about the browser.
  */
 export function NotificationKinds({
   email,
@@ -273,10 +280,6 @@ export function NotificationKinds({
   const t = useTranslations("App.Account.Notifications");
   const choices = useNotificationDelivery();
 
-  if (choices.loading) {
-    return null;
-  }
-
   // Email is the one control here that the matrix does not carry, and Core
   // keeps mailing whatever the matrix says. A read that failed leaves no rows
   // at all, and a matrix that comes back without the job kinds leaves rows
@@ -286,12 +289,24 @@ export function NotificationKinds({
     group.kinds.some((kind) => kind.spec.email),
   );
 
+  // The two account switches are server props, and the matrix is a read that
+  // has to land. So the marketing row is drawn while the read is in flight,
+  // and the rows that come from the matrix are not: an empty card for the
+  // length of a round trip loses a control that never needed the answer.
+  // The job emails wait, because whether they need a row of their own is
+  // something only the matrix can say.
+  //
+  // A cache that is already warm still reads as loading while it refetches,
+  // and the kinds it holds are the answer to an older question. They wait for
+  // the new one rather than settling under the reader.
+  const showKinds = !choices.loading && choices.groups.length > 0;
+
   return (
     <div className="space-y-3">
       {/* The heading describes the groups, so it comes with them. A read that
           failed leaves the box holding the one row Sokosumi can still answer
           for, and a title about setting groups would be pointing at nothing. */}
-      {choices.groups.length > 0 ? (
+      {showKinds ? (
         <div>
           <p className="text-sm leading-5 font-medium">{t("kindsTitle")}</p>
           <p className="text-muted-foreground text-sm leading-6">
@@ -300,7 +315,7 @@ export function NotificationKinds({
         </div>
       ) : null}
       <div className="divide-y rounded-lg border">
-        {choices.groups.length > 0 ? (
+        {showKinds ? (
           <KindGroups
             email={email}
             pushBlock={choices.pushBlock}
@@ -313,7 +328,7 @@ export function NotificationKinds({
             whether or not the read landed. */}
         <NewsRow news={news} />
       </div>
-      {mailedByARow ? null : <EmailRow email={email} />}
+      {choices.loading || mailedByARow ? null : <EmailRow email={email} />}
     </div>
   );
 }

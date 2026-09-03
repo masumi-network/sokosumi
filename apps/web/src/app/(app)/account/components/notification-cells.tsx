@@ -143,12 +143,19 @@ export function DeadCell({
 export function EmailCell({
   label,
   hint,
+  announceOn,
+  announceOff,
   email,
 }: {
   /** The row this cell belongs to, for its name. */
   label: string;
   /** What the switch reaches, for its description and its tooltip. */
   hint: string;
+  /** What the row says once the write lands. Named for the value it wrote,
+      rather than for this row: one switch can sit on several rows, and the
+      reader needs to hear which of their settings just moved. */
+  announceOn: string;
+  announceOff: string;
   email: EmailChoice;
 }) {
   const t = useTranslations("App.Account.Notifications");
@@ -174,7 +181,7 @@ export function EmailCell({
       setAwaiting(false);
       setArrival({
         enabled: email.enabled,
-        text: t(email.enabled ? "emailAnnounceOn" : "emailAnnounceOff"),
+        text: email.enabled ? announceOn : announceOff,
       });
       return;
     }
@@ -182,7 +189,7 @@ export function EmailCell({
     if (arrival && arrival.enabled !== email.enabled) {
       setArrival(null);
     }
-  }, [arrival, awaiting, email.saving, email.enabled, t]);
+  }, [announceOff, announceOn, arrival, awaiting, email.saving, email.enabled]);
 
   return (
     <>
@@ -255,6 +262,19 @@ function KindCells({
   const tCenter = useTranslations("Components.NotificationCenter");
   const { channels, saving } = kind;
   const label = t(kind.spec.labelKey);
+  const pushHintId = useId();
+
+  // What this browser can do with a push, when it cannot do the usual thing.
+  // The cell writes the account rather than the browser, so it keeps working:
+  // it is the reader's only way to silence or wake the devices that can push.
+  // What changes is what the cell says.
+  const pushHint = pushBlock
+    ? `${
+        pushBlock === "unsupported"
+          ? t("pushUnsupported")
+          : tCenter("browserPermissionDeniedDescription")
+      } ${t("pushOtherDevicesHint")}`
+    : null;
 
   // Silent until the reader presses something in this row, so opening a group
   // does not read its rows out. Silent again until that press lands, because
@@ -312,28 +332,7 @@ function KindCells({
       {CHANNEL_SPECS.map((spec) => {
         const pressed = channels.includes(spec.id);
         const Icon = CHANNEL_ICON[spec.id];
-
-        // A browser that cannot push, or that the reader has told to block
-        // Sokosumi, makes every push cell an answer nobody can act on. The
-        // cell says which of the two it is rather than taking a press that
-        // could never arrive anywhere.
-        if (spec.id === "OS_BANNER" && pushBlock) {
-          return (
-            <DeadCell
-              key={spec.id}
-              icon={Icon}
-              label={t("channelUnavailableLabel", {
-                channel: t(spec.labelKey),
-                kind: label,
-              })}
-              hint={
-                pushBlock === "unsupported"
-                  ? t("pushUnsupported")
-                  : tCenter("browserPermissionDeniedDescription")
-              }
-            />
-          );
-        }
+        const blocked = spec.id === "OS_BANNER" && pushHint !== null;
 
         return (
           <Tooltip key={spec.id}>
@@ -344,6 +343,10 @@ function KindCells({
                 channel: t(spec.labelKey),
                 kind: label,
               })}
+              // Only the blocked cell describes itself. Said on every cell,
+              // the row would read its own column names back at the reader
+              // three times over.
+              aria-describedby={blocked ? pushHintId : undefined}
               onClick={() => {
                 if (saving) {
                   return;
@@ -360,12 +363,27 @@ function KindCells({
             >
               <Icon className="size-4" aria-hidden="true" />
             </TooltipTrigger>
-            <TooltipContent>{t(spec.hintKey)}</TooltipContent>
+            <TooltipContent>
+              {blocked ? pushHint : t(spec.hintKey)}
+            </TooltipContent>
           </Tooltip>
         );
       })}
+      {/* Hidden from the tree and still read, the way a dead cell carries its
+          own reason. */}
+      {pushHint ? (
+        <span aria-hidden="true" id={pushHintId} className="sr-only">
+          {pushHint}
+        </span>
+      ) : null}
       {kind.spec.email ? (
-        <EmailCell label={label} hint={t("channelEmailHint")} email={email} />
+        <EmailCell
+          label={label}
+          hint={t("channelEmailHint")}
+          announceOn={t("emailAnnounceOn")}
+          announceOff={t("emailAnnounceOff")}
+          email={email}
+        />
       ) : (
         <DeadCell
           icon={MailClock}

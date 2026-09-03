@@ -183,8 +183,8 @@ async function dropAblyPushDevice(
 /**
  * Records a rejection instead of letting it skip the steps that follow.
  *
- * Logs it too, because only the first failure is thrown on and the settings
- * switch shows one generic message for whatever it gets.
+ * Logs it too, because only the first failure is thrown on and the account
+ * page shows one generic message for whatever it gets.
  */
 async function attempt(
   failures: unknown[],

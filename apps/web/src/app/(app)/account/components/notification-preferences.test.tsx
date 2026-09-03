@@ -125,11 +125,14 @@ describe("NotificationPreferences", () => {
    * The row reads the value the moment the write stops being busy, and speaks
    * it. So a failed write puts the value back on the promise chain rather than
    * inside the toast renderer, which runs only if the toast renders at all.
-   * React coalesces the two updates today, so what this pins is the pair a row
-   * can ever read: the state the write failed to store is never on screen with
-   * the busy flag clear.
+   *
+   * What this pins is the pair a row can ever read: the state the write failed
+   * to store is never on screen with the busy flag clear. It does not pin the
+   * order of the two updates, and cannot: React coalesces them into one
+   * render, so putting the value back after the flag clears looks identical
+   * from here. The source orders them anyway, for the day it does not.
    */
-  it("puts the value back before it stops being busy", async () => {
+  it("puts the value back when the write fails", async () => {
     const user = userEvent.setup();
     updateUser.mockResolvedValue({
       data: null,

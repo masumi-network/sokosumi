@@ -802,7 +802,7 @@
       "view": "Ver",
       "browserNotificationTitle": "Sokosumi",
       "browserPermissionTitle": "Recibe avisos cuando Sokosumi esté cerrado",
-      "browserPermissionDescription": "Activa las notificaciones push de este navegador en la configuración de tu cuenta y recibe actualizaciones del chat mientras Sokosumi esté cerrado.",
+      "browserPermissionDescription": "Activa Push para las novedades que quieras en la configuración de tu cuenta, y recíbelas con Sokosumi cerrado.",
       "browserPermissionOpenSettings": "Abrir configuración de notificaciones",
       "browserPermissionInAppTitle": "Recibe alertas cuando estés en otra pestaña",
       "browserPermissionInAppDescription": "Permite notificaciones del navegador para trabajos, tareas, facturación, sistema y chat mientras Sokosumi esté abierto pero no enfocado.",
@@ -4743,6 +4743,7 @@
         "marketingEmailsEnabledSuccess": "Emails de marketing activados",
         "marketingEmailsDisabledSuccess": "Emails de marketing desactivados",
         "pushUnsupported": "Este navegador no admite notificaciones push.",
+        "pushOtherDevicesHint": "Tus otros dispositivos los siguen recibiendo.",
         "pushEnabledSuccess": "Notificaciones push activadas",
         "pushEnabledOtherDevicesSuccess": "Notificaciones push activadas en tus otros dispositivos",
         "pushError": "No se pudieron actualizar las notificaciones push",
@@ -4798,8 +4799,11 @@
         "channelEmailSoonLabel": "Email, todavía no se envía para {kind}",
         "channelEmailSoonHint": "Pronto. Sokosumi todavía no envía email para este tipo.",
         "deliveryAriaLabel": "Entrega para {kind}",
+        "newsDeliveryAriaLabel": "Dónde llegan los emails de marketing",
         "emailAnnounceOn": "Emails de estado de trabajos activados",
-        "emailAnnounceOff": "Emails de estado de trabajos desactivados"
+        "emailAnnounceOff": "Emails de estado de trabajos desactivados",
+        "newsAnnounceOn": "Emails de marketing activados",
+        "newsAnnounceOff": "Emails de marketing desactivados"
       },
       "BillingDetails": {
         "title": "Información de facturación",

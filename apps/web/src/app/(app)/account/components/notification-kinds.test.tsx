@@ -11,9 +11,14 @@ import { NotificationKinds } from "./notification-kinds";
 
 const patchMyPreferences = vi.fn();
 const setAccountEnabled = vi.fn();
+const setDeviceEnabled = vi.fn();
 const setJobEmails = vi.fn();
 const setMarketing = vi.fn();
 let isAccountEnabled = true;
+let isDeviceEnabled = true;
+/** Null until the capability read lands, which is not an answer. */
+let isSupported: boolean | null = true;
+let isBlocked = false;
 let jobEmails = true;
 let marketing = false;
 let session: { user: { id: string } } | null = { user: { id: "user_1" } };
@@ -38,14 +43,16 @@ vi.mock("@/lib/clients/core.preferences.browser.client", () => ({
 vi.mock("@/lib/ably/use-push-preference", () => ({
   usePushPreference: () => ({
     isAccountEnabled,
-    isDeviceEnabled: false,
-    isSupported: true,
-    isBlocked: false,
+    isDeviceEnabled,
+    isSupported,
+    isBlocked,
     canToggleAccount: true,
-    canToggleDevice: true,
+    // The real hook's rule: a session, a browser that can subscribe, and
+    // consent already standing.
+    canToggleDevice: isSupported === true && !isBlocked && isAccountEnabled,
     isSaving: false,
     setAccountEnabled,
-    setDeviceEnabled: vi.fn(),
+    setDeviceEnabled,
   }),
 }));
 
@@ -206,6 +213,11 @@ function emailCell(kind: string) {
   });
 }
 
+/** The marketing row, which names itself rather than naming a kind. */
+function newsRow() {
+  return screen.getByRole("group", { name: "newsDeliveryAriaLabel" });
+}
+
 /** The account switch on a row of its own, when no kind row carries it. */
 function fallbackEmailCell() {
   return screen.getByRole("button", {
@@ -243,6 +255,9 @@ describe("NotificationKinds", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isAccountEnabled = true;
+    isDeviceEnabled = true;
+    isSupported = true;
+    isBlocked = false;
     jobEmails = true;
     marketing = false;
     emailWriteFails = false;
@@ -269,6 +284,7 @@ describe("NotificationKinds", () => {
       },
     );
     setAccountEnabled.mockResolvedValue(true);
+    setDeviceEnabled.mockResolvedValue(undefined);
   });
 
   it("marks where each kind arrives, without opening anything", () => {
@@ -778,6 +794,166 @@ describe("NotificationKinds", () => {
     });
   });
 
+  /**
+   * Consent standing does not mean this browser holds a subscription. Signing
+   * out drops the subscription and leaves the consent, and clearing site data
+   * drops it without telling anyone. The press has to cover that, or the cells
+   * sit on and this browser never pushes again, with nothing left to press.
+   */
+  /**
+   * The cell writes one preference for the account, not one per browser, so a
+   * browser that cannot show a push is still where the reader silences or
+   * wakes the devices that can. It keeps the press, and says what it will and
+   * will not do here.
+   */
+  it("keeps the push cell working on a browser that cannot push", async () => {
+    isSupported = false;
+    renderKinds();
+
+    const cell = cellFor("kindSystem", "channelPush");
+
+    expect(cell).toHaveAttribute("aria-pressed", "false");
+    expect(describedBy(cell)).toBe("pushUnsupported pushOtherDevicesHint");
+
+    await toggle("kindSystem", "channelPush");
+
+    await waitFor(() => {
+      expect(written("SYSTEM", "OS_BANNER")).toBe(true);
+    });
+  });
+
+  /**
+   * Two different states, and the reader can act on one of them: a block is
+   * their own setting and reversible, and no browser support is not. Blocked
+   * is reported as blocked, and a browser that cannot push at all is told that
+   * first, because it can be both.
+   */
+  it("says which of the two the browser is", () => {
+    isBlocked = true;
+    renderKinds();
+
+    expect(describedBy(cellFor("kindSystem", "channelPush"))).toBe(
+      "browserPermissionDeniedDescription pushOtherDevicesHint",
+    );
+  });
+
+  it("says the browser cannot push before it says it is blocked", () => {
+    isSupported = false;
+    isBlocked = true;
+    renderKinds();
+
+    expect(describedBy(cellFor("kindSystem", "channelPush"))).toBe(
+      "pushUnsupported pushOtherDevicesHint",
+    );
+  });
+
+  /**
+   * The capability read needs `window`, so it lands after the first paint. An
+   * unread answer is not a no: reported as one, every reader on every browser
+   * would be told theirs cannot push, for a frame or forever.
+   */
+  it("says nothing about the browser until the capability read lands", () => {
+    isSupported = null;
+    renderKinds();
+
+    const cell = cellFor("kindSystem", "channelPush");
+
+    expect(cell).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText("pushUnsupported")).toBeNull();
+  });
+
+  it("subscribes a browser that lost its subscription", async () => {
+    isDeviceEnabled = false;
+    renderKinds();
+
+    await toggle("kindSystem", "channelPush");
+
+    await waitFor(() => {
+      expect(setDeviceEnabled).toHaveBeenCalledWith(true);
+    });
+    expect(setAccountEnabled).not.toHaveBeenCalled();
+  });
+
+  it("asks for nothing when the browser already pushes", async () => {
+    renderKinds();
+
+    await toggle("kindSystem", "channelPush");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(setDeviceEnabled).not.toHaveBeenCalled();
+    expect(setAccountEnabled).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A browser that cannot subscribe still has consent to record for the ones
+   * that can, and nothing here to subscribe.
+   */
+  it("does not try to subscribe a browser that cannot push", async () => {
+    isAccountEnabled = true;
+    isDeviceEnabled = false;
+    isSupported = false;
+    renderKinds();
+
+    await toggle("kindSystem", "channelPush");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(setDeviceEnabled).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The reader is told what the write actually reached, rather than a flat
+   * "enabled" that a silent browser would contradict.
+   */
+  it("says the consent reached the other devices when this one stays out", async () => {
+    isAccountEnabled = false;
+    setAccountEnabled.mockResolvedValue(false);
+    renderKinds();
+
+    await toggle("kindSystem", "channelPush");
+
+    await waitFor(() => {
+      expect(vi.mocked(toast.success)).toHaveBeenCalledWith(
+        "pushEnabledOtherDevicesSuccess",
+      );
+    });
+  });
+
+  it("says push is on when the write subscribed this browser", async () => {
+    isAccountEnabled = false;
+    renderKinds();
+
+    await toggle("kindSystem", "channelPush");
+
+    await waitFor(() => {
+      expect(vi.mocked(toast.success)).toHaveBeenCalledWith(
+        "pushEnabledSuccess",
+      );
+    });
+  });
+
+  /**
+   * One wording for every failure on screen, so the real reason has to reach
+   * the console: a refused prompt and a failed Core write look identical here.
+   */
+  it("logs why the push failed, since the reader is told one thing", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    isAccountEnabled = false;
+    setAccountEnabled.mockRejectedValue(new Error("refused"));
+    renderKinds();
+
+    await toggle("kindSystem", "channelPush");
+
+    await waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith("pushError");
+    });
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
+  });
+
   it("does not ask for push when the write leaves no push on", async () => {
     isAccountEnabled = false;
     renderKinds();
@@ -973,6 +1149,67 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * A region only speaks when its text changes, so a sentence left standing
+   * would silence the next press that lands on the same value. The value here
+   * moves from the other job row, which holds the same switch.
+   */
+  it("takes the email sentence down when the value moves under it", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+    await user.click(emailCell("kindJobAttention"));
+    act(finishEmailWrite);
+
+    await waitFor(() => {
+      expect(spoken(stops("kindJobAttention"))).toBe("emailAnnounceOff");
+    });
+
+    await user.click(emailCell("kindJobUpdate"));
+
+    expect(spoken(stops("kindJobAttention"))).toBe("");
+  });
+
+  /**
+   * The cells stay reachable while a write is in flight, so the guard is what
+   * stops a second press landing on top of the first. Written for both kinds
+   * of cell: they hold their own guards, and each also arms the row's live
+   * region, so a press that got through would speak about a write nobody made.
+   */
+  it("takes no second press on the email cell while its write is in flight", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+    await user.click(emailCell("kindJobAttention"));
+
+    expect(emailCell("kindJobAttention")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+
+    await user.click(emailCell("kindJobAttention"));
+
+    expect(setJobEmails).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes no second press on a channel cell while its write is in flight", async () => {
+    patchMyPreferences.mockReturnValue(new Promise(() => {}));
+    renderKinds();
+
+    await toggle("kindSystem", "channelInApp");
+
+    const cell = cellFor("kindSystem", "channelInApp");
+    await waitFor(() => {
+      expect(cell).toHaveAttribute("aria-disabled", "true");
+    });
+
+    await toggle("kindSystem", "channelInApp");
+
+    expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  /**
    * A failed write leaves the row where it started, and the sentence has to
    * report that rather than the press. The account page puts the value back
    * before it stops being busy, which is what makes this readable here.
@@ -1001,12 +1238,32 @@ describe("NotificationKinds", () => {
    * start without one. The page waits for it rather than drawing the one row
    * it can build without the matrix and taking it away again a moment later.
    */
-  it("draws nothing while the session is still coming", () => {
+  /**
+   * The matrix rows wait on a read: drawn from nothing, they would paint every
+   * kind as off and settle onto the stored answer a moment later. The
+   * marketing row comes from the account rather than the read, so it is drawn
+   * at once. An empty card for the length of a round trip loses a control that
+   * never needed the answer.
+   */
+  it("waits for the read before drawing the kinds, and not before the news", () => {
     sessionPending = true;
 
-    const { container } = renderKinds();
+    renderKinds();
 
-    expect(container).toBeEmptyDOMElement();
+    expect(newsRow()).toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: /^presetAriaLabel/ }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("group", { name: /^deliveryAriaLabel/ }),
+    ).toBeNull();
+    // The job emails wait too: whether they need a row of their own is
+    // something only the matrix can say.
+    expect(
+      screen.queryByRole("button", {
+        name: "channelCellLabel channelEmail channelEmailLabel",
+      }),
+    ).toBeNull();
   });
 
   /**
@@ -1020,6 +1277,35 @@ describe("NotificationKinds", () => {
     renderKinds();
 
     expect(fallbackEmailCell()).toHaveAttribute("aria-pressed", "true");
+  });
+
+  /**
+   * The fallback row exists for a matrix with no job rows in it. Drawn beside
+   * them, it is a second control on the same value, and the two would answer
+   * the same question in two places on one card.
+   */
+  it("draws no row of its own while the job rows carry the emails", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    expect(
+      screen.queryByRole("button", {
+        name: "channelCellLabel channelEmail channelEmailLabel",
+      }),
+    ).toBeNull();
+
+    await openGroup("groupJob");
+
+    expect(emailCell("kindJobAttention")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "channelCellLabel channelEmail channelEmailLabel",
+      }),
+    ).toBeNull();
+
+    // Proving the query above can find it at all.
+    await user.click(emailCell("kindJobAttention"));
+    expect(setJobEmails).toHaveBeenCalledWith(false);
   });
 
   /**
@@ -1076,7 +1362,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    const row = stops("marketingEmailsTitle");
+    const row = newsRow();
 
     for (const channel of ["channelInApp", "channelPush"]) {
       const dead = within(row).getByRole("button", {
@@ -1107,7 +1393,7 @@ describe("NotificationKinds", () => {
     renderKinds([]);
 
     expect(
-      within(stops("marketingEmailsTitle")).getByRole("button", {
+      within(newsRow()).getByRole("button", {
         name: "channelCellLabel channelEmail marketingEmailsTitle",
       }),
     ).toBeInTheDocument();

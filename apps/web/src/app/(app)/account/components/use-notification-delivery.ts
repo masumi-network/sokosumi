@@ -157,13 +157,31 @@ export function useNotificationDelivery(): NotificationDelivery {
    * permission. A refusal still records the preference: account consent and
    * this browser's subscription are separate, and dropping the preference
    * because one browser said no would be the wrong half to lose.
+   *
+   * Two things can be missing, and consent standing does not imply the other.
+   * Signing out drops this browser's subscription and leaves consent where it
+   * was, and clearing site data drops it without asking anyone. So a browser
+   * that holds no subscription subscribes here, under the same press. Without
+   * that, the cells would sit on and this browser would never push again.
    */
   async function activatePushIfNeeded() {
-    if (push.isAccountEnabled || !push.canToggleAccount) {
+    if (!push.canToggleAccount) {
       return;
     }
 
     try {
+      if (push.isAccountEnabled) {
+        // `canToggleDevice` carries the rest of the answer: a session, a
+        // browser that can subscribe, and consent already on.
+        if (push.isDeviceEnabled || !push.canToggleDevice) {
+          return;
+        }
+
+        await push.setDeviceEnabled(true);
+        toast.success(t("pushEnabledSuccess"));
+        return;
+      }
+
       const subscribedHere = await push.setAccountEnabled(true);
       toast.success(
         subscribedHere
@@ -171,6 +189,9 @@ export function useNotificationDelivery(): NotificationDelivery {
           : t("pushEnabledOtherDevicesSuccess"),
       );
     } catch (error) {
+      // A refused prompt lands here as well, and reads as a failure on
+      // purpose: the reader asked this browser for a push and will not get
+      // one. The cell itself carries the reason from the next render on.
       console.error("Failed to activate push from a delivery control", error);
       toast.error(t("pushError"));
     }

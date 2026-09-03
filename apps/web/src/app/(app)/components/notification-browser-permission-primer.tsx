@@ -128,7 +128,7 @@ export function NotificationBrowserPermissionPrimer({
   };
 
   // No push here, so the settings page has nothing to offer this reader: its
-  // switch would record account consent that reaches their other devices and
+  // Push cells would record consent that reaches their other devices and
   // leave this browser silent. The permission is the one thing that still
   // works here, and it buys the banners this app renders while a tab is open.
   if (capability === "in-app") {
