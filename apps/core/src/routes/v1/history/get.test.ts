@@ -99,6 +99,7 @@ function createHistoryRow(
     archivedAt: null,
     bucketSlug: null,
     coworkerId: "cow_123",
+    orchestratorId: null,
     description: "History row description",
     entityId: "entity_123",
     id: "history_123",

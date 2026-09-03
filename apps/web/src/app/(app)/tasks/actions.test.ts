@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 const listCoworkersMock = vi.fn();
+const getMineMock = vi.fn();
 const getAvailableAgentsWithCreditsPriceMock = vi.fn();
 const resolveEffectiveDesignMdMock = vi.fn();
 const getTasksColumnPageMock = vi.fn();
@@ -13,6 +14,12 @@ const getSessionMock = vi.fn();
 vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
     listCoworkers: (...args: unknown[]) => listCoworkersMock(...args),
+  },
+}));
+
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: {
+    getMine: (...args: unknown[]) => getMineMock(...args),
   },
 }));
 
@@ -53,6 +60,10 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
+vi.mock("next-intl/server", () => ({
+  getTranslations: vi.fn(async () => (key: string) => key),
+}));
+
 import {
   loadCreateTaskModalData,
   loadJobsTabData,
@@ -66,6 +77,7 @@ const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 describe("loadMoreTasksColumn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getMineMock.mockResolvedValue(null);
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
     });
@@ -91,6 +103,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: "current-column-cursor",
       scope: "workspace",
       assigneeId: "coworker-1",
+      assigneeOrchestratorId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -104,6 +117,7 @@ describe("loadMoreTasksColumn", () => {
       limit: 20,
       scope: "workspace",
       assigneeId: "coworker-1",
+      assigneeOrchestratorId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -128,6 +142,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: null,
       scope: "owned",
       assigneeId: "removed-coworker",
+      assigneeOrchestratorId: null,
       status: null,
       projectId: null,
     });
@@ -135,6 +150,7 @@ describe("loadMoreTasksColumn", () => {
     expect(getTasksColumnPageMock).toHaveBeenCalledTimes(1);
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
       assigneeId: null,
+      assigneeOrchestratorId: null,
     });
   });
 
@@ -150,6 +166,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: null,
       scope: "malicious" as never,
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: null,
       projectId: null,
     });
@@ -176,6 +193,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: null,
       scope: "workspace",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: null,
       projectId: null,
     });
@@ -197,6 +215,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: null,
       scope: "owned",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: "malicious" as never,
       projectId: null,
     });
@@ -218,6 +237,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: null,
       scope: "owned",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: TaskStatus.READY,
       projectId: null,
     });
@@ -231,6 +251,7 @@ describe("loadMoreTasksColumn", () => {
 describe("loadMoreTasksList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getMineMock.mockResolvedValue(null);
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
     });
@@ -255,6 +276,7 @@ describe("loadMoreTasksList", () => {
       cursor: "current-list-cursor",
       scope: "workspace",
       assigneeId: "coworker-1",
+      assigneeOrchestratorId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -267,6 +289,7 @@ describe("loadMoreTasksList", () => {
       limit: 20,
       scope: "workspace",
       assigneeId: "coworker-1",
+      assigneeOrchestratorId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -290,6 +313,7 @@ describe("loadMoreTasksList", () => {
       cursor: null,
       scope: "owned",
       assigneeId: "removed-coworker",
+      assigneeOrchestratorId: null,
       status: null,
       projectId: null,
     });
@@ -297,6 +321,7 @@ describe("loadMoreTasksList", () => {
     expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
     expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
       assigneeId: null,
+      assigneeOrchestratorId: null,
     });
   });
 
@@ -311,6 +336,7 @@ describe("loadMoreTasksList", () => {
       cursor: null,
       scope: "malicious" as never,
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: null,
       projectId: null,
     });
@@ -334,6 +360,7 @@ describe("loadMoreTasksList", () => {
       cursor: null,
       scope: "workspace",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: null,
       projectId: null,
     });
@@ -354,6 +381,7 @@ describe("loadMoreTasksList", () => {
       cursor: null,
       scope: "owned",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: TaskStatus.READY,
       projectId: null,
     });

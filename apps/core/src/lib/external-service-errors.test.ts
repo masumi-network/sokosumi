@@ -5,6 +5,7 @@ import {
   isSchemaDriftPrismaError,
   isTransientFetchError,
   isTransientPrismaError,
+  isTransientUpstreamHttpError,
   shouldSuppressSentryForExternalError,
 } from "@/lib/external-service-errors";
 
@@ -91,6 +92,51 @@ describe("isTransientFetchError", () => {
 
   it("does not treat unrelated errors as transient", () => {
     expect(isTransientFetchError(new Error("invalid API token"))).toBe(false);
+  });
+});
+
+describe("isTransientUpstreamHttpError", () => {
+  it("treats a Cloudflare origin-unreachable status as transient", () => {
+    // What a restarting Masumi payment node actually answers: Cloudflare's
+    // 521 page, so the body is HTML and the status is the only usable signal.
+    expect(
+      isTransientUpstreamHttpError(
+        Object.assign(new Error('purchase-diff 521: "<!DOCTYPE html>..."'), {
+          statusCode: 521,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("treats proxy gateway statuses as transient", () => {
+    for (const statusCode of [408, 502, 503, 504, 520, 521, 522, 523, 524]) {
+      expect(
+        isTransientUpstreamHttpError(
+          Object.assign(new Error(`upstream ${statusCode}`), { statusCode }),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("does not treat a rejection by the far side as transient", () => {
+    for (const statusCode of [400, 401, 429, 500, 519, 525, 526, 527, 528]) {
+      expect(
+        isTransientUpstreamHttpError(
+          Object.assign(new Error(`upstream ${statusCode}`), { statusCode }),
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("does not treat an error without a status as transient", () => {
+    expect(isTransientUpstreamHttpError(new Error("no status here"))).toBe(
+      false,
+    );
+    expect(
+      isTransientUpstreamHttpError(
+        Object.assign(new Error("no response arrived"), { statusCode: null }),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -206,6 +252,23 @@ describe("shouldSuppressSentryForExternalError", () => {
         ),
       ),
     ).toBe(true);
+    expect(
+      shouldSuppressSentryForExternalError(
+        Object.assign(new Error("purchase-diff 521: proxy page"), {
+          statusCode: 521,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("still pages when the far side rejected the request", () => {
+    expect(
+      shouldSuppressSentryForExternalError(
+        Object.assign(new Error("purchase-diff 401: unauthorized"), {
+          statusCode: 401,
+        }),
+      ),
+    ).toBe(false);
   });
 });
 

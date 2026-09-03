@@ -126,6 +126,7 @@ describe("POST /chat-rooms/:id/messages/:messageId/reactions", () => {
       archivedAt: null,
       userMembers: [{ userId: USER_ID }],
       coworkerMembers: [],
+      orchestratorMembers: [],
     });
     organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
     memberFindUniqueMock.mockResolvedValue({

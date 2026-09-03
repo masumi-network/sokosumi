@@ -146,6 +146,7 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
       archivedAt: null,
       userMembers: [{ userId: USER_ID }],
       coworkerMembers: [],
+      orchestratorMembers: [],
     });
     organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
     memberFindUniqueMock.mockResolvedValue({

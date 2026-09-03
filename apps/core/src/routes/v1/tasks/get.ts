@@ -34,7 +34,11 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isOrchestratorAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
@@ -121,6 +125,15 @@ const query = z
         description: "Deprecated. Use assigneeId instead.",
         example: "cow_123",
       }),
+    assigneeOrchestratorId: z
+      .string()
+      .uuid()
+      .optional()
+      .openapi({
+        param: { name: "assigneeOrchestratorId", in: "query" },
+        description: "Filter tasks by personal-assistant orchestrator assignee",
+        example: "01960001-0001-7001-8001-000000000099",
+      }),
   })
   .extend(cursorPaginationQuerySchema.shape)
   .superRefine(refineAssigneeIdAliasConflict)
@@ -156,6 +169,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const {
       assigneeId,
+      assigneeOrchestratorId,
       projectId,
       q,
       scope,
@@ -216,6 +230,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               ? { ownerId: authContext.context.userId }
               : {}),
             ...(assigneeId ? { assigneeId } : {}),
+            ...(assigneeOrchestratorId ? { assigneeOrchestratorId } : {}),
             ...projectFilter,
             ...searchFilter,
           },
@@ -232,6 +247,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           statusWhere,
         );
       }
+    } else if (isOrchestratorAuthContext(authContext)) {
+      if (statuses?.includes(TaskStatus.DRAFT)) {
+        throw badRequest(
+          "Soko Bots cannot filter by DRAFT status. DRAFT tasks are not accessible to Soko Bots.",
+        );
+      }
+
+      where = applyTaskListStatusWhere(
+        {
+          archivedAt: null,
+          workspaceId: authContext.workspaceId,
+          assigneeOrchestratorId: authContext.orchestratorId,
+          status: { not: TaskStatus.DRAFT },
+          ...projectFilter,
+          ...searchFilter,
+        },
+        statusWhere,
+      );
     } else {
       const userContext = requireUserContext(authContext);
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
@@ -241,6 +274,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: workspaceContext.workspaceId,
           ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
           ...(assigneeId ? { assigneeId } : {}),
+          ...(assigneeOrchestratorId ? { assigneeOrchestratorId } : {}),
           ...projectFilter,
           ...searchFilter,
         },

@@ -40,7 +40,11 @@ const human: ChatRoomUserParticipant = {
   presence: "online",
 };
 
-const LABELS = { peopleLabel: "People", coworkersLabel: "Coworkers" };
+const LABELS = {
+  peopleLabel: "People",
+  coworkersLabel: "Coworkers",
+  personalAssistantsLabel: "Personal assistants",
+};
 
 function mention(
   partial: Omit<NormalizedMention<RoomMentionParticipant>, "slug"> & {
@@ -483,6 +487,35 @@ describe("partitionRoomMentionSuggestions", () => {
     ]);
     expect(groups[1]).toMatchObject({ id: "coworkers", label: "Coworkers" });
     expect(groups[1]?.items.map((item) => item.key)).toEqual([coworker.id]);
+  });
+
+  it("puts personal assistants in their own section after coworkers", () => {
+    const orchestratorMention = mention({
+      key: "soko-1",
+      value: "Personal assistant",
+      slug: "personal-assistant",
+      data: {
+        kind: "orchestrator",
+        id: "soko-1",
+        name: "Personal assistant",
+        slug: "personal-assistant",
+        image: null,
+      },
+    });
+    const groups = partitionRoomMentionSuggestions(
+      [orchestratorMention, coworkerMention, humanMention],
+      LABELS,
+    );
+    expect(groups.map((group) => group.id)).toEqual([
+      "people",
+      "coworkers",
+      "orchestrators",
+    ]);
+    expect(groups[2]).toMatchObject({
+      id: "orchestrators",
+      label: "Personal assistants",
+    });
+    expect(groups[2]?.items.map((item) => item.key)).toEqual(["soko-1"]);
   });
 
   it("omits empty sections after filter", () => {

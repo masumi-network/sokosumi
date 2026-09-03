@@ -52,8 +52,9 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
-  isCoworkerAgentContext,
+  isAgentAuthContext,
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   isUserAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
@@ -83,6 +84,14 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
     };
   }
 
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      userId: null,
+      coworkerId: null,
+      orchestratorId: authContext.orchestratorId,
+    };
+  }
+
   // Status transitions from a delegated coworker are attributed to the acting
   // coworker only. Context userId is workspace context, not a second actor FK.
   return {
@@ -101,6 +110,14 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
     };
   }
 
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      userId: null,
+      coworkerId: null,
+      orchestratorId: authContext.orchestratorId,
+    };
+  }
+
   // Coworker comments are shown by coworkerId in the UI; userId is not used.
   return {
     userId: null,
@@ -109,14 +126,18 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
   };
 }
 
-/** Attribution only — credit auth is enforced at the route gate (`isAgent`). */
-function getCoworkerActorData(authContext: AuthenticationContext) {
-  if (!isCoworkerAuthContext(authContext)) {
-    throw new Error(
-      "getCoworkerActorData called without coworker auth context",
-    );
+function getAgentActorData(authContext: AuthenticationContext) {
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      userId: null,
+      coworkerId: null,
+      orchestratorId: authContext.orchestratorId,
+    };
   }
 
+  if (!isCoworkerAuthContext(authContext)) {
+    throw new Error("getAgentActorData called without agent auth context");
+  }
   return {
     userId: null,
     coworkerId: authContext.coworkerId,
@@ -350,7 +371,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? await requireTaskCollaboration(authContext, taskId, tx)
           : await requireTaskCommentAccess(c.var, taskId, tx);
 
-      const isAgent = isCoworkerAgentContext(authContext);
+      const isAgent = isAgentAuthContext(authContext);
 
       if (!isCancelOnlyWrite) {
         const assignedSeatUserId = isAgent
@@ -391,6 +412,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         validateTaskAssigneeAssignment({
           status,
           assigneeId: task.assigneeId,
+          assigneeOrchestratorId: task.assigneeOrchestratorId,
         });
 
         if (
@@ -438,7 +460,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         status !== undefined || eventStatus === TaskStatus.OUT_OF_CREDITS
           ? await getStatusEventActorData(authContext)
           : credits != null || masumiPayment != null
-            ? getCoworkerActorData(authContext)
+            ? getAgentActorData(authContext)
             : await getCommentEventActorData(authContext);
 
       const createdEvent = await tx.taskEvent.create({

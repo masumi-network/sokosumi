@@ -22,7 +22,7 @@ const { createAgentJobForUserMock, flattenJobMock, requireTaskAccessMock } =
   }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireCoworkerTaskCollaboration: requireTaskAccessMock,
+  requireTaskCollaboration: requireTaskAccessMock,
 }));
 
 vi.mock("@/helpers/job", () => ({
@@ -173,14 +173,38 @@ describe("POST /tasks/{id}/jobs", () => {
       body: requestBody,
     });
 
-    // The endpoint is coworker-scoped and routes through the coworker-only
-    // helper, which ignores delegation (assignment is enforced internally).
+    // Assignment is enforced inside the shared agent collaboration helper.
     expect(response.status).toBe(201);
     expect(requireTaskAccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: "coworker",
         coworkerId: "cow_123",
         vendorId: TEST_VENDOR_ID,
+      }),
+      "tsk_123",
+    );
+  });
+
+  it("creates a job for the assigned orchestrator", async () => {
+    const app = createApp({
+      actor: "orchestrator",
+      orchestratorId: "22222222-2222-7222-8222-222222222222",
+      userId: "user_123",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      organizationId: "org_123",
+    });
+
+    const response = await app.request("http://localhost/tsk_123/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: requestBody,
+    });
+
+    expect(response.status).toBe(201);
+    expect(requireTaskAccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: "orchestrator",
+        orchestratorId: "22222222-2222-7222-8222-222222222222",
       }),
       "tsk_123",
     );

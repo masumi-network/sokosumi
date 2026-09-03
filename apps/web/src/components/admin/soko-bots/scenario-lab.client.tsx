@@ -29,7 +29,10 @@ import type {
 import type { ChatTurnDetail } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
 
-const POLL_MS = 3_000;
+// A run is watched, not waited on, so this is a refresh rate rather than a
+// timeout budget: at three seconds a whole scenario could finish between two
+// polls and never show a step.
+const POLL_MS = 1_200;
 const TIMEOUT_MS = 5 * 60_000;
 const HISTORY_PER_SCENARIO = 8;
 
@@ -70,6 +73,18 @@ function toHistory(runs: SokoBotLabRun[]): History {
   return history;
 }
 
+/** What the lab is doing right now, in the order it happens. */
+type LivePhase = "starting" | "queued" | "running" | "judging";
+
+interface LiveRun {
+  scenarioId: string;
+  phase: LivePhase;
+  /** Null until the trigger hands one back. */
+  turnId: string | null;
+  turn: ChatTurnDetail | null;
+  startedAt: number;
+}
+
 async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
   const response = await fetch(
     `/api/personal-assistant/turns/${encodeURIComponent(turnId)}`,
@@ -82,12 +97,22 @@ async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
 
 const FINAL_STATUSES = new Set(["COMPLETED", "FAILED", "CANCELLED"]);
 
-/** The EVENT turn the sync starts for a simulated Coworker event (next cron tick). */
-async function waitForTurn(turnId: string): Promise<ChatTurnDetail | null> {
+/**
+ * Watches a turn to completion, reporting every poll rather than only the
+ * last. The turn carries its tool calls as they land, so the caller can show
+ * the step the assistant is on instead of a spinner over the previous result.
+ */
+async function watchTurn(
+  turnId: string,
+  onProgress: (turn: ChatTurnDetail) => void,
+): Promise<ChatTurnDetail | null> {
   const deadline = Date.now() + TIMEOUT_MS;
   while (Date.now() < deadline) {
     const turn = await fetchTurn(turnId);
-    if (turn && FINAL_STATUSES.has(turn.status)) return turn;
+    if (turn) {
+      onProgress(turn);
+      if (FINAL_STATUSES.has(turn.status)) return turn;
+    }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
   }
   return null;
@@ -99,6 +124,108 @@ async function waitForTurn(turnId: string): Promise<ChatTurnDetail | null> {
  * this browser so a prompt or model change can be compared with the last
  * runs. Runs create real tasks and approvals in the owner's workspace.
  */
+/** Ticks once a second so an elapsed time is not frozen at its first render. */
+function useElapsed(since: number | null): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (since === null) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(id);
+  }, [since]);
+  return since === null ? 0 : Math.max(0, Math.round((now - since) / 1000));
+}
+
+function formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  return minutes > 0
+    ? `${minutes}:${String(seconds % 60).padStart(2, "0")}`
+    : `${seconds}s`;
+}
+
+/**
+ * What the assistant is doing, right now, in the order it happened.
+ *
+ * Without this the row kept showing the previous run's verdict under a
+ * spinner, which is the one thing a reader must not mistake for the current
+ * one — so this replaces that result while a run is in flight.
+ */
+function LiveRunPanel({ live }: { live: LiveRun }) {
+  const t = useTranslations("App.Admin.SokoBots.Lab");
+  const elapsed = useElapsed(live.startedAt);
+  const calls = live.turn?.toolCalls ?? [];
+  const phaseLabel =
+    live.phase === "starting"
+      ? t("phaseStarting")
+      : live.phase === "queued"
+        ? t("phaseQueued")
+        : live.phase === "judging"
+          ? t("phaseJudging")
+          : t("phaseRunning");
+
+  return (
+    <div className="border-primary/40 bg-primary/5 mt-3 rounded-md border px-3 py-2">
+      <p className="flex items-center gap-2 text-xs font-medium">
+        <span
+          className="bg-primary size-1.5 shrink-0 animate-pulse rounded-full"
+          aria-hidden
+        />
+        {phaseLabel}
+        <span className="text-muted-foreground ml-auto font-normal tabular-nums">
+          {formatDuration(elapsed)}
+        </span>
+      </p>
+
+      {live.turn?.route ? (
+        <p className="text-muted-foreground mt-1 text-xs">
+          {t("liveRoute", { route: live.turn.route })}
+        </p>
+      ) : null}
+
+      {calls.length > 0 ? (
+        <ol className="mt-2 space-y-1">
+          {calls.map((call, index) => (
+            <li
+              key={call.id}
+              className="flex items-baseline gap-2 font-mono text-[0.6875rem]"
+            >
+              <span className="text-muted-foreground w-4 shrink-0 text-right tabular-nums">
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{call.capability}</span>
+              <span
+                className={cn(
+                  "shrink-0",
+                  call.status === "FAILED"
+                    ? "text-semantic-destructive"
+                    : call.status === "COMPLETED"
+                      ? "text-muted-foreground"
+                      : "text-primary",
+                )}
+              >
+                {call.status === "FAILED"
+                  ? t("stepFailed")
+                  : call.status === "COMPLETED"
+                    ? t("stepDone")
+                    : t("stepWorking")}
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="text-muted-foreground mt-2 text-xs">{t("liveNoSteps")}</p>
+      )}
+
+      {/* The one thing that explains a failed step without opening the turn. */}
+      {calls.find((call) => call.status === "FAILED")?.errorDetail ? (
+        <p className="text-semantic-destructive mt-2 text-xs">
+          {calls.find((call) => call.status === "FAILED")?.errorDetail}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function ScenarioLab({
   versionId,
   versions,
@@ -175,6 +302,15 @@ export function ScenarioLab({
   }
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [failures, setFailures] = useState<Record<string, string>>({});
+  // One at a time: turns share the bot's session lock, so this is the run the
+  // whole page is waiting on rather than one of several.
+  const [live, setLive] = useState<LiveRun | null>(null);
+  /** Where a Run all has got to, so the wait has a denominator. */
+  const [batch, setBatch] = useState<{
+    done: number;
+    total: number;
+    startedAt: number;
+  } | null>(null);
 
   const loadHistory = useCallback(async () => {
     const result = await listSokoBotLabRunsAction({});
@@ -188,6 +324,13 @@ export function ScenarioLab({
   async function run(scenario: SokoBotScenario) {
     setRunning((current) => new Set(current).add(scenario.id));
     setFailures(({ [scenario.id]: _dropped, ...rest }) => rest);
+    setLive({
+      scenarioId: scenario.id,
+      phase: "starting",
+      turnId: null,
+      turn: null,
+      startedAt: Date.now(),
+    });
     try {
       let turnId: string | null;
       if (scenario.trigger?.kind === "ingest") {
@@ -248,7 +391,24 @@ export function ScenarioLab({
         }));
         return;
       }
-      const turn = await waitForTurn(turnId);
+      setLive((current) =>
+        current?.scenarioId === scenario.id
+          ? { ...current, phase: "queued", turnId }
+          : current,
+      );
+      const turn = await watchTurn(turnId, (progress) => {
+        setLive((current) =>
+          current?.scenarioId === scenario.id
+            ? {
+                ...current,
+                phase: FINAL_STATUSES.has(progress.status)
+                  ? "judging"
+                  : "running",
+                turn: progress,
+              }
+            : current,
+        );
+      });
       if (!turn) {
         setFailures((current) => ({
           ...current,
@@ -276,18 +436,49 @@ export function ScenarioLab({
         next.delete(scenario.id);
         return next;
       });
+      setLive((current) =>
+        current?.scenarioId === scenario.id ? null : current,
+      );
     }
   }
 
   async function runAll() {
     // Sequential: turns share the bot's session lock and the context they read.
-    for (const scenario of SOKO_BOT_SCENARIOS) await run(scenario);
+    setBatch({
+      done: 0,
+      total: SOKO_BOT_SCENARIOS.length,
+      startedAt: Date.now(),
+    });
+    try {
+      for (const scenario of SOKO_BOT_SCENARIOS) {
+        await run(scenario);
+        setBatch((current) =>
+          current ? { ...current, done: current.done + 1 } : current,
+        );
+      }
+    } finally {
+      setBatch(null);
+    }
   }
 
   async function runAllVersions() {
-    for (const version of versions) {
-      await chooseVersion(version.id);
-      for (const scenario of SOKO_BOT_SCENARIOS) await run(scenario);
+    setBatch({
+      done: 0,
+      total: versions.length * SOKO_BOT_SCENARIOS.length,
+      startedAt: Date.now(),
+    });
+    try {
+      for (const version of versions) {
+        await chooseVersion(version.id);
+        for (const scenario of SOKO_BOT_SCENARIOS) {
+          await run(scenario);
+          setBatch((current) =>
+            current ? { ...current, done: current.done + 1 } : current,
+          );
+        }
+      }
+    } finally {
+      setBatch(null);
     }
   }
 
@@ -384,6 +575,7 @@ export function ScenarioLab({
           </Button>
         </div>
       </div>
+      {batch ? <BatchProgress batch={batch} live={live} /> : null}
       <ol className="divide-y rounded-lg border">
         {SOKO_BOT_SCENARIOS.map((scenario) => (
           <ScenarioRow
@@ -393,6 +585,7 @@ export function ScenarioLab({
               (run) => run.versionId === activeVersion,
             )}
             running={running.has(scenario.id)}
+            live={live?.scenarioId === scenario.id ? live : null}
             disabled={anyRunning}
             failure={failures[scenario.id] ?? null}
             onRun={() => void run(scenario)}
@@ -403,10 +596,57 @@ export function ScenarioLab({
   );
 }
 
+/** How far a Run all has got, so the wait has a denominator and an end. */
+function BatchProgress({
+  batch,
+  live,
+}: {
+  batch: { done: number; total: number; startedAt: number };
+  live: LiveRun | null;
+}) {
+  const t = useTranslations("App.Admin.SokoBots.Lab");
+  const elapsed = useElapsed(batch.startedAt);
+  const current = SOKO_BOT_SCENARIOS.find(
+    (scenario) => scenario.id === live?.scenarioId,
+  );
+  const percent = Math.round((batch.done / Math.max(1, batch.total)) * 100);
+
+  return (
+    <div className="rounded-lg border px-4 py-3">
+      <p className="flex flex-wrap items-baseline gap-x-2 text-xs">
+        <span className="font-medium tabular-nums">
+          {t("batchProgress", { done: batch.done, total: batch.total })}
+        </span>
+        {current ? (
+          <span className="text-muted-foreground truncate">
+            {current.title}
+          </span>
+        ) : null}
+        <span className="text-muted-foreground ml-auto tabular-nums">
+          {formatDuration(elapsed)}
+        </span>
+      </p>
+      <div
+        className="bg-muted mt-2 h-1 overflow-hidden rounded-full"
+        role="progressbar"
+        aria-valuenow={batch.done}
+        aria-valuemin={0}
+        aria-valuemax={batch.total}
+      >
+        <div
+          className="bg-primary h-full transition-[width] duration-300"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function ScenarioRow({
   scenario,
   runs,
   running,
+  live,
   disabled,
   failure,
   onRun,
@@ -414,6 +654,7 @@ function ScenarioRow({
   scenario: SokoBotScenario;
   runs: RunRecord[];
   running: boolean;
+  live: LiveRun | null;
   disabled: boolean;
   failure: string | null;
   onRun: () => void;
@@ -421,16 +662,28 @@ function ScenarioRow({
   const t = useTranslations("App.Admin.SokoBots.Lab");
   const format = useFormatter();
   const [open, setOpen] = useState(false);
+  const rowRef = useRef<HTMLLIElement | null>(null);
   const latest = runs[0] ?? null;
+  // The row being run opens itself: the steps are the reason to look here, and
+  // needing a click to see them is what made a run feel like a frozen page.
+  const expanded = open || live !== null;
+
+  // A Run all works through twenty-two scenarios; without this the one being
+  // run is usually somewhere off-screen.
+  const isLive = live !== null;
+  useEffect(() => {
+    if (!isLive) return;
+    rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [isLive]);
 
   return (
-    <li className="px-4 py-3">
+    <li ref={rowRef} className="px-4 py-3">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            aria-expanded={open}
+            aria-expanded={expanded}
             className="text-left"
           >
             <span className="text-sm font-medium">{scenario.title}</span>
@@ -439,7 +692,11 @@ function ScenarioRow({
             </span>
           </button>
         </div>
-        <ScoreTrail runs={runs} />
+        {/* Dimmed with the rest of the previous result: at full strength
+            beside a live run it reads as the score being produced. */}
+        <div className={cn(live && "opacity-60")}>
+          <ScoreTrail runs={runs} />
+        </div>
         <Button
           type="button"
           size="sm"
@@ -457,7 +714,8 @@ function ScenarioRow({
       {failure ? (
         <p className="text-semantic-destructive mt-2 text-xs">{failure}</p>
       ) : null}
-      {open ? (
+      {live ? <LiveRunPanel live={live} /> : null}
+      {expanded ? (
         <div className="mt-3 space-y-3">
           <blockquote className="text-muted-foreground border-l-2 pl-3 text-xs leading-relaxed">
             {scenario.trigger?.kind === "task_event"
@@ -467,7 +725,14 @@ function ScenarioRow({
                 : scenario.prompt}
           </blockquote>
           {latest ? (
-            <div className="space-y-2">
+            <div className={cn("space-y-2", live && "opacity-60")}>
+              {/* Named while a run is in flight, so the verdict on screen is
+                  never mistaken for the one being produced. */}
+              {live ? (
+                <p className="text-muted-foreground text-xs font-medium">
+                  {t("previousRun")}
+                </p>
+              ) : null}
               <p
                 className="text-muted-foreground text-xs tabular-nums"
                 suppressHydrationWarning

@@ -408,4 +408,46 @@ describe("fetchDriveTasksPage", () => {
       latestFileUpdatedAt: new Date("2026-01-04T00:00:00.000Z"),
     });
   });
+
+  it("passes sortBy and sortOrder when set", async () => {
+    getDriveTasksMock.mockResolvedValue({
+      data: {
+        data: [],
+        meta: { pagination: { nextCursor: null } },
+      },
+    });
+
+    await fetchDriveTasksPage({
+      scope: "me",
+      sortBy: "name",
+      sortOrder: "asc",
+    });
+
+    expect(getDriveTasksMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({
+          scope: "me",
+          sortBy: "name",
+          sortOrder: "asc",
+        }),
+      }),
+    );
+  });
+
+  it("omits sort params when unset (server default)", async () => {
+    getDriveTasksMock.mockResolvedValue({
+      data: {
+        data: [],
+        meta: { pagination: { nextCursor: null } },
+      },
+    });
+
+    await fetchDriveTasksPage({ scope: "me" });
+
+    const call = getDriveTasksMock.mock.calls[0]?.[0] as {
+      query: Record<string, unknown>;
+    };
+    expect(call.query).not.toHaveProperty("sortBy");
+    expect(call.query).not.toHaveProperty("sortOrder");
+  });
 });

@@ -10,7 +10,8 @@ type ChatRoomMessageWithInclude = Prisma.ChatRoomMessageGetPayload<{
 
 export type MembershipSubject =
   | { type: "user"; id: string; name: string }
-  | { type: "coworker"; id: string; name: string };
+  | { type: "coworker"; id: string; name: string }
+  | { type: "orchestrator"; id: string; name: string };
 
 export type ChannelMembershipChange = {
   action: "joined" | "left";
@@ -20,6 +21,7 @@ export type ChannelMembershipChange = {
 export interface ChannelRosterSnapshot {
   users: ReadonlyArray<{ id: string; name: string }>;
   coworkers: ReadonlyArray<{ id: string; name: string }>;
+  orchestrators?: ReadonlyArray<{ id: string; name: string }>;
 }
 
 export interface RecordChannelMembershipStatusArgs {
@@ -44,6 +46,12 @@ export function diffChannelMembershipRoster(args: {
   const priorCoworkerIds = new Set(
     args.prior.coworkers.map((coworker) => coworker.id),
   );
+  const nextOrchestratorIds = new Set(
+    (args.next.orchestrators ?? []).map((bot) => bot.id),
+  );
+  const priorOrchestratorIds = new Set(
+    (args.prior.orchestrators ?? []).map((bot) => bot.id),
+  );
 
   const changes: ChannelMembershipChange[] = [];
 
@@ -65,6 +73,19 @@ export function diffChannelMembershipRoster(args: {
     }
   }
 
+  for (const orchestrator of args.prior.orchestrators ?? []) {
+    if (!nextOrchestratorIds.has(orchestrator.id)) {
+      changes.push({
+        action: "left",
+        subject: {
+          type: "orchestrator",
+          id: orchestrator.id,
+          name: orchestrator.name,
+        },
+      });
+    }
+  }
+
   for (const user of args.next.users) {
     if (!priorUserIds.has(user.id)) {
       changes.push({
@@ -79,6 +100,19 @@ export function diffChannelMembershipRoster(args: {
       changes.push({
         action: "joined",
         subject: { type: "coworker", id: coworker.id, name: coworker.name },
+      });
+    }
+  }
+
+  for (const orchestrator of args.next.orchestrators ?? []) {
+    if (!priorOrchestratorIds.has(orchestrator.id)) {
+      changes.push({
+        action: "joined",
+        subject: {
+          type: "orchestrator",
+          id: orchestrator.id,
+          name: orchestrator.name,
+        },
       });
     }
   }
@@ -157,7 +191,9 @@ export function readMembershipFromMetadata(
   }
   const subject = subjectRaw as Record<string, unknown>;
   if (
-    (subject.type !== "user" && subject.type !== "coworker") ||
+    (subject.type !== "user" &&
+      subject.type !== "coworker" &&
+      subject.type !== "orchestrator") ||
     typeof subject.id !== "string" ||
     typeof subject.name !== "string"
   ) {

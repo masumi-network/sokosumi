@@ -103,6 +103,7 @@ function room() {
       },
     ],
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 

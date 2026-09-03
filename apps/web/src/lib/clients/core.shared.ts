@@ -2,6 +2,7 @@ import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-shar
 import type {
   ActivateEnterpriseContractRequest,
   AdminSokoBotActionRequest,
+  AdminSokoBotVersionMigrationRequest,
   AgentStatus,
   AggregateAdminTaskX402PaymentsByAgentData,
   CreateAdminVendorData,
@@ -152,6 +153,7 @@ import {
   getAdminSokoBot as coreGetAdminSokoBot,
   getAdminSokoBotAvailability as coreGetAdminSokoBotAvailability,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
+  getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
   getAdminTask as coreGetAdminTask,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
@@ -190,6 +192,7 @@ import {
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getMySokoBot as coreGetMySokoBot,
+  getMySokoBotActivity as coreGetMySokoBotActivity,
   getMySokoBotStats as coreGetMySokoBotStats,
   getMySokoBotTurn as coreGetMySokoBotTurn,
   getMySokoBotUsage as coreGetMySokoBotUsage,
@@ -271,6 +274,7 @@ import {
   listVendorMembers as coreListVendorMembers,
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
+  migrateAdminSokoBotVersions as coreMigrateAdminSokoBotVersions,
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
   patchChatsRoomsById as corePatchChatsRoomsById,
@@ -3892,6 +3896,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getMySokoBotActivity() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetMySokoBotActivity({ client, cache: "no-store" }),
+      "Failed to fetch Soko Bot activity",
+    );
+  }
+
   async function createMySokoBot(body: CreateSokoBotRequest) {
     return executeCoreOperation(
       getClient,
@@ -4360,6 +4372,25 @@ export function createCoreClient(getClient: GetCoreClient) {
       getClient,
       (client) => corePromoteAdminSokoBotVersion({ client, path: { slug } }),
       "Failed to promote Soko Bot version",
+    );
+  }
+
+  async function getAdminSokoBotVersionUsage() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotVersionUsage({ client, cache: "no-store" }),
+      "Failed to load Soko Bot version usage",
+    );
+  }
+
+  async function migrateAdminSokoBotVersions(
+    body: AdminSokoBotVersionMigrationRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreMigrateAdminSokoBotVersions({ client, body }),
+      "Failed to migrate Soko Bot versions",
     );
   }
 
@@ -5020,6 +5051,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
     getMySokoBot,
+    getMySokoBotActivity,
     createMySokoBot,
     archiveMySokoBot,
     deleteAdminSokoBot,
@@ -5066,6 +5098,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     createAdminSokoBotVersion,
     updateAdminSokoBotVersion,
     archiveAdminSokoBotVersion,
+    getAdminSokoBotVersionUsage,
+    migrateAdminSokoBotVersions,
     promoteAdminSokoBotVersion,
     getAdminSokoBot,
     getAdminSokoBotQuality,

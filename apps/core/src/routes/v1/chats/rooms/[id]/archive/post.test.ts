@@ -96,6 +96,7 @@ function room(
     archivedAt: null,
     userMembers: (overrides.memberIds ?? [CREATOR_ID, OTHER_ID]).map(member),
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 

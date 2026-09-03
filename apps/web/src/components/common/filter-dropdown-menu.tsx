@@ -63,6 +63,10 @@ interface FilterDropdownMenuProps {
   emptyResultsLabel: string;
   sections: FilterDropdownMenuSection[];
   showActiveIndicator?: boolean;
+  /** Hide the built-in mobile sheet trigger (e.g. when another control opens the sheet). */
+  hideMobileTrigger?: boolean;
+  sheetOpen?: boolean;
+  onSheetOpenChange?: (open: boolean) => void;
 }
 
 const ALL_FILTER_VALUE = "__all__";
@@ -75,10 +79,23 @@ export function FilterDropdownMenu({
   emptyResultsLabel,
   sections,
   showActiveIndicator = false,
+  hideMobileTrigger = false,
+  sheetOpen: sheetOpenProp,
+  onSheetOpenChange,
 }: FilterDropdownMenuProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [uncontrolledSheetOpen, setUncontrolledSheetOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+
+  const isSheetControlled = sheetOpenProp !== undefined;
+  const sheetOpen = isSheetControlled ? sheetOpenProp : uncontrolledSheetOpen;
+
+  function setSheetOpen(open: boolean) {
+    if (!isSheetControlled) {
+      setUncontrolledSheetOpen(open);
+    }
+    onSheetOpenChange?.(open);
+  }
 
   if (sections.length === 0) {
     return null;
@@ -119,22 +136,23 @@ export function FilterDropdownMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Mobile sheet - visible only on mobile */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="relative gap-2 sm:hidden"
-        aria-label={buttonLabel}
-        onClick={() => setSheetOpen(true)}
-      >
-        <ListFilter className="size-4" aria-hidden />
-        {showActiveIndicator ? (
-          <span
-            aria-hidden
-            className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
-          />
-        ) : null}
-      </Button>
+      {!hideMobileTrigger ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="relative gap-2 sm:hidden"
+          aria-label={buttonLabel}
+          onClick={() => setSheetOpen(true)}
+        >
+          <ListFilter className="size-4" aria-hidden />
+          {showActiveIndicator ? (
+            <span
+              aria-hidden
+              className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+            />
+          ) : null}
+        </Button>
+      ) : null}
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent

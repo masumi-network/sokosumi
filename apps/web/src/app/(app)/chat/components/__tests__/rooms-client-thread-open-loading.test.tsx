@@ -233,6 +233,7 @@ function channelRoom(): ChatRoom {
       },
     ],
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 

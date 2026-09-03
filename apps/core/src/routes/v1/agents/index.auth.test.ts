@@ -24,7 +24,7 @@ const {
     // Typed as the real union, not a hand-written shape: the previous local
     // literal declared an `agentId` field that exists nowhere in
     // middleware/auth.ts, so drift from the real context could not be a
-    // compile error. Harmless while isCoworkerAgentContext reads only `actor`
+    // compile error. Harmless while isAgentAuthContext reads only `actor`
     // and `context`, but a later gate reading `coworkerId` would silently see
     // undefined and the test would still pass.
     current: null as AuthenticationContext | null,

@@ -43,6 +43,9 @@ interface DriveTasksFiltersProps {
     noProjectLabel: string;
     loadMore: string;
   };
+  hideMobileTrigger?: boolean;
+  sheetOpen?: boolean;
+  onSheetOpenChange?: (open: boolean) => void;
 }
 
 function resolveNextCursor(
@@ -109,6 +112,9 @@ export function DriveTasksFilters({
   projectId,
   taskId,
   labels,
+  hideMobileTrigger = false,
+  sheetOpen,
+  onSheetOpenChange,
 }: DriveTasksFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -544,6 +550,9 @@ export function DriveTasksFilters({
       emptyResultsLabel={labels.emptyResults}
       sections={sections}
       showActiveIndicator={showActiveIndicator}
+      hideMobileTrigger={hideMobileTrigger}
+      sheetOpen={sheetOpen}
+      onSheetOpenChange={onSheetOpenChange}
     />
   );
 }

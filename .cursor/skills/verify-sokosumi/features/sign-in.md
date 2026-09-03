@@ -75,9 +75,11 @@ is host-scoped on `localhost`.
 
 **API bootstrap alone is not UI sign-in proof** — only unlocks the rest of the map after a failed UI path; record that the UI path failed and why (`method=cookie` in artifacts).
 
-Computer-use notes (live-proved with `alice@sokosumi.test`):
+Computer-use notes (live-proved):
 
-- Scroll past Google / Microsoft / Passkey / Magic Link. Magic Link also has its **own** email field + “Send me a Magic Link” — do **not** type there. Target fields under the password divider (**or sign in with password** / locale equivalent) only.
+- **Do not invent users.** Run `verify-sokosumi credentials-status` (or doctor). If `verify_credentials_email=unset`, stop and report missing `VERIFY_SOKOSUMI_*` secrets — do not create `you-*@sokosumi.test` accounts for general UI proof.
+- **Prefer harness auth first:** `verify-sokosumi sign-in` (agent-browser) reads `VERIFY_SOKOSUMI_EMAIL` / `VERIFY_SOKOSUMI_PASSWORD` from the process env. Computer-use should drive post-login UI. Typing a Runtime Secret password in the GUI fails because tool output redacts it as `[REDACTED]`.
+- If you must type the form: use `$VERIFY_SOKOSUMI_EMAIL` (must be an Environment Variable, not Runtime Secret) and only a non-redacted password. Scroll past Google / Microsoft / Passkey / Magic Link. Magic Link also has its **own** email field + “Send me a Magic Link” — do **not** type there. Target fields under the password divider (**or sign in with password** / locale equivalent) only.
 - **Type** email and password with real keystrokes (or the GUI type tool). Setting `input.value` via JS / paste-without-events often leaves react-hook-form empty so zod blocks submit (Login stays enabled — it only disables while `isSubmitting` or `isLeaving`).
 - Submit with **Enter** (or the purple **Login** button under the password form).
 - After success, Chrome may show a **“Save password?”** bubble over the app — dismiss **Never** / **No thanks** before clicking app chrome, or clicks miss.

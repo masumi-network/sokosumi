@@ -9,6 +9,7 @@ const {
   chatRoomFindFirstMock,
   chatRoomDeleteManyMock,
   chatRoomUserMemberFindFirstMock,
+  chatRoomUserMemberFindManyMock,
   workspaceFindUniqueMock,
   chatRoomFindManyMock,
   chatMessageFindManyMock,
@@ -57,6 +58,9 @@ const {
   transactionTurnFindFirstMock,
   transactionTurnUpdateManyMock,
   transactionTaskUpdateMock,
+  transactionTaskEventCountMock,
+  transactionTaskEventCreateMock,
+  transactionTaskWatchUpsertMock,
   transactionWorkspaceFindFirstMock,
   transactionMock,
   turnFindUniqueMock,
@@ -64,6 +68,7 @@ const {
   transactionChatMentionCreateManyMock,
   transactionChatRoomUpdateMock,
   chatCoworkerMemberFindManyMock,
+  chatOrchestratorMemberFindManyMock,
   chatMessageCountMock,
   memberFindManyMock,
   toolCallCountMock,
@@ -74,12 +79,18 @@ const {
   turnUpdateManyMock,
   workspaceFindFirstMock,
   availabilityMock,
+  applyGuardedTaskStatusUpdateMock,
+  emitChatDirectMessageNotificationsMock,
+  notifyTaskStatusEventMock,
+  publishTaskEventDataMock,
+  publishChatRoomMessageRealtimeByIdMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   chatRoomFindFirstMock: vi.fn(),
   chatRoomDeleteManyMock: vi.fn(),
   chatRoomUserMemberFindFirstMock: vi.fn(),
+  chatRoomUserMemberFindManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   chatRoomFindManyMock: vi.fn(),
   chatMessageFindManyMock: vi.fn(),
@@ -128,6 +139,9 @@ const {
   transactionTurnFindFirstMock: vi.fn(),
   transactionTurnUpdateManyMock: vi.fn(),
   transactionTaskUpdateMock: vi.fn(),
+  transactionTaskEventCountMock: vi.fn(),
+  transactionTaskEventCreateMock: vi.fn(),
+  transactionTaskWatchUpsertMock: vi.fn(),
   transactionWorkspaceFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
@@ -135,6 +149,7 @@ const {
   transactionChatMentionCreateManyMock: vi.fn(),
   transactionChatRoomUpdateMock: vi.fn(),
   chatCoworkerMemberFindManyMock: vi.fn(),
+  chatOrchestratorMemberFindManyMock: vi.fn(),
   chatMessageCountMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   toolCallCountMock: vi.fn(),
@@ -145,6 +160,11 @@ const {
   turnUpdateManyMock: vi.fn(),
   workspaceFindFirstMock: vi.fn(),
   availabilityMock: vi.fn(),
+  applyGuardedTaskStatusUpdateMock: vi.fn(),
+  emitChatDirectMessageNotificationsMock: vi.fn(),
+  notifyTaskStatusEventMock: vi.fn(),
+  publishTaskEventDataMock: vi.fn(),
+  publishChatRoomMessageRealtimeByIdMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
@@ -164,12 +184,18 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: chatRoomFindManyMock,
       deleteMany: chatRoomDeleteManyMock,
     },
-    chatRoomUserMember: { findFirst: chatRoomUserMemberFindFirstMock },
+    chatRoomUserMember: {
+      findFirst: chatRoomUserMemberFindFirstMock,
+      findMany: chatRoomUserMemberFindManyMock,
+    },
     chatRoomMessage: {
       findMany: chatMessageFindManyMock,
       count: chatMessageCountMock,
     },
     chatRoomCoworkerMember: { findMany: chatCoworkerMemberFindManyMock },
+    chatRoomOrchestratorMember: {
+      findMany: chatOrchestratorMemberFindManyMock,
+    },
     sokoBotContextSnapshot: { findFirst: contextSnapshotFindFirstMock },
     sokoBotDelegation: {
       create: delegationCreateMock,
@@ -249,6 +275,11 @@ vi.mock("@/lib/db/transaction", () => ({
           findFirst: transactionTaskFindFirstMock,
           update: transactionTaskUpdateMock,
         },
+        taskEvent: {
+          count: transactionTaskEventCountMock,
+          create: transactionTaskEventCreateMock,
+        },
+        sokoBotTaskWatch: { upsert: transactionTaskWatchUpsertMock },
         chatRoomMessage: { create: transactionChatMessageCreateMock },
         chatRoomMention: {
           createMany: transactionChatMentionCreateManyMock,
@@ -287,7 +318,22 @@ vi.mock("@/helpers/job", () => ({
 }));
 vi.mock("@/helpers/agent", () => ({ toMasumiAgent: vi.fn() }));
 vi.mock("@/helpers/task-event-charge", () => ({
-  applyGuardedTaskStatusUpdate: vi.fn(),
+  applyGuardedTaskStatusUpdate: applyGuardedTaskStatusUpdateMock,
+}));
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskStatusEvent: notifyTaskStatusEventMock,
+}));
+vi.mock("@/lib/ably/publish", () => ({
+  publishTaskEventData: publishTaskEventDataMock,
+}));
+vi.mock("@/helpers/chat-direct-message-notifications", () => ({
+  emitChatDirectMessageNotifications: emitChatDirectMessageNotificationsMock,
+  shouldEmitChatDirectMessageNotifications: vi.fn(
+    ({ kind, memberUserIds }) => kind === "direct" && memberUserIds.length <= 2,
+  ),
+}));
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtimeById: publishChatRoomMessageRealtimeByIdMock,
 }));
 vi.mock("@/helpers/task-link", () => ({
   mapTaskLinkRelationToWriteData: vi.fn(),
@@ -447,6 +493,14 @@ describe("SokoBotRuntimeService authorization", () => {
     transactionToolCallFindUniqueMock.mockResolvedValue(null);
     transactionToolCallCountMock.mockResolvedValue(0);
     transactionToolCallCreateMock.mockResolvedValue({});
+    transactionTaskEventCountMock.mockResolvedValue(0);
+    transactionTaskEventCreateMock.mockResolvedValue({ id: "event_1" });
+    transactionTaskWatchUpsertMock.mockResolvedValue({});
+    applyGuardedTaskStatusUpdateMock.mockResolvedValue(undefined);
+    emitChatDirectMessageNotificationsMock.mockResolvedValue(undefined);
+    notifyTaskStatusEventMock.mockResolvedValue(undefined);
+    publishTaskEventDataMock.mockResolvedValue(undefined);
+    publishChatRoomMessageRealtimeByIdMock.mockResolvedValue(undefined);
     transactionDecisionCreateMock.mockResolvedValue({
       id: DECISION_ID,
       status: "PENDING",
@@ -1315,6 +1369,50 @@ describe("SokoBotRuntimeService authorization", () => {
       SCOPE.workspaceId,
       expect.anything(),
       { kind: "soko_bot", sokoBotId: SCOPE.sokoBotId },
+    );
+  });
+
+  it("resumes its own assigned Task and fans out the orchestrator event", async () => {
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.INPUT_REQUIRED,
+      ownerId: SCOPE.userId,
+      assigneeId: null,
+      assigneeOrchestratorId: SCOPE.sokoBotId,
+    });
+
+    const result = await new SokoBotRuntimeService()["replyToTask"](
+      {
+        turn: {
+          id: SCOPE.turnId,
+          sokoBotId: SCOPE.sokoBotId,
+          userId: SCOPE.userId,
+          workspaceId: SCOPE.workspaceId,
+        },
+      } as never,
+      { taskId: "task_1", comment: "Inputs received", status: "READY" },
+      "call_reply",
+    );
+
+    expect(result).toMatchObject({ id: "task_1", status: "READY" });
+    expect(transactionTaskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        taskId: "task_1",
+        status: TaskStatus.READY,
+        orchestratorId: SCOPE.sokoBotId,
+      }),
+      select: { id: true },
+    });
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: SCOPE.userId,
+      taskId: "task_1",
+      eventType: "task_event",
+    });
+    expect(notifyTaskStatusEventMock).toHaveBeenCalledWith(
+      "task_1",
+      "event_1",
+      TaskStatus.READY,
     );
   });
 
@@ -2321,7 +2419,6 @@ describe("SokoBotRuntimeService chat reading", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
-    botFindUniqueMock.mockResolvedValue({ coworker: { id: "coworker_1" } });
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
   });
 
@@ -2333,8 +2430,8 @@ describe("SokoBotRuntimeService chat reading", () => {
     } as never);
 
     const where = chatRoomFindManyMock.mock.calls[0][0].where;
-    expect(where.coworkerMembers).toEqual({
-      some: { coworkerId: "coworker_1" },
+    expect(where.orchestratorMembers).toEqual({
+      some: { orchestratorId: SCOPE.sokoBotId },
     });
     // Membership is the boundary; ChatRoom has no workspaceId column.
     expect(where.archivedAt).toBeNull();
@@ -2360,7 +2457,8 @@ describe("SokoBotRuntimeService chat reading", () => {
         content: "on it",
         createdAt: new Date("2026-08-27T10:01:00.000Z"),
         senderUser: null,
-        senderCoworker: { id: "coworker_1", name: "Soko Bot" },
+        senderCoworker: null,
+        senderOrchestrator: { id: SCOPE.sokoBotId, name: "Soko Bot" },
       },
       {
         id: "m1",
@@ -2368,6 +2466,7 @@ describe("SokoBotRuntimeService chat reading", () => {
         createdAt: new Date("2026-08-27T10:00:00.000Z"),
         senderUser: { name: "Patrick" },
         senderCoworker: null,
+        senderOrchestrator: null,
       },
     ]);
 
@@ -2403,7 +2502,7 @@ describe("post_chat chain depth", () => {
   function armPostChat(chainDepth: number) {
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
-    botFindUniqueMock.mockResolvedValue({ coworker: { id: "cow_self" } });
+    chatOrchestratorMemberFindManyMock.mockResolvedValue([]);
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
     chatRoomFindFirstMock.mockResolvedValue({
       id: "room_1",
@@ -2474,6 +2573,9 @@ describe("post_chat chain depth", () => {
       kind: "direct",
     });
     chatRoomUserMemberFindFirstMock.mockResolvedValue({ id: "member_1" });
+    chatRoomUserMemberFindManyMock.mockResolvedValue([
+      { userId: SCOPE.userId },
+    ]);
 
     await new SokoBotRuntimeService()["postChat"](
       { turn: { ...SCOPE_TURN, source: "SCHEDULE", chainDepth: 0 } } as never,
@@ -2481,6 +2583,15 @@ describe("post_chat chain depth", () => {
     );
 
     expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+    expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith({
+      roomId: "room_owner",
+      roomName: "Ada",
+      organizationId: null,
+      messageId: "msg_1",
+      authorUserId: null,
+      authorName: "Soko Bot",
+      recipientUserIds: [SCOPE.userId],
+    });
   });
 
   it("leaves channels alone on an unattended turn", async () => {
@@ -2512,7 +2623,14 @@ describe("post_chat chain depth", () => {
 
     expect(transactionChatMentionCreateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: [{ messageId: "msg_1", coworkerId: "cow_other", chainDepth: 1 }],
+        data: [
+          {
+            messageId: "msg_1",
+            coworkerId: "cow_other",
+            orchestratorId: null,
+            chainDepth: 1,
+          },
+        ],
       }),
     );
     // Writing the row is not enough: reclaim only rescues `sent`, so a row
@@ -2621,8 +2739,8 @@ describe("post_chat chain depth", () => {
     });
 
     expect(
-      chatCoworkerMemberFindManyMock.mock.calls[0][0].where.coworkerId,
-    ).toEqual({ not: "cow_self" });
+      chatOrchestratorMemberFindManyMock.mock.calls[0][0].where.orchestratorId,
+    ).toEqual({ not: SCOPE.sokoBotId });
     expect(transactionChatMentionCreateManyMock).not.toHaveBeenCalled();
   });
 });
@@ -2642,7 +2760,7 @@ describe("open_direct_chat", () => {
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     toolCallCountMock.mockResolvedValue(0);
-    botFindUniqueMock.mockResolvedValue({ coworker: { id: "cow_self" } });
+    chatOrchestratorMemberFindManyMock.mockResolvedValue([]);
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
     memberFindManyMock.mockResolvedValue([
       { user: { id: "user_colleague", name: "Nina", email: "nina@x.io" } },
@@ -2691,7 +2809,9 @@ describe("open_direct_chat", () => {
       organizationId: "org_1",
       currentUserId: "user_colleague",
       memberUserIds: [],
-      coworkerIds: ["cow_self"],
+      coworkerIds: [],
+      orchestratorIds: [SCOPE.sokoBotId],
+      orchestratorActorUserId: SCOPE.userId,
       viewerUserId: null,
     });
     expect(result).toMatchObject({ roomId: "room_new", created: true });

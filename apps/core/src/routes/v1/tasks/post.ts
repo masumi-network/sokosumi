@@ -27,7 +27,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { created } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import {
-  refineAssigneeIdAliasConflict,
+  refineAssigneeXorConflict,
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
 import {
@@ -48,6 +48,7 @@ import {
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -101,6 +102,9 @@ export const createTaskRequestSchema = z
       deprecated: true,
       description: "Deprecated. Use assigneeId instead.",
     }),
+    assigneeOrchestratorId: z.string().uuid().nullish().openapi({
+      example: "01960001-0001-7001-8001-000000000099",
+    }),
     status: z
       .enum([TaskStatus.DRAFT, TaskStatus.READY])
       .optional()
@@ -115,15 +119,18 @@ export const createTaskRequestSchema = z
   })
   .superRefine((data, ctx) => {
     refineChannelOriginConflict(data, ctx);
-    refineAssigneeIdAliasConflict(data, ctx);
+    refineAssigneeXorConflict(data, ctx);
 
     const assigneeId = resolveAssigneeIdFromRequest(data);
-    const hasAssigneeId = assigneeId !== null && assigneeId !== undefined;
+    const hasCoworker = assigneeId != null && assigneeId !== "";
+    const hasOrchestrator =
+      data.assigneeOrchestratorId != null && data.assigneeOrchestratorId !== "";
 
-    if (data.status !== TaskStatus.DRAFT && !hasAssigneeId) {
+    if (data.status !== TaskStatus.DRAFT && !hasCoworker && !hasOrchestrator) {
       ctx.addIssue({
         code: "custom",
-        message: "assigneeId is required when creating a non-draft task",
+        message:
+          "assigneeId or assigneeOrchestratorId is required when creating a non-draft task",
         path: ["assigneeId"],
       });
     }
@@ -133,6 +140,7 @@ export const createTaskRequestSchema = z
     return {
       ...rest,
       assigneeId: resolveAssigneeIdFromRequest(data),
+      assigneeOrchestratorId: data.assigneeOrchestratorId ?? null,
       channel: resolveTaskEventChannel(data),
     };
   });
@@ -375,6 +383,13 @@ function resolveTaskDomainActor(
     };
   }
 
+  if (isOrchestratorAuthContext(authContext)) {
+    return {
+      kind: "soko_bot",
+      sokoBotId: authContext.orchestratorId,
+    };
+  }
+
   return { kind: "user", userId: ownerId };
 }
 
@@ -434,6 +449,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             });
           },
           assigneeId: body.assigneeId,
+          assigneeOrchestratorId: body.assigneeOrchestratorId,
           status: body.status,
           channel: body.channel,
         },

@@ -41,6 +41,7 @@ vi.mock("@/app/chat/actions", () => ({
   loadChatComposeRosterAction: loadChatComposeRosterActionMock,
   createDirectRoomAction: createDirectRoomActionMock,
   ensureCoworkerDirectRoomAction: ensureCoworkerDirectRoomActionMock,
+  ensureOrchestratorDirectRoomAction: vi.fn(),
 }));
 
 vi.mock("@/components/chat/organization-chat-events", () => ({
@@ -97,6 +98,7 @@ describe("CreateDirectDialog", () => {
         canCreateExternal: false,
         members: [member("user-self", "Ada"), member("user-2", "Francis")],
         coworkers: [],
+        orchestrators: [],
         membersLoadFailed: false,
       },
     });
@@ -143,6 +145,7 @@ describe("CreateDirectDialog", () => {
         canCreateExternal: false,
         members: [],
         coworkers: [coworker("coworker-1", "Hannah")],
+        orchestrators: [],
         membersLoadFailed: false,
       },
     });
@@ -176,6 +179,7 @@ describe("CreateDirectDialog", () => {
         canCreateExternal: false,
         members: [],
         coworkers: [coworker("coworker-1", "Hannah")],
+        orchestrators: [],
         membersLoadFailed: true,
       },
     });
@@ -287,6 +291,7 @@ describe("CreateDirectDialog", () => {
         canCreateExternal: false,
         members: [member("user-self", "Ada"), member("user-2", "Francis")],
         coworkers: [coworker("cow-1", "Hermes")],
+        orchestrators: [],
         membersLoadFailed: false,
       },
     });

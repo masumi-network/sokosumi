@@ -1683,6 +1683,9 @@
         "showGuide": "Show guide"
       },
       "createTaskFab": "Aufgabe erstellen",
+      "personalAssistant": "Persönlicher Assistent",
+      "sokoBot": "Soko Bot",
+      "sokoBots": "Soko Bots",
       "Errors": {
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
@@ -4369,7 +4372,18 @@
           "noBotLink": "Hier erstellen.",
           "runsAgainst": "Jeder Lauf ist ein echter Durchlauf von {bot}, dem Assistenten von {account}.",
           "unnamedBot": "deinem Assistenten",
-          "failedChecks": "Fehlgeschlagen: {labels}"
+          "failedChecks": "Fehlgeschlagen: {labels}",
+          "phaseStarting": "Durchlauf wird gestartet…",
+          "phaseQueued": "In der Warteschlange – wartet auf den Assistenten",
+          "phaseRunning": "Läuft",
+          "phaseJudging": "Durchlauf beendet – wird bewertet",
+          "liveRoute": "Route: {route}",
+          "liveNoSteps": "Noch keine Tool-Aufrufe.",
+          "stepWorking": "läuft",
+          "stepDone": "fertig",
+          "stepFailed": "fehlgeschlagen",
+          "previousRun": "Vorheriger Durchlauf",
+          "batchProgress": "{done} von {total} werden ausgeführt"
         },
         "KillSwitch": {
           "title": "Funktionsschalter",
@@ -4383,6 +4397,37 @@
           "disabled": "Soko Bot deaktiviert.",
           "enabled": "Soko Bot aktiviert.",
           "error": "Der Funktionsschalter konnte nicht geändert werden."
+        },
+        "Version": {
+          "title": "Agent-Version",
+          "description": "Eine Version zu befördern ändert nur, worauf neue Bots erstellt werden. Dies verschiebt diesen Bot.",
+          "versionLabel": "Verschieben auf",
+          "defaultOption": "{name} (Standard für neue Bots)",
+          "current": "Läuft derzeit auf {version}.",
+          "currentUnset": "Keine Version festgelegt; dieser Bot läuft auf dem eingebauten Standard.",
+          "reasonLabel": "Grund",
+          "reasonPlaceholder": "Warum verschieben Sie diesen Bot? (erforderlich, wird im Audit-Log festgehalten)",
+          "confirm": "Diesen Bot verschieben",
+          "working": "Wird verschoben…",
+          "done": "Auf {version} verschoben.",
+          "error": "Dieser Bot konnte nicht verschoben werden."
+        },
+        "Migration": {
+          "title": "Bots zwischen Versionen verschieben",
+          "description": "Eine Beförderung bestimmt, worauf neue Bots erstellt werden, und lässt bestehende unverändert. Jeder hier verschobene Bot erhält einen eigenen Audit-Eintrag.",
+          "fromLabel": "Bots derzeit auf",
+          "everyBot": "Alle Bots",
+          "inUseOption": "{version} ({count} Bots)",
+          "toLabel": "Verschieben auf",
+          "defaultOption": "{name} (Standard für neue Bots)",
+          "reasonLabel": "Grund",
+          "reasonPlaceholder": "Warum verschieben Sie die Flotte? (erforderlich, wird für jeden Bot festgehalten)",
+          "confirm": "{count} Bots verschieben",
+          "nothingToMove": "Für diese Auswahl gibt es nichts zu verschieben.",
+          "working": "Wird verschoben…",
+          "done": "{moved} Bots verschoben.",
+          "result": "Verschoben: {moved}. Bereits auf dieser Version: {alreadyOnVersion}. Nicht verschiebbar: {failed}.",
+          "error": "Diese Bots konnten nicht verschoben werden."
         }
       },
       "MatchedChannels": {
@@ -5798,6 +5843,7 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "personalAssistantBadge": "Persönlicher Assistent",
       "humanBadge": "Mensch",
       "openDirectMessage": "Nachricht",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
@@ -5846,6 +5892,7 @@
         "cannotRemoveSelf": "Du kannst dich nicht selbst entfernen",
         "humans": "Humans",
         "coworkers": "AI coworkers",
+        "personalAssistants": "Persönliche Assistenten",
         "cancel": "Cancel",
         "create": "Create",
         "save": "Save changes"
@@ -5874,7 +5921,8 @@
         "organizationRequiredForGroup": "Wechsle zu einer Organisation, um einem Teammitglied zu schreiben.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
-        "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1."
+        "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1.",
+        "personalAssistantDirectOneToOneOnly": "Direktnachrichten mit persönlichen Assistenten sind nur 1:1."
       },
       "RoomSearch": {
         "open": "In diesem Chat suchen",
@@ -5959,11 +6007,7 @@
         "messageRequired": "Nachricht ist erforderlich.",
         "roomRequired": "Raum ist erforderlich.",
         "pinError": "Nachricht konnte nicht angeheftet werden.",
-        "unpinError": "Nachricht konnte nicht gelöst werden.",
-        "count": "{count, plural, =0 {Angeheftet} one {# angeheftet} other {# angeheftet}}",
-        "latest": "Neueste Anheftung",
-        "jumpToLatest": "Zur angehefteten Nachricht von {author} springen",
-        "viewAll": "Alle angehefteten Nachrichten anzeigen"
+        "unpinError": "Nachricht konnte nicht gelöst werden."
       },
       "Quote": {
         "action": "Zitieren",
@@ -5990,7 +6034,8 @@
       },
       "MentionSections": {
         "people": "Personen",
-        "coworkers": "Coworkers"
+        "coworkers": "Coworkers",
+        "personalAssistants": "Persönliche Assistenten"
       },
       "Copy": {
         "action": "Kopieren",
@@ -6293,7 +6338,13 @@
       "loadRecentsError": "Kürzliche Dateien konnten nicht geladen werden",
       "loadMoreRecentsError": "Weitere kürzliche Dateien konnten nicht geladen werden",
       "viewList": "Liste",
-      "viewGrid": "Raster"
+      "viewGrid": "Raster",
+      "sortLabel": "Sortieren nach",
+      "sortByName": "Name",
+      "sortByDate": "Datum",
+      "sortByType": "Typ",
+      "sortAscending": "Aufsteigend",
+      "sortDescending": "Absteigend"
     },
     "SokoBot": {
       "Metadata": {

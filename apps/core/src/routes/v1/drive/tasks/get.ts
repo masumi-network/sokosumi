@@ -1,13 +1,17 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma } from "@sokosumi/database";
+import { Prisma, TaskStatus } from "@sokosumi/database";
 
 import {
   requireCoworkerCapability,
   requireTaskReadForRouteVars,
 } from "@/helpers/access-control";
+import {
+  driveFileTypeFamily,
+  driveFileTypeFamilyRank,
+} from "@/helpers/drive-file-type-family";
 import { fetchProjectTasksPage } from "@/helpers/drive-tasks-project-list";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import { badRequest, forbidden } from "@/helpers/error";
+import { badRequest, forbidden, unprocessableEntity } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -23,8 +27,17 @@ import {
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isOrchestratorAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
+import {
+  type DriveListSort,
+  driveListSortQueryFields,
+  resolveDriveListSort,
+} from "@/schemas/drive-list-sort.schema";
 import {
   type DriveTasksListItem,
   driveTasksListSchema,
@@ -89,6 +102,7 @@ const query = z
           "Search tasks and files by task name, task description, or file name (case-insensitive substring). Returns matching task-file rows.",
         example: "mockup",
       }),
+    ...driveListSortQueryFields,
   })
   .extend(cursorPaginationQuerySchema.shape)
   .refine(
@@ -112,6 +126,10 @@ const route = createRoute({
     "- No projectId, no taskId → project rows (+ no-project row when unscoped tasks have files)",
     "- projectId set, no taskId → task rows with output files",
     "- taskId set → TASK_OUTPUT TaskFile rows",
+    "Omit sortBy/sortOrder for today's default: updatedAt descending with id tie-breakers.",
+    "sortBy=name|date|type with sortOrder=asc|desc at every level.",
+    "Date uses latest READY task-output activity for project/task rows and file updatedAt for files.",
+    "Type is meaningful for file rows; at project/task levels type falls back to name.",
   ].join("\n"),
   tags: ["Drive"],
   request: {
@@ -126,8 +144,62 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
+
+function taskFileOrderBy(
+  sort: DriveListSort | null,
+): Prisma.TaskFileOrderByWithRelationInput[] {
+  if (!sort || sort.sortBy === "date") {
+    const order = sort?.sortOrder ?? "desc";
+    return [{ updatedAt: order }, { id: order }];
+  }
+  if (sort.sortBy === "name" || sort.sortBy === "type") {
+    // Type for files is applied in-memory after fetch when needed; Prisma uses name+id.
+    const order = sort.sortOrder;
+    return [{ name: order }, { id: order }];
+  }
+  return [{ updatedAt: "desc" }, { id: "desc" }];
+}
+
+const MAX_TASK_FILES_FOR_TYPE_SORT = 10_000;
+
+function sortTaskFilesInMemory<
+  T extends {
+    id: string;
+    name: string;
+    mimeType: string | null;
+    updatedAt: Date;
+  },
+>(files: T[], sort: DriveListSort): T[] {
+  const dir = sort.sortOrder === "asc" ? 1 : -1;
+  return [...files].sort((a, b) => {
+    if (sort.sortBy === "date") {
+      const timeDiff = a.updatedAt.getTime() - b.updatedAt.getTime();
+      if (timeDiff !== 0) {
+        return timeDiff * dir;
+      }
+    } else if (sort.sortBy === "type") {
+      const familyDiff =
+        driveFileTypeFamilyRank(driveFileTypeFamily(a.name, a.mimeType)) -
+        driveFileTypeFamilyRank(driveFileTypeFamily(b.name, b.mimeType));
+      if (familyDiff !== 0) {
+        return familyDiff * dir;
+      }
+      const byName = a.name.localeCompare(b.name);
+      if (byName !== 0) {
+        return byName * dir;
+      }
+    } else {
+      const byName = a.name.localeCompare(b.name);
+      if (byName !== 0) {
+        return byName * dir;
+      }
+    }
+    return a.id.localeCompare(b.id) * dir;
+  });
+}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -137,6 +209,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       queryParams;
     const searchQuery = q?.trim();
     const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const sort = resolveDriveListSort(queryParams, "date");
 
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
@@ -162,6 +235,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         some: DRIVE_TASK_FILE_WHERE,
       },
     };
+
+    if (isOrchestratorAuthContext(authContext)) {
+      baseTaskWhere.assigneeOrchestratorId = authContext.orchestratorId;
+      baseTaskWhere.status = { not: TaskStatus.DRAFT };
+    }
 
     // Apply coworker access filter if needed
     let coworkerAccess:
@@ -235,11 +313,103 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      const useInMemoryTypeSort = sort?.sortBy === "type";
       const takePlusOne = take + 1;
+
+      if (useInMemoryTypeSort) {
+        const totalCount = await prisma.taskFile.count({
+          where: taskFileWhere,
+        });
+        if (totalCount > MAX_TASK_FILES_FOR_TYPE_SORT) {
+          throw unprocessableEntity(
+            "Too many task files match this query for type sorting. Narrow your search or omit sortBy=type.",
+          );
+        }
+
+        const matchingFiles = await prisma.taskFile.findMany({
+          where: taskFileWhere,
+          take: MAX_TASK_FILES_FOR_TYPE_SORT,
+          orderBy: [{ name: "asc" }, { id: "asc" }],
+          include: {
+            task: {
+              select: {
+                id: true,
+                name: true,
+                projectId: true,
+                project: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        const sorted = sortTaskFilesInMemory(matchingFiles, sort);
+        let startIndex = 0;
+        if (cursor) {
+          const cursorIndex = sorted.findIndex((file) => file.id === cursor);
+          if (cursorIndex < 0) {
+            throw badRequest("Invalid pagination cursor");
+          }
+          startIndex = cursorIndex + 1;
+        }
+        const pagedFiles = sorted.slice(startIndex, startIndex + take);
+        const hasMore = startIndex + take < sorted.length;
+
+        const items: DriveTasksListItem[] = pagedFiles
+          .map((file) => {
+            if (!file.fileUrl) {
+              return null;
+            }
+
+            return {
+              type: "task-file" as const,
+              id: file.id,
+              name: file.name,
+              fileUrl: file.fileUrl,
+              size: file.size ? Number(file.size) : null,
+              mimeType: file.mimeType,
+              updatedAt: file.updatedAt.toISOString(),
+              taskId: file.task.id,
+              taskName: file.task.name,
+              projectId: file.task.projectId,
+              projectName: file.task.project?.name ?? null,
+            };
+          })
+          .filter(
+            (
+              item,
+            ): item is {
+              type: "task-file";
+              id: string;
+              name: string;
+              fileUrl: string;
+              size: number | null;
+              mimeType: string | null;
+              updatedAt: string;
+              taskId: string;
+              taskName: string;
+              projectId: string | null;
+              projectName: string | null;
+            } => item !== null,
+          );
+
+        const paginationMeta = createPaginationMeta(
+          pagedFiles,
+          totalCount,
+          take,
+          hasMore,
+          cursor,
+        );
+        return ok(c, driveTasksListSchema.parse(items), paginationMeta);
+      }
+
       const [matchingFiles, totalCount] = await Promise.all([
         prisma.taskFile.findMany({
           where: taskFileWhere,
-          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          orderBy: taskFileOrderBy(sort),
           take: takePlusOne,
           skip,
           cursor: cursor ? { id: cursor } : undefined,
@@ -334,14 +504,81 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      const useInMemoryTypeSort = sort?.sortBy === "type";
       const takePlusOne = take + 1;
+
+      if (useInMemoryTypeSort) {
+        const taskFileCount = await prisma.taskFile.count({
+          where: taskFileWhere,
+        });
+        if (taskFileCount > MAX_TASK_FILES_FOR_TYPE_SORT) {
+          throw unprocessableEntity(
+            "Too many task files match this query for type sorting. Narrow your search or omit sortBy=type.",
+          );
+        }
+
+        const taskFiles = await prisma.taskFile.findMany({
+          where: taskFileWhere,
+          take: MAX_TASK_FILES_FOR_TYPE_SORT,
+          orderBy: [{ name: "asc" }, { id: "asc" }],
+        });
+
+        const sorted = sortTaskFilesInMemory(taskFiles, sort);
+        let startIndex = 0;
+        if (cursor) {
+          const cursorIndex = sorted.findIndex((file) => file.id === cursor);
+          if (cursorIndex < 0) {
+            throw badRequest("Invalid pagination cursor");
+          }
+          startIndex = cursorIndex + 1;
+        }
+        const pagedFiles = sorted.slice(startIndex, startIndex + take);
+        const hasMore = startIndex + take < sorted.length;
+
+        const items: DriveTasksListItem[] = pagedFiles
+          .map((file) => {
+            if (!file.fileUrl) return null;
+            return {
+              type: "task-file" as const,
+              id: file.id,
+              name: file.name,
+              fileUrl: file.fileUrl,
+              size: file.size ? Number(file.size) : null,
+              mimeType: file.mimeType,
+              updatedAt: file.updatedAt.toISOString(),
+            };
+          })
+          .filter(
+            (
+              item,
+            ): item is {
+              type: "task-file";
+              id: string;
+              name: string;
+              fileUrl: string;
+              size: number | null;
+              mimeType: string | null;
+              updatedAt: string;
+            } => item !== null,
+          );
+
+        const paginationMeta = createPaginationMeta(
+          pagedFiles,
+          taskFileCount,
+          take,
+          hasMore,
+          cursor,
+        );
+        return ok(c, driveTasksListSchema.parse(items), paginationMeta);
+      }
+
       const [taskFiles, taskFileCount] = await Promise.all([
         prisma.taskFile.findMany({
           where: taskFileWhere,
           take: takePlusOne,
           skip,
           cursor: cursor ? { id: cursor } : undefined,
-          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          orderBy: taskFileOrderBy(sort),
         }),
         prisma.taskFile.count({
           where: taskFileWhere,
@@ -397,6 +634,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...(coworkerAccess ? { coworkerAccess } : {}),
         ...(cursor ? { cursor } : {}),
         take,
+        sort,
       });
 
       if (!pageResult.ok) {
@@ -545,10 +783,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     sortableItems.sort((a, b) => {
-      if (b.latestFileTime !== a.latestFileTime) {
-        return b.latestFileTime - a.latestFileTime;
+      const effectiveSort = sort ?? {
+        sortBy: "date" as const,
+        sortOrder: "desc" as const,
+      };
+      // type falls back to name at project level
+      const key =
+        effectiveSort.sortBy === "type" ? "name" : effectiveSort.sortBy;
+      const dir = effectiveSort.sortOrder === "asc" ? 1 : -1;
+
+      if (key === "name") {
+        const leftName = a.name ?? "";
+        const rightName = b.name ?? "";
+        const byName = leftName.localeCompare(rightName);
+        if (byName !== 0) {
+          return byName * dir;
+        }
+      } else {
+        if (b.latestFileTime !== a.latestFileTime) {
+          return (a.latestFileTime - b.latestFileTime) * dir;
+        }
       }
-      return b.id.localeCompare(a.id); // Stable sort by id desc
+      return a.id.localeCompare(b.id) * dir;
     });
 
     // Apply cursor pagination on sorted combined list

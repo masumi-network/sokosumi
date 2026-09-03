@@ -25,8 +25,10 @@ import { AgentDetail } from "@/app/tasks/new/components/agent-detail";
 import { AgentSpotlight } from "@/app/tasks/new/components/agent-spotlight";
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
+import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
+import { AssistantOrb } from "@/components/aurora-orb";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { formatTaskScheduleSelectionLabel } from "@/components/schedules/format";
@@ -138,6 +140,7 @@ interface TaskFormInitialValues {
   name?: string;
   description?: string;
   assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
   metadata?: string | null;
@@ -165,6 +168,7 @@ interface TaskFormProps {
   onCreateTask?: (input: {
     description: string;
     assigneeId: string | null;
+    assigneeOrchestratorId: string | null;
     projectId?: string | null;
     context: TaskContextSelectionInput;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -247,6 +251,14 @@ export function TaskForm({
       ""
     );
   }, [coworkerOptions, initialValues?.assigneeId]);
+
+  const knownOrchestratorId = useMemo(
+    () =>
+      coworkerOptions.find((option) => option.kind === "orchestrator")?.id ??
+      initialValues?.assigneeOrchestratorId ??
+      null,
+    [coworkerOptions, initialValues?.assigneeOrchestratorId],
+  );
 
   const coworkerTouchedRef = useRef(false);
   const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
@@ -457,7 +469,11 @@ export function TaskForm({
           const createTaskHandler = onCreateTask ?? createTask;
           const result = await createTaskHandler({
             description: trimmedDescription,
-            assigneeId,
+            ...resolveTaskAssigneeFields(
+              assigneeId,
+              coworkerOptions,
+              knownOrchestratorId,
+            ),
             context: {
               brand: {
                 enabled: contextSelection.brand.enabled,
@@ -524,7 +540,11 @@ export function TaskForm({
           taskId,
           name: trimmedName,
           description: trimmedDescription,
-          assigneeId,
+          ...resolveTaskAssigneeFields(
+            assigneeId,
+            coworkerOptions,
+            knownOrchestratorId,
+          ),
           ...(shouldShowProjectSelect ? { projectId } : {}),
           currentStatus: originalStatus,
           desiredStatus,
@@ -558,6 +578,8 @@ export function TaskForm({
       useWizard,
       name,
       assigneeId,
+      coworkerOptions,
+      knownOrchestratorId,
       projectId,
       shouldShowProjectSelect,
       originalStatus,
@@ -817,16 +839,29 @@ export function TaskForm({
 
           {showModalCoworkerHeader ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
-              <Avatar className="ring-border size-9 shrink-0 rounded-full ring-1">
-                <AvatarImage
-                  src={selectedOption.image}
+              {selectedOption.kind === "orchestrator" &&
+              !selectedOption.image &&
+              selectedOption.avatarSeed ? (
+                <AssistantOrb
+                  seed={selectedOption.avatarSeed}
+                  expression="idle"
+                  animate={false}
+                  size={36}
+                  className="size-9 shrink-0"
                   alt={selectedOption.name}
-                  className="object-cover"
                 />
-                <AvatarFallback className="rounded-full text-xs font-medium">
-                  {selectedOption.name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              ) : (
+                <Avatar className="ring-border size-9 shrink-0 rounded-full ring-1">
+                  <AvatarImage
+                    src={selectedOption.image}
+                    alt={selectedOption.name}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="rounded-full text-xs font-medium">
+                    {selectedOption.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm leading-tight font-semibold">
                   {selectedOption.name}

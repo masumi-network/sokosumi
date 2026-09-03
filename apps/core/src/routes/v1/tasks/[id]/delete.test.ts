@@ -52,16 +52,34 @@ const {
               slug: "organization",
             }
           : null),
+      assigneeOrchestratorId:
+        (t.assigneeOrchestratorId as string | null | undefined) ?? null,
       assignee:
         t.assignee ??
-        (t.assigneeId
+        (t.assigneeOrchestratorId
           ? {
-              id: t.assigneeId,
-              name: "Coworker",
-              image: null,
-              slug: "coworker",
+              type: "orchestrator" as const,
+              id: t.assigneeOrchestratorId,
+              orchestrator: {
+                id: t.assigneeOrchestratorId,
+                name: "Personal assistant",
+                avatarSeed: null,
+                avatarImageUrl: null,
+                owner: { id: "user-1", name: "Owner", image: null },
+              },
             }
-          : null),
+          : t.assigneeId
+            ? {
+                type: "coworker" as const,
+                id: t.assigneeId,
+                coworker: {
+                  id: t.assigneeId,
+                  name: "Coworker",
+                  image: null,
+                  slug: "coworker",
+                },
+              }
+            : null),
       creator: (() => {
         const creatorOrchestratorId =
           (t.creatorOrchestratorId as string | null | undefined) ?? null;

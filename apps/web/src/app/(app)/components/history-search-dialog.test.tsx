@@ -69,6 +69,7 @@ function createTaskItem(id: string, title: string): HistoryItem {
     credits: null,
     projectId: null,
     coworkerId: null,
+    orchestratorId: null,
     owner: null,
   };
 }

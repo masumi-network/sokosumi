@@ -5,16 +5,23 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   isUserAuthContext,
 } from "@/middleware/auth";
 
 export function resolveOrganizationProductSeatUser(
   authContext: AuthenticationContext,
 ): { organizationId: string; userId: string } | null {
-  // The orchestrator actor was removed with Hermes; a coworker still has no
-  // seat of its own.
   if (isCoworkerAuthContext(authContext)) {
     return null;
+  }
+  if (isOrchestratorAuthContext(authContext)) {
+    return authContext.organizationId
+      ? {
+          organizationId: authContext.organizationId,
+          userId: authContext.userId,
+        }
+      : null;
   }
   if (!isUserAuthContext(authContext)) {
     return null;

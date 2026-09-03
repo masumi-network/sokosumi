@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import {
   createDirectRoomAction,
   ensureCoworkerDirectRoomAction,
+  ensureOrchestratorDirectRoomAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -52,9 +53,15 @@ export function CreateDirectDialog() {
       buildDirectDraftTargets(
         roster.members,
         roster.coworkers,
+        roster.orchestrators,
         roster.currentUserId,
       ),
-    [roster.coworkers, roster.currentUserId, roster.members],
+    [
+      roster.coworkers,
+      roster.currentUserId,
+      roster.members,
+      roster.orchestrators,
+    ],
   );
   const selectedTargets = useMemo(() => {
     const byKey = new Map(targets.map((target) => [target.key, target]));
@@ -73,19 +80,32 @@ export function CreateDirectDialog() {
   const selectedCoworkerIds = selectedTargets
     .filter((target) => target.kind === "coworker")
     .map((target) => target.id);
+  const selectedOrchestratorIds = selectedTargets
+    .filter((target) => target.kind === "orchestrator")
+    .map((target) => target.id);
   const hasSelectedHumans = selectedMemberUserIds.length > 0;
   const hasSelectedCoworker = selectedCoworkerIds.length > 0;
+  const hasSelectedOrchestrator = selectedOrchestratorIds.length > 0;
+  const hasSelectedAi = hasSelectedCoworker || hasSelectedOrchestrator;
   const crossKindDisabledReason = hasSelectedHumans
     ? t("Draft.groupDirectHumansOnly")
     : hasSelectedCoworker
       ? t("Draft.coworkerDirectOneToOneOnly")
-      : undefined;
+      : hasSelectedOrchestrator
+        ? t("Draft.personalAssistantDirectOneToOneOnly")
+        : undefined;
 
   function isTargetDisabled(target: DirectDraftTarget): boolean {
-    if (hasSelectedHumans && target.kind === "coworker") {
+    if (hasSelectedHumans && target.kind !== "human") {
       return true;
     }
-    if (hasSelectedCoworker && target.kind === "human") {
+    if (hasSelectedAi && target.kind === "human") {
+      return true;
+    }
+    if (hasSelectedCoworker && target.kind === "orchestrator") {
+      return true;
+    }
+    if (hasSelectedOrchestrator && target.kind === "coworker") {
       return true;
     }
     if (
@@ -102,7 +122,7 @@ export function CreateDirectDialog() {
     if (isTargetDisabled(target)) {
       return;
     }
-    if (target.kind === "coworker") {
+    if (target.kind === "coworker" || target.kind === "orchestrator") {
       setSelectedKeys([target.key]);
     } else {
       setSelectedKeys((current) =>
@@ -147,9 +167,13 @@ export function CreateDirectDialog() {
       const result =
         selectedCoworkerIds.length === 1
           ? await ensureCoworkerDirectRoomAction(selectedCoworkerIds[0])
-          : await createDirectRoomAction({
-              memberUserIds: selectedMemberUserIds,
-            });
+          : selectedOrchestratorIds.length === 1
+            ? await ensureOrchestratorDirectRoomAction(
+                selectedOrchestratorIds[0],
+              )
+            : await createDirectRoomAction({
+                memberUserIds: selectedMemberUserIds,
+              });
       if (!result.ok) {
         toast.error(result.error.message ?? t("Draft.chooseRecipientError"));
         inFlightRef.current = false;
@@ -210,8 +234,16 @@ export function CreateDirectDialog() {
               </Avatar>
               <span className="flex min-w-0 items-center gap-1">
                 <span className="truncate">{target.name}</span>
-                {target.kind === "coworker" ? (
-                  <AiCoworkerIcon className="size-3" />
+                {target.kind === "coworker" ||
+                target.kind === "orchestrator" ? (
+                  <AiCoworkerIcon
+                    className="size-3"
+                    label={
+                      target.kind === "orchestrator"
+                        ? t("personalAssistantBadge")
+                        : undefined
+                    }
+                  />
                 ) : null}
               </span>
               <button

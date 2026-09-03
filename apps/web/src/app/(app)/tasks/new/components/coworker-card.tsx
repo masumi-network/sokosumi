@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 
 import { TagIcon } from "@/components/agents/tag-icon";
+import { AssistantOrb } from "@/components/aurora-orb";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
@@ -63,16 +64,29 @@ export function CoworkerCard({
       </span>
 
       <div className="flex items-center gap-3">
-        <Avatar className="ring-border size-11 shrink-0 rounded-xl ring-1">
-          <AvatarImage
-            src={option.image}
+        {option.kind === "orchestrator" &&
+        !option.image &&
+        option.avatarSeed ? (
+          <AssistantOrb
+            seed={option.avatarSeed}
+            expression="idle"
+            animate={false}
+            size={44}
+            className="size-11 shrink-0"
             alt={option.name}
-            className="object-cover"
           />
-          <AvatarFallback className="rounded-xl text-xs font-medium">
-            {option.name.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        ) : (
+          <Avatar className="ring-border size-11 shrink-0 rounded-xl ring-1">
+            <AvatarImage
+              src={option.image}
+              alt={option.name}
+              className="object-cover"
+            />
+            <AvatarFallback className="rounded-xl text-xs font-medium">
+              {option.name.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        )}
         <div className="min-w-0 flex-1 pr-5">
           <div className="flex items-center gap-1.5">
             <p className="truncate text-sm leading-tight font-semibold">

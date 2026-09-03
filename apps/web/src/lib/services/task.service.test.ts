@@ -32,6 +32,7 @@ function buildTask() {
     ownerId: "user-1",
     organizationId: null,
     assigneeId: null,
+    assigneeOrchestratorId: null,
     name: "Test task",
     description: null,
     status: TaskStatus.READY,
@@ -436,6 +437,7 @@ describe("task.service", () => {
       name: "Test task",
       description: null,
       assigneeId: null,
+      assigneeOrchestratorId: null,
       context: {
         brand: true,
         brandSource: "project",
@@ -453,6 +455,7 @@ describe("task.service", () => {
       name: "Test task",
       description: null,
       assigneeId: null,
+      assigneeOrchestratorId: null,
       context: {
         brand: true,
         brandSource: "project",

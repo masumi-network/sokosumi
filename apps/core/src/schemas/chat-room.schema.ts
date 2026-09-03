@@ -13,6 +13,7 @@ import { dateTimeSchema } from "@/helpers/datetime";
  */
 const MAX_ROOM_MEMBERS = 500;
 const MAX_ROOM_COWORKERS = 50;
+const MAX_ROOM_ORCHESTRATORS = 50;
 
 export const chatRoomPresenceSchema = z
   .enum(["online", "afk", "offline"])
@@ -100,12 +101,27 @@ export const chatRoomCoworkerParticipantSchema = z
       .nullable()
       .openapi({ example: "https://example.com/coworker.png" }),
     presence: chatRoomPresenceSchema.openapi({ example: "online" }),
-    /** Set when this coworker is a user's first-party Soko Bot. */
-    sokoBotId: z.string().nullable().optional(),
-    /** Generative orb seed for Soko Bot participants (no image). */
-    sokoBotAvatarSeed: z.string().nullable().optional(),
   })
   .openapi("ChatRoomCoworkerParticipant");
+
+export const chatRoomOrchestratorParticipantSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "01960001-0001-7001-8001-000000000099",
+    }),
+    name: z.string().openapi({ example: "Soko Bot" }),
+    caption: z
+      .string()
+      .nullable()
+      .openapi({ example: "Jane's personal assistant" }),
+    image: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/soko-bot.png" }),
+    avatarSeed: z.string().nullable().openapi({ example: "orb:user_123" }),
+    presence: chatRoomPresenceSchema.openapi({ example: "online" }),
+  })
+  .openapi("ChatRoomOrchestratorParticipant");
 
 export const chatRoomSchema = z
   .object({
@@ -190,6 +206,7 @@ export const chatRoomSchema = z
     }),
     userMembers: z.array(chatRoomUserParticipantSchema),
     coworkerMembers: z.array(chatRoomCoworkerParticipantSchema),
+    orchestratorMembers: z.array(chatRoomOrchestratorParticipantSchema),
   })
   .openapi("ChatRoom");
 
@@ -220,8 +237,18 @@ const roomCoworkerIdsSchema = z
   .max(MAX_ROOM_COWORKERS)
   .optional()
   .openapi({
-    description: "AI coworker IDs to add to the room.",
+    description: "Marketplace AI coworker IDs to add to the room.",
     example: ["cow_123"],
+  });
+
+const roomOrchestratorIdsSchema = z
+  .array(z.string().uuid())
+  .max(MAX_ROOM_ORCHESTRATORS)
+  .optional()
+  .openapi({
+    description:
+      "Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.",
+    example: ["01960001-0001-7001-8001-000000000099"],
   });
 
 export const channelSlugAvailabilitySchema = z
@@ -272,15 +299,17 @@ export const createChatRoomRequestSchema = z
         }),
       memberUserIds: roomMemberUserIdsSchema,
       coworkerIds: roomCoworkerIdsSchema,
+      orchestratorIds: roomOrchestratorIdsSchema,
     }),
     z
       .object({
         kind: z.literal("direct").openapi({
           description:
-            "Creates or returns a direct room: one or more humans (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker DMs with an active org are org-scoped. Coworker DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
+            "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (orchestrator). Human, coworker, and orchestrator targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/orchestrator DMs with an active org are org-scoped. Coworker and orchestrator DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
         }),
         memberUserIds: roomMemberUserIdsSchema,
         coworkerIds: roomCoworkerIdsSchema,
+        orchestratorIds: roomOrchestratorIdsSchema,
       })
       .strict(),
   ])
@@ -319,6 +348,15 @@ export const updateChatRoomRequestSchema = z
       .openapi({
         example: ["cow_123"],
       }),
+    orchestratorIds: z
+      .array(z.string().uuid())
+      .max(MAX_ROOM_ORCHESTRATORS)
+      .optional()
+      .openapi({
+        description:
+          "Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.",
+        example: ["01960001-0001-7001-8001-000000000099"],
+      }),
   })
   .openapi("UpdateChatRoomRequest");
 
@@ -345,7 +383,8 @@ export const chatRoomMentionStatusSchema = z
 export const chatRoomMessageMentionSchema = z
   .object({
     id: z.string().uuid(),
-    coworkerId: z.string(),
+    coworkerId: z.string().nullable(),
+    orchestratorId: z.string().uuid().nullable(),
     status: chatRoomMentionStatusSchema,
     responseMessageId: z.string().uuid().nullable(),
   })
@@ -360,6 +399,10 @@ export const chatRoomMessageSenderSchema = z
     z.object({
       type: z.literal("coworker"),
       coworker: chatRoomCoworkerParticipantSchema,
+    }),
+    z.object({
+      type: z.literal("orchestrator"),
+      orchestrator: chatRoomOrchestratorParticipantSchema,
     }),
     z.object({
       type: z.literal("unknown"),
@@ -424,6 +467,11 @@ export const chatRoomMessageMembershipSubjectSchema = z
     }),
     z.object({
       type: z.literal("coworker"),
+      id: z.string(),
+      name: z.string(),
+    }),
+    z.object({
+      type: z.literal("orchestrator"),
       id: z.string(),
       name: z.string(),
     }),
@@ -519,6 +567,13 @@ export const createChatRoomMessageRequestSchema = z
       .optional()
       .openapi({
         example: ["cow_123"],
+      }),
+    mentionedOrchestratorIds: z
+      .array(z.string().uuid())
+      .optional()
+      .openapi({
+        description: "Personal assistants addressed in the message.",
+        example: ["01960001-0001-7001-8001-000000000099"],
       }),
     mentionedUserIds: z
       .array(z.string().min(1))

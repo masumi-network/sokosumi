@@ -8,6 +8,7 @@ export type TasksScope = (typeof TASKS_SCOPE_VALUES)[number];
 export interface TasksFilters {
   scope: TasksScope;
   assigneeId: string | null;
+  assigneeOrchestratorId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
 }
@@ -27,6 +28,7 @@ export type TasksFilterQueryParam = string | string[] | undefined;
 export interface TasksFiltersSearchParams {
   scope?: TasksFilterQueryParam;
   assigneeId?: TasksFilterQueryParam;
+  assigneeOrchestratorId?: TasksFilterQueryParam;
   /** @deprecated Use `assigneeId`. Kept for bookmarked URLs. */
   coworkerId?: TasksFilterQueryParam;
   status?: TasksFilterQueryParam;
@@ -36,6 +38,7 @@ export interface TasksFiltersSearchParams {
 export const TASKS_FILTER_PARAM_KEYS = {
   scope: "scope",
   assigneeId: "assigneeId",
+  assigneeOrchestratorId: "assigneeOrchestratorId",
   /** Legacy query key; read-only fallback for bookmarks. */
   coworkerId: "coworkerId",
   status: "status",
@@ -137,7 +140,10 @@ export function sanitizeTasksScopeInput(
 export function getTasksFiltersFromSearchParams(
   searchParams: URLSearchParams,
   activeOrganizationId: string | null,
-  assigneeOptions: ReadonlyArray<{ id: string }>,
+  assigneeOptions: ReadonlyArray<{
+    id: string;
+    kind?: "coworker" | "orchestrator";
+  }>,
   projectOptions?: ReadonlyArray<ProjectFilterOption>,
 ): TasksFilters {
   const parsed = parseTasksFilters(
@@ -145,6 +151,9 @@ export function getTasksFiltersFromSearchParams(
       scope: searchParams.get(TASKS_FILTER_PARAM_KEYS.scope) ?? undefined,
       assigneeId:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.assigneeId) ?? undefined,
+      assigneeOrchestratorId:
+        searchParams.get(TASKS_FILTER_PARAM_KEYS.assigneeOrchestratorId) ??
+        undefined,
       coworkerId:
         searchParams.get(TASKS_FILTER_PARAM_KEYS.coworkerId) ?? undefined,
       status: searchParams.get(TASKS_FILTER_PARAM_KEYS.status) ?? undefined,
@@ -153,11 +162,25 @@ export function getTasksFiltersFromSearchParams(
     },
     activeOrganizationId,
   );
-  const validAssigneeIds = new Set(
-    assigneeOptions.map((assignee) => assignee.id),
-  );
+  const validCoworkerIds = new Set<string>();
+  const validOrchestratorIds = new Set<string>();
+  for (const option of assigneeOptions) {
+    if (option.kind === "orchestrator") {
+      validOrchestratorIds.add(option.id);
+    } else {
+      validCoworkerIds.add(option.id);
+    }
+  }
+  const assigneeOrchestratorId =
+    parsed.assigneeOrchestratorId &&
+    validOrchestratorIds.has(parsed.assigneeOrchestratorId)
+      ? parsed.assigneeOrchestratorId
+      : null;
   const assigneeId =
-    parsed.assigneeId && validAssigneeIds.has(parsed.assigneeId)
+    !assigneeOrchestratorId &&
+    parsed.assigneeId &&
+    validCoworkerIds.has(parsed.assigneeId) &&
+    !validOrchestratorIds.has(parsed.assigneeId)
       ? parsed.assigneeId
       : null;
   const projectId =
@@ -170,6 +193,7 @@ export function getTasksFiltersFromSearchParams(
   return {
     ...parsed,
     assigneeId,
+    assigneeOrchestratorId,
     projectId,
   };
 }
@@ -186,6 +210,9 @@ export function parseTasksFilters(
   const assigneeId =
     normalizeOptionalString(searchParams.assigneeId) ??
     normalizeOptionalString(searchParams.coworkerId);
+  const assigneeOrchestratorId = normalizeOptionalString(
+    searchParams.assigneeOrchestratorId,
+  );
   const rawStatus = normalizeOptionalString(searchParams.status);
   const status = sanitizeTasksStatusInput(rawStatus);
   const projectId = sanitizeProjectIdFilterInput(
@@ -195,6 +222,7 @@ export function parseTasksFilters(
   return {
     scope,
     assigneeId,
+    assigneeOrchestratorId,
     status,
     projectId,
   };
@@ -217,13 +245,21 @@ export function buildTasksFiltersSearchParams(
   // Always drop the legacy key when writing so URLs migrate forward.
   nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.coworkerId);
 
-  if (filters.assigneeId) {
+  if (filters.assigneeOrchestratorId) {
+    nextSearchParams.set(
+      TASKS_FILTER_PARAM_KEYS.assigneeOrchestratorId,
+      filters.assigneeOrchestratorId,
+    );
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.assigneeId);
+  } else if (filters.assigneeId) {
     nextSearchParams.set(
       TASKS_FILTER_PARAM_KEYS.assigneeId,
       filters.assigneeId,
     );
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.assigneeOrchestratorId);
   } else {
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.assigneeId);
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.assigneeOrchestratorId);
   }
 
   if (filters.status) {
@@ -272,7 +308,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeOrchestratorId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}`;
 }
 
 /**
@@ -292,7 +328,9 @@ export function hasActiveTasksFilters(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): boolean {
-  const hasNonScopeFilter = Boolean(filters.assigneeId || filters.status);
+  const hasNonScopeFilter = Boolean(
+    filters.assigneeId || filters.assigneeOrchestratorId || filters.status,
+  );
 
   if (activeOrganizationId !== null) {
     return (
