@@ -503,6 +503,44 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(waitUntilMock).toHaveBeenCalledTimes(3);
     });
 
+    /**
+     * The direct-message row stops at two humans, so a direct room of three
+     * belongs to the room-message emitter alone. Both decisions read the same
+     * roster, and only the count tells them apart.
+     */
+    it("leaves a direct room of three humans to the room message", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "Hannah",
+        kind: "direct",
+        organizationId: "org_1",
+      });
+      membershipFindManyMock.mockResolvedValue([
+        { userId: ALICE_ID },
+        { userId: BOB_ID },
+        { userId: USER_ID },
+      ]);
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderCoworkerId: COWORKER_ID }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "you were assigned a task" }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
+      expect(emitChatRoomMessageNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomKind: "direct",
+          memberUserIds: [ALICE_ID, BOB_ID, USER_ID],
+        }),
+      );
+    });
+
     it("emits a room message for coworker posts in a channel", async () => {
       roomFindFirstMock.mockResolvedValue({
         id: ROOM_ID,
