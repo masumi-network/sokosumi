@@ -178,14 +178,17 @@ export function useNotificationDelivery(): NotificationDelivery {
       (change) => change.channel === "OS_BANNER" && change.enabled,
     );
 
-    if (asksForBanner) {
-      await activatePushIfNeeded();
-    }
-
     paint(written);
     setSaving((current) => [...current, ...categories]);
 
     try {
+      // Marked busy first. The permission prompt waits on a person, and a
+      // second press on the same group while it stands would land its write,
+      // then have this one overwrite it on the way back.
+      if (asksForBanner) {
+        await activatePushIfNeeded();
+      }
+
       const stored = await preferencesBrowserClient.patchMyPreferences({
         notificationPreferences: written.map((cell) => ({
           category: cell.category,

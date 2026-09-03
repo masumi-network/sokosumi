@@ -201,17 +201,17 @@ export function presetDelivery(preset: Preset, kind: KindSpec): Delivery {
   return preset === "IMPORTANT" ? "BANNER" : "IN_APP";
 }
 
-/** The preset whose name describes these deliveries, when one does. */
-function namedBy(shape: readonly Delivery[]): Preset | null {
-  if (shape.every((delivery) => delivery === "OFF")) {
-    return "OFF";
-  }
-
-  if (shape.every((delivery) => delivery === "BANNER")) {
-    return "EVERYTHING";
-  }
-
-  return null;
+/**
+ * Whether these deliveries silence the group.
+ *
+ * The one tie `PRESETS` order settles wrongly. That order runs loudest first,
+ * so the loudest preset writing a shape is the one that describes it, except
+ * at the quiet end: a group of kinds that none of them wait on the reader is
+ * silenced by Important as well, and Important is not what a reader calls a
+ * stop that silences a group.
+ */
+function silencesEverything(shape: readonly Delivery[]): boolean {
+  return shape.every((delivery) => delivery === "OFF");
 }
 
 /**
@@ -222,9 +222,9 @@ function namedBy(shape: readonly Delivery[]): Preset | null {
  * anything reads as broken. So a preset that writes what another one writes is
  * dropped rather than explained.
  *
- * Which of the two survives is the one whose name describes what it writes. A
- * group of kinds that none of them wait on the reader turns "Important" into a
- * stop that silences the group, and "Off" is what a reader would call that.
+ * Which of the two survives is the one whose name describes what it writes:
+ * the loudest, since `PRESETS` runs loudest first, except where the shape
+ * silences the group (`silencesEverything`).
  */
 export function groupPresets(kinds: readonly KindSpec[]): Preset[] {
   const shapeOf = (preset: Preset): Delivery[] =>
@@ -234,7 +234,10 @@ export function groupPresets(kinds: readonly KindSpec[]): Preset[] {
 
   for (const preset of PRESETS) {
     const key = keyOf(preset);
-    kept.set(key, namedBy(shapeOf(preset)) ?? kept.get(key) ?? preset);
+    kept.set(
+      key,
+      silencesEverything(shapeOf(preset)) ? "OFF" : (kept.get(key) ?? preset),
+    );
   }
 
   return PRESETS.filter((preset) => kept.get(keyOf(preset)) === preset);
