@@ -49,6 +49,7 @@ import {
   listSokoBotLabRunsQuerySchema,
   resolveSokoBotDecisionRequestSchema,
   simulateSokoBotTaskEventRequestSchema,
+  sokoBotActivitySchema,
   sokoBotAvatarSchema,
   sokoBotDailyStatsSchema,
   sokoBotDeletionResultSchema,
@@ -262,6 +263,36 @@ app.openapi(getMeRoute, async (c) => {
     throw notFound("Soko Bot not found");
   }
   return ok(c, sokoBotStateSchema.parse({ sokoBot: mapBot(bot) }));
+});
+
+// Polled every couple of seconds by the console, which watches turns started
+// elsewhere. One indexed read, so it can be asked often enough to catch a turn
+// that only runs for a few seconds.
+const getMyActivityRoute = createRoute({
+  method: "get",
+  path: "/me/activity",
+  operationId: "getMySokoBotActivity",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotActivitySchema,
+      "Whether the assistant is working right now",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+app.openapi(getMyActivityRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const activity = await sokoBotControlPlane.getActivityForUser(
+    auth.userId,
+    workspace.workspaceId,
+  );
+  if (!activity) throw notFound("Soko Bot not found");
+  return ok(c, sokoBotActivitySchema.parse(activity));
 });
 
 const getMyUsageRoute = createRoute({
