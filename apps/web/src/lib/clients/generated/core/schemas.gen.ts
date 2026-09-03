@@ -18698,6 +18698,78 @@ export const CreateTaskContextSchema = {
     description: 'Task context attachments. DESIGN.md, project briefing, and project memory are attached by default; explicit false values opt out.'
 } as const;
 
+export const CreateScheduledTaskRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        source: {
+            oneOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'workspace'
+                            ]
+                        }
+                    },
+                    required: [
+                        'type'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'project'
+                            ]
+                        },
+                        projectId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    },
+                    required: [
+                        'type',
+                        'projectId'
+                    ]
+                }
+            ]
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        assigneeId: {
+            type: 'string',
+            minLength: 1
+        },
+        schedule: {
+            $ref: '#/components/schemas/TaskScheduleInput'
+        }
+    },
+    required: [
+        'operationId',
+        'source',
+        'name',
+        'assigneeId',
+        'schedule'
+    ]
+} as const;
+
 export const UserWritableTaskLinkRelationSchema = {
     type: 'string',
     enum: [
@@ -19928,6 +20000,11 @@ export const WorkspaceCalendarSourceSchema = {
             ],
             description: 'Bounded visual marker for Calendar source displays',
             example: 'violet'
+        },
+        isSchedulable: {
+            type: 'boolean',
+            description: 'Whether this source may be selected to create a Task through POST /v1/tasks/scheduled. Unschedulable sources remain available for Calendar event display and filtering.',
+            example: true
         }
     },
     required: [
@@ -19935,7 +20012,8 @@ export const WorkspaceCalendarSourceSchema = {
         'sourceType',
         'displayName',
         'logoUrl',
-        'paletteToken'
+        'paletteToken',
+        'isSchedulable'
     ]
 } as const;
 

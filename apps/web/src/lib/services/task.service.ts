@@ -2,6 +2,7 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
+  CreateScheduledTaskRequest,
   CreateTaskContext,
   GetWorkspacesCalendarData,
   JobSummary,
@@ -203,6 +204,18 @@ export const taskService = (() => {
     return result.data;
   }
 
+  async function createScheduledTask(
+    input: CreateScheduledTaskRequest,
+  ): Promise<Task> {
+    const result = await coreClient.createScheduledTask(input);
+
+    if (!result.data) {
+      throw new Error("Failed to create scheduled task");
+    }
+
+    return result.data;
+  }
+
   async function createTaskEvent(
     taskId: string,
     input: CreateTaskEventInput,
@@ -319,6 +332,7 @@ export const taskService = (() => {
     getTaskById,
     getTaskWorkspace,
     createTask,
+    createScheduledTask,
     createTaskLink,
     createTaskEvent,
     deleteTaskLink,

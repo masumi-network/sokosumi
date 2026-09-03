@@ -6113,6 +6113,23 @@
         "PROJECT": "Project",
         "LEGACY_UNKNOWN": "Legacy source"
       },
+      "create": {
+        "title": "Schedule a task",
+        "description": "Create a task and choose when it should run.",
+        "name": "Task name",
+        "assignee": "Assignee",
+        "source": "Source",
+        "validationError": "Enter a task name, assignee, and source.",
+        "sourceUnavailable": "This source is no longer available for scheduling.",
+        "error": "Unable to schedule this task. Please try again."
+      },
+      "edit": {
+        "title": "Edit schedule",
+        "description": "Change the schedule for {name}.",
+        "loadError": "Unable to load this task. Please try again.",
+        "saveError": "Unable to save this schedule. Please try again.",
+        "clearError": "Unable to remove this schedule. Please try again."
+      },
       "accuracy": {
         "inferred": "Inferred source",
         "unknown": "Unknown source",

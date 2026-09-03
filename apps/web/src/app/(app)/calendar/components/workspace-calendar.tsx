@@ -2,6 +2,7 @@
 
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
+import interactionPlugin from "@fullcalendar/react/interaction";
 import listPlugin from "@fullcalendar/react/list";
 import classicTheme from "@fullcalendar/react/themes/classic";
 import timeGridPlugin from "@fullcalendar/react/timegrid";
@@ -23,6 +24,7 @@ import {
   ChevronRight,
   CircleDashed,
   Clock3,
+  FolderKanban,
   Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -33,18 +35,41 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Temporal } from "temporal-polyfill";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { TaskScheduleSection } from "@/components/task-schedule-section";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useIsMobileMedia } from "@/hooks/use-mobile";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import {
+  clearTaskSchedule,
+  createScheduledTask,
+  saveTaskSchedule,
+} from "@/lib/actions/task/action";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
+  type CreateScheduledTaskRequest,
+  type Task,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarItem,
@@ -54,6 +79,9 @@ import {
   getDefaultTimezone,
   getTimezoneOptions,
 } from "@/lib/schedules/timezones";
+import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
+import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
+import { metadataToSelection } from "@/lib/utils/task-schedule";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
@@ -87,12 +115,14 @@ interface WorkspaceCalendarProps {
     to: Date;
   };
   coworkers?: CalendarCoworker[];
-  projectId?: string;
+  lockedProjectId?: string;
 }
 
 const calendarParsers = {
   assigneeId: parseAsString,
   date: parseAsString,
+  projectId: parseAsString,
+  sourceId: parseAsString,
   scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
   timezone: parseAsString,
@@ -109,6 +139,32 @@ function parseCalendarDate(value: string, fallback: string): Date {
 
 function getCalendarDayKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
+}
+
+function getProjectIdFromSource(
+  source: WorkspaceCalendarSource,
+): string | null {
+  if (source.sourceType !== "PROJECT") {
+    return null;
+  }
+
+  const projectId = source.sourceId.replace(/^project:/, "");
+  return projectId ? projectId : null;
+}
+
+function getCreateSource(
+  source: WorkspaceCalendarSource | undefined,
+): CreateScheduledTaskRequest["source"] | null {
+  if (!source) {
+    return null;
+  }
+
+  if (source.sourceType === "WORKSPACE") {
+    return { type: "workspace" };
+  }
+
+  const projectId = getProjectIdFromSource(source);
+  return projectId ? { type: "project", projectId } : null;
 }
 
 export function getCalendarItemDateKey(date: Date, timeZone = "UTC"): string {
@@ -177,12 +233,10 @@ function SourceMarker({
 
 function CalendarEvent({
   item,
-  onNavigate,
   showDetails,
   source,
 }: {
   item: WorkspaceCalendarItem;
-  onNavigate: () => void;
   showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
 }) {
@@ -190,22 +244,7 @@ function CalendarEvent({
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
 
   return (
-    <span
-      role="link"
-      tabIndex={0}
-      className="bg-primary/10 text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-xs font-medium"
-      onClick={(event) => {
-        event.stopPropagation();
-        onNavigate();
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          event.stopPropagation();
-          onNavigate();
-        }
-      }}
-    >
+    <span className="bg-primary/10 text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-xs font-medium">
       <SourceMarker source={source} sourceName={sourceName} />
       {item.sourceAccuracy !== "EXACT" ? (
         <span
@@ -234,14 +273,16 @@ function CalendarEvent({
 function CalendarView({
   date,
   items,
-  onNavigate,
+  onDateClick,
+  onEdit,
   sources,
   timeZone,
   view,
 }: {
   date: Date;
   items: WorkspaceCalendarItem[];
-  onNavigate: (taskId: string) => void;
+  onDateClick: (date: Date) => void;
+  onEdit: (taskId: string) => void;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: (typeof CALENDAR_VIEWS)[number];
@@ -260,7 +301,13 @@ function CalendarView({
     >
       <FullCalendar
         key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
-        plugins={[dayGridPlugin, timeGridPlugin, listPlugin, classicTheme]}
+        plugins={[
+          classicTheme,
+          dayGridPlugin,
+          interactionPlugin,
+          timeGridPlugin,
+          listPlugin,
+        ]}
         initialDate={getCalendarDayKey(date)}
         initialView={pluginView}
         events={items.map((item) => ({
@@ -273,12 +320,12 @@ function CalendarView({
         slotEventOverlap={false}
         headerToolbar={false}
         height="auto"
+        editable={false}
         eventContent={(eventInfo) => {
           const item = items.find(({ id }) => id === eventInfo.event.id);
           return item ? (
             <CalendarEvent
               item={item}
-              onNavigate={() => onNavigate(item.taskId)}
               showDetails={view === "agenda"}
               source={sources.find(
                 ({ sourceId }) => sourceId === item.sourceId,
@@ -291,12 +338,258 @@ function CalendarView({
         eventClick={(eventInfo) => {
           const item = items.find(({ id }) => id === eventInfo.event.id);
           if (item) {
-            onNavigate(item.taskId);
+            onEdit(item.taskId);
           }
         }}
+        dateClick={(dateInfo) => onDateClick(dateInfo.date)}
       />
     </div>
   );
+}
+
+interface CalendarCreateDialogProps {
+  coworkers: CalendarCoworker[];
+  initialSelection: TaskScheduleSelection;
+  lockedProjectId?: string;
+  onClose: () => void;
+  operationId: string;
+  sources: WorkspaceCalendarSource[];
+}
+
+function CalendarCreateDialog({
+  coworkers,
+  initialSelection,
+  lockedProjectId,
+  onClose,
+  operationId,
+  sources,
+}: CalendarCreateDialogProps) {
+  const t = useTranslations("App.Calendar");
+  const router = useRouter();
+  const creatableSources = sources.filter(
+    (source) =>
+      source.isSchedulable &&
+      (source.sourceType === "WORKSPACE" || source.sourceType === "PROJECT"),
+  );
+  const [name, setName] = useState("");
+  const [assigneeId, setAssigneeId] = useState(coworkers[0]?.id ?? "");
+  const [sourceId, setSourceId] = useState(
+    creatableSources.find((source) => source.sourceType === "WORKSPACE")
+      ?.sourceId ??
+      creatableSources[0]?.sourceId ??
+      "",
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  const source = lockedProjectId
+    ? getCreateSource(
+        sources.find(
+          (candidate) =>
+            candidate.sourceId === `project:${lockedProjectId}` &&
+            candidate.sourceType === "PROJECT" &&
+            candidate.isSchedulable,
+        ),
+      )
+    : getCreateSource(
+        creatableSources.find((candidate) => candidate.sourceId === sourceId),
+      );
+
+  async function handleSave(schedule: TaskScheduleSelection) {
+    if (!name.trim() || !assigneeId) {
+      setError(t("create.validationError"));
+      return;
+    }
+
+    if (!source) {
+      setError(t("create.sourceUnavailable"));
+      return;
+    }
+
+    setError(null);
+    try {
+      const result = await createScheduledTask({
+        operationId,
+        source,
+        name,
+        assigneeId,
+        schedule,
+      });
+      if (!result.ok) {
+        setError(t("create.error"));
+        return;
+      }
+
+      onClose();
+      router.refresh();
+    } catch {
+      setError(t("create.error"));
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t("create.title")}</DialogTitle>
+          <DialogDescription>{t("create.description")}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="calendar-create-name">{t("create.name")}</Label>
+            <Input
+              id="calendar-create-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="calendar-create-assignee">
+              {t("create.assignee")}
+            </Label>
+            <Select value={assigneeId} onValueChange={setAssigneeId}>
+              <SelectTrigger
+                aria-label={t("create.assignee")}
+                id="calendar-create-assignee"
+                className="w-full"
+              >
+                <SelectValue placeholder={t("create.assignee")} />
+              </SelectTrigger>
+              <SelectContent>
+                {coworkers.map((coworker) => (
+                  <SelectItem key={coworker.id} value={coworker.id}>
+                    {coworker.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {!lockedProjectId ? (
+            <div className="space-y-2">
+              <Label htmlFor="calendar-create-source">
+                {t("create.source")}
+              </Label>
+              <Select value={sourceId} onValueChange={setSourceId}>
+                <SelectTrigger
+                  aria-label={t("create.source")}
+                  id="calendar-create-source"
+                  className="w-full"
+                >
+                  <SelectValue placeholder={t("create.source")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {creatableSources.map((sourceOption) => (
+                    <SelectItem
+                      key={sourceOption.sourceId}
+                      value={sourceOption.sourceId}
+                    >
+                      {sourceOption.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          {error ? (
+            <p className="text-destructive text-sm" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <TaskScheduleSection
+            key={`${operationId}-${initialSelection.timezone}-${initialSelection.oneTimeLocalIso ?? ""}`}
+            initialSelection={initialSelection}
+            onCancel={onClose}
+            onSave={handleSave}
+            hideHeader
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface CalendarEditDialogProps {
+  initialSelection: TaskScheduleSelection;
+  onClose: () => void;
+  task: Task;
+}
+
+function CalendarEditDialog({
+  initialSelection,
+  onClose,
+  task,
+}: CalendarEditDialogProps) {
+  const t = useTranslations("App.Calendar");
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave(schedule: TaskScheduleSelection) {
+    setError(null);
+    try {
+      const result = await saveTaskSchedule({ taskId: task.id, schedule });
+      if (!result.ok) {
+        setError(t("edit.saveError"));
+        return;
+      }
+
+      onClose();
+      router.refresh();
+    } catch {
+      setError(t("edit.saveError"));
+    }
+  }
+
+  async function handleClearSchedule() {
+    setError(null);
+    try {
+      const result = await clearTaskSchedule({ taskId: task.id });
+      if (!result.ok) {
+        setError(t("edit.clearError"));
+        return;
+      }
+
+      onClose();
+      router.refresh();
+    } catch {
+      setError(t("edit.clearError"));
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t("edit.title")}</DialogTitle>
+          <DialogDescription>
+            {t("edit.description", { name: task.name })}
+          </DialogDescription>
+        </DialogHeader>
+        {error ? (
+          <p className="text-destructive text-sm" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <TaskScheduleSection
+          key={`${task.id}-${initialSelection.mode}-${initialSelection.timezone}-${initialSelection.oneTimeLocalIso ?? ""}-${initialSelection.cron ?? ""}-${initialSelection.customCronExpr ?? ""}`}
+          initialSelection={initialSelection}
+          onCancel={onClose}
+          onClearSchedule={handleClearSchedule}
+          onSave={handleSave}
+          canClearSchedule={initialSelection.mode !== "none"}
+          hideHeader
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface CalendarCreateState {
+  initialSelection: TaskScheduleSelection;
+  operationId: string;
+}
+
+interface CalendarEditState {
+  initialSelection: TaskScheduleSelection;
+  task: Task;
 }
 
 export function WorkspaceCalendar({
@@ -308,23 +601,39 @@ export function WorkspaceCalendar({
   pagination = null,
   range,
   coworkers = [],
-  projectId,
+  lockedProjectId,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
   const formatDate = useFormatter().dateTime;
-  const router = useRouter();
   const [state, setState] = useQueryStates(calendarParsers);
-  const isMobile = useIsMobileMedia();
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
+  const [createState, setCreateState] = useState<CalendarCreateState | null>(
+    null,
+  );
+  const [editState, setEditState] = useState<CalendarEditState | null>(null);
+  const [eventLoadError, setEventLoadError] = useState(false);
+  const eventRequestId = useRef(0);
   const date = parseCalendarDate(state.date ?? initialDate, initialDate);
   const timeZone = isValidTimezone(state.timezone)
     ? state.timezone
     : getDefaultTimezone();
-  const view = state.view ?? (isMobile ? "agenda" : "month");
+  const view = state.view ?? "month";
+  const selectedProjectId = lockedProjectId ? null : state.projectId;
+  const selectedSourceId = lockedProjectId
+    ? null
+    : selectedProjectId
+      ? `project:${selectedProjectId}`
+      : state.sourceId;
+  const canCreate = sources.some(
+    (source) =>
+      source.isSchedulable &&
+      getCreateSource(source) !== null &&
+      (!lockedProjectId || source.sourceId === `project:${lockedProjectId}`),
+  );
 
   useMountEffect(() => {
     if (!isValidTimezone(state.timezone)) {
@@ -340,7 +649,8 @@ export function WorkspaceCalendar({
       (item) =>
         (state.assigneeId === null ||
           item.taskAssigneeId === state.assigneeId) &&
-        (state.status === null || item.taskStatus === state.status),
+        (state.status === null || item.taskStatus === state.status) &&
+        (selectedSourceId === null || item.sourceId === selectedSourceId),
     )
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
@@ -370,6 +680,61 @@ export function WorkspaceCalendar({
     void setState({ view }, { shallow: false });
   }
 
+  function handleSourceChange(sourceId: string | null) {
+    const source = sources.find((source) => source.sourceId === sourceId);
+    const projectId = source ? getProjectIdFromSource(source) : null;
+    if (projectId) {
+      void setState({ projectId, sourceId: null }, { shallow: false });
+      return;
+    }
+
+    void setState({ projectId: null, sourceId }, { shallow: false });
+  }
+
+  function openCreateDialog(oneTimeLocalIso: string) {
+    eventRequestId.current += 1;
+    setEventLoadError(false);
+    setCreateState({
+      initialSelection: {
+        mode: "once",
+        oneTimeLocalIso,
+        timezone: timeZone,
+      },
+      operationId: crypto.randomUUID(),
+    });
+  }
+
+  function handleDateClick(clickedAt: Date) {
+    openCreateDialog(utcToDateTimeLocalInTimezone(clickedAt, timeZone));
+  }
+
+  function handleAgendaCreate() {
+    openCreateDialog(`${getCalendarDayKey(date)}T12:00`);
+  }
+
+  async function handleEventEdit(taskId: string) {
+    const requestId = eventRequestId.current + 1;
+    eventRequestId.current = requestId;
+    setEventLoadError(false);
+    try {
+      const result = await coreClient.getTaskById(taskId);
+      if (requestId !== eventRequestId.current) {
+        return;
+      }
+      setEditState({
+        initialSelection: metadataToSelection(
+          result.data.metadata,
+          getDefaultTimezone(),
+        ),
+        task: result.data,
+      });
+    } catch {
+      if (requestId === eventRequestId.current) {
+        setEventLoadError(true);
+      }
+    }
+  }
+
   async function handleLoadMore() {
     if (!nextCursor || !range) {
       return;
@@ -386,9 +751,14 @@ export function WorkspaceCalendar({
         scope: state.scope,
         assigneeId: state.assigneeId ?? undefined,
         status: state.status ?? undefined,
+        ...(selectedProjectId
+          ? { projectId: selectedProjectId }
+          : selectedSourceId
+            ? { sourceId: selectedSourceId }
+            : {}),
       };
-      const result = projectId
-        ? await coreClient.getProjectsByIdCalendar(projectId, query)
+      const result = lockedProjectId
+        ? await coreClient.getProjectsByIdCalendar(lockedProjectId, query)
         : await coreClient.getWorkspaceCalendar(query);
       setLoadedItems((currentItems) => [
         ...currentItems,
@@ -421,6 +791,22 @@ export function WorkspaceCalendar({
                 { scope: scope === "owned" ? "owned" : "workspace" },
                 { shallow: false },
               ),
+          },
+        ]
+      : []),
+    ...(!lockedProjectId
+      ? [
+          {
+            id: "source",
+            label: t("source.label"),
+            icon: FolderKanban,
+            value: selectedSourceId,
+            allLabel: t("source.all"),
+            options: sources.map((source) => ({
+              value: source.sourceId,
+              label: source.displayName,
+            })),
+            onChange: handleSourceChange,
           },
         ]
       : []),
@@ -538,39 +924,54 @@ export function WorkspaceCalendar({
           showActiveIndicator={
             state.scope === "owned" ||
             state.assigneeId !== null ||
-            state.status !== null
+            state.status !== null ||
+            selectedSourceId !== null
           }
         />
+        {view === "agenda" && canCreate ? (
+          <Button
+            className="md:hidden"
+            size="sm"
+            variant="primary"
+            onClick={handleAgendaCreate}
+          >
+            {t("create.title")}
+          </Button>
+        ) : null}
       </div>
 
       {visibleItems.length === 0 ? (
         <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
           {t("empty.title")}
         </div>
-      ) : (
-        <>
-          <div className="hidden md:block">
-            <CalendarView
-              date={date}
-              items={visibleItems}
-              onNavigate={(taskId) => router.push(`/tasks/${taskId}`)}
-              sources={sources}
-              timeZone={timeZone}
-              view={view}
-            />
-          </div>
-          <div className="md:hidden">
-            <CalendarView
-              date={date}
-              items={visibleItems}
-              onNavigate={(taskId) => router.push(`/tasks/${taskId}`)}
-              sources={sources}
-              timeZone={timeZone}
-              view={view}
-            />
-          </div>
-        </>
-      )}
+      ) : null}
+      <div className="hidden md:block">
+        <CalendarView
+          date={date}
+          items={visibleItems}
+          onDateClick={handleDateClick}
+          onEdit={handleEventEdit}
+          sources={sources}
+          timeZone={timeZone}
+          view={view}
+        />
+      </div>
+      <div className="md:hidden">
+        <CalendarView
+          date={date}
+          items={visibleItems}
+          onDateClick={handleDateClick}
+          onEdit={handleEventEdit}
+          sources={sources}
+          timeZone={timeZone}
+          view={view}
+        />
+      </div>
+      {eventLoadError ? (
+        <p className="text-destructive text-sm" role="alert">
+          {t("edit.loadError")}
+        </p>
+      ) : null}
       {nextCursor ? (
         <div className="flex flex-col items-center gap-2">
           <Button
@@ -586,6 +987,23 @@ export function WorkspaceCalendar({
             </p>
           ) : null}
         </div>
+      ) : null}
+      {createState ? (
+        <CalendarCreateDialog
+          coworkers={coworkers}
+          initialSelection={createState.initialSelection}
+          lockedProjectId={lockedProjectId}
+          onClose={() => setCreateState(null)}
+          operationId={createState.operationId}
+          sources={sources}
+        />
+      ) : null}
+      {editState ? (
+        <CalendarEditDialog
+          initialSelection={editState.initialSelection}
+          onClose={() => setEditState(null)}
+          task={editState.task}
+        />
       ) : null}
     </div>
   );

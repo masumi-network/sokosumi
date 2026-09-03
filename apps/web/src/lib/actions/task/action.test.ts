@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Task } from "@/lib/clients/generated/core";
 import { TaskLinkRelation, TaskStatus } from "@/lib/clients/generated/core";
 
@@ -26,6 +26,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
 }));
 
 const taskServiceMock = {
+  createScheduledTask: vi.fn(),
   listTaskLinks: vi.fn(),
   deleteTaskLink: vi.fn(),
   createTaskLink: vi.fn(),
@@ -40,6 +41,10 @@ const taskScheduleServiceMock = {
   setSchedule: vi.fn(),
 };
 const toCoreApiActionErrorMock = vi.fn();
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 vi.mock("@/lib/clients/core.client", () => ({
   toCoreApiActionError: toCoreApiActionErrorMock,
@@ -98,7 +103,10 @@ function buildTaskLink(
 
 function buildTask(
   overrides?: Partial<
-    Pick<Task, "id" | "name" | "description" | "assigneeId" | "status"> & {
+    Pick<
+      Task,
+      "id" | "name" | "description" | "assigneeId" | "projectId" | "status"
+    > & {
       metadata: string | null;
       nextRunAt: Date | null;
     }
@@ -1046,5 +1054,152 @@ describe("createTask schedule", () => {
     });
     expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
     expect(toCoreApiActionErrorMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("Calendar schedule actions", () => {
+  const operationId = "123e4567-e89b-42d3-a456-426614174000";
+  const recurringSchedule = {
+    mode: "recurring" as const,
+    timezone: "UTC",
+    cron: "0 9 * * *",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.createScheduledTask.mockReset();
+    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.setSchedule.mockReset();
+  });
+
+  it("creates a scheduled task with the caller operation and selected source", async () => {
+    taskServiceMock.createScheduledTask.mockResolvedValue(
+      buildTask({
+        id: "task-scheduled",
+        name: "Schedule launch",
+        projectId: "project-1",
+      }),
+    );
+    const { createScheduledTask } = await import("./action");
+
+    const result = await createScheduledTask({
+      operationId,
+      source: {
+        type: "project",
+        projectId: "11111111-1111-4111-8111-111111111111",
+      },
+      name: "  Schedule launch  ",
+      description: "  Prepare the launch brief  ",
+      assigneeId: "coworker-1",
+      schedule: recurringSchedule,
+    });
+
+    expect(taskServiceMock.createScheduledTask).toHaveBeenCalledWith({
+      operationId,
+      source: {
+        type: "project",
+        projectId: "11111111-1111-4111-8111-111111111111",
+      },
+      name: "Schedule launch",
+      description: "Prepare the launch brief",
+      assigneeId: "coworker-1",
+      schedule: {
+        mode: "recurring",
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "never",
+      },
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: { taskId: "task-scheduled", name: "Schedule launch" },
+    });
+    const { revalidatePath } = await import("next/cache");
+    expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks/task-scheduled");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/calendar");
+  });
+
+  it("saves an active schedule and revalidates its Calendar routes", async () => {
+    taskScheduleServiceMock.setSchedule.mockResolvedValue(
+      buildTask({ id: "task-1", projectId: "project-1" }),
+    );
+    const { saveTaskSchedule } = await import("./action");
+
+    const result = await saveTaskSchedule({
+      taskId: "task-1",
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalledWith("task-1", {
+      mode: "recurring",
+      expr: "0 9 * * *",
+      timezone: "UTC",
+      endsMode: "never",
+    });
+    expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
+    const { revalidatePath } = await import("next/cache");
+    expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks/task-1");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/calendar");
+  });
+
+  it("clears a schedule through the existing delete API and revalidates its Calendar routes", async () => {
+    taskScheduleServiceMock.clearSchedule.mockResolvedValue(
+      buildTask({ id: "task-1", projectId: "project-1" }),
+    );
+    const { clearTaskSchedule } = await import("./action");
+
+    const result = await clearTaskSchedule({ taskId: "task-1" });
+
+    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+      "task-1",
+    );
+    expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
+    const { revalidatePath } = await import("next/cache");
+    expect(revalidatePath).toHaveBeenCalledWith("/calendar");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks/task-1");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/calendar");
+  });
+
+  it("rejects inactive or malformed schedule selections before Core", async () => {
+    const { createScheduledTask, saveTaskSchedule } = await import("./action");
+
+    await expect(
+      createScheduledTask({
+        operationId,
+        source: { type: "workspace" },
+        name: "Scheduled task",
+        assigneeId: "coworker-1",
+        schedule: { mode: "none", timezone: "UTC" },
+      }),
+    ).rejects.toThrow("Active schedule required");
+    await expect(
+      saveTaskSchedule({
+        taskId: "task-1",
+        schedule: {
+          mode: "recurring",
+          timezone: "UTC",
+          cron: "not a cron expression",
+        },
+      }),
+    ).rejects.toThrow("Invalid schedule");
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-24T12:00:00.000Z"));
+    await expect(
+      saveTaskSchedule({
+        taskId: "task-1",
+        schedule: {
+          mode: "once",
+          timezone: "UTC",
+          oneTimeLocalIso: "2026-06-24T11:59",
+        },
+      }),
+    ).rejects.toThrow("Invalid schedule");
+    expect(taskServiceMock.createScheduledTask).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
   });
 });

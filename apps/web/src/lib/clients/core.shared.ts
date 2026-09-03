@@ -73,6 +73,7 @@ import type {
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
+  PostTasksScheduledData,
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
@@ -340,6 +341,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
+  postTasksScheduled as corePostTasksScheduled,
   postUsersByIdCoworkerAccessByAccessIdApprove as corePostUsersByIdCoworkerAccessByAccessIdApprove,
   postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
@@ -3227,6 +3229,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function createScheduledTask(
+    body: NonNullable<PostTasksScheduledData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksScheduled({
+          client,
+          body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to create scheduled task",
+    );
+  }
+
   async function createTaskEvent(
     id: string,
     body: {
@@ -4857,6 +4875,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     createOrganizationLogoUploadSession,
     createVendorLogoUploadSession,
     createTask,
+    createScheduledTask,
     createTaskFileUploadSession,
     createTaskLink,
     createTaskEvent,

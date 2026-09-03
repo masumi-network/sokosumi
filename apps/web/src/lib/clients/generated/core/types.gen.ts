@@ -5440,6 +5440,20 @@ export type CreateTaskContext = {
     memory?: boolean;
 };
 
+export type CreateScheduledTaskRequest = {
+    operationId: string;
+    source: {
+        type: 'workspace';
+    } | {
+        type: 'project';
+        projectId: string;
+    };
+    name: string;
+    description?: string | null;
+    assigneeId: string;
+    schedule: TaskScheduleInput;
+};
+
 export const UserWritableTaskLinkRelation = {
     RELATED: 'related',
     BLOCKS: 'blocks',
@@ -5853,6 +5867,10 @@ export type WorkspaceCalendarSource = {
      * Bounded visual marker for Calendar source displays
      */
     paletteToken: 'blue' | 'violet' | 'amber';
+    /**
+     * Whether this source may be selected to create a Task through POST /v1/tasks/scheduled. Unschedulable sources remain available for Calendar event display and filtering.
+     */
+    isSchedulable: boolean;
 };
 
 export type WorkspaceOrganization = {
@@ -36339,6 +36357,132 @@ export type GetTasksSummaryResponses = {
 
 export type GetTasksSummaryResponse = GetTasksSummaryResponses[keyof GetTasksSummaryResponses];
 
+export type PostTasksScheduledData = {
+    body?: CreateScheduledTaskRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks/scheduled';
+};
+
+export type PostTasksScheduledErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksScheduledError = PostTasksScheduledErrors[keyof PostTasksScheduledErrors];
+
+export type PostTasksScheduledResponses = {
+    /**
+     * Scheduled task created
+     */
+    201: {
+        data: Task;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksScheduledResponse = PostTasksScheduledResponses[keyof PostTasksScheduledResponses];
+
 export type GetTasksByIdLinksData = {
     body?: never;
     path: {
@@ -40887,6 +41031,14 @@ export type GetWorkspacesCalendarData = {
          */
         assigneeId?: string;
         /**
+         * Only occurrences captured with this Project as their Calendar source
+         */
+        projectId?: string;
+        /**
+         * Only occurrences captured with this non-Project Calendar source in the current workspace
+         */
+        sourceId?: string;
+        /**
          * Only occurrences whose planned-series or released-snapshot task has this status
          */
         status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
@@ -40935,6 +41087,20 @@ export type GetWorkspacesCalendarErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;
@@ -41049,7 +41215,7 @@ export type GetWorkspacesCalendarSourcesError = GetWorkspacesCalendarSourcesErro
 
 export type GetWorkspacesCalendarSourcesResponses = {
     /**
-     * Active workspace Calendar sources
+     * Workspace Calendar sources with scheduling availability
      */
     200: {
         data: Array<WorkspaceCalendarSource>;
@@ -41085,6 +41251,14 @@ export type GetWorkspacesByIdCalendarData = {
          * Only occurrences whose planned-series or released-snapshot task has this coworker
          */
         assigneeId?: string;
+        /**
+         * Only occurrences captured with this Project as their Calendar source
+         */
+        projectId?: string;
+        /**
+         * Only occurrences captured with this non-Project Calendar source in the current workspace
+         */
+        sourceId?: string;
         /**
          * Only occurrences whose planned-series or released-snapshot task has this status
          */

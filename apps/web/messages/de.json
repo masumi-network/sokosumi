@@ -6113,6 +6113,23 @@
         "PROJECT": "Projekt",
         "LEGACY_UNKNOWN": "Legacy-Quelle"
       },
+      "create": {
+        "title": "Task planen",
+        "description": "Erstelle einen Task und lege fest, wann er ausgefuehrt werden soll.",
+        "name": "Task-Name",
+        "assignee": "Zugewiesen an",
+        "source": "Quelle",
+        "validationError": "Gib einen Task-Namen, eine Zuweisung und eine Quelle ein.",
+        "sourceUnavailable": "Diese Quelle steht nicht mehr zum Planen zur Verfügung.",
+        "error": "Dieser Task konnte nicht geplant werden. Bitte versuche es erneut."
+      },
+      "edit": {
+        "title": "Zeitplan bearbeiten",
+        "description": "Aendere den Zeitplan fuer {name}.",
+        "loadError": "Dieser Task konnte nicht geladen werden. Bitte versuche es erneut.",
+        "saveError": "Dieser Zeitplan konnte nicht gespeichert werden. Bitte versuche es erneut.",
+        "clearError": "Dieser Zeitplan konnte nicht entfernt werden. Bitte versuche es erneut."
+      },
       "accuracy": {
         "inferred": "Abgeleitete Quelle",
         "unknown": "Unbekannte Quelle",

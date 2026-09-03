@@ -110,6 +110,7 @@ export interface WorkspaceCalendarReadQuery {
 
 export interface WorkspaceCalendarReadOptions {
   projectId?: string;
+  sourceId?: string;
   taskWhere?: Prisma.TaskWhereInput;
 }
 
@@ -220,14 +221,38 @@ function isPersistedOccurrenceCursor(
   return cursor !== null && z.uuid().safeParse(cursor.id).success;
 }
 
+function getNonProjectSourceFilter(
+  workspaceId: string,
+  sourceId: string | undefined,
+): Prisma.TaskScheduleOccurrenceWhereInput {
+  if (!sourceId) {
+    return {};
+  }
+
+  if (sourceId === `workspace:${workspaceId}`) {
+    return { sourceType: CalendarSourceType.WORKSPACE };
+  }
+
+  if (sourceId === `legacy-unknown:${workspaceId}`) {
+    return { sourceType: CalendarSourceType.LEGACY_UNKNOWN };
+  }
+
+  throw notFound("Calendar source not found");
+}
+
 export async function readWorkspaceCalendar(
   workspaceId: string,
   userId: string,
   query: WorkspaceCalendarReadQuery,
   options: WorkspaceCalendarReadOptions = {},
 ) {
+  if (options.projectId && options.sourceId) {
+    throw badRequest("projectId and sourceId cannot be combined");
+  }
+
   const { cursor, from, to } = query;
   const maxCandidates = query.limit + 1;
+  const sourceFilter = getNonProjectSourceFilter(workspaceId, options.sourceId);
   const taskFilters: Prisma.TaskWhereInput[] = [
     { archivedAt: null },
     ...(options.taskWhere ? [options.taskWhere] : []),
@@ -276,6 +301,7 @@ export async function readWorkspaceCalendar(
     : null;
   const persistedOccurrenceBaseWhere = {
     sourceWorkspaceId: workspaceId,
+    ...sourceFilter,
     ...(options.projectId
       ? {
           sourceProjectId: options.projectId,
@@ -425,6 +451,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("You do not have access to this workspace");
     }
 
+    const project = query.projectId
+      ? await prisma.project.findFirst({
+          where: { id: query.projectId, workspaceId },
+          select: { id: true },
+        })
+      : null;
+    if (query.projectId && !project) {
+      throw notFound("Project not found");
+    }
+
     const taskWhere = await getCalendarTaskWhere(
       c.var.authContext,
       workspaceId,
@@ -433,7 +469,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceId,
       userContext.userId,
       calendarQuery,
-      { taskWhere },
+      { projectId: project?.id, sourceId: query.sourceId, taskWhere },
     );
 
     return ok(c, items, pagination);

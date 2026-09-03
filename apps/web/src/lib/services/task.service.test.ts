@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 const coreClientMock = {
+  createScheduledTask: vi.fn(),
   createTaskLink: vi.fn(),
   createTask: vi.fn(),
   createTaskEvent: vi.fn(),
@@ -178,6 +179,7 @@ describe("task.service", () => {
           displayName: "Ada's workspace",
           logoUrl: null,
           paletteToken: "blue",
+          isSchedulable: true,
         },
       ],
     });
@@ -190,6 +192,7 @@ describe("task.service", () => {
         displayName: "Ada's workspace",
         logoUrl: null,
         paletteToken: "blue",
+        isSchedulable: true,
       },
     ]);
     expect(coreClientMock.getWorkspaceCalendarSources).toHaveBeenCalledOnce();
@@ -471,6 +474,29 @@ describe("task.service", () => {
     expect(created).toEqual(task);
     expect(updated).toEqual({ ...task, name: "Updated task" });
     expect(deleted).toEqual(task);
+  });
+
+  it("forwards scheduled task creation to Core with the caller operation and source", async () => {
+    const task = buildTask();
+    const input = {
+      operationId: "123e4567-e89b-42d3-a456-426614174000",
+      source: { type: "project" as const, projectId: "project-1" },
+      name: "Scheduled task",
+      description: "Prepare the brief",
+      assigneeId: "coworker-1",
+      schedule: {
+        mode: "recurring" as const,
+        expr: "0 9 * * *",
+        timezone: "UTC",
+      },
+    };
+    coreClientMock.createScheduledTask.mockResolvedValue({ data: task });
+
+    const { taskService } = await import("./task.service");
+    const created = await taskService.createScheduledTask(input);
+
+    expect(coreClientMock.createScheduledTask).toHaveBeenCalledWith(input);
+    expect(created).toEqual(task);
   });
 
   it("throws when createTaskEvent returns no data", async () => {

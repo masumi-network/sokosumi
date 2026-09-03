@@ -90,10 +90,10 @@ export default async function ProjectCalendarPage({
           activeOrganizationId={session?.session?.activeOrganizationId ?? null}
           initialDate={initialDate}
           items={items}
-          key={`${initialDate}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}`}
+          key={`${project.id}-${initialDate}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}`}
           latestDate={format(latestCalendarDate, "yyyy-MM-dd")}
           pagination={pagination}
-          projectId={project.id}
+          lockedProjectId={project.id}
           range={range}
           sources={[
             {
@@ -102,6 +102,8 @@ export default async function ProjectCalendarPage({
               displayName: project.name,
               logoUrl: project.logo,
               paletteToken: "violet",
+              isSchedulable:
+                project.closingAt === null && project.closedAt === null,
             },
           ]}
           coworkers={coworkers.map((coworker) => ({

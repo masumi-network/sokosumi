@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildTaskScheduleMetadataV2,
   computeIntervalNextRun,
   computeScheduleNextRun,
   inferLegacyIntervalDaysFromCron,
@@ -92,6 +93,28 @@ describe("task-schedule helpers", () => {
         new Date("2026-06-04T10:00:00.000Z"),
       ),
     ).toEqual(new Date("2026-06-05T09:00:00.000Z"));
+  });
+
+  it("builds a new one-time schedule as a mutable version 2 epoch", () => {
+    const metadata = buildTaskScheduleMetadataV2(
+      {
+        mode: "once",
+        runAt: "2099-09-24T09:00:00.000Z",
+      },
+      new Date("2026-09-02T08:00:00.000Z"),
+      "123e4567-e89b-42d3-a456-426614174000",
+    );
+
+    expect(metadata).toEqual({
+      version: 2,
+      epochId: "123e4567-e89b-42d3-a456-426614174000",
+      mode: "once",
+      createdAt: "2026-09-02T08:00:00.000Z",
+      ruleEffectiveFrom: "2026-09-02T08:00:00.000Z",
+      timezone: "UTC",
+      sourceRunAt: "2099-09-24T09:00:00.000Z",
+      effectiveRunAt: "2099-09-24T09:00:00.000Z",
+    });
   });
 
   it("ends an after-count version 2 epoch at its release target", () => {

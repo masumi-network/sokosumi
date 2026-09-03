@@ -244,6 +244,39 @@ describe("GET /projects/{id}/calendar", () => {
     );
   });
 
+  it("rejects a projectId query because the route Project is always authoritative", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&projectId=33333333-3333-7333-8333-333333333333`,
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a sourceId query because the route Project is always authoritative", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&sourceId=workspace:${WORKSPACE_ID}`,
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("does not advertise projectId as a Project Calendar query parameter", () => {
+    const document = createApp().getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: { title: "Projects API", version: "1.0.0" },
+    });
+    const parameters = document.paths?.["/{id}/calendar"]?.get?.parameters;
+
+    expect(parameters).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "projectId", in: "query" }),
+        expect.objectContaining({ name: "sourceId", in: "query" }),
+      ]),
+    );
+  });
+
   it("excludes archived Tasks from the Project Calendar", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,

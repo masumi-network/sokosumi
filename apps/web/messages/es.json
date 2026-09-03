@@ -6113,6 +6113,23 @@
         "PROJECT": "Proyecto",
         "LEGACY_UNKNOWN": "Origen heredado"
       },
+      "create": {
+        "title": "Programar una tarea",
+        "description": "Crea una tarea y elige cuándo debe ejecutarse.",
+        "name": "Nombre de la tarea",
+        "assignee": "Persona asignada",
+        "source": "Origen",
+        "validationError": "Introduce un nombre de tarea, una persona asignada y un origen.",
+        "sourceUnavailable": "Este origen ya no está disponible para programar.",
+        "error": "No se pudo programar esta tarea. Inténtalo de nuevo."
+      },
+      "edit": {
+        "title": "Editar programación",
+        "description": "Cambia la programación de {name}.",
+        "loadError": "No se pudo cargar esta tarea. Inténtalo de nuevo.",
+        "saveError": "No se pudo guardar esta programación. Inténtalo de nuevo.",
+        "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo."
+      },
       "accuracy": {
         "inferred": "Origen inferido",
         "unknown": "Origen desconocido",

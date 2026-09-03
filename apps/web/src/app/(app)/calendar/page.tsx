@@ -19,6 +19,8 @@ interface CalendarPageProps {
   searchParams: Promise<{
     assigneeId?: string;
     date?: string;
+    projectId?: string;
+    sourceId?: string;
     scope?: string;
     status?: string;
   }>;
@@ -42,7 +44,8 @@ export default async function CalendarPage({
     notFound();
   }
 
-  const { assigneeId, date, scope, status } = await searchParams;
+  const { assigneeId, date, projectId, sourceId, scope, status } =
+    await searchParams;
   const calendarStatus = Object.values(TaskStatus).find(
     (taskStatus) => taskStatus === status,
   );
@@ -55,6 +58,8 @@ export default async function CalendarPage({
       ...range,
       assigneeId,
       limit: 100,
+      projectId,
+      sourceId,
       scope: scope === "owned" ? "owned" : "workspace",
       status: calendarStatus,
     }),
@@ -66,7 +71,7 @@ export default async function CalendarPage({
     <div className="w-full px-2">
       <WorkspaceCalendar
         activeOrganizationId={session?.session?.activeOrganizationId ?? null}
-        key={`${initialDate}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}`}
+        key={`${initialDate}-${projectId ?? "all"}-${sourceId ?? "all"}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}`}
         initialDate={initialDate}
         items={items}
         latestDate={format(latestCalendarDate, "yyyy-MM-dd")}
