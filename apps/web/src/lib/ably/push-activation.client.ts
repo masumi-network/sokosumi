@@ -124,8 +124,8 @@ async function subscribeThisDevice(
  * `deactivate()` drops Ably's own device record but leaves the browser's push
  * subscription in place: `ably@2.28.0` touches `pushManager` only to register
  * and subscribe (`build/push.js:223`, `:229`), never to unsubscribe. The
- * The account page reads that subscription, so it has to go too, or a Push
- * cell reads on again after a reload.
+ * account page reads that subscription, so it has to go too, or a Push cell
+ * reads on again after a reload.
  *
  * Every step is attempted, whatever the ones before it did, and the first
  * failure is thrown once they have all had their turn. Chaining them on one

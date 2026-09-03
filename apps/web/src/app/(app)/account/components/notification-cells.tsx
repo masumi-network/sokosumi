@@ -170,7 +170,8 @@ export function UnusedChannelCells({ kind }: { kind: string }) {
  * It does not speak what it wrote. The write behind it raises a toast, and the
  * toast names the account switch that moved, which is the fact a reader on a
  * shared value needs. Said here as well, one press would be announced twice in
- * two wordings. The channel cells raise no toast, so they still speak.
+ * two wordings. The channel cells still speak, because a press there moves the
+ * sibling cell beside it, and no toast reports where the kind arrives now.
  */
 export function EmailCell({
   name,
