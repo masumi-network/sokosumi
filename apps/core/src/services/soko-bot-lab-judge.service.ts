@@ -14,6 +14,8 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 const JUDGE_TIMEOUT_MS = 90_000;
+/** Reasoning tokens count against this cap. 800 left gpt-5.5 with empty JSON (SOKOSUMI-CORE-3D). */
+export const SOKO_BOT_JUDGE_MAX_OUTPUT_TOKENS = 8_000;
 // Tool results are the judge's evidence. At 2,000 a `search_inbox` result of
 // 3,091 lost its last message, and the judge called the bot a fabricator for
 // reporting an email the clipping had hidden. The limit exists to bound the
@@ -167,7 +169,7 @@ async function askJudge(
       const result = await generateText({
         model: modelOverride ?? sokoBotJudgeModel(),
         output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
-        maxOutputTokens: 800,
+        maxOutputTokens: SOKO_BOT_JUDGE_MAX_OUTPUT_TOKENS,
         abortSignal: AbortSignal.timeout(JUDGE_TIMEOUT_MS),
         instructions: SOKO_BOT_JUDGE_RUBRIC,
         prompt: JSON.stringify(payload),
