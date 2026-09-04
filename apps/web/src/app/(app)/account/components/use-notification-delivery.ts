@@ -22,12 +22,10 @@ import {
   cellsFor,
   type DeliveryChange,
   type GroupSpec,
-  groupPlace,
   groupScope,
   type KindSpec,
   NOTIFICATION_GROUPS,
   type NotificationCategory,
-  type PresetPlace,
   type PushBlock,
   type ScopeState,
   type StoredChannel,
@@ -43,8 +41,6 @@ export interface GroupChoice {
   spec: GroupSpec;
   /** Which kinds arrive at all, or that the reader set them one by one. */
   scope: ScopeState;
-  /** Where the kinds that are on arrive, when they share a place. */
-  place: PresetPlace | null;
   kinds: KindChoice[];
   saving: boolean;
 }
@@ -60,6 +56,21 @@ export interface NotificationDelivery {
    * that theirs cannot push.
    */
   pushBlock: PushBlock | null;
+  /**
+   * Whether any kind is asking for a push at all.
+   *
+   * The banner reads it with `pushBlock`: a browser that cannot show a push is
+   * only worth saying something about while something is trying to arrive on
+   * it. With every banner cell off, nothing is going wrong.
+   */
+  pushWanted: boolean;
+  /** A push write is in flight, so the banner's button waits for it. */
+  pushSaving: boolean;
+  /**
+   * Subscribes this browser, asking the browser for the permission if it has
+   * not been asked. The same path a push cell takes, from the banner instead.
+   */
+  activatePush: () => Promise<void>;
   /**
    * An answer is still coming.
    *
@@ -114,7 +125,6 @@ export function useNotificationDelivery(): NotificationDelivery {
       {
         spec,
         scope: groupScope(cells, kinds),
-        place: groupPlace(cells, kinds),
         kinds: kinds.map((kind) => ({
           spec: kind,
           channels: categoryChannels(cells, kind.category),
@@ -360,6 +370,11 @@ export function useNotificationDelivery(): NotificationDelivery {
   return {
     groups,
     pushBlock,
+    pushWanted: cells.some(
+      (cell) => cell.channel === "OS_BANNER" && cell.enabled,
+    ),
+    pushSaving: push.isSaving,
+    activatePush: activatePushIfNeeded,
     loading: sessionPending || (Boolean(userId) && isPending),
     setDeliveries,
   };

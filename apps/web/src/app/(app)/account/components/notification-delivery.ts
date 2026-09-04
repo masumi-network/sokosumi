@@ -276,28 +276,21 @@ export function withChannel(
 }
 
 /**
- * The first of a group's two questions: which of its kinds arrive at all.
+ * A group's answer: which of its kinds arrive at all.
  *
- * One question per control. The old single ladder answered two of them at
- * once, and the step from Everything to Important dropped kinds while the
- * step from Important to Quiet dropped a channel, so no reader could predict
- * a stop from its neighbour.
+ * One question, and only one. Where a kind arrives is the grid's answer and
+ * it is asked per kind, so an answer here keeps the places the reader already
+ * chose: a group they set to the app alone stays that way when they trim it
+ * to the kinds that matter. The old ladder answered both at once, and its
+ * step from Everything to Important dropped kinds while its step from
+ * Important to Quiet dropped a channel, so no stop told the reader what the
+ * next one would do.
  */
 export const PRESET_SCOPES = ["ALL", "IMPORTANT", "NONE"] as const;
 export type PresetScope = (typeof PRESET_SCOPES)[number];
 
 /** A group whose kinds are on one by one. Reported on the scope, never written. */
 export type ScopeState = PresetScope | "CUSTOM";
-
-/**
- * The second question: where the kinds it keeps arrive.
- *
- * Loudest first, so the two rows read the same way down the page. Email is no
- * answer here: it is one switch for the account rather than a channel of the
- * matrix, and only some kinds have one at all.
- */
-export const PRESET_PLACES = ["PUSH", "IN_APP"] as const;
-export type PresetPlace = (typeof PRESET_PLACES)[number];
 
 export const PRESET_SCOPE_LABEL_KEY: Record<ScopeState, string> = {
   ALL: "scopeAll",
@@ -312,21 +305,6 @@ export const PRESET_SCOPE_HINT_KEY: Record<ScopeState, string> = {
   NONE: "scopeNoneHint",
   CUSTOM: "scopeCustomHint",
 };
-
-export const PRESET_PLACE_LABEL_KEY: Record<PresetPlace, string> = {
-  PUSH: "placePush",
-  IN_APP: "placeInApp",
-};
-
-export const PRESET_PLACE_HINT_KEY: Record<PresetPlace, string> = {
-  PUSH: "placePushHint",
-  IN_APP: "placeInAppHint",
-};
-
-/** The channels one place writes. A push carries the entry with it. */
-export function placeChannels(place: PresetPlace): StoredChannel[] {
-  return place === "PUSH" ? ["IN_APP", "OS_BANNER"] : ["IN_APP"];
-}
 
 /** Whether a scope keeps a kind. */
 function keeps(scope: PresetScope, kind: KindSpec): boolean {
@@ -371,31 +349,44 @@ export function groupScope(
 }
 
 /**
- * Where the kinds that are on arrive, when they all arrive in the same place.
+ * Where a group arrives as the cells stand, for a kind that arrives nowhere.
  *
- * Null when they do not, and null when none of them are on. The second row
- * reads it: nothing pressed rather than a place the group is not on.
+ * An answer says which kinds arrive, never where, so a kind it keeps holds on
+ * to the channels it already has and only a kind that is on nowhere needs
+ * somewhere to land. It lands where the rest of the group already does. In a
+ * group that is silent everywhere there is nothing to copy, so it lands on
+ * every channel: the reader just asked to hear about this, and the grid under
+ * it takes any of that back in one press.
+ *
+ * Folded through `withChannel` rather than collected, so the pairing rule
+ * holds here too: a group whose only banner cell somehow stands without its
+ * entry does not hand that pairing to a kind this writes.
  */
-export function groupPlace(
-  cells: readonly NotificationPreference[],
-  kinds: readonly KindSpec[],
-): PresetPlace | null {
-  const on = kinds.filter((kind) => isOn(cells, kind));
+function groupChannels(kinds: readonly KindState[]): StoredChannel[] {
+  const used = STORED_CHANNELS.filter((channel) =>
+    kinds.some((kind) => kind.channels.includes(channel)),
+  );
 
-  if (on.length === 0) {
-    return null;
+  if (used.length === 0) {
+    return [...STORED_CHANNELS];
   }
 
-  return (
-    PRESET_PLACES.find((place) =>
-      on.every((kind) =>
-        sameChannels(
-          categoryChannels(cells, kind.category),
-          placeChannels(place),
-        ),
-      ),
-    ) ?? null
+  return used.reduce<StoredChannel[]>(
+    (channels, channel) => withChannel(channels, channel, true),
+    [],
   );
+}
+
+/**
+ * One kind as the row that draws it holds it.
+ *
+ * An answer reads these rather than the stored matrix, because the row that
+ * calls it is drawn from them. Asking the matrix again would let the two
+ * disagree while a write is in flight.
+ */
+export interface KindState {
+  spec: KindSpec;
+  channels: readonly StoredChannel[];
 }
 
 /** One category, and the channels the reader wants it on. */
@@ -425,46 +416,26 @@ export function cellsFor(
 }
 
 /**
- * The changes a scope writes: the kinds it keeps, where the group already is.
+ * The changes an answer writes: the kinds it keeps, where they already are.
  *
- * A group that is on nowhere has no place to keep, so turning its kinds on
- * puts them everywhere. That is the loudest of the two answers, and the one
- * the reader can quiet in a single press on the row below.
+ * A kind it keeps that already arrives somewhere is left exactly where it is,
+ * so picking Everything on a group the reader had quieted does not start it
+ * buzzing. Only a kind that arrives nowhere needs a place, and it takes the
+ * group's. A kind the answer drops is written empty, which is what off means
+ * here: no channel at all.
  */
 export function scopeChanges(
   scope: PresetScope,
-  kinds: readonly KindSpec[],
-  place: PresetPlace | null,
+  kinds: readonly KindState[],
 ): DeliveryChange[] {
-  const channels = placeChannels(place ?? "PUSH");
+  const fallback = groupChannels(kinds);
 
   return kinds.map((kind) => ({
-    category: kind.category,
-    channels: keeps(scope, kind) ? channels : [],
+    category: kind.spec.category,
+    channels: keeps(scope, kind.spec)
+      ? kind.channels.length > 0
+        ? [...kind.channels]
+        : fallback
+      : [],
   }));
-}
-
-/**
- * The changes a place writes: the kinds that are on, moved to it.
- *
- * It answers where, not which, so a kind that is off stays off and is left out
- * of the write rather than named with an empty channel list.
- *
- * It reads the channels the row already holds rather than the whole matrix,
- * because the row that calls this is drawn from them. Asking the matrix again
- * would let the two disagree.
- */
-export function placeChanges(
-  place: PresetPlace,
-  kinds: readonly {
-    spec: KindSpec;
-    channels: readonly StoredChannel[];
-  }[],
-): DeliveryChange[] {
-  return kinds
-    .filter((kind) => kind.channels.length > 0)
-    .map((kind) => ({
-      category: kind.spec.category,
-      channels: placeChannels(place),
-    }));
 }

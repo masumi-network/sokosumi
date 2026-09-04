@@ -1,9 +1,24 @@
 "use client";
 
+import {
+  Ban,
+  List,
+  type LucideIcon,
+  SlidersHorizontal,
+  Star,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -13,35 +28,45 @@ import { cn } from "@/lib/utils";
 import {
   groupScopes,
   type KindSpec,
-  PRESET_PLACE_HINT_KEY,
-  PRESET_PLACE_LABEL_KEY,
-  PRESET_PLACES,
   PRESET_SCOPE_HINT_KEY,
   PRESET_SCOPE_LABEL_KEY,
-  type PresetPlace,
   type PresetScope,
   type ScopeState,
 } from "./notification-delivery";
 
 /**
- * The rail a row of stops sits in.
+ * The rail the answers sit in.
  *
  * Square-cornered like everything it sits with: the cells are `rounded-md`
  * and the box around the whole group is `rounded-lg`, and a pill here would
  * be the one round thing in the row. The rail keeps the outer radius and its
  * stops the inner one, which differ by exactly the padding between them, so
  * the corners stay concentric instead of leaving a crescent at each end.
+ *
+ * It carries no display of its own. The rail and the menu below take turns by
+ * width, and `hidden` loses to an `inline-flex` sitting in the same list.
  */
-const RAIL =
-  "border-input bg-background inline-flex shrink-0 rounded-lg border p-0.5";
+const RAIL = "border-input bg-background shrink-0 rounded-lg border p-0.5";
 
 const STOP =
-  "focus-visible:ring-ring/50 rounded-md px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px]";
+  "focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px]";
 
 const STOP_ON = "bg-primary/10 text-primary";
 const STOP_OFF = "text-muted-foreground hover:text-foreground";
-/** Nothing is on, so there is nothing this row can move. */
-const STOP_DEAD = "text-muted-foreground/45";
+
+/**
+ * The face of each answer.
+ *
+ * None of them may be a channel's icon. A bell here would read as the In app
+ * column rather than as how much arrives, and the two questions are exactly
+ * what this row spent a redesign separating.
+ */
+const ANSWER_ICON: Record<ScopeState, LucideIcon> = {
+  ALL: List,
+  IMPORTANT: Star,
+  NONE: Ban,
+  CUSTOM: SlidersHorizontal,
+};
 
 /**
  * One stop, with what it does under the pointer and in the ear.
@@ -52,23 +77,23 @@ const STOP_DEAD = "text-muted-foreground/45";
  * written into the row where `aria-describedby` can always reach it.
  */
 function Stop({
+  answer,
   label,
   hint,
   pressed,
   saving,
-  dead,
   onPick,
 }: {
+  answer: PresetScope;
   label: string;
   hint: string;
   pressed: boolean;
   /** A write is in flight. The stop stays reachable, and does nothing. */
   saving: boolean;
-  /** Nothing to write. Same rule, different reason, so it reads differently. */
-  dead: boolean;
   onPick: () => void;
 }) {
   const hintId = useId();
+  const Icon = ANSWER_ICON[answer];
 
   return (
     <>
@@ -77,10 +102,10 @@ function Stop({
           <button
             type="button"
             aria-pressed={pressed}
-            aria-disabled={saving || dead || undefined}
+            aria-disabled={saving || undefined}
             aria-describedby={hintId}
             onClick={() => {
-              if (saving || dead) {
+              if (saving) {
                 return;
               }
 
@@ -89,9 +114,10 @@ function Stop({
             className={cn(
               STOP,
               saving && "opacity-50",
-              pressed ? STOP_ON : dead ? STOP_DEAD : STOP_OFF,
+              pressed ? STOP_ON : STOP_OFF,
             )}
           >
+            <Icon className="size-3.5 shrink-0" aria-hidden="true" />
             {label}
           </button>
         </TooltipTrigger>
@@ -105,101 +131,194 @@ function Stop({
 }
 
 /**
- * A group's two answers, one question to a row.
+ * The same answers where the rail does not fit.
  *
- * The first row says which of the group's kinds arrive: all of them, the ones
- * that matter, or none. The second says where the ones it keeps arrive. Two
- * questions rather than one ladder, because they were never one scale. The
- * old stops stepped from Everything to Important by dropping kinds and from
- * Important to Quiet by dropping a channel, so neither stop told the reader
- * what the next one would do. It also left one wish unsayable: every kind,
- * without a banner, which no stop wrote and six cells by hand did.
+ * The rail wants about 500px once the words in front of it are counted, and
+ * the row gets the card's width less its padding and the chevron's gutter. So
+ * the two take turns at `md`. Below it the sentence is one line, and the list
+ * it opens is the one place with room to say what each answer does, which the
+ * rail leaves to a tooltip a phone cannot open.
  *
- * Custom is not one of the answers. It appears on the first row only when the
- * kinds are on one by one, and it opens the fold rather than picking for the
- * reader. So it is the fold's own trigger, not a fourth stop that claims to be
+ * Both are in the markup and the browser draws one, the way the column heads
+ * over the cells already switch.
+ */
+function AnswerMenu({
+  label,
+  answers,
+  scope,
+  group,
+  saving,
+  onPick,
+}: {
+  label: string;
+  answers: readonly PresetScope[];
+  scope: ScopeState;
+  group: string;
+  saving: boolean;
+  onPick: (scope: PresetScope) => void;
+}) {
+  const t = useTranslations("App.Account.Notifications");
+  const Icon = ANSWER_ICON[scope];
+  const hintId = useId();
+
+  return (
+    // No group of its own. The rail is three buttons and needs one; this is a
+    // single button, and a second group with the same name would be a name
+    // the reader meets twice. The sentence it would have carried is the
+    // button's description instead, so the visible word stays its name.
+    <div className="md:hidden">
+      <span aria-hidden="true" id={hintId} className="sr-only">
+        {label}
+      </span>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          disabled={saving}
+          aria-describedby={hintId}
+          className={cn(
+            "border-input bg-background focus-visible:ring-ring/50 inline-flex h-8 items-center gap-2 rounded-lg border pr-2 pl-3 text-xs font-medium outline-none focus-visible:ring-[3px]",
+            saving && "opacity-50",
+          )}
+        >
+          <Icon
+            className="text-muted-foreground size-3.5 shrink-0"
+            aria-hidden="true"
+          />
+          {t(PRESET_SCOPE_LABEL_KEY[scope])}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-64">
+          {/* Custom is not one of the answers, so the radio group holds none of
+              them and nothing is ticked. The heading says why rather than
+              leaving the reader to wonder what they are looking at. */}
+          <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+            {scope === "CUSTOM" ? t("answerMenuCustomLabel", { group }) : group}
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={scope}
+            onValueChange={(next) => {
+              onPick(next as PresetScope);
+            }}
+          >
+            {answers.map((answer) => {
+              const AnswerIcon = ANSWER_ICON[answer];
+
+              return (
+                <DropdownMenuRadioItem
+                  key={answer}
+                  value={answer}
+                  className="items-start py-2"
+                >
+                  <AnswerIcon
+                    className="text-muted-foreground mt-0.5 size-3.5"
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-medium">
+                      {t(PRESET_SCOPE_LABEL_KEY[answer])}
+                    </span>
+                    <span className="text-muted-foreground block text-xs">
+                      {t(PRESET_SCOPE_HINT_KEY[answer])}
+                    </span>
+                  </span>
+                </DropdownMenuRadioItem>
+              );
+            })}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+/**
+ * A group's one answer: which of its kinds arrive.
+ *
+ * Where they arrive is not asked here. That is the grid's question, one kind
+ * at a time, and an answer leaves it alone: a group set to the app alone stays
+ * that way when the reader trims it to the kinds that matter. Two rails asked
+ * both at once and read as one control with two halves, which is the thing a
+ * reader has to hold in their head and should not have to.
+ *
+ * Custom is not one of the answers. It appears only when the kinds are on one
+ * by one, and it opens the fold rather than picking for the reader. So it is
+ * the fold's own trigger beside the rail, not a fourth stop that claims to be
  * pressed.
  */
-export function PresetStops({
+export function GroupAnswer({
   group,
   kinds,
   scope,
-  place,
   saving,
-  onScope,
-  onPlace,
+  onPick,
 }: {
   group: string;
   kinds: readonly KindSpec[];
   scope: ScopeState;
-  /** Null when the kinds that are on do not share a place, or none are on. */
-  place: PresetPlace | null;
   saving: boolean;
-  onScope: (scope: PresetScope) => void;
-  onPlace: (place: PresetPlace) => void;
+  onPick: (scope: PresetScope) => void;
 }) {
   const t = useTranslations("App.Account.Notifications");
-  // Nothing is on, so this row has nothing to move. It still stands rather
-  // than appearing on the first press, which would shift every row under it.
-  const nowhere = scope === "NONE";
+  const answers = groupScopes(kinds);
+  const label = t("scopeAriaLabel", { group });
+  const customId = useId();
 
   return (
-    <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-muted-foreground text-xs">{t("answerLead")}</span>
       <div
         role="group"
-        aria-label={t("scopeAriaLabel", { group })}
-        className={RAIL}
+        aria-label={label}
+        className={cn(RAIL, "hidden md:inline-flex")}
       >
-        {groupScopes(kinds).map((candidate) => (
+        {answers.map((answer) => (
           <Stop
-            key={candidate}
-            label={t(PRESET_SCOPE_LABEL_KEY[candidate])}
-            hint={t(PRESET_SCOPE_HINT_KEY[candidate])}
-            pressed={scope === candidate}
+            key={answer}
+            answer={answer}
+            label={t(PRESET_SCOPE_LABEL_KEY[answer])}
+            hint={t(PRESET_SCOPE_HINT_KEY[answer])}
+            pressed={scope === answer}
             saving={saving}
-            dead={false}
             onPick={() => {
-              onScope(candidate);
+              onPick(answer);
             }}
           />
         ))}
-        {scope === "CUSTOM" ? (
+      </div>
+      {scope === "CUSTOM" ? (
+        <>
           <Tooltip>
             <TooltipTrigger asChild>
               <CollapsibleTrigger
+                aria-describedby={customId}
                 className={cn(
                   STOP,
-                  "text-primary bg-primary/5 border border-dashed",
+                  "text-primary bg-primary/5 hidden rounded-lg border border-dashed md:inline-flex",
                 )}
               >
+                <SlidersHorizontal
+                  className="size-3.5 shrink-0"
+                  aria-hidden="true"
+                />
                 {t(PRESET_SCOPE_LABEL_KEY.CUSTOM)}
               </CollapsibleTrigger>
             </TooltipTrigger>
             <TooltipContent>{t(PRESET_SCOPE_HINT_KEY.CUSTOM)}</TooltipContent>
           </Tooltip>
-        ) : null}
-      </div>
-      <div
-        role="group"
-        aria-label={t("placeAriaLabel", { group })}
-        className={RAIL}
-      >
-        {PRESET_PLACES.map((candidate) => (
-          <Stop
-            key={candidate}
-            label={t(PRESET_PLACE_LABEL_KEY[candidate])}
-            hint={t(
-              nowhere ? "placeNowhereHint" : PRESET_PLACE_HINT_KEY[candidate],
-            )}
-            pressed={place === candidate}
-            saving={saving}
-            dead={nowhere}
-            onPick={() => {
-              onPlace(candidate);
-            }}
-          />
-        ))}
-      </div>
+          {/* The stops beside it carry their sentence this way too: a tooltip
+              exists only while it is open, and this one says what pressing
+              does. */}
+          <span aria-hidden="true" id={customId} className="sr-only">
+            {t(PRESET_SCOPE_HINT_KEY.CUSTOM)}
+          </span>
+        </>
+      ) : null}
+      <AnswerMenu
+        label={label}
+        answers={answers}
+        scope={scope}
+        group={group}
+        saving={saving}
+        onPick={onPick}
+      />
     </div>
   );
 }

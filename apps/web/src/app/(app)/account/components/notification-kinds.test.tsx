@@ -204,32 +204,37 @@ function stops(kind: string) {
   return screen.getByRole("group", { name: `deliveryAriaLabel ${kind}` });
 }
 
-/** The first row of a group's control: which of its kinds arrive at all. */
+/** A group's one question: which of its kinds arrive. */
 function scopes(group: string) {
   return screen.getByRole("group", { name: `scopeAriaLabel ${group}` });
-}
-
-/** The second row: where the kinds it keeps arrive. */
-function places(group: string) {
-  return screen.getByRole("group", { name: `placeAriaLabel ${group}` });
 }
 
 function scope(group: string, name: string) {
   return within(scopes(group)).getByRole("button", { name });
 }
 
-function place(group: string, name: string) {
-  return within(places(group)).getByRole("button", { name });
+/**
+ * The dashed chip beside the rail, which opens the group.
+ *
+ * Both controls are in the markup and the browser draws one, so the menu that
+ * replaces the rail on a phone is here too, showing the same word. It answers
+ * a press by opening a menu, which is what `aria-haspopup` says.
+ */
+function customChip() {
+  const chip = screen
+    .getAllByRole("button", { name: "scopeCustom" })
+    .find((button) => !button.hasAttribute("aria-haspopup"));
+
+  if (!chip) {
+    throw new Error("no Custom chip on the page");
+  }
+
+  return chip;
 }
 
 async function pickScope(group: string, name: string) {
   const user = userEvent.setup();
   await user.click(scope(group, name));
-}
-
-async function pickPlace(group: string, name: string) {
-  const user = userEvent.setup();
-  await user.click(place(group, name));
 }
 
 /** The cells carry an icon, so each one names its own channel and kind. */
@@ -340,12 +345,8 @@ describe("NotificationKinds", () => {
       "aria-pressed",
       "false",
     );
-    // The groups answer both questions without being opened.
+    // The groups answer without being opened.
     expect(scope("groupTask", "scopeImportant")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(place("groupTask", "placeInApp")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -353,23 +354,11 @@ describe("NotificationKinds", () => {
       "aria-pressed",
       "true",
     );
-    expect(place("groupChat", "placePush")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    // Every job kind is on, so the first row answers All. They are not on in
-    // one place, so the second answers nothing rather than picking one.
+    // Every job kind is on, in two different places. Where they arrive is the
+    // grid's question, so the group still reads All.
     expect(scope("groupJob", "scopeAll")).toHaveAttribute(
       "aria-pressed",
       "true",
-    );
-    expect(place("groupJob", "placePush")).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-    expect(place("groupJob", "placeInApp")).toHaveAttribute(
-      "aria-pressed",
-      "false",
     );
   });
 
@@ -381,11 +370,6 @@ describe("NotificationKinds", () => {
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual(["scopeAll", "scopeImportant", "scopeNone"]);
-    expect(
-      within(places("groupJob"))
-        .getAllByRole("button")
-        .map((button) => button.textContent),
-    ).toEqual(["placePush", "placeInApp"]);
   });
 
   /**
@@ -407,26 +391,22 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * A group nothing arrives from has nowhere to put anything, so the second
-   * row says that rather than offering a place that writes nothing.
+   * An answer says which kinds arrive, never where. A reader who keeps their
+   * tasks in the app and then asks for all of them gets the two that were
+   * quiet, in the app: asking for more must not start a device buzzing.
    */
-  it("stops answering where when nothing arrives", async () => {
+  it("keeps a group where it already arrives when it asks for everything", async () => {
     renderKinds();
 
-    await pickScope("groupChat", "scopeNone");
+    await pickScope("groupTask", "scopeAll");
 
     await waitFor(() => {
-      expect(place("groupChat", "placePush")).toHaveAttribute(
-        "aria-disabled",
-        "true",
-      );
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(describedBy(place("groupChat", "placePush"))).toBe(
-      "placeNowhereHint",
-    );
-
-    await pickPlace("groupChat", "placeInApp");
-    expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    expect(written("TASK_UPDATE", "IN_APP")).toBe(true);
+    expect(written("TASK_UPDATE", "OS_BANNER")).toBe(false);
+    expect(written("TASK_ATTENTION", "IN_APP")).toBe(true);
+    expect(written("TASK_ATTENTION", "OS_BANNER")).toBe(false);
   });
 
   /**
@@ -444,7 +424,7 @@ describe("NotificationKinds", () => {
       ),
     );
 
-    const custom = scope("groupJob", "scopeCustom");
+    const custom = customChip();
     expect(custom).toHaveAttribute("aria-expanded", "false");
 
     await user.click(custom);
@@ -998,10 +978,10 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    // The job kinds are on in different places, so the row has no place to
-    // keep and writes a push, which is where a kind the reader keeps belongs.
+    // Each kept kind keeps its own channels, so the finished jobs stay in the
+    // app they were already in rather than picking up the push a sibling has.
     expect(written("JOB_COMPLETED", "IN_APP")).toBe(true);
-    expect(written("JOB_COMPLETED", "OS_BANNER")).toBe(true);
+    expect(written("JOB_COMPLETED", "OS_BANNER")).toBe(false);
     expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
     expect(written("JOB_UPDATE", "OS_BANNER")).toBe(false);
   });
@@ -1058,36 +1038,51 @@ describe("NotificationKinds", () => {
    * took six cells by hand, because the only stop that dropped the push also
    * dropped the kinds that do not wait on the reader.
    */
-  it("moves every kind that is on into the app, and drops none", async () => {
+  /**
+   * A kind that arrives nowhere has nothing of its own to keep, so it takes
+   * the channels the rest of its group is on. Every message in a room is the
+   * one kind that starts off, and the reader who asks for all of chat gets it
+   * where their mentions already arrive.
+   */
+  it("gives a kind that arrives nowhere the channels its group uses", async () => {
     renderKinds();
 
-    await pickPlace("groupJob", "placeInApp");
+    await pickScope("groupChat", "scopeAll");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(written("JOB_ATTENTION", "IN_APP")).toBe(true);
-    expect(written("JOB_ATTENTION", "OS_BANNER")).toBe(false);
-    expect(written("JOB_UPDATE", "IN_APP")).toBe(true);
-    expect(written("JOB_UPDATE", "OS_BANNER")).toBe(false);
+    expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(true);
+    expect(written("CHAT_ROOM_MESSAGE", "OS_BANNER")).toBe(true);
+    expect(written("CHAT_MENTION", "IN_APP")).toBe(true);
+    expect(written("CHAT_MENTION", "OS_BANNER")).toBe(true);
   });
 
   /**
-   * Where is not which. A kind that arrives nowhere stays that way, and it is
-   * left out of the write rather than named with nothing on it.
+   * The end of that: a group the reader has silenced holds no channel at all,
+   * and asking for it back has to land somewhere. Every channel, rather than
+   * a write that stores nothing and leaves the group looking unchanged.
    */
-  it("leaves a kind that is off out of the write", async () => {
+  it("turns a silenced group back on everywhere", async () => {
     renderKinds();
 
-    await pickPlace("groupChat", "placeInApp");
+    await pickScope("groupChat", "scopeNone");
+    await waitFor(() => {
+      expect(scope("groupChat", "scopeNone")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+    });
+
+    await pickScope("groupChat", "scopeAll");
 
     await waitFor(() => {
-      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+      expect(patchMyPreferences).toHaveBeenCalledTimes(2);
     });
-    expect(lastWrite()).toHaveLength(4);
-    expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBeUndefined();
     expect(written("CHAT_MENTION", "IN_APP")).toBe(true);
-    expect(written("CHAT_MENTION", "OS_BANNER")).toBe(false);
+    expect(written("CHAT_MENTION", "OS_BANNER")).toBe(true);
+    expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(true);
+    expect(written("CHAT_ROOM_MESSAGE", "OS_BANNER")).toBe(true);
   });
 
   /**
@@ -1508,10 +1503,10 @@ describe("NotificationKinds", () => {
   it("stays on the stop the reader picked once the write lands", async () => {
     renderKinds();
 
-    await pickPlace("groupChat", "placeInApp");
+    await pickScope("groupChat", "scopeNone");
 
     await waitFor(() => {
-      expect(place("groupChat", "placeInApp")).toHaveAttribute(
+      expect(scope("groupChat", "scopeNone")).toHaveAttribute(
         "aria-pressed",
         "true",
       );
@@ -1585,7 +1580,7 @@ describe("NotificationKinds", () => {
       );
     });
 
-    await pickPlace("groupChat", "placeInApp");
+    await pickScope("groupChat", "scopeNone");
     expect(patchMyPreferences).not.toHaveBeenCalled();
   });
 
@@ -1599,13 +1594,13 @@ describe("NotificationKinds", () => {
     patchMyPreferences.mockReturnValue(new Promise(() => {}));
     renderKinds();
 
-    await pickPlace("groupChat", "placeInApp");
+    await pickScope("groupChat", "scopeAll");
 
-    const inApp = place("groupChat", "placeInApp");
+    const all = scope("groupChat", "scopeAll");
     await waitFor(() => {
-      expect(inApp).toHaveAttribute("aria-disabled", "true");
+      expect(all).toHaveAttribute("aria-disabled", "true");
     });
-    expect(inApp).toBeEnabled();
+    expect(all).toBeEnabled();
 
     await pickScope("groupChat", "scopeNone");
     expect(patchMyPreferences).toHaveBeenCalledTimes(1);

@@ -18,11 +18,11 @@ import {
 } from "./notification-cells";
 import {
   type PushBlock,
-  placeChanges,
   scopeChanges,
   withChannel,
 } from "./notification-delivery";
-import { PresetStops } from "./notification-presets";
+import { GroupAnswer } from "./notification-presets";
+import { PushBanner } from "./notification-push-banner";
 import {
   type GroupChoice,
   type NotificationDelivery,
@@ -37,6 +37,12 @@ import {
  * for: mentions, direct messages and every message in a room are usually one
  * decision and sometimes three. Set one by one, the group says Custom and that
  * stop opens the fold rather than picking for you.
+ *
+ * The answer sits on a row of its own under the name, indented to the text
+ * rather than the chevron. On the header's line it had a corner of the row to
+ * fit in and was the first thing to overflow; here it has the card's width,
+ * and the description below the name no longer has to be cut to leave it
+ * room.
  */
 function GroupRows({
   group,
@@ -55,35 +61,36 @@ function GroupRows({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <div className="px-4 py-3">
         {/* The trigger holds no control of its own: a button inside a button is
             not a thing a browser can do. */}
-        <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex min-w-0 flex-1 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px]">
+        <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px]">
           <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
           <span className="min-w-0">
             <span className="block text-sm leading-5">
               {t(group.spec.labelKey)}
             </span>
             {group.spec.descriptionKey ? (
-              <span className="text-muted-foreground block truncate text-sm leading-5">
+              <span className="text-muted-foreground block text-sm leading-5">
                 {t(group.spec.descriptionKey)}
               </span>
             ) : null}
           </span>
         </CollapsibleTrigger>
-        <PresetStops
-          group={t(group.spec.labelKey)}
-          kinds={kinds}
-          scope={group.scope}
-          place={group.place}
-          saving={group.saving}
-          onScope={(scope) => {
-            void choices.setDeliveries(scopeChanges(scope, kinds, group.place));
-          }}
-          onPlace={(place) => {
-            void choices.setDeliveries(placeChanges(place, group.kinds));
-          }}
-        />
+        {/* Indented to the name rather than the chevron: the chevron's column
+            belongs to the fold, and the answer is about the words beside it.
+            A `size-4` mark and a `gap-2` make 24px. */}
+        <div className="mt-2 pl-6">
+          <GroupAnswer
+            group={t(group.spec.labelKey)}
+            kinds={kinds}
+            scope={group.scope}
+            saving={group.saving}
+            onPick={(scope) => {
+              void choices.setDeliveries(scopeChanges(scope, group.kinds));
+            }}
+          />
+        </div>
       </div>
       <CollapsibleContent>
         <div className="bg-muted/20 border-t px-4 pt-3 pb-1">
@@ -305,6 +312,19 @@ export function NotificationKinds({
             {t("kindsDescription")}
           </p>
         </div>
+      ) : null}
+      {/* Above the rows it is about, and below the title that owns them. One
+          banner for the whole card, because the browser is one answer for
+          every row. It waits for a kind to be asking for a push: with every
+          banner cell off, nothing is going wrong here. */}
+      {choices.pushBlock && choices.pushWanted ? (
+        <PushBanner
+          block={choices.pushBlock}
+          saving={choices.pushSaving}
+          onEnable={() => {
+            void choices.activatePush();
+          }}
+        />
       ) : null}
       <div className="divide-y rounded-lg border">
         {showKinds ? (
