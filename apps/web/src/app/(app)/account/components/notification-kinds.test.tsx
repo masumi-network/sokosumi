@@ -1220,6 +1220,49 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * Consent and the cells both gate a push, and nothing else on this page
+   * takes the consent back. Left standing over an empty banner column, it says
+   * push is welcome on an account that sends none, until the reader signs out.
+   */
+  it("releases the consent when the last banner goes off", async () => {
+    renderKinds(
+      MATRIX.map((cell) =>
+        cell.channel === "OS_BANNER"
+          ? { ...cell, enabled: cell.category === "SYSTEM" }
+          : cell,
+      ),
+    );
+
+    await toggle("kindSystem", "channelPush");
+
+    await waitFor(() => {
+      expect(setAccountEnabled).toHaveBeenCalledWith(false);
+    });
+  });
+
+  /** Every other kind that still pushes needs the consent this one held. */
+  it("keeps the consent while another kind still pushes", async () => {
+    renderKinds(
+      MATRIX.map((cell) =>
+        cell.channel === "OS_BANNER"
+          ? {
+              ...cell,
+              enabled:
+                cell.category === "SYSTEM" || cell.category === "CHAT_MENTION",
+            }
+          : cell,
+      ),
+    );
+
+    await toggle("kindSystem", "channelPush");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(setAccountEnabled).not.toHaveBeenCalled();
+  });
+
+  /**
    * The stop the reader pressed has to still read as pressed once Core answers.
    * A preset that wrote cells the same preset does not describe would settle
    * back onto Custom, which is the reader's press being undone in front of them.

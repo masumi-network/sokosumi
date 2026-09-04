@@ -319,9 +319,10 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     (next: boolean): Promise<boolean> => {
       if (!next) {
         // Consent only. Registrations stay, so the reader's other browsers do
-        // not have to activate again when consent comes back (ADR-0022). No
-        // control writes this today: the account page silences push by
-        // clearing its cells, which Core's publish gate reads per kind.
+        // not have to activate again when consent comes back (ADR-0022). The
+        // account page writes it when its last banner cell goes off: the cells
+        // and the consent both gate a push, and leaving one of them on would
+        // keep an account that says push is welcome and sends none.
         return runSave(async () => {
           await recordAccountOptIn(false);
           return false;
