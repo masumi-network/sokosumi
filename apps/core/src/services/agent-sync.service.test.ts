@@ -42,6 +42,7 @@ const {
   syncMetadataDeleteManyMock,
   syncMetadataCreateManyMock,
   syncMetadataFindUniqueMock,
+  syncMetadataUpdateManyMock,
   syncMetadataUpsertMock,
   tagUpsertMock,
   transactionMock,
@@ -77,6 +78,7 @@ const {
   syncMetadataDeleteManyMock: vi.fn(),
   syncMetadataCreateManyMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
+  syncMetadataUpdateManyMock: vi.fn(),
   syncMetadataUpsertMock: vi.fn(),
   tagUpsertMock: vi.fn(),
   transactionMock: vi.fn(),
@@ -149,6 +151,7 @@ vi.mock("@/lib/db/prisma", () => ({
       createMany: syncMetadataCreateManyMock,
       deleteMany: syncMetadataDeleteManyMock,
       findUnique: syncMetadataFindUniqueMock,
+      updateMany: syncMetadataUpdateManyMock,
       upsert: syncMetadataUpsertMock,
     },
     $transaction: transactionMock,
@@ -3125,6 +3128,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     syncMetadataFindUniqueMock.mockResolvedValue(null);
+    syncMetadataUpdateManyMock.mockResolvedValue({ count: 0 });
     syncMetadataUpsertMock.mockResolvedValue(undefined);
   });
 
@@ -3199,6 +3203,24 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
         update: expect.objectContaining({ cursorId: "[]" }),
       }),
     );
+    // This page is load-bearing for the failure path's latch: a recorded "[]"
+    // is left latched there precisely BECAUSE going empty already paged here.
+    // Delete this and the two together go silent for a whole outage.
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Cardano V2 rail reports no purchase-ready source; all V2 agents are hidden",
+      "error",
+    );
+
+    // On the transition only. A catalogue that was already empty must not
+    // page again every five minutes for as long as it stays empty.
+    captureMessageMock.mockClear();
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: "[]",
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureMessageMock).not.toHaveBeenCalled();
 
     consoleWarnSpy.mockRestore();
   });
@@ -3632,7 +3654,12 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
         message:
           "Cardano V2 rail readiness check failed: payment node unavailable",
       }),
-      expect.objectContaining({ tags: { cardano_v2_readiness: "stale" } }),
+      expect.objectContaining({
+        // Warm failures are a warning, not a page: the last recorded value is
+        // still being served, so nothing user-visible has degraded.
+        level: "warning",
+        tags: { cardano_v2_readiness: "stale" },
+      }),
     );
 
     // A different process loses the atomic insert race and also dedupes.
@@ -3643,7 +3670,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it("keeps paging while readiness has never been recorded", async () => {
+  it("keeps paging while no readiness row has ever been written", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
@@ -3652,7 +3679,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     // Cold start: no readiness row has ever been written, so
     // getCardanoV2ReadySources returns [] and the ENTIRE V2 catalogue is
     // hidden — every V2 agent unlistable, every V2 task payment 422. The
-    // one-shot latch is right for the warm case but would spend its single
+    // one-shot latch is right for the stale case but would spend its single
     // page minutes after deploy and then go quiet through the whole outage,
     // leaving silence indistinguishable from "no V2 agents configured".
     syncMetadataFindUniqueMock.mockResolvedValue(null);
@@ -3664,18 +3691,227 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     expect(captureExceptionMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        message: expect.stringContaining("has never been recorded"),
+        message: expect.stringContaining("the entire V2 catalogue is hidden"),
       }),
       expect.objectContaining({
-        tags: { cardano_v2_readiness: "never_recorded" },
+        // A hidden catalogue IS the outage, so it keeps the error level.
+        level: "error",
+        tags: { cardano_v2_readiness: "hidden" },
       }),
     );
 
-    // The latch is now held by the earlier insert, so a warm failure would go
-    // quiet here. Never-recorded must page anyway.
+    // The latch is now held by the earlier insert, so any other failure would
+    // go quiet here. A catalogue that has never been recorded must page
+    // anyway: it produced no page of its own to fall back on, and silence is
+    // indistinguishable from a healthy deployment with no V2 agents.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
     await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+    // Sustained error-level paging IS the bypass. A repeat that quietly
+    // dropped to a warning would satisfy the count above and defeat it.
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        level: "error",
+        tags: { cardano_v2_readiness: "hidden" },
+      }),
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("escalates a stale streak to an error once it outlives the threshold", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    // Sources are recorded and still served, so every tick of this streak is
+    // a "stale" warning and the latch silences all but the first. Nothing
+    // expires the recorded value, so V2 agents stay listed and priced the
+    // whole time while every purchase against them fails at the node. Half an
+    // hour of that is an outage, not a blip.
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    // The latch is held by an earlier tick, and the conditional update wins.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
+    syncMetadataUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
+
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("has failed for over 30m"),
+      }),
+      expect.objectContaining({
+        level: "error",
+        tags: { cardano_v2_readiness: "stale_sustained" },
+      }),
+    );
+
+    // Only a streak that has actually run long may escalate, and only from
+    // the un-escalated state. Without both, the first tick of every streak
+    // would escalate itself and the threshold would mean nothing.
+    expect(syncMetadataUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        key: "cardano-v2-rail-readiness-failure",
+        cursorId: "failed",
+        lastSyncedAt: { lt: expect.any(Date) },
+      },
+      data: { cursorId: "escalated" },
+    });
+    const where = syncMetadataUpdateManyMock.mock.calls[0]?.[0]?.where as {
+      lastSyncedAt: { lt: Date };
+    };
+    expect(Date.now() - where.lastSyncedAt.lt.getTime()).toBeGreaterThanOrEqual(
+      30 * 60 * 1000,
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("stays quiet while a stale streak is still short", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    // Latch held, and the marker is younger than the threshold, so the
+    // conditional update matches nothing.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
+    syncMetadataUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
+
+    // One timed-out attempt inside a five-minute cron must stay silent. That
+    // silence is the whole point of this branch, and the escalation above
+    // must not undo it.
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("escalates once per streak, not once per tick", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
+    syncMetadataUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    // The row now reads "escalated", so the same conditional update matches
+    // nothing on every later tick. Without that state in the row this would
+    // page every five minutes for the rest of the outage, which is exactly
+    // the alarm flood the latch exists to prevent.
+    syncMetadataUpdateManyMock.mockResolvedValue({ count: 0 });
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not try to escalate on the tick that starts the streak", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    // count > 0 means this worker just wrote the marker, so the streak is
+    // seconds old. Reading it back to ask whether it is half an hour old is
+    // a wasted round trip on a path that already alerts.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
+
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
+
+    expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        level: "warning",
+        tags: { cardano_v2_readiness: "stale" },
+      }),
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("treats a recorded empty source set as hidden, not stale", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    // A tick where the node reported nothing purchase-ready still upserts a
+    // row, holding "[]". Row EXISTENCE therefore says "warm" while readers
+    // see exactly the cold outage: getCardanoV2ReadySources returns [], no V2
+    // agent is listable, every V2 payment 422s. Gating the SEVERITY on row
+    // existence would call that "warm" and downgrade a live outage to a
+    // warning.
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: "[]",
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("the entire V2 catalogue is hidden"),
+      }),
+      expect.objectContaining({
+        level: "error",
+        tags: { cardano_v2_readiness: "hidden" },
+      }),
+    );
+
+    // The severity is where this case differs, and only the severity. The
+    // latch still holds it to one page per streak, because the catalogue
+    // going empty already paged on the success path that recorded it.
+    // Bypassing the latch here too would page every five minutes for the
+    // length of the outage, which is noise this change exists to cut.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
 
     consoleWarnSpy.mockRestore();
   });
