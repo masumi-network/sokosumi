@@ -361,7 +361,7 @@ Before writing any code, stop at the first rung that holds:
 
 The ladder runs after you understand the problem, not instead of it: read the task and the code it touches, trace the real flow end to end, then climb.
 
-Climb inside this file's layering, generated-files, and database-access rules. Right layer beats fewest files.
+Climb inside this file's layering, generated-files, database-access, and testing rules. Right layer beats fewest files; repo test layout beats the skill's Python self-check.
 
 Bug fix = root cause, not symptom: a report names a symptom. Grep every caller of the function you touch and fix the shared function once — one guard there is a smaller diff than one per caller, and patching only the path the ticket names leaves a sibling caller still broken.
 
