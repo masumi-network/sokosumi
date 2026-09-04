@@ -4148,7 +4148,7 @@
         "presetTaskOffHint": "Ninguna notificación de tareas está activada, ni en Sokosumi ni en tu dispositivo. Abre el grupo para volver a activar una notificación suelta.",
         "presetChatEverythingHint": "Todos los mensajes de tus salas están activados en Sokosumi. Las menciones y los mensajes directos están activados también para tu dispositivo.",
         "presetChatEssentialHint": "Las menciones y los mensajes directos están activados para tu dispositivo. Todos los mensajes de tus salas están desactivados.",
-        "presetChatAppOnlyHint": "Todo el chat está activado en Sokosumi, incluidos los mensajes de sala. Nada está activado para tu dispositivo.",
+        "presetChatAppOnlyHint": "Las menciones y los mensajes directos están activados en Sokosumi. Todos los mensajes de tus salas están desactivados, y nada está activado para tu dispositivo.",
         "presetChatOffHint": "Ninguna notificación de chat está activada, ni en Sokosumi ni en tu dispositivo. Abre el grupo para volver a activar una notificación suelta.",
         "presetCustom": "Personalizado",
         "presetCustomHint": "Abre el grupo, donde cada notificación se ajusta una por una.",

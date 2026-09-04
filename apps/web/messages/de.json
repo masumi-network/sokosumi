@@ -4148,7 +4148,7 @@
         "presetTaskOffHint": "Keine Aufgaben-Benachrichtigung ist an, weder in Sokosumi noch auf deinem Gerät. Öffne die Gruppe, um eine einzelne wieder einzuschalten.",
         "presetChatEverythingHint": "Jede Nachricht in deinen Räumen ist in Sokosumi an. Erwähnungen und Direktnachrichten sind zusätzlich für dein Gerät an.",
         "presetChatEssentialHint": "Erwähnungen und Direktnachrichten sind für dein Gerät an. Jede Nachricht in deinen Räumen ist aus.",
-        "presetChatAppOnlyHint": "Der ganze Chat ist in Sokosumi an, auch die Nachrichten in deinen Räumen. Nichts davon ist für dein Gerät an.",
+        "presetChatAppOnlyHint": "Erwähnungen und Direktnachrichten sind in Sokosumi an. Jede Nachricht in deinen Räumen ist aus, und nichts ist für dein Gerät an.",
         "presetChatOffHint": "Keine Chat-Benachrichtigung ist an, weder in Sokosumi noch auf deinem Gerät. Öffne die Gruppe, um eine einzelne wieder einzuschalten.",
         "presetCustom": "Individuell",
         "presetCustomHint": "Öffnet die Gruppe, in der jede Benachrichtigung einzeln eingestellt wird.",

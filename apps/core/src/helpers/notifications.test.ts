@@ -268,6 +268,15 @@ describe("createNotification push gating", () => {
     });
   }
 
+  /**
+   * The banner is off until a reader asks for it, so a test about the push
+   * gate says which row asked. The gate under test is the account-wide opt-in,
+   * and a row that never asked would hide it behind a second answer.
+   */
+  function bannerOn(category: string) {
+    return [{ category, channel: "OS_BANNER", enabled: true }];
+  }
+
   const chatInput: CreateNotificationInput = {
     ...notificationInput,
     kind: NotificationKind.CHAT,
@@ -292,7 +301,7 @@ describe("createNotification push gating", () => {
   it("pushes a chat notification when the user opted in", async () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(createChatRecord());
-    mockReader({ pushOptIn: true });
+    mockReader({ pushOptIn: true, preferences: bannerOn("CHAT_MENTION") });
 
     await createNotification(chatInput, prismaMock as unknown as typeof prisma);
 
@@ -335,13 +344,28 @@ describe("createNotification push gating", () => {
     NotificationKind.BILLING,
   ] as const;
 
+  /**
+   * The row each kind lands on with this input's message key. Billing has
+   * none: the matrix holds no row for it, so it keeps both channels and there
+   * is nothing for a reader to ask for.
+   */
+  const KIND_CATEGORY: Partial<Record<NotificationKind, string>> = {
+    [NotificationKind.JOB]: "JOB_COMPLETED",
+    [NotificationKind.TASK]: "TASK_UPDATE",
+    [NotificationKind.SYSTEM]: "SYSTEM",
+  };
+
   for (const kind of NON_CHAT_KINDS) {
     it(`pushes a ${kind} notification when the user opted in`, async () => {
       const prismaMock = createPrismaMock();
       prismaMock.notification.create.mockResolvedValue(
         createNotificationRecord({ kind }),
       );
-      mockReader({ pushOptIn: true });
+      const category = KIND_CATEGORY[kind];
+      mockReader({
+        pushOptIn: true,
+        preferences: category ? bannerOn(category) : [],
+      });
 
       await createNotification(
         { ...notificationInput, kind },
@@ -393,7 +417,7 @@ describe("createNotification push gating", () => {
         findUnique: vi.fn(),
       },
     };
-    mockReader({ pushOptIn: true });
+    mockReader({ pushOptIn: true, preferences: bannerOn("CHAT_MENTION") });
 
     const result = await createNotification(
       chatInput,
@@ -427,6 +451,7 @@ describe("createNotification push gating", () => {
     mockReader({
       preferences: [
         { category: "JOB_COMPLETED", channel: "IN_APP", enabled: false },
+        { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: true },
       ],
     });
 
@@ -486,6 +511,7 @@ describe("createNotification push gating", () => {
       preferences: [
         { category: "CHAT_MENTION", channel: "IN_APP", enabled: false },
         { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+        ...bannerOn("CHAT_DIRECT_MESSAGE"),
       ],
     });
 

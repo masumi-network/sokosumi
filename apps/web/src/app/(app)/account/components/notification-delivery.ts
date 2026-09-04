@@ -327,9 +327,10 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
       },
     ],
     // Chat is read where it is written, so these turn on the app rather than
-    // the phone: every stop but Off keeps mentions and direct messages, and
-    // the rooms are what the reader opts into. No stop puts a room on the
-    // device, which is the one thing a busy room would be.
+    // the phone: every stop but Off keeps mentions and direct messages, and a
+    // room is what the reader opts into. Core leaves the room row off until
+    // they do, so only the first stop turns it on, and no stop puts a room on
+    // the device, which is the one thing a busy room would be.
     presets: [
       {
         id: "EVERYTHING",
@@ -353,7 +354,7 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         id: "APP_ONLY",
         hintKey: "presetChatAppOnlyHint",
         reach: {
-          CHAT_ROOM_MESSAGE: "IN_APP",
+          CHAT_ROOM_MESSAGE: "NONE",
           CHAT_MENTION: "IN_APP",
           CHAT_DIRECT_MESSAGE: "IN_APP",
         },

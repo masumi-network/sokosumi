@@ -464,6 +464,29 @@ describe("NotificationKinds", () => {
     ]);
   });
 
+  /**
+   * What Core answers for an account that has stored nothing: every row on in
+   * Sokosumi except the rooms, and no row on the device. It is written out
+   * here rather than imported, because the point is that the two agree.
+   *
+   * Every group has to open on a word. A default that matched no situation
+   * would tell a reader who has touched nothing that they set their
+   * notifications by hand.
+   */
+  it("opens every group on a situation for an account that stored nothing", () => {
+    renderKinds(
+      MATRIX.map((cell) => ({
+        ...cell,
+        enabled:
+          cell.channel === "IN_APP" && cell.category !== "CHAT_ROOM_MESSAGE",
+      })),
+    );
+
+    expect(presetButton("groupJob")).toHaveTextContent("presetAppOnly");
+    expect(presetButton("groupTask")).toHaveTextContent("presetAppOnly");
+    expect(presetButton("groupChat")).toHaveTextContent("presetAppOnly");
+  });
+
   it("draws the situations as a rail, with the group's own one pressed", () => {
     renderKinds();
 
@@ -1343,13 +1366,31 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * The wish the old ladder could not write: every kind, without a banner. It
-   * took six cells by hand, because the only stop that dropped the push also
-   * dropped the kinds that do not wait on the reader. Every message in a room
-   * is the one kind that starts off, and this brings it back where the reader
-   * asked for it rather than where its neighbours already were.
+   * Every message in a room is the one kind that starts off, and one stop
+   * turns it on. It lands in Sokosumi and nowhere else, which is the wish the
+   * old ladder could not write: it took six cells by hand, because the only
+   * stop that dropped the push also dropped the rows nobody waits on.
    */
   it("turns on a kind that was arriving nowhere, where the situation says", async () => {
+    renderKinds();
+
+    await pickPreset("groupChat", "presetEverything");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(true);
+    expect(written("CHAT_ROOM_MESSAGE", "OS_BANNER")).toBe(false);
+    expect(written("CHAT_MENTION", "IN_APP")).toBe(true);
+    expect(written("CHAT_MENTION", "OS_BANNER")).toBe(true);
+  });
+
+  /**
+   * The quiet end of the chat rail leaves the rooms where Core leaves them.
+   * An account that has stored nothing is on this word, so a stop that turned
+   * every room on would be the reader's first press adding notifications.
+   */
+  it("leaves the rooms off where the chat situation is the quiet one", async () => {
     renderKinds();
 
     await pickPreset("groupChat", "presetAppOnly");
@@ -1357,8 +1398,7 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(true);
-    expect(written("CHAT_ROOM_MESSAGE", "OS_BANNER")).toBe(false);
+    expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(false);
     expect(written("CHAT_MENTION", "IN_APP")).toBe(true);
     expect(written("CHAT_MENTION", "OS_BANNER")).toBe(false);
   });

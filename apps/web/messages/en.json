@@ -4179,7 +4179,7 @@
         "presetTaskOffHint": "No task notification is on, in Sokosumi or on your device. Open the group to turn a single one back on.",
         "presetChatEverythingHint": "Every message in your rooms is on in Sokosumi. Mentions and direct messages are on for your device as well.",
         "presetChatEssentialHint": "Mentions and direct messages are on for your device. Every message in your rooms is off.",
-        "presetChatAppOnlyHint": "All of chat is on in Sokosumi, room messages included. None of it is on for your device.",
+        "presetChatAppOnlyHint": "Mentions and direct messages are on in Sokosumi. Every message in your rooms is off, and nothing is on for your device.",
         "presetChatOffHint": "No chat notification is on, in Sokosumi or on your device. Open the group to turn a single one back on.",
         "presetCustom": "Custom",
         "presetCustomHint": "Opens the group, where every notification is set on its own.",
