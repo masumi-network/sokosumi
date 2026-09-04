@@ -5,7 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
+import {
+  activateOrganizationWorkspace,
+  isUserNotMemberOfOrganizationError,
+} from "@/lib/activate-organization-workspace";
 
 export function getAgentJobsBasePath(pathname: string): string | null {
   const jobsRouteMatch = pathname.match(/^\/agents\/([^/]+)\/jobs(?:\/.*)?$/);
@@ -71,9 +74,23 @@ export async function switchOrganizationWorkspace(
   organizationId: string | null,
   options?: SwitchOrganizationWorkspaceOptions,
 ): Promise<void> {
-  await activateOrganizationWorkspace(organizationId);
+  let appliedOrganizationId = organizationId;
 
-  if (options?.successMessage) {
+  try {
+    await activateOrganizationWorkspace(organizationId);
+  } catch (error) {
+    if (!isUserNotMemberOfOrganizationError(error) || organizationId === null) {
+      throw error;
+    }
+
+    // Better Auth clears the session org in the adapter, then 403s without
+    // updating the cookie. Finish the personal switch so preferred org,
+    // chrome cache, and `/organization` match membership.
+    await activateOrganizationWorkspace(null);
+    appliedOrganizationId = null;
+  }
+
+  if (options?.successMessage && appliedOrganizationId === organizationId) {
     toast.success(options.successMessage);
   }
 
@@ -112,7 +129,7 @@ export async function switchOrganizationWorkspace(
   ) {
     const organizationSettingsPath = getOrganizationSettingsPath(
       options.pathname,
-      organizationId,
+      appliedOrganizationId,
     );
     if (organizationSettingsPath) {
       runRouterTransition(() => {

@@ -95,16 +95,19 @@ function buildFailureNotificationData(
   };
 }
 
-function dispatchJobInAppNotification(
+async function dispatchJobInAppNotification(
   job: JobWithSokosumiStatus,
   jobStatus: SokosumiJobStatus,
-): void {
+): Promise<void> {
   const eventId = job.events.at(0)?.id;
   if (!eventId) {
     return;
   }
 
-  void dispatchJobNotification(job, jobStatus, eventId);
+  // Awaited so the sync run's waitUntil covers the notification write and its
+  // Ably publish. A detached promise is not covered, so both can be cut off
+  // when the isolate freezes.
+  await dispatchJobNotification(job, jobStatus, eventId);
 }
 
 async function dispatchFinalStatusNotification(
@@ -116,7 +119,7 @@ async function dispatchFinalStatusNotification(
     return;
   }
 
-  dispatchJobInAppNotification(job, jobStatus);
+  await dispatchJobInAppNotification(job, jobStatus);
 
   try {
     const agentName = getAgentName(job.agent);
@@ -154,7 +157,7 @@ async function dispatchInputRequiredNotification(
     return;
   }
 
-  dispatchJobInAppNotification(job, SokosumiJobStatus.INPUT_REQUIRED);
+  await dispatchJobInAppNotification(job, SokosumiJobStatus.INPUT_REQUIRED);
 
   try {
     const agentName = getAgentName(job.agent);
@@ -187,7 +190,7 @@ async function dispatchJobFailureNotification(
   job: JobWithSokosumiStatus,
   enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
-  dispatchJobInAppNotification(job, job.status);
+  await dispatchJobInAppNotification(job, job.status);
 
   try {
     const notificationData = buildFailureNotificationData(job);
@@ -335,15 +338,19 @@ export async function finalizeJobSyncResult(
 
   if (transactionResult.extractionContext) {
     const { eventId, result, userId } = transactionResult.extractionContext;
-    sourceImportService.enqueueFromMarkdown(eventId, result).catch((error) => {
-      console.error("Failed to enqueue source import:", error);
-      Sentry.captureException(error, {
-        extra: {
-          eventId,
-          userId,
-        },
+    // waitUntil covers this path. Detaching it left nested link upserts
+    // idle-in-transaction after the continuation deadline.
+    await sourceImportService
+      .enqueueFromMarkdown(eventId, result)
+      .catch((error) => {
+        console.error("Failed to enqueue source import:", error);
+        Sentry.captureException(error, {
+          extra: {
+            eventId,
+            userId,
+          },
+        });
       });
-    });
   }
 
   const newJobStatus = transactionResult.jobStatus;
