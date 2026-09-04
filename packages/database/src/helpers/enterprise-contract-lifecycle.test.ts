@@ -482,9 +482,7 @@ describe("activateEnterpriseContract", () => {
       activatedAt.toISOString(),
     );
     assert.deepEqual(
-      client.updateMemberMock.mock.calls.map(
-        (call: [{ where: { id: string } }]) => call[0].where.id,
-      ),
+      client.updateMemberMock.mock.calls.map((call) => call[0].where.id),
       ["member-owner", "member-1"],
     );
   });
@@ -623,7 +621,7 @@ describe("activateEnterpriseContract", () => {
     assert.equal(result.periodsCreated, 3);
     assert.equal(client.findManyContractsMock.mock.calls.length, 1);
     const completedExpiredContract = client.updateContractMock.mock.calls.some(
-      (call: [{ data: { status: string }; where: { id: string } }]) =>
+      (call) =>
         call[0]?.where.id === "expired-active-contract" &&
         call[0]?.data.status === EnterpriseContractStatus.completed,
     );
