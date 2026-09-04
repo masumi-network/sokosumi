@@ -78,6 +78,8 @@ const MATRIX = [
   { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
   { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: false },
+  { category: "TASK_COMPLETED", channel: "IN_APP", enabled: true },
+  { category: "TASK_COMPLETED", channel: "OS_BANNER", enabled: false },
   { category: "TASK_UPDATE", channel: "IN_APP", enabled: false },
   { category: "TASK_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: false },
@@ -879,6 +881,55 @@ describe("NotificationKinds", () => {
     expect(written("JOB_ATTENTION", "OS_BANNER")).toBe(true);
     expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
     expect(written("JOB_UPDATE", "OS_BANNER")).toBe(false);
+  });
+
+  /**
+   * Why the row was split off. A finished task is the answer the reader
+   * started it for, so Important keeps it while the cancellations go quiet.
+   */
+  it("keeps a finished task loud when the tasks group is important", async () => {
+    renderKinds();
+
+    await pickPreset("groupTask", "presetImportant");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(written("TASK_COMPLETED", "IN_APP")).toBe(true);
+    expect(written("TASK_COMPLETED", "OS_BANNER")).toBe(true);
+    expect(written("TASK_UPDATE", "IN_APP")).toBe(false);
+    expect(written("TASK_UPDATE", "OS_BANNER")).toBe(false);
+  });
+
+  /** Between the row that waits on the reader and everything else. */
+  it("draws the finished tasks as their own row", async () => {
+    renderKinds();
+
+    await openGroup("groupTask");
+
+    expect(
+      screen
+        .getAllByRole("group", { name: /^deliveryAriaLabel kindTask/ })
+        .map((row) => row.getAttribute("aria-label")),
+    ).toEqual([
+      "deliveryAriaLabel kindTaskAttention",
+      "deliveryAriaLabel kindTaskCompleted",
+      "deliveryAriaLabel kindTaskUpdate",
+    ]);
+  });
+
+  it("writes the finished row alone when its push is pressed", async () => {
+    renderKinds();
+
+    await openGroup("groupTask");
+    await toggle("kindTaskCompleted", "channelPush");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(lastWrite()).toHaveLength(2);
+    expect(written("TASK_COMPLETED", "OS_BANNER")).toBe(true);
+    expect(written("TASK_COMPLETED", "IN_APP")).toBe(true);
   });
 
   it("keeps the same kinds quietly when the reader asks for quiet", async () => {
