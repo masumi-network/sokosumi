@@ -93,7 +93,12 @@ function GroupRows({
           />
         </div>
       </div>
-      <CollapsibleContent>
+      {/* The fold measures itself, so the grid slides out of the row rather
+          than replacing it between two frames. `overflow-hidden` is what makes
+          the height mean anything: without it the grid stands at full height
+          while the box around it is still growing. A reader who asked for less
+          motion gets the old jump, which is the honest thing to give them. */}
+      <CollapsibleContent className="motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down overflow-hidden">
         <div className="bg-muted/20 border-t px-4 pt-1 pb-1">
           <ChannelGrid
             kinds={group.kinds}
