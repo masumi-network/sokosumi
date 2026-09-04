@@ -9,7 +9,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import { CHANNEL_ICON } from "./notification-cells";
 import {
   CHANNEL_SPECS,
@@ -18,7 +17,7 @@ import {
 } from "./notification-delivery";
 
 /**
- * A column's name, sized to sit over its cells on a wide screen.
+ * A column's name, with the icon its cells carry.
  *
  * The dotted underline is the whole of the invitation: it is what a reader has
  * learned means a word will explain itself. The cells under it carry no such
@@ -26,7 +25,7 @@ import {
  * contact is a grid nobody can cross.
  */
 const NAME =
-  "focus-visible:ring-ring/50 decoration-muted-foreground/60 flex cursor-help items-center gap-1.5 rounded-sm underline decoration-dotted underline-offset-4 outline-none focus-visible:ring-[3px] sm:w-9 sm:justify-center sm:gap-0";
+  "focus-visible:ring-ring/50 decoration-muted-foreground/60 flex cursor-help items-center gap-1.5 rounded-sm underline decoration-dotted underline-offset-4 outline-none focus-visible:ring-[3px]";
 
 /**
  * What arriving on one channel means, on hover and on a tap.
@@ -95,7 +94,7 @@ function ChannelExplainer({
           }
         }}
       >
-        <Icon className="size-3.5 shrink-0 sm:hidden" aria-hidden="true" />
+        <Icon className="size-3.5 shrink-0" aria-hidden="true" />
         {label}
       </PopoverTrigger>
       <PopoverContent
@@ -127,16 +126,16 @@ function ChannelExplainer({
 }
 
 /**
- * The columns, named inside an expanded row and able to explain themselves.
+ * The columns, named once over the first row of an open group and able to
+ * explain themselves.
  *
- * Every row right-aligns its cells into the same column, so one line of names
- * covers all of them in that row, and the names are where the explanation
+ * Every row right-aligns its cells into the same column and every cell carries
+ * its channel's icon, so one line of icon-and-name pairs over the first row
+ * names the cells of the whole group. The names are where the explanation
  * belongs: a channel means the same thing on every kind under it.
  *
- * Wide, the names sit over their own columns on the line's floor, so a name
- * that wraps in one language does not lift its column. Narrow, the columns are
- * too tight for a word that explains itself, so the names fall back into a
- * legend at the start of the line, each with the icon its cells carry.
+ * A name is as wide as its word. Boxed to the width of a cell, "In der App"
+ * broke over three lines and lifted the whole line with it.
  */
 export function ChannelLegend({ pushBlock }: { pushBlock: PushBlock | null }) {
   const t = useTranslations("App.Account.Notifications");
@@ -145,14 +144,7 @@ export function ChannelLegend({ pushBlock }: { pushBlock: PushBlock | null }) {
     <div
       role="group"
       aria-label={t("channelsLegendLabel")}
-      // Tight to the top of the fold, and tight to the first row under it.
-      // Wide, the names sit at the right-hand end of the line and the rest of
-      // it is empty, so any padding here reads as a band of nothing between
-      // the group and its first kind rather than as air around a legend.
-      className={cn(
-        "text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 pb-0.5 text-xs",
-        "sm:flex-nowrap sm:items-end sm:justify-end sm:gap-2",
-      )}
+      className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-xs"
     >
       {CHANNEL_SPECS.map((spec) => (
         <ChannelExplainer

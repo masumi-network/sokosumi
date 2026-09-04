@@ -74,35 +74,6 @@ export interface EmailChoice {
   onChange: (next: boolean) => void;
 }
 
-/** A column's name, sized to sit over its cells. */
-function ColumnHead({ children }: { children: ReactNode }) {
-  return (
-    <span className="text-muted-foreground w-9 shrink-0 text-center text-xs">
-      {children}
-    </span>
-  );
-}
-
-/**
- * The names of the columns, in the order the cells are drawn.
- *
- * Hidden from the accessibility tree wherever it is used: every cell names its
- * own channel, so a reader hears these words from the control rather than
- * twice more as loose text above it.
- */
-export function ColumnHeads() {
-  const t = useTranslations("App.Account.Notifications");
-
-  return (
-    <>
-      {CHANNEL_SPECS.map((spec) => (
-        <ColumnHead key={spec.id}>{t(spec.labelKey)}</ColumnHead>
-      ))}
-      <ColumnHead>{t("channelEmail")}</ColumnHead>
-    </>
-  );
-}
-
 /**
  * A cell with nothing to press, and a reason a reader can reach.
  *
@@ -419,55 +390,44 @@ export function ChannelGrid({
   email,
   pushBlock,
   showNames,
+  heads,
   onToggle,
 }: {
   kinds: readonly KindChoice[];
   email: EmailChoice;
   pushBlock: PushBlock | null;
   showNames: boolean;
+  /** The column names, drawn once over the first row's cells. */
+  heads?: ReactNode;
   onToggle: (kind: KindChoice, channel: StoredChannel, on: boolean) => void;
 }) {
   const t = useTranslations("App.Account.Notifications");
 
   return (
-    <div>
-      {/* Only where the row breaks in two. The card names its columns once
-          at the top of the expanded section and every row right-aligns its
-          cells under those names. Below `sm` the name and the cells sit on
-          separate lines, so the cells bring their heads with them. */}
-      {showNames ? null : (
+    <div className={cn(showNames && "divide-y")}>
+      {kinds.map((kind, index) => (
+        // Stacked on a narrow screen, where three cells and a name that
+        // wraps would leave the name about 70px wide. The cells keep the
+        // right edge either way.
         <div
-          aria-hidden="true"
-          className="flex items-end justify-end gap-2 pb-1 sm:hidden"
+          key={kind.spec.category}
+          className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2"
         >
-          <ColumnHeads />
-        </div>
-      )}
-      <div className={cn(showNames && "divide-y")}>
-        {kinds.map((kind) => (
-          // Stacked on a narrow screen, where three cells and a name that
-          // wraps would leave the name about 70px wide. The cells keep the
-          // right edge either way, so they stay under their own heads.
-          <div
-            key={kind.spec.category}
-            className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2"
-          >
-            {showNames ? (
-              <div className="min-w-0 pr-3 pl-6 break-words sm:flex-1 sm:pl-10">
-                <p className="text-sm leading-5">{t(kind.spec.labelKey)}</p>
-                <p className="text-muted-foreground text-sm leading-5">
-                  {t(kind.spec.hintKey)}
-                </p>
-              </div>
-            ) : null}
-            {showNames ? (
-              <div
-                aria-hidden="true"
-                className="flex items-end justify-end gap-2 sm:hidden"
-              >
-                <ColumnHeads />
-              </div>
-            ) : null}
+          {showNames ? (
+            <div className="min-w-0 pr-3 pl-6 break-words sm:flex-1 sm:pl-10">
+              <p className="text-sm leading-5">{t(kind.spec.labelKey)}</p>
+              <p className="text-muted-foreground text-sm leading-5">
+                {t(kind.spec.hintKey)}
+              </p>
+            </div>
+          ) : null}
+          {/* The heads ride on the first row's cells rather than on a line of
+              their own: a line that holds nothing but three names at its
+              right-hand end reads as a gap between the group and its first
+              kind. Every cell under it carries its channel's icon, so one
+              naming serves the whole group. */}
+          <div className="flex flex-col items-end gap-1.5">
+            {index === 0 ? heads : null}
             <KindCells
               kind={kind}
               email={email}
@@ -477,8 +437,8 @@ export function ChannelGrid({
               }}
             />
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }

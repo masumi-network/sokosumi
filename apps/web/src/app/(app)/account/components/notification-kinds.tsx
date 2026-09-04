@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/collapsible";
 import {
   ChannelGrid,
-  ColumnHeads,
   EmailCell,
   type EmailChoice,
   UnusedChannelCells,
@@ -158,12 +157,12 @@ function GroupRows({
         )
       }
     >
-      <ChannelLegend pushBlock={pushBlock} />
       <ChannelGrid
         kinds={group.kinds}
         email={email}
         pushBlock={pushBlock}
         showNames={!alone}
+        heads={<ChannelLegend pushBlock={pushBlock} />}
         onToggle={(kind, channel, on) => {
           void choices.setDeliveries([
             {
@@ -200,15 +199,7 @@ function NewsRow({ news }: { news: EmailChoice }) {
       open={open}
       onOpenChange={setOpen}
     >
-      <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
-        {/* Only where the row breaks in two. This copy keeps the column names
-            next to the cells on a narrow screen. */}
-        <div
-          aria-hidden="true"
-          className="flex items-end justify-end gap-2 sm:hidden"
-        >
-          <ColumnHeads />
-        </div>
+      <div className="flex items-center justify-end gap-2 py-2">
         <div
           role="group"
           // Its own sentence rather than the one every kind row uses, which
