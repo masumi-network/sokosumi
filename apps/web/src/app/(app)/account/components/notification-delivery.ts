@@ -66,11 +66,14 @@ export interface KindSpec {
   /** What happens, in the reader's terms, under the name. */
   hintKey: string;
   /**
-   * Whether this kind waits on the reader.
+   * Whether this kind survives when the reader trims the group.
    *
-   * The presets read it: "Important" keeps these and drops the rest. It is a
-   * property of the kind rather than a preset's private list, so a kind added
-   * later answers the question once instead of in every preset.
+   * The presets read it: "Important" keeps these and drops the rest. Nearly
+   * every one of them waits on the reader. A finished task is the exception:
+   * there is nothing to do about it, and it is the answer the reader started
+   * the task for. It is a property of the kind rather than a preset's private
+   * list, so a kind added later answers the question once instead of in every
+   * preset.
    */
   important: boolean;
   /**
@@ -97,8 +100,8 @@ export interface GroupSpec {
  *
  * A group of one is drawn as a plain row: folding a single kind away behind a
  * chevron hides it without shortening anything. The rest fold, because each
- * holds something that waits on the reader next to something that merely
- * happened, and those are the two the reader wants to set apart.
+ * holds something the reader keeps next to something they would rather be rid
+ * of, and those are the ones they want to set apart.
  */
 export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
   {
@@ -131,6 +134,13 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "TASK_ATTENTION",
         labelKey: "kindTaskAttention",
         hintKey: "kindTaskAttentionHint",
+        important: true,
+        email: false,
+      },
+      {
+        category: "TASK_COMPLETED",
+        labelKey: "kindTaskCompleted",
+        hintKey: "kindTaskCompletedHint",
         important: true,
         email: false,
       },
@@ -262,9 +272,8 @@ export function withChannel(
  * The answers a group's own control offers.
  *
  * Ordered loudest first, and each one means the same thing in every group:
- * everything, only what waits on you, only what waits on you and quietly, or
- * nothing. What they write differs by group, because what waits on you differs
- * by group.
+ * everything, only what matters, only what matters and quietly, or nothing.
+ * What they write differs by group, because what matters differs by group.
  */
 export const PRESETS = ["EVERYTHING", "IMPORTANT", "QUIET", "OFF"] as const;
 export type Preset = (typeof PRESETS)[number];
@@ -313,9 +322,9 @@ export function presetChannels(
  *
  * The one tie `PRESETS` order settles wrongly. That order runs loudest first,
  * so the loudest preset writing a shape is the one that describes it, except
- * at the quiet end: a group of kinds that none of them wait on the reader is
- * silenced by Important as well, and Important is not what a reader calls a
- * stop that silences a group.
+ * at the quiet end: a group whose kinds Important keeps none of is silenced by
+ * it as well, and Important is not what a reader calls a stop that silences a
+ * group.
  */
 function silencesEverything(shape: readonly StoredChannel[][]): boolean {
   return shape.every((channels) => channels.length === 0);
@@ -324,9 +333,9 @@ function silencesEverything(shape: readonly StoredChannel[][]): boolean {
 /**
  * The presets worth showing for this group.
  *
- * A group whose kinds all wait on the reader cannot tell "Everything" from
- * "Important": both write the same cells, and a control that never changes
- * anything reads as broken. So a preset that writes what another one writes is
+ * A group whose kinds Important keeps every one of cannot tell "Everything"
+ * from "Important": both write the same cells, and a control that never
+ * changes anything reads as broken. So a preset that writes what another one writes is
  * dropped rather than explained.
  *
  * Which of the two survives is the one whose name describes what it writes:
