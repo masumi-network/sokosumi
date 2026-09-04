@@ -160,4 +160,29 @@ describe("direct room display order", () => {
     expect(idsA).toEqual(["ada", CURRENT_USER_ID, "zara", "cw-a", "cw-z"]);
     expect(idsB).toEqual(idsA);
   });
+
+  it("names a DM from sokoBotMembers when orchestratorMembers is absent", () => {
+    const self = human({ id: CURRENT_USER_ID, name: "Me" });
+    const other = human({ id: "other", name: "Other" });
+    const pa = {
+      id: "soko-1",
+      name: "Soko",
+      caption: "PA",
+      image: null,
+      avatarSeed: "soko-1",
+      presence: "offline" as const,
+    };
+    const room = {
+      ...directRoom({ userMembers: [self, other] }),
+      sokoBotMembers: [pa],
+    };
+    delete (room as { orchestratorMembers?: unknown }).orchestratorMembers;
+
+    expect(getRoomDisplayName(room as ChatRoom, CURRENT_USER_ID)).toBe(
+      "Other, Soko",
+    );
+    expect(
+      getRoomParticipantPreviews(room as ChatRoom).map((p) => p.id),
+    ).toEqual([CURRENT_USER_ID, "other", "soko-1"]);
+  });
 });
