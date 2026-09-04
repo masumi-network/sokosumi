@@ -53,7 +53,13 @@ export function PushBanner({
   const t = useTranslations("App.Account.Notifications");
 
   return (
-    <div className="border-semantic-warning-tertiary bg-semantic-warning-quinary rounded-lg border p-4">
+    // It usually arrives in the middle of a press: a cell asks for a push,
+    // and this is the answer. Fading down into the gap it makes says it
+    // belongs to that press, where appearing between two frames reads as the
+    // page having been like this all along and the reader having missed it. A
+    // reader who set the cell on an earlier visit meets it on the first paint
+    // instead, where one short fade is the whole of it.
+    <div className="border-semantic-warning-tertiary bg-semantic-warning-quinary motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 animation-duration-200 rounded-lg border p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           {/* The tint and the mark carry the warning; the words do not.
