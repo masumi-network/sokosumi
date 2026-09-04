@@ -14,10 +14,24 @@ export const AGENTS_SYNC_LOCK_KEY = "agents-sync";
 // whenever already-synced registry rows require a full replay.
 export const AGENTS_SYNC_METADATA_KEY =
   "agents-sync-metadata:dynamic-pricing-v1";
-// ONE budget for BOTH readiness syncs — the comments below promise "the same
-// timeout treatment", and a shared constant is what keeps a future tuning of
-// one rail from silently leaving the other on a different deadline.
-const READINESS_SYNC_TIMEOUT_MS = 10_000;
+// The two readiness syncs no longer get the same number, because they no
+// longer do the same thing: the Cardano sync retries a fast failure inside
+// its own budget and the x402 sync makes one pass. Both are named here so the
+// difference is a decision on the page rather than a drift nobody notices.
+//
+// Cardano: one ATTEMPT is 20s (READINESS_ATTEMPT_TIMEOUT_MS in
+// agent-sync.readiness.ts) and a cycle may spend four of them. This ceiling
+// is what stops repeated TIMEOUTS from spending all four: a node that fails
+// fast retries freely, a node that hangs gets two attempts and no more.
+const CARDANO_READINESS_SYNC_TIMEOUT_MS = 25_000;
+// x402: a single pass, so this IS its attempt timeout.
+const X402_READINESS_SYNC_TIMEOUT_MS = 20_000;
+//
+// Both come out of the cycle budget (LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER, 95s
+// on the defaults) and the registry sync below gets what is left. 45s of
+// readiness in the worst case leaves it 50s, and only when the payment node
+// is already down. The registry sync is cursor-based and resumable, so a
+// short window slows a catch-up rather than failing one.
 
 export default function mount(app: Hono) {
   app.get("/agents", async (c) => {
@@ -25,16 +39,17 @@ export default function mount(app: Hono) {
     return await handleSyncRequest(c, AGENTS_SYNC_LOCK_KEY, async (context) => {
       // Readiness first: it is cheap, independent of registry data, and must
       // not be starved by a long registry replay eating the time budget. The
-      // hard 10s timeout keeps a hung payment node from pinning the lock.
+      // hard ceiling above keeps a hung payment node from pinning the lock,
+      // retries included.
       const readinessChanged =
         await agentSyncService.syncCardanoV2RailReadiness({
           signal: AbortSignal.any([
             context.abortSignal,
-            AbortSignal.timeout(READINESS_SYNC_TIMEOUT_MS),
+            AbortSignal.timeout(CARDANO_READINESS_SYNC_TIMEOUT_MS),
           ]),
         });
-      // x402 buy-side readiness rides the same cron under the same timeout
-      // treatment. Its change signal deliberately does NOT reset the registry
+      // x402 buy-side readiness rides the same cron under its own ceiling
+      // above. Its change signal deliberately does NOT reset the registry
       // cursor: the x402 listing reads getX402ReadySources at request time,
       // so nothing readiness-dependent is baked into agent rows (unlike the
       // Cardano readiness, which feeds the projected availability filters).
@@ -50,7 +65,7 @@ export default function mount(app: Hono) {
         await syncX402BuySideReadiness({
           signal: AbortSignal.any([
             context.abortSignal,
-            AbortSignal.timeout(READINESS_SYNC_TIMEOUT_MS),
+            AbortSignal.timeout(X402_READINESS_SYNC_TIMEOUT_MS),
           ]),
         });
       } catch (error) {

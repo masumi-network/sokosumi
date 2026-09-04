@@ -8,6 +8,35 @@ import {
 import prisma from "@/lib/db/prisma";
 
 /**
+ * What one readiness attempt gets, and how many attempts a failing cycle may
+ * spend.
+ *
+ * The attempt timeout is what a healthy payment node has to answer within.
+ * The retry count is what a cycle may spend on a far side that fails FAST: a
+ * refused connection, a DNS failure, a proxy 502. Those return in
+ * milliseconds, so three retries cost almost nothing and turn a blip into a
+ * non-event.
+ *
+ * A repeated TIMEOUT is the opposite. It costs the full attempt timeout every
+ * time, so the caller's own deadline ends the loop long before the count
+ * does. That is deliberate. The registry sync shares this cycle's budget and
+ * must not be starved to keep retrying a node that is not answering.
+ */
+const READINESS_ATTEMPT_TIMEOUT_MS = 20_000;
+const READINESS_MAX_ATTEMPTS = 4;
+
+/**
+ * Each attempt needs its OWN deadline. Reusing the caller's signal would hand
+ * attempt two a timeout that already fired, so every retry would return
+ * instantly and the count would be spent without a single extra request. The
+ * caller's signal still rides along as the ceiling on the whole loop.
+ */
+function attemptSignal(outer: AbortSignal | undefined): AbortSignal {
+  const attempt = AbortSignal.timeout(READINESS_ATTEMPT_TIMEOUT_MS);
+  return outer ? AbortSignal.any([outer, attempt]) : attempt;
+}
+
+/**
  * Refreshes the recorded Cardano V2 rail readiness of the payment node (read
  * by getCardanoV2ReadySources).
  *
@@ -25,9 +54,25 @@ import prisma from "@/lib/db/prisma";
 export async function syncCardanoV2RailReadiness(
   options: { signal?: AbortSignal } = {},
 ): Promise<boolean> {
-  const readinessResult = await paymentClient().getCardanoV2RailReadiness({
-    signal: options.signal,
+  const node = paymentClient();
+  let readinessResult = await node.getCardanoV2RailReadiness({
+    signal: attemptSignal(options.signal),
   });
+  for (
+    let attempt = 2;
+    attempt <= READINESS_MAX_ATTEMPTS &&
+    readinessResult.isErr() &&
+    !options.signal?.aborted;
+    attempt += 1
+  ) {
+    console.warn(
+      `[sync/agents] Cardano V2 rail readiness attempt ${attempt - 1} failed; retrying:`,
+      readinessResult.error,
+    );
+    readinessResult = await node.getCardanoV2RailReadiness({
+      signal: attemptSignal(options.signal),
+    });
+  }
 
   if (readinessResult.isErr()) {
     console.warn(

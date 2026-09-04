@@ -3305,16 +3305,86 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it("forwards the abort signal to the readiness check", async () => {
+  it("forwards the caller's abort into the readiness attempt", async () => {
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
-    const signal = new AbortController().signal;
+    const controller = new AbortController();
 
-    await agentSyncService.syncCardanoV2RailReadiness({ signal });
+    await agentSyncService.syncCardanoV2RailReadiness({
+      signal: controller.signal,
+    });
 
-    expect(getCardanoV2RailReadinessMock).toHaveBeenCalledWith(
-      expect.objectContaining({ signal }),
+    // Each attempt carries its OWN deadline, so the signal the client sees is
+    // not the caller's object. What must still hold is that the caller can
+    // stop an attempt in flight.
+    const attemptSignal = getCardanoV2RailReadinessMock.mock.calls[0]?.[0]
+      ?.signal as AbortSignal | undefined;
+    expect(attemptSignal).toBeInstanceOf(AbortSignal);
+    expect(attemptSignal?.aborted).toBe(false);
+    controller.abort();
+    expect(attemptSignal?.aborted).toBe(true);
+  });
+
+  it("retries a fast failure and keeps the recovered result", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    getCardanoV2RailReadinessMock
+      .mockResolvedValueOnce(err("rail-readiness unknown: ECONNREFUSED"))
+      .mockResolvedValueOnce(err("rail-readiness unknown: ECONNREFUSED"))
+      .mockResolvedValueOnce(ok(readySources));
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(3);
+    // A cycle that recovered is not a failed cycle: it caches, and it must
+    // neither write the failure marker nor alert.
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(syncMetadataCreateManyMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("gives up after four attempts and reports the streak once", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("rail-readiness unknown: ECONNREFUSED"),
     );
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(4);
+    // Retries are not extra alerts. The whole cycle is still one failure.
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not retry once the caller's deadline has passed", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    const controller = new AbortController();
+    controller.abort();
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("rail-readiness unknown: AbortError: This operation was aborted"),
+    );
+
+    await agentSyncService.syncCardanoV2RailReadiness({
+      signal: controller.signal,
+    });
+
+    // The cycle budget is shared with the registry sync below. Spending it on
+    // retries after the deadline is exactly what the ceiling exists to stop.
+    expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
   });
 
   it("reports a readiness failure to Sentry once per failure streak", async () => {
