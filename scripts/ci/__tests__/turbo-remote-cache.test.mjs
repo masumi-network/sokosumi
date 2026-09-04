@@ -146,6 +146,19 @@ describe("Vercel web turbo build command", () => {
     assert.equal(web.buildCommand, "node ./scripts/vercel-build.mjs");
   });
 
+  it("filters web and core Vercel installs to their workspace graphs", async () => {
+    const web = JSON.parse(await readRepoFile("apps", "web", "vercel.json"));
+    const core = JSON.parse(await readRepoFile("apps", "core", "vercel.json"));
+    assert.equal(
+      web.installCommand,
+      "pnpm install --frozen-lockfile --filter web...",
+    );
+    assert.equal(
+      core.installCommand,
+      "pnpm install --frozen-lockfile --filter @sokosumi/core...",
+    );
+  });
+
   it("leaves Core vercel-build as tsup plus migrate", async () => {
     const core = JSON.parse(await readRepoFile("apps", "core", "vercel.json"));
     assert.equal(core.buildCommand, "pnpm vercel-build");
