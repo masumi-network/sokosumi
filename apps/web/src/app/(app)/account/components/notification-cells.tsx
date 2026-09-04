@@ -25,8 +25,46 @@ import {
 } from "./notification-delivery";
 import type { KindChoice } from "./use-notification-delivery";
 
+/**
+ * The beat a tooltip waits before it opens.
+ *
+ * The cells sit 8px apart and the answers on the rail beside them sit flush,
+ * so a pointer on its way across either crosses every one of them. Opening on
+ * contact, each would flash its words and the row would read as a strip of
+ * blinking text. A reader who means to read one holds still for longer.
+ */
+export const TIP_DELAY_MS = 200;
+
+/**
+ * The gap between a tooltip and what it belongs to.
+ *
+ * Clear of the trigger, so the slide has somewhere to come from and the arrow
+ * is not resting on the border it points at.
+ */
+export const TIP_OFFSET_PX = 6;
+
+/**
+ * A cell's shape, and the properties it may animate.
+ *
+ * The list is named rather than left at the `all` a bare `transition` gives.
+ * The focus ring is a box shadow: transitioned, it fades in behind a reader
+ * who is tabbing and leaves two or three rings on screen at once, which is
+ * exactly the indicator that has to be unambiguous.
+ *
+ * `scale` rather than `transform`, which is the property Tailwind wrote a
+ * squeeze to before it had one of its own. Left at `transform` the list is a
+ * name nothing here sets, and the squeeze below snaps in and out.
+ */
 const CELL =
-  "focus-visible:ring-ring/50 flex size-9 shrink-0 items-center justify-center rounded-md border transition-colors outline-none focus-visible:ring-[3px]";
+  "focus-visible:ring-ring/50 flex size-9 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] outline-none focus-visible:ring-[3px]";
+/**
+ * The squeeze a cell gives back while it is held.
+ *
+ * Only on the cells that write something. The dead cell borrows `CELL` for its
+ * shape, and a cell that moves under the finger and then does nothing is the
+ * worst of the three states to be in.
+ */
+const CELL_PRESS = "motion-safe:active:scale-95";
 const CELL_ON = "border-primary bg-primary text-primary-foreground";
 const CELL_OFF =
   "text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground";
@@ -131,7 +169,7 @@ export function DeadCell({
 
   return (
     <>
-      <Tooltip>
+      <Tooltip delayDuration={TIP_DELAY_MS}>
         {/* Stays in the tab order. A reader who never uses a mouse would
             otherwise pass the row and never learn that this channel is one of
             the places a notification can reach them. */}
@@ -144,7 +182,7 @@ export function DeadCell({
         >
           <Icon className="size-4" aria-hidden="true" />
         </TooltipTrigger>
-        <TooltipContent>{hint}</TooltipContent>
+        <TooltipContent sideOffset={TIP_OFFSET_PX}>{hint}</TooltipContent>
       </Tooltip>
       {/* Hidden from the tree and still read: a description is computed from
           the element it points at, whether or not that element is in the tree.
@@ -244,6 +282,7 @@ export function EmailCell({
       }}
       className={cn(
         CELL,
+        CELL_PRESS,
         email.saving && "opacity-50",
         email.enabled ? CELL_ON : CELL_OFF,
       )}
@@ -261,9 +300,9 @@ export function EmailCell({
 
   return (
     <>
-      <Tooltip>
+      <Tooltip delayDuration={TIP_DELAY_MS}>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent>{hint}</TooltipContent>
+        <TooltipContent sideOffset={TIP_OFFSET_PX}>{hint}</TooltipContent>
       </Tooltip>
       <span aria-hidden="true" id={ownHintId} className="sr-only">
         {hint}
@@ -378,7 +417,7 @@ function KindCells({
         const blocked = spec.id === "OS_BANNER" && pushHint !== null;
 
         return (
-          <Tooltip key={spec.id}>
+          <Tooltip key={spec.id} delayDuration={TIP_DELAY_MS}>
             <TooltipTrigger
               type="button"
               aria-pressed={pressed}
@@ -403,13 +442,14 @@ function KindCells({
               }}
               className={cn(
                 CELL,
+                CELL_PRESS,
                 saving && "opacity-50",
                 pressed ? CELL_ON : CELL_OFF,
               )}
             >
               <Icon className="size-4" aria-hidden="true" />
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent sideOffset={TIP_OFFSET_PX}>
               {blocked ? pushHint : t(spec.hintKey)}
             </TooltipContent>
           </Tooltip>
