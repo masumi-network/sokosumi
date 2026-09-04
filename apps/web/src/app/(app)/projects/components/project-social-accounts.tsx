@@ -169,6 +169,13 @@ export function ProjectSocialAccounts({
             });
             return;
           }
+          if (payload.connectionId !== connectionId) {
+            showFeedback({
+              kind: "error",
+              message: t("errors.legacyCallback"),
+            });
+            return;
+          }
           if (!payload.sessionUri) {
             showFeedback({
               kind: "error",

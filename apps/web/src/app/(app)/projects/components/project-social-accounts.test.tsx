@@ -232,7 +232,7 @@ describe("ProjectSocialAccounts", () => {
     ).toBeVisible();
   });
 
-  it("verifies the callback and finalizes with the initiated connection id", async () => {
+  it("verifies a matching callback and finalizes with the initiated connection id", async () => {
     const user = userEvent.setup();
     const calls: string[] = [];
     vi.mocked(completeComposioAuthCallbackAction).mockImplementation(
@@ -261,7 +261,7 @@ describe("ProjectSocialAccounts", () => {
         data: {
           type: "sokosumi:composio:result",
           status: "success",
-          connectionId: "ca_legacy_callback",
+          connectionId: "ca_known",
           sessionUri: "https://backend.composio.dev/session/single-use",
           errorMessage: null,
           nonce: "project-social-nonce",
@@ -283,6 +283,34 @@ describe("ProjectSocialAccounts", () => {
     expect(toastSuccessMock).toHaveBeenCalledWith("X account connected.");
     expect(refreshMock).toHaveBeenCalledOnce();
     expect(MockBroadcastChannel.instances[0]?.close).toHaveBeenCalledOnce();
+  });
+
+  it("abandons a callback for a different connection without finalizing", async () => {
+    const user = userEvent.setup();
+    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+
+    await user.click(screen.getByRole("button", { name: "Connect X account" }));
+    await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
+    await act(async () => {
+      MockBroadcastChannel.instances[0]?.onmessage?.({
+        data: {
+          type: "sokosumi:composio:result",
+          status: "success",
+          connectionId: "ca_other",
+          sessionUri: "https://backend.composio.dev/session/single-use",
+          errorMessage: null,
+          nonce: "project-social-nonce",
+        },
+      } as MessageEvent);
+    });
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "This OAuth callback cannot verify your X account. Update the Composio callback setup and try again.",
+      );
+    });
+    expect(completeComposioAuthCallbackAction).not.toHaveBeenCalled();
+    expect(finalizeProjectSocialConnection).not.toHaveBeenCalled();
   });
 
   it("completes through same-origin postMessage when BroadcastChannel is unavailable", async () => {
@@ -311,7 +339,7 @@ describe("ProjectSocialAccounts", () => {
           data: {
             type: "sokosumi:composio:result",
             status: "success",
-            connectionId: null,
+            connectionId: "ca_known",
             sessionUri: "https://backend.composio.dev/session/single-use",
             errorMessage: null,
             nonce: "project-social-nonce",
@@ -484,7 +512,7 @@ describe("ProjectSocialAccounts", () => {
         data: {
           type: "sokosumi:composio:result",
           status: "success",
-          connectionId: null,
+          connectionId: "ca_known",
           sessionUri: "https://backend.composio.dev/session/single-use",
           errorMessage: null,
           nonce: "project-social-nonce",
@@ -518,7 +546,7 @@ describe("ProjectSocialAccounts", () => {
         data: {
           type: "sokosumi:composio:result",
           status: "success",
-          connectionId: null,
+          connectionId: "ca_known",
           sessionUri: "https://backend.composio.dev/session/single-use",
           errorMessage: null,
           nonce: "project-social-nonce",
@@ -556,7 +584,7 @@ describe("ProjectSocialAccounts", () => {
         data: {
           type: "sokosumi:composio:result",
           status: "success",
-          connectionId: null,
+          connectionId: "ca_known",
           sessionUri: "https://backend.composio.dev/session/single-use",
           errorMessage: null,
           nonce: "project-social-nonce",
