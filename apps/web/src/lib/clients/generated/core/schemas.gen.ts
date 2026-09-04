@@ -12637,6 +12637,7 @@ export const NotificationPreferenceSchema = {
             type: 'string',
             enum: [
                 'JOB_ATTENTION',
+                'JOB_COMPLETED',
                 'JOB_UPDATE',
                 'TASK_ATTENTION',
                 'TASK_COMPLETED',
