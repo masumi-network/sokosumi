@@ -80,7 +80,7 @@ interface TaskActivityProps {
   submitLabel: string;
   actorCoworkerLabel: string;
   actorUserLabel: string;
-  actorOrchestratorLabel: string;
+  actorSokoBotLabel: string;
   actorSystemLabel: string;
   actionCommentedLabel: string;
   actionUpdatedStatusLabel: string;
@@ -89,7 +89,7 @@ interface TaskActivityProps {
   agentNameById?: Map<string, string>;
   userById?: Record<string, TaskActivityActorInfo>;
   coworkerById?: Record<string, TaskActivityActorInfo>;
-  orchestratorById?: Record<string, TaskActivityActorInfo>;
+  sokoBotById?: Record<string, TaskActivityActorInfo>;
   currentUser?: ({ id: string } & TaskActivityActorInfo) | null;
   expandLabel?: string;
   collapseLabel?: string;
@@ -184,7 +184,7 @@ export function TaskActivitySection({
   submitLabel,
   actorCoworkerLabel,
   actorUserLabel,
-  actorOrchestratorLabel,
+  actorSokoBotLabel,
   actorSystemLabel,
   actionCommentedLabel,
   actionUpdatedStatusLabel,
@@ -193,7 +193,7 @@ export function TaskActivitySection({
   agentNameById,
   userById,
   coworkerById,
-  orchestratorById,
+  sokoBotById,
   currentUser,
   expandLabel = "Expand",
   collapseLabel = "Show less",
@@ -475,18 +475,18 @@ export function TaskActivitySection({
                 ? actorCoworkerLabel
                 : actorKind === "user"
                   ? actorUserLabel
-                  : actorKind === "orchestrator"
-                    ? actorOrchestratorLabel
+                  : actorKind === "sokoBot"
+                    ? actorSokoBotLabel
                     : actorSystemLabel;
             const actorInfo = getEventActorInfo(
               event,
               userById,
               coworkerById,
-              orchestratorById,
+              sokoBotById,
             );
             const actorName =
               actorInfo?.ownerName != null
-                ? t("actorOrchestratorWithOwner", {
+                ? t("actorSokoBotWithOwner", {
                     assistant: actorInfo.name,
                     owner: actorInfo.ownerName,
                   })
@@ -496,7 +496,7 @@ export function TaskActivitySection({
             // its face in chat and the sidebar, and an orb here made the same
             // assistant look like two different ones.
             const showAssistantOrb =
-              actorKind === "orchestrator" && !actorInfo?.image;
+              actorKind === "sokoBot" && !actorInfo?.image;
             const ChannelIcon = CHANNEL_ICON_MAP[event.channel];
             const channelAppName = t(
               `channelApp.${CHANNEL_APP_NAME_KEY_MAP[event.channel]}`,

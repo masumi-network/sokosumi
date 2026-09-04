@@ -29,7 +29,7 @@ const {
   workspaceFindUniqueMock,
   membershipFindManyMock,
   readStateFindManyMock,
-  orchestratorMemberCreateManyMock,
+  sokoBotMemberCreateManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -45,7 +45,7 @@ const {
   workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
-  orchestratorMemberCreateManyMock: vi.fn(),
+  sokoBotMemberCreateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -107,8 +107,8 @@ const tx = {
   workspace: {
     findUnique: workspaceFindUniqueMock,
   },
-  chatRoomOrchestratorMember: {
-    createMany: orchestratorMemberCreateManyMock,
+  chatRoomSokoBotMember: {
+    createMany: sokoBotMemberCreateManyMock,
   },
 };
 
@@ -141,8 +141,8 @@ function createAppWithErrorHandler(authContext: AuthVariables["authContext"]) {
 
 const COWORKER_ID = "cow_123";
 const COWORKER_DIRECT_KEY = `coworker:${OTHER_USER_ID}:${COWORKER_ID}`;
-const ORCHESTRATOR_ID = "01960001-0001-7001-8001-000000000099";
-const ORCHESTRATOR_DIRECT_KEY = `orchestrator:${USER_ID}:${ORCHESTRATOR_ID}`;
+const SOKO_BOT_ID = "01960001-0001-7001-8001-000000000099";
+const SOKO_BOT_DIRECT_KEY = `sokoBot:${USER_ID}:${SOKO_BOT_ID}`;
 
 const userAuthContext: AuthVariables["authContext"] = {
   actor: "user",
@@ -186,7 +186,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
       },
     ],
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
     ...overrides,
   };
 }
@@ -250,7 +250,7 @@ function coworkerDirectRoom(overrides: Record<string, unknown> = {}) {
         },
       },
     ],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
     ...overrides,
   });
 }
@@ -800,7 +800,7 @@ describe("POST /chats/rooms", () => {
           },
         },
       ],
-      orchestratorMembers: [],
+      sokoBotMembers: [],
     });
     roomFindFirstMock.mockResolvedValueOnce(null);
     roomCreateMock.mockResolvedValueOnce(created);
@@ -864,7 +864,7 @@ describe("POST /chats/rooms", () => {
           },
         },
       ],
-      orchestratorMembers: [],
+      sokoBotMembers: [],
     });
     organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
@@ -1758,13 +1758,13 @@ describe("POST /chats/rooms", () => {
     });
   });
 
-  it("creates a personal orchestrator direct without an active organization", async () => {
+  it("creates a personal soko bot direct without an active organization", async () => {
     const created = channelRoom({
       organizationId: null,
       name: "Soko Bot",
       slug: null,
       kind: "direct",
-      directKey: ORCHESTRATOR_DIRECT_KEY,
+      directKey: SOKO_BOT_DIRECT_KEY,
       discoverability: null,
       userMembers: [
         {
@@ -1778,10 +1778,10 @@ describe("POST /chats/rooms", () => {
         },
       ],
       coworkerMembers: [],
-      orchestratorMembers: [
+      sokoBotMembers: [
         {
-          orchestrator: {
-            id: ORCHESTRATOR_ID,
+          sokoBot: {
+            id: SOKO_BOT_ID,
             name: "Soko Bot",
             avatarImageUrl: null,
             avatarSeed: "orb:user_123",
@@ -1795,7 +1795,7 @@ describe("POST /chats/rooms", () => {
     roomCreateMock.mockResolvedValueOnce(created);
     sokoBotFindManyMock.mockResolvedValue([
       {
-        id: ORCHESTRATOR_ID,
+        id: SOKO_BOT_ID,
         userId: USER_ID,
         name: "Soko Bot",
         user: { name: "Ada" },
@@ -1811,16 +1811,16 @@ describe("POST /chats/rooms", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         kind: "direct",
-        orchestratorIds: [ORCHESTRATOR_ID],
+        sokoBotIds: [SOKO_BOT_ID],
       }),
     });
 
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body.data.kind).toBe("direct");
-    expect(body.data.orchestratorMembers).toEqual([
+    expect(body.data.sokoBotMembers).toEqual([
       expect.objectContaining({
-        id: ORCHESTRATOR_ID,
+        id: SOKO_BOT_ID,
         name: "Soko Bot",
       }),
     ]);
@@ -1829,9 +1829,9 @@ describe("POST /chats/rooms", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           kind: "direct",
-          directKey: ORCHESTRATOR_DIRECT_KEY,
-          orchestratorMembers: {
-            create: [{ orchestratorId: ORCHESTRATOR_ID }],
+          directKey: SOKO_BOT_DIRECT_KEY,
+          sokoBotMembers: {
+            create: [{ sokoBotId: SOKO_BOT_ID }],
           },
         }),
       }),
@@ -1840,7 +1840,7 @@ describe("POST /chats/rooms", () => {
 
   it("rejects adding someone else's personal assistant with 403", async () => {
     sokoBotFindManyMock.mockResolvedValue([
-      { id: ORCHESTRATOR_ID, userId: OTHER_USER_ID, name: "Soko Bot" },
+      { id: SOKO_BOT_ID, userId: OTHER_USER_ID, name: "Soko Bot" },
     ]);
 
     const app = createApp({
@@ -1852,7 +1852,7 @@ describe("POST /chats/rooms", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         kind: "direct",
-        orchestratorIds: [ORCHESTRATOR_ID],
+        sokoBotIds: [SOKO_BOT_ID],
       }),
     });
 
@@ -1863,13 +1863,13 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
-  it("restores orchestrator membership when reopening an existing owner direct", async () => {
+  it("restores soko bot membership when reopening an existing owner direct", async () => {
     const existing = channelRoom({
       organizationId: null,
       name: "Soko Bot",
       slug: null,
       kind: "direct",
-      directKey: ORCHESTRATOR_DIRECT_KEY,
+      directKey: SOKO_BOT_DIRECT_KEY,
       discoverability: null,
       userMembers: [
         {
@@ -1883,14 +1883,14 @@ describe("POST /chats/rooms", () => {
         },
       ],
       coworkerMembers: [],
-      orchestratorMembers: [],
+      sokoBotMembers: [],
     });
     const restored = {
       ...existing,
-      orchestratorMembers: [
+      sokoBotMembers: [
         {
-          orchestrator: {
-            id: ORCHESTRATOR_ID,
+          sokoBot: {
+            id: SOKO_BOT_ID,
             name: "Soko Bot",
             avatarImageUrl: null,
             avatarSeed: "orb:user_123",
@@ -1905,13 +1905,13 @@ describe("POST /chats/rooms", () => {
       .mockResolvedValueOnce(restored);
     sokoBotFindManyMock.mockResolvedValue([
       {
-        id: ORCHESTRATOR_ID,
+        id: SOKO_BOT_ID,
         userId: USER_ID,
         name: "Soko Bot",
         user: { name: "Ada" },
       },
     ]);
-    orchestratorMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    sokoBotMemberCreateManyMock.mockResolvedValue({ count: 1 });
 
     const app = createApp({
       ...userAuthContext,
@@ -1922,20 +1922,20 @@ describe("POST /chats/rooms", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         kind: "direct",
-        orchestratorIds: [ORCHESTRATOR_ID],
+        sokoBotIds: [SOKO_BOT_ID],
       }),
     });
 
     expect(response.status).toBe(200);
-    expect(orchestratorMemberCreateManyMock).toHaveBeenCalledWith({
-      data: [{ roomId: ROOM_ID, orchestratorId: ORCHESTRATOR_ID }],
+    expect(sokoBotMemberCreateManyMock).toHaveBeenCalledWith({
+      data: [{ roomId: ROOM_ID, sokoBotId: SOKO_BOT_ID }],
       skipDuplicates: true,
     });
     expect(roomCreateMock).not.toHaveBeenCalled();
     const body = await response.json();
-    expect(body.data.orchestratorMembers).toEqual([
+    expect(body.data.sokoBotMembers).toEqual([
       expect.objectContaining({
-        id: ORCHESTRATOR_ID,
+        id: SOKO_BOT_ID,
         name: "Soko Bot",
       }),
     ]);

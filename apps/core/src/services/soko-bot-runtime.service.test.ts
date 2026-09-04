@@ -68,7 +68,7 @@ const {
   transactionChatMentionCreateManyMock,
   transactionChatRoomUpdateMock,
   chatCoworkerMemberFindManyMock,
-  chatOrchestratorMemberFindManyMock,
+  chatSokoBotMemberFindManyMock,
   chatMessageCountMock,
   memberFindManyMock,
   toolCallCountMock,
@@ -149,7 +149,7 @@ const {
   transactionChatMentionCreateManyMock: vi.fn(),
   transactionChatRoomUpdateMock: vi.fn(),
   chatCoworkerMemberFindManyMock: vi.fn(),
-  chatOrchestratorMemberFindManyMock: vi.fn(),
+  chatSokoBotMemberFindManyMock: vi.fn(),
   chatMessageCountMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   toolCallCountMock: vi.fn(),
@@ -193,8 +193,8 @@ vi.mock("@/lib/db/prisma", () => ({
       count: chatMessageCountMock,
     },
     chatRoomCoworkerMember: { findMany: chatCoworkerMemberFindManyMock },
-    chatRoomOrchestratorMember: {
-      findMany: chatOrchestratorMemberFindManyMock,
+    chatRoomSokoBotMember: {
+      findMany: chatSokoBotMemberFindManyMock,
     },
     sokoBotContextSnapshot: { findFirst: contextSnapshotFindFirstMock },
     sokoBotDelegation: {
@@ -1246,11 +1246,11 @@ describe("SokoBotRuntimeService authorization", () => {
     expect(transactionTaskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          creatorOrchestratorId: SCOPE.sokoBotId,
+          creatorSokoBotId: SCOPE.sokoBotId,
           events: {
             create: expect.objectContaining({
               channel: "SOKOSUMI",
-              orchestratorId: SCOPE.sokoBotId,
+              sokoBotId: SCOPE.sokoBotId,
               status: TaskStatus.DRAFT,
             }),
           },
@@ -1372,14 +1372,14 @@ describe("SokoBotRuntimeService authorization", () => {
     );
   });
 
-  it("resumes its own assigned Task and fans out the orchestrator event", async () => {
+  it("resumes its own assigned Task and fans out the soko bot event", async () => {
     transactionTaskFindFirstMock.mockResolvedValue({
       id: "task_1",
       name: "Launch",
       status: TaskStatus.INPUT_REQUIRED,
       ownerId: SCOPE.userId,
       assigneeId: null,
-      assigneeOrchestratorId: SCOPE.sokoBotId,
+      assigneeSokoBotId: SCOPE.sokoBotId,
     });
 
     const result = await new SokoBotRuntimeService()["replyToTask"](
@@ -1400,7 +1400,7 @@ describe("SokoBotRuntimeService authorization", () => {
       data: expect.objectContaining({
         taskId: "task_1",
         status: TaskStatus.READY,
-        orchestratorId: SCOPE.sokoBotId,
+        sokoBotId: SCOPE.sokoBotId,
       }),
       select: { id: true },
     });
@@ -2430,8 +2430,8 @@ describe("SokoBotRuntimeService chat reading", () => {
     } as never);
 
     const where = chatRoomFindManyMock.mock.calls[0][0].where;
-    expect(where.orchestratorMembers).toEqual({
-      some: { orchestratorId: SCOPE.sokoBotId },
+    expect(where.sokoBotMembers).toEqual({
+      some: { sokoBotId: SCOPE.sokoBotId },
     });
     // Membership is the boundary; ChatRoom has no workspaceId column.
     expect(where.archivedAt).toBeNull();
@@ -2458,7 +2458,7 @@ describe("SokoBotRuntimeService chat reading", () => {
         createdAt: new Date("2026-08-27T10:01:00.000Z"),
         senderUser: null,
         senderCoworker: null,
-        senderOrchestrator: { id: SCOPE.sokoBotId, name: "Soko Bot" },
+        senderSokoBot: { id: SCOPE.sokoBotId, name: "Soko Bot" },
       },
       {
         id: "m1",
@@ -2466,7 +2466,7 @@ describe("SokoBotRuntimeService chat reading", () => {
         createdAt: new Date("2026-08-27T10:00:00.000Z"),
         senderUser: { name: "Patrick" },
         senderCoworker: null,
-        senderOrchestrator: null,
+        senderSokoBot: null,
       },
     ]);
 
@@ -2488,6 +2488,42 @@ describe("SokoBotRuntimeService chat reading", () => {
       fromYou: false,
     });
   });
+
+  it("labels an unnamed bot sender as Soko Bot and keeps unknown when there is no sender", async () => {
+    chatRoomFindFirstMock.mockResolvedValue({ id: "room_1", name: "Launch" });
+    chatMessageFindManyMock.mockResolvedValue([
+      {
+        id: "m-bot",
+        content: "on it",
+        createdAt: new Date("2026-08-27T10:01:00.000Z"),
+        senderUser: null,
+        senderCoworker: null,
+        senderSokoBot: { id: SCOPE.sokoBotId, name: null },
+      },
+      {
+        id: "m-none",
+        content: "system",
+        createdAt: new Date("2026-08-27T10:00:00.000Z"),
+        senderUser: null,
+        senderCoworker: null,
+        senderSokoBot: null,
+      },
+    ]);
+
+    const result = (await new SokoBotRuntimeService()["readChat"](
+      { turn: SCOPE_TURN } as never,
+      { roomId: "room_1" },
+    )) as { messages: { from: string; fromYou: boolean }[] };
+
+    expect(result.messages[0]).toMatchObject({
+      from: "Soko Bot",
+      fromYou: true,
+    });
+    expect(result.messages[1]).toMatchObject({
+      from: "unknown",
+      fromYou: false,
+    });
+  });
 });
 
 describe("post_chat chain depth", () => {
@@ -2502,7 +2538,7 @@ describe("post_chat chain depth", () => {
   function armPostChat(chainDepth: number) {
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
-    chatOrchestratorMemberFindManyMock.mockResolvedValue([]);
+    chatSokoBotMemberFindManyMock.mockResolvedValue([]);
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
     chatRoomFindFirstMock.mockResolvedValue({
       id: "room_1",
@@ -2627,7 +2663,7 @@ describe("post_chat chain depth", () => {
           {
             messageId: "msg_1",
             coworkerId: "cow_other",
-            orchestratorId: null,
+            sokoBotId: null,
             chainDepth: 1,
           },
         ],
@@ -2739,7 +2775,7 @@ describe("post_chat chain depth", () => {
     });
 
     expect(
-      chatOrchestratorMemberFindManyMock.mock.calls[0][0].where.orchestratorId,
+      chatSokoBotMemberFindManyMock.mock.calls[0][0].where.sokoBotId,
     ).toEqual({ not: SCOPE.sokoBotId });
     expect(transactionChatMentionCreateManyMock).not.toHaveBeenCalled();
   });
@@ -2760,7 +2796,7 @@ describe("open_direct_chat", () => {
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     toolCallCountMock.mockResolvedValue(0);
-    chatOrchestratorMemberFindManyMock.mockResolvedValue([]);
+    chatSokoBotMemberFindManyMock.mockResolvedValue([]);
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_1" });
     memberFindManyMock.mockResolvedValue([
       { user: { id: "user_colleague", name: "Nina", email: "nina@x.io" } },
@@ -2810,8 +2846,8 @@ describe("open_direct_chat", () => {
       currentUserId: "user_colleague",
       memberUserIds: [],
       coworkerIds: [],
-      orchestratorIds: [SCOPE.sokoBotId],
-      orchestratorActorUserId: SCOPE.userId,
+      sokoBotIds: [SCOPE.sokoBotId],
+      sokoBotActorUserId: SCOPE.userId,
       viewerUserId: null,
     });
     expect(result).toMatchObject({ roomId: "room_new", created: true });

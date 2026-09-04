@@ -64,9 +64,7 @@ export function CoworkerCard({
       </span>
 
       <div className="flex items-center gap-3">
-        {option.kind === "orchestrator" &&
-        !option.image &&
-        option.avatarSeed ? (
+        {option.kind === "sokoBot" && !option.image && option.avatarSeed ? (
           <AssistantOrb
             seed={option.avatarSeed}
             expression="idle"

@@ -11,7 +11,7 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   isUserAuthContext,
 } from "@/middleware/auth";
 
@@ -52,7 +52,7 @@ function getWorkspaceOwnerContext(authContext: AuthenticationContext): {
     };
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     return {
       userId: authContext.userId,
       organizationId: authContext.organizationId,
@@ -64,7 +64,7 @@ function getWorkspaceOwnerContext(authContext: AuthenticationContext): {
 
 /**
  * Resolves the active workspace for authenticated requests that act in a
- * user workspace: interactive users, orchestrators fixed to an owner, and
+ * user workspace: interactive users, sokoBots fixed to an owner, and
  * coworker keys that supply `X-Context-*` headers. Bare coworker keys keep
  * `workspaceContext` as `null`.
  */

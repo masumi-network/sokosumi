@@ -28,7 +28,7 @@ const {
   requestWorkspaceGrantMock,
   resolveEffectiveDesignMdMock,
   requireTaskAssignableCoworkerMock,
-  requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBotMock,
   taskCreateMock,
   taskFindUniqueOrThrowMock,
   uploadProjectBriefingFileMock,
@@ -44,7 +44,7 @@ const {
   requestWorkspaceGrantMock: vi.fn(),
   resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireTaskAssignableOrchestratorMock: vi.fn(),
+  requireTaskAssignableSokoBotMock: vi.fn(),
   taskCreateMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
@@ -93,7 +93,7 @@ function buildMapTaskResponse(task: {
         }
       : null,
     assigneeId: null,
-    assigneeOrchestratorId: null,
+    assigneeSokoBotId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -106,8 +106,8 @@ function buildMapTaskResponse(task: {
         image: null,
       },
     },
-    orchestratorId: null,
-    orchestrator: null,
+    sokoBotId: null,
+    sokoBot: null,
     name: task.name ?? "New Task",
     description: task.description ?? null,
     status: task.status ?? TaskStatus.DRAFT,
@@ -143,7 +143,7 @@ function buildMapTaskResponse(task: {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableOrchestrator: requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -257,28 +257,28 @@ describe("createTaskRequestSchema", () => {
     }).toThrow();
   });
 
-  it("accepts READY status with assigneeOrchestratorId", () => {
+  it("accepts READY status with assigneeSokoBotId", () => {
     const result = createTaskRequestSchema.parse({
       name: "Ready task",
       description: null,
-      assigneeOrchestratorId: "01960001-0001-7001-8001-000000000099",
+      assigneeSokoBotId: "01960001-0001-7001-8001-000000000099",
       status: TaskStatus.READY,
     });
 
     expect(result.status).toBe(TaskStatus.READY);
-    expect(result.assigneeOrchestratorId).toBe(
+    expect(result.assigneeSokoBotId).toBe(
       "01960001-0001-7001-8001-000000000099",
     );
     expect(result.assigneeId).toBeUndefined();
   });
 
-  it("rejects assigneeId and assigneeOrchestratorId together", () => {
+  it("rejects assigneeId and assigneeSokoBotId together", () => {
     expect(() => {
       createTaskRequestSchema.parse({
         name: "Ready task",
         description: null,
         assigneeId: "cow_a",
-        assigneeOrchestratorId: "01960001-0001-7001-8001-000000000099",
+        assigneeSokoBotId: "01960001-0001-7001-8001-000000000099",
         status: TaskStatus.READY,
       });
     }).toThrow();
@@ -508,9 +508,9 @@ describe("POST /tasks", () => {
     );
   });
 
-  it("assigns a personal assistant as orchestrator", async () => {
-    const orchestratorId = "01960001-0001-7001-8001-000000000099";
-    requireTaskAssignableOrchestratorMock.mockResolvedValue(undefined);
+  it("assigns a personal assistant as soko bot", async () => {
+    const sokoBotId = "01960001-0001-7001-8001-000000000099";
+    requireTaskAssignableSokoBotMock.mockResolvedValue(undefined);
     const app = createApp();
 
     const response = await app.request("http://localhost/", {
@@ -521,15 +521,15 @@ describe("POST /tasks", () => {
       body: JSON.stringify({
         name: "PA Task",
         description: null,
-        assigneeOrchestratorId: orchestratorId,
+        assigneeSokoBotId: sokoBotId,
         status: TaskStatus.READY,
         channel: Channel.SOKOSUMI,
       }),
     });
 
     expect(response.status).toBe(201);
-    expect(requireTaskAssignableOrchestratorMock).toHaveBeenCalledWith(
-      orchestratorId,
+    expect(requireTaskAssignableSokoBotMock).toHaveBeenCalledWith(
+      sokoBotId,
       "11111111-1111-7111-8111-111111111111",
       expect.anything(),
       { kind: "user", userId: "user_123" },
@@ -538,15 +538,15 @@ describe("POST /tasks", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           assigneeId: null,
-          assigneeOrchestratorId: orchestratorId,
+          assigneeSokoBotId: sokoBotId,
         }),
       }),
     );
   });
 
   it("rejects assigning someone else's personal assistant with 403", async () => {
-    const orchestratorId = "01960001-0001-7001-8001-000000000099";
-    requireTaskAssignableOrchestratorMock.mockRejectedValue(
+    const sokoBotId = "01960001-0001-7001-8001-000000000099";
+    requireTaskAssignableSokoBotMock.mockRejectedValue(
       forbidden("Only the owner can assign work to this Soko Bot"),
     );
     const app = createApp();
@@ -559,7 +559,7 @@ describe("POST /tasks", () => {
       body: JSON.stringify({
         name: "PA Task",
         description: null,
-        assigneeOrchestratorId: orchestratorId,
+        assigneeSokoBotId: sokoBotId,
         status: TaskStatus.READY,
         channel: Channel.SOKOSUMI,
       }),

@@ -106,7 +106,7 @@ function room() {
       },
     ],
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
   };
 }
 

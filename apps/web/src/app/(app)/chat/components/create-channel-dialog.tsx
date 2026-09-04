@@ -74,7 +74,7 @@ export function CreateChannelDialog() {
   const {
     members,
     coworkers,
-    orchestrators,
+    sokoBots,
     organizationName,
     currentUserId,
     membersLoadFailed,
@@ -162,7 +162,7 @@ export function CreateChannelDialog() {
   function submitCreate(roster: {
     memberUserIds: string[];
     coworkerIds: string[];
-    orchestratorIds: string[];
+    sokoBotIds: string[];
   }) {
     if (wizard.step !== "add-people" || inFlightRef.current || isPending) {
       return;
@@ -180,7 +180,7 @@ export function CreateChannelDialog() {
         discoverability: fields.discoverability,
         memberUserIds: fields.memberUserIds,
         coworkerIds: fields.coworkerIds,
-        orchestratorIds: fields.orchestratorIds,
+        sokoBotIds: fields.sokoBotIds,
       });
       if (!result.ok) {
         inFlightRef.current = false;
@@ -207,7 +207,7 @@ export function CreateChannelDialog() {
           ? allMemberUserIds
           : [currentUserId, ...allMemberUserIds],
         coworkerIds: [],
-        orchestratorIds: [],
+        sokoBotIds: [],
       });
       return;
     }
@@ -217,7 +217,7 @@ export function CreateChannelDialog() {
     submitCreate({
       memberUserIds,
       coworkerIds: wizard.coworkerIds,
-      orchestratorIds: wizard.orchestratorIds,
+      sokoBotIds: wizard.sokoBotIds,
     });
   }
 
@@ -492,17 +492,17 @@ export function CreateChannelDialog() {
               <ParticipantCheckboxes
                 members={members}
                 coworkers={coworkers}
-                orchestrators={orchestrators}
+                sokoBots={sokoBots}
                 memberIds={wizard.memberUserIds}
                 coworkerIds={wizard.coworkerIds}
-                orchestratorIds={wizard.orchestratorIds}
+                sokoBotIds={wizard.sokoBotIds}
                 lockedUserId={currentUserId}
                 onMemberIdsChange={(memberUserIds) =>
                   setWizard(
                     setSpecificMembers(wizard, {
                       memberUserIds,
                       coworkerIds: wizard.coworkerIds,
-                      orchestratorIds: wizard.orchestratorIds,
+                      sokoBotIds: wizard.sokoBotIds,
                     }),
                   )
                 }
@@ -511,16 +511,16 @@ export function CreateChannelDialog() {
                     setSpecificMembers(wizard, {
                       memberUserIds: wizard.memberUserIds,
                       coworkerIds,
-                      orchestratorIds: wizard.orchestratorIds,
+                      sokoBotIds: wizard.sokoBotIds,
                     }),
                   )
                 }
-                onOrchestratorIdsChange={(orchestratorIds) =>
+                onSokoBotIdsChange={(sokoBotIds) =>
                   setWizard(
                     setSpecificMembers(wizard, {
                       memberUserIds: wizard.memberUserIds,
                       coworkerIds: wizard.coworkerIds,
-                      orchestratorIds,
+                      sokoBotIds,
                     }),
                   )
                 }

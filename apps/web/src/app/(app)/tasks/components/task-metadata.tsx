@@ -27,7 +27,7 @@ interface TaskMetadataLabels {
   updated: string;
   schedule: string;
   personalAssistantFallback: string;
-  formatOrchestratorRole: (values: { owner: string }) => string;
+  formatSokoBotRole: (values: { owner: string }) => string;
 }
 
 interface TaskMetadataTask {
@@ -53,7 +53,7 @@ function resolveTaskCreatorDisplay(
   task: TaskMetadataTask,
   labels: Pick<
     TaskMetadataLabels,
-    "formatOrchestratorRole" | "personalAssistantFallback"
+    "formatSokoBotRole" | "personalAssistantFallback"
   >,
 ): TaskCreatorDisplay | null {
   switch (task.creator.type) {
@@ -76,9 +76,9 @@ function resolveTaskCreatorDisplay(
         image: getCoworkerImage(coworker),
       };
     }
-    case "orchestrator": {
-      const orchestrator = task.creator.orchestrator;
-      if (!orchestrator) {
+    case "sokoBot": {
+      const sokoBot = task.creator.sokoBot;
+      if (!sokoBot) {
         return null;
       }
 
@@ -87,14 +87,14 @@ function resolveTaskCreatorDisplay(
       // created by "Jarvis" gives the reader no way to tell that a colleague's
       // assistant did it, or on whose behalf.
       const assistantName =
-        orchestrator.name?.trim() || labels.personalAssistantFallback;
-      const role = labels.formatOrchestratorRole({
-        owner: orchestrator.owner.name,
+        sokoBot.name?.trim() || labels.personalAssistantFallback;
+      const role = labels.formatSokoBotRole({
+        owner: sokoBot.owner.name,
       });
       // A claimed mascot is the bot's face everywhere else, so the orb is the
       // fallback, not the rule.
-      const claimed = orchestrator.avatarImageUrl
-        ? resolveIpfsOrHttpUrl(orchestrator.avatarImageUrl)
+      const claimed = sokoBot.avatarImageUrl
+        ? resolveIpfsOrHttpUrl(sokoBot.avatarImageUrl)
         : null;
       return {
         name: assistantName,
@@ -107,7 +107,7 @@ function resolveTaskCreatorDisplay(
         // face here than the one the owner sees everywhere else.
         avatarSeed: claimed
           ? null
-          : (orchestrator.avatarSeed ?? defaultOrbSeed(orchestrator.owner.id)),
+          : (sokoBot.avatarSeed ?? defaultOrbSeed(sokoBot.owner.id)),
       };
     }
     default: {
@@ -129,17 +129,17 @@ function resolveTaskAssigneeDisplay(
     return { name: "—", image: null };
   }
 
-  if (assignee.type === "orchestrator") {
-    const orchestrator = assignee.orchestrator;
-    const claimed = orchestrator.avatarImageUrl
-      ? resolveIpfsOrHttpUrl(orchestrator.avatarImageUrl)
+  if (assignee.type === "sokoBot") {
+    const sokoBot = assignee.sokoBot;
+    const claimed = sokoBot.avatarImageUrl
+      ? resolveIpfsOrHttpUrl(sokoBot.avatarImageUrl)
       : null;
     return {
-      name: orchestrator.name?.trim() || personalAssistantFallback,
+      name: sokoBot.name?.trim() || personalAssistantFallback,
       image: claimed,
       avatarSeed: claimed
         ? null
-        : (orchestrator.avatarSeed ?? defaultOrbSeed(orchestrator.owner.id)),
+        : (sokoBot.avatarSeed ?? defaultOrbSeed(sokoBot.owner.id)),
     };
   }
 

@@ -22,7 +22,7 @@ import {
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   isUserAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
@@ -125,8 +125,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const uploadedByCoworkerId = isCoworkerAuthContext(authContext)
       ? authContext.coworkerId
       : null;
-    const uploadedByOrchestratorId = isOrchestratorAuthContext(authContext)
-      ? authContext.orchestratorId
+    const uploadedBySokoBotId = isSokoBotAuthContext(authContext)
+      ? authContext.sokoBotId
       : null;
 
     const callbackUrl = resolveBlobUploadCallbackUrl(
@@ -145,7 +145,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       {
         uploadedByUserId,
         uploadedByCoworkerId,
-        uploadedByOrchestratorId,
+        uploadedBySokoBotId,
         callbackUrl,
       },
     );

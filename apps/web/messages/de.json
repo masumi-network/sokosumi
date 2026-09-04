@@ -1800,9 +1800,9 @@
         "collapse": "Weniger anzeigen",
         "actorCoworker": "Coworker",
         "actorUser": "Nutzer",
-        "actorOrchestrator": "Orchestrator",
-        "actorOrchestratorWithOwner": "{assistant} · Assistent von {owner}",
-        "actorOrchestratorRole": "Persönlicher Assistent von {owner}",
+        "actorSokoBot": "Assistent",
+        "actorSokoBotWithOwner": "{assistant} · Assistent von {owner}",
+        "actorSokoBotRole": "Persönlicher Assistent von {owner}",
         "actorSystem": "System",
         "originFromApp": "von {appName}",
         "channelApp": {
@@ -2632,8 +2632,8 @@
           "unreachable": "Dein Assistent konnte nicht erreicht werden. Prüfe deine Verbindung."
         },
         "mockReplies": {
-          "0": "Das ist eine Mock-Antwort aus der lokalen Vorschau deines Assistenten. Setze ?state=running aus, um den echten Assistenten über den Orchestrator zu sehen.",
-          "1": "Verstanden. In Produktion geht deine Nachricht über den Sokosumi-Server, der Orchestrator liefert deinen privaten Endpoint, und dein Assistent antwortet.",
+          "0": "Das ist eine Mock-Antwort aus der lokalen Vorschau deines Assistenten. Setze ?state=running aus, um den echten Assistenten über Sokosumi zu sehen.",
+          "1": "Verstanden. In Produktion geht deine Nachricht über den Sokosumi-Server, Sokosumi liefert deinen privaten Endpoint, und dein Assistent antwortet.",
           "2": "So würde ich vorgehen: das im Langzeitgedächtnis speichern, ein Follow-up in deine Aufgabenliste legen und den Kontext für unsere nächste Sitzung behalten."
         },
         "thinkingMessages": {
@@ -2866,7 +2866,7 @@
         "etaSettling": "Fast fertig…",
         "stepFallbackLabel": "Wird vorbereitet",
         "footerHint": "Wenn es fertig ist, öffnet sich der Chat mit einer personalisierten Intro von deinem Assistenten.",
-        "pollError": "Orchestrator gerade nicht erreichbar — versuche es weiter.",
+        "pollError": "Dein Assistent ist gerade nicht erreichbar — versuche es weiter.",
         "hints": {
           "0": "Tipp: Frag nach dem Start „was ist heute wichtig in meinem Posteingang?“",
           "1": "Dein Assistent merkt sich deine Projekte, Kontakte und Präferenzen.",
@@ -2909,7 +2909,7 @@
         "modelValue": "deepseek-4-flash",
         "modelProviderLabel": "Anbieter",
         "modelProviderValue": "OpenRouter (verwaltet)",
-        "modelManagedHelp": "Die Modellwahl wird vom Orchestrator verwaltet. Eine Änderung erfordert ein Update durch deinen Admin.",
+        "modelManagedHelp": "Die Modellwahl wird von Sokosumi verwaltet. Eine Änderung erfordert ein Update durch deinen Admin.",
         "autonomySection": "Autonomie",
         "autonomyHelp": "Wie viel Initiative dein Assistent übernehmen darf. Niedrigere Stufen fragen vor dem Handeln.",
         "autonomySaving": "Speichere…",
@@ -2963,7 +2963,7 @@
       },
       "Error": {
         "title": "Hermes konnte nicht gestartet werden",
-        "description": "Der Orchestrator hat einen Fehler gemeldet. Bitte in einer Minute erneut versuchen. Wenn es weiter passiert, kontaktiere den Support.",
+        "description": "Dein Assistent hat einen Fehler gemeldet. Bitte in einer Minute erneut versuchen. Wenn es weiter passiert, kontaktiere den Support.",
         "retry": "Erneut versuchen",
         "startOver": "Neu beginnen"
       },

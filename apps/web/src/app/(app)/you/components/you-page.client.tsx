@@ -3,28 +3,22 @@
 import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import {
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   Code2,
   Coins,
-  Cookie,
   HardDrive,
   LifeBuoy,
   LogOut,
   Scale,
   ShieldCheck,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactElement, useState } from "react";
+import { type ReactElement } from "react";
 import {
-  getAccountNavItems,
-  HELP_LINKS,
-  type HelpLinkItem,
-  LEGAL_LINKS,
-  type LegalLinkItem,
-} from "@/app/components/sidebar/components/account-menu-config";
+  MobileStackedMenuGroup,
+  MobileStackedMenuLink,
+} from "@/app/components/mobile-stacked-menu/mobile-stacked-menu";
+import { getAccountNavItems } from "@/app/components/sidebar/components/account-menu-config";
 import {
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
@@ -33,8 +27,11 @@ import type {
   AccountAdminSettingsChrome,
   AccountSummaryCreditProps,
 } from "@/app/components/sidebar/components/account-summary-types";
-import { getDeveloperNavItems } from "@/app/components/sidebar/components/developer-menu-config";
-import { openConsentPreferences } from "@/components/analytics/cookie-banner";
+import {
+  YOU_DEVELOPER_PATH,
+  YOU_HELP_PATH,
+  YOU_LEGAL_PATH,
+} from "@/app/you/you-submenu-paths";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -49,12 +46,6 @@ const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const ADMIN_HREF = "/admin";
 const DRIVE_HREF = "/drive";
 const CALENDAR_HREF = "/calendar";
-
-type YouNavPanel =
-  | { kind: "root" }
-  | { kind: "developer" }
-  | { kind: "help" }
-  | { kind: "legal" };
 
 export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
@@ -82,13 +73,9 @@ export function YouPageClient({
   const tPresence = useTranslations("App.Channels.Presence");
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
   const tYou = useTranslations("App.You.Metadata");
-  const tDeveloper = useTranslations("App.Developer.tabs");
-  const tConsent = useTranslations("CookieConsent");
   const { showLogoutModal } = useGlobalModalsContext();
   const router = useRouter();
   const presence = useSelfPresence();
-  const [panel, setPanel] = useState<YouNavPanel>({ kind: "root" });
-  const [slideFrom, setSlideFrom] = useState<"right" | "left" | null>(null);
 
   const displayName = resolveAccountDisplayName(
     sessionUser.name,
@@ -135,33 +122,11 @@ export function YouPageClient({
     showLogoutModal({ id: sessionUser.id, email: sessionUser.email });
   }
 
-  function handleNavigatePanel(next: YouNavPanel) {
-    setSlideFrom(next.kind === "root" ? "left" : "right");
-    setPanel(next);
-  }
-
-  function handleOpenExternal(url: string) {
-    if (url.startsWith("mailto:")) {
-      window.location.href = url;
-      return;
-    }
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
   function getAccountItemLabel(translationKey: string): string {
     return tCredit(
       translationKey as "account" | "billing" | "connections" | "organization",
     );
   }
-
-  const drillTitle =
-    panel.kind === "developer"
-      ? tCredit("developer")
-      : panel.kind === "help"
-        ? tCredit("help")
-        : panel.kind === "legal"
-          ? tCredit("legal")
-          : null;
 
   return (
     <div
@@ -267,37 +232,37 @@ export function YouPageClient({
         </section>
 
         <nav aria-label={tYou("title")} className="space-y-6">
-          <YouMenuGroup>
+          <MobileStackedMenuGroup>
             {calendarMenuEnabled ? (
-              <YouMenuLink
+              <MobileStackedMenuLink
                 href={CALENDAR_HREF}
                 icon={<Calendar className="size-4 shrink-0" aria-hidden />}
                 label={tMenu("calendar")}
                 testId="you-schedules"
               />
             ) : null}
-            <YouMenuLink
+            <MobileStackedMenuLink
               href={DRIVE_HREF}
               icon={<HardDrive className="size-4 shrink-0" aria-hidden />}
               label={tMenu("drive")}
               testId="you-files"
             />
-          </YouMenuGroup>
+          </MobileStackedMenuGroup>
 
           {adminSettingsChrome.adminMenuEnabled ? (
-            <YouMenuGroup>
-              <YouMenuLink
+            <MobileStackedMenuGroup>
+              <MobileStackedMenuLink
                 href={ADMIN_HREF}
                 icon={<ShieldCheck className="size-4 shrink-0" aria-hidden />}
                 label={tMenu("admin")}
                 testId="you-admin"
               />
-            </YouMenuGroup>
+            </MobileStackedMenuGroup>
           ) : null}
 
-          <YouMenuGroup>
+          <MobileStackedMenuGroup>
             {accountNavItems.map(({ key, href, translationKey, Icon }) => (
-              <YouMenuLink
+              <MobileStackedMenuLink
                 key={key}
                 href={href}
                 icon={<Icon className="size-4 shrink-0" aria-hidden />}
@@ -305,123 +270,28 @@ export function YouPageClient({
                 testId={`you-${key}`}
               />
             ))}
-          </YouMenuGroup>
+          </MobileStackedMenuGroup>
 
-          <div
-            key={panel.kind}
-            data-testid="you-drill-section"
-            className={cn(
-              slideFrom !== null && "animate-in fade-in duration-200",
-              slideFrom === "right" && "slide-in-from-right-4",
-              slideFrom === "left" && "slide-in-from-left-4",
-            )}
-          >
-            <YouMenuGroup>
-              {panel.kind === "root" ? (
-                <>
-                  <YouMenuAction
-                    icon={<Code2 className="size-4 shrink-0" aria-hidden />}
-                    label={tCredit("developer")}
-                    testId="you-developer"
-                    onClick={() => handleNavigatePanel({ kind: "developer" })}
-                  />
-                  <YouMenuAction
-                    icon={<LifeBuoy className="size-4 shrink-0" aria-hidden />}
-                    label={tCredit("help")}
-                    testId="you-help"
-                    onClick={() => handleNavigatePanel({ kind: "help" })}
-                  />
-                  <YouMenuAction
-                    icon={<Scale className="size-4 shrink-0" aria-hidden />}
-                    label={tCredit("legal")}
-                    testId="you-legal"
-                    onClick={() => handleNavigatePanel({ kind: "legal" })}
-                  />
-                </>
-              ) : (
-                <>
-                  <YouMenuBack
-                    title={drillTitle ?? tMenu("back")}
-                    backLabel={tMenu("back")}
-                    testId="you-drill-back"
-                    onClick={() => handleNavigatePanel({ kind: "root" })}
-                  />
-                  {panel.kind === "developer"
-                    ? getDeveloperNavItems({
-                        showVendors: adminSettingsChrome.showDeveloperVendors,
-                      }).map(({ key, href, translationKey, Icon }) => (
-                        <YouMenuLink
-                          key={key}
-                          href={href}
-                          icon={
-                            <Icon className="size-4 shrink-0" aria-hidden />
-                          }
-                          label={tDeveloper(translationKey)}
-                          testId={`you-developer-${key}`}
-                        />
-                      ))
-                    : null}
-                  {panel.kind === "help"
-                    ? HELP_LINKS.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <YouMenuAction
-                            key={item.translationKey}
-                            icon={
-                              Icon ? (
-                                <Icon className="size-4 shrink-0" aria-hidden />
-                              ) : (
-                                <span className="size-4 shrink-0" aria-hidden />
-                              )
-                            }
-                            label={tCredit(
-                              item.translationKey as HelpLinkItem["translationKey"],
-                            )}
-                            testId={`you-help-${item.translationKey}`}
-                            onClick={() => handleOpenExternal(item.url)}
-                            chevron={false}
-                          />
-                        );
-                      })
-                    : null}
-                  {panel.kind === "legal" ? (
-                    <>
-                      {LEGAL_LINKS.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <YouMenuAction
-                            key={item.translationKey}
-                            icon={
-                              Icon ? (
-                                <Icon className="size-4 shrink-0" aria-hidden />
-                              ) : (
-                                <span className="size-4 shrink-0" aria-hidden />
-                              )
-                            }
-                            label={tCredit(
-                              item.translationKey as LegalLinkItem["translationKey"],
-                            )}
-                            testId={`you-legal-${item.translationKey}`}
-                            onClick={() => handleOpenExternal(item.url)}
-                            chevron={false}
-                          />
-                        );
-                      })}
-                      <YouMenuAction
-                        icon={
-                          <Cookie className="size-4 shrink-0" aria-hidden />
-                        }
-                        label={tConsent("settings")}
-                        testId="you-cookie-consent"
-                        onClick={openConsentPreferences}
-                        chevron={false}
-                      />
-                    </>
-                  ) : null}
-                </>
-              )}
-            </YouMenuGroup>
-          </div>
+          <MobileStackedMenuGroup>
+            <MobileStackedMenuLink
+              href={YOU_DEVELOPER_PATH}
+              icon={<Code2 className="size-4 shrink-0" aria-hidden />}
+              label={tCredit("developer")}
+              testId="you-developer"
+            />
+            <MobileStackedMenuLink
+              href={YOU_HELP_PATH}
+              icon={<LifeBuoy className="size-4 shrink-0" aria-hidden />}
+              label={tCredit("help")}
+              testId="you-help"
+            />
+            <MobileStackedMenuLink
+              href={YOU_LEGAL_PATH}
+              icon={<Scale className="size-4 shrink-0" aria-hidden />}
+              label={tCredit("legal")}
+              testId="you-legal"
+            />
+          </MobileStackedMenuGroup>
         </nav>
 
         <Button
@@ -456,103 +326,5 @@ function YouPageAvatar({
         {getInitials(displayName)}
       </AvatarFallback>
     </Avatar>
-  );
-}
-
-function YouMenuGroup({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="border-border bg-card-background divide-border divide-y overflow-hidden rounded-lg border">
-      {children}
-    </div>
-  );
-}
-
-function YouMenuLink({
-  href,
-  icon,
-  label,
-  testId,
-}: {
-  href: string;
-  icon: ReactElement;
-  label: string;
-  testId: string;
-}) {
-  return (
-    <Button
-      asChild
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="text-muted-foreground hover:text-foreground h-11 w-full justify-between gap-2 rounded-none font-normal md:h-10"
-    >
-      <Link href={href} data-testid={testId}>
-        <span className="flex min-w-0 items-center gap-2">
-          {icon}
-          <span className="truncate">{label}</span>
-        </span>
-        <ChevronRight className="size-4 shrink-0 opacity-60" aria-hidden />
-      </Link>
-    </Button>
-  );
-}
-
-function YouMenuAction({
-  icon,
-  label,
-  testId,
-  onClick,
-  chevron = true,
-}: {
-  icon: ReactElement;
-  label: string;
-  testId: string;
-  onClick: () => void;
-  chevron?: boolean;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      onClick={onClick}
-      className="text-muted-foreground hover:text-foreground h-11 w-full justify-between gap-2 rounded-none font-normal md:h-10"
-      data-testid={testId}
-    >
-      <span className="flex min-w-0 items-center gap-2">
-        {icon}
-        <span className="truncate">{label}</span>
-      </span>
-      {chevron ? (
-        <ChevronRight className="size-4 shrink-0 opacity-60" aria-hidden />
-      ) : null}
-    </Button>
-  );
-}
-
-function YouMenuBack({
-  title,
-  backLabel,
-  testId,
-  onClick,
-}: {
-  title: string;
-  backLabel: string;
-  testId: string;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      onClick={onClick}
-      className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 rounded-none font-normal md:h-10"
-      data-testid={testId}
-      aria-label={backLabel}
-    >
-      <ChevronLeft className="size-4 shrink-0" aria-hidden />
-      <span className="truncate">{title}</span>
-    </Button>
   );
 }

@@ -68,7 +68,7 @@ interface CreateChannelInput {
   discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
   coworkerIds?: string[];
-  orchestratorIds?: string[];
+  sokoBotIds?: string[];
 }
 
 interface UpdateRoomInput {
@@ -77,7 +77,7 @@ interface UpdateRoomInput {
   discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
   coworkerIds?: string[];
-  orchestratorIds?: string[];
+  sokoBotIds?: string[];
 }
 
 interface CreateDirectRoomInput {
@@ -85,10 +85,10 @@ interface CreateDirectRoomInput {
   coworkerId?: string;
   memberUserIds?: string[];
   coworkerIds?: string[];
-  orchestratorIds?: string[];
+  sokoBotIds?: string[];
 }
 
-export interface ChatComposeOrchestrator {
+export interface ChatComposeSokoBot {
   id: string;
   name: string;
   image: string | null;
@@ -102,7 +102,7 @@ export interface ChatComposeRoster {
   canCreateExternal: boolean;
   members: Member[];
   coworkers: Coworker[];
-  orchestrators: ChatComposeOrchestrator[];
+  sokoBots: ChatComposeSokoBot[];
   membersLoadFailed: boolean;
 }
 
@@ -152,7 +152,7 @@ export async function loadChatComposeRosterAction(): Promise<
       sokoBotService.getMine().catch(() => null),
       getTranslations("App.Chat"),
     ]);
-    const orchestrators: ChatComposeOrchestrator[] = bot
+    const sokoBots: ChatComposeSokoBot[] = bot
       ? [
           {
             id: bot.id,
@@ -171,7 +171,7 @@ export async function loadChatComposeRosterAction(): Promise<
         canCreateExternal: false,
         members: [],
         coworkers,
-        orchestrators,
+        sokoBots,
         membersLoadFailed: false,
       });
     }
@@ -190,7 +190,7 @@ export async function loadChatComposeRosterAction(): Promise<
       ),
       members: membersPage.members,
       coworkers,
-      orchestrators,
+      sokoBots,
       membersLoadFailed: membersPage.failed,
     });
   } catch (error) {
@@ -246,7 +246,7 @@ export async function createChannelAction(
       discoverability: cleanDiscoverability(input.discoverability) ?? "public",
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
-      orchestratorIds: cleanIds(input.orchestratorIds),
+      sokoBotIds: cleanIds(input.sokoBotIds),
     });
     await invalidateSidebarChatList();
     revalidatePath("/");
@@ -281,12 +281,12 @@ export async function createDirectRoomAction(
     ...(cleanCoworkerId ? [cleanCoworkerId] : []),
     ...(input.coworkerIds ?? []),
   ]);
-  const orchestratorIds = cleanIds(input.orchestratorIds);
+  const sokoBotIds = cleanIds(input.sokoBotIds);
 
   const shapeError = directCreateShapeError(
     memberUserIds,
     coworkerIds,
-    orchestratorIds,
+    sokoBotIds,
   );
   if (shapeError) {
     return roomFail(shapeError);
@@ -306,7 +306,7 @@ export async function createDirectRoomAction(
       kind: "direct",
       memberUserIds,
       coworkerIds,
-      orchestratorIds,
+      sokoBotIds,
     });
     await invalidateSidebarChatList();
     revalidatePath("/");
@@ -346,11 +346,11 @@ export async function ensureCoworkerDirectRoomAction(
  * Create-or-get the `kind:direct` room for a solo personal-assistant 1:1.
  * Uses the active organization when set (same as `/chat`); personal if none.
  */
-export async function ensureOrchestratorDirectRoomAction(
-  orchestratorId: string,
+export async function ensureSokoBotDirectRoomAction(
+  sokoBotId: string,
 ): Promise<RoomActionResult<ChatRoom | null>> {
-  const cleanOrchestratorId = cleanString(orchestratorId);
-  if (!cleanOrchestratorId) {
+  const cleanSokoBotId = cleanString(sokoBotId);
+  if (!cleanSokoBotId) {
     return roomFail("Personal assistant is required.");
   }
 
@@ -359,7 +359,7 @@ export async function ensureOrchestratorDirectRoomAction(
       kind: "direct",
       memberUserIds: [],
       coworkerIds: [],
-      orchestratorIds: [cleanOrchestratorId],
+      sokoBotIds: [cleanSokoBotId],
     });
     await invalidateSidebarChatList();
     return roomOk(room);
@@ -384,8 +384,8 @@ export async function updateRoomAction(
     ...(input.coworkerIds !== undefined && {
       coworkerIds: cleanIds(input.coworkerIds),
     }),
-    ...(input.orchestratorIds !== undefined && {
-      orchestratorIds: cleanIds(input.orchestratorIds),
+    ...(input.sokoBotIds !== undefined && {
+      sokoBotIds: cleanIds(input.sokoBotIds),
     }),
   };
 
@@ -725,7 +725,7 @@ export async function sendRoomMessageAction(
   mentionedCoworkerIds: string[],
   options?: {
     mentionedUserIds?: string[];
-    mentionedOrchestratorIds?: string[];
+    mentionedSokoBotIds?: string[];
     parentMessageId?: string;
     /** Same-room quote target; does not set parentMessageId. */
     quote?: { messageId: string };
@@ -746,7 +746,7 @@ export async function sendRoomMessageAction(
       content: cleanContent,
       mentionedCoworkerIds: cleanIds(mentionedCoworkerIds),
       mentionedUserIds: cleanIds(options?.mentionedUserIds),
-      mentionedOrchestratorIds: cleanIds(options?.mentionedOrchestratorIds),
+      mentionedSokoBotIds: cleanIds(options?.mentionedSokoBotIds),
       ...(options?.parentMessageId && {
         parentMessageId: options.parentMessageId,
       }),

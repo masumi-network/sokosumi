@@ -27,7 +27,7 @@ const {
   contextSnapshotFindUniqueMock,
   coworkerCreateMock,
   coworkerFindManyMock,
-  orchestratorMemberDeleteManyMock,
+  sokoBotMemberDeleteManyMock,
   failOpenMentionsMock,
   publishMentionStatusesMock,
   getEnvMock,
@@ -77,7 +77,7 @@ const {
   contextSnapshotFindUniqueMock: vi.fn(),
   coworkerCreateMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
-  orchestratorMemberDeleteManyMock: vi.fn(),
+  sokoBotMemberDeleteManyMock: vi.fn(),
   failOpenMentionsMock: vi.fn(),
   publishMentionStatusesMock: vi.fn(),
   getEnvMock: vi.fn<
@@ -242,8 +242,8 @@ function transactionClient() {
     coworker: {
       create: coworkerCreateMock,
     },
-    chatRoomOrchestratorMember: {
-      deleteMany: orchestratorMemberDeleteManyMock,
+    chatRoomSokoBotMember: {
+      deleteMany: sokoBotMemberDeleteManyMock,
     },
     sokoBot: {
       create: botCreateMock,
@@ -1588,13 +1588,13 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(failOpenMentionsMock).toHaveBeenCalledWith(
       {
-        where: { orchestratorId: BOT_ID },
+        where: { sokoBotId: BOT_ID },
         error: "Personal assistant is no longer a member of this room",
       },
       expect.any(Object),
     );
-    expect(orchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
-      where: { orchestratorId: BOT_ID },
+    expect(sokoBotMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { sokoBotId: BOT_ID },
     });
     expect(publishMentionStatusesMock).toHaveBeenCalledWith(["message_1"]);
     expect(cancelTurn).toHaveBeenCalledWith(

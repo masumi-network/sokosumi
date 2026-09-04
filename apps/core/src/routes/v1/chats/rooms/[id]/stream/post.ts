@@ -168,7 +168,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const isCoworkerOnlyDirect =
       room.kind === "direct" &&
       room.coworkerMembers.length === 1 &&
-      room.orchestratorMembers.length === 0 &&
+      room.sokoBotMembers.length === 0 &&
       room.userMembers.length === 1 &&
       room.userMembers[0]?.userId === userContext.userId;
     if (!isCoworkerOnlyDirect) {

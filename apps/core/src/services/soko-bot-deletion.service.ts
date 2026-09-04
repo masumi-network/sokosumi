@@ -59,7 +59,7 @@ async function eraseOwnedRecords(
   await tx.sokoBotTaskWatch.deleteMany({ where: { sokoBotId } });
   await tx.sokoBotPendingDecision.deleteMany({ where: { sokoBotId } });
   await tx.sokoBotLegacyMessage.deleteMany({ where: { sokoBotId } });
-  await tx.coworkerApiKey.deleteMany({ where: { orchestratorId: sokoBotId } });
+  await tx.coworkerApiKey.deleteMany({ where: { sokoBotId: sokoBotId } });
 }
 
 export async function deleteSokoBot(
@@ -87,7 +87,7 @@ export async function deleteSokoBot(
     if (!bot) throw notFound("Soko Bot not found");
     await tx.$queryRaw`
       SELECT "id"
-      FROM "orchestrator"
+      FROM "soko_bot"
       WHERE "id" = ${bot.id}::uuid
       FOR UPDATE
     `;
@@ -103,13 +103,13 @@ export async function deleteSokoBot(
     await eraseOwnedRecords(tx, bot.id);
     const mentionMessageIds = await failOpenChatRoomMentions(
       {
-        where: { orchestratorId: bot.id },
+        where: { sokoBotId: bot.id },
         error: "Personal assistant is no longer a member of this room",
       },
       tx,
     );
-    await tx.chatRoomOrchestratorMember.deleteMany({
-      where: { orchestratorId: bot.id },
+    await tx.chatRoomSokoBotMember.deleteMany({
+      where: { sokoBotId: bot.id },
     });
 
     const [
@@ -120,18 +120,18 @@ export async function deleteSokoBot(
       chatMessages,
       uploadedTaskFiles,
     ] = await Promise.all([
-      tx.task.count({ where: { creatorOrchestratorId: bot.id } }),
-      tx.task.count({ where: { assigneeOrchestratorId: bot.id } }),
-      tx.taskEvent.count({ where: { orchestratorId: bot.id } }),
-      tx.orchestratorUsage.count({ where: { orchestratorId: bot.id } }),
+      tx.task.count({ where: { creatorSokoBotId: bot.id } }),
+      tx.task.count({ where: { assigneeSokoBotId: bot.id } }),
+      tx.taskEvent.count({ where: { sokoBotId: bot.id } }),
+      tx.sokoBotUsage.count({ where: { sokoBotId: bot.id } }),
       tx.chatRoomMessage.count({
-        where: { senderOrchestratorId: bot.id },
+        where: { senderSokoBotId: bot.id },
       }),
       // A file the assistant uploaded outlives it on the Task. The FK is
       // ON DELETE SET NULL, so hard-deleting the bot would leave the file in
       // place with its uploader silently blanked — provenance nobody can
       // recover. Counting it keeps the tombstone.
-      tx.taskFile.count({ where: { uploadedByOrchestratorId: bot.id } }),
+      tx.taskFile.count({ where: { uploadedBySokoBotId: bot.id } }),
     ]);
     const tasks = createdTasks + assignedTasks;
 

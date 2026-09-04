@@ -140,7 +140,7 @@ interface TaskFormInitialValues {
   name?: string;
   description?: string;
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
   metadata?: string | null;
@@ -168,7 +168,7 @@ interface TaskFormProps {
   onCreateTask?: (input: {
     description: string;
     assigneeId: string | null;
-    assigneeOrchestratorId: string | null;
+    assigneeSokoBotId: string | null;
     projectId?: string | null;
     context: TaskContextSelectionInput;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -252,12 +252,12 @@ export function TaskForm({
     );
   }, [coworkerOptions, initialValues?.assigneeId]);
 
-  const knownOrchestratorId = useMemo(
+  const knownSokoBotId = useMemo(
     () =>
-      coworkerOptions.find((option) => option.kind === "orchestrator")?.id ??
-      initialValues?.assigneeOrchestratorId ??
+      coworkerOptions.find((option) => option.kind === "sokoBot")?.id ??
+      initialValues?.assigneeSokoBotId ??
       null,
-    [coworkerOptions, initialValues?.assigneeOrchestratorId],
+    [coworkerOptions, initialValues?.assigneeSokoBotId],
   );
 
   const coworkerTouchedRef = useRef(false);
@@ -472,7 +472,7 @@ export function TaskForm({
             ...resolveTaskAssigneeFields(
               assigneeId,
               coworkerOptions,
-              knownOrchestratorId,
+              knownSokoBotId,
             ),
             context: {
               brand: {
@@ -543,7 +543,7 @@ export function TaskForm({
           ...resolveTaskAssigneeFields(
             assigneeId,
             coworkerOptions,
-            knownOrchestratorId,
+            knownSokoBotId,
           ),
           ...(shouldShowProjectSelect ? { projectId } : {}),
           currentStatus: originalStatus,
@@ -579,7 +579,7 @@ export function TaskForm({
       name,
       assigneeId,
       coworkerOptions,
-      knownOrchestratorId,
+      knownSokoBotId,
       projectId,
       shouldShowProjectSelect,
       originalStatus,
@@ -839,7 +839,7 @@ export function TaskForm({
 
           {showModalCoworkerHeader ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
-              {selectedOption.kind === "orchestrator" &&
+              {selectedOption.kind === "sokoBot" &&
               !selectedOption.image &&
               selectedOption.avatarSeed ? (
                 <AssistantOrb

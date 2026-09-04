@@ -124,22 +124,22 @@ export function TasksViewFilters({
       id: "coworker",
       label: labels.coworkerLabel,
       icon: Sparkles,
-      value: filters.assigneeOrchestratorId ?? filters.assigneeId,
+      value: filters.assigneeSokoBotId ?? filters.assigneeId,
       allLabel: labels.all,
       onChange: (selectedId) => {
         const selected = coworkerOptions.find(
           (option) => option.id === selectedId,
         );
-        if (selected?.kind === "orchestrator") {
+        if (selected?.kind === "sokoBot") {
           handleFilterChange({
             assigneeId: null,
-            assigneeOrchestratorId: selectedId,
+            assigneeSokoBotId: selectedId,
           });
           return;
         }
         handleFilterChange({
           assigneeId: selectedId,
-          assigneeOrchestratorId: null,
+          assigneeSokoBotId: null,
         });
       },
       options: coworkerOptions.map((coworker) => ({

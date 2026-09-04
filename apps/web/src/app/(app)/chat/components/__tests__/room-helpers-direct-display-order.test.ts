@@ -61,7 +61,7 @@ function directRoom(overrides: {
     markedUnread: false,
     myAccess: "member",
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
     ...overrides,
   } as ChatRoom;
 }

@@ -54,53 +54,76 @@ export interface TaskFileClient {
  */
 export type TaskFileClientLike = PrismaClientOrTx | TaskFileClient;
 
+/**
+ * Longest URL the batched inserts accept. Both writes dedupe through a btree
+ * unique that includes the URL, and Postgres cannot index an entry over about
+ * 2704 bytes. One oversized row aborts the whole statement, so it would take
+ * every other link for the same job event with it. The cut is conservative:
+ * the event id and tuple header leave ample headroom below the real limit.
+ */
+const MAX_INDEXABLE_URL_BYTES = 2000;
+
+/**
+ * Drop URLs the unique index cannot hold, and report how many were dropped.
+ * Reported rather than silent: the link is lost for good, because nothing
+ * re-reads a job event's markdown.
+ */
+function keepIndexableUrls(urls: string[], jobEventId: string): string[] {
+  const kept = urls.filter(
+    (url) => Buffer.byteLength(url) <= MAX_INDEXABLE_URL_BYTES,
+  );
+
+  if (kept.length !== urls.length) {
+    Sentry.captureMessage("Dropped source-import URLs over the index limit", {
+      level: "warning",
+      extra: { jobEventId, dropped: urls.length - kept.length },
+    });
+  }
+
+  return kept;
+}
+
 export const sourceImportService = {
   async enqueueFromMarkdown(
     jobEventId: string,
     markdown: string,
   ): Promise<void> {
-    const fileLinks = extractFileLikeLinks(markdown);
-    const httpLinks = extractHttpLinks(markdown);
+    const fileLinks = keepIndexableUrls(
+      extractFileLikeLinks(markdown).filter(isHttpUrl),
+      jobEventId,
+    );
+    const httpLinks = keepIndexableUrls(
+      extractHttpLinks(markdown).filter(isHttpUrl),
+      jobEventId,
+    );
 
-    if (fileLinks.length === 0 && httpLinks.length === 0) {
-      return;
-    }
-
-    for (const url of fileLinks) {
-      if (!isHttpUrl(url)) {
-        continue;
-      }
-
+    if (fileLinks.length > 0) {
       try {
-        await blobRepository.upsertOutputBlob(
-          {
+        await blobRepository.createOutputBlobs(
+          fileLinks.map((url) => ({
             eventId: jobEventId,
             sourceUrl: url,
             name: getUrlBasename(url) ?? undefined,
-          },
+          })),
           prisma,
         );
       } catch (error) {
-        Sentry.captureException(error);
+        Sentry.captureException(error, {
+          extra: { jobEventId, blobs: fileLinks.length },
+        });
       }
     }
 
-    for (const url of httpLinks) {
-      if (!isHttpUrl(url)) {
-        continue;
-      }
-
+    if (httpLinks.length > 0) {
       try {
-        await linkRepository.upsertLink(
-          {
-            eventId: jobEventId,
-            url,
-            title: undefined,
-          },
+        await linkRepository.createLinks(
+          httpLinks.map((url) => ({ eventId: jobEventId, url })),
           prisma,
         );
       } catch (error) {
-        Sentry.captureException(error);
+        Sentry.captureException(error, {
+          extra: { jobEventId, links: httpLinks.length },
+        });
       }
     }
   },

@@ -70,10 +70,10 @@ describe("refineAssigneeIdAliasConflict", () => {
 });
 
 describe("refineAssigneeXorConflict", () => {
-  it("allows an empty coworker id with an orchestrator assignee", () => {
+  it("allows an empty coworker id with a soko bot assignee", () => {
     const issues: Array<{ message: string }> = [];
     refineAssigneeXorConflict(
-      { assigneeId: "", assigneeOrchestratorId: "bot-1" },
+      { assigneeId: "", assigneeSokoBotId: "bot-1" },
       { addIssue: (issue) => issues.push(issue) },
     );
     expect(issues).toEqual([]);
@@ -82,41 +82,41 @@ describe("refineAssigneeXorConflict", () => {
   it("rejects two non-empty assignee identifiers", () => {
     const issues: Array<{ message: string }> = [];
     refineAssigneeXorConflict(
-      { assigneeId: "cow_1", assigneeOrchestratorId: "bot-1" },
+      { assigneeId: "cow_1", assigneeSokoBotId: "bot-1" },
       { addIssue: (issue) => issues.push(issue) },
     );
     expect(issues).toEqual([
       expect.objectContaining({
-        message: "assigneeId and assigneeOrchestratorId cannot both be set",
+        message: "assigneeId and assigneeSokoBotId cannot both be set",
       }),
     ]);
   });
 });
 
 describe("nextAssigneeWrite", () => {
-  it("treats an empty coworker id as absent so an orchestrator write sticks", () => {
+  it("treats an empty coworker id as absent so a soko bot write sticks", () => {
     expect(
       nextAssigneeWrite({
         assigneeId: "",
-        assigneeOrchestratorId: "bot-1",
+        assigneeSokoBotId: "bot-1",
       }),
     ).toEqual({
       assigneeId: null,
-      assigneeOrchestratorId: "bot-1",
+      assigneeSokoBotId: "bot-1",
     });
   });
 
   it("clears both fields when the provided coworker id is empty", () => {
     expect(nextAssigneeWrite({ assigneeId: "   " })).toEqual({
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
     });
   });
 
-  it("writes a coworker assignee and clears the orchestrator", () => {
+  it("writes a coworker assignee and clears the soko bot", () => {
     expect(nextAssigneeWrite({ assigneeId: "cow_1" })).toEqual({
       assigneeId: "cow_1",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
     });
   });
 });

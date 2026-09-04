@@ -99,7 +99,7 @@ function externalRoom(members: ReturnType<typeof memberUser>[]) {
     archivedAt: null,
     userMembers: members,
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
   };
 }
 

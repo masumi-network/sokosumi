@@ -5,35 +5,40 @@ import { describe, it } from "vitest";
 import type { Prisma } from "../generated/prisma/client.js";
 import { linkRepository } from "./link.repository.js";
 
-describe("linkRepository.upsertLink", () => {
-  it("returns the upserted link without loading the event relation", async () => {
-    let upsertCall: unknown;
+describe("linkRepository.createLinks", () => {
+  it("inserts every link in one call and skips stored duplicates", async () => {
+    // Every call, not just the last: one statement for the whole batch is the
+    // point of this repository, so a second one has to fail the test.
+    const createManyCalls: unknown[] = [];
+    // Prisma returns a lazy PrismaPromise: it sends no SQL until something
+    // awaits it. The stub records on `then` for the same reason, so dropping
+    // the `await` under test fails here instead of silently writing nothing.
     const tx = {
       link: {
-        upsert: async (args: unknown) => {
-          upsertCall = args;
-          return {
-            id: "link-1",
-            createdAt: new Date("2026-01-01T00:00:00.000Z"),
-            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-            eventId: "event-1",
-            url: "https://example.com/page",
-            title: null,
-          };
-        },
+        createMany: (args: unknown) => ({
+          then: (resolve: (value: { count: number }) => void) => {
+            createManyCalls.push(args);
+            resolve({ count: 2 });
+          },
+        }),
       },
     } as unknown as Prisma.TransactionClient;
 
-    const link = await linkRepository.upsertLink(
-      {
-        eventId: "event-1",
-        url: "https://example.com/page",
-      },
+    await linkRepository.createLinks(
+      [
+        { eventId: "event-1", url: "https://example.com/page" },
+        { eventId: "event-1", url: "https://example.com/other" },
+      ],
       tx,
     );
 
-    assert.equal(link.id, "link-1");
-    assert.equal(link.eventId, "event-1");
-    assert.equal((upsertCall as { include?: unknown }).include, undefined);
+    assert.equal(createManyCalls.length, 1);
+    assert.deepEqual(createManyCalls[0], {
+      data: [
+        { eventId: "event-1", url: "https://example.com/page" },
+        { eventId: "event-1", url: "https://example.com/other" },
+      ],
+      skipDuplicates: true,
+    });
   });
 });

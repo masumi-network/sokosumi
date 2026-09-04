@@ -158,7 +158,7 @@ describe("core evlog request events", () => {
     expect(captured[0]?.event.organization).toEqual({ id: "org_456" });
   });
 
-  it("setAuthContext copies coworker and orchestrator identity onto the wide event", async () => {
+  it("setAuthContext copies coworker and soko bot identity onto the wide event", async () => {
     const app = createApp();
     app.use("/v1/coworker", async (c, next) => {
       setAuthContext(c as never, {

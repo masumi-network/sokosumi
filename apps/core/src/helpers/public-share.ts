@@ -82,7 +82,7 @@ const publicTaskInclude = {
           image: true,
         },
       },
-      orchestrator: {
+      sokoBot: {
         select: {
           name: true,
         },
@@ -129,12 +129,9 @@ function mapPublicTaskMilestone(
     comment,
     credits,
     transactionId: event.transactionId ?? null,
-    // Prefer order matches Core task events: orchestrator → coworker → user.
+    // Prefer order matches Core task events: sokoBot → coworker → user.
     actorName:
-      event.orchestrator?.name ??
-      event.coworker?.name ??
-      event.user?.name ??
-      null,
+      event.sokoBot?.name ?? event.coworker?.name ?? event.user?.name ?? null,
     actorImage: event.coworker?.image ?? event.user?.image ?? null,
   };
 }

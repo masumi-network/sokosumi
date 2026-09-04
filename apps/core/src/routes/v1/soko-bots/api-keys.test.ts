@@ -32,9 +32,9 @@ const BOT_ID = "01960001-0001-7001-8001-000000000099";
 function createRecord(overrides: Record<string, unknown> = {}) {
   return {
     id: "agentkey_123",
-    orchestratorId: BOT_ID,
+    sokoBotId: BOT_ID,
     name: "CLI key",
-    keyStart: "orchestrator_abcdefgh",
+    keyStart: "sokoBot_abcdefgh",
     expiresAt: null,
     revokedAt: null,
     createdAt: new Date("2026-09-02T10:00:00.000Z"),
@@ -68,7 +68,7 @@ describe("Soko Bot API keys", () => {
     botFindFirstMock.mockResolvedValue({ id: BOT_ID });
   });
 
-  it("creates an orchestrator-prefixed key for an owned live bot", async () => {
+  it("creates a sokoBot-prefixed key for an owned live bot", async () => {
     const tx = {
       sokoBot: {
         findFirst: vi.fn().mockResolvedValue({ id: BOT_ID }),
@@ -92,7 +92,7 @@ describe("Soko Bot API keys", () => {
     expect(await response.json()).toMatchObject({
       data: {
         id: "agentkey_123",
-        token: expect.stringMatching(/^orchestrator_/),
+        token: expect.stringMatching(/^sokoBot_/),
         name: "CLI key",
         expiresAt: null,
       },
@@ -110,7 +110,7 @@ describe("Soko Bot API keys", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           coworkerId: null,
-          orchestratorId: BOT_ID,
+          sokoBotId: BOT_ID,
         }),
       }),
     );
@@ -126,15 +126,15 @@ describe("Soko Bot API keys", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data[0]).toMatchObject({
-      orchestratorId: BOT_ID,
-      keyStart: "orchestrator_abcdefgh",
+      sokoBotId: BOT_ID,
+      keyStart: "sokoBot_abcdefgh",
     });
     expect(body.data[0].keyHash).toBeUndefined();
     expect(apiKeyFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          orchestratorId: BOT_ID,
-          orchestrator: {
+          sokoBotId: BOT_ID,
+          sokoBot: {
             userId: "owner_123",
             archivedAt: null,
             deletedAt: null,
@@ -182,8 +182,8 @@ describe("Soko Bot API keys", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           id: "agentkey_123",
-          orchestratorId: BOT_ID,
-          orchestrator: expect.objectContaining({ userId: "owner_123" }),
+          sokoBotId: BOT_ID,
+          sokoBot: expect.objectContaining({ userId: "owner_123" }),
         }),
       }),
     );
@@ -211,9 +211,9 @@ describe("Soko Bot API keys", () => {
     expect(tx.coworkerApiKey.updateMany).toHaveBeenCalledWith({
       where: {
         id: "agentkey_123",
-        orchestratorId: BOT_ID,
+        sokoBotId: BOT_ID,
         revokedAt: null,
-        orchestrator: {
+        sokoBot: {
           userId: "owner_123",
           archivedAt: null,
           deletedAt: null,

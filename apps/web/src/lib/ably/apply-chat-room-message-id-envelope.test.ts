@@ -45,7 +45,7 @@ function baseMessage(
       {
         id: "men-1",
         coworkerId: "cow-1",
-        orchestratorId: null,
+        sokoBotId: null,
         status: "responded",
         responseMessageId: null,
       },

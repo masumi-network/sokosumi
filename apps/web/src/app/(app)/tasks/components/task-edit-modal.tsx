@@ -17,7 +17,7 @@ interface TaskEditModalProps {
     name: string;
     description: string;
     assigneeId: string;
-    assigneeOrchestratorId?: string | null;
+    assigneeSokoBotId?: string | null;
     projectId?: string | null;
     status: TaskStatus;
     metadata?: string | null;

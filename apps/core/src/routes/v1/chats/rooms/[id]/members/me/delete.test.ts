@@ -89,7 +89,7 @@ const MEMBERSHIP_MESSAGE = {
 };
 
 const botFindManyMock = vi.fn(async () => []);
-const orchestratorMemberDeleteManyMock = vi.fn(async () => ({ count: 0 }));
+const sokoBotMemberDeleteManyMock = vi.fn(async () => ({ count: 0 }));
 
 const tx = {
   chatRoom: {
@@ -106,7 +106,7 @@ const tx = {
   },
   chatRoomReadState: { deleteMany: readStateDeleteManyMock },
   sokoBot: { findMany: botFindManyMock },
-  chatRoomOrchestratorMember: { deleteMany: orchestratorMemberDeleteManyMock },
+  chatRoomSokoBotMember: { deleteMany: sokoBotMemberDeleteManyMock },
   chatRoomMessage: { create: messageCreateMock },
   user: { findUnique: userFindUniqueMock },
   organization: { findUnique: organizationFindUniqueMock },
@@ -173,7 +173,7 @@ function room(
       overrides.userMembers ??
       (overrides.memberIds ?? [SELF_ID, OTHER_ID]).map((id) => member(id)),
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
   };
 }
 

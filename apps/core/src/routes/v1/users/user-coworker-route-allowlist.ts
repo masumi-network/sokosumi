@@ -2,10 +2,7 @@ import { createMiddleware } from "hono/factory";
 
 import { forbidden } from "@/helpers/error";
 import type { EnvVariables } from "@/lib/hono";
-import {
-  isCoworkerAuthContext,
-  isOrchestratorAuthContext,
-} from "@/middleware/auth";
+import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 
 import type { UserRouteVariables } from "./user-route-context";
 
@@ -88,7 +85,7 @@ export const agentUserRouteAllowlistMiddleware = createMiddleware<UserRouteEnv>(
     const { authContext } = c.var;
     if (
       !isCoworkerAuthContext(authContext) &&
-      !isOrchestratorAuthContext(authContext)
+      !isSokoBotAuthContext(authContext)
     ) {
       return await next();
     }

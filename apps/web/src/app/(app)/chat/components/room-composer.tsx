@@ -61,7 +61,7 @@ import {
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import type {
   ChatRoomCoworkerParticipant,
-  ChatRoomOrchestratorParticipant,
+  ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
   DriveFile,
 } from "@/lib/clients/generated/core";
@@ -105,7 +105,7 @@ function RoomMentionSuggestion({
 }) {
   const t = useTranslations("App.Channels");
   const isCoworker = mention.data?.kind === "coworker";
-  const isOrchestrator = mention.data?.kind === "orchestrator";
+  const isSokoBot = mention.data?.kind === "sokoBot";
   const isAll = mention.data?.kind === "all";
   const displayName = isAll ? t("MentionAll.label") : mention.value;
   return (
@@ -125,9 +125,9 @@ function RoomMentionSuggestion({
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-medium">{displayName}</span>
-          {isCoworker || isOrchestrator ? (
+          {isCoworker || isSokoBot ? (
             <AiCoworkerIcon
-              label={isOrchestrator ? t("personalAssistantBadge") : undefined}
+              label={isSokoBot ? t("personalAssistantBadge") : undefined}
             />
           ) : null}
         </div>
@@ -160,26 +160,23 @@ function mentionLookupMapsFromCatalog(
   roster?: {
     coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
     coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
-    orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
-    orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
+    sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
+    sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
     usersById?: Map<string, UserMentionLookup>;
     usersBySlug?: Map<string, UserMentionLookup>;
   },
 ): {
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  orchestratorsById: Map<string, ChatRoomOrchestratorParticipant>;
-  orchestratorsBySlug: Map<string, ChatRoomOrchestratorParticipant>;
+  sokoBotsById: Map<string, ChatRoomSokoBotParticipant>;
+  sokoBotsBySlug: Map<string, ChatRoomSokoBotParticipant>;
   usersById: Map<string, UserMentionLookup>;
   usersBySlug: Map<string, UserMentionLookup>;
 } {
   const coworkersById = new Map<string, ChatRoomCoworkerParticipant>();
   const coworkersBySlug = new Map<string, ChatRoomCoworkerParticipant>();
-  const orchestratorsById = new Map<string, ChatRoomOrchestratorParticipant>();
-  const orchestratorsBySlug = new Map<
-    string,
-    ChatRoomOrchestratorParticipant
-  >();
+  const sokoBotsById = new Map<string, ChatRoomSokoBotParticipant>();
+  const sokoBotsBySlug = new Map<string, ChatRoomSokoBotParticipant>();
   const usersById = new Map<string, UserMentionLookup>();
   const usersBySlug = new Map<string, UserMentionLookup>();
 
@@ -201,8 +198,8 @@ function mentionLookupMapsFromCatalog(
       coworkersBySlug.set(data.slug, coworker);
       continue;
     }
-    if (data.kind === "orchestrator") {
-      const orchestrator: ChatRoomOrchestratorParticipant = {
+    if (data.kind === "sokoBot") {
+      const sokoBot: ChatRoomSokoBotParticipant = {
         id: data.id,
         name: data.name,
         caption: null,
@@ -210,8 +207,8 @@ function mentionLookupMapsFromCatalog(
         avatarSeed: null,
         presence: "offline",
       };
-      orchestratorsById.set(data.id, orchestrator);
-      orchestratorsBySlug.set(data.slug, orchestrator);
+      sokoBotsById.set(data.id, sokoBot);
+      sokoBotsBySlug.set(data.slug, sokoBot);
       continue;
     }
     if (data.kind === "human") {
@@ -224,14 +221,8 @@ function mentionLookupMapsFromCatalog(
   return {
     coworkersById: mergeLookupMap(coworkersById, roster?.coworkersById),
     coworkersBySlug: mergeLookupMap(coworkersBySlug, roster?.coworkersBySlug),
-    orchestratorsById: mergeLookupMap(
-      orchestratorsById,
-      roster?.orchestratorsById,
-    ),
-    orchestratorsBySlug: mergeLookupMap(
-      orchestratorsBySlug,
-      roster?.orchestratorsBySlug,
-    ),
+    sokoBotsById: mergeLookupMap(sokoBotsById, roster?.sokoBotsById),
+    sokoBotsBySlug: mergeLookupMap(sokoBotsBySlug, roster?.sokoBotsBySlug),
     usersById: mergeLookupMap(usersById, roster?.usersById),
     usersBySlug: mergeLookupMap(usersBySlug, roster?.usersBySlug),
   };
@@ -245,8 +236,8 @@ function PendingQuotePreview({
   usersBySlug: rosterUsersBySlug,
   coworkersById: rosterCoworkersById,
   coworkersBySlug: rosterCoworkersBySlug,
-  orchestratorsById: rosterOrchestratorsById,
-  orchestratorsBySlug: rosterOrchestratorsBySlug,
+  sokoBotsById: rosterSokoBotsById,
+  sokoBotsBySlug: rosterSokoBotsBySlug,
   channelLinks,
   currentUserId,
   canOpenHumanDirect,
@@ -260,8 +251,8 @@ function PendingQuotePreview({
   usersBySlug?: Map<string, UserMentionLookup>;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
-  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
-  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
+  sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
+  sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   channelLinks: readonly ChannelLinkTarget[];
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
@@ -272,8 +263,8 @@ function PendingQuotePreview({
   const {
     coworkersById,
     coworkersBySlug,
-    orchestratorsById,
-    orchestratorsBySlug,
+    sokoBotsById,
+    sokoBotsBySlug,
     usersById,
     usersBySlug,
   } = mentionLookupMapsFromCatalog(mentions, {
@@ -281,8 +272,8 @@ function PendingQuotePreview({
     usersBySlug: rosterUsersBySlug,
     coworkersById: rosterCoworkersById,
     coworkersBySlug: rosterCoworkersBySlug,
-    orchestratorsById: rosterOrchestratorsById,
-    orchestratorsBySlug: rosterOrchestratorsBySlug,
+    sokoBotsById: rosterSokoBotsById,
+    sokoBotsBySlug: rosterSokoBotsBySlug,
   });
 
   const attachment = quote.attachment;
@@ -313,8 +304,8 @@ function PendingQuotePreview({
                 markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
-                orchestratorsById={orchestratorsById}
-                orchestratorsBySlug={orchestratorsBySlug}
+                sokoBotsById={sokoBotsById}
+                sokoBotsBySlug={sokoBotsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 channelLinks={channelLinks}
@@ -352,8 +343,8 @@ export function RoomComposer({
   usersBySlug,
   coworkersById,
   coworkersBySlug,
-  orchestratorsById,
-  orchestratorsBySlug,
+  sokoBotsById,
+  sokoBotsBySlug,
   channels = [],
   channelLinks = [],
   onSelectedKeysChange,
@@ -385,8 +376,8 @@ export function RoomComposer({
   usersBySlug?: Map<string, UserMentionLookup>;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
-  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
-  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
+  sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
+  sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   channels?: readonly ComposerChannelOption[];
   channelLinks?: readonly ChannelLinkTarget[];
   onSelectedKeysChange: (selectedKeys: string[]) => void;
@@ -454,16 +445,16 @@ export function RoomComposer({
         usersBySlug,
         coworkersById,
         coworkersBySlug,
-        orchestratorsById,
-        orchestratorsBySlug,
+        sokoBotsById,
+        sokoBotsBySlug,
         mentionCatalog: mentions,
       }),
     [
       coworkersById,
       coworkersBySlug,
       mentions,
-      orchestratorsById,
-      orchestratorsBySlug,
+      sokoBotsById,
+      sokoBotsBySlug,
       usersById,
       usersBySlug,
     ],
@@ -735,8 +726,8 @@ export function RoomComposer({
                 usersBySlug={usersBySlug}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
-                orchestratorsById={orchestratorsById}
-                orchestratorsBySlug={orchestratorsBySlug}
+                sokoBotsById={sokoBotsById}
+                sokoBotsBySlug={sokoBotsBySlug}
                 channelLinks={channelLinks}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}

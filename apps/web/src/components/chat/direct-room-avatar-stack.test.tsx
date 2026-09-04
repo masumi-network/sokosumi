@@ -105,7 +105,7 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     userMembers: [makeUser("me", "Me"), makeUser("patrick", "Patrick Tobler")],
     coworkerMembers: [],
     ...overrides,
-    orchestratorMembers: overrides.orchestratorMembers ?? [],
+    sokoBotMembers: overrides.sokoBotMembers ?? [],
   };
 }
 

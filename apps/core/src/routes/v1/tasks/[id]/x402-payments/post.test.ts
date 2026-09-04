@@ -189,9 +189,9 @@ const COWORKER_AGENT_CONTEXT: AuthenticationContext = {
   vendorId: "vendor_1",
 } as AuthenticationContext;
 
-const ORCHESTRATOR_CONTEXT: AuthenticationContext = {
-  actor: "orchestrator",
-  orchestratorId: "01960001-0001-7001-8001-000000000099",
+const SOKO_BOT_CONTEXT: AuthenticationContext = {
+  actor: "sokoBot",
+  sokoBotId: "01960001-0001-7001-8001-000000000099",
   userId: USER_ID,
   workspaceId: "01960001-0001-7001-8001-000000000010",
   organizationId: null,
@@ -627,8 +627,8 @@ describe("POST /{id}/x402-payments", () => {
       expect(payX402Mock).not.toHaveBeenCalled();
     });
 
-    it("lets an orchestrator pay for its assigned task with orchestrator attribution", async () => {
-      const app = createApp(ORCHESTRATOR_CONTEXT);
+    it("lets a soko bot pay for its assigned task with soko bot attribution", async () => {
+      const app = createApp(SOKO_BOT_CONTEXT);
 
       const response = await postPayment(app, validBody());
 
@@ -638,7 +638,7 @@ describe("POST /{id}/x402-payments", () => {
           taskId: TASK_ID,
           cents: CENTS_FOR_DEMAND,
           transactionId: "txn_1",
-          orchestratorId: ORCHESTRATOR_CONTEXT.orchestratorId,
+          sokoBotId: SOKO_BOT_CONTEXT.sokoBotId,
         },
       });
     });

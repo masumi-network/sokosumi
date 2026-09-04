@@ -1800,9 +1800,9 @@
         "collapse": "Contraer",
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
-        "actorOrchestrator": "Orquestador",
-        "actorOrchestratorWithOwner": "{assistant} · asistente de {owner}",
-        "actorOrchestratorRole": "Asistente personal de {owner}",
+        "actorSokoBot": "Asistente",
+        "actorSokoBotWithOwner": "{assistant} · asistente de {owner}",
+        "actorSokoBotRole": "Asistente personal de {owner}",
         "actorSystem": "Sistema",
         "originFromApp": "de {appName}",
         "channelApp": {
@@ -2632,8 +2632,8 @@
           "unreachable": "No se pudo contactar con tu asistente. Comprueba tu conexión."
         },
         "mockReplies": {
-          "0": "Soy una respuesta simulada de tu vista previa local de tu asistente. Quita ?state=running para ver el asistente real conectado al orquestador.",
-          "1": "Entendido. En producción, tu mensaje pasa por el servidor de Sokosumi, el orquestador devuelve tu endpoint privado y tu asistente responde.",
+          "0": "Soy una respuesta simulada de tu vista previa local de tu asistente. Quita ?state=running para ver el asistente real conectado a Sokosumi.",
+          "1": "Entendido. En producción, tu mensaje pasa por el servidor de Sokosumi, Sokosumi devuelve tu endpoint privado y tu asistente responde.",
           "2": "Esto es lo que haría: guardar esto en memoria a largo plazo, añadir un seguimiento a tu lista de tareas y conservar el contexto para la próxima sesión."
         },
         "thinkingMessages": {
@@ -2866,7 +2866,7 @@
         "etaSettling": "Casi listo…",
         "stepFallbackLabel": "Calentando motores",
         "footerHint": "Cuando termine, se abrirá el chat con una intro personalizada de tu asistente.",
-        "pollError": "No se puede contactar con el orquestador ahora — seguimos intentando.",
+        "pollError": "No se puede contactar con tu asistente ahora — seguimos intentando.",
         "hints": {
           "0": "Consejo: pregunta \"¿qué es importante en mi bandeja hoy?\" cuando entres.",
           "1": "Tu asistente recuerda tus proyectos, tus contactos, tus preferencias.",
@@ -2909,7 +2909,7 @@
         "modelValue": "deepseek-4-flash",
         "modelProviderLabel": "Proveedor",
         "modelProviderValue": "OpenRouter (gestionado)",
-        "modelManagedHelp": "La elección del modelo la gestiona el orquestador. Cambiarlo requerirá una actualización de tu administrador.",
+        "modelManagedHelp": "La elección del modelo la gestiona Sokosumi. Cambiarlo requerirá una actualización de tu administrador.",
         "autonomySection": "Autonomía",
         "autonomyHelp": "Cuánta iniciativa puede tomar tu asistente. Los niveles más bajos preguntan antes de actuar.",
         "autonomySaving": "Guardando…",
@@ -2963,7 +2963,7 @@
       },
       "Error": {
         "title": "No pudimos iniciar tu Hermes",
-        "description": "El orquestador devolvió un error. Vuelve a intentarlo en un minuto. Si continúa, contacta con soporte.",
+        "description": "Tu asistente devolvió un error. Vuelve a intentarlo en un minuto. Si continúa, contacta con soporte.",
         "retry": "Reintentar",
         "startOver": "Empezar de nuevo"
       },

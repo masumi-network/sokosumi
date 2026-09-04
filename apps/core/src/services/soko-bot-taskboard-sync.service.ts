@@ -81,16 +81,16 @@ interface TaskUpdate {
 function actorLabel(event: {
   userId: string | null;
   coworkerId: string | null;
-  orchestratorId: string | null;
+  sokoBotId: string | null;
   user: { name: string | null } | null;
   coworker: { name: string | null } | null;
-  orchestrator: { name: string | null } | null;
+  sokoBot: { name: string | null } | null;
 }): string {
   if (event.userId) return event.user?.name?.trim() || "a teammate";
   if (event.coworkerId)
     return `Coworker ${event.coworker?.name?.trim() || ""}`.trim();
-  if (event.orchestratorId) {
-    return event.orchestrator?.name?.trim() || "a personal assistant";
+  if (event.sokoBotId) {
+    return event.sokoBot?.name?.trim() || "a personal assistant";
   }
   return "the system";
 }
@@ -235,7 +235,7 @@ export class SokoBotTaskboardSyncService {
         archivedAt: null,
         OR: [
           {
-            assigneeOrchestratorId: bot.id,
+            assigneeSokoBotId: bot.id,
             status: { notIn: [...TERMINAL] },
           },
           { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },
@@ -249,7 +249,7 @@ export class SokoBotTaskboardSyncService {
         name: true,
         status: true,
         assigneeId: true,
-        assigneeOrchestratorId: true,
+        assigneeSokoBotId: true,
         updatedAt: true,
         sokoBotWatches: {
           where: { sokoBotId: bot.id },
@@ -265,7 +265,7 @@ export class SokoBotTaskboardSyncService {
       [];
     for (const task of tasks) {
       const watch = task.sokoBotWatches[0] ?? null;
-      const assignedToBot = task.assigneeOrchestratorId === bot.id;
+      const assignedToBot = task.assigneeSokoBotId === bot.id;
       const work = assignedToBot && WORK_STATUSES.has(task.status);
       // Board-only Tasks: the bot neither owns nor created them.
       const boardOnly = !assignedToBot && !taskIds.has(task.id);
@@ -280,7 +280,7 @@ export class SokoBotTaskboardSyncService {
         where: {
           taskId: task.id,
           createdAt: { gt: watch?.lastSeenEventAt ?? since },
-          OR: [{ orchestratorId: null }, { orchestratorId: { not: bot.id } }],
+          OR: [{ sokoBotId: null }, { sokoBotId: { not: bot.id } }],
         },
         orderBy: { createdAt: "asc" },
         take: MAX_EVENTS_PER_TASK,
@@ -290,10 +290,10 @@ export class SokoBotTaskboardSyncService {
           comment: true,
           userId: true,
           coworkerId: true,
-          orchestratorId: true,
+          sokoBotId: true,
           user: { select: { name: true } },
           coworker: { select: { name: true } },
-          orchestrator: { select: { name: true } },
+          sokoBot: { select: { name: true } },
         },
       });
       const alreadyHandedOver =

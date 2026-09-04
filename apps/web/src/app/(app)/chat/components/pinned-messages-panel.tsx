@@ -7,8 +7,8 @@ import { listPinnedMessagesAction } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
 import type {
   ChatRoomCoworkerParticipant,
-  ChatRoomOrchestratorParticipant,
   ChatRoomPinnedMessageListItem,
+  ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -36,8 +36,8 @@ interface PinnedMessagesPanelProps {
   listGeneration: number;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
-  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
+  sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
+  sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   usersById: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   usersBySlug: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   channelLinks: readonly ChannelLinkTarget[];
@@ -82,8 +82,8 @@ export function PinnedMessagesPanel({
   listGeneration,
   coworkersById,
   coworkersBySlug,
-  orchestratorsById,
-  orchestratorsBySlug,
+  sokoBotsById,
+  sokoBotsBySlug,
   usersById,
   usersBySlug,
   channelLinks,
@@ -239,8 +239,8 @@ export function PinnedMessagesPanel({
                     content={message.content}
                     coworkersById={coworkersById}
                     coworkersBySlug={coworkersBySlug}
-                    orchestratorsById={orchestratorsById}
-                    orchestratorsBySlug={orchestratorsBySlug}
+                    sokoBotsById={sokoBotsById}
+                    sokoBotsBySlug={sokoBotsBySlug}
                     usersById={usersById}
                     usersBySlug={usersBySlug}
                     channelLinks={channelLinks}
