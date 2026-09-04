@@ -33,7 +33,7 @@ import {
   requireJoinableOrgChannel,
   requireRoomMemberCanInviteGuests,
   resolveMentionedCoworkerIds,
-  resolveMentionedOrchestratorIds,
+  resolveMentionedSokoBotIds,
   resolveMentionedUserIds,
   resolvePeerInActiveOrganization,
   resolveRoomQuoteSnapshot,
@@ -310,13 +310,13 @@ describe("contentIncludesRoomAllMention", () => {
   });
 });
 
-describe("resolveMentionedOrchestratorIds", () => {
+describe("resolveMentionedSokoBotIds", () => {
   it("matches an @orchestrator:<uuid> token in the room", () => {
     const id = "01960001-0001-7001-8001-000000000099";
     expect(
-      resolveMentionedOrchestratorIds({
+      resolveMentionedSokoBotIds({
         content: `hello @orchestrator:${id}`,
-        roomOrchestrators: [{ id, name: "Jarvis" }],
+        roomSokoBots: [{ id, name: "Jarvis" }],
       }),
     ).toEqual([id]);
   });
@@ -324,18 +324,18 @@ describe("resolveMentionedOrchestratorIds", () => {
   it("lowercases an uppercase token", () => {
     const id = "01960001-0001-7001-8001-000000000099";
     expect(
-      resolveMentionedOrchestratorIds({
+      resolveMentionedSokoBotIds({
         content: `@ORCHESTRATOR:${id.toUpperCase()}`,
-        roomOrchestrators: [{ id, name: "Jarvis" }],
+        roomSokoBots: [{ id, name: "Jarvis" }],
       }),
     ).toEqual([id]);
   });
 
   it("ignores orchestrators that are not in the room", () => {
     expect(
-      resolveMentionedOrchestratorIds({
+      resolveMentionedSokoBotIds({
         content: "@orchestrator:01960001-0001-7001-8001-000000000001",
-        roomOrchestrators: [
+        roomSokoBots: [
           { id: "01960001-0001-7001-8001-000000000099", name: "Jarvis" },
         ],
       }),
@@ -344,9 +344,9 @@ describe("resolveMentionedOrchestratorIds", () => {
 
   it("skips a shared name alias when two room orchestrators slugify the same", () => {
     expect(
-      resolveMentionedOrchestratorIds({
+      resolveMentionedSokoBotIds({
         content: "hey @soko-bot",
-        roomOrchestrators: [
+        roomSokoBots: [
           { id: "01960001-0001-7001-8001-000000000001", name: "Soko Bot" },
           { id: "01960001-0001-7001-8001-000000000002", name: "Soko Bot" },
         ],
@@ -387,7 +387,7 @@ describe("buildDirectRoomKey", () => {
         currentUserId: "user_a",
         memberUserIds: [],
         coworkerIds: [],
-        orchestratorIds: ["01960001-0001-7001-8001-000000000099"],
+        sokoBotIds: ["01960001-0001-7001-8001-000000000099"],
       }),
     ).toBe("orchestrator:user_a:01960001-0001-7001-8001-000000000099");
   });
@@ -562,14 +562,14 @@ describe("getChatRoomUnreadMentionCounts", () => {
 });
 
 describe("resolveRoomQuoteSnapshot", () => {
-  it("names a quoted personal-assistant message from senderOrchestrator", async () => {
+  it("names a quoted personal-assistant message from senderSokoBot", async () => {
     const findFirst = vi.fn().mockResolvedValue({
       id: "550e8400-e29b-41d4-a716-446655440004",
       content: "I can take this",
       metadata: null,
       senderUser: null,
       senderCoworker: null,
-      senderOrchestrator: { name: "Ana", user: { name: "Ada" } },
+      senderSokoBot: { name: "Ana", user: { name: "Ada" } },
     });
 
     await expect(
@@ -603,7 +603,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -618,7 +618,7 @@ describe("mapChatRoomMessage quote", () => {
         image: null,
       },
       senderCoworker: null,
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -636,7 +636,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -651,7 +651,7 @@ describe("mapChatRoomMessage quote", () => {
         image: null,
       },
       senderCoworker: null,
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -673,7 +673,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -688,7 +688,7 @@ describe("mapChatRoomMessage quote", () => {
         image: null,
       },
       senderCoworker: null,
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -706,7 +706,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -728,7 +728,7 @@ describe("mapChatRoomMessage quote", () => {
         image: null,
       },
       senderCoworker: null,
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -749,7 +749,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: null,
       senderCoworkerId: "coworker_1",
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -765,7 +765,7 @@ describe("mapChatRoomMessage quote", () => {
         caption: null,
         image: null,
       },
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -782,7 +782,7 @@ describe("mapChatRoomMessage quote", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: new Date("2025-01-03T00:00:00.000Z"),
@@ -797,7 +797,7 @@ describe("mapChatRoomMessage quote", () => {
         image: null,
       },
       senderCoworker: null,
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [
         {
@@ -1061,7 +1061,7 @@ describe("mapChatRoomMessage membership", () => {
       parentMessageId: null,
       senderUserId: null,
       senderCoworkerId: null,
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "Ada joined",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -1071,7 +1071,7 @@ describe("mapChatRoomMessage membership", () => {
       responsesApiResponseId: null,
       senderUser: null,
       senderCoworker: null,
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -1090,7 +1090,7 @@ describe("mapChatRoomMessage membership", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -1105,7 +1105,7 @@ describe("mapChatRoomMessage membership", () => {
         image: null,
       },
       senderCoworker: null,
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -1133,7 +1133,7 @@ describe("mapChatRoomMessage unfurls", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "https://example.com/a",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -1148,7 +1148,7 @@ describe("mapChatRoomMessage unfurls", () => {
         image: null,
       },
       senderCoworker: null,
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -1165,7 +1165,7 @@ describe("mapChatRoomMessage unfurls", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "gone",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: new Date("2025-01-03T00:00:00.000Z"),
@@ -1190,7 +1190,7 @@ describe("mapChatRoomMessage unfurls", () => {
         image: null,
       },
       senderCoworker: null,
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -1207,7 +1207,7 @@ describe("mapChatRoomMessage unfurls", () => {
       parentMessageId: null,
       senderUserId: "user_123",
       senderCoworkerId: null,
-      senderOrchestratorId: null,
+      senderSokoBotId: null,
       content: "https://ably.com https://resend.com",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
       deletedAt: null,
@@ -1240,7 +1240,7 @@ describe("mapChatRoomMessage unfurls", () => {
         image: null,
       },
       senderCoworker: null,
-      senderOrchestrator: null,
+      senderSokoBot: null,
       mentionsAsSource: [],
       reactions: [],
       replies: [],
@@ -1327,7 +1327,7 @@ function createExternalRoom(
     providerConversationId: null,
     userMembers: memberships,
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
     ...overrides,
   };
 }
@@ -1631,7 +1631,7 @@ describe("requireChatRoomUserWriteAccess guest gate", () => {
       providerConversationId: null,
       userMembers: [{ userId: GUEST_ID, access: "guest", user: { name: "G" } }],
       coworkerMembers: [],
-      orchestratorMembers: [],
+      sokoBotMembers: [],
     } as never);
     vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
       id: ORG_ID,

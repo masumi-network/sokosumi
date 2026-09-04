@@ -79,7 +79,7 @@ function coworkerMessage(
 function orchestratorMessage(
   id: string,
   createdAt: string,
-  orchestratorId = "soko-1",
+  sokoBotId = "soko-1",
 ): ChatRoomMessage {
   return baseMessage({
     id,
@@ -87,8 +87,8 @@ function orchestratorMessage(
     editedAt: null,
     sender: {
       type: "orchestrator",
-      orchestrator: {
-        id: orchestratorId,
+      sokoBot: {
+        id: sokoBotId,
         name: "Personal assistant",
         caption: null,
         image: null,

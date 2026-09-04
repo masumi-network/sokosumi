@@ -21,7 +21,7 @@ export type ChannelMembershipChange = {
 export interface ChannelRosterSnapshot {
   users: ReadonlyArray<{ id: string; name: string }>;
   coworkers: ReadonlyArray<{ id: string; name: string }>;
-  orchestrators?: ReadonlyArray<{ id: string; name: string }>;
+  sokoBots?: ReadonlyArray<{ id: string; name: string }>;
 }
 
 export interface RecordChannelMembershipStatusArgs {
@@ -46,11 +46,11 @@ export function diffChannelMembershipRoster(args: {
   const priorCoworkerIds = new Set(
     args.prior.coworkers.map((coworker) => coworker.id),
   );
-  const nextOrchestratorIds = new Set(
-    (args.next.orchestrators ?? []).map((bot) => bot.id),
+  const nextSokoBotIds = new Set(
+    (args.next.sokoBots ?? []).map((bot) => bot.id),
   );
-  const priorOrchestratorIds = new Set(
-    (args.prior.orchestrators ?? []).map((bot) => bot.id),
+  const priorSokoBotIds = new Set(
+    (args.prior.sokoBots ?? []).map((bot) => bot.id),
   );
 
   const changes: ChannelMembershipChange[] = [];
@@ -73,14 +73,14 @@ export function diffChannelMembershipRoster(args: {
     }
   }
 
-  for (const orchestrator of args.prior.orchestrators ?? []) {
-    if (!nextOrchestratorIds.has(orchestrator.id)) {
+  for (const sokoBot of args.prior.sokoBots ?? []) {
+    if (!nextSokoBotIds.has(sokoBot.id)) {
       changes.push({
         action: "left",
         subject: {
           type: "orchestrator",
-          id: orchestrator.id,
-          name: orchestrator.name,
+          id: sokoBot.id,
+          name: sokoBot.name,
         },
       });
     }
@@ -104,14 +104,14 @@ export function diffChannelMembershipRoster(args: {
     }
   }
 
-  for (const orchestrator of args.next.orchestrators ?? []) {
-    if (!priorOrchestratorIds.has(orchestrator.id)) {
+  for (const sokoBot of args.next.sokoBots ?? []) {
+    if (!priorSokoBotIds.has(sokoBot.id)) {
       changes.push({
         action: "joined",
         subject: {
           type: "orchestrator",
-          id: orchestrator.id,
-          name: orchestrator.name,
+          id: sokoBot.id,
+          name: sokoBot.name,
         },
       });
     }

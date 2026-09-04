@@ -23,11 +23,11 @@ export function buildCoworkerChatRoomFilePrefix(
   return `${COWORKER_UPLOADS_DIR}/${coworkerId}/${CHATS_DIR}/${roomId}/`;
 }
 
-export function buildOrchestratorChatRoomFilePrefix(
-  orchestratorId: string,
+export function buildSokoBotChatRoomFilePrefix(
+  sokoBotId: string,
   roomId: string,
 ): string {
-  return `${ORCHESTRATOR_UPLOADS_DIR}/${orchestratorId}/${CHATS_DIR}/${roomId}/`;
+  return `${ORCHESTRATOR_UPLOADS_DIR}/${sokoBotId}/${CHATS_DIR}/${roomId}/`;
 }
 
 /**
@@ -54,12 +54,12 @@ export function buildCoworkerChatRoomFilePathname(
   return `${buildCoworkerChatRoomFilePrefix(coworkerId, roomId)}${sanitizeUserUploadFilename(fileName)}`;
 }
 
-export function buildOrchestratorChatRoomFilePathname(
-  orchestratorId: string,
+export function buildSokoBotChatRoomFilePathname(
+  sokoBotId: string,
   roomId: string,
   fileName: string,
 ): string {
-  return `${buildOrchestratorChatRoomFilePrefix(orchestratorId, roomId)}${sanitizeUserUploadFilename(fileName)}`;
+  return `${buildSokoBotChatRoomFilePrefix(sokoBotId, roomId)}${sanitizeUserUploadFilename(fileName)}`;
 }
 
 function isOwnedPrefixUrl(url: string, prefix: string): boolean {

@@ -140,7 +140,7 @@ export default async function TaskEditModalPage({
         name: taskResult.name,
         description: taskResult.description ?? "",
         assigneeId: taskFormAssigneeId(taskResult),
-        assigneeOrchestratorId: taskResult.assigneeOrchestratorId ?? null,
+        assigneeSokoBotId: taskResult.assigneeSokoBotId ?? null,
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
         metadata: taskResult.metadata,

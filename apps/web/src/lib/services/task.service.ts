@@ -21,7 +21,7 @@ import type { AgentJobStatus } from "@/lib/types/core-dto";
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
   assigneeId?: string;
-  assigneeOrchestratorId?: string;
+  assigneeSokoBotId?: string;
   projectId?: string;
   q?: string;
   scope?: "workspace" | "owned";
@@ -43,7 +43,7 @@ interface CreateTaskInput {
   name?: string;
   description: string | null;
   assigneeId: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -53,7 +53,7 @@ interface PatchTaskInput {
   name?: string;
   description?: string | null;
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   projectId?: string | null;
 }
 
@@ -70,26 +70,26 @@ interface CreateTaskLinkInput {
 
 function assigneeWriteFields(
   assigneeId?: string | null,
-  assigneeOrchestratorId?: string | null,
+  assigneeSokoBotId?: string | null,
 ): {
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
 } {
   if (
     typeof assigneeId === "undefined" &&
-    typeof assigneeOrchestratorId === "undefined"
+    typeof assigneeSokoBotId === "undefined"
   ) {
     return {};
   }
 
-  const orchestratorId = assigneeOrchestratorId?.trim() || null;
-  if (orchestratorId) {
-    return { assigneeId: null, assigneeOrchestratorId: orchestratorId };
+  const sokoBotId = assigneeSokoBotId?.trim() || null;
+  if (sokoBotId) {
+    return { assigneeId: null, assigneeSokoBotId: sokoBotId };
   }
 
   return {
     assigneeId: assigneeId?.trim() ? assigneeId : null,
-    assigneeOrchestratorId: null,
+    assigneeSokoBotId: null,
   };
 }
 
@@ -111,8 +111,8 @@ export const taskService = (() => {
         : params.status
           ? [params.status]
           : undefined,
-      ...(params.assigneeOrchestratorId
-        ? { assigneeOrchestratorId: params.assigneeOrchestratorId }
+      ...(params.assigneeSokoBotId
+        ? { assigneeSokoBotId: params.assigneeSokoBotId }
         : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
       q: params.q,
@@ -193,7 +193,7 @@ export const taskService = (() => {
   async function createTask(input: CreateTaskInput): Promise<Task> {
     const result = await coreClient.createTask({
       ...input,
-      ...assigneeWriteFields(input.assigneeId, input.assigneeOrchestratorId),
+      ...assigneeWriteFields(input.assigneeId, input.assigneeSokoBotId),
     });
 
     if (!result.data) {
@@ -222,7 +222,7 @@ export const taskService = (() => {
   ): Promise<Task> {
     const result = await coreClient.patchTask(taskId, {
       ...input,
-      ...assigneeWriteFields(input.assigneeId, input.assigneeOrchestratorId),
+      ...assigneeWriteFields(input.assigneeId, input.assigneeSokoBotId),
     });
 
     if (!result.data) {

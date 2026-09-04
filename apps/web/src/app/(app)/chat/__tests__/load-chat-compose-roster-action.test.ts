@@ -102,7 +102,7 @@ describe("loadChatComposeRosterAction", () => {
         canCreateExternal: false,
         members: [],
         coworkers: [],
-        orchestrators: [],
+        sokoBots: [],
         membersLoadFailed: true,
       },
     });

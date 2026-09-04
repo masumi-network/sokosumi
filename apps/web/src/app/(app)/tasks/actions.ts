@@ -32,7 +32,7 @@ interface LoadMoreTasksColumnParams {
   cursor: string | null;
   scope: TasksScope | null;
   assigneeId: string | null;
-  assigneeOrchestratorId: string | null;
+  assigneeSokoBotId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
 }
@@ -41,7 +41,7 @@ interface LoadMoreTasksListParams {
   cursor: string | null;
   scope: TasksScope | null;
   assigneeId: string | null;
-  assigneeOrchestratorId: string | null;
+  assigneeSokoBotId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
 }
@@ -51,7 +51,7 @@ export async function loadMoreTasksColumn({
   cursor,
   scope,
   assigneeId,
-  assigneeOrchestratorId,
+  assigneeSokoBotId,
   status,
   projectId,
 }: LoadMoreTasksColumnParams) {
@@ -76,10 +76,10 @@ export async function loadMoreTasksColumn({
       ? assigneeId
       : null;
   const sanitizedAssigneeOrchestratorId =
-    assigneeOrchestratorId &&
+    assigneeSokoBotId &&
     ownerOrchestratorId &&
-    assigneeOrchestratorId === ownerOrchestratorId
-      ? assigneeOrchestratorId
+    assigneeSokoBotId === ownerOrchestratorId
+      ? assigneeSokoBotId
       : null;
   const sanitizedStatus = sanitizeTasksStatusInput(status);
   const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
@@ -89,7 +89,7 @@ export async function loadMoreTasksColumn({
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
     assigneeId: sanitizedAssigneeId,
-    assigneeOrchestratorId: sanitizedAssigneeOrchestratorId,
+    assigneeSokoBotId: sanitizedAssigneeOrchestratorId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,
@@ -106,7 +106,7 @@ export async function loadMoreTasksList({
   cursor,
   scope,
   assigneeId,
-  assigneeOrchestratorId,
+  assigneeSokoBotId,
   status,
   projectId,
 }: LoadMoreTasksListParams) {
@@ -131,10 +131,10 @@ export async function loadMoreTasksList({
       ? assigneeId
       : null;
   const sanitizedAssigneeOrchestratorId =
-    assigneeOrchestratorId &&
+    assigneeSokoBotId &&
     ownerOrchestratorId &&
-    assigneeOrchestratorId === ownerOrchestratorId
-      ? assigneeOrchestratorId
+    assigneeSokoBotId === ownerOrchestratorId
+      ? assigneeSokoBotId
       : null;
   const sanitizedStatus = sanitizeTasksStatusInput(status);
   const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
@@ -143,7 +143,7 @@ export async function loadMoreTasksList({
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
     assigneeId: sanitizedAssigneeId,
-    assigneeOrchestratorId: sanitizedAssigneeOrchestratorId,
+    assigneeSokoBotId: sanitizedAssigneeOrchestratorId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,

@@ -19,7 +19,7 @@ const taskItem = {
   credits: 2.5,
   projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   coworkerId: "cow_123",
-  orchestratorId: null,
+  sokoBotId: null,
   owner: null,
 };
 

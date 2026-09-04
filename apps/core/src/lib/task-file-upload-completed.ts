@@ -21,7 +21,7 @@ const taskFileUploadCompletedTokenPayloadSchema = z.object({
   size: z.number().int().positive(),
   uploadedByUserId: z.string().min(1).nullable(),
   uploadedByCoworkerId: z.string().min(1).nullable(),
-  uploadedByOrchestratorId: z.uuid().nullable().optional().default(null),
+  uploadedBySokoBotId: z.uuid().nullable().optional().default(null),
 });
 
 type TaskFileUploadCompletedTokenPayload = z.infer<
@@ -110,7 +110,7 @@ export async function registerTaskFileFromUploadCompleted(params: {
         size: BigInt(blobMetadata.size),
         uploadedByUserId: payload.uploadedByUserId,
         uploadedByCoworkerId: payload.uploadedByCoworkerId,
-        uploadedByOrchestratorId: payload.uploadedByOrchestratorId,
+        uploadedBySokoBotId: payload.uploadedBySokoBotId,
       },
     });
   } catch (error) {

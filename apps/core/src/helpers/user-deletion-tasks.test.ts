@@ -226,7 +226,7 @@ describe("prepareTasksForUserDeletion", () => {
       data: {
         creatorUserId: "user_other",
         creatorCoworkerId: null,
-        creatorOrchestratorId: null,
+        creatorSokoBotId: null,
       },
     });
     expect(taskDeleteManyMock).toHaveBeenCalledWith({
@@ -737,7 +737,7 @@ describe("prepareTasksForUserDeletion", () => {
       data: {
         creatorUserId: "user_other",
         creatorCoworkerId: null,
-        creatorOrchestratorId: null,
+        creatorSokoBotId: null,
       },
     });
   });

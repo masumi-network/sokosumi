@@ -363,7 +363,7 @@ try {
         "reply_to_task",
         "update_assigned_task",
       ]) {
-        skip(c, "bot has no orchestrator identity to assign to");
+        skip(c, "bot has no sokoBot identity to assign to");
       }
     }
     scratchTaskIds.push(created.id, ...(peerId ? [peerId] : []));
@@ -410,7 +410,7 @@ try {
     where: {
       kind: "direct",
       archivedAt: null,
-      orchestratorMembers: { some: { orchestratorId: bot.id } },
+      orchestratorMembers: { some: { sokoBotId: bot.id } },
       userMembers: { some: { userId: bot.userId } },
     },
     select: { id: true },

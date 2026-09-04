@@ -304,7 +304,7 @@ function taskAssigneeDisplayName(
     return null;
   }
   if (assignee.type === "orchestrator") {
-    return assignee.orchestrator.name?.trim() || personalAssistantFallback;
+    return assignee.sokoBot.name?.trim() || personalAssistantFallback;
   }
   return assignee.coworker.name ?? null;
 }
@@ -655,7 +655,7 @@ async function TaskActivitySectionContent({
   const {
     userById: actorsUserById,
     coworkerById,
-    orchestratorById,
+    sokoBotById,
   } = buildTaskActivityActors(task);
   const currentUser = session?.user
     ? {
@@ -695,7 +695,7 @@ async function TaskActivitySectionContent({
       agentNameById={agentNameById}
       userById={userById}
       coworkerById={coworkerById}
-      orchestratorById={orchestratorById}
+      sokoBotById={sokoBotById}
       currentUser={currentUser}
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}

@@ -13,7 +13,7 @@ import { dateTimeSchema } from "@/helpers/datetime";
  */
 const MAX_ROOM_MEMBERS = 500;
 const MAX_ROOM_COWORKERS = 50;
-const MAX_ROOM_ORCHESTRATORS = 50;
+const MAX_ROOM_SOKO_BOTS = 50;
 
 export const chatRoomPresenceSchema = z
   .enum(["online", "afk", "offline"])
@@ -104,7 +104,7 @@ export const chatRoomCoworkerParticipantSchema = z
   })
   .openapi("ChatRoomCoworkerParticipant");
 
-export const chatRoomOrchestratorParticipantSchema = z
+export const chatRoomSokoBotParticipantSchema = z
   .object({
     id: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
@@ -121,7 +121,7 @@ export const chatRoomOrchestratorParticipantSchema = z
     avatarSeed: z.string().nullable().openapi({ example: "orb:user_123" }),
     presence: chatRoomPresenceSchema.openapi({ example: "online" }),
   })
-  .openapi("ChatRoomOrchestratorParticipant");
+  .openapi("ChatRoomSokoBotParticipant");
 
 export const chatRoomSchema = z
   .object({
@@ -206,7 +206,7 @@ export const chatRoomSchema = z
     }),
     userMembers: z.array(chatRoomUserParticipantSchema),
     coworkerMembers: z.array(chatRoomCoworkerParticipantSchema),
-    orchestratorMembers: z.array(chatRoomOrchestratorParticipantSchema),
+    sokoBotMembers: z.array(chatRoomSokoBotParticipantSchema),
   })
   .openapi("ChatRoom");
 
@@ -241,9 +241,9 @@ const roomCoworkerIdsSchema = z
     example: ["cow_123"],
   });
 
-const roomOrchestratorIdsSchema = z
+const roomSokoBotIdsSchema = z
   .array(z.string().uuid())
-  .max(MAX_ROOM_ORCHESTRATORS)
+  .max(MAX_ROOM_SOKO_BOTS)
   .optional()
   .openapi({
     description:
@@ -299,7 +299,7 @@ export const createChatRoomRequestSchema = z
         }),
       memberUserIds: roomMemberUserIdsSchema,
       coworkerIds: roomCoworkerIdsSchema,
-      orchestratorIds: roomOrchestratorIdsSchema,
+      sokoBotIds: roomSokoBotIdsSchema,
     }),
     z
       .object({
@@ -309,7 +309,7 @@ export const createChatRoomRequestSchema = z
         }),
         memberUserIds: roomMemberUserIdsSchema,
         coworkerIds: roomCoworkerIdsSchema,
-        orchestratorIds: roomOrchestratorIdsSchema,
+        sokoBotIds: roomSokoBotIdsSchema,
       })
       .strict(),
   ])
@@ -348,9 +348,9 @@ export const updateChatRoomRequestSchema = z
       .openapi({
         example: ["cow_123"],
       }),
-    orchestratorIds: z
+    sokoBotIds: z
       .array(z.string().uuid())
-      .max(MAX_ROOM_ORCHESTRATORS)
+      .max(MAX_ROOM_SOKO_BOTS)
       .optional()
       .openapi({
         description:
@@ -384,7 +384,7 @@ export const chatRoomMessageMentionSchema = z
   .object({
     id: z.string().uuid(),
     coworkerId: z.string().nullable(),
-    orchestratorId: z.string().uuid().nullable(),
+    sokoBotId: z.string().uuid().nullable(),
     status: chatRoomMentionStatusSchema,
     responseMessageId: z.string().uuid().nullable(),
   })
@@ -402,7 +402,7 @@ export const chatRoomMessageSenderSchema = z
     }),
     z.object({
       type: z.literal("orchestrator"),
-      orchestrator: chatRoomOrchestratorParticipantSchema,
+      sokoBot: chatRoomSokoBotParticipantSchema,
     }),
     z.object({
       type: z.literal("unknown"),
@@ -568,7 +568,7 @@ export const createChatRoomMessageRequestSchema = z
       .openapi({
         example: ["cow_123"],
       }),
-    mentionedOrchestratorIds: z
+    mentionedSokoBotIds: z
       .array(z.string().uuid())
       .optional()
       .openapi({

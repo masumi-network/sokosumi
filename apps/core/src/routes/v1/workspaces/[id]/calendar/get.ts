@@ -184,7 +184,7 @@ async function resolveCoworkerCalendarTaskAccess(
   if (authContext.actor === "orchestrator") {
     return {
       workspaceId,
-      assigneeOrchestratorId: authContext.orchestratorId,
+      assigneeSokoBotId: authContext.sokoBotId,
       status: { not: TaskStatus.DRAFT },
     };
   }

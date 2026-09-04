@@ -162,15 +162,15 @@ describe("owner orchestrator option", () => {
     );
     expect(resolveTaskAssigneeFields("bot-1", options)).toEqual({
       assigneeId: null,
-      assigneeOrchestratorId: "bot-1",
+      assigneeSokoBotId: "bot-1",
     });
     expect(resolveTaskAssigneeFields("cow_1", options)).toEqual({
       assigneeId: "cow_1",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
     });
     expect(resolveTaskAssigneeFields("", options)).toEqual({
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
     });
   });
 
@@ -179,7 +179,7 @@ describe("owner orchestrator option", () => {
       resolveTaskAssigneeFields("coworker-2", [{ id: "coworker-2" }]),
     ).toEqual({
       assigneeId: "coworker-2",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
     });
   });
 
@@ -191,7 +191,7 @@ describe("owner orchestrator option", () => {
     );
     expect(resolveTaskAssigneeFields("missing-coworker", options)).toEqual({
       assigneeId: "missing-coworker",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
     });
   });
 
@@ -204,7 +204,7 @@ describe("owner orchestrator option", () => {
       ),
     ).toEqual({
       assigneeId: null,
-      assigneeOrchestratorId: "bot-1",
+      assigneeSokoBotId: "bot-1",
     });
   });
 
@@ -212,11 +212,11 @@ describe("owner orchestrator option", () => {
     expect(
       taskFormAssigneeId({
         assigneeId: "cow_1",
-        assigneeOrchestratorId: "bot-1",
+        assigneeSokoBotId: "bot-1",
       }),
     ).toBe("bot-1");
     expect(
-      taskFormAssigneeId({ assigneeId: "cow_1", assigneeOrchestratorId: null }),
+      taskFormAssigneeId({ assigneeId: "cow_1", assigneeSokoBotId: null }),
     ).toBe("cow_1");
   });
 

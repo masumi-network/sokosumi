@@ -4450,7 +4450,7 @@ export const TaskSchema = {
             example: 'cow_123',
             description: 'Marketplace coworker assignee. Null when the assignee is an orchestrator.'
         },
-        assigneeOrchestratorId: {
+        assigneeSokoBotId: {
             type: [
                 'string',
                 'null'
@@ -4465,7 +4465,7 @@ export const TaskSchema = {
                     $ref: '#/components/schemas/TaskAssigneeCoworker'
                 },
                 {
-                    $ref: '#/components/schemas/TaskAssigneeOrchestrator'
+                    $ref: '#/components/schemas/TaskAssigneeSokoBot'
                 },
                 {
                     type: 'null'
@@ -4498,7 +4498,7 @@ export const TaskSchema = {
         creator: {
             $ref: '#/components/schemas/TaskCreator'
         },
-        orchestratorId: {
+        sokoBotId: {
             type: [
                 'string',
                 'null'
@@ -4508,10 +4508,10 @@ export const TaskSchema = {
             deprecated: true,
             description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
-        orchestrator: {
+        sokoBot: {
             anyOf: [
                 {
-                    $ref: '#/components/schemas/OrchestratorSummary'
+                    $ref: '#/components/schemas/SokoBotSummary'
                 },
                 {
                     type: 'null'
@@ -4648,13 +4648,13 @@ export const TaskSchema = {
         'organization',
         'projectId',
         'assigneeId',
-        'assigneeOrchestratorId',
+        'assigneeSokoBotId',
         'assignee',
         'coworkerId',
         'coworker',
         'creator',
-        'orchestratorId',
-        'orchestrator',
+        'sokoBotId',
+        'sokoBot',
         'name',
         'description',
         'status',
@@ -4777,7 +4777,7 @@ export const CoworkerSummarySchema = {
     ]
 } as const;
 
-export const TaskAssigneeOrchestratorSchema = {
+export const TaskAssigneeSokoBotSchema = {
     type: 'object',
     properties: {
         type: {
@@ -4791,18 +4791,18 @@ export const TaskAssigneeOrchestratorSchema = {
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099'
         },
-        orchestrator: {
-            $ref: '#/components/schemas/OrchestratorSummary'
+        sokoBot: {
+            $ref: '#/components/schemas/SokoBotSummary'
         }
     },
     required: [
         'type',
         'id',
-        'orchestrator'
+        'sokoBot'
     ]
 } as const;
 
-export const OrchestratorSummarySchema = {
+export const SokoBotSummarySchema = {
     type: 'object',
     properties: {
         id: {
@@ -4853,7 +4853,7 @@ export const TaskCreatorSchema = {
             $ref: '#/components/schemas/TaskCreatorCoworker'
         },
         {
-            $ref: '#/components/schemas/TaskCreatorOrchestrator'
+            $ref: '#/components/schemas/TaskCreatorSokoBot'
         }
     ],
     discriminator: {
@@ -4861,7 +4861,7 @@ export const TaskCreatorSchema = {
         mapping: {
             user: '#/components/schemas/TaskCreatorUser',
             coworker: '#/components/schemas/TaskCreatorCoworker',
-            orchestrator: '#/components/schemas/TaskCreatorOrchestrator'
+            orchestrator: '#/components/schemas/TaskCreatorSokoBot'
         }
     },
     description: 'Actor that created the task. Exactly one of user, coworker, or orchestrator.'
@@ -4915,7 +4915,7 @@ export const TaskCreatorCoworkerSchema = {
     ]
 } as const;
 
-export const TaskCreatorOrchestratorSchema = {
+export const TaskCreatorSokoBotSchema = {
     type: 'object',
     properties: {
         type: {
@@ -4929,14 +4929,14 @@ export const TaskCreatorOrchestratorSchema = {
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099'
         },
-        orchestrator: {
-            $ref: '#/components/schemas/OrchestratorSummary'
+        sokoBot: {
+            $ref: '#/components/schemas/SokoBotSummary'
         }
     },
     required: [
         'type',
         'id',
-        'orchestrator'
+        'sokoBot'
     ]
 } as const;
 
@@ -5045,7 +5045,7 @@ export const TaskEventSchema = {
             deprecated: true,
             description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
         },
-        orchestratorId: {
+        sokoBotId: {
             type: [
                 'string',
                 'null'
@@ -5055,7 +5055,7 @@ export const TaskEventSchema = {
             deprecated: true,
             description: 'Deprecated. Use actor when type is orchestrator.'
         },
-        orchestrator: {
+        sokoBot: {
             type: [
                 'object',
                 'null'
@@ -5214,7 +5214,7 @@ export const TaskEventActorSchema = {
             $ref: '#/components/schemas/TaskEventActorCoworker'
         },
         {
-            $ref: '#/components/schemas/TaskEventActorOrchestrator'
+            $ref: '#/components/schemas/TaskEventActorSokoBot'
         },
         {
             type: 'null'
@@ -5271,7 +5271,7 @@ export const TaskEventActorCoworkerSchema = {
     ]
 } as const;
 
-export const TaskEventActorOrchestratorSchema = {
+export const TaskEventActorSokoBotSchema = {
     type: 'object',
     properties: {
         type: {
@@ -5285,14 +5285,14 @@ export const TaskEventActorOrchestratorSchema = {
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099'
         },
-        orchestrator: {
-            $ref: '#/components/schemas/OrchestratorSummary'
+        sokoBot: {
+            $ref: '#/components/schemas/SokoBotSummary'
         }
     },
     required: [
         'type',
         'id',
-        'orchestrator'
+        'sokoBot'
     ]
 } as const;
 
@@ -5872,7 +5872,7 @@ export const TaskFileUploaderSchema = {
             $ref: '#/components/schemas/TaskFileUploaderCoworker'
         },
         {
-            $ref: '#/components/schemas/TaskFileUploaderOrchestrator'
+            $ref: '#/components/schemas/TaskFileUploaderSokoBot'
         },
         {
             type: 'null'
@@ -5929,7 +5929,7 @@ export const TaskFileUploaderCoworkerSchema = {
     ]
 } as const;
 
-export const TaskFileUploaderOrchestratorSchema = {
+export const TaskFileUploaderSokoBotSchema = {
     type: 'object',
     properties: {
         type: {
@@ -5943,14 +5943,14 @@ export const TaskFileUploaderOrchestratorSchema = {
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099'
         },
-        orchestrator: {
-            $ref: '#/components/schemas/OrchestratorSummary'
+        sokoBot: {
+            $ref: '#/components/schemas/SokoBotSummary'
         }
     },
     required: [
         'type',
         'id',
-        'orchestrator'
+        'sokoBot'
     ]
 } as const;
 
@@ -8437,10 +8437,10 @@ export const ChatRoomSchema = {
                 $ref: '#/components/schemas/ChatRoomCoworkerParticipant'
             }
         },
-        orchestratorMembers: {
+        sokoBotMembers: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/ChatRoomOrchestratorParticipant'
+                $ref: '#/components/schemas/ChatRoomSokoBotParticipant'
             }
         }
     },
@@ -8465,7 +8465,7 @@ export const ChatRoomSchema = {
         'myAccess',
         'userMembers',
         'coworkerMembers',
-        'orchestratorMembers'
+        'sokoBotMembers'
     ]
 } as const;
 
@@ -8577,7 +8577,7 @@ export const ChatRoomCoworkerParticipantSchema = {
     ]
 } as const;
 
-export const ChatRoomOrchestratorParticipantSchema = {
+export const ChatRoomSokoBotParticipantSchema = {
     type: 'object',
     properties: {
         id: {
@@ -8743,7 +8743,7 @@ export const CreateChatRoomRequestSchema = {
                         'cow_123'
                     ]
                 },
-                orchestratorIds: {
+                sokoBotIds: {
                     type: 'array',
                     items: {
                         type: 'string',
@@ -8795,7 +8795,7 @@ export const CreateChatRoomRequestSchema = {
                         'cow_123'
                     ]
                 },
-                orchestratorIds: {
+                sokoBotIds: {
                     type: 'array',
                     items: {
                         type: 'string',
@@ -9268,13 +9268,13 @@ export const ChatRoomMessageSenderSchema = {
                         'orchestrator'
                     ]
                 },
-                orchestrator: {
-                    $ref: '#/components/schemas/ChatRoomOrchestratorParticipant'
+                sokoBot: {
+                    $ref: '#/components/schemas/ChatRoomSokoBotParticipant'
                 }
             },
             required: [
                 'type',
-                'orchestrator'
+                'sokoBot'
             ]
         },
         {
@@ -9307,7 +9307,7 @@ export const ChatRoomMessageMentionSchema = {
                 'null'
             ]
         },
-        orchestratorId: {
+        sokoBotId: {
             type: [
                 'string',
                 'null'
@@ -9328,7 +9328,7 @@ export const ChatRoomMessageMentionSchema = {
     required: [
         'id',
         'coworkerId',
-        'orchestratorId',
+        'sokoBotId',
         'status',
         'responseMessageId'
     ]
@@ -9651,7 +9651,7 @@ export const UpdateChatRoomRequestSchema = {
                 'cow_123'
             ]
         },
-        orchestratorIds: {
+        sokoBotIds: {
             type: 'array',
             items: {
                 type: 'string',
@@ -9945,7 +9945,7 @@ export const CreateChatRoomMessageRequestSchema = {
                 'cow_123'
             ]
         },
-        mentionedOrchestratorIds: {
+        mentionedSokoBotIds: {
             type: 'array',
             items: {
                 type: 'string',
@@ -12041,7 +12041,7 @@ export const HistoryTaskItemSchema = {
             description: 'Coworker ID associated with the task, when assigned',
             example: 'cow_123'
         },
-        orchestratorId: {
+        sokoBotId: {
             type: [
                 'string',
                 'null'
@@ -12063,7 +12063,7 @@ export const HistoryTaskItemSchema = {
         'status',
         'projectId',
         'coworkerId',
-        'orchestratorId'
+        'sokoBotId'
     ]
 } as const;
 
@@ -16258,14 +16258,14 @@ export const PublicSharedTaskFileSchema = {
     ]
 } as const;
 
-export const OrchestratorApiKeySchema = {
+export const SokoBotApiKeySchema = {
     type: 'object',
     properties: {
         id: {
             type: 'string',
             example: 'agentkey_123'
         },
-        orchestratorId: {
+        sokoBotId: {
             type: 'string',
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099'
@@ -16310,7 +16310,7 @@ export const OrchestratorApiKeySchema = {
     },
     required: [
         'id',
-        'orchestratorId',
+        'sokoBotId',
         'name',
         'keyStart',
         'expiresAt',
@@ -16320,7 +16320,7 @@ export const OrchestratorApiKeySchema = {
     ]
 } as const;
 
-export const CreateOrchestratorApiKeyResponseSchema = {
+export const CreateSokoBotApiKeyResponseSchema = {
     type: 'object',
     properties: {
         id: {
@@ -18281,7 +18281,7 @@ export const TaskListItemSchema = {
             example: 'cow_123',
             description: 'Marketplace coworker assignee. Null when the assignee is an orchestrator.'
         },
-        assigneeOrchestratorId: {
+        assigneeSokoBotId: {
             type: [
                 'string',
                 'null'
@@ -18296,7 +18296,7 @@ export const TaskListItemSchema = {
                     $ref: '#/components/schemas/TaskAssigneeCoworker'
                 },
                 {
-                    $ref: '#/components/schemas/TaskAssigneeOrchestrator'
+                    $ref: '#/components/schemas/TaskAssigneeSokoBot'
                 },
                 {
                     type: 'null'
@@ -18329,7 +18329,7 @@ export const TaskListItemSchema = {
         creator: {
             $ref: '#/components/schemas/TaskCreator'
         },
-        orchestratorId: {
+        sokoBotId: {
             type: [
                 'string',
                 'null'
@@ -18339,10 +18339,10 @@ export const TaskListItemSchema = {
             deprecated: true,
             description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
         },
-        orchestrator: {
+        sokoBot: {
             anyOf: [
                 {
-                    $ref: '#/components/schemas/OrchestratorSummary'
+                    $ref: '#/components/schemas/SokoBotSummary'
                 },
                 {
                     type: 'null'
@@ -18445,13 +18445,13 @@ export const TaskListItemSchema = {
         'organization',
         'projectId',
         'assigneeId',
-        'assigneeOrchestratorId',
+        'assigneeSokoBotId',
         'assignee',
         'coworkerId',
         'coworker',
         'creator',
-        'orchestratorId',
-        'orchestrator',
+        'sokoBotId',
+        'sokoBot',
         'name',
         'description',
         'status',

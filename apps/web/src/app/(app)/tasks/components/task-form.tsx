@@ -140,7 +140,7 @@ interface TaskFormInitialValues {
   name?: string;
   description?: string;
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
   metadata?: string | null;
@@ -168,7 +168,7 @@ interface TaskFormProps {
   onCreateTask?: (input: {
     description: string;
     assigneeId: string | null;
-    assigneeOrchestratorId: string | null;
+    assigneeSokoBotId: string | null;
     projectId?: string | null;
     context: TaskContextSelectionInput;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -255,9 +255,9 @@ export function TaskForm({
   const knownOrchestratorId = useMemo(
     () =>
       coworkerOptions.find((option) => option.kind === "orchestrator")?.id ??
-      initialValues?.assigneeOrchestratorId ??
+      initialValues?.assigneeSokoBotId ??
       null,
-    [coworkerOptions, initialValues?.assigneeOrchestratorId],
+    [coworkerOptions, initialValues?.assigneeSokoBotId],
   );
 
   const coworkerTouchedRef = useRef(false);

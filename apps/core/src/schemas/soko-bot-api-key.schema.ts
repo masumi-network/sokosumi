@@ -2,10 +2,10 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
-export const orchestratorApiKeySchema = z
+export const sokoBotApiKeySchema = z
   .object({
     id: z.string().openapi({ example: "agentkey_123" }),
-    orchestratorId: z.string().uuid().openapi({
+    sokoBotId: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
     name: z.string().nullable().openapi({ example: "Production key" }),
@@ -17,9 +17,9 @@ export const orchestratorApiKeySchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
-  .openapi("OrchestratorApiKey");
+  .openapi("SokoBotApiKey");
 
-export const createOrchestratorApiKeyResponseSchema = z
+export const createSokoBotApiKeyResponseSchema = z
   .object({
     id: z.string().openapi({ example: "agentkey_123" }),
     token: z.string().openapi({ example: "orchestrator_very_secret_value" }),
@@ -28,4 +28,4 @@ export const createOrchestratorApiKeyResponseSchema = z
       example: "2026-12-31T23:59:59.000Z",
     }),
   })
-  .openapi("CreateOrchestratorApiKeyResponse");
+  .openapi("CreateSokoBotApiKeyResponse");

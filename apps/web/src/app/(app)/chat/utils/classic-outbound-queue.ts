@@ -10,7 +10,7 @@ export interface ClassicOutboundJob {
   roomId: string;
   content: string;
   mentionedCoworkerIds: string[];
-  mentionedOrchestratorIds: string[];
+  mentionedSokoBotIds: string[];
   mentionedUserIds: string[];
   quote?: { messageId: string };
   clientMessageId: string;

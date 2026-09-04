@@ -14,8 +14,8 @@ import {
 import { conflict, unprocessableEntity } from "./error";
 import {
   coworkerSummaryFromLoadedRelation,
-  orchestratorSummaryFromLoadedRelation,
   organizationSummaryFromLoadedRelation,
+  sokoBotSummaryFromLoadedRelation,
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
 import { mapTaskLinksForTask } from "./task-link";
@@ -34,7 +34,7 @@ export function mapTaskFile(file: TaskFileForMapping) {
       image: string | null;
       slug: string;
     };
-    orchestrator?: ReturnType<typeof orchestratorSummaryFromLoadedRelation>;
+    sokoBot?: ReturnType<typeof sokoBotSummaryFromLoadedRelation>;
   } | null = null;
 
   if (file.uploadedByUserId != null) {
@@ -64,21 +64,21 @@ export function mapTaskFile(file: TaskFileForMapping) {
       id: file.uploadedByCoworkerId,
       coworker,
     };
-  } else if (file.uploadedByOrchestratorId != null) {
-    const orchestrator = orchestratorSummaryFromLoadedRelation(
+  } else if (file.uploadedBySokoBotId != null) {
+    const sokoBot = sokoBotSummaryFromLoadedRelation(
       `TaskFile ${file.id} uploader`,
-      file.uploadedByOrchestratorId,
-      file.uploadedByOrchestrator ?? null,
+      file.uploadedBySokoBotId,
+      file.uploadedBySokoBot ?? null,
     );
-    if (orchestrator == null) {
+    if (sokoBot == null) {
       throw new Error(
         `TaskFile ${file.id}: orchestrator uploader summary missing for API mapping`,
       );
     }
     uploader = {
       type: "orchestrator",
-      id: file.uploadedByOrchestratorId,
-      orchestrator,
+      id: file.uploadedBySokoBotId,
+      sokoBot,
     };
   }
 
@@ -117,8 +117,8 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
     image: string | null;
     slug: string;
   } | null;
-  orchestratorId?: string | null;
-  orchestrator?: {
+  sokoBotId?: string | null;
+  sokoBot?: {
     id: string;
     name: string | null;
   } | null;
@@ -127,7 +127,7 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
 interface ValidateTaskAssigneeAssignmentParams {
   status: TaskStatus;
   assigneeId: string | null | undefined;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
 }
 
 function getAllowedTransitions(
@@ -289,7 +289,7 @@ export function getTaskStatusUpdateDataForEvent(status: TaskStatus): {
 interface TaskEventActorData {
   userId: string | null;
   coworkerId: string | null;
-  orchestratorId: string | null;
+  sokoBotId: string | null;
 }
 
 interface CascadeCancelScheduleRunsParams {
@@ -446,17 +446,16 @@ export function validateStatusTransition(
 export function validateTaskAssigneeAssignment({
   status,
   assigneeId,
-  assigneeOrchestratorId,
+  assigneeSokoBotId,
 }: ValidateTaskAssigneeAssignmentParams): void {
   const hasCoworker = assigneeId != null && assigneeId !== "";
-  const hasOrchestrator =
-    assigneeOrchestratorId != null && assigneeOrchestratorId !== "";
+  const hasSokoBot = assigneeSokoBotId != null && assigneeSokoBotId !== "";
   const allowsMissingAssignee =
     status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
 
-  if (!allowsMissingAssignee && !hasCoworker && !hasOrchestrator) {
+  if (!allowsMissingAssignee && !hasCoworker && !hasSokoBot) {
     throw unprocessableEntity(
-      "assigneeId or assigneeOrchestratorId is required for statuses other than draft or canceled",
+      "assigneeId or assigneeSokoBotId is required for statuses other than draft or canceled",
     );
   }
 }
@@ -465,22 +464,22 @@ export function mapTaskEventActor(event: TaskEventForMapping) {
   if (
     event.userId == null &&
     event.coworkerId == null &&
-    event.orchestratorId == null
+    event.sokoBotId == null
   ) {
     return null;
   }
 
   // Prefer the acting agent when legacy rows stored multiple FKs
-  // (orchestrator/coworker status events used to also set context userId).
+  // (sokoBot/coworker status events used to also set context userId).
   // New writes set exactly one actor FK.
-  // Prefer order: orchestrator → coworker → user.
-  if (event.orchestratorId != null) {
-    const orchestrator = orchestratorSummaryFromLoadedRelation(
+  // Prefer order: sokoBot → coworker → user.
+  if (event.sokoBotId != null) {
+    const sokoBot = sokoBotSummaryFromLoadedRelation(
       `Task event ${event.id} actor`,
-      event.orchestratorId,
-      event.orchestrator ?? null,
+      event.sokoBotId,
+      event.sokoBot ?? null,
     );
-    if (orchestrator == null) {
+    if (sokoBot == null) {
       throw new Error(
         `Task event ${event.id}: actor orchestrator summary missing for API mapping`,
       );
@@ -488,8 +487,8 @@ export function mapTaskEventActor(event: TaskEventForMapping) {
 
     return {
       type: "orchestrator" as const,
-      id: event.orchestratorId,
-      orchestrator,
+      id: event.sokoBotId,
+      sokoBot,
     };
   }
 
@@ -537,13 +536,15 @@ export function mapTaskEvent(event: TaskEventForMapping) {
     channel,
     user: _user,
     coworker: _coworker,
-    orchestrator: _orchestrator,
+    sokoBot: _sokoBot,
+    sokoBotId,
     ...rest
   } = event;
   const actor = mapTaskEventActor(event);
 
   return {
     ...rest,
+    sokoBotId: sokoBotId ?? null,
     channel,
     origin: channel,
     credits: cents != null ? convertCentsToCredits(cents) : null,
@@ -560,7 +561,7 @@ export function mapTaskEvent(event: TaskEventForMapping) {
       : {}),
     ...(actor?.type === "orchestrator"
       ? {
-          orchestrator: actor.orchestrator,
+          sokoBot: actor.sokoBot,
         }
       : {}),
   };
@@ -598,13 +599,13 @@ function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
     };
   }
 
-  if (task.creatorOrchestratorId != null) {
-    const orchestrator = orchestratorSummaryFromLoadedRelation(
+  if (task.creatorSokoBotId != null) {
+    const sokoBot = sokoBotSummaryFromLoadedRelation(
       `Task ${task.id} creator`,
-      task.creatorOrchestratorId,
-      task.creatorOrchestrator ?? null,
+      task.creatorSokoBotId,
+      task.creatorSokoBot ?? null,
     );
-    if (orchestrator == null) {
+    if (sokoBot == null) {
       throw new Error(
         `Task ${task.id}: creator orchestrator summary missing for API mapping`,
       );
@@ -612,8 +613,8 @@ function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
 
     return {
       type: "orchestrator" as const,
-      id: task.creatorOrchestratorId,
-      orchestrator,
+      id: task.creatorSokoBotId,
+      sokoBot,
     };
   }
 
@@ -623,13 +624,13 @@ function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
 }
 
 function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
-  if (task.assigneeOrchestratorId != null) {
-    const orchestrator = orchestratorSummaryFromLoadedRelation(
+  if (task.assigneeSokoBotId != null) {
+    const sokoBot = sokoBotSummaryFromLoadedRelation(
       `Task ${task.id}`,
-      task.assigneeOrchestratorId,
-      task.assigneeOrchestrator ?? null,
+      task.assigneeSokoBotId,
+      task.assigneeSokoBot ?? null,
     );
-    if (orchestrator == null) {
+    if (sokoBot == null) {
       throw new Error(
         `Task ${task.id}: assignee orchestrator summary missing for API mapping`,
       );
@@ -637,8 +638,8 @@ function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
 
     return {
       type: "orchestrator" as const,
-      id: task.assigneeOrchestratorId,
-      orchestrator,
+      id: task.assigneeSokoBotId,
+      sokoBot,
     };
   }
 
@@ -693,14 +694,14 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     projectId: task.projectId,
     organization: taskOrganizationSummary,
     assigneeId: task.assigneeId,
-    assigneeOrchestratorId: task.assigneeOrchestratorId ?? null,
+    assigneeSokoBotId: task.assigneeSokoBotId ?? null,
     assignee,
     coworkerId: task.assigneeId,
     coworker: assignee?.type === "coworker" ? assignee.coworker : null,
     creator,
-    // Deprecated aliases for legacy orchestrator-created tasks.
-    orchestratorId: creator.type === "orchestrator" ? creator.id : null,
-    orchestrator: creator.type === "orchestrator" ? creator.orchestrator : null,
+    // Deprecated aliases for legacy sokoBot-created tasks.
+    sokoBotId: creator.type === "orchestrator" ? creator.id : null,
+    sokoBot: creator.type === "orchestrator" ? creator.sokoBot : null,
     name: task.name,
     description: task.description,
     status: task.status,

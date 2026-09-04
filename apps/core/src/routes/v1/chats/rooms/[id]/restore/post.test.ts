@@ -107,7 +107,7 @@ function archivedRoom(
       member(id),
     ),
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
   };
 }
 

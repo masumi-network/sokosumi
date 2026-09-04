@@ -49,7 +49,7 @@ export interface CoreLogAuthIdentity {
   userId?: string;
   organizationId?: string | null;
   coworkerId?: string;
-  orchestratorId?: string;
+  sokoBotId?: string;
   contextUserId?: string;
   contextOrganizationId?: string | null;
 }
@@ -80,8 +80,8 @@ export function attachAuthToLogger(identity: CoreLogAuthIdentity) {
     log.set({ coworker: { id: identity.coworkerId } });
   }
 
-  if (identity.orchestratorId) {
-    log.set({ orchestrator: { id: identity.orchestratorId } });
+  if (identity.sokoBotId) {
+    log.set({ sokoBot: { id: identity.sokoBotId } });
   }
 
   if (identity.contextUserId) {

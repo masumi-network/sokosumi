@@ -53,15 +53,10 @@ export function CreateDirectDialog() {
       buildDirectDraftTargets(
         roster.members,
         roster.coworkers,
-        roster.orchestrators,
+        roster.sokoBots,
         roster.currentUserId,
       ),
-    [
-      roster.coworkers,
-      roster.currentUserId,
-      roster.members,
-      roster.orchestrators,
-    ],
+    [roster.coworkers, roster.currentUserId, roster.members, roster.sokoBots],
   );
   const selectedTargets = useMemo(() => {
     const byKey = new Map(targets.map((target) => [target.key, target]));

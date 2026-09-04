@@ -37,7 +37,7 @@ function createApp(actor: "orchestrator" | "user") {
       actor === "orchestrator"
         ? {
             actor,
-            orchestratorId: BOT_ID,
+            sokoBotId: BOT_ID,
             userId: "owner_1",
             workspaceId: WORKSPACE_ID,
             organizationId: null,
@@ -73,7 +73,7 @@ describe("Soko Bot task events", () => {
       expect.objectContaining({
         where: {
           task: {
-            assigneeOrchestratorId: BOT_ID,
+            assigneeSokoBotId: BOT_ID,
             workspaceId: WORKSPACE_ID,
             status: { not: "DRAFT" },
           },

@@ -104,7 +104,7 @@ describe("buildVisibleTaskLinksInclude", () => {
     const include = buildVisibleTaskLinksInclude(
       {
         actor: "orchestrator",
-        orchestratorId: "30000000-0000-4000-8000-000000000001",
+        sokoBotId: "30000000-0000-4000-8000-000000000001",
         userId: "user_1",
         workspaceId: "10000000-0000-4000-8000-000000000001",
         organizationId: null,
@@ -114,7 +114,7 @@ describe("buildVisibleTaskLinksInclude", () => {
 
     const peerWhere = {
       workspaceId: "10000000-0000-4000-8000-000000000001",
-      assigneeOrchestratorId: "30000000-0000-4000-8000-000000000001",
+      assigneeSokoBotId: "30000000-0000-4000-8000-000000000001",
       status: { not: TaskStatus.DRAFT },
       archivedAt: null,
     };

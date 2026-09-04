@@ -16,8 +16,8 @@ import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
-  ChatRoomOrchestratorParticipant,
   ChatRoomPresence,
+  ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
@@ -101,16 +101,16 @@ export function composerMentionDisplayNames({
   usersBySlug,
   coworkersById,
   coworkersBySlug,
-  orchestratorsById,
-  orchestratorsBySlug,
+  sokoBotsById,
+  sokoBotsBySlug,
   mentionCatalog,
 }: {
   usersById?: Map<string, { name: string }>;
   usersBySlug?: Map<string, { name: string }>;
   coworkersById?: Map<string, { name: string }>;
   coworkersBySlug?: Map<string, { name: string }>;
-  orchestratorsById?: Map<string, { name: string }>;
-  orchestratorsBySlug?: Map<string, { name: string }>;
+  sokoBotsById?: Map<string, { name: string }>;
+  sokoBotsBySlug?: Map<string, { name: string }>;
   mentionCatalog?: Record<string, { value?: string; slug?: string | null }>;
 }): { byKey: Map<string, string>; bySlug: Map<string, string> } {
   const byKey = new Map<string, string>();
@@ -137,11 +137,11 @@ export function composerMentionDisplayNames({
   for (const [slug, coworker] of coworkersBySlug ?? []) {
     bySlug.set(slug, coworker.name);
   }
-  for (const [id, orchestrator] of orchestratorsById ?? []) {
-    byKey.set(id, orchestrator.name);
+  for (const [id, sokoBot] of sokoBotsById ?? []) {
+    byKey.set(id, sokoBot.name);
   }
-  for (const [slug, orchestrator] of orchestratorsBySlug ?? []) {
-    bySlug.set(slug, orchestrator.name);
+  for (const [slug, sokoBot] of sokoBotsBySlug ?? []) {
+    bySlug.set(slug, sokoBot.name);
   }
 
   return { byKey, bySlug };
@@ -202,13 +202,13 @@ export function partitionRoomMentionSuggestions(
 ): MentionSuggestionGroup<RoomMentionParticipant>[] {
   const people: NormalizedMention<RoomMentionParticipant>[] = [];
   const coworkers: NormalizedMention<RoomMentionParticipant>[] = [];
-  const orchestrators: NormalizedMention<RoomMentionParticipant>[] = [];
+  const sokoBots: NormalizedMention<RoomMentionParticipant>[] = [];
 
   for (const mention of filtered) {
     if (mention.data?.kind === "coworker") {
       coworkers.push(mention);
     } else if (mention.data?.kind === "orchestrator") {
-      orchestrators.push(mention);
+      sokoBots.push(mention);
     } else {
       // human | all | missing kind → People (safe fallback for humans-shaped rows)
       people.push(mention);
@@ -230,11 +230,11 @@ export function partitionRoomMentionSuggestions(
       items: coworkers,
     });
   }
-  if (orchestrators.length > 0) {
+  if (sokoBots.length > 0) {
     groups.push({
       id: "orchestrators",
       label: labels.personalAssistantsLabel,
-      items: orchestrators,
+      items: sokoBots,
     });
   }
   return groups;
@@ -461,15 +461,15 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
     };
   }
   if (message.sender.type === "orchestrator") {
-    const orchestrator = message.sender.orchestrator;
+    const sokoBot = message.sender.sokoBot;
     return {
       kind: "orchestrator",
-      id: orchestrator.id,
-      name: orchestrator.name,
-      caption: orchestrator.caption,
-      image: orchestrator.image,
-      avatarSeed: orchestrator.avatarSeed,
-      presence: orchestrator.presence,
+      id: sokoBot.id,
+      name: sokoBot.name,
+      caption: sokoBot.caption,
+      image: sokoBot.image,
+      avatarSeed: sokoBot.avatarSeed,
+      presence: sokoBot.presence,
     };
   }
   return {
@@ -488,7 +488,7 @@ export function messageSenderKey(message: ChatRoomMessage): string | null {
     return `coworker:${message.sender.coworker.id}`;
   }
   if (message.sender.type === "orchestrator") {
-    return `orchestrator:${message.sender.orchestrator.id}`;
+    return `orchestrator:${message.sender.sokoBot.id}`;
   }
   return null;
 }
@@ -602,23 +602,23 @@ export function getDirectRoomParticipants(
     }))
     .toSorted(compareByDisplayNameThenId);
 
-  const orchestrators = room.orchestratorMembers
-    .map((orchestrator) => ({
-      id: orchestrator.id,
-      name: orchestrator.name,
-      detail: orchestrator.caption,
-      image: orchestrator.image,
-      presence: orchestrator.presence,
+  const sokoBots = room.sokoBotMembers
+    .map((sokoBot) => ({
+      id: sokoBot.id,
+      name: sokoBot.name,
+      detail: sokoBot.caption,
+      image: sokoBot.image,
+      presence: sokoBot.presence,
       kind: "orchestrator" as const,
     }))
     .toSorted(compareByDisplayNameThenId);
 
-  return [...humans, ...coworkers, ...orchestrators];
+  return [...humans, ...coworkers, ...sokoBots];
 }
 
 /**
  * Coworker 1:1 DM — room stream owns the assistant reply (not mention POST).
- * Matches Core skip-mention: exactly one user + one coworker, no orchestrator.
+ * Matches Core skip-mention: exactly one user + one coworker, no sokoBot.
  */
 export function isCoworkerOnlyDirectRoom(room: {
   kind: string;
@@ -627,13 +627,13 @@ export function isCoworkerOnlyDirectRoom(room: {
     id?: string;
     coworkerId?: string;
   }[];
-  orchestratorMembers?: { id?: string; orchestratorId?: string }[];
+  sokoBotMembers?: { id?: string; sokoBotId?: string }[];
 }): boolean {
   return (
     room.kind === "direct" &&
     room.coworkerMembers.length === 1 &&
     room.userMembers.length === 1 &&
-    (room.orchestratorMembers?.length ?? 0) === 0
+    (room.sokoBotMembers?.length ?? 0) === 0
   );
 }
 
@@ -645,7 +645,7 @@ export function shouldUseCoworkerRoomStream(room: {
   kind: string;
   userMembers: { id?: string; userId?: string }[];
   coworkerMembers: { id?: string; coworkerId?: string }[];
-  orchestratorMembers?: { id?: string; orchestratorId?: string }[];
+  sokoBotMembers?: { id?: string; sokoBotId?: string }[];
 }): boolean {
   return isCoworkerOnlyDirectRoom(room);
 }
@@ -672,7 +672,7 @@ export function shouldShowRoomMentionShortcut(room: {
   kind: string;
   userMembers: readonly unknown[];
   coworkerMembers: readonly unknown[];
-  orchestratorMembers?: readonly unknown[];
+  sokoBotMembers?: readonly unknown[];
 }): boolean {
   if (room.kind !== "direct") {
     return true;
@@ -680,7 +680,7 @@ export function shouldShowRoomMentionShortcut(room: {
   return (
     room.userMembers.length +
       room.coworkerMembers.length +
-      (room.orchestratorMembers?.length ?? 0) >
+      (room.sokoBotMembers?.length ?? 0) >
     2
   );
 }
@@ -694,7 +694,7 @@ export function shouldIncludeRoomAllMention(
     kind: string;
     userMembers: ReadonlyArray<{ id: string }>;
     coworkerMembers: readonly unknown[];
-    orchestratorMembers?: readonly unknown[];
+    sokoBotMembers?: readonly unknown[];
   },
   currentUserId: string,
 ): boolean {
@@ -763,21 +763,21 @@ export function getRoomParticipantPreviews(
     )
     .toSorted(compareByDisplayNameThenId);
 
-  const orchestrators = room.orchestratorMembers
+  const sokoBots = room.sokoBotMembers
     .map(
-      (orchestrator): ChatParticipantHoverProfile => ({
+      (sokoBot): ChatParticipantHoverProfile => ({
         kind: "orchestrator",
-        id: orchestrator.id,
-        name: orchestrator.name,
-        caption: orchestrator.caption,
-        image: orchestrator.image,
-        avatarSeed: orchestrator.avatarSeed,
-        presence: orchestrator.presence,
+        id: sokoBot.id,
+        name: sokoBot.name,
+        caption: sokoBot.caption,
+        image: sokoBot.image,
+        avatarSeed: sokoBot.avatarSeed,
+        presence: sokoBot.presence,
       }),
     )
     .toSorted(compareByDisplayNameThenId);
 
-  return [...humans, ...coworkers, ...orchestrators];
+  return [...humans, ...coworkers, ...sokoBots];
 }
 
 export function presenceLabel(
@@ -860,7 +860,7 @@ export function chatParticipantProfileForDirectTarget(
   target: MentionDirectTarget,
   lookups: {
     coworkersById: Map<string, ChatRoomCoworkerParticipant>;
-    orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+    sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
     usersById?: Map<string, MentionHoverUserLookup>;
   },
 ): ChatParticipantHoverProfile | null {
@@ -880,18 +880,18 @@ export function chatParticipantProfileForDirectTarget(
     };
   }
   if (target.kind === "orchestrator") {
-    const orchestrator = lookups.orchestratorsById?.get(target.id);
-    if (!orchestrator) {
+    const sokoBot = lookups.sokoBotsById?.get(target.id);
+    if (!sokoBot) {
       return null;
     }
     return {
       kind: "orchestrator",
-      id: orchestrator.id,
-      name: orchestrator.name,
-      caption: orchestrator.caption,
-      image: orchestrator.image,
-      avatarSeed: orchestrator.avatarSeed,
-      presence: orchestrator.presence,
+      id: sokoBot.id,
+      name: sokoBot.name,
+      caption: sokoBot.caption,
+      image: sokoBot.image,
+      avatarSeed: sokoBot.avatarSeed,
+      presence: sokoBot.presence,
     };
   }
   const user = lookups.usersById?.get(target.id);
@@ -913,8 +913,8 @@ export function resolveMentionDirectTarget({
   mentionSlug,
   coworkersById,
   coworkersBySlug,
-  orchestratorsById,
-  orchestratorsBySlug,
+  sokoBotsById,
+  sokoBotsBySlug,
   usersById,
   usersBySlug,
 }: {
@@ -922,8 +922,8 @@ export function resolveMentionDirectTarget({
   mentionSlug: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
-  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
+  sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
+  sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
 }): MentionDirectTarget | null {
@@ -935,10 +935,10 @@ export function resolveMentionDirectTarget({
   if (coworker) {
     return { kind: "coworker", id: coworker.id };
   }
-  const orchestrator =
-    orchestratorsById?.get(mentionId) ?? orchestratorsBySlug?.get(mentionSlug);
-  if (orchestrator) {
-    return { kind: "orchestrator", id: orchestrator.id };
+  const sokoBot =
+    sokoBotsById?.get(mentionId) ?? sokoBotsBySlug?.get(mentionSlug);
+  if (sokoBot) {
+    return { kind: "orchestrator", id: sokoBot.id };
   }
   const user = usersById?.get(mentionId) ?? usersBySlug?.get(mentionSlug);
   if (!user) {
@@ -962,16 +962,16 @@ export function formatRoomMarkdownMentions({
   content,
   coworkersById,
   coworkersBySlug,
-  orchestratorsById,
-  orchestratorsBySlug,
+  sokoBotsById,
+  sokoBotsBySlug,
   usersById,
   usersBySlug,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
-  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
+  sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
+  sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
 }): string {
@@ -989,7 +989,7 @@ export function formatRoomMarkdownMentions({
     const coworker =
       coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
     const orchestrator =
-      orchestratorsById?.get(match.id) ?? orchestratorsBySlug?.get(match.slug);
+      sokoBotsById?.get(match.id) ?? sokoBotsBySlug?.get(match.slug);
     const user = usersById?.get(match.id) ?? usersBySlug?.get(match.slug);
     const displayName = isRoomMentionAllId(match.id)
       ? ROOM_MENTION_ALL_ID
@@ -1002,8 +1002,8 @@ export function formatRoomMarkdownMentions({
           mentionSlug: match.slug,
           coworkersById,
           coworkersBySlug,
-          orchestratorsById,
-          orchestratorsBySlug,
+          sokoBotsById,
+          sokoBotsBySlug,
           usersById,
           usersBySlug,
         }),
@@ -1089,8 +1089,8 @@ export function formatRoomMarkdownContent({
   content,
   coworkersById,
   coworkersBySlug,
-  orchestratorsById,
-  orchestratorsBySlug,
+  sokoBotsById,
+  sokoBotsBySlug,
   usersById,
   usersBySlug,
   channelLinks = [],
@@ -1098,8 +1098,8 @@ export function formatRoomMarkdownContent({
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
-  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
+  sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
+  sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
   channelLinks?: readonly ChannelLinkTarget[];
@@ -1109,8 +1109,8 @@ export function formatRoomMarkdownContent({
       content,
       coworkersById,
       coworkersBySlug,
-      orchestratorsById,
-      orchestratorsBySlug,
+      sokoBotsById,
+      sokoBotsBySlug,
       usersById,
       usersBySlug,
     }),
@@ -1118,8 +1118,8 @@ export function formatRoomMarkdownContent({
   );
 }
 
-export function orchestratorMentionSlug(
-  orchestrator: Pick<ChatRoomOrchestratorParticipant, "id" | "name">,
+export function sokoBotMentionSlug(
+  sokoBot: Pick<ChatRoomSokoBotParticipant, "id" | "name">,
 ): string {
-  return slugifyMentionValue(orchestrator.name) || orchestrator.id;
+  return slugifyMentionValue(sokoBot.name) || sokoBot.id;
 }

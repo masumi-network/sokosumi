@@ -51,7 +51,7 @@ describe("loadRoomShellRoster", () => {
       organizationMembers: members,
       membersLoadFailed: false,
       coworkers,
-      orchestrators: [],
+      sokoBots: [],
     });
     expect(loadOrganizationMembersMock).toHaveBeenCalledWith("org_1");
     expect(listCoworkersMock).toHaveBeenCalledWith("chat");
@@ -68,7 +68,7 @@ describe("loadRoomShellRoster", () => {
       organizationMembers: [],
       membersLoadFailed: true,
       coworkers: [],
-      orchestrators: [],
+      sokoBots: [],
     });
   });
 
@@ -83,7 +83,7 @@ describe("loadRoomShellRoster", () => {
       organizationMembers: [],
       membersLoadFailed: false,
       coworkers: [{ id: "c1" }],
-      orchestrators: [],
+      sokoBots: [],
     });
     expect(loadOrganizationMembersMock).toHaveBeenCalledWith(null);
   });

@@ -118,7 +118,7 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
 const pendingMention = {
   id: MENTION_ID,
   coworkerId: COWORKER_ID,
-  orchestratorId: null,
+  sokoBotId: null,
   status: "pending",
   responseMessageId: null,
 };
@@ -169,7 +169,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
       archivedAt: null,
       userMembers: [{ userId: USER_ID }],
       coworkerMembers: [],
-      orchestratorMembers: [],
+      sokoBotMembers: [],
     });
     organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
     memberFindUniqueMock.mockResolvedValue({
@@ -217,7 +217,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
       {
         id: MENTION_ID,
         coworkerId: COWORKER_ID,
-        orchestratorId: null,
+        sokoBotId: null,
         status: "pending",
         responseMessageId: null,
       },

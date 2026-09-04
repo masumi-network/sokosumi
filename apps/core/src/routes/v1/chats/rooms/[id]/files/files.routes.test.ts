@@ -50,7 +50,7 @@ vi.mock("@/lib/blob", () => ({
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER_ID = "user_123";
 const COWORKER_ID = "cow_123";
-const ORCHESTRATOR_ID = "11111111-1111-7111-8111-222222222222";
+const SOKO_BOT_ID = "11111111-1111-7111-8111-222222222222";
 
 const UPLOAD_SESSION = {
   uploadUrl: "https://blob.example/upload?sig=1",
@@ -98,14 +98,14 @@ function createCoworkerApp(coworkerId = COWORKER_ID) {
   return app;
 }
 
-function createOrchestratorApp(orchestratorId = ORCHESTRATOR_ID) {
+function createOrchestratorApp(sokoBotId = SOKO_BOT_ID) {
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "orchestrator",
-      orchestratorId,
+      sokoBotId,
       userId: USER_ID,
       workspaceId: "22222222-2222-7222-8222-222222222222",
       organizationId: null,
@@ -200,7 +200,7 @@ describe("POST /chats/rooms/{id}/files", () => {
     roomFindFirstMock.mockResolvedValueOnce({ id: ROOM_ID });
     createChatRoomFileUploadSessionMock.mockResolvedValueOnce({
       ...UPLOAD_SESSION,
-      pathname: `orchestrators/${ORCHESTRATOR_ID}/chats/${ROOM_ID}/notes.txt`,
+      pathname: `orchestrators/${SOKO_BOT_ID}/chats/${ROOM_ID}/notes.txt`,
       headers: { "Content-Type": "text/plain" },
     });
 
@@ -219,7 +219,7 @@ describe("POST /chats/rooms/{id}/files", () => {
 
     expect(response.status).toBe(201);
     expect(createChatRoomFileUploadSessionMock).toHaveBeenCalledWith(
-      { kind: "orchestrator", orchestratorId: ORCHESTRATOR_ID },
+      { kind: "orchestrator", sokoBotId: SOKO_BOT_ID },
       ROOM_ID,
       expect.objectContaining({ filename: "notes.txt" }),
       "blob-token",
@@ -227,8 +227,8 @@ describe("POST /chats/rooms/{id}/files", () => {
     expect(roomFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          orchestratorMembers: {
-            some: { orchestratorId: ORCHESTRATOR_ID },
+          sokoBotMembers: {
+            some: { sokoBotId: SOKO_BOT_ID },
           },
         }),
       }),

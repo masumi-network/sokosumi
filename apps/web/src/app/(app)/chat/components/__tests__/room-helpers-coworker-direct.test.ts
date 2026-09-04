@@ -72,7 +72,7 @@ describe("isCoworkerOnlyDirectRoom", () => {
         kind: "direct",
         userMembers: [{ id: "user-1" }],
         coworkerMembers: [{ id: "coworker-1" }],
-        orchestratorMembers: [{ id: "bot-1" }],
+        sokoBotMembers: [{ id: "bot-1" }],
       }),
     ).toBe(false);
   });

@@ -69,7 +69,7 @@ vi.mock("@/lib/blob", () => ({
 const TASK_ID = "tsk_123";
 const OWNER_ID = "user_123";
 const COWORKER_ID = "cow_123";
-const ORCHESTRATOR_ID = "11111111-1111-7111-8111-222222222222";
+const SOKO_BOT_ID = "11111111-1111-7111-8111-222222222222";
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const FILE_URL =
   "https://abc.public.blob.vercel-storage.com/tasks/tsk_123/report-xyz.pdf";
@@ -143,14 +143,14 @@ function createCoworkerApp(assigneeId = COWORKER_ID) {
   return app;
 }
 
-function createOrchestratorApp(orchestratorId = ORCHESTRATOR_ID) {
+function createOrchestratorApp(sokoBotId = SOKO_BOT_ID) {
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "orchestrator",
-      orchestratorId,
+      sokoBotId,
       userId: OWNER_ID,
       workspaceId: WORKSPACE_ID,
       organizationId: null,
@@ -252,7 +252,7 @@ describe("task files routes", () => {
       {
         uploadedByUserId: OWNER_ID,
         uploadedByCoworkerId: null,
-        uploadedByOrchestratorId: null,
+        uploadedBySokoBotId: null,
         callbackUrl:
           "https://core.example.com/v1/webhooks/tasks/files/uploaded",
       },
@@ -289,7 +289,7 @@ describe("task files routes", () => {
       {
         uploadedByUserId: null,
         uploadedByCoworkerId: COWORKER_ID,
-        uploadedByOrchestratorId: null,
+        uploadedBySokoBotId: null,
         callbackUrl:
           "https://core.example.com/v1/webhooks/tasks/files/uploaded",
       },
@@ -298,7 +298,7 @@ describe("task files routes", () => {
 
   it("mints for the assigned orchestrator with orchestrator uploader id", async () => {
     taskFindFirstMock.mockResolvedValueOnce(
-      ownedTask({ assigneeId: null, assigneeOrchestratorId: ORCHESTRATOR_ID }),
+      ownedTask({ assigneeId: null, assigneeSokoBotId: SOKO_BOT_ID }),
     );
 
     const app = createOrchestratorApp();
@@ -323,7 +323,7 @@ describe("task files routes", () => {
       {
         uploadedByUserId: null,
         uploadedByCoworkerId: null,
-        uploadedByOrchestratorId: ORCHESTRATOR_ID,
+        uploadedBySokoBotId: SOKO_BOT_ID,
         callbackUrl:
           "https://core.example.com/v1/webhooks/tasks/files/uploaded",
       },

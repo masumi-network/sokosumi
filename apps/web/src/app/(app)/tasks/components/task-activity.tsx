@@ -89,7 +89,7 @@ interface TaskActivityProps {
   agentNameById?: Map<string, string>;
   userById?: Record<string, TaskActivityActorInfo>;
   coworkerById?: Record<string, TaskActivityActorInfo>;
-  orchestratorById?: Record<string, TaskActivityActorInfo>;
+  sokoBotById?: Record<string, TaskActivityActorInfo>;
   currentUser?: ({ id: string } & TaskActivityActorInfo) | null;
   expandLabel?: string;
   collapseLabel?: string;
@@ -193,7 +193,7 @@ export function TaskActivitySection({
   agentNameById,
   userById,
   coworkerById,
-  orchestratorById,
+  sokoBotById,
   currentUser,
   expandLabel = "Expand",
   collapseLabel = "Show less",
@@ -482,7 +482,7 @@ export function TaskActivitySection({
               event,
               userById,
               coworkerById,
-              orchestratorById,
+              sokoBotById,
             );
             const actorName =
               actorInfo?.ownerName != null

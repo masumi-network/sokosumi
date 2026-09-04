@@ -15,7 +15,7 @@ interface GetTasksListPageParams {
   limit: number;
   scope: TasksScope;
   assigneeId: string | null;
-  assigneeOrchestratorId: string | null;
+  assigneeSokoBotId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
   coworkersById: Map<string, Coworker>;
@@ -32,7 +32,7 @@ export async function getTasksListPage({
   limit,
   scope,
   assigneeId,
-  assigneeOrchestratorId,
+  assigneeSokoBotId,
   status,
   projectId,
   coworkersById,
@@ -42,7 +42,7 @@ export async function getTasksListPage({
     status: status ?? undefined,
     scope,
     assigneeId: assigneeId ?? undefined,
-    assigneeOrchestratorId: assigneeOrchestratorId ?? undefined,
+    assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     projectId: projectId ?? undefined,
     cursor,
     limit,

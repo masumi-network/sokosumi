@@ -97,7 +97,7 @@ export async function SokoBotsHero({
               </Link>
             </Button>
             <MessageBotButton
-              orchestratorId={bot.id}
+              sokoBotId={bot.id}
               label={t("openChat")}
               errorLabel={t("chatError")}
               variant="button"

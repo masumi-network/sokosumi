@@ -782,7 +782,7 @@ describe("task cancel helpers", () => {
       actorData: {
         userId: "user_123",
         coworkerId: null,
-        orchestratorId: null,
+        sokoBotId: null,
       },
     });
 
@@ -827,7 +827,7 @@ describe("task cancel helpers", () => {
       actorData: {
         userId: "user_123",
         coworkerId: null,
-        orchestratorId: null,
+        sokoBotId: null,
       },
     });
 
@@ -1061,12 +1061,12 @@ function buildTaskEventFixture(
     channel: Channel.SOKOSUMI,
     userId: null,
     coworkerId: null,
-    orchestratorId: null,
+    sokoBotId: null,
     transactionId: null,
     cents: null,
     user: null,
     coworker: null,
-    orchestrator: null,
+    sokoBot: null,
     ...overrides,
   };
 }
@@ -1099,7 +1099,7 @@ describe("mapTaskEventActor", () => {
   });
 
   it("maps an orchestrator actor", () => {
-    const orchestrator = {
+    const sokoBot = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
       avatarSeed: "orb:jewel-sky:user_123",
@@ -1107,17 +1107,17 @@ describe("mapTaskEventActor", () => {
       user: defaultTaskUser,
     };
     const event = buildTaskEventFixture({
-      orchestratorId: orchestrator.id,
-      orchestrator,
+      sokoBotId: sokoBot.id,
+      sokoBot: sokoBot,
     });
 
     expect(mapTaskEventActor(event)).toEqual({
       type: "orchestrator",
-      id: orchestrator.id,
-      orchestrator: {
-        id: orchestrator.id,
-        name: orchestrator.name,
-        avatarSeed: orchestrator.avatarSeed,
+      id: sokoBot.id,
+      sokoBot: {
+        id: sokoBot.id,
+        name: sokoBot.name,
+        avatarSeed: sokoBot.avatarSeed,
         owner: defaultTaskUser,
       },
     });
@@ -1145,7 +1145,7 @@ describe("mapTaskEventActor", () => {
   });
 
   it("prefers orchestrator over user for legacy multi-FK rows", () => {
-    const orchestrator = {
+    const sokoBot = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
       avatarSeed: null,
@@ -1158,24 +1158,24 @@ describe("mapTaskEventActor", () => {
         buildTaskEventFixture({
           userId: "user_123",
           user: defaultTaskUser,
-          orchestratorId: orchestrator.id,
-          orchestrator,
+          sokoBotId: sokoBot.id,
+          sokoBot: sokoBot,
         }),
       ),
     ).toEqual({
       type: "orchestrator",
-      id: orchestrator.id,
-      orchestrator: {
-        id: orchestrator.id,
-        name: orchestrator.name,
-        avatarSeed: orchestrator.avatarSeed,
+      id: sokoBot.id,
+      sokoBot: {
+        id: sokoBot.id,
+        name: sokoBot.name,
+        avatarSeed: sokoBot.avatarSeed,
         owner: defaultTaskUser,
       },
     });
   });
 
   it("prefers orchestrator over coworker for legacy multi-FK rows", () => {
-    const orchestrator = {
+    const sokoBot = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
       avatarSeed: null,
@@ -1188,17 +1188,17 @@ describe("mapTaskEventActor", () => {
         buildTaskEventFixture({
           coworkerId: "cow_123",
           coworker: defaultTaskCoworker,
-          orchestratorId: orchestrator.id,
-          orchestrator,
+          sokoBotId: sokoBot.id,
+          sokoBot: sokoBot,
         }),
       ),
     ).toEqual({
       type: "orchestrator",
-      id: orchestrator.id,
-      orchestrator: {
-        id: orchestrator.id,
-        name: orchestrator.name,
-        avatarSeed: orchestrator.avatarSeed,
+      id: sokoBot.id,
+      sokoBot: {
+        id: sokoBot.id,
+        name: sokoBot.name,
+        avatarSeed: sokoBot.avatarSeed,
         owner: defaultTaskUser,
       },
     });
@@ -1297,8 +1297,8 @@ describe("mapTask", () => {
       creatorUser: defaultTaskUser,
       creatorCoworkerId: null,
       creatorCoworker: null,
-      creatorOrchestratorId: null,
-      creatorOrchestrator: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
       name: "Task with share",
       description: null,
       status: TaskStatus.READY,
@@ -1336,8 +1336,8 @@ describe("mapTask", () => {
       creatorUser: defaultTaskUser,
       creatorCoworkerId: null,
       creatorCoworker: null,
-      creatorOrchestratorId: null,
-      creatorOrchestrator: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
       name: "Parked task",
       description: null,
       status: TaskStatus.GRANT_PENDING,
@@ -1376,8 +1376,8 @@ describe("mapTask", () => {
     });
   });
 
-  it("maps an orchestrator assignee from assigneeOrchestratorId", () => {
-    const assigneeOrchestrator = {
+  it("maps an orchestrator assignee from assigneeSokoBotId", () => {
+    const assigneeSokoBot = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Soko Bot",
       avatarSeed: null,
@@ -1395,14 +1395,14 @@ describe("mapTask", () => {
       organization: null,
       assigneeId: null,
       assignee: null,
-      assigneeOrchestratorId: assigneeOrchestrator.id,
-      assigneeOrchestrator,
+      assigneeSokoBotId: assigneeSokoBot.id,
+      assigneeSokoBot,
       creatorUserId: "user_123",
       creatorUser: defaultTaskUser,
       creatorCoworkerId: null,
       creatorCoworker: null,
-      creatorOrchestratorId: null,
-      creatorOrchestrator: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
       name: "PA assigned task",
       description: null,
       status: TaskStatus.READY,
@@ -1421,15 +1421,15 @@ describe("mapTask", () => {
 
     expect(mapTask(task)).toMatchObject({
       assigneeId: null,
-      assigneeOrchestratorId: assigneeOrchestrator.id,
+      assigneeSokoBotId: assigneeSokoBot.id,
       coworkerId: null,
       coworker: null,
       assignee: {
         type: "orchestrator",
-        id: assigneeOrchestrator.id,
-        orchestrator: {
-          id: assigneeOrchestrator.id,
-          name: assigneeOrchestrator.name,
+        id: assigneeSokoBot.id,
+        sokoBot: {
+          id: assigneeSokoBot.id,
+          name: assigneeSokoBot.name,
           avatarSeed: null,
           avatarImageUrl: null,
           owner: defaultTaskUser,
@@ -1439,7 +1439,7 @@ describe("mapTask", () => {
   });
 
   it("maps nested creator and deprecated owner/assignee/orchestrator aliases", () => {
-    const creatorOrchestrator = {
+    const creatorSokoBot = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
       avatarSeed: null,
@@ -1460,8 +1460,8 @@ describe("mapTask", () => {
       creatorUser: null,
       creatorCoworkerId: null,
       creatorCoworker: null,
-      creatorOrchestratorId: creatorOrchestrator.id,
-      creatorOrchestrator,
+      creatorSokoBotId: creatorSokoBot.id,
+      creatorSokoBot,
       name: "Alias task",
       description: null,
       status: TaskStatus.READY,
@@ -1478,10 +1478,10 @@ describe("mapTask", () => {
       },
     } as unknown as TaskWithIncludes;
 
-    const mappedOrchestrator = {
-      id: creatorOrchestrator.id,
-      name: creatorOrchestrator.name,
-      avatarSeed: creatorOrchestrator.avatarSeed,
+    const mappedSokoBot = {
+      id: creatorSokoBot.id,
+      name: creatorSokoBot.name,
+      avatarSeed: creatorSokoBot.avatarSeed,
       owner: defaultTaskUser,
     };
 
@@ -1494,11 +1494,11 @@ describe("mapTask", () => {
       coworker: defaultTaskCoworker,
       creator: {
         type: "orchestrator",
-        id: creatorOrchestrator.id,
-        orchestrator: mappedOrchestrator,
+        id: creatorSokoBot.id,
+        sokoBot: mappedSokoBot,
       },
-      orchestratorId: creatorOrchestrator.id,
-      orchestrator: mappedOrchestrator,
+      sokoBotId: creatorSokoBot.id,
+      sokoBot: mappedSokoBot,
     });
   });
 
@@ -1517,8 +1517,8 @@ describe("mapTask", () => {
       creatorUser: defaultTaskUser,
       creatorCoworkerId: null,
       creatorCoworker: null,
-      creatorOrchestratorId: null,
-      creatorOrchestrator: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
       name: "Task with job",
       description: null,
       status: TaskStatus.READY,
@@ -1590,8 +1590,8 @@ describe("mapTask", () => {
       creatorUser: defaultTaskUser,
       creatorCoworkerId: null,
       creatorCoworker: null,
-      creatorOrchestratorId: null,
-      creatorOrchestrator: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
       name: "Task with retries",
       description: null,
       status: TaskStatus.COMPLETED,
@@ -1687,8 +1687,8 @@ describe("mapTask", () => {
       creatorUser: defaultTaskUser,
       creatorCoworkerId: null,
       creatorCoworker: null,
-      creatorOrchestratorId: null,
-      creatorOrchestrator: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
       name: "Task with top-up",
       description: null,
       status: TaskStatus.COMPLETED,
@@ -1762,8 +1762,8 @@ describe("mapTask", () => {
       creatorUser: defaultTaskUser,
       creatorCoworkerId: null,
       creatorCoworker: null,
-      creatorOrchestratorId: null,
-      creatorOrchestrator: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
       name: "Task with pause attempt",
       description: null,
       status: TaskStatus.OUT_OF_CREDITS,
@@ -1839,8 +1839,8 @@ describe("mapTask", () => {
       creatorUser: defaultTaskUser,
       creatorCoworkerId: null,
       creatorCoworker: null,
-      creatorOrchestratorId: null,
-      creatorOrchestrator: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
       name: "Task with partial charge",
       description: null,
       status: TaskStatus.OUT_OF_CREDITS,

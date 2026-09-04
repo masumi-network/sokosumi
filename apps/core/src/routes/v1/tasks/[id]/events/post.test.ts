@@ -106,7 +106,7 @@ vi.mock("@/lib/db/prisma", () => ({
     task: {
       findUnique: prismaTaskFindUniqueMock,
     },
-    orchestrator: {
+    sokoBot: {
       findFirst: orchestratorFindFirstMock,
     },
   },
@@ -200,7 +200,7 @@ interface TaskEventRecord {
   channel: Channel;
   userId: string | null;
   coworkerId: string | null;
-  orchestratorId: string | null;
+  sokoBotId: string | null;
   transactionId: string | null;
   cents: bigint | null;
 }
@@ -257,7 +257,7 @@ function createTaskEvent(
     channel: Channel.SOKOSUMI,
     userId: null,
     coworkerId: COWORKER_ID,
-    orchestratorId: null,
+    sokoBotId: null,
     transactionId: null,
     cents: null,
     ...overrides,
@@ -291,9 +291,9 @@ function enrichTaskEventRowForResponse(record: TaskEventRecord) {
           slug: "task-coworker",
         }
       : null,
-    orchestrator: record.orchestratorId
+    sokoBot: record.sokoBotId
       ? {
-          id: record.orchestratorId,
+          id: record.sokoBotId,
           name: "Task orchestrator",
           avatarSeed: null,
           userId: USER_ID,

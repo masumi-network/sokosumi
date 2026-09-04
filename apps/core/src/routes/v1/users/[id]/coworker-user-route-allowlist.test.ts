@@ -134,7 +134,7 @@ const SESSION_USER: AuthenticationContext = {
 
 const ORCHESTRATOR: AuthenticationContext = {
   actor: "orchestrator",
-  orchestratorId: "11111111-1111-7111-8111-111111111111",
+  sokoBotId: "11111111-1111-7111-8111-111111111111",
   userId: "user_123",
   workspaceId: "22222222-2222-7222-8222-222222222222",
   organizationId: null,

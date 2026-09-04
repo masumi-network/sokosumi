@@ -108,7 +108,7 @@ function getCloneTaskData(
     nextRunAt: null,
     creatorUserId: template.ownerId,
     creatorCoworkerId: null,
-    creatorOrchestratorId: null,
+    creatorSokoBotId: null,
     events: {
       create: {
         status: TaskStatus.READY,

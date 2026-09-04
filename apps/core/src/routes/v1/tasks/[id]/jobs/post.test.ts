@@ -188,7 +188,7 @@ describe("POST /tasks/{id}/jobs", () => {
   it("creates a job for the assigned orchestrator", async () => {
     const app = createApp({
       actor: "orchestrator",
-      orchestratorId: "22222222-2222-7222-8222-222222222222",
+      sokoBotId: "22222222-2222-7222-8222-222222222222",
       userId: "user_123",
       workspaceId: "11111111-1111-7111-8111-111111111111",
       organizationId: "org_123",
@@ -204,7 +204,7 @@ describe("POST /tasks/{id}/jobs", () => {
     expect(requireTaskAccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: "orchestrator",
-        orchestratorId: "22222222-2222-7222-8222-222222222222",
+        sokoBotId: "22222222-2222-7222-8222-222222222222",
       }),
       "tsk_123",
     );

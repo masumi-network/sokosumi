@@ -48,7 +48,7 @@ import {
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -102,7 +102,7 @@ export const createTaskRequestSchema = z
       deprecated: true,
       description: "Deprecated. Use assigneeId instead.",
     }),
-    assigneeOrchestratorId: z.string().uuid().nullish().openapi({
+    assigneeSokoBotId: z.string().uuid().nullish().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
     status: z
@@ -123,14 +123,14 @@ export const createTaskRequestSchema = z
 
     const assigneeId = resolveAssigneeIdFromRequest(data);
     const hasCoworker = assigneeId != null && assigneeId !== "";
-    const hasOrchestrator =
-      data.assigneeOrchestratorId != null && data.assigneeOrchestratorId !== "";
+    const hasSokoBot =
+      data.assigneeSokoBotId != null && data.assigneeSokoBotId !== "";
 
-    if (data.status !== TaskStatus.DRAFT && !hasCoworker && !hasOrchestrator) {
+    if (data.status !== TaskStatus.DRAFT && !hasCoworker && !hasSokoBot) {
       ctx.addIssue({
         code: "custom",
         message:
-          "assigneeId or assigneeOrchestratorId is required when creating a non-draft task",
+          "assigneeId or assigneeSokoBotId is required when creating a non-draft task",
         path: ["assigneeId"],
       });
     }
@@ -140,7 +140,7 @@ export const createTaskRequestSchema = z
     return {
       ...rest,
       assigneeId: resolveAssigneeIdFromRequest(data),
-      assigneeOrchestratorId: data.assigneeOrchestratorId ?? null,
+      assigneeSokoBotId: data.assigneeSokoBotId ?? null,
       channel: resolveTaskEventChannel(data),
     };
   });
@@ -383,10 +383,10 @@ function resolveTaskDomainActor(
     };
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     return {
       kind: "soko_bot",
-      sokoBotId: authContext.orchestratorId,
+      sokoBotId: authContext.sokoBotId,
     };
   }
 
@@ -449,7 +449,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             });
           },
           assigneeId: body.assigneeId,
-          assigneeOrchestratorId: body.assigneeOrchestratorId,
+          assigneeSokoBotId: body.assigneeSokoBotId,
           status: body.status,
           channel: body.channel,
         },

@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildCoworkerChatRoomFilePathname,
   buildCoworkerChatRoomFilePrefix,
-  buildOrchestratorChatRoomFilePathname,
-  buildOrchestratorChatRoomFilePrefix,
+  buildSokoBotChatRoomFilePathname,
+  buildSokoBotChatRoomFilePrefix,
   buildUserChatRoomFilePathname,
   buildUserChatRoomFilePrefix,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
@@ -40,15 +40,11 @@ describe("chat room file upload helpers", () => {
   });
 
   it("builds orchestrator-owned chat room prefixes and pathnames", () => {
-    expect(buildOrchestratorChatRoomFilePrefix("bot_123", "room_abc")).toBe(
+    expect(buildSokoBotChatRoomFilePrefix("bot_123", "room_abc")).toBe(
       "orchestrators/bot_123/chats/room_abc/",
     );
     expect(
-      buildOrchestratorChatRoomFilePathname(
-        "bot_123",
-        "room_abc",
-        "../notes.txt",
-      ),
+      buildSokoBotChatRoomFilePathname("bot_123", "room_abc", "../notes.txt"),
     ).toBe("orchestrators/bot_123/chats/room_abc/notes.txt");
   });
 

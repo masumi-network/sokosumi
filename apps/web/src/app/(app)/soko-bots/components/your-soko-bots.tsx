@@ -62,7 +62,7 @@ export async function YourSokoBots({ me }: { me: Member | null }) {
                 </Link>
               </Button>
               <MessageBotButton
-                orchestratorId={bot.id}
+                sokoBotId={bot.id}
                 label={t("openChat")}
                 errorLabel={t("chatError")}
                 variant="button"

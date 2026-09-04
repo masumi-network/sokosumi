@@ -37,7 +37,7 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableOrchestrator: requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBot: requireTaskAssignableOrchestratorMock,
   requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
@@ -95,7 +95,7 @@ function createTaskApi(projectId: string | null = null) {
       slug: "acme-labs",
     },
     assigneeId: null,
-    assigneeOrchestratorId: null,
+    assigneeSokoBotId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -108,8 +108,8 @@ function createTaskApi(projectId: string | null = null) {
         image: null,
       },
     },
-    orchestratorId: null,
-    orchestrator: null,
+    sokoBotId: null,
+    sokoBot: null,
     name: "Updated Task",
     description: null,
     status: TaskStatus.DRAFT,
@@ -189,11 +189,11 @@ describe("patchTaskRequestSchema", () => {
     }).toThrow();
   });
 
-  it("rejects assigneeId and assigneeOrchestratorId together", () => {
+  it("rejects assigneeId and assigneeSokoBotId together", () => {
     expect(() => {
       patchTaskRequestSchema.parse({
         assigneeId: "cow_a",
-        assigneeOrchestratorId: "01960001-0001-7001-8001-000000000099",
+        assigneeSokoBotId: "01960001-0001-7001-8001-000000000099",
       });
     }).toThrow();
   });
@@ -438,12 +438,12 @@ describe("PATCH /tasks/{id}", () => {
   });
 
   it("assigns a personal assistant as orchestrator", async () => {
-    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    const sokoBotId = "01960001-0001-7001-8001-000000000099";
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });
@@ -456,13 +456,13 @@ describe("PATCH /tasks/{id}", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        assigneeOrchestratorId: orchestratorId,
+        assigneeSokoBotId: sokoBotId,
       }),
     });
 
     expect(response.status).toBe(200);
     expect(requireTaskAssignableOrchestratorMock).toHaveBeenCalledWith(
-      orchestratorId,
+      sokoBotId,
       WORKSPACE_ID,
       expect.anything(),
       { kind: "user", userId: "user_123" },
@@ -471,19 +471,19 @@ describe("PATCH /tasks/{id}", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           assigneeId: null,
-          assigneeOrchestratorId: orchestratorId,
+          assigneeSokoBotId: sokoBotId,
         }),
       }),
     );
   });
 
   it("rejects assigning someone else's personal assistant with 403", async () => {
-    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    const sokoBotId = "01960001-0001-7001-8001-000000000099";
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });
@@ -498,7 +498,7 @@ describe("PATCH /tasks/{id}", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        assigneeOrchestratorId: orchestratorId,
+        assigneeSokoBotId: sokoBotId,
       }),
     });
 

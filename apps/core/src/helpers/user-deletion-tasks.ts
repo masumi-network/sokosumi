@@ -439,7 +439,7 @@ export async function prepareTasksForUserDeletion(
             data: {
               creatorUserId: task.ownerId,
               creatorCoworkerId: null,
-              creatorOrchestratorId: null,
+              creatorSokoBotId: null,
             },
           });
         }

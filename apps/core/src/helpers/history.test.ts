@@ -43,7 +43,7 @@ function createHistoryRow(
     archivedAt: null,
     bucketSlug: null,
     coworkerId: null,
-    orchestratorId: null,
+    sokoBotId: null,
     description: null,
     entityId: "job_123",
     id: "history_123",

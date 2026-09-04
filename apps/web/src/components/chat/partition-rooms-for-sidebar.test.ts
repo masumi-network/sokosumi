@@ -26,7 +26,7 @@ function makeRoom(
     userMembers: [],
     coworkerMembers: [],
     ...overrides,
-    orchestratorMembers: overrides.orchestratorMembers ?? [],
+    sokoBotMembers: overrides.sokoBotMembers ?? [],
   };
 }
 

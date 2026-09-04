@@ -107,7 +107,7 @@ async function BotNode({ member }: { member: Member }) {
       {member.isYou ? (
         <div className="border-t px-3 py-1.5">
           <MessageBotButton
-            orchestratorId={bot.id}
+            sokoBotId={bot.id}
             label={t("openChat")}
             errorLabel={t("chatError")}
           />

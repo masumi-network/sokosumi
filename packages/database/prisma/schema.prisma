@@ -72,7 +72,7 @@ model User {
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
   coworkerUsages          CoworkerUsage[]
-  orchestratorUsages      OrchestratorUsage[]
+  sokoBotUsages           SokoBotUsage[]
   sokoBotTurns            SokoBotTurn[]
   sokoBotRequestedTurns   SokoBotTurn[] @relation("SokoBotTurnRequestedBy")
   sokoBotPendingDecisions SokoBotPendingDecision[]
@@ -231,7 +231,7 @@ model Organization {
   tasks              Task[]
   transactions       Transaction[]
   coworkerUsages     CoworkerUsage[]
-  orchestratorUsages OrchestratorUsage[]
+  sokoBotUsages      SokoBotUsage[]
   chatRooms          ChatRoom[]
 
   stripeCustomerId String?
@@ -411,13 +411,14 @@ model History {
   projectId      String?     @db.Uuid
   agentId        String?
   coworkerId     String?
-  orchestratorId String?     @db.Uuid
+  sokoBotId      String?     @db.Uuid
   bucketSlug     String?
   archivedAt     DateTime?
 
   @@unique([kind, entityId])
   @@index([userId, sortAt(sort: Desc), id(sort: Desc)])
   @@index([workspaceId, sortAt(sort: Desc), id(sort: Desc)])
+  @@index([sokoBotId])
   @@map("history")
 }
 
@@ -959,7 +960,7 @@ model Transaction {
   taskX402Payment          TaskX402Payment?   @relation("TransactionTaskX402Payment")
   refundedTaskX402Payment  TaskX402Payment?   @relation("RefundedTransactionTaskX402Payment")
   coworkerUsage            CoworkerUsage?     @relation("TransactionCoworkerUsage")
-  orchestratorUsage        OrchestratorUsage? @relation("TransactionOrchestratorUsage")
+  sokoBotUsage             SokoBotUsage?      @relation("TransactionSokoBotUsage")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
   creditConsumptions CreditConsumption[]
@@ -1754,7 +1755,6 @@ enum SokoBotToolCallStatus {
 
 /// Per-user first-party Soko Bot. Not a marketplace coworker: no vendor,
 /// owner, or whitelist. Runtime access uses short-lived signed turn grants.
-/// Physical table name remains `orchestrator` through compatibility window.
 model SokoBot {
   id         String    @id @default(uuid(7)) @db.Uuid
   createdAt  DateTime  @default(now())
@@ -1780,11 +1780,11 @@ model SokoBot {
   /// Legacy shadow coworker. Empty after PA cutover; column kept (SOK-946).
   coworker Coworker?
 
-  chatRoomMemberships ChatRoomOrchestratorMember[]
-  chatRoomMessages    ChatRoomMessage[]            @relation("ChatRoomOrchestratorSender")
+  chatRoomMemberships ChatRoomSokoBotMember[]
+  chatRoomMessages    ChatRoomMessage[]            @relation("ChatRoomSokoBotSender")
   chatRoomMentions    ChatRoomMention[]
   apiKeys             CoworkerApiKey[]
-  assignedTasks       Task[]                       @relation("TaskAssigneeOrchestrator")
+  assignedTasks       Task[]                       @relation("TaskAssigneeSokoBot")
   labRuns  SokoBotLabRun[]
   installedSkills SokoBotInstalledSkill[]
   integrations    SokoBotIntegration[]
@@ -1824,8 +1824,7 @@ model SokoBot {
   /// Governs which product mutations may execute without owner approval.
   /// Agent hiring always remains approval-gated regardless of this value.
 
-  /// First-party Soko Bot runtime state. Physical table remains `orchestrator`
-  /// during the expand/backfill/switch compatibility window.
+  /// First-party Soko Bot runtime state.
   status                  SokoBotStatus @default(IDLE)
   /// Durable administrator pause. Owner archive/reactivation cannot clear it.
   adminPausedAt           DateTime?
@@ -1848,10 +1847,10 @@ model SokoBot {
   lastSeenInboxAt       DateTime?
   consecutivePollErrors Int       @default(0)
 
-  createdTasks       Task[]                   @relation("TaskCreatorOrchestrator")
+  createdTasks       Task[]                   @relation("TaskCreatorSokoBot")
   taskEvents         TaskEvent[]
-  uploadedTaskFiles  TaskFile[]               @relation("TaskFileUploadedByOrchestrator")
-  orchestratorUsages OrchestratorUsage[]
+  uploadedTaskFiles  TaskFile[]               @relation("TaskFileUploadedBySokoBot")
+  sokoBotUsages      SokoBotUsage[]
   turns              SokoBotTurn[]
   memoryRevisions    SokoBotMemoryRevision[]
   legacyMessages     SokoBotLegacyMessage[]
@@ -1861,12 +1860,12 @@ model SokoBot {
   @@index([archivedAt])
   @@index([lastPolledAt])
   // One LIVE bot per user and workspace. Enforced by the partial unique index
-  // `orchestrator_user_workspace_live_key` (see the migrations): Prisma cannot
+  // `soko_bot_user_workspace_live_key` (see the migrations): Prisma cannot
   // express `WHERE "deletedAt" IS NULL`, and a plain unique would let a
   // tombstone block its owner from ever creating a new bot.
   @@index([userId, workspaceId])
   @@index([workspaceId])
-  @@map("orchestrator")
+  @@map("soko_bot")
 }
 
 /// Immutable copy of external Hermes chat history made during first-party
@@ -2359,11 +2358,11 @@ model CoworkerApiKey {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
 
-  orchestratorId String?  @db.Uuid
-  orchestrator   SokoBot? @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+  sokoBotId String?  @db.Uuid
+  sokoBot   SokoBot? @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
   @@index([coworkerId])
-  @@index([orchestratorId])
+  @@index([sokoBotId])
   @@index([revokedAt, expiresAt])
   @@map("coworker_api_key")
 }
@@ -2386,13 +2385,13 @@ model Task {
 
   status TaskStatus @default(DRAFT)
 
-  /// Marketplace coworker assignee. XOR with assigneeOrchestratorId (DB check).
+  /// Marketplace coworker assignee. XOR with assigneeSokoBotId (DB check).
   assigneeId String?
   assignee   Coworker? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
   /// Personal assistant assignee. XOR with assigneeId (DB check).
-  assigneeOrchestratorId String?  @db.Uuid
-  assigneeOrchestrator   SokoBot? @relation("TaskAssigneeOrchestrator", fields: [assigneeOrchestratorId], references: [id], onDelete: SetNull)
+  assigneeSokoBotId String?  @db.Uuid
+  assigneeSokoBot   SokoBot? @relation("TaskAssigneeSokoBot", fields: [assigneeSokoBotId], references: [id], onDelete: SetNull)
 
   /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
   /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
@@ -2402,8 +2401,8 @@ model Task {
   creatorCoworkerId String?
   creatorCoworker   Coworker? @relation("TaskCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
 
-  creatorOrchestratorId String?       @db.Uuid
-  creatorOrchestrator   SokoBot? @relation("TaskCreatorOrchestrator", fields: [creatorOrchestratorId], references: [id], onDelete: Restrict)
+  creatorSokoBotId String?  @db.Uuid
+  creatorSokoBot   SokoBot? @relation("TaskCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -2444,13 +2443,13 @@ model Task {
   @@index([ownerId])
   @@index([ownerId, organizationId])
   @@index([assigneeId])
-  @@index([assigneeOrchestratorId])
+  @@index([assigneeSokoBotId])
   @@index([projectId])
   @@index([status, nextRunAt])
   @@index([pendingVendorGrantId])
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
-  @@index([creatorOrchestratorId])
+  @@index([creatorSokoBotId])
   @@map("task")
 }
 
@@ -2478,8 +2477,8 @@ model TaskFile {
   uploadedByCoworkerId String?
   uploadedByCoworker   Coworker? @relation("TaskFileUploadedByCoworker", fields: [uploadedByCoworkerId], references: [id], onDelete: SetNull)
 
-  uploadedByOrchestratorId String?  @db.Uuid
-  uploadedByOrchestrator   SokoBot? @relation("TaskFileUploadedByOrchestrator", fields: [uploadedByOrchestratorId], references: [id], onDelete: SetNull)
+  uploadedBySokoBotId String?  @db.Uuid
+  uploadedBySokoBot   SokoBot? @relation("TaskFileUploadedBySokoBot", fields: [uploadedBySokoBotId], references: [id], onDelete: SetNull)
 
   @@unique([taskId, fileUrl])
   @@unique([taskId, sourceUrl])
@@ -2488,7 +2487,7 @@ model TaskFile {
   @@index([status, origin, createdAt])
   @@index([uploadedByUserId])
   @@index([uploadedByCoworkerId])
-  @@index([uploadedByOrchestratorId])
+  @@index([uploadedBySokoBotId])
   @@map("task_file")
 }
 
@@ -2825,8 +2824,8 @@ model TaskEvent {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
-  orchestratorId String?       @db.Uuid
-  orchestrator   SokoBot? @relation(fields: [orchestratorId], references: [id], onDelete: SetNull)
+  sokoBotId String?  @db.Uuid
+  sokoBot   SokoBot? @relation(fields: [sokoBotId], references: [id], onDelete: SetNull)
 
   transactionId String?
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
@@ -2836,7 +2835,7 @@ model TaskEvent {
 
   @@unique([taskId, scheduleOperationId], map: "taskEvent_taskId_scheduleOperationId_key", where: { scheduleOperationId: { not: null } })
   @@index([transactionId])
-  @@index([orchestratorId])
+  @@index([sokoBotId])
   @@index([taskId, createdAt])
   @@map("taskEvent")
 }
@@ -3211,7 +3210,7 @@ model CoworkerUsage {
   @@map("coworker_usage")
 }
 
-model OrchestratorUsage {
+model SokoBotUsage {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3219,8 +3218,8 @@ model OrchestratorUsage {
   idempotencyKey String
   referenceId    String?
 
-  orchestratorId String       @db.Uuid
-  orchestrator   SokoBot @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -3231,11 +3230,11 @@ model OrchestratorUsage {
   cents BigInt
 
   transactionId String      @unique
-  transaction   Transaction @relation("TransactionOrchestratorUsage", fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation("TransactionSokoBotUsage", fields: [transactionId], references: [id], onDelete: Cascade)
 
-  @@unique([orchestratorId, idempotencyKey])
+  @@unique([sokoBotId, idempotencyKey])
   @@index([userId, organizationId, createdAt])
-  @@map("orchestrator_usage")
+  @@map("soko_bot_usage")
 }
 
 model ChatRoom {
@@ -3264,9 +3263,9 @@ model ChatRoom {
   createdByUserId String
   createdByUser   User   @relation("ChatRoomCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
-  userMembers         ChatRoomUserMember[]
-  coworkerMembers     ChatRoomCoworkerMember[]
-  orchestratorMembers ChatRoomOrchestratorMember[]
+  userMembers     ChatRoomUserMember[]
+  coworkerMembers ChatRoomCoworkerMember[]
+  sokoBotMembers  ChatRoomSokoBotMember[]
   messages            ChatRoomMessage[]
   pinnedMessages   ChatRoomPinnedMessage[]
   readStates       ChatRoomReadState[]
@@ -3386,19 +3385,19 @@ model ChatRoomCoworkerMember {
   @@map("chat_room_coworker_member")
 }
 
-model ChatRoomOrchestratorMember {
+model ChatRoomSokoBotMember {
   id     String   @id @default(uuid(7)) @db.Uuid
   roomId String   @db.Uuid
   room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
-  orchestratorId String  @db.Uuid
-  orchestrator   SokoBot @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
-  @@unique([roomId, orchestratorId])
-  @@index([orchestratorId])
-  @@map("chat_room_orchestrator_member")
+  @@unique([roomId, sokoBotId])
+  @@index([sokoBotId])
+  @@map("chat_room_soko_bot_member")
 }
 
 model ChatRoomMessage {
@@ -3414,8 +3413,8 @@ model ChatRoomMessage {
   senderUser            User?     @relation("ChatRoomUserSender", fields: [senderUserId], references: [id], onDelete: SetNull)
   senderCoworkerId      String?
   senderCoworker        Coworker? @relation("ChatRoomCoworkerSender", fields: [senderCoworkerId], references: [id], onDelete: SetNull)
-  senderOrchestratorId  String?   @db.Uuid
-  senderOrchestrator    SokoBot?  @relation("ChatRoomOrchestratorSender", fields: [senderOrchestratorId], references: [id], onDelete: SetNull)
+  senderSokoBotId String?  @db.Uuid
+  senderSokoBot   SokoBot? @relation("ChatRoomSokoBotSender", fields: [senderSokoBotId], references: [id], onDelete: SetNull)
 
   content   String
   metadata  Json?
@@ -3446,7 +3445,7 @@ model ChatRoomMessage {
   @@index([parentMessageId, createdAt])
   @@index([senderUserId])
   @@index([senderCoworkerId])
-  @@index([senderOrchestratorId])
+  @@index([senderSokoBotId])
   @@index([deletedAt])
   @@map("chat_room_message")
 }
@@ -3549,12 +3548,12 @@ model ChatRoomMention {
   messageId String          @db.Uuid
   message   ChatRoomMessage @relation("ChatRoomMentionSource", fields: [messageId], references: [id], onDelete: Cascade)
 
-  /// Exactly one of coworkerId / orchestratorId (DB check).
+  /// Exactly one of coworkerId / sokoBotId (DB check).
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
 
-  orchestratorId String?  @db.Uuid
-  orchestrator   SokoBot? @relation(fields: [orchestratorId], references: [id], onDelete: Cascade)
+  sokoBotId String?  @db.Uuid
+  sokoBot   SokoBot? @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
   status                 String           @default("pending")
   error                  String?
@@ -3575,9 +3574,9 @@ model ChatRoomMention {
   sokoBotTurn SokoBotTurn?
 
   @@unique([messageId, coworkerId])
-  @@unique([messageId, orchestratorId])
+  @@unique([messageId, sokoBotId])
   @@index([coworkerId, status])
-  @@index([orchestratorId, status])
+  @@index([sokoBotId, status])
   @@map("chat_room_mention")
 }
 

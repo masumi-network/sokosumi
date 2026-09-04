@@ -80,7 +80,7 @@ describe("outbound room message", () => {
       {
         id: "pending-mention:turn-1:cow-1",
         coworkerId: "cow-1",
-        orchestratorId: null,
+        sokoBotId: null,
         status: "pending",
         responseMessageId: null,
       },

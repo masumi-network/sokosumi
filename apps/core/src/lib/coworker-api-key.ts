@@ -6,12 +6,11 @@ import { createHash } from "@better-auth/utils/hash";
 /** Prefix for third-party vendor Coworker API keys. */
 export const COWORKER_API_KEY_PREFIX = "coworker_";
 /** Prefix for Soko Bot Orchestrator API keys. */
-export const ORCHESTRATOR_API_KEY_PREFIX = "orchestrator_";
+export const SOKO_BOT_API_KEY_PREFIX = "orchestrator_";
 
 /** Length of the stored key start used for display. */
 export const COWORKER_API_KEY_START_LENGTH = COWORKER_API_KEY_PREFIX.length + 8;
-export const ORCHESTRATOR_API_KEY_START_LENGTH =
-  ORCHESTRATOR_API_KEY_PREFIX.length + 8;
+export const SOKO_BOT_API_KEY_START_LENGTH = SOKO_BOT_API_KEY_PREFIX.length + 8;
 
 const API_KEY_RANDOM_BYTES = 32;
 
@@ -21,8 +20,8 @@ export function generateCoworkerApiKeyToken(): string {
 }
 
 /** Generates a Soko Bot Orchestrator API key token. */
-export function generateOrchestratorApiKeyToken(): string {
-  return `${ORCHESTRATOR_API_KEY_PREFIX}${randomBytes(API_KEY_RANDOM_BYTES).toString("base64url")}`;
+export function generateSokoBotApiKeyToken(): string {
+  return `${SOKO_BOT_API_KEY_PREFIX}${randomBytes(API_KEY_RANDOM_BYTES).toString("base64url")}`;
 }
 
 /** Hashes an agent API key token for storage and lookup. */

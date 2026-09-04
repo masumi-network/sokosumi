@@ -28,7 +28,7 @@ import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   hasAdminRole,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   isUserAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
@@ -167,7 +167,7 @@ app.use("*", async (c, next) => {
   // endpoint added later for a coworker key must not slip past the beta by
   // simply not being a user.
   const auth = c.var.authContext;
-  if (isOrchestratorAuthContext(auth)) {
+  if (isSokoBotAuthContext(auth)) {
     await next();
     return;
   }
@@ -253,7 +253,7 @@ const getMeRoute = createRoute({
 
 app.openapi(getMeRoute, async (c) => {
   const authContext = c.var.authContext;
-  const auth = isOrchestratorAuthContext(authContext)
+  const auth = isSokoBotAuthContext(authContext)
     ? authContext
     : requireUserAuthContext(authContext);
   const workspace = requireWorkspaceContext(c.var.workspaceContext);
@@ -261,10 +261,7 @@ app.openapi(getMeRoute, async (c) => {
     auth.userId,
     workspace.workspaceId,
   );
-  if (
-    isOrchestratorAuthContext(authContext) &&
-    bot?.id !== authContext.orchestratorId
-  ) {
+  if (isSokoBotAuthContext(authContext) && bot?.id !== authContext.sokoBotId) {
     throw notFound("Soko Bot not found");
   }
   return ok(c, sokoBotStateSchema.parse({ sokoBot: mapBot(bot) }));
@@ -317,7 +314,7 @@ const getMyUsageRoute = createRoute({
 // state and this aggregates every turn the bot has ever taken.
 app.openapi(getMyUsageRoute, async (c) => {
   const authContext = c.var.authContext;
-  const auth = isOrchestratorAuthContext(authContext)
+  const auth = isSokoBotAuthContext(authContext)
     ? authContext
     : requireUserAuthContext(authContext);
   const workspace = requireWorkspaceContext(c.var.workspaceContext);
@@ -327,8 +324,7 @@ app.openapi(getMyUsageRoute, async (c) => {
   );
   if (
     !bot ||
-    (isOrchestratorAuthContext(authContext) &&
-      bot.id !== authContext.orchestratorId)
+    (isSokoBotAuthContext(authContext) && bot.id !== authContext.sokoBotId)
   ) {
     throw notFound("Soko Bot not found");
   }

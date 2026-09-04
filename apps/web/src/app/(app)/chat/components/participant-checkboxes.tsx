@@ -17,10 +17,10 @@ import { toggleId } from "./room-helpers";
 export interface ParticipantCheckboxesProps {
   members: Member[];
   coworkers: Coworker[];
-  orchestrators?: ChatComposeOrchestrator[];
+  sokoBots?: ChatComposeOrchestrator[];
   memberIds: string[];
   coworkerIds: string[];
-  orchestratorIds?: string[];
+  sokoBotIds?: string[];
   onMemberIdsChange: (ids: string[]) => void;
   onCoworkerIdsChange: (ids: string[]) => void;
   onOrchestratorIdsChange?: (ids: string[]) => void;
@@ -32,10 +32,10 @@ export interface ParticipantCheckboxesProps {
 export function ParticipantCheckboxes({
   members,
   coworkers,
-  orchestrators = [],
+  sokoBots = [],
   memberIds,
   coworkerIds,
-  orchestratorIds = [],
+  sokoBotIds = [],
   onMemberIdsChange,
   onCoworkerIdsChange,
   onOrchestratorIdsChange,
@@ -48,7 +48,7 @@ export function ParticipantCheckboxes({
   const selectedCount =
     memberIds.length +
     coworkerIds.length +
-    orchestratorIds.length +
+    sokoBotIds.length +
     (lockedUserId && !memberIds.includes(lockedUserId) ? 1 : 0);
   const filteredMembers = useMemo(() => {
     if (!normalizedQuery) {
@@ -74,13 +74,13 @@ export function ParticipantCheckboxes({
   }, [coworkers, normalizedQuery]);
   const filteredOrchestrators = useMemo(() => {
     if (!normalizedQuery) {
-      return orchestrators;
+      return sokoBots;
     }
 
-    return orchestrators.filter((orchestrator) =>
-      orchestrator.name.toLowerCase().includes(normalizedQuery),
+    return sokoBots.filter((sokoBot) =>
+      sokoBot.name.toLowerCase().includes(normalizedQuery),
     );
-  }, [normalizedQuery, orchestrators]);
+  }, [normalizedQuery, sokoBots]);
 
   return (
     <div className="min-w-0 overflow-hidden rounded-lg border bg-background">
@@ -259,30 +259,27 @@ export function ParticipantCheckboxes({
                 {t("Dialog.personalAssistants")}
               </div>
               <div className="space-y-0.5">
-                {filteredOrchestrators.map((orchestrator) => {
-                  const checked = orchestratorIds.includes(orchestrator.id);
+                {filteredOrchestrators.map((sokoBot) => {
+                  const checked = sokoBotIds.includes(sokoBot.id);
 
                   return (
                     <label
-                      key={orchestrator.id}
+                      key={sokoBot.id}
                       className={cn(
                         "flex min-w-0 cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
                         checked ? "bg-muted/70" : "hover:bg-muted/50",
                       )}
                     >
                       <Avatar className="size-8 shrink-0">
-                        <AvatarImage
-                          src={orchestrator.image ?? undefined}
-                          alt=""
-                        />
+                        <AvatarImage src={sokoBot.image ?? undefined} alt="" />
                         <AvatarFallback className="text-xs">
-                          {getInitials(orchestrator.name)}
+                          {getInitials(sokoBot.name)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="min-w-0 flex-1">
                         <span className="flex min-w-0 items-center gap-2">
                           <span className="truncate text-sm font-medium">
-                            {orchestrator.name}
+                            {sokoBot.name}
                           </span>
                           <AiCoworkerIcon label={t("personalAssistantBadge")} />
                         </span>
@@ -293,8 +290,8 @@ export function ParticipantCheckboxes({
                         onCheckedChange={(nextChecked) =>
                           onOrchestratorIdsChange(
                             toggleId(
-                              orchestratorIds,
-                              orchestrator.id,
+                              sokoBotIds,
+                              sokoBot.id,
                               nextChecked === true,
                             ),
                           )

@@ -179,8 +179,8 @@ function createEvent(
     user,
     coworkerId = null,
     coworker,
-    orchestratorId = null,
-    orchestrator,
+    sokoBotId = null,
+    sokoBot,
     credits = null,
     transactionId = null,
   }: {
@@ -194,8 +194,8 @@ function createEvent(
     user?: TaskEvent["user"];
     coworkerId?: string | null;
     coworker?: TaskEvent["coworker"];
-    orchestratorId?: string | null;
-    orchestrator?: TaskEvent["orchestrator"];
+    sokoBotId?: string | null;
+    sokoBot?: TaskEvent["sokoBot"];
     credits?: number | null;
     transactionId?: string | null;
   },
@@ -203,11 +203,11 @@ function createEvent(
   const resolvedActor =
     actor !== undefined
       ? actor
-      : orchestratorId && orchestrator
+      : sokoBotId && sokoBot
         ? {
             type: "orchestrator" as const,
-            id: orchestratorId,
-            orchestrator,
+            id: sokoBotId,
+            sokoBot,
           }
         : coworkerId && coworker
           ? {
@@ -242,8 +242,8 @@ function createEvent(
     user,
     coworkerId,
     coworker,
-    orchestratorId,
-    orchestrator,
+    sokoBotId,
+    sokoBot,
     transactionId,
     credits,
   } as unknown as TaskEvent;
@@ -701,8 +701,8 @@ describe("TaskActivitySection", () => {
         comment: "Assistant update",
         userId: null,
         coworkerId: null,
-        orchestratorId: "orch-1",
-        orchestrator: {
+        sokoBotId: "orch-1",
+        sokoBot: {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
@@ -738,8 +738,8 @@ describe("TaskActivitySection", () => {
         comment: "Unnamed orb update",
         userId: null,
         coworkerId: null,
-        orchestratorId: "orch-1",
-        orchestrator: {
+        sokoBotId: "orch-1",
+        sokoBot: {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: null,
@@ -777,7 +777,7 @@ describe("TaskActivitySection", () => {
         actor: {
           type: "orchestrator",
           id: "orch-1",
-          orchestrator: {
+          sokoBot: {
             id: "orch-1",
             name: "Hermes",
             avatarSeed: "orb:jewel-sky:user_123",
@@ -797,8 +797,8 @@ describe("TaskActivitySection", () => {
           image: null,
         },
         coworkerId: null,
-        orchestratorId: "orch-1",
-        orchestrator: {
+        sokoBotId: "orch-1",
+        sokoBot: {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",

@@ -93,7 +93,7 @@ describe("authMiddleware", () => {
   it("authenticates from dedicated coworker API key bearer token", async () => {
     coworkerApiKeyFindUniqueMock.mockResolvedValue({
       coworkerId: "cow_123",
-      orchestratorId: null,
+      sokoBotId: null,
       revokedAt: null,
       expiresAt: null,
       coworker: {
@@ -121,7 +121,7 @@ describe("authMiddleware", () => {
       },
       select: {
         coworkerId: true,
-        orchestratorId: true,
+        sokoBotId: true,
         revokedAt: true,
         expiresAt: true,
         coworker: {
@@ -130,7 +130,7 @@ describe("authMiddleware", () => {
             vendorId: true,
           },
         },
-        orchestrator: {
+        sokoBot: {
           select: {
             archivedAt: true,
             deletedAt: true,
@@ -151,11 +151,11 @@ describe("authMiddleware", () => {
     async (token) => {
       coworkerApiKeyFindUniqueMock.mockResolvedValue({
         coworkerId: null,
-        orchestratorId: "01960001-0001-7001-8001-000000000099",
+        sokoBotId: "01960001-0001-7001-8001-000000000099",
         revokedAt: null,
         expiresAt: null,
         coworker: null,
-        orchestrator: {
+        sokoBot: {
           archivedAt: null,
           deletedAt: null,
           userId: "user_123",
@@ -172,7 +172,7 @@ describe("authMiddleware", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
         actor: "orchestrator",
-        orchestratorId: "01960001-0001-7001-8001-000000000099",
+        sokoBotId: "01960001-0001-7001-8001-000000000099",
         userId: "user_123",
         workspaceId: "01960001-0001-7001-8001-000000000010",
         organizationId: "org_123",
@@ -225,7 +225,7 @@ describe("authMiddleware", () => {
       },
     });
 
-    // Hard cut: must not become actor orchestrator (falls through → 401).
+    // Hard cut: must not become actor sokoBot (falls through → 401).
     expect(response.status).toBe(401);
     expect(verifyApiKeyMock).toHaveBeenCalled();
   });

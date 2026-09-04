@@ -114,7 +114,7 @@ describe("TaskEditModalPage", () => {
       name: "Task",
       description: "Desc",
       assigneeId: "cow_123",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: "DRAFT",
       workspace: {
         organizationId: "org-workspace",

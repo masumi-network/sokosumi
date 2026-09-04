@@ -11,7 +11,7 @@ export interface RoomShellRosterPage {
   organizationMembers: Member[];
   membersLoadFailed: boolean;
   coworkers: Coworker[];
-  orchestrators: ChatComposeOrchestrator[];
+  sokoBots: ChatComposeOrchestrator[];
 }
 
 /**
@@ -33,7 +33,7 @@ export async function loadRoomShellRoster(
     organizationMembers: membersPage.members,
     membersLoadFailed: membersPage.failed,
     coworkers,
-    orchestrators: bot
+    sokoBots: bot
       ? [
           {
             id: bot.id,

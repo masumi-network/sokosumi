@@ -81,7 +81,7 @@ function buildVisiblePeerTaskWhere(
     case "orchestrator": {
       return {
         workspaceId: workspaceId ?? authContext.workspaceId,
-        assigneeOrchestratorId: authContext.orchestratorId,
+        assigneeSokoBotId: authContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
         archivedAt: null,
       };

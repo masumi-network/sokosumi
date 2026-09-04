@@ -141,7 +141,7 @@ describe("TaskMetadata", () => {
           creator: {
             type: "orchestrator",
             id: "01960001-0001-7001-8001-000000000099",
-            orchestrator: {
+            sokoBot: {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Hermes",
               avatarSeed: null,
@@ -183,7 +183,7 @@ describe("TaskMetadata", () => {
           creator: {
             type: "orchestrator",
             id: "01960001-0001-7001-8001-000000000099",
-            orchestrator: {
+            sokoBot: {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Joseph",
               avatarSeed: null,
@@ -213,7 +213,7 @@ describe("TaskMetadata", () => {
           creator: {
             type: "orchestrator",
             id: "01960001-0001-7001-8001-000000000099",
-            orchestrator: {
+            sokoBot: {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Ada Lovelace's personal assistant",
               avatarSeed: null,
@@ -234,7 +234,7 @@ describe("TaskMetadata", () => {
     ).toHaveLength(1);
   });
 
-  it("renders an orchestrator assignee with the assistant orb", () => {
+  it("renders an sokoBot assignee with the assistant orb", () => {
     render(
       <TaskMetadata
         task={{
@@ -242,7 +242,7 @@ describe("TaskMetadata", () => {
           assignee: {
             type: "orchestrator",
             id: "bot-1",
-            orchestrator: {
+            sokoBot: {
               id: "bot-1",
               name: "Jarvis",
               avatarSeed: null,

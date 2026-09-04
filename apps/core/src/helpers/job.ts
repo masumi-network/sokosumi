@@ -946,7 +946,7 @@ export async function getUserJobs(
     status?: AgentJobStatus;
     scope?: "workspace" | "owned";
     coworkerId?: string;
-    orchestratorId?: string;
+    sokoBotId?: string;
     cursor?: string;
     take: number;
     skip?: number;
@@ -963,7 +963,7 @@ export async function getUserJobs(
     status,
     scope = "owned",
     coworkerId,
-    orchestratorId,
+    sokoBotId,
     cursor,
     take,
     skip,
@@ -988,9 +988,7 @@ export async function getUserJobs(
       // `task` is an optional to-one relation, so this filter requires the job
       // to HAVE a task assigned to this coworker — null-task jobs are excluded.
       ...(coworkerId ? [{ task: { assigneeId: coworkerId } }] : []),
-      ...(orchestratorId
-        ? [{ task: { assigneeOrchestratorId: orchestratorId } }]
-        : []),
+      ...(sokoBotId ? [{ task: { assigneeSokoBotId: sokoBotId } }] : []),
     ],
   };
 

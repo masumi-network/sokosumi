@@ -127,7 +127,7 @@ export interface DirectDraftTarget {
 export function buildDirectDraftTargets(
   members: Member[],
   coworkers: Coworker[],
-  orchestrators: ChatComposeOrchestrator[],
+  sokoBots: ChatComposeOrchestrator[],
   currentUserId: string,
 ): DirectDraftTarget[] {
   // Humans first so org members stay reachable when many AI coworkers exist;
@@ -154,14 +154,14 @@ export function buildDirectDraftTargets(
       caption: coworker.caption,
       presence: "online" as const,
     })),
-    ...orchestrators.map((orchestrator) => ({
-      key: `orchestrator:${orchestrator.id}`,
-      id: orchestrator.id,
-      name: orchestrator.name,
+    ...sokoBots.map((sokoBot) => ({
+      key: `orchestrator:${sokoBot.id}`,
+      id: sokoBot.id,
+      name: sokoBot.name,
       detail: "",
-      image: orchestrator.image,
+      image: sokoBot.image,
       kind: "orchestrator" as const,
-      avatarSeed: orchestrator.avatarSeed,
+      avatarSeed: sokoBot.avatarSeed,
       presence: "online" as const,
     })),
   ];

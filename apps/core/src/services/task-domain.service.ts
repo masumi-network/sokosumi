@@ -10,7 +10,7 @@ import { isTaskEditableStatus } from "@sokosumi/utils";
 
 import {
   requireTaskAssignableCoworker,
-  requireTaskAssignableOrchestrator,
+  requireTaskAssignableSokoBot,
   type TaskAssigner,
 } from "@/helpers/access-control";
 import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
@@ -43,7 +43,7 @@ export interface CreateTaskDomainInput {
   description?: string | null;
   resolveDescription?: (tx: Prisma.TransactionClient) => Promise<string | null>;
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   status: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
   channel?: Channel;
 }
@@ -59,7 +59,7 @@ export interface UpdateTaskDomainInput {
   description?: string | null;
   projectId?: string | null;
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   status?: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
   channel?: Channel;
 }
@@ -71,11 +71,11 @@ interface PendingGrantState {
 
 function requireAssigneeXor(
   assigneeId: string | null | undefined,
-  assigneeOrchestratorId: string | null | undefined,
+  assigneeSokoBotId: string | null | undefined,
 ): void {
-  if (assigneeId != null && assigneeId !== "" && assigneeOrchestratorId) {
+  if (assigneeId != null && assigneeId !== "" && assigneeSokoBotId) {
     throw unprocessableEntity(
-      "assigneeId and assigneeOrchestratorId cannot both be set",
+      "assigneeId and assigneeSokoBotId cannot both be set",
     );
   }
 }
@@ -83,14 +83,14 @@ function requireAssigneeXor(
 function requireAssigneeForExecutableStatus(
   status: TaskStatus,
   assigneeId: string | null | undefined,
-  assigneeOrchestratorId?: string | null,
+  assigneeSokoBotId?: string | null,
 ): void {
   const allowsMissingAssignee =
     status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
-  const hasAssignee = assigneeId != null || assigneeOrchestratorId != null;
+  const hasAssignee = assigneeId != null || assigneeSokoBotId != null;
   if (!allowsMissingAssignee && !hasAssignee) {
     throw unprocessableEntity(
-      "assigneeId or assigneeOrchestratorId is required for statuses other than draft or canceled",
+      "assigneeId or assigneeSokoBotId is required for statuses other than draft or canceled",
     );
   }
 }
@@ -128,7 +128,7 @@ async function requireTaskReferences(
   input: {
     projectId?: string | null;
     assigneeId?: string | null;
-    assigneeOrchestratorId?: string | null;
+    assigneeSokoBotId?: string | null;
     workspaceId: string;
     actor: TaskDomainActor;
   },
@@ -144,11 +144,11 @@ async function requireTaskReferences(
     );
   }
   if (
-    input.assigneeOrchestratorId !== null &&
-    input.assigneeOrchestratorId !== undefined
+    input.assigneeSokoBotId !== null &&
+    input.assigneeSokoBotId !== undefined
   ) {
-    await requireTaskAssignableOrchestrator(
-      input.assigneeOrchestratorId,
+    await requireTaskAssignableSokoBot(
+      input.assigneeSokoBotId,
       input.workspaceId,
       tx,
       taskAssigner(input.actor),
@@ -162,19 +162,19 @@ function creatorFields(actor: TaskDomainActor) {
       return {
         creatorUserId: actor.userId,
         creatorCoworkerId: null,
-        creatorOrchestratorId: null,
+        creatorSokoBotId: null,
       };
     case "coworker":
       return {
         creatorUserId: null,
         creatorCoworkerId: actor.coworkerId,
-        creatorOrchestratorId: null,
+        creatorSokoBotId: null,
       };
     case "soko_bot":
       return {
         creatorUserId: null,
         creatorCoworkerId: null,
-        creatorOrchestratorId: actor.sokoBotId,
+        creatorSokoBotId: actor.sokoBotId,
       };
   }
 }
@@ -185,19 +185,19 @@ function eventActorFields(actor: TaskDomainActor) {
       return {
         userId: actor.userId,
         coworkerId: null,
-        orchestratorId: null,
+        sokoBotId: null,
       };
     case "coworker":
       return {
         userId: null,
         coworkerId: actor.coworkerId,
-        orchestratorId: null,
+        sokoBotId: null,
       };
     case "soko_bot":
       return {
         userId: null,
         coworkerId: null,
-        orchestratorId: actor.sokoBotId,
+        sokoBotId: actor.sokoBotId,
       };
   }
 }
@@ -238,11 +238,11 @@ export async function createTaskForActor(
   input: CreateTaskDomainInput,
   tx: Prisma.TransactionClient,
 ): Promise<Task> {
-  requireAssigneeXor(input.assigneeId, input.assigneeOrchestratorId);
+  requireAssigneeXor(input.assigneeId, input.assigneeSokoBotId);
   requireAssigneeForExecutableStatus(
     input.status,
     input.assigneeId,
-    input.assigneeOrchestratorId,
+    input.assigneeSokoBotId,
   );
   await requireTaskReferences(input, tx);
   const pendingGrant = await resolvePendingGrant(input, tx);
@@ -261,7 +261,7 @@ export async function createTaskForActor(
       name: input.name,
       description,
       assigneeId: input.assigneeId ?? null,
-      assigneeOrchestratorId: input.assigneeOrchestratorId ?? null,
+      assigneeSokoBotId: input.assigneeSokoBotId ?? null,
       ...creatorFields(input.actor),
       status,
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
@@ -347,17 +347,17 @@ export async function updateTaskForActor(
     );
   }
 
-  requireAssigneeXor(input.assigneeId, input.assigneeOrchestratorId);
+  requireAssigneeXor(input.assigneeId, input.assigneeSokoBotId);
   const assigneeWrite = nextAssigneeWrite({
     assigneeId: input.assigneeId,
-    assigneeOrchestratorId: input.assigneeOrchestratorId,
+    assigneeSokoBotId: input.assigneeSokoBotId,
   });
   const nextAssigneeId = assigneeWrite
     ? assigneeWrite.assigneeId
     : task.assigneeId;
   const nextAssigneeOrchestratorId = assigneeWrite
-    ? assigneeWrite.assigneeOrchestratorId
-    : task.assigneeOrchestratorId;
+    ? assigneeWrite.assigneeSokoBotId
+    : task.assigneeSokoBotId;
   const nextStatus = input.status ?? task.status;
   requireAssigneeForExecutableStatus(
     nextStatus,
@@ -370,8 +370,8 @@ export async function updateTaskForActor(
       workspaceId: task.workspaceId,
       projectId: input.projectId,
       assigneeId: assigneeWrite ? assigneeWrite.assigneeId : undefined,
-      assigneeOrchestratorId: assigneeWrite
-        ? assigneeWrite.assigneeOrchestratorId
+      assigneeSokoBotId: assigneeWrite
+        ? assigneeWrite.assigneeSokoBotId
         : undefined,
       actor: input.actor,
     },

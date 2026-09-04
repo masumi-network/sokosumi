@@ -9,7 +9,7 @@ import { auth } from "@/lib/auth";
 import {
   COWORKER_API_KEY_PREFIX,
   hashApiKey,
-  ORCHESTRATOR_API_KEY_PREFIX,
+  SOKO_BOT_API_KEY_PREFIX,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import { attachAuthToLogger } from "@/lib/evlog";
@@ -41,9 +41,9 @@ export interface CoworkerAuthenticationContext {
   context?: WorkspaceActorRequestContext;
 }
 
-export interface OrchestratorAuthenticationContext {
+export interface SokoBotAuthenticationContext {
   actor: "orchestrator";
-  orchestratorId: string;
+  sokoBotId: string;
   userId: string;
   workspaceId: string;
   organizationId: string | null;
@@ -52,7 +52,7 @@ export interface OrchestratorAuthenticationContext {
 export type AuthenticationContext =
   | UserAuthenticationContext
   | CoworkerAuthenticationContext
-  | OrchestratorAuthenticationContext;
+  | SokoBotAuthenticationContext;
 
 export type AuthVariables = {
   isAuthenticated: boolean;
@@ -79,16 +79,16 @@ function syncSentryUser(context: AuthVariables) {
     return;
   }
 
-  if (isOrchestratorAuthContext(context.authContext)) {
-    const orchestrator = context.authContext;
+  if (isSokoBotAuthContext(context.authContext)) {
+    const sokoBot = context.authContext;
     scope.setUser({
-      id: `orchestrator:${orchestrator.orchestratorId}`,
-      orchestratorId: orchestrator.orchestratorId,
+      id: `orchestrator:${sokoBot.sokoBotId}`,
+      sokoBotId: sokoBot.sokoBotId,
     });
     scope.setContext("orchestratorContext", {
-      userId: orchestrator.userId,
-      organizationId: orchestrator.organizationId,
-      workspaceId: orchestrator.workspaceId,
+      userId: sokoBot.userId,
+      organizationId: sokoBot.organizationId,
+      workspaceId: sokoBot.workspaceId,
     });
     return;
   }
@@ -133,10 +133,10 @@ function syncRequestLogger(context: AuthVariables) {
     return;
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     attachAuthToLogger({
       actor: "orchestrator",
-      orchestratorId: authContext.orchestratorId,
+      sokoBotId: authContext.sokoBotId,
       contextUserId: authContext.userId,
       contextOrganizationId: authContext.organizationId,
     });
@@ -166,14 +166,14 @@ export function isCoworkerAuthContext(
   return authContext.actor === "coworker";
 }
 
-export function isOrchestratorAuthContext(
+export function isSokoBotAuthContext(
   authContext: AuthenticationContext,
-): authContext is OrchestratorAuthenticationContext {
+): authContext is SokoBotAuthenticationContext {
   return authContext.actor === "orchestrator";
 }
 
 /**
- * True for an orchestrator or a coworker acting as itself with no context headers.
+ * True for an sokoBot or a coworker acting as itself with no context headers.
  * A coworker that supplies workspace context acts in that user's workspace, so this
  * returns false for it (use {@link requireUserContext} / the user code paths in that case).
  *
@@ -189,7 +189,7 @@ export function isAgentAuthContext(
 ): boolean {
   return (
     (isCoworkerAuthContext(authContext) && !authContext.context) ||
-    isOrchestratorAuthContext(authContext)
+    isSokoBotAuthContext(authContext)
   );
 }
 
@@ -238,7 +238,7 @@ export function requireUserContext(
     return { source: "session", ...authContext };
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     return {
       source: "context",
       userId: authContext.userId,
@@ -293,10 +293,7 @@ export function forbidAgentActor(
   authContext: AuthenticationContext,
   message = "Agent authentication cannot perform this owner action",
 ): void {
-  if (
-    isCoworkerAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isCoworkerAuthContext(authContext) || isSokoBotAuthContext(authContext)) {
     throw forbidden(message);
   }
 }
@@ -327,10 +324,10 @@ export function requireCoworkerAuthContext(
   return authContext;
 }
 
-export function requireOrchestratorAuthContext(
+export function requireSokoBotAuthContext(
   authContext: AuthenticationContext,
-): OrchestratorAuthenticationContext {
-  if (!isOrchestratorAuthContext(authContext)) {
+): SokoBotAuthenticationContext {
+  if (!isSokoBotAuthContext(authContext)) {
     throw forbidden("Orchestrator authentication required");
   }
 
@@ -339,10 +336,10 @@ export function requireOrchestratorAuthContext(
 
 export function requireAgentAuthContext(
   authContext: AuthenticationContext,
-): CoworkerAuthenticationContext | OrchestratorAuthenticationContext {
+): CoworkerAuthenticationContext | SokoBotAuthenticationContext {
   if (
     !isCoworkerAuthContext(authContext) &&
-    !isOrchestratorAuthContext(authContext)
+    !isSokoBotAuthContext(authContext)
   ) {
     throw forbidden("Agent authentication required");
   }
@@ -449,7 +446,7 @@ async function verifyAgentApiKey(
 ): Promise<boolean> {
   if (
     !token.startsWith(COWORKER_API_KEY_PREFIX) &&
-    !token.startsWith(ORCHESTRATOR_API_KEY_PREFIX)
+    !token.startsWith(SOKO_BOT_API_KEY_PREFIX)
   ) {
     return false;
   }
@@ -461,7 +458,7 @@ async function verifyAgentApiKey(
     },
     select: {
       coworkerId: true,
-      orchestratorId: true,
+      sokoBotId: true,
       revokedAt: true,
       expiresAt: true,
       coworker: {
@@ -470,7 +467,7 @@ async function verifyAgentApiKey(
           vendorId: true,
         },
       },
-      orchestrator: {
+      sokoBot: {
         select: {
           archivedAt: true,
           deletedAt: true,
@@ -511,19 +508,19 @@ async function verifyAgentApiKey(
   }
 
   if (
-    apiKey.orchestratorId &&
-    apiKey.orchestrator &&
-    !apiKey.orchestrator.archivedAt &&
-    !apiKey.orchestrator.deletedAt
+    apiKey.sokoBotId &&
+    apiKey.sokoBot &&
+    !apiKey.sokoBot.archivedAt &&
+    !apiKey.sokoBot.deletedAt
   ) {
     setAuthContext(c, {
       isAuthenticated: true,
       authContext: {
         actor: "orchestrator",
-        orchestratorId: apiKey.orchestratorId,
-        userId: apiKey.orchestrator.userId,
-        workspaceId: apiKey.orchestrator.workspaceId,
-        organizationId: apiKey.orchestrator.workspace.organizationId,
+        sokoBotId: apiKey.sokoBotId,
+        userId: apiKey.sokoBot.userId,
+        workspaceId: apiKey.sokoBot.workspaceId,
+        organizationId: apiKey.sokoBot.workspace.organizationId,
       },
     });
     return true;
@@ -645,7 +642,7 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
     // Dedicated agent-prefixed tokens must not fall back to user auth schemes.
     if (
       token.startsWith(COWORKER_API_KEY_PREFIX) ||
-      token.startsWith(ORCHESTRATOR_API_KEY_PREFIX)
+      token.startsWith(SOKO_BOT_API_KEY_PREFIX)
     ) {
       const coworkerApiKeyValid = await verifyAgentApiKey(token, c);
       if (coworkerApiKeyValid) {

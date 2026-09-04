@@ -50,7 +50,7 @@ interface TasksPageProps {
     prompt?: string;
     scope?: string | string[];
     assigneeId?: string | string[];
-    assigneeOrchestratorId?: string | string[];
+    assigneeSokoBotId?: string | string[];
     /** @deprecated Use `assigneeId`. Kept for bookmarked URLs. */
     coworkerId?: string | string[];
     status?: string | string[];
@@ -92,7 +92,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     prompt: promptParam,
     scope,
     assigneeId,
-    assigneeOrchestratorId,
+    assigneeSokoBotId,
     coworkerId: legacyCoworkerId,
     status,
     projectId,
@@ -125,7 +125,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     {
       scope,
       assigneeId,
-      assigneeOrchestratorId,
+      assigneeSokoBotId,
       coworkerId: legacyCoworkerId,
       status,
       projectId,
@@ -189,11 +189,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       filters.assigneeId !== ownerOrchestratorId
         ? filters.assigneeId
         : null,
-    assigneeOrchestratorId:
-      filters.assigneeOrchestratorId &&
+    assigneeSokoBotId:
+      filters.assigneeSokoBotId &&
       ownerOrchestratorId &&
-      filters.assigneeOrchestratorId === ownerOrchestratorId
-        ? filters.assigneeOrchestratorId
+      filters.assigneeSokoBotId === ownerOrchestratorId
+        ? filters.assigneeSokoBotId
         : null,
     projectId:
       filters.projectId && validProjectIds.has(filters.projectId)
@@ -217,7 +217,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: activeFilters.scope,
     assigneeId: activeFilters.assigneeId,
-    assigneeOrchestratorId: activeFilters.assigneeOrchestratorId,
+    assigneeSokoBotId: activeFilters.assigneeSokoBotId,
     status: activeFilters.status,
     projectId: activeFilters.projectId,
     coworkersById,
@@ -248,8 +248,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           status: TaskStatus.GRANT_PENDING,
           scope: activeFilters.scope,
           assigneeId: activeFilters.assigneeId ?? undefined,
-          assigneeOrchestratorId:
-            activeFilters.assigneeOrchestratorId ?? undefined,
+          assigneeSokoBotId: activeFilters.assigneeSokoBotId ?? undefined,
           projectId: activeFilters.projectId ?? undefined,
           limit: 1,
         })

@@ -77,9 +77,9 @@ import {
 } from "@/lib/soko-bot/chat-chain";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import {
-  orchestratorDisplayName,
   resolveMentionedCoworkerIds,
-  resolveMentionedOrchestratorIds,
+  resolveMentionedSokoBotIds,
+  sokoBotDisplayName,
 } from "@/routes/v1/chats/rooms/helpers";
 
 function toolAssigneeFields(
@@ -87,13 +87,13 @@ function toolAssigneeFields(
   sokoBotId: string,
 ): {
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
 } {
   if (coworkerId == null) return {};
   if (coworkerId === sokoBotId) {
-    return { assigneeId: null, assigneeOrchestratorId: sokoBotId };
+    return { assigneeId: null, assigneeSokoBotId: sokoBotId };
   }
-  return { assigneeId: coworkerId, assigneeOrchestratorId: null };
+  return { assigneeId: coworkerId, assigneeSokoBotId: null };
 }
 
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
@@ -604,7 +604,7 @@ export class SokoBotRuntimeService {
         // either commits before PAUSE or reloads its paused state and fails.
         await tx.$queryRaw`
           SELECT "id"
-          FROM "orchestrator"
+          FROM "soko_bot"
           WHERE "id" = ${turn.sokoBotId}::uuid
           FOR UPDATE
         `;
@@ -810,9 +810,9 @@ export class SokoBotRuntimeService {
    * rooms a person added it to and nothing else in the workspace.
    */
   private async listChats(authorized: AuthorizedSokoBotRuntime) {
-    const orchestratorId = authorized.turn.sokoBotId;
+    const sokoBotId = authorized.turn.sokoBotId;
     const rooms = await prisma.chatRoom.findMany({
-      where: await this.chatRoomScope(authorized, orchestratorId),
+      where: await this.chatRoomScope(authorized, sokoBotId),
       orderBy: { updatedAt: "desc" },
       take: 50,
       select: {
@@ -842,7 +842,7 @@ export class SokoBotRuntimeService {
    */
   private async chatRoomScope(
     authorized: AuthorizedSokoBotRuntime,
-    orchestratorId: string,
+    sokoBotId: string,
   ): Promise<Prisma.ChatRoomWhereInput> {
     const workspace = await prisma.workspace.findUnique({
       where: { id: authorized.turn.workspaceId },
@@ -850,7 +850,7 @@ export class SokoBotRuntimeService {
     });
     return {
       archivedAt: null,
-      orchestratorMembers: { some: { orchestratorId } },
+      sokoBotMembers: { some: { sokoBotId: sokoBotId } },
       organizationId: workspace?.organizationId ?? null,
     };
   }
@@ -868,14 +868,14 @@ export class SokoBotRuntimeService {
     id: string;
     name: string;
     kind: string;
-    orchestratorId: string;
+    sokoBotId: string;
     organizationId: string | null;
     authorName: string;
   }> {
-    const orchestratorId = authorized.turn.sokoBotId;
+    const sokoBotId = authorized.turn.sokoBotId;
     const room = await prisma.chatRoom.findFirst({
       where: {
-        ...(await this.chatRoomScope(authorized, orchestratorId)),
+        ...(await this.chatRoomScope(authorized, sokoBotId)),
         id: roomId,
       },
       select: {
@@ -883,11 +883,11 @@ export class SokoBotRuntimeService {
         name: true,
         kind: true,
         organizationId: true,
-        orchestratorMembers: {
-          where: { orchestratorId },
+        sokoBotMembers: {
+          where: { sokoBotId: sokoBotId },
           take: 1,
           select: {
-            orchestrator: {
+            sokoBot: {
               select: { name: true, user: { select: { name: true } } },
             },
           },
@@ -899,16 +899,16 @@ export class SokoBotRuntimeService {
         "You are not a member of that chat room",
       );
     }
-    const bot = room.orchestratorMembers?.[0]?.orchestrator;
+    const bot = room.sokoBotMembers?.[0]?.sokoBot;
     return {
       id: room.id,
       name: room.name,
       kind: room.kind,
-      orchestratorId,
+      sokoBotId,
       organizationId: room.organizationId ?? null,
       authorName: bot
-        ? orchestratorDisplayName(bot)
-        : orchestratorDisplayName({ name: null, user: null }),
+        ? sokoBotDisplayName(bot)
+        : sokoBotDisplayName({ name: null, user: null }),
     };
   }
 
@@ -950,7 +950,7 @@ export class SokoBotRuntimeService {
         `One turn may open at most ${MAX_DIRECTS_OPENED_PER_TURN} direct chats. Tell the owner who else you would approach.`,
       );
     }
-    const orchestratorId = authorized.turn.sokoBotId;
+    const sokoBotId = authorized.turn.sokoBotId;
     const workspace = await prisma.workspace.findUnique({
       where: { id: authorized.turn.workspaceId },
       select: { organizationId: true },
@@ -1041,8 +1041,8 @@ export class SokoBotRuntimeService {
       currentUserId: member.user.id,
       memberUserIds: [],
       coworkerIds: [],
-      orchestratorIds: [orchestratorId],
-      orchestratorActorUserId: authorized.turn.userId,
+      sokoBotIds: [sokoBotId],
+      sokoBotActorUserId: authorized.turn.userId,
       // The sidebar flags belong to a viewer; this actor is not one.
       viewerUserId: null,
     });
@@ -1168,14 +1168,14 @@ export class SokoBotRuntimeService {
           },
         })
       : [];
-    const roomOrchestrators = chatChainMayWake(chainDepth)
-      ? await prisma.chatRoomOrchestratorMember.findMany({
+    const roomSokoBots = chatChainMayWake(chainDepth)
+      ? await prisma.chatRoomSokoBotMember.findMany({
           where: {
             roomId: room.id,
-            orchestratorId: { not: room.orchestratorId },
+            sokoBotId: { not: room.sokoBotId },
           },
           select: {
-            orchestrator: { select: { id: true, name: true } },
+            sokoBot: { select: { id: true, name: true } },
           },
         })
       : [];
@@ -1183,11 +1183,11 @@ export class SokoBotRuntimeService {
       content: input.content,
       roomCoworkers: roomCoworkers.map(({ coworker }) => coworker),
     });
-    const mentionedOrchestratorIds = resolveMentionedOrchestratorIds({
+    const mentionedSokoBotIds = resolveMentionedSokoBotIds({
       content: input.content,
-      roomOrchestrators: roomOrchestrators.map(({ orchestrator }) => ({
-        id: orchestrator.id,
-        name: orchestrator.name ?? orchestrator.id,
+      roomSokoBots: roomSokoBots.map(({ sokoBot }) => ({
+        id: sokoBot.id,
+        name: sokoBot.name ?? sokoBot.id,
       })),
     });
     // Written inside the transaction, dispatched after it commits — the same
@@ -1203,7 +1203,7 @@ export class SokoBotRuntimeService {
           deletedAt: null,
           OR: [
             { senderCoworkerId: { not: null } },
-            { senderOrchestratorId: { not: null } },
+            { senderSokoBotId: { not: null } },
           ],
           createdAt: {
             gte: new Date(Date.now() - ROOM_BOT_MESSAGE_WINDOW_MS),
@@ -1218,7 +1218,7 @@ export class SokoBotRuntimeService {
       const created = await tx.chatRoomMessage.create({
         data: {
           roomId: room.id,
-          senderOrchestratorId: room.orchestratorId,
+          senderSokoBotId: room.sokoBotId,
           content: input.content,
           // Lets the reader see, on hover, that this is part of an assistant
           // exchange and how close it is to the point where it stops.
@@ -1233,22 +1233,19 @@ export class SokoBotRuntimeService {
         },
         select: { id: true, createdAt: true },
       });
-      if (
-        mentionedCoworkerIds.length > 0 ||
-        mentionedOrchestratorIds.length > 0
-      ) {
+      if (mentionedCoworkerIds.length > 0 || mentionedSokoBotIds.length > 0) {
         await tx.chatRoomMention.createMany({
           data: [
             ...mentionedCoworkerIds.map((coworkerId) => ({
               messageId: created.id,
               coworkerId,
-              orchestratorId: null,
+              sokoBotId: null,
               chainDepth,
             })),
-            ...mentionedOrchestratorIds.map((orchestratorId) => ({
+            ...mentionedSokoBotIds.map((sokoBotId) => ({
               messageId: created.id,
               coworkerId: null,
-              orchestratorId,
+              sokoBotId: sokoBotId,
               chainDepth,
             })),
           ],
@@ -1309,7 +1306,7 @@ export class SokoBotRuntimeService {
       roomId: room.id,
       postedAt: message.createdAt.toISOString(),
       /** Coworkers this post woke; empty once the chain hits its ceiling. */
-      summoned: mentionedCoworkerIds.length + mentionedOrchestratorIds.length,
+      summoned: mentionedCoworkerIds.length + mentionedSokoBotIds.length,
     };
   }
 
@@ -1398,7 +1395,7 @@ export class SokoBotRuntimeService {
         createdAt: true,
         senderUser: { select: { name: true } },
         senderCoworker: { select: { id: true, name: true } },
-        senderOrchestrator: { select: { id: true, name: true } },
+        senderSokoBot: { select: { id: true, name: true } },
       },
     });
     return {
@@ -1410,10 +1407,10 @@ export class SokoBotRuntimeService {
         from:
           message.senderUser?.name ??
           message.senderCoworker?.name ??
-          message.senderOrchestrator?.name ??
+          message.senderSokoBot?.name ??
           "unknown",
         /** True when the bot itself wrote it. */
-        fromYou: message.senderOrchestrator?.id === room.orchestratorId,
+        fromYou: message.senderSokoBot?.id === room.sokoBotId,
         // Chat is untrusted text: the operating contract already tells the bot
         // never to follow instructions found in content it reads.
         content: message.content.slice(0, 4_000),
@@ -1435,7 +1432,7 @@ export class SokoBotRuntimeService {
         status: true,
         updatedAt: true,
         assignee: { select: { id: true, name: true } },
-        assigneeOrchestrator: { select: { id: true, name: true } },
+        assigneeSokoBot: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
         events: {
           orderBy: { createdAt: "desc" },
@@ -1446,7 +1443,7 @@ export class SokoBotRuntimeService {
             createdAt: true,
             coworkerId: true,
             userId: true,
-            orchestratorId: true,
+            sokoBotId: true,
           },
         },
         files: {
@@ -1479,9 +1476,9 @@ export class SokoBotRuntimeService {
     const actor = (event: {
       coworkerId: string | null;
       userId: string | null;
-      orchestratorId: string | null;
+      sokoBotId: string | null;
     }) =>
-      event.orchestratorId
+      event.sokoBotId
         ? "you"
         : event.coworkerId
           ? "coworker"
@@ -1493,7 +1490,7 @@ export class SokoBotRuntimeService {
       name: task.name,
       status: task.status,
       description: task.description,
-      assignee: task.assignee ?? task.assigneeOrchestrator,
+      assignee: task.assignee ?? task.assigneeSokoBot,
       project: task.project,
       updatedAt: task.updatedAt,
       events: [...task.events].reverse().map((event) => ({
@@ -1558,11 +1555,11 @@ export class SokoBotRuntimeService {
           id: true,
           ownerId: true,
           status: true,
-          assigneeOrchestratorId: true,
+          assigneeSokoBotId: true,
         },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");
-      if (task.assigneeOrchestratorId !== authorized.turn.sokoBotId) {
+      if (task.assigneeSokoBotId !== authorized.turn.sokoBotId) {
         throw new SokoBotRuntimeValidationError(
           "You are not the assignee of this Task; use reply_to_task to comment",
         );
@@ -1579,7 +1576,7 @@ export class SokoBotRuntimeService {
           status: next,
           comment: input.comment,
           channel: Channel.SOKOSUMI,
-          orchestratorId: authorized.turn.sokoBotId,
+          sokoBotId: authorized.turn.sokoBotId,
         },
         select: { id: true },
       });
@@ -1659,7 +1656,7 @@ export class SokoBotRuntimeService {
           ownerId: true,
           status: true,
           assigneeId: true,
-          assigneeOrchestratorId: true,
+          assigneeSokoBotId: true,
         },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");
@@ -1667,7 +1664,7 @@ export class SokoBotRuntimeService {
         const recent = await tx.taskEvent.count({
           where: {
             taskId: task.id,
-            orchestratorId: authorized.turn.sokoBotId,
+            sokoBotId: authorized.turn.sokoBotId,
             status: null,
             createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1_000) },
           },
@@ -1684,7 +1681,7 @@ export class SokoBotRuntimeService {
             `Task is ${task.status}; only ${resumable.join(", ")} can be set READY. To leave a comment without changing the status, omit \`status\`.`,
           );
         }
-        if (!task.assigneeId && !task.assigneeOrchestratorId) {
+        if (!task.assigneeId && !task.assigneeSokoBotId) {
           throw new SokoBotRuntimeValidationError(
             "Task has no assignee; use assign_task instead",
           );
@@ -1696,7 +1693,7 @@ export class SokoBotRuntimeService {
           status: input.status ?? null,
           comment: input.comment,
           channel: Channel.SOKOSUMI,
-          orchestratorId: authorized.turn.sokoBotId,
+          sokoBotId: authorized.turn.sokoBotId,
         },
         select: { id: true },
       });
@@ -2057,7 +2054,7 @@ export class SokoBotRuntimeService {
       // before the pause or is rejected after it.
       await tx.$queryRaw`
         SELECT "id"
-        FROM "orchestrator"
+        FROM "soko_bot"
         WHERE "id" = ${authorized.turn.sokoBotId}::uuid
         FOR UPDATE
       `;
@@ -2994,7 +2991,7 @@ export class SokoBotRuntimeService {
               // transaction wins determines whether seller dispatch may start.
               await tx.$queryRaw`
                 SELECT "id"
-                FROM "orchestrator"
+                FROM "soko_bot"
                 WHERE "id" = ${decision.sokoBotId}::uuid
                 FOR UPDATE
               `;
@@ -3148,7 +3145,7 @@ export class SokoBotRuntimeService {
           await serializableTransaction(async (tx) => {
             await tx.$queryRaw`
               SELECT "id"
-              FROM "orchestrator"
+              FROM "soko_bot"
               WHERE "id" = ${decision.sokoBotId}::uuid
               FOR UPDATE
             `;

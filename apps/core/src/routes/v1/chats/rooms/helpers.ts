@@ -47,7 +47,7 @@ export const chatRoomCoworkerSelect = {
   image: true,
 } as const satisfies Prisma.CoworkerSelect;
 
-export const chatRoomOrchestratorSelect = {
+export const chatRoomSokoBotSelect = {
   id: true,
   name: true,
   avatarImageUrl: true,
@@ -56,14 +56,14 @@ export const chatRoomOrchestratorSelect = {
   user: { select: { name: true } },
 } as const satisfies Prisma.SokoBotSelect;
 
-export function orchestratorAvatarSeedFor(bot: {
+export function sokoBotAvatarSeedFor(bot: {
   userId: string;
   avatarSeed: string | null;
 }): string {
   return bot.avatarSeed ?? `orb:${bot.userId}`;
 }
 
-export function orchestratorDisplayName(bot: {
+export function sokoBotDisplayName(bot: {
   name: string | null;
   user: { name: string } | null;
 }): string {
@@ -72,9 +72,7 @@ export function orchestratorDisplayName(bot: {
   return "Soko Bot";
 }
 
-export function orchestratorCaption(bot: {
-  user: { name: string } | null;
-}): string {
+export function sokoBotCaption(bot: { user: { name: string } | null }): string {
   const ownerFirst = bot.user ? getFirstName(bot.user.name) : null;
   return ownerFirst
     ? `${ownerFirst}'s personal assistant`
@@ -96,9 +94,9 @@ export const chatRoomInclude = {
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
-  orchestratorMembers: {
+  sokoBotMembers: {
     include: {
-      orchestrator: { select: chatRoomOrchestratorSelect },
+      sokoBot: { select: chatRoomSokoBotSelect },
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
@@ -107,12 +105,12 @@ export const chatRoomInclude = {
 export const chatRoomMessageInclude = {
   senderUser: { select: chatRoomUserSelect },
   senderCoworker: { select: chatRoomCoworkerSelect },
-  senderOrchestrator: { select: chatRoomOrchestratorSelect },
+  senderSokoBot: { select: chatRoomSokoBotSelect },
   mentionsAsSource: {
     select: {
       id: true,
       coworkerId: true,
-      orchestratorId: true,
+      sokoBotId: true,
       status: true,
       responseMessageId: true,
     },
@@ -861,12 +859,12 @@ export function mapChatRoom(
       image: coworker.image ?? null,
       presence: "online" as const,
     })),
-    orchestratorMembers: room.orchestratorMembers.map(({ orchestrator }) => ({
-      id: orchestrator.id,
-      name: orchestratorDisplayName(orchestrator),
-      caption: orchestratorCaption(orchestrator),
-      image: orchestrator.avatarImageUrl ?? null,
-      avatarSeed: orchestratorAvatarSeedFor(orchestrator),
+    sokoBotMembers: room.sokoBotMembers.map(({ sokoBot }) => ({
+      id: sokoBot.id,
+      name: sokoBotDisplayName(sokoBot),
+      caption: sokoBotCaption(sokoBot),
+      image: sokoBot.avatarImageUrl ?? null,
+      avatarSeed: sokoBotAvatarSeedFor(sokoBot),
       presence: "online" as const,
     })),
   };
@@ -1123,15 +1121,15 @@ export function mapChatRoomMessage(
       };
     }
 
-    if (message.senderOrchestrator) {
+    if (message.senderSokoBot) {
       return {
         type: "orchestrator" as const,
-        orchestrator: {
-          id: message.senderOrchestrator.id,
-          name: orchestratorDisplayName(message.senderOrchestrator),
-          caption: orchestratorCaption(message.senderOrchestrator),
-          image: message.senderOrchestrator.avatarImageUrl ?? null,
-          avatarSeed: orchestratorAvatarSeedFor(message.senderOrchestrator),
+        sokoBot: {
+          id: message.senderSokoBot.id,
+          name: sokoBotDisplayName(message.senderSokoBot),
+          caption: sokoBotCaption(message.senderSokoBot),
+          image: message.senderSokoBot.avatarImageUrl ?? null,
+          avatarSeed: sokoBotAvatarSeedFor(message.senderSokoBot),
           presence: "online" as const,
         },
       };
@@ -1183,7 +1181,7 @@ export function mapChatRoomMessage(
       : message.mentionsAsSource.map((mention) => ({
           id: mention.id,
           coworkerId: mention.coworkerId,
-          orchestratorId: mention.orchestratorId,
+          sokoBotId: mention.sokoBotId ?? null,
           status: mention.status,
           responseMessageId: mention.responseMessageId,
         })),
@@ -1298,7 +1296,7 @@ export async function resolveRoomQuoteSnapshot(
       metadata: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
-      senderOrchestrator: {
+      senderSokoBot: {
         select: { name: true, user: { select: { name: true } } },
       },
     },
@@ -1317,8 +1315,8 @@ export async function resolveRoomQuoteSnapshot(
     authorName:
       quoted.senderUser?.name ??
       quoted.senderCoworker?.name ??
-      (quoted.senderOrchestrator
-        ? orchestratorDisplayName(quoted.senderOrchestrator)
+      (quoted.senderSokoBot
+        ? sokoBotDisplayName(quoted.senderSokoBot)
         : "Someone"),
     snippet,
     attachment,
@@ -1424,25 +1422,25 @@ export function buildDirectCoworkerRoomKey(
 
 export function buildDirectOrchestratorRoomKey(
   userId: string,
-  orchestratorId: string,
+  sokoBotId: string,
 ): string {
-  return `orchestrator:${userId}:${orchestratorId}`;
+  return `orchestrator:${userId}:${sokoBotId}`;
 }
 
 export function buildDirectParticipantRoomKey(params: {
   currentUserId: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
-  orchestratorIds?: readonly string[];
+  sokoBotIds?: readonly string[];
 }): string {
   const memberUserIds = normalizeUniqueStrings(params.memberUserIds);
   const coworkerIds = normalizeUniqueStrings(params.coworkerIds);
-  const orchestratorIds = normalizeUniqueStrings(params.orchestratorIds ?? []);
+  const sokoBotIds = normalizeUniqueStrings(params.sokoBotIds ?? []);
 
   if (
     memberUserIds.length === 1 &&
     coworkerIds.length === 0 &&
-    orchestratorIds.length === 0
+    sokoBotIds.length === 0
   ) {
     return buildDirectRoomKey(params.currentUserId, memberUserIds[0]);
   }
@@ -1450,7 +1448,7 @@ export function buildDirectParticipantRoomKey(params: {
   if (
     memberUserIds.length === 0 &&
     coworkerIds.length === 1 &&
-    orchestratorIds.length === 0
+    sokoBotIds.length === 0
   ) {
     return buildDirectCoworkerRoomKey(params.currentUserId, coworkerIds[0]);
   }
@@ -1458,12 +1456,9 @@ export function buildDirectParticipantRoomKey(params: {
   if (
     memberUserIds.length === 0 &&
     coworkerIds.length === 0 &&
-    orchestratorIds.length === 1
+    sokoBotIds.length === 1
   ) {
-    return buildDirectOrchestratorRoomKey(
-      params.currentUserId,
-      orchestratorIds[0],
-    );
+    return buildDirectOrchestratorRoomKey(params.currentUserId, sokoBotIds[0]);
   }
 
   const participantKeys = [
@@ -1471,9 +1466,7 @@ export function buildDirectParticipantRoomKey(params: {
       (userId) => `user:${userId}`,
     ),
     ...coworkerIds.map((coworkerId) => `coworker:${coworkerId}`),
-    ...orchestratorIds.map(
-      (orchestratorId) => `orchestrator:${orchestratorId}`,
-    ),
+    ...sokoBotIds.map((sokoBotId) => `orchestrator:${sokoBotId}`),
   ].sort();
 
   return `direct:v2:${participantKeys.join(":")}`;
@@ -1722,9 +1715,9 @@ const chatRoomWriteSelect = {
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
-  orchestratorMembers: {
+  sokoBotMembers: {
     select: {
-      orchestrator: {
+      sokoBot: {
         select: {
           id: true,
           name: true,
@@ -1905,9 +1898,9 @@ export async function requireChatRoomCoworkerAccess(
   return room;
 }
 
-export async function requireChatRoomOrchestratorAccess(
+export async function requireChatRoomSokoBotAccess(
   roomId: string,
-  orchestratorId: string,
+  sokoBotId: string,
   tx: Prisma.TransactionClient,
 ): Promise<{
   id: string;
@@ -1919,8 +1912,8 @@ export async function requireChatRoomOrchestratorAccess(
     where: {
       id: roomId,
       archivedAt: null,
-      orchestratorMembers: {
-        some: { orchestratorId },
+      sokoBotMembers: {
+        some: { sokoBotId: sokoBotId },
       },
     },
     select: {
@@ -2096,14 +2089,14 @@ export async function validateChatCoworkerIds(
   return uniqueCoworkerIds;
 }
 
-export async function validateChatOrchestratorIds(
-  orchestratorIds: readonly string[],
+export async function validateChatSokoBotIds(
+  sokoBotIds: readonly string[],
   workspaceId: string,
   actorUserId: string,
   alreadyInRoomIds: readonly string[],
   tx: Prisma.TransactionClient,
 ): Promise<string[]> {
-  const uniqueIds = normalizeUniqueStrings(orchestratorIds);
+  const uniqueIds = normalizeUniqueStrings(sokoBotIds);
   if (uniqueIds.length === 0) {
     return [];
   }
@@ -2188,14 +2181,14 @@ export function resolveMentionedCoworkerIds(params: {
   return [...mentionedIds].filter((coworkerId) => allowedIds.has(coworkerId));
 }
 
-export function resolveMentionedOrchestratorIds(params: {
+export function resolveMentionedSokoBotIds(params: {
   content: string;
-  explicitOrchestratorIds?: readonly string[];
-  roomOrchestrators: Array<{ id: string; name: string }>;
+  explicitSokoBotIds?: readonly string[];
+  roomSokoBots: Array<{ id: string; name: string }>;
 }): string[] {
-  const roomIds = new Set(params.roomOrchestrators.map((bot) => bot.id));
+  const roomIds = new Set(params.roomSokoBots.map((bot) => bot.id));
   const mentionedIds = new Set(
-    normalizeUniqueStrings(params.explicitOrchestratorIds ?? []).filter((id) =>
+    normalizeUniqueStrings(params.explicitSokoBotIds ?? []).filter((id) =>
       roomIds.has(id),
     ),
   );
@@ -2209,13 +2202,13 @@ export function resolveMentionedOrchestratorIds(params: {
   }
 
   const aliasCounts = new Map<string, number>();
-  for (const bot of params.roomOrchestrators) {
+  for (const bot of params.roomSokoBots) {
     const alias = slugifyRoomName(bot.name);
     if (!alias) continue;
     aliasCounts.set(alias, (aliasCounts.get(alias) ?? 0) + 1);
   }
 
-  for (const bot of params.roomOrchestrators) {
+  for (const bot of params.roomSokoBots) {
     const alias = slugifyRoomName(bot.name);
     if (!alias || (aliasCounts.get(alias) ?? 0) > 1) continue;
     const aliasRegex = new RegExp(
@@ -2353,28 +2346,26 @@ async function findOrRestoreDirectByKey(
 async function ensureDirectOrchestratorMembership(
   tx: {
     chatRoom: Pick<typeof prisma.chatRoom, "findFirst">;
-    chatRoomOrchestratorMember: Pick<
-      typeof prisma.chatRoomOrchestratorMember,
+    chatRoomSokoBotMember: Pick<
+      typeof prisma.chatRoomSokoBotMember,
       "createMany"
     >;
   },
   room: NonNullable<Awaited<ReturnType<typeof findOrRestoreDirectByKey>>>,
-  orchestratorIds: readonly string[],
+  sokoBotIds: readonly string[],
 ): Promise<NonNullable<Awaited<ReturnType<typeof findOrRestoreDirectByKey>>>> {
   const present = new Set(
-    room.orchestratorMembers.map((member) => member.orchestrator.id),
+    room.sokoBotMembers.map((member) => member.sokoBot.id),
   );
-  const missing = orchestratorIds.filter(
-    (orchestratorId) => !present.has(orchestratorId),
-  );
+  const missing = sokoBotIds.filter((sokoBotId) => !present.has(sokoBotId));
   if (missing.length === 0) {
     return room;
   }
 
-  await tx.chatRoomOrchestratorMember.createMany({
-    data: missing.map((orchestratorId) => ({
+  await tx.chatRoomSokoBotMember.createMany({
+    data: missing.map((sokoBotId) => ({
       roomId: room.id,
-      orchestratorId,
+      sokoBotId: sokoBotId,
     })),
     skipDuplicates: true,
   });
@@ -2402,11 +2393,11 @@ function parseDirectCreateShape(params: {
   currentUserId: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
-  orchestratorIds: readonly string[];
+  sokoBotIds: readonly string[];
 }): DirectCreateShape {
   const memberUserIds = normalizeUniqueStrings(params.memberUserIds);
   const coworkerIds = normalizeUniqueStrings(params.coworkerIds);
-  const orchestratorIds = normalizeUniqueStrings(params.orchestratorIds);
+  const sokoBotIds = normalizeUniqueStrings(params.sokoBotIds);
 
   if (memberUserIds.includes(params.currentUserId)) {
     throw badRequest("Choose another organization member");
@@ -2415,7 +2406,7 @@ function parseDirectCreateShape(params: {
   const targetKinds = [
     memberUserIds.length > 0,
     coworkerIds.length > 0,
-    orchestratorIds.length > 0,
+    sokoBotIds.length > 0,
   ].filter(Boolean).length;
 
   if (targetKinds === 0) {
@@ -2432,7 +2423,7 @@ function parseDirectCreateShape(params: {
     throw badRequest("Direct messages support one coworker only.");
   }
 
-  if (orchestratorIds.length > 1) {
+  if (sokoBotIds.length > 1) {
     throw badRequest("Direct messages support one personal assistant only.");
   }
 
@@ -2441,7 +2432,7 @@ function parseDirectCreateShape(params: {
       kind: "human-direct",
       memberUserIds,
       coworkerIds: [],
-      orchestratorIds: [],
+      sokoBotIds: [],
     };
   }
 
@@ -2450,7 +2441,7 @@ function parseDirectCreateShape(params: {
       kind: "coworker-1to1",
       memberUserIds: [],
       coworkerIds: [coworkerIds[0]],
-      orchestratorIds: [],
+      sokoBotIds: [],
     };
   }
 
@@ -2458,7 +2449,7 @@ function parseDirectCreateShape(params: {
     kind: "orchestrator-1to1",
     memberUserIds: [],
     coworkerIds: [],
-    orchestratorIds: [orchestratorIds[0]],
+    sokoBotIds: [sokoBotIds[0]],
   };
 }
 /**
@@ -2473,9 +2464,9 @@ function parseDirectCreateShape(params: {
  */
 /**
  * Valid direct create targets: human-direct (≥1 humans, no coworkers or
- * orchestrators), coworker-1to1 (exactly one coworker, no humans or
- * orchestrators), or orchestrator-1to1 (exactly one personal assistant, no
- * humans or coworkers). Mix / multi-coworker / multi-orchestrator / empty
+ * sokoBots), coworker-1to1 (exactly one coworker, no humans or
+ * sokoBots), or sokoBot-1to1 (exactly one personal assistant, no
+ * humans or coworkers). Mix / multi-coworker / multi-sokoBot / empty
  * are invalid.
  */
 type DirectCreateShape =
@@ -2483,19 +2474,19 @@ type DirectCreateShape =
       kind: "human-direct";
       memberUserIds: string[];
       coworkerIds: [];
-      orchestratorIds: [];
+      sokoBotIds: [];
     }
   | {
       kind: "coworker-1to1";
       memberUserIds: [];
       coworkerIds: [string];
-      orchestratorIds: [];
+      sokoBotIds: [];
     }
   | {
       kind: "orchestrator-1to1";
       memberUserIds: [];
       coworkerIds: [];
-      orchestratorIds: [string];
+      sokoBotIds: [string];
     };
 
 export async function createOrGetDirectRoom(params: {
@@ -2503,30 +2494,29 @@ export async function createOrGetDirectRoom(params: {
   currentUserId: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
-  orchestratorIds?: readonly string[];
+  sokoBotIds?: readonly string[];
   /**
    * User allowed to add the personal assistant. Defaults to `currentUserId`.
    * Server-initiated colleague DMs pass the bot owner while the colleague
    * remains the room's human participant.
    */
-  orchestratorActorUserId?: string;
+  sokoBotActorUserId?: string;
   /** Sidebar viewer. Null skips pin/mute/unread (coworker actor has none). */
   viewerUserId?: string | null;
 }): Promise<{ room: ChatRoom; created: boolean }> {
   const { currentUserId } = params;
-  const orchestratorActorUserId =
-    params.orchestratorActorUserId ?? currentUserId;
+  const sokoBotActorUserId = params.sokoBotActorUserId ?? currentUserId;
   const viewerUserId =
     params.viewerUserId === undefined ? currentUserId : params.viewerUserId;
   const shape = parseDirectCreateShape({
     currentUserId,
     memberUserIds: params.memberUserIds,
     coworkerIds: params.coworkerIds,
-    orchestratorIds: params.orchestratorIds ?? [],
+    sokoBotIds: params.sokoBotIds ?? [],
   });
   const requestedMemberUserIds = shape.memberUserIds;
   const requestedCoworkerIds = shape.coworkerIds;
-  const requestedOrchestratorIds = shape.orchestratorIds;
+  const requestedSokoBotIds = shape.sokoBotIds;
   const activeOrganizationId = params.organizationId;
 
   // Holds the key computed inside the transaction so a directKey race
@@ -2592,7 +2582,7 @@ export async function createOrGetDirectRoom(params: {
           directKey,
           memberUserIds: [],
           coworkerIds,
-          orchestratorIds: [],
+          sokoBotIds: [],
         });
       }
 
@@ -2602,10 +2592,10 @@ export async function createOrGetDirectRoom(params: {
           personalUserId: currentUserId,
           tx,
         });
-        const orchestratorIds = await validateChatOrchestratorIds(
-          requestedOrchestratorIds,
+        const sokoBotIds = await validateChatSokoBotIds(
+          requestedSokoBotIds,
           workspaceId,
-          orchestratorActorUserId,
+          sokoBotActorUserId,
           [],
           tx,
         );
@@ -2613,7 +2603,7 @@ export async function createOrGetDirectRoom(params: {
           currentUserId,
           memberUserIds: [],
           coworkerIds: [],
-          orchestratorIds,
+          sokoBotIds,
         });
         directKeyRef.current = directKey;
         createOrganizationIdRef.current = activeOrganizationId;
@@ -2627,7 +2617,7 @@ export async function createOrGetDirectRoom(params: {
             room: await ensureDirectOrchestratorMembership(
               tx,
               existing,
-              orchestratorIds,
+              sokoBotIds,
             ),
             created: false,
           };
@@ -2640,7 +2630,7 @@ export async function createOrGetDirectRoom(params: {
           directKey,
           memberUserIds: [],
           coworkerIds: [],
-          orchestratorIds,
+          sokoBotIds,
         });
       }
 
@@ -2709,7 +2699,7 @@ export async function createOrGetDirectRoom(params: {
         directKey,
         memberUserIds,
         coworkerIds: [],
-        orchestratorIds: [],
+        sokoBotIds: [],
       });
     });
 
@@ -2742,7 +2732,7 @@ export async function createOrGetDirectRoom(params: {
             ? await ensureDirectOrchestratorMembership(
                 prisma,
                 existing,
-                requestedOrchestratorIds,
+                requestedSokoBotIds,
               )
             : existing;
         return {
@@ -2768,7 +2758,7 @@ async function createDirectRoomRecord(params: {
   directKey: string;
   memberUserIds: readonly string[];
   coworkerIds: readonly string[];
-  orchestratorIds: readonly string[];
+  sokoBotIds: readonly string[];
 }) {
   const {
     tx,
@@ -2777,7 +2767,7 @@ async function createDirectRoomRecord(params: {
     directKey,
     memberUserIds,
     coworkerIds,
-    orchestratorIds,
+    sokoBotIds,
   } = params;
 
   const [targetUsers, targetCoworkers, targetOrchestrators] = await Promise.all(
@@ -2794,9 +2784,9 @@ async function createDirectRoomRecord(params: {
             select: { id: true, name: true },
           })
         : Promise.resolve([]),
-      orchestratorIds.length > 0
+      sokoBotIds.length > 0
         ? tx.sokoBot.findMany({
-            where: { id: { in: [...orchestratorIds] } },
+            where: { id: { in: [...sokoBotIds] } },
             select: {
               id: true,
               name: true,
@@ -2810,9 +2800,7 @@ async function createDirectRoomRecord(params: {
   const coworkersById = new Map(
     targetCoworkers.map((coworker) => [coworker.id, coworker]),
   );
-  const orchestratorsById = new Map(
-    targetOrchestrators.map((bot) => [bot.id, bot]),
-  );
+  const sokoBotsById = new Map(targetOrchestrators.map((bot) => [bot.id, bot]));
   const directName = buildDirectRoomName([
     ...memberUserIds.map((userId) => {
       const user = usersById.get(userId);
@@ -2821,9 +2809,9 @@ async function createDirectRoomRecord(params: {
     ...coworkerIds.map((coworkerId) => {
       return coworkersById.get(coworkerId)?.name || coworkerId;
     }),
-    ...orchestratorIds.map((orchestratorId) => {
-      const bot = orchestratorsById.get(orchestratorId);
-      return bot ? orchestratorDisplayName(bot) : orchestratorId;
+    ...sokoBotIds.map((sokoBotId) => {
+      const bot = sokoBotsById.get(sokoBotId);
+      return bot ? sokoBotDisplayName(bot) : sokoBotId;
     }),
   ]);
   const room = await tx.chatRoom.create({
@@ -2849,8 +2837,10 @@ async function createDirectRoomRecord(params: {
       coworkerMembers: {
         create: coworkerIds.map((coworkerId) => ({ coworkerId })),
       },
-      orchestratorMembers: {
-        create: orchestratorIds.map((orchestratorId) => ({ orchestratorId })),
+      sokoBotMembers: {
+        create: sokoBotIds.map((sokoBotId) => ({
+          sokoBotId: sokoBotId,
+        })),
       },
     },
     include: chatRoomInclude,

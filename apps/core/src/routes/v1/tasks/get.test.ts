@@ -69,7 +69,7 @@ const DELEGATED_COWORKER_AUTH_CONTEXT: AuthenticationContext = {
 
 const ORCHESTRATOR_AUTH_CONTEXT: AuthenticationContext = {
   actor: "orchestrator",
-  orchestratorId: "33333333-3333-7333-8333-333333333333",
+  sokoBotId: "33333333-3333-7333-8333-333333333333",
   userId: "user_123",
   workspaceId: "11111111-1111-7111-8111-111111111111",
   organizationId: "org_123",
@@ -156,8 +156,8 @@ function createTask() {
     creatorUser: { id: "user_123", name: "Task Owner", image: null },
     creatorCoworkerId: null,
     creatorCoworker: null,
-    creatorOrchestratorId: null,
-    creatorOrchestrator: null,
+    creatorSokoBotId: null,
+    creatorSokoBot: null,
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
@@ -218,7 +218,7 @@ describe("GET /tasks", () => {
         where: {
           archivedAt: null,
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          assigneeOrchestratorId: "33333333-3333-7333-8333-333333333333",
+          assigneeSokoBotId: "33333333-3333-7333-8333-333333333333",
           status: { not: TaskStatus.DRAFT },
         },
       }),

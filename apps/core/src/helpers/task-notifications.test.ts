@@ -23,7 +23,7 @@ describe("dispatchTaskNotification", () => {
         ownerId: "user_1",
         name: "Launch",
         assignee: null,
-        assigneeOrchestrator: { name: "Nora" },
+        assigneeSokoBot: { name: "Nora" },
         project: null,
         projectId: null,
         workspaceId: null,

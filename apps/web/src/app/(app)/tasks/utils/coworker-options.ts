@@ -116,29 +116,29 @@ export function resolveTaskAssigneeFields(
   selectedId: string | null | undefined,
   options: ReadonlyArray<Pick<CoworkerOption, "id" | "kind">>,
   knownOrchestratorId?: string | null,
-): { assigneeId: string | null; assigneeOrchestratorId: string | null } {
+): { assigneeId: string | null; assigneeSokoBotId: string | null } {
   if (!selectedId) {
-    return { assigneeId: null, assigneeOrchestratorId: null };
+    return { assigneeId: null, assigneeSokoBotId: null };
   }
 
   const selected = options.find((option) => option.id === selectedId);
   if (selected?.kind === "orchestrator") {
-    return { assigneeId: null, assigneeOrchestratorId: selectedId };
+    return { assigneeId: null, assigneeSokoBotId: selectedId };
   }
   if (selected) {
-    return { assigneeId: selectedId, assigneeOrchestratorId: null };
+    return { assigneeId: selectedId, assigneeSokoBotId: null };
   }
 
   if (knownOrchestratorId && selectedId === knownOrchestratorId) {
-    return { assigneeId: null, assigneeOrchestratorId: selectedId };
+    return { assigneeId: null, assigneeSokoBotId: selectedId };
   }
 
-  return { assigneeId: selectedId, assigneeOrchestratorId: null };
+  return { assigneeId: selectedId, assigneeSokoBotId: null };
 }
 
 export function taskFormAssigneeId(task: {
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
 }): string {
-  return task.assigneeOrchestratorId ?? task.assigneeId ?? "";
+  return task.assigneeSokoBotId ?? task.assigneeId ?? "";
 }

@@ -201,7 +201,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...(await failOpenChatRoomMentions(
               {
                 where: {
-                  orchestratorId: { in: ownBotIds },
+                  sokoBotId: { in: ownBotIds },
                   message: { roomId: existing.id },
                 },
                 error: "Personal assistant is no longer a member of this room",
@@ -209,8 +209,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               tx,
             )),
           );
-          await tx.chatRoomOrchestratorMember.deleteMany({
-            where: { roomId: existing.id, orchestratorId: { in: ownBotIds } },
+          await tx.chatRoomSokoBotMember.deleteMany({
+            where: { roomId: existing.id, sokoBotId: { in: ownBotIds } },
           });
         }
       }
