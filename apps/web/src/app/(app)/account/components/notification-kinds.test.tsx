@@ -978,29 +978,25 @@ describe("NotificationKinds", () => {
    * row still says what email would mean here.
    */
   /**
-   * Every cell names its own channel, so the heads above them are for the eye.
-   * Read out as well, the row would say "In app" three times before the
-   * reader reached a control. The same holds for the sentence a dead cell is
-   * described by: in the tree as well, it is read twice.
+   * Every cell names its own channel, so a column's name is said once, by the
+   * control that explains it. Read out again as loose text, the group would
+   * say "In app" before the reader reached a control. The same holds for the
+   * sentence a dead cell is described by: in the tree as well, it is read
+   * twice.
    */
-  it("keeps the column names and the dead hints out of the tree", async () => {
+  it("names each column once and keeps the dead hints out of the tree", async () => {
     isBlocked = true;
     renderKinds();
 
     await openGroup("groupJob");
 
     // Every column, not just the first: a head that went missing entirely
-    // would leave the eye a nameless column and read as nothing at all. One
-    // copy of each is the control that explains it, and the copies the narrow
-    // rows carry stay out of the tree, or a reader would meet the word once
-    // per row.
+    // would leave the eye a nameless column and read as nothing at all.
     for (const channel of ["channelInApp", "channelPush", "channelEmail"]) {
       const heads = screen.getAllByText(channel);
 
-      expect(heads.filter((head) => head.tagName === "BUTTON")).toHaveLength(1);
-      for (const head of heads.filter((head) => head.tagName !== "BUTTON")) {
-        expect(head.closest('[aria-hidden="true"]')).not.toBeNull();
-      }
+      expect(heads).toHaveLength(1);
+      expect(heads[0]?.tagName).toBe("BUTTON");
     }
 
     // Both kinds of hidden sentence: the one a dead cell is described by, and
