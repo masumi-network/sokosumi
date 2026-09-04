@@ -166,6 +166,17 @@ describe("resolveTaskName", () => {
     ).toBe("Landing page competitor teardown");
   });
 
+  it("rejects a numbered outline concatenated after a label", async () => {
+    generateTaskNameMock.mockResolvedValue(
+      "Marketing Deliverables: Current Market Rates 1. LANDING PAGE BRIEF 2. Freelance Rates",
+    );
+    expect(
+      await resolveTaskName({
+        description: "Landing page competitor teardown",
+      }),
+    ).toBe("Landing page competitor teardown");
+  });
+
   it("uses fallback when generation is empty or whitespace", async () => {
     generateTaskNameMock.mockResolvedValue("   ");
     expect(

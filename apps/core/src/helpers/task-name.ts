@@ -12,7 +12,7 @@ const MARKDOWN_TOKEN_REGEX = /[#*`>~]/g;
 const WRAPPING_QUOTES_REGEX = /^["'“”‘’«»]+|["'“”‘’«»]+$/g;
 const TRAILING_PERIODS_REGEX = /\.+$/u;
 const REFUSAL_REGEX = /\b(?:i cannot|unable to|i need to be transparent)\b/i;
-const DUMP_REGEX = /^\s*#|##|```|[\n\r]|^\d+\.\s.+\s\d+\.\s/;
+const DUMP_REGEX = /^\s*#|##|```|[\n\r]|(?:^|\s)\d+\.\s.+\s\d+\.\s/;
 
 function stripHtmlTags(text: string): string {
   let current = text;
@@ -28,7 +28,6 @@ function cleanAutoName(text: string): string {
   const cleaned = stripHtmlTags(text)
     .replace(CODE_FENCE_BLOCK_REGEX, " ")
     .replace(HEADING_MARKER_REGEX, "")
-    .replace(/`+/g, "")
     .replace(MARKDOWN_TOKEN_REGEX, "")
     .replace(/[\r\n]+/g, " ")
     .replace(/\s+/g, " ")
@@ -48,10 +47,7 @@ function isRejectedGeneratedName(raw: string, cleaned: string): boolean {
   if (REFUSAL_REGEX.test(raw) || REFUSAL_REGEX.test(cleaned)) {
     return true;
   }
-  if (DUMP_REGEX.test(raw)) {
-    return true;
-  }
-  return /[#*`]/.test(cleaned);
+  return DUMP_REGEX.test(raw);
 }
 
 function fallbackTaskName(source: string): string {
