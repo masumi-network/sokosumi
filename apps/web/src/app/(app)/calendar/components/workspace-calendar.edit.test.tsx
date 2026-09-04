@@ -193,6 +193,12 @@ const READ_ONLY_ITEM: WorkspaceCalendarItem = {
   canEditSchedule: false,
 };
 
+const RELEASED_ITEM: WorkspaceCalendarItem = {
+  ...READ_ONLY_ITEM,
+  id: "occurrence-released-1",
+  state: "RELEASED",
+};
+
 const SOURCES: WorkspaceCalendarSource[] = [
   {
     sourceId: "workspace:workspace-1",
@@ -538,15 +544,15 @@ describe("WorkspaceCalendar editing", () => {
     );
   });
 
-  it("opens a non-editable event in its read-only task detail", async () => {
+  it("opens a released event in its read-only task detail", async () => {
     const user = userEvent.setup();
-    renderCalendar({ items: [READ_ONLY_ITEM] });
+    renderCalendar({ items: [RELEASED_ITEM] });
 
     await user.click(
-      screen.getAllByRole("button", { name: READ_ONLY_ITEM.taskName })[0],
+      screen.getAllByRole("button", { name: RELEASED_ITEM.taskName })[0],
     );
 
-    expect(pushMock).toHaveBeenCalledWith(`/tasks/${READ_ONLY_ITEM.taskId}`);
+    expect(pushMock).toHaveBeenCalledWith(`/tasks/${RELEASED_ITEM.taskId}`);
     expect(getTaskByIdMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });

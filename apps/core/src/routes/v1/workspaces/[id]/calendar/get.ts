@@ -380,7 +380,9 @@ export async function readWorkspaceCalendar(
       return workspaceCalendarItemSchema.parse({
         id: occurrence.id,
         taskId: task.id,
-        canEditSchedule: task.ownerId === userId,
+        canEditSchedule:
+          occurrence.state !== TaskScheduleOccurrenceState.RELEASED &&
+          task.ownerId === userId,
         taskName: task.name,
         taskStatus: task.status,
         taskAssigneeId: task.assigneeId,
