@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildTaskScheduleMetadataV2,
+  buildUpdatedTaskScheduleMetadataV2,
   computeIntervalNextRun,
   computeScheduleNextRun,
+  convertTaskScheduleMetadataV1ToV2,
   inferLegacyIntervalDaysFromCron,
   isDueRunPastScheduleEnd,
   isRecurringScheduleEnded,
@@ -114,6 +116,111 @@ describe("task-schedule helpers", () => {
       timezone: "UTC",
       sourceRunAt: "2099-09-24T09:00:00.000Z",
       effectiveRunAt: "2099-09-24T09:00:00.000Z",
+    });
+  });
+
+  it("converts a finite v1 rule without recounting released occurrences", () => {
+    const metadata = convertTaskScheduleMetadataV1ToV2(
+      {
+        version: 1,
+        mode: "recurring",
+        scheduledAt: "2026-06-01T08:00:00.000Z",
+        lastRunAt: "2026-06-02T09:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "after",
+        occurrences: 3,
+      },
+      new Date("2026-06-03T08:00:00.000Z"),
+      "123e4567-e89b-42d3-a456-426614174001",
+      2,
+    );
+
+    expect(metadata).toEqual({
+      version: 2,
+      epochId: "123e4567-e89b-42d3-a456-426614174001",
+      mode: "recurring",
+      createdAt: "2026-06-03T08:00:00.000Z",
+      ruleEffectiveFrom: "2026-06-03T08:00:00.000Z",
+      lastProcessedSourceAt: "2026-06-02T09:00:00.000Z",
+      timezone: "UTC",
+      expr: "0 9 * * *",
+      endsMode: "after",
+      targetReleaseCount: 5,
+      epochReleaseCount: 2,
+      anchorAt: "2026-06-01T08:00:00.000Z",
+    });
+    if (
+      metadata.mode !== "recurring" ||
+      metadata.targetReleaseCount === undefined
+    ) {
+      throw new Error("Expected a finite recurring schedule");
+    }
+    expect(metadata.targetReleaseCount - metadata.epochReleaseCount).toBe(3);
+  });
+
+  it("keeps an existing v2 epoch when the submitted rule is unchanged", () => {
+    const current = {
+      version: 2 as const,
+      epochId: "123e4567-e89b-42d3-a456-426614174002",
+      mode: "recurring" as const,
+      createdAt: "2026-06-01T08:00:00.000Z",
+      ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+      timezone: "UTC",
+      expr: "0 9 * * *",
+      endsMode: "after" as const,
+      targetReleaseCount: 5,
+      epochReleaseCount: 2,
+      anchorAt: "2026-06-01T08:00:00.000Z",
+    };
+
+    expect(
+      buildUpdatedTaskScheduleMetadataV2(
+        {
+          mode: "recurring",
+          timezone: "UTC",
+          expr: "0 9 * * *",
+          endsMode: "after",
+          occurrences: 3,
+        },
+        current,
+        new Date("2026-06-03T08:00:00.000Z"),
+        "123e4567-e89b-42d3-a456-426614174003",
+      ),
+    ).toBe(current);
+  });
+
+  it("starts a new v2 epoch when the submitted rule changes", () => {
+    const current = {
+      version: 2 as const,
+      epochId: "123e4567-e89b-42d3-a456-426614174004",
+      mode: "recurring" as const,
+      createdAt: "2026-06-01T08:00:00.000Z",
+      ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+      timezone: "UTC",
+      expr: "0 9 * * *",
+      endsMode: "never" as const,
+      epochReleaseCount: 0,
+      anchorAt: "2026-06-01T08:00:00.000Z",
+    };
+
+    expect(
+      buildUpdatedTaskScheduleMetadataV2(
+        {
+          mode: "recurring",
+          timezone: "UTC",
+          expr: "0 10 * * *",
+          endsMode: "never",
+        },
+        current,
+        new Date("2026-06-03T08:00:00.000Z"),
+        "123e4567-e89b-42d3-a456-426614174005",
+      ),
+    ).toMatchObject({
+      version: 2,
+      epochId: "123e4567-e89b-42d3-a456-426614174005",
+      expr: "0 10 * * *",
+      epochReleaseCount: 0,
     });
   });
 

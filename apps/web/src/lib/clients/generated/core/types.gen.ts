@@ -37096,6 +37096,120 @@ export type PatchTasksByIdResponses = {
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
 
+export type PutTasksByIdCalendarScheduleData = {
+    body?: PutTaskScheduleRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/calendar-schedule';
+};
+
+export type PutTasksByIdCalendarScheduleErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutTasksByIdCalendarScheduleError = PutTasksByIdCalendarScheduleErrors[keyof PutTasksByIdCalendarScheduleErrors];
+
+export type PutTasksByIdCalendarScheduleResponses = {
+    /**
+     * Calendar task schedule saved
+     */
+    200: {
+        data: Task;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutTasksByIdCalendarScheduleResponse = PutTasksByIdCalendarScheduleResponses[keyof PutTasksByIdCalendarScheduleResponses];
+
 export type DeleteTasksByIdScheduleData = {
     body?: never;
     path: {

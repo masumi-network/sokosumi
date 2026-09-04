@@ -634,7 +634,7 @@ export const createScheduledTask = withSession<
   }
 });
 
-export const saveTaskSchedule = withSession<
+export const saveCalendarTaskSchedule = withSession<
   SaveTaskScheduleParameters,
   SaveTaskScheduleResult
 >(async ({ taskId, schedule }) => {
@@ -646,7 +646,7 @@ export const saveTaskSchedule = withSession<
   const scheduleBody = getActiveScheduleBody(schedule);
 
   try {
-    const task = await taskScheduleService.setSchedule(
+    const task = await taskScheduleService.setCalendarSchedule(
       normalizedTaskId,
       scheduleBody,
     );
