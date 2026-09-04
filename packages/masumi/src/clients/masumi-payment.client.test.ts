@@ -972,6 +972,51 @@ describe("getCardanoV2RailReadiness", () => {
     );
   });
 
+  it("names the connection failure undici hides behind fetch failed", async () => {
+    // The other half of a `response: undefined` catch. Without the cause,
+    // a refused connection and a DNS failure share one Sentry title.
+    getRailReadinessMock.mockResolvedValue({
+      data: undefined,
+      error: new TypeError("fetch failed", {
+        cause: new Error("getaddrinfo ENOTFOUND payment.example.com"),
+      }),
+      response: undefined,
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.getCardanoV2RailReadiness();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toBe(
+      "rail-readiness unknown: TypeError: fetch failed: Error: getaddrinfo ENOTFOUND payment.example.com",
+    );
+  });
+
+  it("names an empty error body instead of rail-readiness 502: {}", async () => {
+    // hey-api turns a non-ok response with an EMPTY body into `{}`.
+    getRailReadinessMock.mockResolvedValue({
+      data: undefined,
+      error: {},
+      response: { status: 502 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.getCardanoV2RailReadiness();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toBe(
+      "rail-readiness 502: (no error detail)",
+    );
+  });
+
   it("returns an error when the readiness endpoint reports an error", async () => {
     getRailReadinessMock.mockResolvedValue({
       data: undefined,

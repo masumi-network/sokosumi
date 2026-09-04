@@ -30,6 +30,30 @@ describe("extractNodeErrorMessage", () => {
       "TimeoutError: The operation was aborted.",
     );
   });
+
+  it("appends the cause undici hides behind TypeError: fetch failed", () => {
+    // Every connection-level failure reaches us as this one message. Without
+    // the cause, ECONNREFUSED and ENOTFOUND share a Sentry title.
+    const refused = new TypeError("fetch failed", {
+      cause: new Error("connect ECONNREFUSED 127.0.0.1:59999"),
+    });
+    expect(extractNodeErrorMessage(refused)).toBe(
+      "TypeError: fetch failed: Error: connect ECONNREFUSED 127.0.0.1:59999",
+    );
+  });
+
+  it("caps a long cause chain with the rest of the fallback", () => {
+    const long = new TypeError("fetch failed", { cause: "x".repeat(500) });
+    const dumped = extractNodeErrorMessage(long);
+    expect(dumped).toHaveLength(300);
+    expect(dumped).toContain("(truncated from");
+  });
+
+  it("names an information-free body instead of dumping {}", () => {
+    // hey-api turns an empty error body into `{}` (finalError = finalError
+    // || {}), which stringifies back to the same "{}" the timeout produced.
+    expect(extractNodeErrorMessage({})).toBe("(no error detail)");
+  });
 });
 
 describe("readNodeErrorMessage", () => {

@@ -49,6 +49,19 @@ function truncateFallback(dump: string): string {
 }
 
 /**
+ * Stand-in for a dump that carries no information at all.
+ *
+ * Two different far sides produce the same empty object. hey-api's catch ends
+ * in `finalError = finalError || {}`, so a non-ok response with an EMPTY body
+ * arrives as `{}`; and a node that answers with a literal `{}` body is
+ * byte-for-byte indistinguishable from it. Neither says anything, and `"{}"`
+ * as a Sentry title reads as a bug in this dump rather than as silence from
+ * the far side. The status the caller prints alongside is then the only real
+ * signal, which is what this says out loud.
+ */
+const NO_ERROR_DETAIL = "(no error detail)";
+
+/**
  * Extracts the payment node's human-readable error message from an error
  * payload of unknown shape (`{ error: { message } }` on the documented
  * responses), falling back to a capped dump of whatever else arrived.
@@ -68,10 +81,18 @@ export function extractNodeErrorMessage(error: unknown): string {
     return message;
   }
   if (error instanceof Error) {
-    return truncateFallback(String(error));
+    // `String(error)` is the name and message only. undici reports EVERY
+    // connection failure as the same `TypeError: fetch failed` and puts the
+    // reason (ECONNREFUSED, ENOTFOUND, a TLS failure) in `cause`, so dropping
+    // the cause names the layer that failed but never why. One level is
+    // enough: that is where undici puts the syscall error.
+    return truncateFallback(
+      error.cause === undefined ? String(error) : `${error}: ${error.cause}`,
+    );
   }
   try {
-    return truncateFallback(JSON.stringify(error) ?? String(error));
+    const dump = JSON.stringify(error) ?? String(error);
+    return truncateFallback(dump === "{}" ? NO_ERROR_DETAIL : dump);
   } catch {
     return truncateFallback(String(error));
   }
