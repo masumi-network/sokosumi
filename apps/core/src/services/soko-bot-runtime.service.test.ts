@@ -2488,6 +2488,42 @@ describe("SokoBotRuntimeService chat reading", () => {
       fromYou: false,
     });
   });
+
+  it("labels an unnamed bot sender as Soko Bot and keeps unknown when there is no sender", async () => {
+    chatRoomFindFirstMock.mockResolvedValue({ id: "room_1", name: "Launch" });
+    chatMessageFindManyMock.mockResolvedValue([
+      {
+        id: "m-bot",
+        content: "on it",
+        createdAt: new Date("2026-08-27T10:01:00.000Z"),
+        senderUser: null,
+        senderCoworker: null,
+        senderSokoBot: { id: SCOPE.sokoBotId, name: null },
+      },
+      {
+        id: "m-none",
+        content: "system",
+        createdAt: new Date("2026-08-27T10:00:00.000Z"),
+        senderUser: null,
+        senderCoworker: null,
+        senderSokoBot: null,
+      },
+    ]);
+
+    const result = (await new SokoBotRuntimeService()["readChat"](
+      { turn: SCOPE_TURN } as never,
+      { roomId: "room_1" },
+    )) as { messages: { from: string; fromYou: boolean }[] };
+
+    expect(result.messages[0]).toMatchObject({
+      from: "Soko Bot",
+      fromYou: true,
+    });
+    expect(result.messages[1]).toMatchObject({
+      from: "unknown",
+      fromYou: false,
+    });
+  });
 });
 
 describe("post_chat chain depth", () => {

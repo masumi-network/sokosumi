@@ -1407,8 +1407,12 @@ export class SokoBotRuntimeService {
         from:
           message.senderUser?.name ??
           message.senderCoworker?.name ??
-          message.senderSokoBot?.name ??
-          "unknown",
+          (message.senderSokoBot
+            ? sokoBotDisplayName({
+                name: message.senderSokoBot.name,
+                user: null,
+              })
+            : "unknown"),
         /** True when the bot itself wrote it. */
         fromYou: message.senderSokoBot?.id === room.sokoBotId,
         // Chat is untrusted text: the operating contract already tells the bot
