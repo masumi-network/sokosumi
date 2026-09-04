@@ -256,7 +256,7 @@ function presetButton(group: string) {
  * nothing in this environment. So each is asked about directly.
  */
 function rail(group: string) {
-  return screen.getByRole("group", { name: `presetAriaLabel ${group}` });
+  return screen.getByRole("toolbar", { name: `presetAriaLabel ${group}` });
 }
 
 /** Every stop is named for the group it sets, so four words are not twelve. */
@@ -504,6 +504,50 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * Four stops in three groups, each with a chip beside it, is fifteen presses
+   * of Tab to cross a card that holds four decisions. The rail takes one, and
+   * the arrows walk it.
+   */
+  it("gives the rail one tab stop and walks it with the arrows", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    // The group is on Essential, so that is where Tab lands.
+    expect(railStop("groupChat", "presetEverything")).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+    expect(railStop("groupChat", "presetEssential")).toHaveAttribute(
+      "tabindex",
+      "0",
+    );
+
+    railStop("groupChat", "presetEssential").focus();
+    await user.keyboard("{ArrowRight}");
+    expect(railStop("groupChat", "presetAppOnly")).toHaveFocus();
+
+    // Short rail, ends two words apart: the arrows wrap rather than stop.
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+    expect(railStop("groupChat", "presetEverything")).toHaveFocus();
+
+    await user.keyboard("{End}");
+    expect(railStop("groupChat", "presetOff")).toHaveFocus();
+
+    // Moving is not choosing: each of these would be a write.
+    expect(patchMyPreferences).not.toHaveBeenCalled();
+  });
+
+  /** Off every situation, the rail is offers rather than state. */
+  it("starts the rail at its first stop for a group set by hand", () => {
+    renderKinds();
+
+    expect(railStop("groupJob", "presetResults")).toHaveAttribute(
+      "tabindex",
+      "0",
+    );
+  });
+
+  /**
    * One word cannot say what it writes, and the panel that says it exists only
    * while a pointer is on it. A reader who hears the rail has neither, so the
    * sentence and the kinds are the stop's own description.
@@ -544,7 +588,7 @@ describe("NotificationKinds", () => {
     renderKinds(MATRIX.filter((cell) => cell.category !== "CHAT_ROOM_MESSAGE"));
 
     expect(
-      screen.queryByRole("group", { name: "presetAriaLabel groupChat" }),
+      screen.queryByRole("toolbar", { name: "presetAriaLabel groupChat" }),
     ).toBeNull();
     expect(
       screen.queryByRole("button", {
@@ -760,7 +804,7 @@ describe("NotificationKinds", () => {
     renderKinds();
 
     expect(
-      screen.queryByRole("group", { name: "presetAriaLabel kindSystem" }),
+      screen.queryByRole("toolbar", { name: "presetAriaLabel kindSystem" }),
     ).toBeNull();
     expect(
       screen.queryByRole("button", {

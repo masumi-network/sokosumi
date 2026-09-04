@@ -10,7 +10,7 @@ import {
   Star,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
+import { type KeyboardEvent, useId, useRef } from "react";
 
 import {
   DropdownMenu,
@@ -78,6 +78,17 @@ const PRESET_ICON: Record<PresetState, LucideIcon> = {
   APP_ONLY: Bell,
   OFF: BellOff,
   CUSTOM: SlidersHorizontal,
+};
+
+/**
+ * The arrows a toolbar answers, and how far each one moves.
+ *
+ * Horizontal only. Up and down belong to a vertical toolbar, and a reader who
+ * presses them here is scrolling the settings page.
+ */
+const RAIL_STEP: Record<string, number> = {
+  ArrowRight: 1,
+  ArrowLeft: -1,
 };
 
 /**
@@ -221,6 +232,7 @@ function Stop({
   stops,
   nameId,
   pressed,
+  reached,
   saving,
   onPick,
 }: {
@@ -232,6 +244,8 @@ function Stop({
   /** The group's name, which every stop of the rail is named after. */
   nameId: string;
   pressed: boolean;
+  /** Where Tab lands on this rail: the pressed stop, or the first of them. */
+  reached: boolean;
   /** A write is in flight. The stop stays reachable, and does nothing. */
   saving: boolean;
   onPick: () => void;
@@ -254,6 +268,11 @@ function Stop({
             // on the way in and is in neither of their lists.
             aria-labelledby={`${stopId} ${nameId}`}
             aria-pressed={pressed}
+            // One tab stop for the whole rail, the way a toolbar is: four
+            // stops per group, three groups and a chip apiece is fifteen
+            // presses of Tab to cross a card that holds four decisions. The
+            // arrows walk the rail from here.
+            tabIndex={reached ? 0 : -1}
             // Reachable while a write is in flight, and doing nothing: a
             // control the browser disables drops out of the tab order under
             // the reader's finger, and a screen reader loses the control it
@@ -464,15 +483,49 @@ export function GroupAnswer({
   const customId = useId();
   const chipId = useId();
   const nameId = useId();
+  const railRef = useRef<HTMLDivElement>(null);
+
+  /** Left and right walk the rail; Home and End jump to its ends. */
+  function walkRail(event: KeyboardEvent<HTMLDivElement>) {
+    const step = RAIL_STEP[event.key];
+    const jump = event.key === "Home" || event.key === "End";
+
+    if (!(step || jump) || !railRef.current) {
+      return;
+    }
+
+    const stops = [...railRef.current.querySelectorAll("button")];
+    const from = stops.indexOf(document.activeElement as HTMLButtonElement);
+
+    if (from < 0) {
+      return;
+    }
+
+    // Wrapping, because the rail is short and its ends are two words apart.
+    const to = jump
+      ? event.key === "Home"
+        ? 0
+        : stops.length - 1
+      : (from + step + stops.length) % stops.length;
+
+    event.preventDefault();
+    stops[to]?.focus();
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div
-        role="group"
+        // A toolbar rather than a radio group, though the stops are exclusive:
+        // an arrow in a radio group selects as it moves, and each selection
+        // here is a write. The reader walks the rail and presses the one they
+        // meant.
+        role="toolbar"
+        ref={railRef}
         aria-label={label}
+        onKeyDown={walkRail}
         className={cn(RAIL, "hidden md:inline-flex")}
       >
-        {presets.map((one) => (
+        {presets.map((one, index) => (
           <Stop
             key={one.id}
             id={one.id}
@@ -481,6 +534,9 @@ export function GroupAnswer({
             {...named(one)}
             nameId={nameId}
             pressed={preset === one.id}
+            // Off every situation, the rail is a set of offers rather than a
+            // state, so Tab lands at the start of it.
+            reached={preset === "CUSTOM" ? index === 0 : preset === one.id}
             saving={saving}
             onPick={() => {
               onPick(one);
