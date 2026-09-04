@@ -2,38 +2,74 @@ import type { NotificationPreference } from "@/lib/clients/generated/core";
 
 export type NotificationCategory = NotificationPreference["category"];
 
+/** A channel the matrix stores a cell for, per kind. */
+export type StoredChannel = NotificationPreference["channel"];
+
+interface ChannelSpec {
+  id: StoredChannel;
+  labelKey: string;
+  /** What picking it means, in the reader's terms. */
+  hintKey: string;
+}
+
 /**
- * How loudly one kind of notification arrives.
+ * Where one kind of notification can arrive, and this page can set it.
  *
- * Ordered, and each step contains the one below: a banner is also waiting in
- * Sokosumi when you get back. One control per kind instead of one switch per
- * channel, because the two switches could describe a state nobody wants and
- * the reader had to work out which pair meant what.
+ * Each channel is its own choice rather than a step on a ladder, so the row
+ * says where a kind reaches you rather than how loud it is. Nothing picked
+ * means the kind does not arrive. The one pairing the row does not offer is a
+ * push with no entry behind it: see `withChannel`.
+ *
+ * Email is drawn beside these and is not one of them: it is one switch for the
+ * whole account rather than a cell per kind, and it does not exist for every
+ * kind. See `KindSpec.email`.
+ *
+ * A channel Core adds later needs a cell here. Without one it is drawn
+ * nowhere, and `cellsFor` still writes it `enabled: false` on every press from
+ * this page, so the page would quietly turn off a channel it never showed.
  */
-export const DELIVERIES = ["OFF", "IN_APP", "BANNER"] as const;
-export type Delivery = (typeof DELIVERIES)[number];
+export const CHANNEL_SPECS: readonly ChannelSpec[] = [
+  { id: "IN_APP", labelKey: "channelInApp", hintKey: "channelInAppHint" },
+  { id: "OS_BANNER", labelKey: "channelPush", hintKey: "channelPushHint" },
+];
 
-/** A group whose kinds disagree. Reported, never written. */
-export type GroupDelivery = Delivery | "MIXED";
+/** The channels this page writes, in the order the row draws them. */
+const STORED_CHANNELS: readonly StoredChannel[] = CHANNEL_SPECS.map(
+  (spec) => spec.id,
+);
 
-export const DELIVERY_LABEL_KEY: Record<GroupDelivery, string> = {
-  OFF: "deliveryOff",
-  IN_APP: "deliveryInApp",
-  BANNER: "deliveryBanner",
-  MIXED: "deliveryMixed",
-};
-
-export const DELIVERY_HINT_KEY: Record<Delivery, string> = {
-  OFF: "deliveryOffHint",
-  IN_APP: "deliveryInAppHint",
-  BANNER: "deliveryBannerHint",
-};
+/**
+ * Why this browser cannot show a push, when it cannot.
+ *
+ * The cells keep the press. What they write is one preference for the account,
+ * not one per browser, so this browser is still where the reader silences or
+ * wakes the devices that can push. Only the words change: the cell says why
+ * nothing will arrive here, and that the reader's other devices still hear it.
+ */
+export type PushBlock = "unsupported" | "denied";
 
 export interface KindSpec {
   category: NotificationCategory;
   labelKey: string;
   /** What happens, in the reader's terms, under the name. */
   hintKey: string;
+  /**
+   * Whether this kind waits on the reader.
+   *
+   * The presets read it: "Important" keeps these and drops the rest. It is a
+   * property of the kind rather than a preset's private list, so a kind added
+   * later answers the question once instead of in every preset.
+   */
+  important: boolean;
+  /**
+   * Whether Sokosumi ever sends this kind by email.
+   *
+   * Only job status is mailed, and one account-wide switch gates it, so the
+   * two job kinds hold the same answer and move together. Nothing else has an
+   * email behind it yet, and a row says so rather than offering a control that
+   * would reach nothing.
+   */
+  email: boolean;
 }
 
 export interface GroupSpec {
@@ -62,11 +98,15 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "JOB_ATTENTION",
         labelKey: "kindJobAttention",
         hintKey: "kindJobAttentionHint",
+        important: true,
+        email: true,
       },
       {
         category: "JOB_UPDATE",
         labelKey: "kindJobUpdate",
         hintKey: "kindJobUpdateHint",
+        important: false,
+        email: true,
       },
     ],
   },
@@ -79,11 +119,15 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "TASK_ATTENTION",
         labelKey: "kindTaskAttention",
         hintKey: "kindTaskAttentionHint",
+        important: true,
+        email: false,
       },
       {
         category: "TASK_UPDATE",
         labelKey: "kindTaskUpdate",
         hintKey: "kindTaskUpdateHint",
+        important: false,
+        email: false,
       },
     ],
   },
@@ -96,16 +140,22 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "CHAT_ROOM_MESSAGE",
         labelKey: "kindChatRoomMessage",
         hintKey: "kindChatRoomMessageHint",
+        important: false,
+        email: false,
       },
       {
         category: "CHAT_MENTION",
         labelKey: "kindChatMention",
         hintKey: "kindChatMentionHint",
+        important: true,
+        email: false,
       },
       {
         category: "CHAT_DIRECT_MESSAGE",
         labelKey: "kindChatDirectMessage",
         hintKey: "kindChatDirectMessageHint",
+        important: true,
+        email: false,
       },
     ],
   },
@@ -113,71 +163,234 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
     id: "SYSTEM",
     labelKey: "kindSystem",
     kinds: [
-      { category: "SYSTEM", labelKey: "kindSystem", hintKey: "kindSystemHint" },
+      {
+        category: "SYSTEM",
+        labelKey: "kindSystem",
+        hintKey: "kindSystemHint",
+        important: true,
+        email: false,
+      },
     ],
   },
 ];
 
-/**
- * What one kind's stored cells describe.
- *
- * A banner with the in-app cell off still arrives loudly, so it reads as a
- * banner. Writing that kind again normalises it, which loses a combination the
- * two switches could express and nobody asked for.
- */
-export function categoryDelivery(
+/** The channels one kind is currently set to arrive on. */
+export function categoryChannels(
   cells: readonly NotificationPreference[],
   category: NotificationCategory,
-): Delivery {
-  const mine = cells.filter((cell) => cell.category === category);
-
-  if (mine.some((cell) => cell.channel === "OS_BANNER" && cell.enabled)) {
-    return "BANNER";
-  }
-
-  return mine.some((cell) => cell.enabled) ? "IN_APP" : "OFF";
-}
-
-/** What a group's control shows: one answer, or that its kinds disagree. */
-export function groupDelivery(
-  cells: readonly NotificationPreference[],
-  kinds: readonly KindSpec[],
-): GroupDelivery {
-  const deliveries = kinds.map((kind) =>
-    categoryDelivery(cells, kind.category),
+): StoredChannel[] {
+  return STORED_CHANNELS.filter((channel) =>
+    cells.some(
+      (cell) =>
+        cell.category === category && cell.channel === channel && cell.enabled,
+    ),
   );
-  const first = deliveries[0];
-
-  return first !== undefined && deliveries.every((one) => one === first)
-    ? first
-    : "MIXED";
 }
 
 /**
- * The channels each step lights up.
+ * The same channels, however each side names them.
  *
- * Written out rather than derived, so a channel Core adds later stays off
- * until someone decides which step it belongs to.
+ * The row reads it to tell its own write from someone else's.
+ *
+ * Asked one channel at a time rather than by comparing the two lists, so
+ * neither the order nor a repeated entry can make two different sets look
+ * alike. Every caller here builds its list from `STORED_CHANNELS` and so can
+ * do neither, but this way that stays a fact about the callers rather than
+ * something this function needs to be true.
  */
-const DELIVERY_CHANNELS: Record<
-  Delivery,
-  readonly NotificationPreference["channel"][]
-> = {
-  OFF: [],
-  IN_APP: ["IN_APP"],
-  BANNER: ["IN_APP", "OS_BANNER"],
+export function sameChannels(
+  left: readonly StoredChannel[],
+  right: readonly StoredChannel[],
+): boolean {
+  return STORED_CHANNELS.every(
+    (channel) => left.includes(channel) === right.includes(channel),
+  );
+}
+
+/**
+ * One kind's channels with `channel` added or removed, in the row's order.
+ *
+ * A push carries the in-app entry with it, in both directions: turning the
+ * push on turns the entry on, and turning the entry off turns the push off. A
+ * push that leaves nothing behind is a notification the reader cannot find
+ * again once the banner is gone, because the feed and the unread count both
+ * read the in-app cell. So the row does not offer that pairing.
+ *
+ * The entry on its own stays available, which is the quiet answer: it does not
+ * interrupt. Chat is the exception, and not one this page can fix: `CHAT` is a
+ * browser-only kind, so it never reaches the feed whatever its in-app cell
+ * says. The cells still write honestly; no hint here promises an entry that
+ * waits.
+ */
+export function withChannel(
+  channels: readonly StoredChannel[],
+  channel: StoredChannel,
+  on: boolean,
+): StoredChannel[] {
+  const next = new Set(channels);
+
+  if (on) {
+    next.add(channel);
+  } else {
+    next.delete(channel);
+  }
+
+  if (channel === "OS_BANNER" && on) {
+    next.add("IN_APP");
+  }
+
+  if (channel === "IN_APP" && !on) {
+    next.delete("OS_BANNER");
+  }
+
+  return STORED_CHANNELS.filter((candidate) => next.has(candidate));
+}
+
+/**
+ * The answers a group's own control offers.
+ *
+ * Ordered loudest first, and each one means the same thing in every group:
+ * everything, only what waits on you, only what waits on you and quietly, or
+ * nothing. What they write differs by group, because what waits on you differs
+ * by group.
+ */
+export const PRESETS = ["EVERYTHING", "IMPORTANT", "QUIET", "OFF"] as const;
+export type Preset = (typeof PRESETS)[number];
+
+/** A group whose kinds match no preset. Reported, never written. */
+export type PresetState = Preset | "CUSTOM";
+
+export const PRESET_LABEL_KEY: Record<PresetState, string> = {
+  EVERYTHING: "presetEverything",
+  IMPORTANT: "presetImportant",
+  QUIET: "presetQuiet",
+  OFF: "presetOff",
+  CUSTOM: "presetCustom",
 };
 
-/** The cells one delivery writes for the given categories. */
+export const PRESET_HINT_KEY: Record<PresetState, string> = {
+  EVERYTHING: "presetEverythingHint",
+  IMPORTANT: "presetImportantHint",
+  QUIET: "presetQuietHint",
+  OFF: "presetOffHint",
+  CUSTOM: "presetCustomHint",
+};
+
+/** The channels one preset sets one kind to. */
+export function presetChannels(
+  preset: Preset,
+  kind: KindSpec,
+): StoredChannel[] {
+  if (preset === "OFF") {
+    return [];
+  }
+
+  if (preset === "EVERYTHING") {
+    return ["IN_APP", "OS_BANNER"];
+  }
+
+  if (!kind.important) {
+    return [];
+  }
+
+  return preset === "IMPORTANT" ? ["IN_APP", "OS_BANNER"] : ["IN_APP"];
+}
+
+/**
+ * Whether these channels silence the group.
+ *
+ * The one tie `PRESETS` order settles wrongly. That order runs loudest first,
+ * so the loudest preset writing a shape is the one that describes it, except
+ * at the quiet end: a group of kinds that none of them wait on the reader is
+ * silenced by Important as well, and Important is not what a reader calls a
+ * stop that silences a group.
+ */
+function silencesEverything(shape: readonly StoredChannel[][]): boolean {
+  return shape.every((channels) => channels.length === 0);
+}
+
+/**
+ * The presets worth showing for this group.
+ *
+ * A group whose kinds all wait on the reader cannot tell "Everything" from
+ * "Important": both write the same cells, and a control that never changes
+ * anything reads as broken. So a preset that writes what another one writes is
+ * dropped rather than explained.
+ *
+ * Which of the two survives is the one whose name describes what it writes:
+ * the loudest, since `PRESETS` runs loudest first, except where the shape
+ * silences the group (`silencesEverything`).
+ */
+export function groupPresets(kinds: readonly KindSpec[]): Preset[] {
+  const shapeOf = (preset: Preset): StoredChannel[][] =>
+    kinds.map((kind) => presetChannels(preset, kind));
+  const keyOf = (preset: Preset): string =>
+    shapeOf(preset)
+      .map((channels) => channels.join("+"))
+      .join("|");
+  const kept = new Map<string, Preset>();
+
+  for (const preset of PRESETS) {
+    const key = keyOf(preset);
+    kept.set(
+      key,
+      silencesEverything(shapeOf(preset)) ? "OFF" : (kept.get(key) ?? preset),
+    );
+  }
+
+  return PRESETS.filter((preset) => kept.get(keyOf(preset)) === preset);
+}
+
+/** Which preset the group is on, or that the reader set its kinds one by one. */
+export function groupPreset(
+  cells: readonly NotificationPreference[],
+  kinds: readonly KindSpec[],
+): PresetState {
+  return (
+    groupPresets(kinds).find((preset) =>
+      kinds.every((kind) =>
+        sameChannels(
+          categoryChannels(cells, kind.category),
+          presetChannels(preset, kind),
+        ),
+      ),
+    ) ?? "CUSTOM"
+  );
+}
+
+/** One category, and the channels the reader wants it on. */
+export interface DeliveryChange {
+  category: NotificationCategory;
+  channels: readonly StoredChannel[];
+}
+
+/**
+ * The cells a set of changes writes.
+ *
+ * A channel set per category rather than one for all of them, because a preset
+ * sets the kinds of a group to different things and has to write them in one
+ * request.
+ */
 export function cellsFor(
   cells: readonly NotificationPreference[],
-  categories: readonly NotificationCategory[],
-  delivery: Delivery,
+  changes: readonly DeliveryChange[],
 ): NotificationPreference[] {
-  return cells
-    .filter((cell) => categories.includes(cell.category))
-    .map((cell) => ({
-      ...cell,
-      enabled: DELIVERY_CHANNELS[delivery].includes(cell.channel),
-    }));
+  return cells.flatMap((cell) => {
+    const change = changes.find((one) => one.category === cell.category);
+
+    return change
+      ? [{ ...cell, enabled: change.channels.includes(cell.channel) }]
+      : [];
+  });
+}
+
+/** The changes a preset writes for a group. */
+export function presetChanges(
+  preset: Preset,
+  kinds: readonly KindSpec[],
+): DeliveryChange[] {
+  return kinds.map((kind) => ({
+    category: kind.category,
+    channels: presetChannels(preset, kind),
+  }));
 }

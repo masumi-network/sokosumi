@@ -36,7 +36,7 @@ export function getAblyRealtimeClient(): Ably.Realtime {
     // Plugins are constructor-only in ably-js, so push rides the shared client
     // rather than a second one. Every route reaches this module through a
     // dynamic import (`contexts/lazy-ably-provider.tsx` for realtime,
-    // `loadPushActivation` for the settings switch), so the SDK stays out of
+    // `loadPushActivation` for the account page), so the SDK stays out of
     // the bundles that never use it.
     plugins: { Push },
     pushServiceWorkerUrl: NOTIFICATION_SERVICE_WORKER_URL,
