@@ -10,11 +10,6 @@ import {
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useState } from "react";
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   CHANNEL_SPECS,
@@ -24,24 +19,6 @@ import {
   sameChannels,
 } from "./notification-delivery";
 import type { KindChoice } from "./use-notification-delivery";
-
-/**
- * The beat a tooltip waits before it opens.
- *
- * The cells sit 8px apart and the answers on the rail beside them sit flush,
- * so a pointer on its way across either crosses every one of them. Opening on
- * contact, each would flash its words and the row would read as a strip of
- * blinking text. A reader who means to read one holds still for longer.
- */
-export const TIP_DELAY_MS = 200;
-
-/**
- * The gap between a tooltip and what it belongs to.
- *
- * Clear of the trigger, so the slide has somewhere to come from and the arrow
- * is not resting on the border it points at.
- */
-export const TIP_OFFSET_PX = 6;
 
 /**
  * A cell's shape, and the properties it may animate.
@@ -84,7 +61,7 @@ const CELL_DEAD = "text-muted-foreground/45 cursor-default border-transparent";
  * the specs carry the other half in a comment, since a plain array cannot
  * check itself.
  */
-const CHANNEL_ICON: Record<StoredChannel, LucideIcon> = {
+export const CHANNEL_ICON: Record<StoredChannel, LucideIcon> = {
   IN_APP: Bell,
   OS_BANNER: Smartphone,
 };
@@ -127,28 +104,6 @@ export function ColumnHeads() {
 }
 
 /**
- * The columns, named once for the whole card.
- *
- * Every row right-aligns its cells into the same column, so one line of names
- * covers all of them. Repeated over each group they read as a stray line of
- * small text, and each copy pushed the block under it down by its own height.
- *
- * The names sit on their line's floor: a channel whose name wraps in one
- * language would otherwise lift its own column, and the heads would read on
- * two lines of sight.
- */
-export function ColumnHeadRow() {
-  return (
-    <div
-      aria-hidden="true"
-      className="hidden items-end justify-end gap-2 px-4 pt-3 pb-2 sm:flex"
-    >
-      <ColumnHeads />
-    </div>
-  );
-}
-
-/**
  * A cell with nothing to press, and a reason a reader can reach.
  *
  * Kept in the row rather than dropped, so the column has no hole in it and the
@@ -169,24 +124,22 @@ export function DeadCell({
 
   return (
     <>
-      <Tooltip delayDuration={TIP_DELAY_MS}>
-        {/* Stays in the tab order. A reader who never uses a mouse would
-            otherwise pass the row and never learn that this channel is one of
-            the places a notification can reach them. */}
-        <TooltipTrigger
-          type="button"
-          aria-disabled="true"
-          aria-label={label}
-          aria-describedby={hintId}
-          className={cn(CELL, CELL_DEAD)}
-        >
-          <Icon className="size-4" aria-hidden="true" />
-        </TooltipTrigger>
-        <TooltipContent sideOffset={TIP_OFFSET_PX}>{hint}</TooltipContent>
-      </Tooltip>
+      {/* Stays in the tab order. A reader who never uses a mouse would
+          otherwise pass the row and never learn that this channel is one of
+          the places a notification can reach them. */}
+      <button
+        type="button"
+        aria-disabled="true"
+        aria-label={label}
+        aria-describedby={hintId}
+        className={cn(CELL, CELL_DEAD)}
+      >
+        <Icon className="size-4" aria-hidden="true" />
+      </button>
       {/* Hidden from the tree and still read: a description is computed from
           the element it points at, whether or not that element is in the tree.
-          Left in it, the row reads the same sentence twice. */}
+          The column heads carry the same words for a reader who can see them,
+          so a panel here would be the third copy of one sentence. */}
       <span aria-hidden="true" id={hintId} className="sr-only">
         {hint}
       </span>
@@ -225,8 +178,8 @@ export function UnusedChannelCells({ kind }: { kind: string }) {
  *
  * What it writes is an account switch rather than a cell of the matrix, so one
  * value can sit on more than one row: both job rows hold the job emails and
- * move together. The cell says that in its own description rather than leaving
- * the reader to discover it by pressing.
+ * move together. The Email head over the column says so, once for the card,
+ * rather than every cell in it saying so again.
  *
  * It does not speak what it wrote. The write behind it raises a toast, and the
  * toast names the account switch that moved, which is the fact a reader on a
@@ -236,7 +189,6 @@ export function UnusedChannelCells({ kind }: { kind: string }) {
  */
 export function EmailCell({
   name,
-  hint,
   describedById,
   email,
 }: {
@@ -247,11 +199,6 @@ export function EmailCell({
    */
   name: string;
   /**
-   * What the switch reaches, when the row does not already say it on screen.
-   * Shown as a tooltip and read as the description.
-   */
-  hint?: string;
-  /**
    * The row's own visible sentence, for a row that already carries one. The
    * cell describes itself with that element rather than repeating it, and a
    * cell with neither would be the only one in the grid a reader meets
@@ -260,10 +207,7 @@ export function EmailCell({
   describedById?: string;
   email: EmailChoice;
 }) {
-  const ownHintId = useId();
-  const describedBy = hint ? ownHintId : describedById;
-
-  const button = (
+  return (
     <button
       type="button"
       aria-pressed={email.enabled}
@@ -272,7 +216,7 @@ export function EmailCell({
       // to one name. What that shared value reaches is said in the
       // description instead.
       aria-label={name}
-      aria-describedby={describedBy}
+      aria-describedby={describedById}
       onClick={() => {
         if (email.saving) {
           return;
@@ -289,25 +233,6 @@ export function EmailCell({
     >
       <Mail className="size-4" aria-hidden="true" />
     </button>
-  );
-
-  // Wrapped only when there is something to show. A trigger with no content
-  // still points its description at the content's id, so a bare wrapper leaves
-  // the cell describing an element that was never rendered.
-  if (!hint) {
-    return button;
-  }
-
-  return (
-    <>
-      <Tooltip delayDuration={TIP_DELAY_MS}>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent sideOffset={TIP_OFFSET_PX}>{hint}</TooltipContent>
-      </Tooltip>
-      <span aria-hidden="true" id={ownHintId} className="sr-only">
-        {hint}
-      </span>
-    </>
   );
 }
 
@@ -417,42 +342,36 @@ function KindCells({
         const blocked = spec.id === "OS_BANNER" && pushHint !== null;
 
         return (
-          <Tooltip key={spec.id} delayDuration={TIP_DELAY_MS}>
-            <TooltipTrigger
-              type="button"
-              aria-pressed={pressed}
-              aria-disabled={saving || undefined}
-              aria-label={t("channelCellLabel", {
-                channel: t(spec.labelKey),
-                kind: label,
-              })}
-              // Spread rather than set to undefined. The trigger writes its
-              // own `aria-describedby` for the tooltip, and this prop is
-              // applied over it: an undefined here deletes it, and every cell
-              // that is not blocked loses the one sentence that says what its
-              // column means to a reader who cannot see the tooltip.
-              {...(blocked ? { "aria-describedby": pushHintId } : {})}
-              onClick={() => {
-                if (saving) {
-                  return;
-                }
+          <button
+            key={spec.id}
+            type="button"
+            aria-pressed={pressed}
+            aria-disabled={saving || undefined}
+            aria-label={t("channelCellLabel", {
+              channel: t(spec.labelKey),
+              kind: label,
+            })}
+            // Only the cell nothing can arrive on carries a reason. What the
+            // column is for is said once, by the head over it, rather than
+            // thirty times over the cells under it.
+            aria-describedby={blocked ? pushHintId : undefined}
+            onClick={() => {
+              if (saving) {
+                return;
+              }
 
-                setAwaiting(true);
-                onToggle(spec.id, !pressed);
-              }}
-              className={cn(
-                CELL,
-                CELL_PRESS,
-                saving && "opacity-50",
-                pressed ? CELL_ON : CELL_OFF,
-              )}
-            >
-              <Icon className="size-4" aria-hidden="true" />
-            </TooltipTrigger>
-            <TooltipContent sideOffset={TIP_OFFSET_PX}>
-              {blocked ? pushHint : t(spec.hintKey)}
-            </TooltipContent>
-          </Tooltip>
+              setAwaiting(true);
+              onToggle(spec.id, !pressed);
+            }}
+            className={cn(
+              CELL,
+              CELL_PRESS,
+              saving && "opacity-50",
+              pressed ? CELL_ON : CELL_OFF,
+            )}
+          >
+            <Icon className="size-4" aria-hidden="true" />
+          </button>
         );
       })}
       {/* Hidden from the tree and still read, the way a dead cell carries its
@@ -468,7 +387,6 @@ function KindCells({
             channel: t("channelEmail"),
             kind: label,
           })}
-          hint={t("channelEmailHint")}
           email={email}
         />
       ) : (

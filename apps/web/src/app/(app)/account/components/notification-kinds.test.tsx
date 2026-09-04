@@ -1,5 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -199,9 +206,37 @@ function written(category: string, channel: string) {
   )?.enabled;
 }
 
+/**
+ * Opens every row that is still folded.
+ *
+ * The cells live inside the fold now, so a test that reaches for one means
+ * the row it is in. The accessors below open it rather than every test
+ * spelling out the press that gets there, and a test about the folded state
+ * never asks for a cell and so never opens anything.
+ *
+ * The Custom chip is a trigger for the same fold as the row it sits beside,
+ * so pressing it here would close what the row's own trigger just opened.
+ */
+function openFolds() {
+  for (const trigger of screen.queryAllByRole("button", { expanded: false })) {
+    if (
+      trigger.dataset.slot === "collapsible-trigger" &&
+      !trigger.textContent?.startsWith("scopeCustom")
+    ) {
+      fireEvent.click(trigger);
+    }
+  }
+}
+
 /** Translations are mocked to the key, so the aria-label is key plus values. */
 function stops(kind: string) {
-  return screen.getByRole("group", { name: `deliveryAriaLabel ${kind}` });
+  const name = `deliveryAriaLabel ${kind}`;
+
+  if (!screen.queryByRole("group", { name })) {
+    openFolds();
+  }
+
+  return screen.getByRole("group", { name });
 }
 
 /** A group's one question: which of its kinds arrive. */
@@ -252,14 +287,22 @@ function emailCell(kind: string) {
 
 /** The marketing row, which names itself rather than naming a kind. */
 function newsRow() {
+  if (!screen.queryByRole("group", { name: "newsDeliveryAriaLabel" })) {
+    openFolds();
+  }
+
   return screen.getByRole("group", { name: "newsDeliveryAriaLabel" });
 }
 
 /** The account switch on a row of its own, when no kind row carries it. */
 function fallbackEmailCell() {
-  return screen.getByRole("button", {
-    name: "channelEmailLabel",
-  });
+  const name = "channelEmailLabel";
+
+  if (!screen.queryByRole("button", { name })) {
+    openFolds();
+  }
+
+  return screen.getByRole("button", { name });
 }
 
 /** What a screen reader reads out after the control's own name. */
@@ -556,9 +599,9 @@ describe("NotificationKinds", () => {
       "true",
     );
     expect(emailCell("kindJobUpdate")).toHaveAttribute("aria-pressed", "true");
-    // One value behind three rows is the thing a reader cannot see, so every
-    // cell says it after its own name.
-    expect(describedBy(emailCell("kindJobUpdate"))).toBe("channelEmailHint");
+    // One value behind three rows is the thing a reader cannot see, and the
+    // Email head over the column is where the card says it, once.
+    expect(describedBy(emailCell("kindJobUpdate"))).toBeUndefined();
     // On is filled and off is outlined, so the answer survives without colour.
     expect(emailCell("kindJobUpdate")).toHaveClass("bg-primary");
 
@@ -627,12 +670,15 @@ describe("NotificationKinds", () => {
     await openGroup("groupJob");
 
     // Every column, not just the first: a head that went missing entirely
-    // would leave the eye a nameless column and read as nothing at all.
+    // would leave the eye a nameless column and read as nothing at all. One
+    // copy of each is the control that explains it, and the copies the narrow
+    // rows carry stay out of the tree, or a reader would meet the word once
+    // per row.
     for (const channel of ["channelInApp", "channelPush", "channelEmail"]) {
       const heads = screen.getAllByText(channel);
 
-      expect(heads.length).toBeGreaterThan(0);
-      for (const head of heads) {
+      expect(heads.filter((head) => head.tagName === "BUTTON")).toHaveLength(1);
+      for (const head of heads.filter((head) => head.tagName !== "BUTTON")) {
         expect(head.closest('[aria-hidden="true"]')).not.toBeNull();
       }
     }
@@ -685,11 +731,11 @@ describe("NotificationKinds", () => {
    * the moment it opens, whether or not the tooltip has any content, so this
    * walks the card with every cell open as well as at rest.
    */
-  it("describes every cell with something that is on the page", async () => {
-    const user = userEvent.setup();
+  it("describes only the cells that need more than their name", async () => {
+    isBlocked = true;
     renderKinds();
 
-    await openGroup("groupJob");
+    openFolds();
 
     const cells = screen
       .getAllByRole("button")
@@ -697,21 +743,27 @@ describe("NotificationKinds", () => {
 
     expect(cells.length).toBeGreaterThan(0);
     for (const cell of cells) {
-      // Waited for, because a trigger writes its description when it opens
-      // and not before. Read on the way past, every cell would look
-      // undescribed and this would pass without seeing anything.
-      await user.hover(cell);
+      const id = cell.getAttribute("aria-describedby");
 
-      await waitFor(() => {
-        expect(cell).toHaveAttribute("aria-describedby");
-      });
-
-      const id = cell.getAttribute("aria-describedby") ?? "";
-
-      expect(document.getElementById(id)).not.toBeNull();
-
-      await user.unhover(cell);
+      // A description that points at nothing is worse than none: a reader is
+      // told there is more and then hears silence.
+      if (id) {
+        expect(document.getElementById(id)).not.toBeNull();
+      }
     }
+
+    // The two that need one: the column nothing can arrive on in this
+    // browser, and the columns a row never uses at all.
+    expect(describedBy(cellFor("kindSystem", "channelPush"))).toContain(
+      "pushBlockedHint",
+    );
+    expect(
+      describedBy(
+        within(newsRow()).getByRole("button", {
+          name: "channelUnavailableLabel channelInApp marketingEmailsTitle",
+        }),
+      ),
+    ).toBe("marketingEmailOnlyHint");
   });
 
   /**
@@ -801,13 +853,17 @@ describe("NotificationKinds", () => {
   it("names the kind in every control that mails nothing", async () => {
     renderKinds();
 
-    await openGroup("groupChat");
+    // Chat's three kinds and the access request sit in two different folds.
+    openFolds();
 
     expect(
       screen
         .getAllByRole("button", { name: /^channelEmailSoonLabel/ })
         .map((button) => button.getAttribute("aria-label")),
     ).toEqual([
+      "channelEmailSoonLabel kindTaskAttention",
+      "channelEmailSoonLabel kindTaskCompleted",
+      "channelEmailSoonLabel kindTaskUpdate",
       "channelEmailSoonLabel kindChatRoomMessage",
       "channelEmailSoonLabel kindChatMention",
       "channelEmailSoonLabel kindChatDirectMessage",
@@ -1217,20 +1273,21 @@ describe("NotificationKinds", () => {
    * attribute itself, to anything at all, would take the sentence away from
    * every reader who cannot see the tooltip open.
    */
-  it("keeps the tooltip's own description on a cell that is not blocked", async () => {
+  it("leaves an ordinary cell to its name, and explains the column once", async () => {
     const user = userEvent.setup();
     renderKinds();
 
-    const cell = cellFor("kindSystem", "channelInApp");
+    // Thirty cells that each carry the same sentence is thirty readings of
+    // it. The head over the column says it, and says it once.
+    expect(cellFor("kindSystem", "channelInApp")).not.toHaveAttribute(
+      "aria-describedby",
+    );
 
-    expect(cell).not.toHaveAttribute("aria-describedby");
+    await user.click(screen.getByRole("button", { name: "channelInApp" }));
 
-    await user.hover(cell);
-
-    await waitFor(() => {
-      expect(cell).toHaveAttribute("aria-describedby");
-    });
-    expect(describedBy(cell)).toContain("channelInAppHint");
+    expect(await screen.findByRole("dialog")).toHaveTextContent(
+      "channelInAppHint",
+    );
   });
 
   /**
@@ -1250,15 +1307,16 @@ describe("NotificationKinds", () => {
       "channelPushHint pushBlockedHint pushOtherDevicesHint",
     );
 
-    // The same words a sighted reader gets. Left on the generic channel hint,
-    // the cell would say what a push is for while doing nothing here.
-    await user.hover(cell);
+    // The same words a sighted reader gets, from the head over the column
+    // rather than from the cell: a reason on every cell of a blocked column
+    // is the same sentence three rows deep.
+    await user.click(screen.getByRole("button", { name: "channelPush" }));
 
-    await waitFor(() => {
-      expect(screen.getByRole("tooltip")).toHaveTextContent(
-        "channelPushHint pushBlockedHint pushOtherDevicesHint",
-      );
-    });
+    const explained = await screen.findByRole("dialog");
+
+    expect(explained).toHaveTextContent("channelPushHint");
+    expect(explained).toHaveTextContent("pushBlockedHint");
+    expect(explained).toHaveTextContent("pushOtherDevicesHint");
   });
 
   it("says the browser cannot push before it says it is blocked", () => {
