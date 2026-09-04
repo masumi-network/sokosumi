@@ -226,13 +226,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 name: member.coworker.name,
               }))
             : [];
-        const priorSokoBots =
-          body.sokoBotIds !== undefined
-            ? existing.sokoBotMembers.map((member) => ({
-                id: member.sokoBot.id,
-                name: sokoBotDisplayName(member.sokoBot),
-              }))
-            : [];
+        const priorSokoBots = existing.sokoBotMembers.map((member) => ({
+          id: member.sokoBot.id,
+          name: sokoBotDisplayName(member.sokoBot),
+        }));
 
         let nextUsers = priorUsers;
         let nextCoworkers = priorCoworkers;
@@ -458,10 +455,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // leave the assistant behind — still mentionable by everyone, still
         // spending the departed owner's credits. Directs are exempt: a
         // colleague DM is deliberately the bot without its owner.
-        // Both rosters have to be the effective ones. `nextUsers` and
-        // `nextSokoBots` are empty whenever the caller did not send that
-        // field, and this case is reached precisely by a request that changes
-        // only one of them.
+        // Host roster starts empty when memberUserIds is omitted. Soko Bot
+        // roster starts as the live members so owner-removal can emit left.
         const effectiveUserIds =
           body.memberUserIds !== undefined
             ? nextUsers.map((user) => user.id)

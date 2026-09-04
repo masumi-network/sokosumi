@@ -34,7 +34,9 @@ export interface OpenAPIHonoWithAuthOptions {
   includeWorkspaceContext?: boolean;
   /**
    * Human org members need an assigned Seat to use this router.
-   * Personal workspace, coworker, and sokoBot actors skip the gate.
+   * Personal workspace and coworker actors skip the gate. A sokoBot
+   * skips only when organizationId is absent; an org-scoped bot is
+   * checked against the owner's userId and can 403.
    */
   requireOrganizationProductSeat?: boolean;
 }

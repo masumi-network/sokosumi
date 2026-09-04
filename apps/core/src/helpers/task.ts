@@ -72,7 +72,7 @@ export function mapTaskFile(file: TaskFileForMapping) {
     );
     if (sokoBot == null) {
       throw new Error(
-        `TaskFile ${file.id}: orchestrator uploader summary missing for API mapping`,
+        `TaskFile ${file.id}: sokoBot uploader summary missing for API mapping`,
       );
     }
     uploader = {
@@ -481,7 +481,7 @@ export function mapTaskEventActor(event: TaskEventForMapping) {
     );
     if (sokoBot == null) {
       throw new Error(
-        `Task event ${event.id}: actor orchestrator summary missing for API mapping`,
+        `Task event ${event.id}: actor sokoBot summary missing for API mapping`,
       );
     }
 
@@ -607,7 +607,7 @@ function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
     );
     if (sokoBot == null) {
       throw new Error(
-        `Task ${task.id}: creator orchestrator summary missing for API mapping`,
+        `Task ${task.id}: creator sokoBot summary missing for API mapping`,
       );
     }
 
@@ -632,7 +632,7 @@ function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
     );
     if (sokoBot == null) {
       throw new Error(
-        `Task ${task.id}: assignee orchestrator summary missing for API mapping`,
+        `Task ${task.id}: assignee sokoBot summary missing for API mapping`,
       );
     }
 

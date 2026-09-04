@@ -55,11 +55,13 @@ function buildProjectTaskFilters(params: {
   workspaceId: string;
   projectId: string | null;
   assigneeId?: string;
+  assigneeSokoBotId?: string;
   coworkerAccess?: CoworkerTaskAccessSqlParams;
 }): {
   assigneeFilter: PrismaRaw.Sql;
   projectFilter: PrismaRaw.Sql;
   coworkerFilter: PrismaRaw.Sql;
+  sokoBotFilter: PrismaRaw.Sql;
   baseWhere: PrismaRaw.Sql;
 } {
   const assigneeFilter = params.assigneeId
@@ -71,6 +73,9 @@ function buildProjectTaskFilters(params: {
       : PrismaRaw.sql`AND t."projectId" = ${params.projectId}::uuid`;
   const coworkerFilter = params.coworkerAccess
     ? buildCoworkerTaskAccessSql(params.coworkerAccess)
+    : PrismaRaw.empty;
+  const sokoBotFilter = params.assigneeSokoBotId
+    ? PrismaRaw.sql`AND t."assigneeSokoBotId" = ${params.assigneeSokoBotId}::uuid AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"`
     : PrismaRaw.empty;
 
   const baseWhere = PrismaRaw.sql`
@@ -90,12 +95,14 @@ function buildProjectTaskFilters(params: {
       ${projectFilter}
       ${assigneeFilter}
       ${coworkerFilter}
+      ${sokoBotFilter}
   `;
 
   return {
     assigneeFilter,
     projectFilter,
     coworkerFilter,
+    sokoBotFilter,
     baseWhere,
   };
 }
@@ -106,6 +113,7 @@ async function resolveProjectTaskCursorSortKey(
     workspaceId: string;
     projectId: string | null;
     assigneeId?: string;
+    assigneeSokoBotId?: string;
     coworkerAccess?: CoworkerTaskAccessSqlParams;
   },
 ): Promise<{ latestFileUpdatedAt: Date; id: string; name: string } | null> {
@@ -137,6 +145,7 @@ export async function fetchProjectTasksPage(params: {
   workspaceId: string;
   projectId: string | null;
   assigneeId?: string;
+  assigneeSokoBotId?: string;
   coworkerAccess?: CoworkerTaskAccessSqlParams;
   cursor?: string;
   take: number;
@@ -156,6 +165,7 @@ export async function fetchProjectTasksPage(params: {
       workspaceId: params.workspaceId,
       projectId: params.projectId,
       assigneeId: params.assigneeId,
+      assigneeSokoBotId: params.assigneeSokoBotId,
       coworkerAccess: params.coworkerAccess,
     });
     if (!cursorSortKey) {

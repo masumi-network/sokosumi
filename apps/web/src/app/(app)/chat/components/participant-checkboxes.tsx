@@ -23,7 +23,7 @@ export interface ParticipantCheckboxesProps {
   sokoBotIds?: string[];
   onMemberIdsChange: (ids: string[]) => void;
   onCoworkerIdsChange: (ids: string[]) => void;
-  onOrchestratorIdsChange?: (ids: string[]) => void;
+  onSokoBotIdsChange?: (ids: string[]) => void;
   membersLoadFailed: boolean;
   /** Host member who must stay on the roster (create/save caller). */
   lockedUserId?: string;
@@ -38,7 +38,7 @@ export function ParticipantCheckboxes({
   sokoBotIds = [],
   onMemberIdsChange,
   onCoworkerIdsChange,
-  onOrchestratorIdsChange,
+  onSokoBotIdsChange,
   membersLoadFailed,
   lockedUserId,
 }: ParticipantCheckboxesProps) {
@@ -72,7 +72,7 @@ export function ParticipantCheckboxes({
         .some((value) => value.toLowerCase().includes(normalizedQuery)),
     );
   }, [coworkers, normalizedQuery]);
-  const filteredOrchestrators = useMemo(() => {
+  const filteredSokoBots = useMemo(() => {
     if (!normalizedQuery) {
       return sokoBots;
     }
@@ -252,14 +252,14 @@ export function ParticipantCheckboxes({
             </div>
           ) : null}
 
-          {filteredOrchestrators.length > 0 && onOrchestratorIdsChange ? (
+          {filteredSokoBots.length > 0 && onSokoBotIdsChange ? (
             <div className="pt-1">
               <div className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
                 <Bot className="size-3" aria-hidden />
                 {t("Dialog.personalAssistants")}
               </div>
               <div className="space-y-0.5">
-                {filteredOrchestrators.map((sokoBot) => {
+                {filteredSokoBots.map((sokoBot) => {
                   const checked = sokoBotIds.includes(sokoBot.id);
 
                   return (
@@ -288,7 +288,7 @@ export function ParticipantCheckboxes({
                         className="shrink-0"
                         checked={checked}
                         onCheckedChange={(nextChecked) =>
-                          onOrchestratorIdsChange(
+                          onSokoBotIdsChange(
                             toggleId(
                               sokoBotIds,
                               sokoBot.id,
@@ -307,7 +307,7 @@ export function ParticipantCheckboxes({
           {!membersLoadFailed &&
           filteredMembers.length === 0 &&
           filteredCoworkers.length === 0 &&
-          filteredOrchestrators.length === 0 ? (
+          filteredSokoBots.length === 0 ? (
             <div className="text-muted-foreground px-4 py-12 text-center text-sm">
               {t("Draft.noResults")}
             </div>

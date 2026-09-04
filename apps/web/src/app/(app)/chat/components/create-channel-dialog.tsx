@@ -515,7 +515,7 @@ export function CreateChannelDialog() {
                     }),
                   )
                 }
-                onOrchestratorIdsChange={(sokoBotIds) =>
+                onSokoBotIdsChange={(sokoBotIds) =>
                   setWizard(
                     setSpecificMembers(wizard, {
                       memberUserIds: wizard.memberUserIds,

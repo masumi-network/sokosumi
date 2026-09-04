@@ -631,6 +631,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         workspaceId,
         projectId: projectId === "null" ? null : projectId,
         ...(assigneeId ? { assigneeId } : {}),
+        ...(isSokoBotAuthContext(authContext)
+          ? { assigneeSokoBotId: authContext.sokoBotId }
+          : {}),
         ...(coworkerAccess ? { coworkerAccess } : {}),
         ...(cursor ? { cursor } : {}),
         take,

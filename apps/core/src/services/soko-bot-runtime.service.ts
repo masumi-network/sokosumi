@@ -1187,7 +1187,7 @@ export class SokoBotRuntimeService {
       content: input.content,
       roomSokoBots: roomSokoBots.map(({ sokoBot }) => ({
         id: sokoBot.id,
-        name: sokoBot.name ?? sokoBot.id,
+        name: sokoBotDisplayName({ name: sokoBot.name, user: null }),
       })),
     });
     // Written inside the transaction, dispatched after it commits — the same

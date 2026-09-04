@@ -128,7 +128,7 @@ export function EditChannelDialog({
   const [coworkerIds, setCoworkerIds] = useState<string[]>(
     channel.coworkerMembers.map((coworker) => coworker.id),
   );
-  const [sokoBotIds, setOrchestratorIds] = useState<string[]>(
+  const [sokoBotIds, setSokoBotIds] = useState<string[]>(
     channel.sokoBotMembers.map((sokoBot) => sokoBot.id),
   );
   const [isPending, startTransition] = useTransition();
@@ -143,7 +143,7 @@ export function EditChannelDialog({
     setDiscoverability(channelDiscoverability(channel.discoverability));
     setMemberIds(hostRosterUserIds(channel));
     setCoworkerIds(channel.coworkerMembers.map((coworker) => coworker.id));
-    setOrchestratorIds(channel.sokoBotMembers.map((sokoBot) => sokoBot.id));
+    setSokoBotIds(channel.sokoBotMembers.map((sokoBot) => sokoBot.id));
     setGuestMembers(
       channel.userMembers.filter((member) => member.access === "guest"),
     );
@@ -340,7 +340,7 @@ export function EditChannelDialog({
                     lockedUserId={currentUserId}
                     onMemberIdsChange={setMemberIds}
                     onCoworkerIdsChange={setCoworkerIds}
-                    onOrchestratorIdsChange={setOrchestratorIds}
+                    onSokoBotIdsChange={setSokoBotIds}
                     membersLoadFailed={membersLoadFailed}
                   />
                 ) : null}

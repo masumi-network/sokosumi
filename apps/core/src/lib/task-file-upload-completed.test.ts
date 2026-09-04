@@ -81,7 +81,7 @@ describe("registerTaskFileFromUploadCompleted", () => {
     });
   });
 
-  it("preserves the orchestrator uploader", async () => {
+  it("preserves the soko bot uploader", async () => {
     const sokoBotId = "11111111-1111-7111-8111-111111111111";
 
     await registerTaskFileFromUploadCompleted({
@@ -89,6 +89,28 @@ describe("registerTaskFileFromUploadCompleted", () => {
       tokenPayload: tokenPayload({
         uploadedByUserId: null,
         uploadedBySokoBotId: sokoBotId,
+      }),
+      blobToken: BLOB_TOKEN,
+    });
+
+    expect(taskFileCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        uploadedByUserId: null,
+        uploadedByCoworkerId: null,
+        uploadedBySokoBotId: sokoBotId,
+      }),
+    });
+  });
+
+  it("maps a legacy uploadedByOrchestratorId token onto uploadedBySokoBotId", async () => {
+    const sokoBotId = "11111111-1111-7111-8111-111111111111";
+
+    await registerTaskFileFromUploadCompleted({
+      blob: completedBlob(),
+      tokenPayload: tokenPayload({
+        uploadedByUserId: null,
+        uploadedBySokoBotId: undefined,
+        uploadedByOrchestratorId: sokoBotId,
       }),
       blobToken: BLOB_TOKEN,
     });

@@ -410,7 +410,7 @@ try {
     where: {
       kind: "direct",
       archivedAt: null,
-      orchestratorMembers: { some: { sokoBotId: bot.id } },
+      sokoBotMembers: { some: { sokoBotId: bot.id } },
       userMembers: { some: { userId: bot.userId } },
     },
     select: { id: true },

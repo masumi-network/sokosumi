@@ -190,10 +190,12 @@ export function readMembershipFromMetadata(
     return null;
   }
   const subject = subjectRaw as Record<string, unknown>;
+  const subjectType =
+    subject.type === "orchestrator" ? "sokoBot" : subject.type;
   if (
-    (subject.type !== "user" &&
-      subject.type !== "coworker" &&
-      subject.type !== "sokoBot") ||
+    (subjectType !== "user" &&
+      subjectType !== "coworker" &&
+      subjectType !== "sokoBot") ||
     typeof subject.id !== "string" ||
     typeof subject.name !== "string"
   ) {
@@ -202,7 +204,7 @@ export function readMembershipFromMetadata(
   return {
     action: candidate.action,
     subject: {
-      type: subject.type,
+      type: subjectType,
       id: subject.id,
       name: subject.name,
     },
