@@ -6,6 +6,7 @@ import { waitUntil } from "@vercel/functions";
 
 import { getEnv } from "@/config/env";
 import {
+  badGateway,
   badRequest,
   conflict,
   forbidden,
@@ -114,7 +115,7 @@ import {
 } from "@/services/soko-bot-lab.service";
 import {
   judgeSokoBotLabTurn,
-  SokoBotLabJudgeError,
+  sokoBotLabJudgeErrorKind,
 } from "@/services/soko-bot-lab-judge.service";
 import { retimeSystemSchedules } from "@/services/soko-bot-proactive.service";
 import {
@@ -1715,6 +1716,7 @@ const judgeLabTurnRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
+    502: jsonErrorResponse("Bad Gateway"),
   },
 });
 
@@ -1727,7 +1729,15 @@ app.openapi(judgeLabTurnRoute, async (c) => {
     });
     return ok(c, sokoBotLabVerdictSchema.parse({ model, ...verdict }));
   } catch (error) {
-    if (error instanceof SokoBotLabJudgeError) throw notFound(error.message);
+    const kind = sokoBotLabJudgeErrorKind(error);
+    if (kind === "miss") {
+      throw badGateway(
+        error instanceof Error ? error.message : "Judge produced no verdict",
+      );
+    }
+    if (kind === "not_found") {
+      throw notFound(error instanceof Error ? error.message : "Not Found");
+    }
     throw error;
   }
 });
