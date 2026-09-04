@@ -239,16 +239,14 @@ const taskBaseSchema = z.object({
   assigneeId: z.string().nullable().openapi({
     example: "cow_123",
     description:
-      "Marketplace coworker assignee. Null when the assignee is an orchestrator.",
+      "Marketplace coworker assignee. Null when the assignee is a Soko Bot.",
   }),
   assigneeSokoBotId: z.string().uuid().nullable().openapi({
     example: "01960001-0001-7001-8001-000000000099",
-    description:
-      "Personal-assistant orchestrator assignee. Null when the assignee is a coworker.",
+    description: "Soko Bot assignee. Null when the assignee is a coworker.",
   }),
   assignee: z.union([taskAssigneeSchema, z.null()]).openapi({
-    description:
-      "Discriminated assignee: coworker, orchestrator, or unassigned.",
+    description: "Discriminated assignee: coworker, sokoBot, or unassigned.",
     example: null,
   }),
   /** @deprecated Marketplace-only. Use `assigneeId` or `assignee`. */
@@ -256,17 +254,17 @@ const taskBaseSchema = z.object({
     example: "cow_123",
     deprecated: true,
     description:
-      "Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.",
+      "Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.",
   }),
   /** @deprecated Marketplace-only. Use `assignee` when type is coworker. */
   coworker: z.union([coworkerSummarySchema, z.null()]).openapi({
     deprecated: true,
     description:
-      "Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.",
+      "Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.",
   }),
   creator: taskCreatorSchema.openapi({
     description:
-      "Actor that created the task. Exactly one of user, coworker, or orchestrator.",
+      "Actor that created the task. Exactly one of user, coworker, or sokoBot.",
   }),
   /** @deprecated Use `creator` when `creator.type === "sokoBot"`. */
   sokoBotId: z.string().uuid().nullable().openapi({

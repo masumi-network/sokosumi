@@ -100,7 +100,7 @@ describe("buildVisibleTaskLinksInclude", () => {
     });
   });
 
-  it("scopes orchestrator peers to its assigned non-draft tasks", () => {
+  it("scopes soko bot peers to its assigned non-draft tasks", () => {
     const include = buildVisibleTaskLinksInclude(
       {
         actor: "sokoBot",

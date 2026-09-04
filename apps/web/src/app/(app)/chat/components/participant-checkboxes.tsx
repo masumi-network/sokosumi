@@ -3,7 +3,7 @@
 import { Bot, Search, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import type { ChatComposeOrchestrator } from "@/app/chat/actions";
+import type { ChatComposeSokoBot } from "@/app/chat/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { toggleId } from "./room-helpers";
 export interface ParticipantCheckboxesProps {
   members: Member[];
   coworkers: Coworker[];
-  sokoBots?: ChatComposeOrchestrator[];
+  sokoBots?: ChatComposeSokoBot[];
   memberIds: string[];
   coworkerIds: string[];
   sokoBotIds?: string[];

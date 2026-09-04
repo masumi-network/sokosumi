@@ -1372,7 +1372,7 @@ describe("SokoBotRuntimeService authorization", () => {
     );
   });
 
-  it("resumes its own assigned Task and fans out the orchestrator event", async () => {
+  it("resumes its own assigned Task and fans out the soko bot event", async () => {
     transactionTaskFindFirstMock.mockResolvedValue({
       id: "task_1",
       name: "Launch",

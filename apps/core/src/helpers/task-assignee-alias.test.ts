@@ -70,7 +70,7 @@ describe("refineAssigneeIdAliasConflict", () => {
 });
 
 describe("refineAssigneeXorConflict", () => {
-  it("allows an empty coworker id with an orchestrator assignee", () => {
+  it("allows an empty coworker id with a soko bot assignee", () => {
     const issues: Array<{ message: string }> = [];
     refineAssigneeXorConflict(
       { assigneeId: "", assigneeSokoBotId: "bot-1" },
@@ -94,7 +94,7 @@ describe("refineAssigneeXorConflict", () => {
 });
 
 describe("nextAssigneeWrite", () => {
-  it("treats an empty coworker id as absent so an orchestrator write sticks", () => {
+  it("treats an empty coworker id as absent so a soko bot write sticks", () => {
     expect(
       nextAssigneeWrite({
         assigneeId: "",
@@ -113,7 +113,7 @@ describe("nextAssigneeWrite", () => {
     });
   });
 
-  it("writes a coworker assignee and clears the orchestrator", () => {
+  it("writes a coworker assignee and clears the soko bot", () => {
     expect(nextAssigneeWrite({ assigneeId: "cow_1" })).toEqual({
       assigneeId: "cow_1",
       assigneeSokoBotId: null,

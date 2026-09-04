@@ -22,9 +22,9 @@ import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-ve
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   getCoworkerOptions,
-  type OwnerOrchestratorCopy,
+  type OwnerSokoBotCopy,
   taskFormAssigneeId,
-  withOwnerOrchestratorOption,
+  withOwnerSokoBotOption,
 } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
@@ -452,8 +452,7 @@ async function TaskOverviewSection({
           updated: t("updated"),
           schedule: t("schedule"),
           personalAssistantFallback: tTasks("personalAssistant"),
-          formatOrchestratorRole: (values) =>
-            t("actorOrchestratorRole", values),
+          formatSokoBotRole: (values) => t("actorSokoBotRole", values),
         }}
       />
     </>
@@ -686,7 +685,7 @@ async function TaskActivitySectionContent({
       submitLabel={t("submit")}
       actorCoworkerLabel={t("actorCoworker")}
       actorUserLabel={t("actorUser")}
-      actorOrchestratorLabel={t("actorOrchestrator")}
+      actorSokoBotLabel={t("actorSokoBot")}
       actorSystemLabel={t("actorSystem")}
       actionCommentedLabel={t("actionCommented")}
       actionUpdatedStatusLabel={t("actionUpdatedStatus")}
@@ -718,7 +717,7 @@ function buildTaskDetailContext(
   agents: AgentsResult,
   ownerBot: OwnerBotResult | null,
   personalAssistantFallback: string,
-  orchestratorCopy: OwnerOrchestratorCopy,
+  sokoBotCopy: OwnerSokoBotCopy,
 ) {
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
@@ -733,10 +732,10 @@ function buildTaskDetailContext(
       personalAssistantFallback,
     ),
     agentNameById: buildAgentNameById(agents),
-    coworkerOptions: withOwnerOrchestratorOption(
+    coworkerOptions: withOwnerSokoBotOption(
       getCoworkerOptions(coworkers),
       ownerBot,
-      orchestratorCopy,
+      sokoBotCopy,
     ),
   };
 }

@@ -21,7 +21,7 @@ const taskFileUploaderCoworkerSchema = z
   })
   .openapi("TaskFileUploaderCoworker");
 
-const taskFileUploaderOrchestratorSchema = z
+const taskFileUploaderSokoBotSchema = z
   .object({
     type: z.literal("sokoBot"),
     id: z.string().uuid().openapi({
@@ -35,7 +35,7 @@ export const taskFileUploaderSchema = z
   .discriminatedUnion("type", [
     taskFileUploaderUserSchema,
     taskFileUploaderCoworkerSchema,
-    taskFileUploaderOrchestratorSchema,
+    taskFileUploaderSokoBotSchema,
   ])
   .openapi("TaskFileUploader");
 

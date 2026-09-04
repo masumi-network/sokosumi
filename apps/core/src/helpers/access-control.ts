@@ -443,7 +443,7 @@ export async function requireTaskAssignableSokoBot(
     select: { id: true, userId: true },
   });
   if (!bot) {
-    throw notFound("Orchestrator is not usable in this workspace");
+    throw notFound("Soko Bot is not usable in this workspace");
   }
   if (!assigner) return;
   const isOwner =
@@ -600,20 +600,20 @@ async function requireCoworkerAssignedTaskRead(
   return task;
 }
 
-async function requireOrchestratorTaskRead(
+async function requireSokoBotTaskRead(
   sokoBotId: string,
   taskId: string,
   workspaceId: string,
   tx?: Prisma.TransactionClient,
 ): Promise<Task>;
-async function requireOrchestratorTaskRead<I extends Prisma.TaskInclude>(
+async function requireSokoBotTaskRead<I extends Prisma.TaskInclude>(
   sokoBotId: string,
   taskId: string,
   workspaceId: string,
   tx: Prisma.TransactionClient,
   include: I,
 ): Promise<Prisma.TaskGetPayload<{ include: I }>>;
-async function requireOrchestratorTaskRead(
+async function requireSokoBotTaskRead(
   sokoBotId: string,
   taskId: string,
   workspaceId: string,
@@ -683,7 +683,7 @@ export async function requireTaskCollaboration(
   }
 
   if (isSokoBotAuthContext(authContext)) {
-    const task = await requireOrchestratorTaskRead(
+    const task = await requireSokoBotTaskRead(
       authContext.sokoBotId,
       taskId,
       authContext.workspaceId,
@@ -750,7 +750,7 @@ export async function requireTaskCommentAccess(
   }
 
   if (isSokoBotAuthContext(authContext)) {
-    const task = await requireOrchestratorTaskRead(
+    const task = await requireSokoBotTaskRead(
       authContext.sokoBotId,
       taskId,
       authContext.workspaceId,
@@ -885,7 +885,7 @@ export async function requireTaskReadForRouteVars(
 
   if (isSokoBotAuthContext(authContext)) {
     if (include) {
-      return await requireOrchestratorTaskRead(
+      return await requireSokoBotTaskRead(
         authContext.sokoBotId,
         taskId,
         authContext.workspaceId,
@@ -893,7 +893,7 @@ export async function requireTaskReadForRouteVars(
         include,
       );
     }
-    return await requireOrchestratorTaskRead(
+    return await requireSokoBotTaskRead(
       authContext.sokoBotId,
       taskId,
       authContext.workspaceId,
@@ -1097,7 +1097,7 @@ async function assertCoworkerCanReadJob(
   await requireCoworkerTaskRead(coworker, job.taskId, job.workspaceId, tx);
 }
 
-async function assertOrchestratorCanAccessJob(
+async function assertSokoBotCanAccessJob(
   sokoBotId: string,
   workspaceId: string,
   job: Job,
@@ -1107,7 +1107,7 @@ async function assertOrchestratorCanAccessJob(
     throw forbidden("You can only access jobs assigned to your Soko Bot");
   }
 
-  await requireOrchestratorTaskRead(sokoBotId, job.taskId, workspaceId, tx);
+  await requireSokoBotTaskRead(sokoBotId, job.taskId, workspaceId, tx);
 }
 
 /**
@@ -1136,7 +1136,7 @@ export async function requireJobReadForRouteVars(
     if (!job) {
       throw notFound("Job not found");
     }
-    await assertOrchestratorCanAccessJob(
+    await assertSokoBotCanAccessJob(
       authContext.sokoBotId,
       authContext.workspaceId,
       job,
@@ -1214,7 +1214,7 @@ export async function requireJobCollaboration(
     if (!job) {
       throw notFound("Job not found");
     }
-    await assertOrchestratorCanAccessJob(
+    await assertSokoBotCanAccessJob(
       authContext.sokoBotId,
       authContext.workspaceId,
       job,

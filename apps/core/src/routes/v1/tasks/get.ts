@@ -131,7 +131,7 @@ const query = z
       .optional()
       .openapi({
         param: { name: "assigneeSokoBotId", in: "query" },
-        description: "Filter tasks by personal-assistant orchestrator assignee",
+        description: "Filter tasks by Soko Bot assignee",
         example: "01960001-0001-7001-8001-000000000099",
       }),
   })

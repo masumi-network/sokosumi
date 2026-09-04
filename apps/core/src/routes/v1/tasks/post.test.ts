@@ -28,7 +28,7 @@ const {
   requestWorkspaceGrantMock,
   resolveEffectiveDesignMdMock,
   requireTaskAssignableCoworkerMock,
-  requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBotMock,
   taskCreateMock,
   taskFindUniqueOrThrowMock,
   uploadProjectBriefingFileMock,
@@ -44,7 +44,7 @@ const {
   requestWorkspaceGrantMock: vi.fn(),
   resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireTaskAssignableOrchestratorMock: vi.fn(),
+  requireTaskAssignableSokoBotMock: vi.fn(),
   taskCreateMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
@@ -143,7 +143,7 @@ function buildMapTaskResponse(task: {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableSokoBot: requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -508,9 +508,9 @@ describe("POST /tasks", () => {
     );
   });
 
-  it("assigns a personal assistant as orchestrator", async () => {
+  it("assigns a personal assistant as soko bot", async () => {
     const sokoBotId = "01960001-0001-7001-8001-000000000099";
-    requireTaskAssignableOrchestratorMock.mockResolvedValue(undefined);
+    requireTaskAssignableSokoBotMock.mockResolvedValue(undefined);
     const app = createApp();
 
     const response = await app.request("http://localhost/", {
@@ -528,7 +528,7 @@ describe("POST /tasks", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(requireTaskAssignableOrchestratorMock).toHaveBeenCalledWith(
+    expect(requireTaskAssignableSokoBotMock).toHaveBeenCalledWith(
       sokoBotId,
       "11111111-1111-7111-8111-111111111111",
       expect.anything(),
@@ -546,7 +546,7 @@ describe("POST /tasks", () => {
 
   it("rejects assigning someone else's personal assistant with 403", async () => {
     const sokoBotId = "01960001-0001-7001-8001-000000000099";
-    requireTaskAssignableOrchestratorMock.mockRejectedValue(
+    requireTaskAssignableSokoBotMock.mockRejectedValue(
       forbidden("Only the owner can assign work to this Soko Bot"),
     );
     const app = createApp();

@@ -59,7 +59,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/messages",
     description:
-      "Post a room message. Mentioned AI coworkers and personal assistants are called asynchronously and reply into the room. Agent API keys may post as their coworker or orchestrator identity into rooms it belongs to. Agent posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender.",
+      "Post a room message. Mentioned AI coworkers and personal assistants are called asynchronously and reply into the room. Agent API keys may post as their coworker or Soko Bot identity into rooms it belongs to. Agent posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,

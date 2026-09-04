@@ -153,7 +153,7 @@ describe("deleteSokoBot", () => {
     expect(result.retained.billingRecords).toBe(261);
   });
 
-  it("tombstones the orchestrator when it authored chat", async () => {
+  it("tombstones the soko bot when it authored chat", async () => {
     counts.chatMessage = 52;
 
     const result = await deleteSokoBot(BOT_ID);
@@ -191,7 +191,7 @@ describe("deleteSokoBot", () => {
     );
   });
 
-  it("fails pending orchestrator mentions before dropping memberships", async () => {
+  it("fails pending soko bot mentions before dropping memberships", async () => {
     failOpenMentionsMock.mockResolvedValue(["message_1"]);
 
     await deleteSokoBot(BOT_ID);

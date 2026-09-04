@@ -1277,7 +1277,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     });
   });
 
-  it("adds a personal assistant as an orchestrator member", async () => {
+  it("adds a personal assistant as a soko bot member", async () => {
     const sokoBotId = "01960001-0001-7001-8001-000000000099";
     const existing = channelRoom();
     const updated = channelRoom({
@@ -1357,7 +1357,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     expect(sokoBotMemberCreateManyMock).not.toHaveBeenCalled();
   });
 
-  it("fails only orchestrator mentions when the PA roster is cleared", async () => {
+  it("fails only soko bot mentions when the PA roster is cleared", async () => {
     const existing = channelRoom({
       sokoBotMembers: [
         {

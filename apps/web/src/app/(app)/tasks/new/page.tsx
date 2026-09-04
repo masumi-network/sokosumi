@@ -5,7 +5,7 @@ import { TaskForm } from "@/app/tasks/components/task-form";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   getCoworkerOptions,
-  withOwnerOrchestratorOption,
+  withOwnerSokoBotOption,
 } from "@/app/tasks/utils/coworker-options";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services";
@@ -31,7 +31,7 @@ export default async function NewTaskPage() {
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
-  const coworkerOptions = withOwnerOrchestratorOption(
+  const coworkerOptions = withOwnerSokoBotOption(
     getCoworkerOptions(taskCoworkers),
     ownerBot,
     { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },

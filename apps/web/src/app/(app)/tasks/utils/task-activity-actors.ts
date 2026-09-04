@@ -27,7 +27,7 @@ type TaskActivityActorSource = Pick<
   "owner" | "assignee" | "creator" | "events"
 >;
 
-type OrchestratorActorSummary = {
+type SokoBotActorSummary = {
   id: string;
   name: string | null;
   avatarSeed?: string | null;
@@ -91,7 +91,7 @@ export function getEventActorInfo(
         };
       }
       case "sokoBot":
-        return orchestratorActorInfo(event.actor.sokoBot);
+        return sokoBotActorInfo(event.actor.sokoBot);
       default: {
         const _exhaustive: never = event.actor;
         return _exhaustive;
@@ -103,7 +103,7 @@ export function getEventActorInfo(
   // Prefer order matches Core: sokoBot → coworker → user.
   if (event.sokoBotId) {
     if (event.sokoBot) {
-      return orchestratorActorInfo(event.sokoBot);
+      return sokoBotActorInfo(event.sokoBot);
     }
 
     return sokoBotById?.[event.sokoBotId];
@@ -145,7 +145,7 @@ export function buildTaskActivityActors(
 
   if (task.assignee) {
     if (task.assignee.type === "sokoBot") {
-      addOrchestratorActor(sokoBotById, task.assignee.sokoBot);
+      addSokoBotActor(sokoBotById, task.assignee.sokoBot);
     } else {
       addCoworkerActor(coworkerById, task.assignee.coworker);
     }
@@ -164,7 +164,7 @@ export function buildTaskActivityActors(
       break;
     case "sokoBot":
       if (task.creator.sokoBot) {
-        addOrchestratorActor(sokoBotById, task.creator.sokoBot);
+        addSokoBotActor(sokoBotById, task.creator.sokoBot);
       }
       break;
     default: {
@@ -185,7 +185,7 @@ export function buildTaskActivityActors(
           }
           break;
         case "sokoBot":
-          addOrchestratorActor(sokoBotById, event.actor.sokoBot);
+          addSokoBotActor(sokoBotById, event.actor.sokoBot);
           break;
         default: {
           const _exhaustive: never = event.actor;
@@ -205,7 +205,7 @@ export function buildTaskActivityActors(
     }
 
     if (event.sokoBot) {
-      addOrchestratorActor(sokoBotById, event.sokoBot);
+      addSokoBotActor(sokoBotById, event.sokoBot);
     }
   }
 
@@ -217,9 +217,7 @@ export function buildTaskActivityActors(
   };
 }
 
-function orchestratorActorInfo(
-  sokoBot: OrchestratorActorSummary,
-): TaskActivityActorInfo {
+function sokoBotActorInfo(sokoBot: SokoBotActorSummary): TaskActivityActorInfo {
   return {
     name: sokoBot.name ?? "Assistant",
     // A claimed mascot is the bot's face everywhere else; the orb is only the
@@ -266,9 +264,9 @@ function addCoworkerActor(
   };
 }
 
-function addOrchestratorActor(
+function addSokoBotActor(
   sokoBotById: Record<string, TaskActivityActorInfo>,
-  sokoBot: OrchestratorActorSummary,
+  sokoBot: SokoBotActorSummary,
 ) {
-  sokoBotById[sokoBot.id] = orchestratorActorInfo(sokoBot);
+  sokoBotById[sokoBot.id] = sokoBotActorInfo(sokoBot);
 }

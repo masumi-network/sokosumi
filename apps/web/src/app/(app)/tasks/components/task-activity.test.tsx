@@ -66,7 +66,7 @@ vi.mock("next-intl", () => ({
         return `from ${values?.appName ?? ""}`.trim();
       }
 
-      if (key === "actorOrchestratorWithOwner") {
+      if (key === "actorSokoBotWithOwner") {
         return `${values?.assistant ?? ""} · ${values?.owner ?? ""}`.trim();
       }
 
@@ -257,7 +257,7 @@ const baseProps = {
   submitLabel: "Submit",
   actorCoworkerLabel: "Coworker",
   actorUserLabel: "User",
-  actorOrchestratorLabel: "Assistant",
+  actorSokoBotLabel: "Assistant",
   actorSystemLabel: "System",
   actionCommentedLabel: "commented",
   actionUpdatedStatusLabel: "updated status",
@@ -693,7 +693,7 @@ describe("TaskActivitySection", () => {
     expect(screen.getByText("charged 2 credits")).toBeInTheDocument();
   });
 
-  it("shows orchestrator actor name with owner and orb for orchestrator-authored events", () => {
+  it("shows soko bot actor name with owner and orb for soko bot-authored events", () => {
     const events: TaskEvent[] = [
       createEvent("orch-event", {
         createdAt: "2026-01-01T12:00:00.000Z",

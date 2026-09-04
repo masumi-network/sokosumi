@@ -96,7 +96,7 @@ const {
             id: creatorSokoBotId,
             sokoBot: (t.creatorSokoBot as object | null | undefined) ?? {
               id: creatorSokoBotId,
-              name: "Orchestrator",
+              name: "SokoBot",
               avatarSeed: null,
               owner: { id: "user_fallback", name: "Owner", image: null },
             },

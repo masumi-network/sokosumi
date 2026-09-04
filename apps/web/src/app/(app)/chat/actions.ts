@@ -88,7 +88,7 @@ interface CreateDirectRoomInput {
   sokoBotIds?: string[];
 }
 
-export interface ChatComposeOrchestrator {
+export interface ChatComposeSokoBot {
   id: string;
   name: string;
   image: string | null;
@@ -102,7 +102,7 @@ export interface ChatComposeRoster {
   canCreateExternal: boolean;
   members: Member[];
   coworkers: Coworker[];
-  sokoBots: ChatComposeOrchestrator[];
+  sokoBots: ChatComposeSokoBot[];
   membersLoadFailed: boolean;
 }
 
@@ -152,7 +152,7 @@ export async function loadChatComposeRosterAction(): Promise<
       sokoBotService.getMine().catch(() => null),
       getTranslations("App.Chat"),
     ]);
-    const sokoBots: ChatComposeOrchestrator[] = bot
+    const sokoBots: ChatComposeSokoBot[] = bot
       ? [
           {
             id: bot.id,
@@ -346,11 +346,11 @@ export async function ensureCoworkerDirectRoomAction(
  * Create-or-get the `kind:direct` room for a solo personal-assistant 1:1.
  * Uses the active organization when set (same as `/chat`); personal if none.
  */
-export async function ensureOrchestratorDirectRoomAction(
+export async function ensureSokoBotDirectRoomAction(
   sokoBotId: string,
 ): Promise<RoomActionResult<ChatRoom | null>> {
-  const cleanOrchestratorId = cleanString(sokoBotId);
-  if (!cleanOrchestratorId) {
+  const cleanSokoBotId = cleanString(sokoBotId);
+  if (!cleanSokoBotId) {
     return roomFail("Personal assistant is required.");
   }
 
@@ -359,7 +359,7 @@ export async function ensureOrchestratorDirectRoomAction(
       kind: "direct",
       memberUserIds: [],
       coworkerIds: [],
-      sokoBotIds: [cleanOrchestratorId],
+      sokoBotIds: [cleanSokoBotId],
     });
     await invalidateSidebarChatList();
     return roomOk(room);

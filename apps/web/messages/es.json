@@ -1800,9 +1800,9 @@
         "collapse": "Contraer",
         "actorCoworker": "Coworker",
         "actorUser": "Usuario",
-        "actorOrchestrator": "Asistente",
-        "actorOrchestratorWithOwner": "{assistant} · asistente de {owner}",
-        "actorOrchestratorRole": "Asistente personal de {owner}",
+        "actorSokoBot": "Asistente",
+        "actorSokoBotWithOwner": "{assistant} · asistente de {owner}",
+        "actorSokoBotRole": "Asistente personal de {owner}",
         "actorSystem": "Sistema",
         "originFromApp": "de {appName}",
         "channelApp": {

@@ -352,7 +352,7 @@ describe("resolveMentionedSokoBotIds", () => {
     ).toEqual([]);
   });
 
-  it("skips a shared name alias when two room orchestrators slugify the same", () => {
+  it("skips a shared name alias when two room soko bots slugify the same", () => {
     expect(
       resolveMentionedSokoBotIds({
         content: "hey @soko-bot",

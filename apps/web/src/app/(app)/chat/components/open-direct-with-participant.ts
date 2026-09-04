@@ -1,7 +1,7 @@
 import {
   createDirectRoomAction,
   ensureCoworkerDirectRoomAction,
-  ensureOrchestratorDirectRoomAction,
+  ensureSokoBotDirectRoomAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 
@@ -52,7 +52,7 @@ export async function openDirectWithParticipant(options: {
     profile.kind === "coworker"
       ? await ensureCoworkerDirectRoomAction(profile.id)
       : profile.kind === "sokoBot"
-        ? await ensureOrchestratorDirectRoomAction(profile.id)
+        ? await ensureSokoBotDirectRoomAction(profile.id)
         : await createDirectRoomAction({ memberUserId: profile.id });
 
   if (!result.ok) {

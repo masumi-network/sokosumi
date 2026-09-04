@@ -80,7 +80,7 @@ interface TaskActivityProps {
   submitLabel: string;
   actorCoworkerLabel: string;
   actorUserLabel: string;
-  actorOrchestratorLabel: string;
+  actorSokoBotLabel: string;
   actorSystemLabel: string;
   actionCommentedLabel: string;
   actionUpdatedStatusLabel: string;
@@ -184,7 +184,7 @@ export function TaskActivitySection({
   submitLabel,
   actorCoworkerLabel,
   actorUserLabel,
-  actorOrchestratorLabel,
+  actorSokoBotLabel,
   actorSystemLabel,
   actionCommentedLabel,
   actionUpdatedStatusLabel,
@@ -476,7 +476,7 @@ export function TaskActivitySection({
                 : actorKind === "user"
                   ? actorUserLabel
                   : actorKind === "sokoBot"
-                    ? actorOrchestratorLabel
+                    ? actorSokoBotLabel
                     : actorSystemLabel;
             const actorInfo = getEventActorInfo(
               event,
@@ -486,7 +486,7 @@ export function TaskActivitySection({
             );
             const actorName =
               actorInfo?.ownerName != null
-                ? t("actorOrchestratorWithOwner", {
+                ? t("actorSokoBotWithOwner", {
                     assistant: actorInfo.name,
                     owner: actorInfo.ownerName,
                   })

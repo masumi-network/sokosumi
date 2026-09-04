@@ -12,7 +12,7 @@ import {
 import {
   findCoworkerIdBySlug,
   getCoworkerOptions,
-  withOwnerOrchestratorOption,
+  withOwnerSokoBotOption,
 } from "@/app/tasks/utils/coworker-options";
 import {
   parseJobsListFilters,
@@ -179,20 +179,20 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   const validCoworkerIds = new Set(
     taskCoworkers.map((coworker) => coworker.id),
   );
-  const ownerOrchestratorId = ownerBot?.id ?? null;
+  const ownerSokoBotId = ownerBot?.id ?? null;
   const validProjectIds = new Set(projectOptions.map((project) => project.id));
   const activeFilters = {
     ...filters,
     assigneeId:
       filters.assigneeId &&
       validCoworkerIds.has(filters.assigneeId) &&
-      filters.assigneeId !== ownerOrchestratorId
+      filters.assigneeId !== ownerSokoBotId
         ? filters.assigneeId
         : null,
     assigneeSokoBotId:
       filters.assigneeSokoBotId &&
-      ownerOrchestratorId &&
-      filters.assigneeSokoBotId === ownerOrchestratorId
+      ownerSokoBotId &&
+      filters.assigneeSokoBotId === ownerSokoBotId
         ? filters.assigneeSokoBotId
         : null,
     projectId:
@@ -271,7 +271,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           ]),
         ) as Record<KanbanColumnId, string | null>);
 
-  const coworkerOptions: CoworkerOption[] = withOwnerOrchestratorOption(
+  const coworkerOptions: CoworkerOption[] = withOwnerSokoBotOption(
     getCoworkerOptions(taskCoworkers),
     ownerBot,
     { fallbackName: t("sokoBot"), vendorName: t("sokoBots") },

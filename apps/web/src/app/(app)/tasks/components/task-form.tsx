@@ -252,7 +252,7 @@ export function TaskForm({
     );
   }, [coworkerOptions, initialValues?.assigneeId]);
 
-  const knownOrchestratorId = useMemo(
+  const knownSokoBotId = useMemo(
     () =>
       coworkerOptions.find((option) => option.kind === "sokoBot")?.id ??
       initialValues?.assigneeSokoBotId ??
@@ -472,7 +472,7 @@ export function TaskForm({
             ...resolveTaskAssigneeFields(
               assigneeId,
               coworkerOptions,
-              knownOrchestratorId,
+              knownSokoBotId,
             ),
             context: {
               brand: {
@@ -543,7 +543,7 @@ export function TaskForm({
           ...resolveTaskAssigneeFields(
             assigneeId,
             coworkerOptions,
-            knownOrchestratorId,
+            knownSokoBotId,
           ),
           ...(shouldShowProjectSelect ? { projectId } : {}),
           currentStatus: originalStatus,
@@ -579,7 +579,7 @@ export function TaskForm({
       name,
       assigneeId,
       coworkerOptions,
-      knownOrchestratorId,
+      knownSokoBotId,
       projectId,
       shouldShowProjectSelect,
       originalStatus,

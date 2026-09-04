@@ -68,17 +68,13 @@ export async function loadMoreTasksColumn({
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
-  const ownerOrchestratorId = ownerBot?.id ?? null;
+  const ownerSokoBotId = ownerBot?.id ?? null;
   const sanitizedAssigneeId =
-    assigneeId &&
-    coworkersById.has(assigneeId) &&
-    assigneeId !== ownerOrchestratorId
+    assigneeId && coworkersById.has(assigneeId) && assigneeId !== ownerSokoBotId
       ? assigneeId
       : null;
-  const sanitizedAssigneeOrchestratorId =
-    assigneeSokoBotId &&
-    ownerOrchestratorId &&
-    assigneeSokoBotId === ownerOrchestratorId
+  const sanitizedAssigneeSokoBotId =
+    assigneeSokoBotId && ownerSokoBotId && assigneeSokoBotId === ownerSokoBotId
       ? assigneeSokoBotId
       : null;
   const sanitizedStatus = sanitizeTasksStatusInput(status);
@@ -89,7 +85,7 @@ export async function loadMoreTasksColumn({
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
     assigneeId: sanitizedAssigneeId,
-    assigneeSokoBotId: sanitizedAssigneeOrchestratorId,
+    assigneeSokoBotId: sanitizedAssigneeSokoBotId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,
@@ -123,17 +119,13 @@ export async function loadMoreTasksList({
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
-  const ownerOrchestratorId = ownerBot?.id ?? null;
+  const ownerSokoBotId = ownerBot?.id ?? null;
   const sanitizedAssigneeId =
-    assigneeId &&
-    coworkersById.has(assigneeId) &&
-    assigneeId !== ownerOrchestratorId
+    assigneeId && coworkersById.has(assigneeId) && assigneeId !== ownerSokoBotId
       ? assigneeId
       : null;
-  const sanitizedAssigneeOrchestratorId =
-    assigneeSokoBotId &&
-    ownerOrchestratorId &&
-    assigneeSokoBotId === ownerOrchestratorId
+  const sanitizedAssigneeSokoBotId =
+    assigneeSokoBotId && ownerSokoBotId && assigneeSokoBotId === ownerSokoBotId
       ? assigneeSokoBotId
       : null;
   const sanitizedStatus = sanitizeTasksStatusInput(status);
@@ -143,7 +135,7 @@ export async function loadMoreTasksList({
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
     assigneeId: sanitizedAssigneeId,
-    assigneeSokoBotId: sanitizedAssigneeOrchestratorId,
+    assigneeSokoBotId: sanitizedAssigneeSokoBotId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,

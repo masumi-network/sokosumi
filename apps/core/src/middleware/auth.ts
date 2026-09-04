@@ -85,7 +85,7 @@ function syncSentryUser(context: AuthVariables) {
       id: `sokoBot:${sokoBot.sokoBotId}`,
       sokoBotId: sokoBot.sokoBotId,
     });
-    scope.setContext("orchestratorContext", {
+    scope.setContext("sokoBotContext", {
       userId: sokoBot.userId,
       organizationId: sokoBot.organizationId,
       workspaceId: sokoBot.workspaceId,
@@ -285,7 +285,7 @@ export function requireUserAuthContext(
 }
 
 /**
- * Rejects agent actors (coworkers and orchestrators). Use on owner-only mutations
+ * Rejects agent actors (coworkers and Soko Bots). Use on owner-only mutations
  * where {@link requireUserContext} would otherwise treat `X-Context-User-Id` as
  * the resource owner (task owner, org owner/admin, etc.).
  */
@@ -328,7 +328,7 @@ export function requireSokoBotAuthContext(
   authContext: AuthenticationContext,
 ): SokoBotAuthenticationContext {
   if (!isSokoBotAuthContext(authContext)) {
-    throw forbidden("Orchestrator authentication required");
+    throw forbidden("SokoBot authentication required");
   }
 
   return authContext;

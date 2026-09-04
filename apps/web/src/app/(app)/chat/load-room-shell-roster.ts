@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import type { ChatComposeOrchestrator } from "@/app/chat/actions";
+import type { ChatComposeSokoBot } from "@/app/chat/actions";
 import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
@@ -11,7 +11,7 @@ export interface RoomShellRosterPage {
   organizationMembers: Member[];
   membersLoadFailed: boolean;
   coworkers: Coworker[];
-  sokoBots: ChatComposeOrchestrator[];
+  sokoBots: ChatComposeSokoBot[];
 }
 
 /**

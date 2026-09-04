@@ -627,7 +627,7 @@ describe("POST /{id}/x402-payments", () => {
       expect(payX402Mock).not.toHaveBeenCalled();
     });
 
-    it("lets an orchestrator pay for its assigned task with orchestrator attribution", async () => {
+    it("lets a soko bot pay for its assigned task with soko bot attribution", async () => {
       const app = createApp(SOKO_BOT_CONTEXT);
 
       const response = await postPayment(app, validBody());

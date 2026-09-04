@@ -182,7 +182,7 @@ describe("mapTaskToTaskWithCoworker", () => {
     expect(mapped.ownerId).toBe("user-2");
   });
 
-  it("maps an orchestrator assignee without looking it up in coworkers", () => {
+  it("maps a soko bot assignee without looking it up in coworkers", () => {
     const task = buildTask(TaskStatus.READY, {
       assigneeId: null,
       assigneeSokoBotId: "bot-1",
@@ -210,7 +210,7 @@ describe("mapTaskToTaskWithCoworker", () => {
     });
   });
 
-  it("uses the translated fallback when the orchestrator has no name", () => {
+  it("uses the translated fallback when the soko bot has no name", () => {
     const task = buildTask(TaskStatus.READY, {
       assigneeId: null,
       assigneeSokoBotId: "bot-1",

@@ -175,13 +175,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const nextAssigneeId = assigneeWrite
         ? assigneeWrite.assigneeId
         : task.assigneeId;
-      const nextAssigneeOrchestratorId = assigneeWrite
+      const nextAssigneeSokoBotId = assigneeWrite
         ? assigneeWrite.assigneeSokoBotId
         : task.assigneeSokoBotId;
       validateTaskAssigneeAssignment({
         status: task.status,
         assigneeId: nextAssigneeId,
-        assigneeSokoBotId: nextAssigneeOrchestratorId,
+        assigneeSokoBotId: nextAssigneeSokoBotId,
       });
 
       if (assigneeWrite?.assigneeId) {

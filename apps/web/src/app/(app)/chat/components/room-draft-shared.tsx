@@ -3,7 +3,7 @@
 import { Bot } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import type { ChatComposeOrchestrator } from "@/app/chat/actions";
+import type { ChatComposeSokoBot } from "@/app/chat/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -127,7 +127,7 @@ export interface DirectDraftTarget {
 export function buildDirectDraftTargets(
   members: Member[],
   coworkers: Coworker[],
-  sokoBots: ChatComposeOrchestrator[],
+  sokoBots: ChatComposeSokoBot[],
   currentUserId: string,
 ): DirectDraftTarget[] {
   // Humans first so org members stay reachable when many AI coworkers exist;
@@ -278,13 +278,11 @@ export function DirectDraftTargetList({
   const coworkerTargets = targets.filter(
     (target) => target.kind === "coworker",
   );
-  const orchestratorTargets = targets.filter(
-    (target) => target.kind === "sokoBot",
-  );
+  const sokoBotTargets = targets.filter((target) => target.kind === "sokoBot");
   const sectionCount = [
     humans.length > 0,
     coworkerTargets.length > 0,
-    orchestratorTargets.length > 0,
+    sokoBotTargets.length > 0,
   ].filter(Boolean).length;
   const showSectionLabels = sectionCount > 1;
 
@@ -293,7 +291,7 @@ export function DirectDraftTargetList({
       {humans.length > 0 ? (
         <div
           className={
-            coworkerTargets.length > 0 || orchestratorTargets.length > 0
+            coworkerTargets.length > 0 || sokoBotTargets.length > 0
               ? "pb-1"
               : undefined
           }
@@ -318,7 +316,7 @@ export function DirectDraftTargetList({
         </div>
       ) : null}
       {coworkerTargets.length > 0 ? (
-        <div className={orchestratorTargets.length > 0 ? "pb-1" : undefined}>
+        <div className={sokoBotTargets.length > 0 ? "pb-1" : undefined}>
           {showSectionLabels ? (
             <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
               {t("Dialog.coworkers")}
@@ -338,14 +336,14 @@ export function DirectDraftTargetList({
           })}
         </div>
       ) : null}
-      {orchestratorTargets.length > 0 ? (
+      {sokoBotTargets.length > 0 ? (
         <div>
           {showSectionLabels ? (
             <div className="text-muted-foreground px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
               {t("Dialog.personalAssistants")}
             </div>
           ) : null}
-          {orchestratorTargets.map((target) => {
+          {sokoBotTargets.map((target) => {
             const disabled = isTargetDisabled?.(target) ?? false;
             return (
               <DirectDraftTargetRow

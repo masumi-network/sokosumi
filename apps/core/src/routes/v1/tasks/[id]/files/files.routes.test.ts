@@ -143,7 +143,7 @@ function createCoworkerApp(assigneeId = COWORKER_ID) {
   return app;
 }
 
-function createOrchestratorApp(sokoBotId = SOKO_BOT_ID) {
+function createSokoBotApp(sokoBotId = SOKO_BOT_ID) {
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
@@ -296,12 +296,12 @@ describe("task files routes", () => {
     );
   });
 
-  it("mints for the assigned orchestrator with orchestrator uploader id", async () => {
+  it("mints for the assigned soko bot with soko bot uploader id", async () => {
     taskFindFirstMock.mockResolvedValueOnce(
       ownedTask({ assigneeId: null, assigneeSokoBotId: SOKO_BOT_ID }),
     );
 
-    const app = createOrchestratorApp();
+    const app = createSokoBotApp();
     const response = await app.request(`http://localhost/${TASK_ID}/files`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

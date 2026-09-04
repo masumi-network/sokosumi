@@ -490,7 +490,7 @@ describe("partitionRoomMentionSuggestions", () => {
   });
 
   it("puts personal assistants in their own section after coworkers", () => {
-    const orchestratorMention = mention({
+    const sokoBotMention = mention({
       key: "soko-1",
       value: "Personal assistant",
       slug: "personal-assistant",
@@ -503,16 +503,16 @@ describe("partitionRoomMentionSuggestions", () => {
       },
     });
     const groups = partitionRoomMentionSuggestions(
-      [orchestratorMention, coworkerMention, humanMention],
+      [sokoBotMention, coworkerMention, humanMention],
       LABELS,
     );
     expect(groups.map((group) => group.id)).toEqual([
       "people",
       "coworkers",
-      "orchestrators",
+      "soko-bots",
     ]);
     expect(groups[2]).toMatchObject({
-      id: "orchestrators",
+      id: "soko-bots",
       label: "Personal assistants",
     });
     expect(groups[2]?.items.map((item) => item.key)).toEqual(["soko-1"]);

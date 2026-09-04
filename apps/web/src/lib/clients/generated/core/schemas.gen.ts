@@ -4448,7 +4448,7 @@ export const TaskSchema = {
                 'null'
             ],
             example: 'cow_123',
-            description: 'Marketplace coworker assignee. Null when the assignee is an orchestrator.'
+            description: 'Marketplace coworker assignee. Null when the assignee is a Soko Bot.'
         },
         assigneeSokoBotId: {
             type: [
@@ -4457,7 +4457,7 @@ export const TaskSchema = {
             ],
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099',
-            description: 'Personal-assistant orchestrator assignee. Null when the assignee is a coworker.'
+            description: 'Soko Bot assignee. Null when the assignee is a coworker.'
         },
         assignee: {
             anyOf: [
@@ -4471,7 +4471,7 @@ export const TaskSchema = {
                     type: 'null'
                 }
             ],
-            description: 'Discriminated assignee: coworker, orchestrator, or unassigned.',
+            description: 'Discriminated assignee: coworker, sokoBot, or unassigned.',
             example: null
         },
         coworkerId: {
@@ -4481,7 +4481,7 @@ export const TaskSchema = {
             ],
             example: 'cow_123',
             deprecated: true,
-            description: 'Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.'
+            description: 'Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.'
         },
         coworker: {
             anyOf: [
@@ -4493,7 +4493,7 @@ export const TaskSchema = {
                 }
             ],
             deprecated: true,
-            description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
+            description: 'Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.'
         },
         creator: {
             $ref: '#/components/schemas/TaskCreator'
@@ -4864,7 +4864,7 @@ export const TaskCreatorSchema = {
             sokoBot: '#/components/schemas/TaskCreatorSokoBot'
         }
     },
-    description: 'Actor that created the task. Exactly one of user, coworker, or orchestrator.'
+    description: 'Actor that created the task. Exactly one of user, coworker, or sokoBot.'
 } as const;
 
 export const TaskCreatorUserSchema = {
@@ -8768,7 +8768,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'direct'
                     ],
-                    description: 'Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (orchestrator). Human, coworker, and orchestrator targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/orchestrator DMs with an active org are org-scoped. Coworker and orchestrator DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.'
+                    description: 'Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -18279,7 +18279,7 @@ export const TaskListItemSchema = {
                 'null'
             ],
             example: 'cow_123',
-            description: 'Marketplace coworker assignee. Null when the assignee is an orchestrator.'
+            description: 'Marketplace coworker assignee. Null when the assignee is a Soko Bot.'
         },
         assigneeSokoBotId: {
             type: [
@@ -18288,7 +18288,7 @@ export const TaskListItemSchema = {
             ],
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099',
-            description: 'Personal-assistant orchestrator assignee. Null when the assignee is a coworker.'
+            description: 'Soko Bot assignee. Null when the assignee is a coworker.'
         },
         assignee: {
             anyOf: [
@@ -18302,7 +18302,7 @@ export const TaskListItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'Discriminated assignee: coworker, orchestrator, or unassigned.',
+            description: 'Discriminated assignee: coworker, sokoBot, or unassigned.',
             example: null
         },
         coworkerId: {
@@ -18312,7 +18312,7 @@ export const TaskListItemSchema = {
             ],
             example: 'cow_123',
             deprecated: true,
-            description: 'Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.'
+            description: 'Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.'
         },
         coworker: {
             anyOf: [
@@ -18324,7 +18324,7 @@ export const TaskListItemSchema = {
                 }
             ],
             deprecated: true,
-            description: 'Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.'
+            description: 'Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.'
         },
         creator: {
             $ref: '#/components/schemas/TaskCreator'

@@ -1098,7 +1098,7 @@ describe("mapTaskEventActor", () => {
     });
   });
 
-  it("maps an orchestrator actor", () => {
+  it("maps a soko bot actor", () => {
     const sokoBot = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
@@ -1144,7 +1144,7 @@ describe("mapTaskEventActor", () => {
     });
   });
 
-  it("prefers orchestrator over user for legacy multi-FK rows", () => {
+  it("prefers soko bot over user for legacy multi-FK rows", () => {
     const sokoBot = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
@@ -1174,7 +1174,7 @@ describe("mapTaskEventActor", () => {
     });
   });
 
-  it("prefers orchestrator over coworker for legacy multi-FK rows", () => {
+  it("prefers soko bot over coworker for legacy multi-FK rows", () => {
     const sokoBot = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",
@@ -1374,7 +1374,7 @@ describe("mapTask", () => {
     });
   });
 
-  it("maps an orchestrator assignee from assigneeSokoBotId", () => {
+  it("maps a soko bot assignee from assigneeSokoBotId", () => {
     const assigneeSokoBot = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Soko Bot",
@@ -1436,7 +1436,7 @@ describe("mapTask", () => {
     });
   });
 
-  it("maps nested creator and deprecated owner/assignee/orchestrator aliases", () => {
+  it("maps nested creator and deprecated owner/assignee/soko bot aliases", () => {
     const creatorSokoBot = {
       id: "01960001-0001-7001-8001-000000000099",
       name: "Hermes",

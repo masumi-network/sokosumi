@@ -21,7 +21,7 @@ const {
   projectFindFirstMock,
   refreshTaskSchedulePlannedOccurrencesMock,
   requireTaskAssignableCoworkerMock,
-  requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBotMock,
   requireTaskOwnershipMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
@@ -30,14 +30,14 @@ const {
   projectFindFirstMock: vi.fn(),
   refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireTaskAssignableOrchestratorMock: vi.fn(),
+  requireTaskAssignableSokoBotMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
   taskUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableSokoBot: requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
   requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
@@ -437,7 +437,7 @@ describe("PATCH /tasks/{id}", () => {
     expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
   });
 
-  it("assigns a personal assistant as orchestrator", async () => {
+  it("assigns a personal assistant as soko bot", async () => {
     const sokoBotId = "01960001-0001-7001-8001-000000000099";
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
@@ -447,7 +447,7 @@ describe("PATCH /tasks/{id}", () => {
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });
-    requireTaskAssignableOrchestratorMock.mockResolvedValue(undefined);
+    requireTaskAssignableSokoBotMock.mockResolvedValue(undefined);
 
     const app = createApp();
     const response = await app.request("http://localhost/tsk_123", {
@@ -461,7 +461,7 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(requireTaskAssignableOrchestratorMock).toHaveBeenCalledWith(
+    expect(requireTaskAssignableSokoBotMock).toHaveBeenCalledWith(
       sokoBotId,
       WORKSPACE_ID,
       expect.anything(),
@@ -487,7 +487,7 @@ describe("PATCH /tasks/{id}", () => {
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });
-    requireTaskAssignableOrchestratorMock.mockRejectedValue(
+    requireTaskAssignableSokoBotMock.mockRejectedValue(
       forbidden("Only the owner can assign work to this Soko Bot"),
     );
 

@@ -66,7 +66,7 @@ describe("isCoworkerOnlyDirectRoom", () => {
     ).toBe(false);
   });
 
-  it("returns false when an orchestrator is also in the room", () => {
+  it("returns false when a soko bot is also in the room", () => {
     expect(
       isCoworkerOnlyDirectRoom({
         kind: "direct",

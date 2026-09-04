@@ -98,7 +98,7 @@ function createCoworkerApp(coworkerId = COWORKER_ID) {
   return app;
 }
 
-function createOrchestratorApp(sokoBotId = SOKO_BOT_ID) {
+function createSokoBotApp(sokoBotId = SOKO_BOT_ID) {
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
@@ -196,7 +196,7 @@ describe("POST /chats/rooms/{id}/files", () => {
     );
   });
 
-  it("mints an orchestrator-owned room chat grant", async () => {
+  it("mints a soko bot-owned room chat grant", async () => {
     roomFindFirstMock.mockResolvedValueOnce({ id: ROOM_ID });
     createChatRoomFileUploadSessionMock.mockResolvedValueOnce({
       ...UPLOAD_SESSION,
@@ -204,7 +204,7 @@ describe("POST /chats/rooms/{id}/files", () => {
       headers: { "Content-Type": "text/plain" },
     });
 
-    const response = await createOrchestratorApp().request(
+    const response = await createSokoBotApp().request(
       `http://localhost/${ROOM_ID}/files`,
       {
         method: "POST",

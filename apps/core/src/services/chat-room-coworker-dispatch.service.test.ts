@@ -257,7 +257,7 @@ describe("buildRoomMentionPrompt", () => {
     );
   });
 
-  it("labels orchestrator senders as personal assistants, not unnamed humans", () => {
+  it("labels soko bot senders as personal assistants, not unnamed humans", () => {
     const prompt = buildRoomMentionPrompt({
       roomName: "general",
       senderName: "Patrick",
@@ -267,7 +267,7 @@ describe("buildRoomMentionPrompt", () => {
         {
           senderName: "Soko Bot",
           isCoworker: false,
-          isOrchestrator: true,
+          isSokoBot: true,
           content: "I already replied",
         },
       ],

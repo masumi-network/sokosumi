@@ -438,7 +438,7 @@ describe("tasks-filters", () => {
       ).toBe(false);
     });
 
-    it("gives a valid orchestrator filter precedence over a valid coworker filter", () => {
+    it("gives a valid soko bot filter precedence over a valid coworker filter", () => {
       const params = new URLSearchParams({
         assigneeId: "coworker-1",
         assigneeSokoBotId: "bot-1",
@@ -458,7 +458,7 @@ describe("tasks-filters", () => {
       });
     });
 
-    it("rejects a personal-assistant id in assigneeId and keeps orchestrator filter", () => {
+    it("rejects a personal-assistant id in assigneeId and keeps soko bot filter", () => {
       const params = new URLSearchParams({
         assigneeId: "bot-1",
         assigneeSokoBotId: "bot-1",
@@ -478,7 +478,7 @@ describe("tasks-filters", () => {
       });
     });
 
-    it("serializes orchestrator assignee filters onto assigneeSokoBotId", () => {
+    it("serializes soko bot assignee filters onto assigneeSokoBotId", () => {
       const nextSearchParams = buildTasksFiltersSearchParams(
         new URLSearchParams(),
         {

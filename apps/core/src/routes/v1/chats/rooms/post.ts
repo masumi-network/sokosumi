@@ -95,7 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (isSokoBotAuthContext(authContext)) {
-      const direct = await createOrGetOrchestratorOriginatedDirect({
+      const direct = await createOrGetSokoBotOriginatedDirect({
         sokoBotId: authContext.sokoBotId,
         ownerUserId: authContext.userId,
         organizationId: authContext.organizationId,
@@ -254,7 +254,7 @@ async function createOrGetCoworkerOriginatedDirect(params: {
   });
 }
 
-async function createOrGetOrchestratorOriginatedDirect(params: {
+async function createOrGetSokoBotOriginatedDirect(params: {
   sokoBotId: string;
   /** The bot's owner. The room's human participant is the colleague. */
   ownerUserId: string;

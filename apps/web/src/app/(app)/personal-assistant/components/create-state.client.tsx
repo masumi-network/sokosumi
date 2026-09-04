@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ensureOrchestratorDirectRoomAction } from "@/app/chat/actions";
+import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,7 +46,7 @@ export function CreateState() {
       setCreated({ name: result.value.name ?? trimmed });
       // Let the reveal play before the chat takes over.
       const reveal = new Promise((resolve) => setTimeout(resolve, 1800));
-      const room = await ensureOrchestratorDirectRoomAction(result.value.id);
+      const room = await ensureSokoBotDirectRoomAction(result.value.id);
       if (room?.ok && room.value) {
         await introduceSokoBotAction({ roomId: room.value.id });
       }

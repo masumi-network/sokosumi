@@ -11,7 +11,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import type { ChatComposeOrchestrator } from "@/app/chat/actions";
+import type { ChatComposeSokoBot } from "@/app/chat/actions";
 import {
   archiveRoomAction,
   leaveRoomAction,
@@ -84,7 +84,7 @@ export function EditChannelDialog({
   channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
-  sokoBots?: ChatComposeOrchestrator[];
+  sokoBots?: ChatComposeSokoBot[];
   currentUserId: string;
   /** Any active channel member may rewrite the roster. */
   canEditMembers: boolean;

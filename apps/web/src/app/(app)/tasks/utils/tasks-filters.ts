@@ -163,24 +163,23 @@ export function getTasksFiltersFromSearchParams(
     activeOrganizationId,
   );
   const validCoworkerIds = new Set<string>();
-  const validOrchestratorIds = new Set<string>();
+  const validSokoBotIds = new Set<string>();
   for (const option of assigneeOptions) {
     if (option.kind === "sokoBot") {
-      validOrchestratorIds.add(option.id);
+      validSokoBotIds.add(option.id);
     } else {
       validCoworkerIds.add(option.id);
     }
   }
   const assigneeSokoBotId =
-    parsed.assigneeSokoBotId &&
-    validOrchestratorIds.has(parsed.assigneeSokoBotId)
+    parsed.assigneeSokoBotId && validSokoBotIds.has(parsed.assigneeSokoBotId)
       ? parsed.assigneeSokoBotId
       : null;
   const assigneeId =
     !assigneeSokoBotId &&
     parsed.assigneeId &&
     validCoworkerIds.has(parsed.assigneeId) &&
-    !validOrchestratorIds.has(parsed.assigneeId)
+    !validSokoBotIds.has(parsed.assigneeId)
       ? parsed.assigneeId
       : null;
   const projectId =

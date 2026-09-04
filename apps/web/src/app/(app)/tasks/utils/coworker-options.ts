@@ -3,7 +3,7 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
 
-export interface OwnerOrchestratorCopy {
+export interface OwnerSokoBotCopy {
   fallbackName: string;
   vendorName: string;
 }
@@ -78,9 +78,9 @@ export function findCoworkerIdBySlug(
   return match?.id ?? null;
 }
 
-export function getOwnerOrchestratorOption(
+export function getOwnerSokoBotOption(
   bot: SokoBot | null,
-  copy: OwnerOrchestratorCopy,
+  copy: OwnerSokoBotCopy,
 ): CoworkerOption | null {
   if (!bot) {
     return null;
@@ -97,12 +97,12 @@ export function getOwnerOrchestratorOption(
   };
 }
 
-export function withOwnerOrchestratorOption(
+export function withOwnerSokoBotOption(
   options: CoworkerOption[],
   bot: SokoBot | null,
-  copy: OwnerOrchestratorCopy,
+  copy: OwnerSokoBotCopy,
 ): CoworkerOption[] {
-  const option = getOwnerOrchestratorOption(bot, copy);
+  const option = getOwnerSokoBotOption(bot, copy);
   if (!option) {
     return options;
   }
@@ -115,7 +115,7 @@ export function withOwnerOrchestratorOption(
 export function resolveTaskAssigneeFields(
   selectedId: string | null | undefined,
   options: ReadonlyArray<Pick<CoworkerOption, "id" | "kind">>,
-  knownOrchestratorId?: string | null,
+  knownSokoBotId?: string | null,
 ): { assigneeId: string | null; assigneeSokoBotId: string | null } {
   if (!selectedId) {
     return { assigneeId: null, assigneeSokoBotId: null };
@@ -129,7 +129,7 @@ export function resolveTaskAssigneeFields(
     return { assigneeId: selectedId, assigneeSokoBotId: null };
   }
 
-  if (knownOrchestratorId && selectedId === knownOrchestratorId) {
+  if (knownSokoBotId && selectedId === knownSokoBotId) {
     return { assigneeId: null, assigneeSokoBotId: selectedId };
   }
 

@@ -42,7 +42,7 @@ describe("resolveTaskEventActorKind", () => {
     ).toBe("coworker");
   });
 
-  it("prefers orchestrator over coworker/user on flat multi-FK fallback", () => {
+  it("prefers soko bot over coworker/user on flat multi-FK fallback", () => {
     expect(
       resolveTaskEventActorKind({
         actor: null,
@@ -80,7 +80,7 @@ describe("getEventActorInfo", () => {
     });
   });
 
-  it("reads name, owner, and avatarSeed from nested orchestrator actor", () => {
+  it("reads name, owner, and avatarSeed from nested soko bot actor", () => {
     const event = {
       actor: {
         type: "sokoBot",

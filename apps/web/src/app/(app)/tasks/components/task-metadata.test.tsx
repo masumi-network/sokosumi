@@ -28,7 +28,7 @@ const baseLabels = {
   updated: "Updated",
   schedule: "Schedule",
   personalAssistantFallback: "Personal assistant",
-  formatOrchestratorRole: ({ owner }: { owner: string }) =>
+  formatSokoBotRole: ({ owner }: { owner: string }) =>
     `${owner}'s personal assistant`,
 };
 

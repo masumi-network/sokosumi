@@ -89,8 +89,8 @@ const {
             id: creatorSokoBotId,
             sokoBot: (t.creatorSokoBot as object | null | undefined) ?? {
               id: creatorSokoBotId,
-              name: "Orchestrator",
-              slug: "orchestrator",
+              name: "SokoBot",
+              slug: "soko-bot",
             },
           };
         }

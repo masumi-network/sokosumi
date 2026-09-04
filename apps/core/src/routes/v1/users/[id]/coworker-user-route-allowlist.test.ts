@@ -215,7 +215,7 @@ describe("coworker user route allowlist", () => {
     expect(buildCreditsPayloadMock).toHaveBeenCalled();
   });
 
-  it("allows an orchestrator to read its owner's allowlisted profile and credits", async () => {
+  it("allows a soko bot to read its owner's allowlisted profile and credits", async () => {
     const app = createUserRouteApp(ORCHESTRATOR);
 
     expect((await app.request("http://localhost/me")).status).toBe(200);
@@ -253,7 +253,7 @@ describe("coworker user route allowlist", () => {
     expect(response.status).toBe(403);
   });
 
-  it("rejects an orchestrator on non-allowlisted owner settings", async () => {
+  it("rejects a soko bot on non-allowlisted owner settings", async () => {
     const app = createUserRouteApp(ORCHESTRATOR);
     const response = await app.request("http://localhost/me/preferences");
     expect(response.status).toBe(403);

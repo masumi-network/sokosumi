@@ -207,7 +207,7 @@ describe("GET /tasks", () => {
     );
   });
 
-  it("lists only non-draft tasks assigned to the orchestrator", async () => {
+  it("lists only non-draft tasks assigned to the soko bot", async () => {
     const response = await createApp(ORCHESTRATOR_AUTH_CONTEXT).request(
       "http://localhost/",
     );

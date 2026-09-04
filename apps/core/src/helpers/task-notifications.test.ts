@@ -16,7 +16,7 @@ describe("dispatchTaskNotification", () => {
     createNotificationMock.mockResolvedValue({});
   });
 
-  it("names the assigned orchestrator in task notifications", async () => {
+  it("names the assigned soko bot in task notifications", async () => {
     await dispatchTaskNotification(
       {
         id: "task_1",

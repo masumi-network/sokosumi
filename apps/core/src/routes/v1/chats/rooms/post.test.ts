@@ -1758,7 +1758,7 @@ describe("POST /chats/rooms", () => {
     });
   });
 
-  it("creates a personal orchestrator direct without an active organization", async () => {
+  it("creates a personal soko bot direct without an active organization", async () => {
     const created = channelRoom({
       organizationId: null,
       name: "Soko Bot",
@@ -1863,7 +1863,7 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
-  it("restores orchestrator membership when reopening an existing owner direct", async () => {
+  it("restores soko bot membership when reopening an existing owner direct", async () => {
     const existing = channelRoom({
       organizationId: null,
       name: "Soko Bot",

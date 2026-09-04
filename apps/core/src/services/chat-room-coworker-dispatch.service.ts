@@ -340,7 +340,7 @@ const ROOM_CONTEXT_MESSAGE_MAX_CHARS = 500;
 export interface RoomContextMessage {
   senderName: string;
   isCoworker: boolean;
-  isOrchestrator?: boolean;
+  isSokoBot?: boolean;
   content: string;
 }
 
@@ -350,7 +350,7 @@ function formatContextLine(message: RoomContextMessage): string {
     flattened.length > ROOM_CONTEXT_MESSAGE_MAX_CHARS
       ? `${flattened.slice(0, ROOM_CONTEXT_MESSAGE_MAX_CHARS)}…`
       : flattened;
-  const senderLabel = message.isOrchestrator
+  const senderLabel = message.isSokoBot
     ? `${message.senderName} (personal assistant)`
     : message.isCoworker
       ? `${message.senderName} (AI coworker)`
@@ -422,7 +422,7 @@ async function loadRoomContextMessages(params: {
       row.senderUser?.name ||
       "Unknown sender",
     isCoworker: row.senderCoworker != null,
-    isOrchestrator: row.senderSokoBot != null,
+    isSokoBot: row.senderSokoBot != null,
     content: row.content,
   }));
 }

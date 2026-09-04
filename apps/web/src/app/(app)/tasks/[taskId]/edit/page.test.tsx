@@ -44,7 +44,7 @@ vi.mock("@/app/tasks/utils/agent-names", () => ({
 
 vi.mock("@/app/tasks/utils/coworker-options", () => ({
   getCoworkerOptions: (...args: unknown[]) => getCoworkerOptionsMock(...args),
-  withOwnerOrchestratorOption: (options: unknown) => options,
+  withOwnerSokoBotOption: (options: unknown) => options,
   taskFormAssigneeId: (task: { assigneeId?: string | null }) =>
     task.assigneeId ?? "",
 }));

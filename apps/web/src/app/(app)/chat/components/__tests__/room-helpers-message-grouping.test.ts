@@ -76,7 +76,7 @@ function coworkerMessage(
   });
 }
 
-function orchestratorMessage(
+function sokoBotMessage(
   id: string,
   createdAt: string,
   sokoBotId = "soko-1",
@@ -109,7 +109,7 @@ function unknownMessage(id: string, createdAt: string): ChatRoomMessage {
 }
 
 describe("messageSenderKey", () => {
-  it("keys users, coworkers, and orchestrators by type and id", () => {
+  it("keys users, coworkers, and soko bots by type and id", () => {
     expect(
       messageSenderKey(userMessage("m1", "2026-07-01T12:00:00.000Z")),
     ).toBe("user:user-1");
@@ -117,7 +117,7 @@ describe("messageSenderKey", () => {
       messageSenderKey(coworkerMessage("m2", "2026-07-01T12:00:00.000Z")),
     ).toBe("coworker:cow-1");
     expect(
-      messageSenderKey(orchestratorMessage("m4", "2026-07-01T12:00:00.000Z")),
+      messageSenderKey(sokoBotMessage("m4", "2026-07-01T12:00:00.000Z")),
     ).toBe("sokoBot:soko-1");
   });
 
@@ -156,9 +156,9 @@ describe("messageSender", () => {
     });
   });
 
-  it("returns orchestrator profile with avatar seed and presence", () => {
+  it("returns soko bot profile with avatar seed and presence", () => {
     expect(
-      messageSender(orchestratorMessage("m4", "2026-07-01T12:00:00.000Z")),
+      messageSender(sokoBotMessage("m4", "2026-07-01T12:00:00.000Z")),
     ).toEqual({
       kind: "sokoBot",
       id: "soko-1",

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   createDirectRoomAction,
   ensureCoworkerDirectRoomAction,
-  ensureOrchestratorDirectRoomAction,
+  ensureSokoBotDirectRoomAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -75,18 +75,18 @@ export function CreateDirectDialog() {
   const selectedCoworkerIds = selectedTargets
     .filter((target) => target.kind === "coworker")
     .map((target) => target.id);
-  const selectedOrchestratorIds = selectedTargets
+  const selectedSokoBotIds = selectedTargets
     .filter((target) => target.kind === "sokoBot")
     .map((target) => target.id);
   const hasSelectedHumans = selectedMemberUserIds.length > 0;
   const hasSelectedCoworker = selectedCoworkerIds.length > 0;
-  const hasSelectedOrchestrator = selectedOrchestratorIds.length > 0;
-  const hasSelectedAi = hasSelectedCoworker || hasSelectedOrchestrator;
+  const hasSelectedSokoBot = selectedSokoBotIds.length > 0;
+  const hasSelectedAi = hasSelectedCoworker || hasSelectedSokoBot;
   const crossKindDisabledReason = hasSelectedHumans
     ? t("Draft.groupDirectHumansOnly")
     : hasSelectedCoworker
       ? t("Draft.coworkerDirectOneToOneOnly")
-      : hasSelectedOrchestrator
+      : hasSelectedSokoBot
         ? t("Draft.personalAssistantDirectOneToOneOnly")
         : undefined;
 
@@ -100,7 +100,7 @@ export function CreateDirectDialog() {
     if (hasSelectedCoworker && target.kind === "sokoBot") {
       return true;
     }
-    if (hasSelectedOrchestrator && target.kind === "coworker") {
+    if (hasSelectedSokoBot && target.kind === "coworker") {
       return true;
     }
     if (
@@ -162,10 +162,8 @@ export function CreateDirectDialog() {
       const result =
         selectedCoworkerIds.length === 1
           ? await ensureCoworkerDirectRoomAction(selectedCoworkerIds[0])
-          : selectedOrchestratorIds.length === 1
-            ? await ensureOrchestratorDirectRoomAction(
-                selectedOrchestratorIds[0],
-              )
+          : selectedSokoBotIds.length === 1
+            ? await ensureSokoBotDirectRoomAction(selectedSokoBotIds[0])
             : await createDirectRoomAction({
                 memberUserIds: selectedMemberUserIds,
               });

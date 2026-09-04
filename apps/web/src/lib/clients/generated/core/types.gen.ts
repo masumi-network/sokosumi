@@ -1072,25 +1072,25 @@ export type Task = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Null when the assignee is an orchestrator.
+     * Marketplace coworker assignee. Null when the assignee is a Soko Bot.
      */
     assigneeId: string | null;
     /**
-     * Personal-assistant orchestrator assignee. Null when the assignee is a coworker.
+     * Soko Bot assignee. Null when the assignee is a coworker.
      */
     assigneeSokoBotId: string | null;
     /**
-     * Discriminated assignee: coworker, orchestrator, or unassigned.
+     * Discriminated assignee: coworker, sokoBot, or unassigned.
      */
     assignee: TaskAssigneeCoworker | TaskAssigneeSokoBot | null;
     /**
-     * Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.
+     * Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.
      *
      * @deprecated
      */
     coworkerId: string | null;
     /**
-     * Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.
+     * Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.
      *
      * @deprecated
      */
@@ -1183,7 +1183,7 @@ export type SokoBotSummary = {
 };
 
 /**
- * Actor that created the task. Exactly one of user, coworker, or orchestrator.
+ * Actor that created the task. Exactly one of user, coworker, or sokoBot.
  */
 export type TaskCreator = ({
     type: 'user';
@@ -2389,7 +2389,7 @@ export type CreateChatRoomRequest = {
     sokoBotIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (orchestrator). Human, coworker, and orchestrator targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/orchestrator DMs with an active org are org-scoped. Coworker and orchestrator DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
+     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -5298,25 +5298,25 @@ export type TaskListItem = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Null when the assignee is an orchestrator.
+     * Marketplace coworker assignee. Null when the assignee is a Soko Bot.
      */
     assigneeId: string | null;
     /**
-     * Personal-assistant orchestrator assignee. Null when the assignee is a coworker.
+     * Soko Bot assignee. Null when the assignee is a coworker.
      */
     assigneeSokoBotId: string | null;
     /**
-     * Discriminated assignee: coworker, orchestrator, or unassigned.
+     * Discriminated assignee: coworker, sokoBot, or unassigned.
      */
     assignee: TaskAssigneeCoworker | TaskAssigneeSokoBot | null;
     /**
-     * Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.
+     * Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.
      *
      * @deprecated
      */
     coworkerId: string | null;
     /**
-     * Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.
+     * Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.
      *
      * @deprecated
      */
@@ -35915,7 +35915,7 @@ export type GetTasksData = {
          */
         coworkerId?: string;
         /**
-         * Filter tasks by personal-assistant orchestrator assignee
+         * Filter tasks by Soko Bot assignee
          */
         assigneeSokoBotId?: string;
         /**

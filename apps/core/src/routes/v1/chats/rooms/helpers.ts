@@ -2353,7 +2353,7 @@ async function findOrRestoreDirectByKey(
   });
 }
 
-async function ensureDirectOrchestratorMembership(
+async function ensureDirectSokoBotMembership(
   tx: {
     chatRoom: Pick<typeof prisma.chatRoom, "findFirst">;
     chatRoomSokoBotMember: Pick<
@@ -2624,11 +2624,7 @@ export async function createOrGetDirectRoom(params: {
         });
         if (existing) {
           return {
-            room: await ensureDirectOrchestratorMembership(
-              tx,
-              existing,
-              sokoBotIds,
-            ),
+            room: await ensureDirectSokoBotMembership(tx, existing, sokoBotIds),
             created: false,
           };
         }
@@ -2739,7 +2735,7 @@ export async function createOrGetDirectRoom(params: {
       if (existing) {
         const room =
           shape.kind === "sokoBot-1to1"
-            ? await ensureDirectOrchestratorMembership(
+            ? await ensureDirectSokoBotMembership(
                 prisma,
                 existing,
                 requestedSokoBotIds,
@@ -2780,37 +2776,35 @@ async function createDirectRoomRecord(params: {
     sokoBotIds,
   } = params;
 
-  const [targetUsers, targetCoworkers, targetOrchestrators] = await Promise.all(
-    [
-      memberUserIds.length > 0
-        ? tx.user.findMany({
-            where: { id: { in: [...memberUserIds] } },
-            select: { id: true, name: true, email: true },
-          })
-        : Promise.resolve([]),
-      coworkerIds.length > 0
-        ? tx.coworker.findMany({
-            where: { id: { in: [...coworkerIds] } },
-            select: { id: true, name: true },
-          })
-        : Promise.resolve([]),
-      sokoBotIds.length > 0
-        ? tx.sokoBot.findMany({
-            where: { id: { in: [...sokoBotIds] } },
-            select: {
-              id: true,
-              name: true,
-              user: { select: { name: true } },
-            },
-          })
-        : Promise.resolve([]),
-    ],
-  );
+  const [targetUsers, targetCoworkers, targetSokoBots] = await Promise.all([
+    memberUserIds.length > 0
+      ? tx.user.findMany({
+          where: { id: { in: [...memberUserIds] } },
+          select: { id: true, name: true, email: true },
+        })
+      : Promise.resolve([]),
+    coworkerIds.length > 0
+      ? tx.coworker.findMany({
+          where: { id: { in: [...coworkerIds] } },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+    sokoBotIds.length > 0
+      ? tx.sokoBot.findMany({
+          where: { id: { in: [...sokoBotIds] } },
+          select: {
+            id: true,
+            name: true,
+            user: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
   const usersById = new Map(targetUsers.map((user) => [user.id, user]));
   const coworkersById = new Map(
     targetCoworkers.map((coworker) => [coworker.id, coworker]),
   );
-  const sokoBotsById = new Map(targetOrchestrators.map((bot) => [bot.id, bot]));
+  const sokoBotsById = new Map(targetSokoBots.map((bot) => [bot.id, bot]));
   const directName = buildDirectRoomName([
     ...memberUserIds.map((userId) => {
       const user = usersById.get(userId);

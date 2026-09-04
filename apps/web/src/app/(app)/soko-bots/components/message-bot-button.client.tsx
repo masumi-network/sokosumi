@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 
-import { ensureOrchestratorDirectRoomAction } from "@/app/chat/actions";
+import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
 
 /** Opens (or creates) the direct room with the signed-in user's personal assistant. */
@@ -24,7 +24,7 @@ export function MessageBotButton({
   const [isPending, startTransition] = useTransition();
   const open = () =>
     startTransition(async () => {
-      const result = await ensureOrchestratorDirectRoomAction(sokoBotId);
+      const result = await ensureSokoBotDirectRoomAction(sokoBotId);
       if (!result.ok || !result.value) {
         toast.error(errorLabel);
         return;

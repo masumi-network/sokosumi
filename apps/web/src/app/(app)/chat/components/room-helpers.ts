@@ -232,7 +232,7 @@ export function partitionRoomMentionSuggestions(
   }
   if (sokoBots.length > 0) {
     groups.push({
-      id: "orchestrators",
+      id: "soko-bots",
       label: labels.personalAssistantsLabel,
       items: sokoBots,
     });
@@ -985,12 +985,12 @@ export function formatRoomMarkdownMentions({
     }
     const coworker =
       coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
-    const orchestrator =
+    const sokoBot =
       sokoBotsById?.get(match.id) ?? sokoBotsBySlug?.get(match.slug);
     const user = usersById?.get(match.id) ?? usersBySlug?.get(match.slug);
     const displayName = isRoomMentionAllId(match.id)
       ? ROOM_MENTION_ALL_ID
-      : (coworker?.name ?? orchestrator?.name ?? user?.name);
+      : (coworker?.name ?? sokoBot?.name ?? user?.name);
     if (displayName) {
       formatted += mentionChipHtml(
         displayName,

@@ -27,7 +27,7 @@ interface TaskMetadataLabels {
   updated: string;
   schedule: string;
   personalAssistantFallback: string;
-  formatOrchestratorRole: (values: { owner: string }) => string;
+  formatSokoBotRole: (values: { owner: string }) => string;
 }
 
 interface TaskMetadataTask {
@@ -53,7 +53,7 @@ function resolveTaskCreatorDisplay(
   task: TaskMetadataTask,
   labels: Pick<
     TaskMetadataLabels,
-    "formatOrchestratorRole" | "personalAssistantFallback"
+    "formatSokoBotRole" | "personalAssistantFallback"
   >,
 ): TaskCreatorDisplay | null {
   switch (task.creator.type) {
@@ -88,7 +88,7 @@ function resolveTaskCreatorDisplay(
       // assistant did it, or on whose behalf.
       const assistantName =
         sokoBot.name?.trim() || labels.personalAssistantFallback;
-      const role = labels.formatOrchestratorRole({
+      const role = labels.formatSokoBotRole({
         owner: sokoBot.owner.name,
       });
       // A claimed mascot is the bot's face everywhere else, so the orb is the

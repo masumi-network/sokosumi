@@ -23,7 +23,7 @@ const {
   prismaTransactionMock,
   requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworkerMock,
-  requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBotMock,
   refreshTaskSchedulePlannedOccurrencesMock,
   resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
@@ -39,7 +39,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requireMutableTaskOwnershipMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireTaskAssignableOrchestratorMock: vi.fn(),
+  requireTaskAssignableSokoBotMock: vi.fn(),
   refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
@@ -53,7 +53,7 @@ const {
 vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableSokoBot: requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
 }));
 
 vi.mock("@/helpers/organization", () => ({

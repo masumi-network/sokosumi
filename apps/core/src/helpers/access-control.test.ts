@@ -517,7 +517,7 @@ describe("requireTaskCollaboration", () => {
     });
   });
 
-  it("allows an orchestrator only on its assigned task in its workspace", async () => {
+  it("allows a soko bot only on its assigned task in its workspace", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
@@ -650,7 +650,7 @@ describe("requireTaskReadForRouteVars", () => {
     expect(tx.task.findFirst).not.toHaveBeenCalled();
   });
 
-  it("reads only the orchestrator's assigned task", async () => {
+  it("reads only the soko bot's assigned task", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
@@ -1705,14 +1705,14 @@ describe("requireTaskAssignableSokoBot", () => {
     ).rejects.toThrow("Only the owner can assign work to this Soko Bot");
   });
 
-  it("rejects a missing or archived orchestrator", async () => {
+  it("rejects a missing or archived soko bot", async () => {
     const tx = {
       sokoBot: { findFirst: vi.fn().mockResolvedValue(null) },
     } as unknown as Prisma.TransactionClient;
 
     await expect(
       requireTaskAssignableSokoBot("bot_1", workspaceId, tx),
-    ).rejects.toThrow("Orchestrator is not usable in this workspace");
+    ).rejects.toThrow("Soko Bot is not usable in this workspace");
   });
 });
 
@@ -2060,7 +2060,7 @@ describe("requireJobReadForRouteVars", () => {
     ).rejects.toThrow("Job not found");
   });
 
-  it("allows an orchestrator to read a job on its assigned task", async () => {
+  it("allows a soko bot to read a job on its assigned task", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",

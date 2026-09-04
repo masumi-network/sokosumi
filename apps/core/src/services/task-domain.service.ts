@@ -355,14 +355,14 @@ export async function updateTaskForActor(
   const nextAssigneeId = assigneeWrite
     ? assigneeWrite.assigneeId
     : task.assigneeId;
-  const nextAssigneeOrchestratorId = assigneeWrite
+  const nextAssigneeSokoBotId = assigneeWrite
     ? assigneeWrite.assigneeSokoBotId
     : task.assigneeSokoBotId;
   const nextStatus = input.status ?? task.status;
   requireAssigneeForExecutableStatus(
     nextStatus,
     nextAssigneeId,
-    nextAssigneeOrchestratorId,
+    nextAssigneeSokoBotId,
   );
 
   await requireTaskReferences(

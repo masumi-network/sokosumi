@@ -806,7 +806,7 @@ export class SokoBotRuntimeService {
   /** Everything a project manager needs to act on a Task without opening it. */
   /**
    * Rooms the bot itself belongs to. Membership is the whole authorization
-   * boundary here: the bot is an orchestrator in chat, so it sees exactly the
+   * boundary here: the bot is a Soko Bot in chat, so it sees exactly the
    * rooms a person added it to and nothing else in the workspace.
    */
   private async listChats(authorized: AuthorizedSokoBotRuntime) {
@@ -835,7 +835,7 @@ export class SokoBotRuntimeService {
   }
 
   /**
-   * Rooms the bot may touch: its own orchestrator memberships, bounded to the
+   * Rooms the bot may touch: its own Soko Bot memberships, bounded to the
    * workspace the turn runs in. Membership alone is not enough — a bot could
    * in principle be added to a room in another organization, and a turn must
    * never reach outside its own workspace.
@@ -857,7 +857,7 @@ export class SokoBotRuntimeService {
 
   /**
    * The single authorization boundary for chat: the bot may only touch rooms
-   * it belongs to as an orchestrator, in its own workspace. Re-checked on every
+   * it belongs to as a Soko Bot, in its own workspace. Re-checked on every
    * call because the room id comes from the model, so removal takes effect at
    * once.
    */
@@ -1126,7 +1126,7 @@ export class SokoBotRuntimeService {
     }
   }
 
-  /** Post into a room the bot belongs to, as the bot's orchestrator identity. */
+  /** Post into a room the bot belongs to, as the bot's Soko Bot identity. */
   private async postChat(
     authorized: AuthorizedSokoBotRuntime,
     input: { roomId: string; content: string },
@@ -1521,7 +1521,7 @@ export class SokoBotRuntimeService {
     };
   }
 
-  /** Progress a Task this orchestrator is assigned to; no credits involved. */
+  /** Progress a Task this Soko Bot is assigned to; no credits involved. */
   private async updateAssignedTask(
     authorized: AuthorizedSokoBotRuntime,
     rawInput: unknown,

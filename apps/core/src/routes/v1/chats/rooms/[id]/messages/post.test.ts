@@ -516,8 +516,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
   });
 
-  describe("orchestrator actor", () => {
-    it("posts with the orchestrator sender after membership authorization", async () => {
+  describe("soko bot actor", () => {
+    it("posts with the soko bot sender after membership authorization", async () => {
       roomFindFirstMock.mockResolvedValue({
         id: ROOM_ID,
         name: "general",
@@ -588,8 +588,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
   });
 
-  describe("orchestrator mentions", () => {
-    it("creates an orchestrator mention and dispatches a Soko Bot turn", async () => {
+  describe("soko bot mentions", () => {
+    it("creates a soko bot mention and dispatches a Soko Bot turn", async () => {
       roomFindFirstMock.mockResolvedValue(
         roomWithMembers({
           userMembers: [

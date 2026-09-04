@@ -105,7 +105,7 @@ function RoomMentionSuggestion({
 }) {
   const t = useTranslations("App.Channels");
   const isCoworker = mention.data?.kind === "coworker";
-  const isOrchestrator = mention.data?.kind === "sokoBot";
+  const isSokoBot = mention.data?.kind === "sokoBot";
   const isAll = mention.data?.kind === "all";
   const displayName = isAll ? t("MentionAll.label") : mention.value;
   return (
@@ -125,9 +125,9 @@ function RoomMentionSuggestion({
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-medium">{displayName}</span>
-          {isCoworker || isOrchestrator ? (
+          {isCoworker || isSokoBot ? (
             <AiCoworkerIcon
-              label={isOrchestrator ? t("personalAssistantBadge") : undefined}
+              label={isSokoBot ? t("personalAssistantBadge") : undefined}
             />
           ) : null}
         </div>
@@ -236,8 +236,8 @@ function PendingQuotePreview({
   usersBySlug: rosterUsersBySlug,
   coworkersById: rosterCoworkersById,
   coworkersBySlug: rosterCoworkersBySlug,
-  sokoBotsById: rosterOrchestratorsById,
-  sokoBotsBySlug: rosterOrchestratorsBySlug,
+  sokoBotsById: rosterSokoBotsById,
+  sokoBotsBySlug: rosterSokoBotsBySlug,
   channelLinks,
   currentUserId,
   canOpenHumanDirect,
@@ -272,8 +272,8 @@ function PendingQuotePreview({
     usersBySlug: rosterUsersBySlug,
     coworkersById: rosterCoworkersById,
     coworkersBySlug: rosterCoworkersBySlug,
-    sokoBotsById: rosterOrchestratorsById,
-    sokoBotsBySlug: rosterOrchestratorsBySlug,
+    sokoBotsById: rosterSokoBotsById,
+    sokoBotsBySlug: rosterSokoBotsBySlug,
   });
 
   const attachment = quote.attachment;

@@ -19,7 +19,7 @@ import {
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
-  type ChatComposeOrchestrator,
+  type ChatComposeSokoBot,
   deleteRoomMessageAction,
   editRoomMessageAction,
   getRoomThreadAction,
@@ -215,7 +215,7 @@ interface RoomsClientProps {
   organizationMembers: Member[];
   currentUserId: string;
   coworkers: Coworker[];
-  sokoBots?: ChatComposeOrchestrator[];
+  sokoBots?: ChatComposeSokoBot[];
   selectedRoomId: string | null;
   messageLoadFailed: boolean;
   /** Org roster soft-fail; false for personal workspace (no org roster). */
@@ -380,7 +380,7 @@ interface RoomHeaderChromeProps {
   currentUserId: string;
   organizationMembers: Member[];
   coworkers: Coworker[];
-  sokoBots: ChatComposeOrchestrator[];
+  sokoBots: ChatComposeSokoBot[];
   canEditMembers: boolean;
   canManageSettings: boolean;
   canArchive: boolean;

@@ -185,7 +185,7 @@ describe("POST /tasks/{id}/jobs", () => {
     );
   });
 
-  it("creates a job for the assigned orchestrator", async () => {
+  it("creates a job for the assigned soko bot", async () => {
     const app = createApp({
       actor: "sokoBot",
       sokoBotId: "22222222-2222-7222-8222-222222222222",

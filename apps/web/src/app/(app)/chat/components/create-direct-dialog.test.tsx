@@ -41,7 +41,7 @@ vi.mock("@/app/chat/actions", () => ({
   loadChatComposeRosterAction: loadChatComposeRosterActionMock,
   createDirectRoomAction: createDirectRoomActionMock,
   ensureCoworkerDirectRoomAction: ensureCoworkerDirectRoomActionMock,
-  ensureOrchestratorDirectRoomAction: vi.fn(),
+  ensureSokoBotDirectRoomAction: vi.fn(),
 }));
 
 vi.mock("@/components/chat/organization-chat-events", () => ({
