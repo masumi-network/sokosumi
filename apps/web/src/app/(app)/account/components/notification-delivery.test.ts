@@ -3,12 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   categoryChannels,
   cellsFor,
-  groupPreset,
-  groupPresets,
+  groupScope,
+  groupScopes,
   type KindSpec,
-  presetChanges,
-  presetChannels,
   sameChannels,
+  scopeChanges,
   withChannel,
 } from "./notification-delivery";
 
@@ -41,34 +40,8 @@ function cells(...rows: [string, string, boolean][]) {
     category,
     channel,
     enabled,
-  })) as Parameters<typeof groupPreset>[0];
+  })) as Parameters<typeof groupScope>[0];
 }
-
-describe("presetChannels", () => {
-  it("puts everything on every channel", () => {
-    expect(presetChannels("EVERYTHING", UPDATE)).toEqual([
-      "IN_APP",
-      "OS_BANNER",
-    ]);
-  });
-
-  it("keeps what waits on the reader and drops the rest", () => {
-    expect(presetChannels("IMPORTANT", ATTENTION)).toEqual([
-      "IN_APP",
-      "OS_BANNER",
-    ]);
-    expect(presetChannels("IMPORTANT", UPDATE)).toEqual([]);
-  });
-
-  it("keeps the same kinds in the app alone", () => {
-    expect(presetChannels("QUIET", ATTENTION)).toEqual(["IN_APP"]);
-    expect(presetChannels("QUIET", UPDATE)).toEqual([]);
-  });
-
-  it("silences everything", () => {
-    expect(presetChannels("OFF", ATTENTION)).toEqual([]);
-  });
-});
 
 describe("categoryChannels", () => {
   /**
@@ -131,74 +104,6 @@ describe("withChannel", () => {
     expect(withChannel(["IN_APP", "OS_BANNER"], "IN_APP", false)).toEqual([]);
   });
 });
-
-describe("groupPresets", () => {
-  it("offers all four where they mean different things", () => {
-    expect(groupPresets([ATTENTION, UPDATE])).toEqual([
-      "EVERYTHING",
-      "IMPORTANT",
-      "QUIET",
-      "OFF",
-    ]);
-  });
-
-  /**
-   * Everything and Important write the same cells for a group whose kinds all
-   * wait on the reader. Two stops that do the same thing read as a broken
-   * control, so the later one is dropped.
-   */
-  it("drops a preset that writes what an earlier one writes", () => {
-    expect(groupPresets([ATTENTION, MENTION])).toEqual([
-      "EVERYTHING",
-      "QUIET",
-      "OFF",
-    ]);
-  });
-
-  it("leaves a single kind its three answers", () => {
-    expect(groupPresets([ATTENTION])).toEqual(["EVERYTHING", "QUIET", "OFF"]);
-  });
-
-  /**
-   * Important and Quiet both silence a group whose kinds none of them wait on
-   * the reader. Off is what a reader calls a stop that silences a group, so
-   * that is the one that survives.
-   */
-  it("keeps the preset whose name describes what it writes", () => {
-    expect(groupPresets([UPDATE])).toEqual(["EVERYTHING", "OFF"]);
-  });
-});
-
-describe("groupPreset", () => {
-  it("names the preset the stored cells match", () => {
-    expect(
-      groupPreset(
-        cells(
-          ["JOB_ATTENTION", "IN_APP", true],
-          ["JOB_ATTENTION", "OS_BANNER", false],
-          ["JOB_UPDATE", "IN_APP", false],
-          ["JOB_UPDATE", "OS_BANNER", false],
-        ),
-        [ATTENTION, UPDATE],
-      ),
-    ).toBe("QUIET");
-  });
-
-  it("says Custom when the reader set the kinds one by one", () => {
-    expect(
-      groupPreset(
-        cells(
-          ["JOB_ATTENTION", "IN_APP", true],
-          ["JOB_ATTENTION", "OS_BANNER", true],
-          ["JOB_UPDATE", "IN_APP", true],
-          ["JOB_UPDATE", "OS_BANNER", false],
-        ),
-        [ATTENTION, UPDATE],
-      ),
-    ).toBe("CUSTOM");
-  });
-});
-
 describe("cellsFor", () => {
   it("writes each category on its own channels", () => {
     expect(
@@ -209,7 +114,10 @@ describe("cellsFor", () => {
           ["JOB_UPDATE", "IN_APP", true],
           ["JOB_UPDATE", "OS_BANNER", true],
         ),
-        presetChanges("IMPORTANT", [ATTENTION, UPDATE]),
+        scopeChanges("IMPORTANT", [
+          { spec: ATTENTION, channels: [] },
+          { spec: UPDATE, channels: ["IN_APP", "OS_BANNER"] },
+        ]),
       ),
     ).toEqual([
       { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
@@ -255,5 +163,131 @@ describe("sameChannels", () => {
   it("separates a kind that lost a channel", () => {
     expect(sameChannels(["IN_APP", "OS_BANNER"], ["IN_APP"])).toBe(false);
     expect(sameChannels([], ["IN_APP"])).toBe(false);
+  });
+});
+
+describe("groupScopes", () => {
+  it("offers all three where they mean different things", () => {
+    expect(groupScopes([ATTENTION, UPDATE])).toEqual([
+      "ALL",
+      "IMPORTANT",
+      "NONE",
+    ]);
+  });
+
+  /**
+   * Important keeps every kind of a group whose kinds all matter, so it writes
+   * what All writes. Two stops that do the same thing read as a broken
+   * control.
+   */
+  it("drops Important where it keeps everything", () => {
+    expect(groupScopes([ATTENTION, MENTION])).toEqual(["ALL", "NONE"]);
+  });
+
+  /** The other end: Important keeps nothing, so it writes what Nothing writes. */
+  it("drops Important where it keeps nothing", () => {
+    expect(groupScopes([UPDATE])).toEqual(["ALL", "NONE"]);
+  });
+});
+
+describe("groupScope", () => {
+  it("names the scope the kinds that are on match", () => {
+    expect(
+      groupScope(
+        cells(
+          ["JOB_ATTENTION", "IN_APP", true],
+          ["JOB_ATTENTION", "OS_BANNER", false],
+          ["JOB_UPDATE", "IN_APP", false],
+          ["JOB_UPDATE", "OS_BANNER", false],
+        ),
+        [ATTENTION, UPDATE],
+      ),
+    ).toBe("IMPORTANT");
+  });
+
+  /** Which kinds arrive, not where: two kinds on in two places are still All. */
+  it("reads only whether a kind arrives at all", () => {
+    expect(
+      groupScope(
+        cells(
+          ["JOB_ATTENTION", "IN_APP", true],
+          ["JOB_ATTENTION", "OS_BANNER", true],
+          ["JOB_UPDATE", "IN_APP", true],
+          ["JOB_UPDATE", "OS_BANNER", false],
+        ),
+        [ATTENTION, UPDATE],
+      ),
+    ).toBe("ALL");
+  });
+
+  it("says Custom when the kinds that are on are neither all nor the ones that matter", () => {
+    expect(
+      groupScope(
+        cells(
+          ["JOB_ATTENTION", "IN_APP", false],
+          ["JOB_ATTENTION", "OS_BANNER", false],
+          ["JOB_UPDATE", "IN_APP", true],
+          ["JOB_UPDATE", "OS_BANNER", false],
+        ),
+        [ATTENTION, UPDATE],
+      ),
+    ).toBe("CUSTOM");
+  });
+});
+
+describe("scopeChanges", () => {
+  it("keeps the kinds it names and silences the rest", () => {
+    expect(
+      scopeChanges("IMPORTANT", [
+        { spec: ATTENTION, channels: ["IN_APP"] },
+        { spec: UPDATE, channels: ["IN_APP"] },
+      ]),
+    ).toEqual([
+      { category: "JOB_ATTENTION", channels: ["IN_APP"] },
+      { category: "JOB_UPDATE", channels: [] },
+    ]);
+  });
+
+  /**
+   * An answer says which kinds arrive, never where. So a kind it keeps comes
+   * back on the channels it was already on, and a group the reader has quieted
+   * to the app alone does not start buzzing because they asked for everything.
+   */
+  it("leaves each kept kind on its own channels", () => {
+    expect(
+      scopeChanges("ALL", [
+        { spec: ATTENTION, channels: ["IN_APP"] },
+        { spec: UPDATE, channels: ["IN_APP", "OS_BANNER"] },
+      ]),
+    ).toEqual([
+      { category: "JOB_ATTENTION", channels: ["IN_APP"] },
+      { category: "JOB_UPDATE", channels: ["IN_APP", "OS_BANNER"] },
+    ]);
+  });
+
+  /** A kind that arrives nowhere has nothing to keep, so it takes the group's. */
+  it("gives a silent kind the channels the group uses", () => {
+    expect(
+      scopeChanges("ALL", [
+        { spec: ATTENTION, channels: [] },
+        { spec: UPDATE, channels: ["IN_APP"] },
+      ]),
+    ).toEqual([
+      { category: "JOB_ATTENTION", channels: ["IN_APP"] },
+      { category: "JOB_UPDATE", channels: ["IN_APP"] },
+    ]);
+  });
+
+  /** A group that is on nowhere has no channel to keep, so it comes back loud. */
+  it("turns a silent group on everywhere", () => {
+    expect(
+      scopeChanges("ALL", [
+        { spec: ATTENTION, channels: [] },
+        { spec: UPDATE, channels: [] },
+      ]),
+    ).toEqual([
+      { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
+      { category: "JOB_UPDATE", channels: ["IN_APP", "OS_BANNER"] },
+    ]);
   });
 });
