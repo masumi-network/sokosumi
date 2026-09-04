@@ -55,72 +55,12 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
     }
 
     const grantAmounts: MigratedGrant[] = createTransactionMock.mock.calls
-      .filter(
-        (
-          call: [
-            {
-              data: {
-                sourceCreditBucket?: {
-                  create: {
-                    activatesAt: Date | null;
-                    amount: bigint;
-                    expiresAt: Date;
-                    userId: string | null;
-                  };
-                };
-              };
-            },
-          ],
-        ) => call[0].data.sourceCreditBucket != null,
-      )
-      .map(
-        (
-          call: [
-            {
-              data: {
-                sourceCreditBucket: {
-                  create: {
-                    activatesAt: Date | null;
-                    amount: bigint;
-                    expiresAt: Date;
-                    userId: string | null;
-                  };
-                };
-              };
-            },
-          ],
-        ) => call[0].data.sourceCreditBucket.create,
-      );
+      .filter((call) => call[0].data.sourceCreditBucket != null)
+      .map((call) => call[0].data.sourceCreditBucket.create);
 
     const drainAmounts = createTransactionMock.mock.calls
-      .filter(
-        (
-          call: [
-            {
-              data: {
-                creditConsumptions?: {
-                  createMany: { data: Array<{ amount: bigint }> };
-                };
-              };
-            },
-          ],
-        ) => call[0].data.creditConsumptions != null,
-      )
-      .flatMap(
-        (
-          call: [
-            {
-              data: {
-                creditConsumptions: {
-                  createMany: {
-                    data: Array<{ amount: bigint; bucketId: string }>;
-                  };
-                };
-              };
-            },
-          ],
-        ) => call[0].data.creditConsumptions.createMany.data,
-      );
+      .filter((call) => call[0].data.creditConsumptions != null)
+      .flatMap((call) => call[0].data.creditConsumptions.createMany.data);
     assert.deepEqual(
       drainAmounts
         .map((row: { amount: bigint; bucketId: string }) => ({
@@ -191,11 +131,7 @@ describe("transferMemberPeriodBucketsToOrganizationPool", () => {
     );
 
     const grant = createTransactionMock.mock.calls.find(
-      (
-        call: [
-          { data: { sourceCreditBucket?: { create: { activatesAt: Date } } } },
-        ],
-      ) => call[0].data.sourceCreditBucket != null,
+      (call) => call[0].data.sourceCreditBucket != null,
     )?.[0].data.sourceCreditBucket.create;
     assert.equal(grant?.activatesAt, activatesAt);
     assert.equal(grant?.userId, null);

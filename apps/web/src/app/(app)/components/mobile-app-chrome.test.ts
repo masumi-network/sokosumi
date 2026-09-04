@@ -86,12 +86,26 @@ describe("mobile-app-chrome", () => {
         href: "/notifications",
         labelKey: "back",
       });
+      expect(resolveMobileAppBackTarget("/you/developer")).toEqual({
+        href: "/you",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/you/help")).toEqual({
+        href: "/you",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/you/legal")).toEqual({
+        href: "/you",
+        labelKey: "back",
+      });
     });
 
     it("returns null outside the main hub tree", () => {
       expect(resolveMobileAppBackTarget("/chat")).toBeNull();
       expect(resolveMobileAppBackTarget("/chat/rooms/r1")).toBeNull();
       expect(resolveMobileAppBackTarget("/account")).toBeNull();
+      expect(resolveMobileAppBackTarget("/developer/docs")).toBeNull();
+      expect(resolveMobileAppBackTarget("/billing")).toBeNull();
       expect(resolveMobileAppBackTarget(null)).toBeNull();
     });
   });
@@ -129,6 +143,9 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBottomNav("/agents/a1")).toBe(false);
       expect(shouldShowMobileBottomNav("/admin/users")).toBe(false);
       expect(shouldShowMobileBottomNav("/notifications/n1")).toBe(false);
+      expect(shouldShowMobileBottomNav("/you/developer")).toBe(false);
+      expect(shouldShowMobileBottomNav("/you/help")).toBe(false);
+      expect(shouldShowMobileBottomNav("/you/legal")).toBe(false);
       expect(shouldShowMobileBottomNav("/account")).toBe(false);
       expect(shouldShowMobileBottomNav(null)).toBe(false);
     });
@@ -160,6 +177,9 @@ describe("mobile-app-chrome", () => {
         shouldShowMobileBrandLeading("/", new URLSearchParams("dm=new")),
       ).toBe(true);
       expect(shouldShowMobileBrandLeading("/tasks/t1")).toBe(false);
+      expect(shouldShowMobileBrandLeading("/you/developer")).toBe(false);
+      expect(shouldShowMobileBrandLeading("/you/help")).toBe(false);
+      expect(shouldShowMobileBrandLeading("/you/legal")).toBe(false);
       expect(shouldShowMobileBrandLeading("/agents")).toBe(false);
       expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);
