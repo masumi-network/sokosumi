@@ -165,6 +165,16 @@ describe("HeaderLeadingControl", () => {
     expect(back).toHaveAttribute("href", "/tasks");
   });
 
+  it("shows back to You on You submenu stacks", () => {
+    for (const path of ["/you/developer", "/you/help", "/you/legal"]) {
+      mockPathname = path;
+      const { unmount } = render(<HeaderLeadingControl />);
+      const back = screen.getByRole("link", { name: "back" });
+      expect(back).toHaveAttribute("href", "/you");
+      unmount();
+    }
+  });
+
   it("restores stored tasks view and filters on nested tasks back", async () => {
     window.sessionStorage.setItem(
       TASKS_RETURN_PATH_SESSION_KEY,
