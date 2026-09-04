@@ -3237,20 +3237,17 @@ describe("list_integration_tools", () => {
     integrationFindManyMock.mockResolvedValue([]);
   }
 
-  it("returns an empty list when the provider has no generic account", async () => {
-    armTurn();
-
-    const result = await new SokoBotRuntimeService().executeTool({
+  async function listTools(provider: string) {
+    return new SokoBotRuntimeService().executeTool({
       ...SCOPE,
       capability: "list_integration_tools",
       toolCallId: "call_29960",
-      input: { provider: "google" },
+      input: { provider },
     });
+  }
 
-    expect(result).toEqual({
-      tools: [],
-      note: "No connected account for provider google (mailboxes use search_inbox)",
-    });
+  function expectCompletedEmpty(result: unknown, note: string) {
+    expect(result).toEqual({ tools: [], note });
     expect(toolCallUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "COMPLETED" }),
@@ -3260,6 +3257,31 @@ describe("list_integration_tools", () => {
       expect.objectContaining({
         data: expect.objectContaining({ status: "FAILED" }),
       }),
+    );
+  }
+
+  it("returns an empty list when the provider has no generic account", async () => {
+    armTurn();
+    // "google" is not a toolkit slug; gmail / googledrive / googlecalendar are.
+    expectCompletedEmpty(
+      await listTools("google"),
+      "No connected account for provider google. Call list_integrations for connected slugs.",
+    );
+  });
+
+  it("points mailbox slugs at search_inbox instead of a generic toolbox", async () => {
+    armTurn();
+    expectCompletedEmpty(
+      await listTools("gmail"),
+      "No connected account for provider gmail (mailboxes use search_inbox)",
+    );
+  });
+
+  it("points calendar slugs at list_calendar_events", async () => {
+    armTurn();
+    expectCompletedEmpty(
+      await listTools("googlecalendar"),
+      "No connected account for provider googlecalendar (calendars use list_calendar_events)",
     );
   });
 });

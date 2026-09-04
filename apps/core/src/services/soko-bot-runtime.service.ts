@@ -15,6 +15,7 @@ import {
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotDecisionInputSchema as decisionInputSchema,
   exceedsUnattendedHireBudget,
+  getSokoBotIntegrationProvider,
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
@@ -310,6 +311,17 @@ export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
 export class SokoBotRuntimeAuthorizationError extends Error {}
 export class SokoBotRuntimeConflictError extends Error {}
 export class SokoBotRuntimeValidationError extends Error {}
+
+function missingGenericAccountNote(provider: string): string {
+  const known = getSokoBotIntegrationProvider(provider.toLowerCase());
+  if (known?.kinds.includes("email")) {
+    return `No connected account for provider ${provider} (mailboxes use search_inbox)`;
+  }
+  if (known?.kinds.includes("calendar")) {
+    return `No connected account for provider ${provider} (calendars use list_calendar_events)`;
+  }
+  return `No connected account for provider ${provider}. Call list_integrations for connected slugs.`;
+}
 
 /** Schedule tools never need approval; their domain errors become tool errors the model can read. */
 async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
@@ -2674,7 +2686,7 @@ export class SokoBotRuntimeService {
         if (!integration) {
           return {
             tools: [],
-            note: `No connected account for provider ${parsed.provider} (mailboxes use search_inbox)`,
+            note: missingGenericAccountNote(parsed.provider),
           };
         }
         return {
