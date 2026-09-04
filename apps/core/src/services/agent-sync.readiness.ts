@@ -9,6 +9,32 @@ import {
 import prisma from "@/lib/db/prisma";
 
 /**
+ * Marker states. The row exists for the length of one failure streak and a
+ * successful check deletes it, so these are the streak's own states, not the
+ * rail's. "failed" is what a fresh streak writes; the escalation flips it so
+ * exactly one worker can report the streak outliving the threshold below.
+ */
+const READINESS_FAILURE_NEW = "failed";
+const READINESS_FAILURE_ESCALATED = "escalated";
+
+/**
+ * How long a failure streak may run before it stops being a blip.
+ *
+ * The first tick of a streak alerts and the latch then goes quiet, so a
+ * lasting outage does not page every five minutes. That silence is right for
+ * minutes and wrong for hours. Readiness has no age expiry on purpose, so a
+ * V2 catalogue that is already enabled STAYS enabled through the whole
+ * outage: agents keep being listed and priced from the last recorded sources
+ * while every purchase against them fails at the node. Six ticks is where
+ * that stops looking like a blip.
+ *
+ * Deliberately not shorter. The point of this branch is to stop paging for a
+ * single timed-out attempt, and a threshold inside one or two ticks would put
+ * that page straight back.
+ */
+const READINESS_FAILURE_ESCALATION_MS = 30 * 60 * 1000;
+
+/**
  * Refreshes the recorded Cardano V2 rail readiness of the payment node (read
  * by getCardanoV2ReadySources).
  *
@@ -77,23 +103,55 @@ export async function syncCardanoV2RailReadiness(
         data: [
           {
             key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
-            cursorId: "failed",
+            cursorId: READINESS_FAILURE_NEW,
             lastSyncedAt: new Date(),
           },
         ],
         skipDuplicates: true,
       });
+      // HOW LONG has it been failing is the third question, and the marker
+      // row already answers it: skipDuplicates never touches an existing row,
+      // so lastSyncedAt still holds the moment the streak started.
+      //
+      // The latch's silence is right for a blip and wrong for an outage.
+      // Nothing expires the recorded readiness, so an enabled V2 catalogue
+      // stays enabled for the whole outage and keeps selling agents that
+      // cannot be paid for. A streak that outlives the threshold earns one
+      // more alert, and that one is an error whatever the catalogue looks
+      // like, because purchases have been failing for half an hour.
+      //
+      // Same atomic latch trick as the insert above: exactly one worker wins
+      // the conditional update and reports; the rest see count=0. The state
+      // lives in the row, so the escalation fires once per streak rather than
+      // once per tick, and a successful check deletes the row and re-arms it.
+      const escalation =
+        marker.count > 0
+          ? { count: 0 }
+          : await prisma.syncMetadata.updateMany({
+              where: {
+                key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
+                cursorId: READINESS_FAILURE_NEW,
+                lastSyncedAt: {
+                  lt: new Date(Date.now() - READINESS_FAILURE_ESCALATION_MS),
+                },
+              },
+              data: { cursorId: READINESS_FAILURE_ESCALATED },
+            });
+      const isStreakSustained = escalation.count > 0;
+
       // The latch is deliberately bypassed while readiness has never been
       // recorded: silence would otherwise be indistinguishable from a healthy
       // deployment that simply has no V2 agents, and the single page that the
       // latch does allow is spent on the first tick — minutes after deploy,
       // long before anyone looks.
-      if (marker.count > 0 || hasNeverBeenRecorded) {
+      if (marker.count > 0 || hasNeverBeenRecorded || isStreakSustained) {
         Sentry.captureException(
           new Error(
             isCatalogueHidden
               ? `Cardano V2 rail readiness has no usable value; the entire V2 catalogue is hidden. Last error: ${readinessResult.error}`
-              : `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
+              : isStreakSustained
+                ? `Cardano V2 rail readiness has failed for over ${READINESS_FAILURE_ESCALATION_MS / 60_000}m; V2 agents are still listed from the last recorded sources, so purchases against them keep failing. Last error: ${readinessResult.error}`
+                : `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
           ),
           {
             // Severity follows the user-visible impact, not the check result.
@@ -102,11 +160,17 @@ export async function syncCardanoV2RailReadiness(
             // sources, the next cron tick is five minutes out, and the usual
             // cause is one timed-out attempt that costs nothing anybody can
             // see. Paging for that teaches people to skip the alert, which is
-            // how the hidden case gets missed too. It stays reported, so a
-            // lasting outage is still visible in the same place.
-            level: isCatalogueHidden ? "error" : "warning",
+            // how the hidden case gets missed too. A stale streak that has
+            // outlived the threshold is no longer that case: it is an outage
+            // that has been running for half an hour, so it takes the error
+            // level back.
+            level: isCatalogueHidden || isStreakSustained ? "error" : "warning",
             tags: {
-              cardano_v2_readiness: isCatalogueHidden ? "hidden" : "stale",
+              cardano_v2_readiness: isCatalogueHidden
+                ? "hidden"
+                : isStreakSustained
+                  ? "stale_sustained"
+                  : "stale",
             },
           },
         );

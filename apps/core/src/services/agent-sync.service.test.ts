@@ -40,6 +40,7 @@ const {
   syncMetadataDeleteManyMock,
   syncMetadataCreateManyMock,
   syncMetadataFindUniqueMock,
+  syncMetadataUpdateManyMock,
   syncMetadataUpsertMock,
   tagUpsertMock,
   transactionMock,
@@ -75,6 +76,7 @@ const {
   syncMetadataDeleteManyMock: vi.fn(),
   syncMetadataCreateManyMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
+  syncMetadataUpdateManyMock: vi.fn(),
   syncMetadataUpsertMock: vi.fn(),
   tagUpsertMock: vi.fn(),
   transactionMock: vi.fn(),
@@ -147,6 +149,7 @@ vi.mock("@/lib/db/prisma", () => ({
       createMany: syncMetadataCreateManyMock,
       deleteMany: syncMetadataDeleteManyMock,
       findUnique: syncMetadataFindUniqueMock,
+      updateMany: syncMetadataUpdateManyMock,
       upsert: syncMetadataUpsertMock,
     },
     $transaction: transactionMock,
@@ -3119,6 +3122,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     syncMetadataFindUniqueMock.mockResolvedValue(null);
+    syncMetadataUpdateManyMock.mockResolvedValue({ count: 0 });
     syncMetadataUpsertMock.mockResolvedValue(undefined);
   });
 
@@ -3418,6 +3422,157 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       expect.objectContaining({
         level: "error",
         tags: { cardano_v2_readiness: "hidden" },
+      }),
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("escalates a stale streak to an error once it outlives the threshold", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    // Sources are recorded and still served, so every tick of this streak is
+    // a "stale" warning and the latch silences all but the first. Nothing
+    // expires the recorded value, so V2 agents stay listed and priced the
+    // whole time while every purchase against them fails at the node. Half an
+    // hour of that is an outage, not a blip.
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    // The latch is held by an earlier tick, and the conditional update wins.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
+    syncMetadataUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("has failed for over 30m"),
+      }),
+      expect.objectContaining({
+        level: "error",
+        tags: { cardano_v2_readiness: "stale_sustained" },
+      }),
+    );
+
+    // Only a streak that has actually run long may escalate, and only from
+    // the un-escalated state. Without both, the first tick of every streak
+    // would escalate itself and the threshold would mean nothing.
+    expect(syncMetadataUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        key: "cardano-v2-rail-readiness-failure",
+        cursorId: "failed",
+        lastSyncedAt: { lt: expect.any(Date) },
+      },
+      data: { cursorId: "escalated" },
+    });
+    const where = syncMetadataUpdateManyMock.mock.calls[0]?.[0]?.where as {
+      lastSyncedAt: { lt: Date };
+    };
+    expect(Date.now() - where.lastSyncedAt.lt.getTime()).toBeGreaterThanOrEqual(
+      30 * 60 * 1000,
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("stays quiet while a stale streak is still short", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    // Latch held, and the marker is younger than the threshold, so the
+    // conditional update matches nothing.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
+    syncMetadataUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    // One timed-out attempt inside a five-minute cron must stay silent. That
+    // silence is the whole point of this branch, and the escalation above
+    // must not undo it.
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("escalates once per streak, not once per tick", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
+    syncMetadataUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    // The row now reads "escalated", so the same conditional update matches
+    // nothing on every later tick. Without that state in the row this would
+    // page every five minutes for the rest of the outage, which is exactly
+    // the alarm flood the latch exists to prevent.
+    syncMetadataUpdateManyMock.mockResolvedValue({ count: 0 });
+    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not try to escalate on the tick that starts the streak", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+    // count > 0 means this worker just wrote the marker, so the streak is
+    // seconds old. Reading it back to ask whether it is half an hour old is
+    // a wasted round trip on a path that already alerts.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+
+    expect(syncMetadataUpdateManyMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        level: "warning",
+        tags: { cardano_v2_readiness: "stale" },
       }),
     );
 
