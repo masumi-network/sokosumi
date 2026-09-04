@@ -2672,9 +2672,10 @@ export class SokoBotRuntimeService {
           parsed.provider.toLowerCase(),
         );
         if (!integration) {
-          throw new SokoBotRuntimeValidationError(
-            `No connected account for provider ${parsed.provider} (mailboxes use search_inbox)`,
-          );
+          return {
+            tools: [],
+            note: `No connected account for provider ${parsed.provider} (mailboxes use search_inbox)`,
+          };
         }
         return {
           tools: await listIntegrationTools(integration, {
