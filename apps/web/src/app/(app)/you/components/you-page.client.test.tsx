@@ -192,49 +192,23 @@ describe("YouPageClient", () => {
     );
   });
 
-  it("drills Developer inside the section while keeping credits and logout", () => {
+  it("opens Developer, Help, and Legal as stacked routes under You", () => {
     renderYouPage();
 
-    fireEvent.click(screen.getByTestId("you-developer"));
-
-    expect(screen.getByTestId("you-drill-section")).toBeInTheDocument();
-    expect(screen.getByTestId("you-drill-back")).toBeInTheDocument();
-    expect(screen.getByTestId("you-developer-docs")).toHaveAttribute(
+    expect(screen.getByTestId("you-developer")).toHaveAttribute(
       "href",
-      "/developer/docs",
+      "/you/developer",
     );
+    expect(screen.getByTestId("you-help")).toHaveAttribute("href", "/you/help");
+    expect(screen.getByTestId("you-legal")).toHaveAttribute(
+      "href",
+      "/you/legal",
+    );
+    expect(screen.queryByTestId("you-drill-section")).toBeNull();
+    expect(screen.queryByTestId("you-drill-back")).toBeNull();
     expect(screen.getByTestId("you-buy-credits")).toBeInTheDocument();
     expect(screen.getByTestId("you-logout")).toBeInTheDocument();
     expect(screen.getByTestId("you-files")).toBeInTheDocument();
-    expect(screen.queryByTestId("you-developer")).toBeNull();
-    expect(screen.queryByTestId("you-settings")).toBeNull();
-  });
-
-  it("returns to root drill triggers from a nested back control", () => {
-    renderYouPage();
-
-    fireEvent.click(screen.getByTestId("you-help"));
-    expect(screen.getByTestId("you-help-documentation")).toBeInTheDocument();
-    expect(screen.getByTestId("you-buy-credits")).toBeInTheDocument();
-    expect(screen.getByTestId("you-logout")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId("you-drill-back"));
-
-    expect(screen.getByTestId("you-developer")).toBeInTheDocument();
-    expect(screen.getByTestId("you-help")).toBeInTheDocument();
-    expect(screen.getByTestId("you-legal")).toBeInTheDocument();
-    expect(screen.queryByTestId("you-help-documentation")).toBeNull();
-  });
-
-  it("drills Legal nested rows including cookie consent", () => {
-    renderYouPage();
-
-    fireEvent.click(screen.getByTestId("you-legal"));
-
-    expect(screen.getByTestId("you-legal-termsOfService")).toBeInTheDocument();
-    expect(screen.getByTestId("you-cookie-consent")).toBeInTheDocument();
-    expect(screen.getByTestId("you-buy-credits")).toBeInTheDocument();
-    expect(screen.getByTestId("you-logout")).toBeInTheDocument();
   });
 
   it("hides Admin when adminMenuEnabled is false", () => {
