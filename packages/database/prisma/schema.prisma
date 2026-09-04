@@ -510,6 +510,7 @@ model ProjectSocialConnection {
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   audits  ProjectSocialConnectionAudit[]
+  intents ProjectSocialConnectionIntent[]
 
   @@unique([projectId, activeExternalAccountKey])
   @@map("project_social_connection")
@@ -525,7 +526,8 @@ model ProjectSocialConnectionIntent {
   initiatingUserId String
   provider         String
   action           String
-  socialConnectionId String? @db.Uuid
+  socialConnectionId String?                  @db.Uuid
+  socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
   authConfigId       String
   expiresAt          DateTime
   createdAt          DateTime @default(now())
