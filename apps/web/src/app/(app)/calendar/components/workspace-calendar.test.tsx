@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -129,6 +130,17 @@ describe("WorkspaceCalendar", () => {
 
     expect(screen.getAllByTestId("calendar-month")[0]).toHaveClass(
       "workspace-calendar-theme",
+    );
+  });
+
+  it("sets transparent classic events for the week theme", () => {
+    const styles = readFileSync(
+      new URL("../../../globals.css", import.meta.url).pathname.slice(1),
+      "utf8",
+    );
+
+    expect(styles).toMatch(
+      /\.workspace-calendar-theme\[data-view="week"\]\s*\{[^}]*--fc-classic-event:\s*transparent;/,
     );
   });
 

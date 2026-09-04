@@ -161,6 +161,75 @@ describe("GET /projects/{id}/calendar", () => {
     );
   });
 
+  it("returns calendar items for a closed Project", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      closedAt: new Date("2026-06-04T00:00:00.000Z"),
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            id: "00000000-0000-7000-8000-000000000001",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("keeps Project source and archived Task constraints when paginating", async () => {
+    const firstOccurrence = createOccurrence();
+    const secondOccurrence = createOccurrence({
+      id: "00000000-0000-7000-8000-000000000002",
+      effectiveScheduledAt: new Date("2026-06-04T09:00:00.000Z"),
+    });
+    taskScheduleOccurrenceFindManyMock
+      .mockResolvedValueOnce([firstOccurrence, secondOccurrence])
+      .mockResolvedValueOnce([secondOccurrence]);
+
+    const firstResponse = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&limit=1`,
+    );
+
+    expect(firstResponse.status).toBe(200);
+    const firstPage = await firstResponse.json();
+    const firstWhere =
+      taskScheduleOccurrenceFindManyMock.mock.calls[0]?.[0].where;
+    expect(firstWhere).toMatchObject({
+      sourceProjectId: PROJECT_ID,
+      sourceType: "PROJECT",
+    });
+
+    const secondResponse = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&limit=1&cursor=${firstPage.meta.pagination.nextCursor}`,
+    );
+
+    expect(secondResponse.status).toBe(200);
+    const secondWhere =
+      taskScheduleOccurrenceFindManyMock.mock.calls[1]?.[0].where;
+    expect(secondWhere).toMatchObject({
+      sourceProjectId: PROJECT_ID,
+      sourceType: "PROJECT",
+    });
+    expect(secondWhere.AND).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              seriesTask: { is: { archivedAt: null } },
+            }),
+          ]),
+        }),
+      ]),
+    );
+  });
+
   it("excludes archived Tasks from the Project Calendar", async () => {
     const response = await createApp().request(
       `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
