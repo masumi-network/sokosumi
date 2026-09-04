@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   CHANNEL_SPECS,
+  PUSH_BLOCK_HINT_KEY,
   type PushBlock,
   type StoredChannel,
   sameChannels,
@@ -291,9 +292,7 @@ function KindCells({
   const pushHint = pushBlock
     ? [
         t("channelPushHint"),
-        pushBlock === "unsupported"
-          ? t("pushUnsupported")
-          : t("pushBlockedHint"),
+        t(PUSH_BLOCK_HINT_KEY[pushBlock]),
         t("pushOtherDevicesHint"),
       ].join(" ")
     : null;
