@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { MobileStackedMenuSkeleton } from "@/app/components/mobile-stacked-menu/mobile-stacked-menu-skeleton";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
-import { YouSubmenuStackClient } from "@/app/you/components/you-submenu-stack.client";
+import { YouDeveloperStackClient } from "@/app/you/components/you-submenu-stack.client";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Components.UserAvatar");
@@ -19,10 +19,7 @@ async function YouDeveloperContent() {
     await getDeveloperVendorAdminAccess();
 
   return (
-    <YouSubmenuStackClient
-      kind="developer"
-      showDeveloperVendors={showDeveloperVendors}
-    />
+    <YouDeveloperStackClient showDeveloperVendors={showDeveloperVendors} />
   );
 }
 

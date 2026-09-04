@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 /**
  * Grouped list primitives matching You’s section language.
- * Reusable for any mobile App Shell stacked menu screen.
+ * First consumer: You root + You submenu stacks; reusable for other App Shell menus.
  */
 export function MobileStackedMenuGroup({
   children,

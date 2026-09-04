@@ -12,17 +12,19 @@ vi.mock("@/components/analytics/cookie-banner", () => ({
     openConsentPreferencesMock(...args),
 }));
 
-import { YouSubmenuStackClient } from "@/app/you/components/you-submenu-stack.client";
+import {
+  YouDeveloperStackClient,
+  YouHelpStackClient,
+  YouLegalStackClient,
+} from "@/app/you/components/you-submenu-stack.client";
 
-describe("YouSubmenuStackClient", () => {
+describe("You submenu stacked screens", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("lists developer destinations in the stacked menu surface", () => {
-    render(
-      <YouSubmenuStackClient kind="developer" showDeveloperVendors={false} />,
-    );
+    render(<YouDeveloperStackClient showDeveloperVendors={false} />);
 
     const screenRoot = screen.getByTestId("mobile-stacked-menu-screen");
     expect(screenRoot).toBeInTheDocument();
@@ -43,9 +45,7 @@ describe("YouSubmenuStackClient", () => {
   });
 
   it("shows gated developer vendors when enabled", () => {
-    render(
-      <YouSubmenuStackClient kind="developer" showDeveloperVendors={true} />,
-    );
+    render(<YouDeveloperStackClient showDeveloperVendors={true} />);
 
     expect(screen.getByTestId("you-developer-vendors")).toHaveAttribute(
       "href",
@@ -56,7 +56,7 @@ describe("YouSubmenuStackClient", () => {
   it("lists help actions that open shared help destinations", () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
 
-    render(<YouSubmenuStackClient kind="help" showDeveloperVendors={false} />);
+    render(<YouHelpStackClient />);
 
     expect(screen.getByRole("heading", { name: "help" })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("you-help-documentation"));
@@ -70,7 +70,7 @@ describe("YouSubmenuStackClient", () => {
   });
 
   it("lists legal links and cookie consent on the Legal stack", () => {
-    render(<YouSubmenuStackClient kind="legal" showDeveloperVendors={false} />);
+    render(<YouLegalStackClient />);
 
     expect(screen.getByRole("heading", { name: "legal" })).toBeInTheDocument();
     expect(screen.getByTestId("you-legal-termsOfService")).toBeInTheDocument();
