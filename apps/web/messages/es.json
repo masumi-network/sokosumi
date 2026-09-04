@@ -4152,6 +4152,7 @@
         "channelPushHint": "En tu dispositivo, aunque Sokosumi esté cerrado.",
         "channelEmail": "Email",
         "channelEmailHint": "Un interruptor detrás de cada email de trabajos: un email cuando un trabajo se completa, se resuelve o espera tu input.",
+        "channelsLegendLabel": "Qué significan las columnas",
         "channelEmailFallbackHint": "Un email cuando un trabajo se completa, se resuelve o espera tu input.",
         "channelsAnnounce": "{kind}: {channels}",
         "channelsNone": "ninguno",
