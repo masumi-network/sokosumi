@@ -14,6 +14,7 @@ import {
 } from "@/lib/schedules/calendar-range";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
+import { taskService } from "@/lib/services/task.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
 interface ProjectCalendarPageProps {
@@ -50,19 +51,22 @@ export default async function ProjectCalendarPage({
   const initialDate = resolveCalendarDate(date, now);
   const latestCalendarDate = getLatestCalendarDate(now);
   const range = getCalendarRange(initialDate);
-  const [{ items, pagination }, coworkers, t, locale] = await Promise.all([
-    projectService.getProjectCalendar(project.id, {
-      ...range,
-      assigneeId,
-      limit: 100,
-      scope: scope === "owned" ? "owned" : "workspace",
-      status: calendarStatus,
-    }),
-    coworkerService.listCoworkers().catch(() => []),
-    getTranslations("App.Projects.Detail"),
-    getLocale(),
-  ]);
+  const [{ items, pagination }, sources, coworkers, t, locale] =
+    await Promise.all([
+      projectService.getProjectCalendar(project.id, {
+        ...range,
+        assigneeId,
+        limit: 100,
+        scope: scope === "owned" ? "owned" : "workspace",
+        status: calendarStatus,
+      }),
+      taskService.getWorkspaceCalendarSources(),
+      coworkerService.listCoworkers().catch(() => []),
+      getTranslations("App.Projects.Detail"),
+      getLocale(),
+    ]);
   const sourceId = `project:${project.id}`;
+  const projectSource = sources.find((source) => source.sourceId === sourceId);
 
   return (
     <div className="min-h-full w-full px-4 py-6 md:px-6">
@@ -95,17 +99,7 @@ export default async function ProjectCalendarPage({
           pagination={pagination}
           lockedProjectId={project.id}
           range={range}
-          sources={[
-            {
-              sourceId,
-              sourceType: "PROJECT",
-              displayName: project.name,
-              logoUrl: project.logo,
-              paletteToken: "violet",
-              isSchedulable:
-                project.closingAt === null && project.closedAt === null,
-            },
-          ]}
+          sources={projectSource ? [projectSource] : []}
           coworkers={coworkers.map((coworker) => ({
             id: coworker.id,
             name: coworker.name,

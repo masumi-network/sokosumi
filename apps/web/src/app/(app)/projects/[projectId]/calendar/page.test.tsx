@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getSessionMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
+const getWorkspaceCalendarSourcesMock = vi.fn();
 const listCoworkersMock = vi.fn();
 const workspaceCalendarMock = vi.fn();
 
@@ -47,6 +48,12 @@ vi.mock("@/lib/services/project.service", () => ({
   },
 }));
 
+vi.mock("@/lib/services/task.service", () => ({
+  taskService: {
+    getWorkspaceCalendarSources: () => getWorkspaceCalendarSourcesMock(),
+  },
+}));
+
 import ProjectCalendarPage from "./page";
 
 const PROJECT = {
@@ -69,6 +76,16 @@ describe("ProjectCalendarPage", () => {
       items: [],
       pagination: null,
     });
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+        displayName: PROJECT.name,
+        logoUrl: PROJECT.logo,
+        paletteToken: "violet",
+        isSchedulable: true,
+      },
+    ]);
     listCoworkersMock.mockResolvedValue([]);
   });
 
@@ -152,6 +169,16 @@ describe("ProjectCalendarPage", () => {
       ...PROJECT,
       closedAt: new Date("2026-06-03T00:00:00.000Z"),
     });
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+        displayName: PROJECT.name,
+        logoUrl: PROJECT.logo,
+        paletteToken: "violet",
+        isSchedulable: false,
+      },
+    ]);
 
     render(
       await ProjectCalendarPage({
@@ -163,6 +190,32 @@ describe("ProjectCalendarPage", () => {
     const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
       sources: Array<{ isSchedulable: boolean }>;
     };
+    expect(calendarProps.sources[0]?.isSchedulable).toBe(false);
+  });
+
+  it("does not offer creation for an open Project without an assigned Seat", async () => {
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+        displayName: PROJECT.name,
+        logoUrl: PROJECT.logo,
+        paletteToken: "violet",
+        isSchedulable: false,
+      },
+    ]);
+
+    render(
+      await ProjectCalendarPage({
+        params: Promise.resolve({ projectId: PROJECT.id }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
+      sources: Array<{ isSchedulable: boolean }>;
+    };
+    expect(getWorkspaceCalendarSourcesMock).toHaveBeenCalledOnce();
     expect(calendarProps.sources[0]?.isSchedulable).toBe(false);
   });
 });
