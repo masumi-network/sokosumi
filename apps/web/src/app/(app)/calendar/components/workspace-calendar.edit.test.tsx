@@ -409,7 +409,7 @@ describe("WorkspaceCalendar editing", () => {
     expect(refreshMock).toHaveBeenCalledOnce();
   });
 
-  it("opens mobile Agenda scheduling for the visible calendar date", async () => {
+  it("opens calendar scheduling for the visible calendar date", async () => {
     const user = userEvent.setup();
     render(
       <NuqsTestingAdapter searchParams="?timezone=Pacific%2FKiritimati&view=agenda">
@@ -425,7 +425,6 @@ describe("WorkspaceCalendar editing", () => {
     const createButton = screen.getByRole("button", {
       name: "create.title",
     });
-    expect(createButton).toHaveClass("md:hidden");
 
     await user.click(createButton);
 
