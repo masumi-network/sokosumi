@@ -29,7 +29,7 @@ const {
   metadataToSelectionMock,
   pushMock,
   refreshMock,
-  saveTaskScheduleMock,
+  saveCalendarTaskScheduleMock,
   taskScheduleSectionMock,
 } = vi.hoisted(() => ({
   clearTaskScheduleMock: vi.fn(),
@@ -43,7 +43,7 @@ const {
   metadataToSelectionMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
-  saveTaskScheduleMock: vi.fn(),
+  saveCalendarTaskScheduleMock: vi.fn(),
   taskScheduleSectionMock: vi.fn(),
 }));
 
@@ -146,7 +146,7 @@ vi.mock("@/components/task-schedule-section", () => ({
 vi.mock("@/lib/actions/task/action", () => ({
   clearTaskSchedule: clearTaskScheduleMock,
   createScheduledTask: createScheduledTaskMock,
-  saveTaskSchedule: saveTaskScheduleMock,
+  saveCalendarTaskSchedule: saveCalendarTaskScheduleMock,
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
@@ -261,7 +261,7 @@ describe("WorkspaceCalendar editing", () => {
       ok: true,
       value: { name: "Prepare release notes", taskId: "task-1" },
     });
-    saveTaskScheduleMock.mockResolvedValue({
+    saveCalendarTaskScheduleMock.mockResolvedValue({
       ok: true,
       value: { taskId: "task-1" },
     });
@@ -530,7 +530,7 @@ describe("WorkspaceCalendar editing", () => {
 
     await user.click(screen.getByRole("button", { name: "save schedule" }));
     await waitFor(() =>
-      expect(saveTaskScheduleMock).toHaveBeenCalledWith(
+      expect(saveCalendarTaskScheduleMock).toHaveBeenCalledWith(
         expect.objectContaining({ taskId: "task-1" }),
       ),
     );

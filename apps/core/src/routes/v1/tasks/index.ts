@@ -1,5 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
+import mountPutTaskCalendarSchedule from "./[id]/calendar-schedule/put.js";
 import mountDeleteTask from "./[id]/delete.js";
 import mountGetTaskEvents from "./[id]/events/get.js";
 import mountPostTaskEvents from "./[id]/events/post.js";
@@ -41,6 +42,7 @@ mountDeleteTaskLink(app);
 mountPatchTaskLink(app);
 mountGetTaskById(app);
 mountPatchTask(app);
+mountPutTaskCalendarSchedule(app);
 mountPutTaskSchedule(app);
 mountDeleteTaskSchedule(app);
 mountPutTaskShareById(app);

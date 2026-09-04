@@ -363,6 +363,7 @@ import {
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
+  putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
   putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -3366,6 +3367,24 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function putTaskCalendarSchedule(
+    id: string,
+    body: PutTaskScheduleRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutTasksByIdCalendarSchedule({
+          client,
+          path: { id },
+          body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to save Calendar task schedule",
+    );
+  }
+
   async function deleteTaskSchedule(id: string) {
     return executeCoreOperation(
       getClient,
@@ -5085,6 +5104,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasksSummary,
     patchTask,
     putJobShare,
+    putTaskCalendarSchedule,
     putTaskSchedule,
     putTaskShare,
     unassignOrganizationSeat,

@@ -38,6 +38,7 @@ const taskServiceMock = {
 };
 const taskScheduleServiceMock = {
   clearSchedule: vi.fn(),
+  setCalendarSchedule: vi.fn(),
   setSchedule: vi.fn(),
 };
 const toCoreApiActionErrorMock = vi.fn();
@@ -136,6 +137,7 @@ describe("task link actions", () => {
     taskServiceMock.createTaskEvent.mockReset();
     taskServiceMock.getTaskById.mockReset();
     taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.setCalendarSchedule.mockReset();
     taskScheduleServiceMock.setSchedule.mockReset();
     taskServiceMock.patchTask.mockResolvedValue({});
     taskServiceMock.createTaskEvent.mockResolvedValue({});
@@ -1091,6 +1093,7 @@ describe("Calendar schedule actions", () => {
     vi.clearAllMocks();
     taskServiceMock.createScheduledTask.mockReset();
     taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.setCalendarSchedule.mockReset();
     taskScheduleServiceMock.setSchedule.mockReset();
   });
 
@@ -1144,22 +1147,26 @@ describe("Calendar schedule actions", () => {
   });
 
   it("saves an active schedule and revalidates its Calendar routes", async () => {
-    taskScheduleServiceMock.setSchedule.mockResolvedValue(
+    taskScheduleServiceMock.setCalendarSchedule.mockResolvedValue(
       buildTask({ id: "task-1", projectId: "project-1" }),
     );
-    const { saveTaskSchedule } = await import("./action");
+    const { saveCalendarTaskSchedule } = await import("./action");
 
-    const result = await saveTaskSchedule({
+    const result = await saveCalendarTaskSchedule({
       taskId: "task-1",
       schedule: recurringSchedule,
     });
 
-    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalledWith("task-1", {
-      mode: "recurring",
-      expr: "0 9 * * *",
-      timezone: "UTC",
-      endsMode: "never",
-    });
+    expect(taskScheduleServiceMock.setCalendarSchedule).toHaveBeenCalledWith(
+      "task-1",
+      {
+        mode: "recurring",
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "never",
+      },
+    );
+    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
     expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
     const { revalidatePath } = await import("next/cache");
     expect(revalidatePath).toHaveBeenCalledWith("/calendar");
@@ -1188,7 +1195,9 @@ describe("Calendar schedule actions", () => {
   });
 
   it("rejects inactive or malformed schedule selections before Core", async () => {
-    const { createScheduledTask, saveTaskSchedule } = await import("./action");
+    const { createScheduledTask, saveCalendarTaskSchedule } = await import(
+      "./action"
+    );
 
     await expect(
       createScheduledTask({
@@ -1200,7 +1209,7 @@ describe("Calendar schedule actions", () => {
       }),
     ).rejects.toThrow("Active schedule required");
     await expect(
-      saveTaskSchedule({
+      saveCalendarTaskSchedule({
         taskId: "task-1",
         schedule: {
           mode: "recurring",
@@ -1212,7 +1221,7 @@ describe("Calendar schedule actions", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-24T12:00:00.000Z"));
     await expect(
-      saveTaskSchedule({
+      saveCalendarTaskSchedule({
         taskId: "task-1",
         schedule: {
           mode: "once",

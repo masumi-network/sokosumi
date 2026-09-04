@@ -64,7 +64,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
   createScheduledTask,
-  saveTaskSchedule,
+  saveCalendarTaskSchedule,
 } from "@/lib/actions/task/action";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
@@ -531,7 +531,10 @@ function CalendarEditDialog({
   async function handleSave(schedule: TaskScheduleSelection) {
     setError(null);
     try {
-      const result = await saveTaskSchedule({ taskId: task.id, schedule });
+      const result = await saveCalendarTaskSchedule({
+        taskId: task.id,
+        schedule,
+      });
       if (!result.ok) {
         setError(t("edit.saveError"));
         return;
