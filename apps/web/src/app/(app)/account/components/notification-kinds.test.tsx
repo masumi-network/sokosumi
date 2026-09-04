@@ -367,6 +367,17 @@ function groupTrigger(group: string) {
   return screen.getByRole("button", { name: new RegExp(`^${group}`) });
 }
 
+/** The expanded panel owned by one row. */
+function fold(group: string) {
+  const row = groupTrigger(group).closest('[data-slot="collapsible"]');
+
+  if (!(row instanceof HTMLElement)) {
+    throw new Error(`No fold found for ${group}`);
+  }
+
+  return row;
+}
+
 async function openGroup(group: string) {
   const user = userEvent.setup();
   await user.click(groupTrigger(group));
@@ -941,6 +952,23 @@ describe("NotificationKinds", () => {
       "kindChatDirectMessage",
     ]) {
       expect(within(stops(kind)).getAllByRole("button")).toHaveLength(3);
+    }
+  });
+
+  it("puts the channel legend inside each expanded section", async () => {
+    renderKinds();
+
+    expect(
+      screen.queryByRole("group", { name: "channelsLegendLabel" }),
+    ).toBeNull();
+
+    for (const group of ["groupJob", "groupTask", "groupChat"]) {
+      await openGroup(group);
+      expect(
+        within(fold(group)).getByRole("group", {
+          name: "channelsLegendLabel",
+        }),
+      ).toBeInTheDocument();
     }
   });
 
@@ -1575,17 +1603,21 @@ describe("NotificationKinds", () => {
    * attribute itself, to anything at all, would take the sentence away from
    * every reader who cannot see the tooltip open.
    */
-  it("leaves an ordinary cell to its name, and explains the column once", async () => {
+  it("leaves an ordinary cell to its name, and explains the column in its section", async () => {
     const user = userEvent.setup();
     renderKinds();
 
-    // Thirty cells that each carry the same sentence is thirty readings of
-    // it. The head over the column says it, and says it once.
+    // Every cell carrying the same sentence would repeat it down the section.
+    // The head over this section's column says it once.
     expect(cellFor("kindSystem", "channelInApp")).not.toHaveAttribute(
       "aria-describedby",
     );
 
-    await user.click(screen.getByRole("button", { name: "channelInApp" }));
+    await user.click(
+      within(fold("kindSystem")).getByRole("button", {
+        name: "channelInApp",
+      }),
+    );
 
     expect(await screen.findByRole("dialog")).toHaveTextContent(
       "channelInAppHint",
@@ -1609,10 +1641,13 @@ describe("NotificationKinds", () => {
       "channelPushHint pushBlockedHint pushOtherDevicesHint",
     );
 
-    // The same words a sighted reader gets, from the head over the column
-    // rather than from the cell: a reason on every cell of a blocked column
-    // is the same sentence three rows deep.
-    await user.click(screen.getByRole("button", { name: "channelPush" }));
+    // The same words a sighted reader gets, from this section's column head
+    // rather than from every cell in the blocked column.
+    await user.click(
+      within(fold("kindSystem")).getByRole("button", {
+        name: "channelPush",
+      }),
+    );
 
     const explained = await screen.findByRole("dialog");
 

@@ -158,6 +158,7 @@ function GroupRows({
         )
       }
     >
+      <ChannelLegend pushBlock={pushBlock} />
       <ChannelGrid
         kinds={group.kinds}
         email={email}
@@ -200,9 +201,8 @@ function NewsRow({ news }: { news: EmailChoice }) {
       onOpenChange={setOpen}
     >
       <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
-        {/* Only where the row breaks in two. The card names its columns once
-            at the top, and every row inside a fold right-aligns its cells
-            under those names. */}
+        {/* Only where the row breaks in two. This copy keeps the column names
+            next to the cells on a narrow screen. */}
         <div
           aria-hidden="true"
           className="flex items-end justify-end gap-2 sm:hidden"
@@ -345,8 +345,7 @@ export function NotificationKinds({
           </p>
         </div>
       ) : null}
-      {/* Above the rows it is about, and below the title that owns them. One
-          banner for the whole card, because the browser is one answer for
+      {/* One banner for the whole card, because the browser is one answer for
           every row. It waits for a kind to be asking for a push: with every
           banner cell off, nothing is going wrong here. */}
       {choices.pushBlock && choices.pushWanted ? (
@@ -359,10 +358,6 @@ export function NotificationKinds({
         />
       ) : null}
       <div className="divide-y rounded-lg border">
-        {/* One line of column names for the whole card, above every row that
-            answers in those columns, and the one place a reader can ask what
-            arriving in each of them means. */}
-        <ChannelLegend pushBlock={choices.pushBlock} />
         {showKinds ? (
           <KindGroups
             email={email}
