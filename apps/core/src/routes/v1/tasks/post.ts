@@ -49,7 +49,7 @@ import {
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -103,7 +103,7 @@ export const createTaskRequestSchema = z
       deprecated: true,
       description: "Deprecated. Use assigneeId instead.",
     }),
-    assigneeOrchestratorId: z.string().uuid().nullish().openapi({
+    assigneeSokoBotId: z.string().uuid().nullish().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
     assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
@@ -128,7 +128,7 @@ export const createTaskRequestSchema = z
     return {
       ...rest,
       assigneeId: resolveAssigneeIdFromRequest(data),
-      assigneeOrchestratorId: data.assigneeOrchestratorId ?? null,
+      assigneeSokoBotId: data.assigneeSokoBotId ?? null,
       assigneeUserId: data.assigneeUserId ?? null,
       channel: resolveTaskEventChannel(data),
     };
@@ -372,10 +372,10 @@ function resolveTaskDomainActor(
     };
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     return {
       kind: "soko_bot",
-      sokoBotId: authContext.orchestratorId,
+      sokoBotId: authContext.sokoBotId,
     };
   }
 
@@ -438,7 +438,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             });
           },
           assigneeId: body.assigneeId,
-          assigneeOrchestratorId: body.assigneeOrchestratorId,
+          assigneeSokoBotId: body.assigneeSokoBotId,
           assigneeUserId: body.assigneeUserId,
           status: body.status,
           channel: body.channel,

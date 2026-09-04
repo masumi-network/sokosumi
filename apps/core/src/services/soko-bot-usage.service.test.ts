@@ -8,7 +8,7 @@ const { queryRawMock, usageAggregateMock } = vi.hoisted(() => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $queryRaw: queryRawMock,
-    orchestratorUsage: { aggregate: usageAggregateMock },
+    sokoBotUsage: { aggregate: usageAggregateMock },
   },
 }));
 

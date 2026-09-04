@@ -33,11 +33,11 @@ import {
   mapChatRoomWithSidebarFlags,
   membershipAccessForUser,
   normalizeUniqueStrings,
-  orchestratorDisplayName,
   requireChatRoomUserAccess,
   resolveWorkspaceIdForChatRoom,
+  sokoBotDisplayName,
   validateChatCoworkerIds,
-  validateChatOrchestratorIds,
+  validateChatSokoBotIds,
 } from "../helpers";
 import {
   diffChannelMembershipRoster,
@@ -226,17 +226,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 name: member.coworker.name,
               }))
             : [];
-        const priorOrchestrators =
-          body.orchestratorIds !== undefined
-            ? existing.orchestratorMembers.map((member) => ({
-                id: member.orchestrator.id,
-                name: orchestratorDisplayName(member.orchestrator),
-              }))
-            : [];
+        const priorSokoBots = existing.sokoBotMembers.map((member) => ({
+          id: member.sokoBot.id,
+          name: sokoBotDisplayName(member.sokoBot),
+        }));
 
         let nextUsers = priorUsers;
         let nextCoworkers = priorCoworkers;
-        let nextOrchestrators = priorOrchestrators;
+        let nextSokoBots = priorSokoBots;
 
         if (body.memberUserIds !== undefined) {
           // Host roster only. Guest ids echoed in memberUserIds are ignored
@@ -395,24 +392,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
         }
 
-        if (body.orchestratorIds !== undefined) {
+        if (body.sokoBotIds !== undefined) {
           const workspaceId = await resolveWorkspaceIdForChatRoom({
             organizationId,
             personalUserId: userContext.userId,
             tx,
           });
-          const alreadyInRoom = existing.orchestratorMembers.map(
-            (member) => member.orchestrator.id,
+          const alreadyInRoom = existing.sokoBotMembers.map(
+            (member) => member.sokoBot.id,
           );
-          const orchestratorIds = await validateChatOrchestratorIds(
-            body.orchestratorIds,
+          const sokoBotIds = await validateChatSokoBotIds(
+            body.sokoBotIds,
             workspaceId,
             userContext.userId,
             alreadyInRoom,
             tx,
           );
           const bots = await tx.sokoBot.findMany({
-            where: { id: { in: orchestratorIds } },
+            where: { id: { in: sokoBotIds } },
             select: {
               id: true,
               name: true,
@@ -420,18 +417,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
           });
           const nameById = new Map(
-            bots.map((bot) => [bot.id, orchestratorDisplayName(bot)]),
+            bots.map((bot) => [bot.id, sokoBotDisplayName(bot)]),
           );
-          nextOrchestrators = orchestratorIds.map((orchestratorId) => ({
-            id: orchestratorId,
-            name: nameById.get(orchestratorId) ?? orchestratorId,
+          nextSokoBots = sokoBotIds.map((sokoBotId) => ({
+            id: sokoBotId,
+            name: nameById.get(sokoBotId) ?? sokoBotId,
           }));
 
           mentionMessageIds.push(
             ...(await failOpenChatRoomMentions(
               {
                 where: {
-                  orchestratorId: { notIn: orchestratorIds },
+                  sokoBotId: { notIn: sokoBotIds },
                   message: { roomId: existing.id },
                 },
                 error: "Personal assistant is no longer a member of this room",
@@ -439,14 +436,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               tx,
             )),
           );
-          await tx.chatRoomOrchestratorMember.deleteMany({
+          await tx.chatRoomSokoBotMember.deleteMany({
             where: { roomId: existing.id },
           });
-          if (orchestratorIds.length > 0) {
-            await tx.chatRoomOrchestratorMember.createMany({
-              data: orchestratorIds.map((orchestratorId) => ({
+          if (sokoBotIds.length > 0) {
+            await tx.chatRoomSokoBotMember.createMany({
+              data: sokoBotIds.map((sokoBotId) => ({
                 roomId: existing.id,
-                orchestratorId,
+                sokoBotId: sokoBotId,
               })),
             });
           }
@@ -458,41 +455,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // leave the assistant behind — still mentionable by everyone, still
         // spending the departed owner's credits. Directs are exempt: a
         // colleague DM is deliberately the bot without its owner.
-        // Both rosters have to be the effective ones. `nextUsers` and
-        // `nextOrchestrators` are empty whenever the caller did not send that
-        // field, and this case is reached precisely by a request that changes
-        // only one of them.
+        // Host roster starts empty when memberUserIds is omitted. Soko Bot
+        // roster starts as the live members so owner-removal can emit left.
         const effectiveUserIds =
           body.memberUserIds !== undefined
             ? nextUsers.map((user) => user.id)
             : existing.userMembers.map((member) => member.user.id);
-        const effectiveOrchestratorIds =
-          body.orchestratorIds !== undefined
-            ? nextOrchestrators.map((bot) => bot.id)
-            : existing.orchestratorMembers.map(
-                (member) => member.orchestrator.id,
-              );
-        if (
-          existing.kind === "channel" &&
-          effectiveOrchestratorIds.length > 0
-        ) {
+        const effectiveSokoBotIds =
+          body.sokoBotIds !== undefined
+            ? nextSokoBots.map((bot) => bot.id)
+            : existing.sokoBotMembers.map((member) => member.sokoBot.id);
+        if (existing.kind === "channel" && effectiveSokoBotIds.length > 0) {
           const remainingUserIds = new Set(effectiveUserIds);
           const owners = await tx.sokoBot.findMany({
-            where: { id: { in: effectiveOrchestratorIds } },
+            where: { id: { in: effectiveSokoBotIds } },
             select: { id: true, userId: true },
           });
           const ownerlessIds = owners
             .filter((bot) => !remainingUserIds.has(bot.userId))
             .map((bot) => bot.id);
           if (ownerlessIds.length > 0) {
-            nextOrchestrators = nextOrchestrators.filter(
+            nextSokoBots = nextSokoBots.filter(
               (bot) => !ownerlessIds.includes(bot.id),
             );
             mentionMessageIds.push(
               ...(await failOpenChatRoomMentions(
                 {
                   where: {
-                    orchestratorId: { in: ownerlessIds },
+                    sokoBotId: { in: ownerlessIds },
                     message: { roomId: existing.id },
                   },
                   error:
@@ -501,10 +491,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 tx,
               )),
             );
-            await tx.chatRoomOrchestratorMember.deleteMany({
+            await tx.chatRoomSokoBotMember.deleteMany({
               where: {
                 roomId: existing.id,
-                orchestratorId: { in: ownerlessIds },
+                sokoBotId: { in: ownerlessIds },
               },
             });
           }
@@ -514,12 +504,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           prior: {
             users: priorUsers,
             coworkers: priorCoworkers,
-            orchestrators: priorOrchestrators,
+            sokoBots: priorSokoBots,
           },
           next: {
             users: nextUsers,
             coworkers: nextCoworkers,
-            orchestrators: nextOrchestrators,
+            sokoBots: nextSokoBots,
           },
         });
         const createdStatus = await recordChannelMembershipStatus(tx, {

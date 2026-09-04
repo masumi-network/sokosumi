@@ -8,9 +8,9 @@ import {
   createJobRequestSchema,
   jobSummariesSchema,
 } from "@/schemas/job.schema";
-import { orchestratorSummarySchema } from "@/schemas/orchestrator.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { taskShareSchema } from "@/schemas/share.schema";
+import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
 import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
@@ -46,21 +46,21 @@ const taskEventActorCoworkerSchema = z
   })
   .openapi("TaskEventActorCoworker");
 
-const taskEventActorOrchestratorSchema = z
+const taskEventActorSokoBotSchema = z
   .object({
-    type: z.literal("orchestrator"),
+    type: z.literal("sokoBot"),
     id: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
-    orchestrator: orchestratorSummarySchema,
+    sokoBot: sokoBotSummarySchema,
   })
-  .openapi("TaskEventActorOrchestrator");
+  .openapi("TaskEventActorSokoBot");
 
 export const taskEventActorSchema = z
   .discriminatedUnion("type", [
     taskEventActorUserSchema,
     taskEventActorCoworkerSchema,
-    taskEventActorOrchestratorSchema,
+    taskEventActorSokoBotSchema,
   ])
   .openapi("TaskEventActor");
 
@@ -84,7 +84,7 @@ export const taskEventSchema = z
     user: userSummarySchema.nullish().openapi({
       deprecated: true,
       description:
-        "Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
+        "Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
     }),
     /** @deprecated Use `actor` when `actor.type === "coworker"`. */
     coworkerId: z.string().nullish().openapi({
@@ -96,19 +96,19 @@ export const taskEventSchema = z
     coworker: coworkerSummarySchema.nullish().openapi({
       deprecated: true,
       description:
-        "Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
+        "Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
     }),
-    /** @deprecated Use `actor` when `actor.type === "orchestrator"`. */
-    orchestratorId: z.string().uuid().nullish().openapi({
+    /** @deprecated Use `actor` when `actor.type === "sokoBot"`. */
+    sokoBotId: z.string().uuid().nullish().openapi({
       example: "01960001-0001-7001-8001-000000000099",
       deprecated: true,
-      description: "Deprecated. Use actor when type is orchestrator.",
+      description: "Deprecated. Use actor when type is sokoBot.",
     }),
-    /** @deprecated Use `actor` when `actor.type === "orchestrator"`. */
-    orchestrator: orchestratorSummarySchema.nullish().openapi({
+    /** @deprecated Use `actor` when `actor.type === "sokoBot"`. */
+    sokoBot: sokoBotSummarySchema.nullish().openapi({
       deprecated: true,
       description:
-        "Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
+        "Deprecated. Prefer actor. Emitted only when the preferred actor is sokoBot (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
     }),
     transactionId: z.string().nullish().openapi({ example: "txn_123" }),
     credits: z.number().nullish().openapi({ example: 2.5 }),
@@ -168,21 +168,21 @@ const taskCreatorCoworkerSchema = z
   })
   .openapi("TaskCreatorCoworker");
 
-const taskCreatorOrchestratorSchema = z
+const taskCreatorSokoBotSchema = z
   .object({
-    type: z.literal("orchestrator"),
+    type: z.literal("sokoBot"),
     id: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
-    orchestrator: orchestratorSummarySchema,
+    sokoBot: sokoBotSummarySchema,
   })
-  .openapi("TaskCreatorOrchestrator");
+  .openapi("TaskCreatorSokoBot");
 
 export const taskCreatorSchema = z
   .discriminatedUnion("type", [
     taskCreatorUserSchema,
     taskCreatorCoworkerSchema,
-    taskCreatorOrchestratorSchema,
+    taskCreatorSokoBotSchema,
   ])
   .openapi("TaskCreator");
 
@@ -202,21 +202,21 @@ const taskAssigneeUserSchema = z
   })
   .openapi("TaskAssigneeUser");
 
-const taskAssigneeOrchestratorSchema = z
+const taskAssigneeSokoBotSchema = z
   .object({
-    type: z.literal("orchestrator"),
+    type: z.literal("sokoBot"),
     id: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
-    orchestrator: orchestratorSummarySchema,
+    sokoBot: sokoBotSummarySchema,
   })
-  .openapi("TaskAssigneeOrchestrator");
+  .openapi("TaskAssigneeSokoBot");
 
 export const taskAssigneeSchema = z
   .discriminatedUnion("type", [
     taskAssigneeCoworkerSchema,
     taskAssigneeUserSchema,
-    taskAssigneeOrchestratorSchema,
+    taskAssigneeSokoBotSchema,
   ])
   .openapi("TaskAssignee");
 
@@ -248,21 +248,21 @@ const taskBaseSchema = z.object({
   assigneeId: z.string().nullable().openapi({
     example: "cow_123",
     description:
-      "Marketplace coworker assignee. Null when assigned to a user, an orchestrator, or unset. Prefer `assignee`.",
+      "Marketplace coworker assignee. Null when assigned to a user, a Soko Bot, or unset. Prefer `assignee`.",
   }),
-  assigneeOrchestratorId: z.string().uuid().nullable().openapi({
+  assigneeSokoBotId: z.string().uuid().nullable().openapi({
     example: "01960001-0001-7001-8001-000000000099",
     description:
-      "Personal-assistant orchestrator assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.",
+      "Soko Bot assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.",
   }),
   assigneeUserId: z.string().nullable().openapi({
     example: "user_123",
     description:
-      "Workspace-member assignee id. Null when assigned to a coworker, an orchestrator, or unset. Prefer `assignee`.",
+      "Workspace-member assignee id. Null when assigned to a coworker, a Soko Bot, or unset. Prefer `assignee`.",
   }),
   assignee: z.union([taskAssigneeSchema, z.null()]).openapi({
     description:
-      "Discriminated assignee: coworker, workspace member, orchestrator, or unassigned.",
+      "Discriminated assignee: coworker, workspace member, Soko Bot, or unassigned.",
     example: null,
   }),
   /** @deprecated Marketplace-only. Use `assigneeId` or `assignee`. */
@@ -270,30 +270,30 @@ const taskBaseSchema = z.object({
     example: "cow_123",
     deprecated: true,
     description:
-      "Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.",
+      "Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.",
   }),
   /** @deprecated Marketplace-only. Use `assignee` when type is coworker. */
   coworker: z.union([coworkerSummarySchema, z.null()]).openapi({
     deprecated: true,
     description:
-      "Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.",
+      "Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.",
   }),
   creator: taskCreatorSchema.openapi({
     description:
-      "Actor that created the task. Exactly one of user, coworker, or orchestrator.",
+      "Actor that created the task. Exactly one of user, coworker, or sokoBot.",
   }),
-  /** @deprecated Use `creator` when `creator.type === "orchestrator"`. */
-  orchestratorId: z.string().uuid().nullable().openapi({
+  /** @deprecated Use `creator` when `creator.type === "sokoBot"`. */
+  sokoBotId: z.string().uuid().nullable().openapi({
     example: "01960001-0001-7001-8001-000000000099",
     deprecated: true,
     description:
-      "Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.",
+      "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
-  /** @deprecated Use `creator` when `creator.type === "orchestrator"`. */
-  orchestrator: z.union([orchestratorSummarySchema, z.null()]).openapi({
+  /** @deprecated Use `creator` when `creator.type === "sokoBot"`. */
+  sokoBot: z.union([sokoBotSummarySchema, z.null()]).openapi({
     deprecated: true,
     description:
-      "Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.",
+      "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),

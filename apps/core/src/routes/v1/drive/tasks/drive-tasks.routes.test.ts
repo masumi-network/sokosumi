@@ -180,6 +180,14 @@ const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   },
 };
 
+const SOKO_BOT_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "sokoBot",
+  sokoBotId: "01960001-0001-7001-8001-000000000099",
+  userId: "user_123",
+  workspaceId: "ws_personal",
+  organizationId: null,
+};
+
 const BARE_COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
@@ -693,6 +701,23 @@ describe("Drive Tasks Routes", () => {
         const json = await res.json();
         expect(json.data).toHaveLength(1);
         expect(json.data[0].type).toBe("task");
+      });
+
+      it("includes assigneeSokoBotId in task query filters", async () => {
+        prismaQueryRawMock
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ count: 0n }]);
+
+        const app = createDriveTasksApp(SOKO_BOT_AUTH_CONTEXT);
+        const res = await app.request(
+          "http://localhost/?scope=me&projectId=550e8400-e29b-41d4-a716-446655440000",
+        );
+
+        expect(res.status).toBe(200);
+        const queryValues = prismaQueryRawMock.mock.calls.flatMap((call) =>
+          flattenPrismaSqlArgs(Array.isArray(call) ? call.slice(1) : []),
+        );
+        expect(queryValues).toContain("01960001-0001-7001-8001-000000000099");
       });
 
       it("includes assigneeId in task query filters", async () => {

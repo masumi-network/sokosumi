@@ -133,7 +133,7 @@ interface TaskDetailActionsProps {
   coworkerOptions: CoworkerOption[];
   agentNameById: Map<string, string>;
   defaultAssigneeId?: string | null;
-  assigneeKind?: "coworker" | "orchestrator" | "human" | "unset";
+  assigneeKind?: "coworker" | "sokoBot" | "human" | "unset";
   /** Resolved DESIGN.md for create-related flow (same picker as new task). */
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
@@ -982,7 +982,7 @@ export function TaskDetailActions({
             onCreateTask={async ({
               description,
               assigneeId,
-              assigneeOrchestratorId,
+              assigneeSokoBotId,
               assigneeUserId,
               projectId,
               status,
@@ -993,7 +993,7 @@ export function TaskDetailActions({
                 taskId,
                 description,
                 assigneeId,
-                assigneeOrchestratorId,
+                assigneeSokoBotId,
                 assigneeUserId: assigneeUserId ?? null,
                 projectId,
                 status,
@@ -1054,7 +1054,7 @@ function getTaskStatusActions(
   labels: TaskDetailActionsLabels,
   options: {
     hasCoworker: boolean;
-    assigneeKind?: "coworker" | "orchestrator" | "human" | "unset";
+    assigneeKind?: "coworker" | "sokoBot" | "human" | "unset";
   },
 ): TaskStatusAction[] {
   const isHuman =

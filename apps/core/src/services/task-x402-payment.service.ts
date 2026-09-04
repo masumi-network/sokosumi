@@ -42,7 +42,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
 } from "@/middleware/auth";
 import type { TaskX402PaymentSigned } from "@/schemas/x402-payment.schema";
 import {
@@ -92,7 +92,7 @@ export type PayTaskX402Result =
 
 interface TaskEventAgentAttribution {
   coworkerId?: string;
-  orchestratorId?: string;
+  sokoBotId?: string;
 }
 
 /**
@@ -519,7 +519,7 @@ export async function payTaskX402(
 
   if (
     !isCoworkerAuthContext(authContext) &&
-    !isOrchestratorAuthContext(authContext)
+    !isSokoBotAuthContext(authContext)
   ) {
     throw forbidden("Agent authentication required");
   }
@@ -538,7 +538,7 @@ export async function payTaskX402(
 
   const taskEventAttribution = isCoworkerAuthContext(authContext)
     ? { coworkerId: authContext.coworkerId }
-    : { orchestratorId: authContext.orchestratorId };
+    : { sokoBotId: authContext.sokoBotId };
 
   const outcome = await runX402ChargePhase(input, taskEventAttribution);
 

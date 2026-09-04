@@ -190,6 +190,24 @@ describe("readMembershipFromMetadata", () => {
     });
   });
 
+  it("normalizes a stored orchestrator subject to sokoBot", () => {
+    expect(
+      readMembershipFromMetadata({
+        membership: {
+          action: "joined",
+          subject: {
+            type: "orchestrator",
+            id: "bot_1",
+            name: "Jarvis",
+          },
+        },
+      }),
+    ).toEqual({
+      action: "joined",
+      subject: { type: "sokoBot", id: "bot_1", name: "Jarvis" },
+    });
+  });
+
   it("returns null for malformed membership", () => {
     expect(
       readMembershipFromMetadata({ membership: { action: "joined" } }),

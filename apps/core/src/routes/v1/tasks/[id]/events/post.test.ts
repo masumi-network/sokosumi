@@ -26,7 +26,7 @@ const {
   enqueueTaskOutputsFromMarkdownMock,
   getCardanoV2ReadySourcesMock,
   getCreditCostsOrThrowMock,
-  orchestratorFindFirstMock,
+  sokoBotFindFirstMock,
   prismaTaskFindUniqueMock,
   prismaTransactionMock,
   projectMemoryRefreshMock,
@@ -46,7 +46,7 @@ const {
   enqueueTaskOutputsFromMarkdownMock: vi.fn().mockResolvedValue(undefined),
   getCardanoV2ReadySourcesMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
-  orchestratorFindFirstMock: vi.fn(),
+  sokoBotFindFirstMock: vi.fn(),
   prismaTaskFindUniqueMock: vi.fn().mockResolvedValue({
     id: "tsk_123",
     ownerId: "user_123",
@@ -109,8 +109,8 @@ vi.mock("@/lib/db/prisma", () => ({
     task: {
       findUnique: prismaTaskFindUniqueMock,
     },
-    orchestrator: {
-      findFirst: orchestratorFindFirstMock,
+    sokoBot: {
+      findFirst: sokoBotFindFirstMock,
     },
   },
 }));
@@ -203,7 +203,7 @@ interface TaskEventRecord {
   channel: Channel;
   userId: string | null;
   coworkerId: string | null;
-  orchestratorId: string | null;
+  sokoBotId: string | null;
   transactionId: string | null;
   cents: bigint | null;
 }
@@ -230,7 +230,7 @@ function createTask(
   overrides: Partial<{
     organizationId: string | null;
     assigneeId: string | null;
-    assigneeOrchestratorId: string | null;
+    assigneeSokoBotId: string | null;
     assigneeUserId: string | null;
     status: TaskStatus;
     ownerId: string;
@@ -241,7 +241,7 @@ function createTask(
     id: TASK_ID,
     status: TaskStatus.RUNNING,
     assigneeId: COWORKER_ID,
-    assigneeOrchestratorId: null,
+    assigneeSokoBotId: null,
     assigneeUserId: null,
     ownerId: USER_ID,
     organizationId: null,
@@ -264,7 +264,7 @@ function createTaskEvent(
     channel: Channel.SOKOSUMI,
     userId: null,
     coworkerId: COWORKER_ID,
-    orchestratorId: null,
+    sokoBotId: null,
     transactionId: null,
     cents: null,
     ...overrides,
@@ -298,10 +298,10 @@ function enrichTaskEventRowForResponse(record: TaskEventRecord) {
           slug: "task-coworker",
         }
       : null,
-    orchestrator: record.orchestratorId
+    sokoBot: record.sokoBotId
       ? {
-          id: record.orchestratorId,
-          name: "Task orchestrator",
+          id: record.sokoBotId,
+          name: "Task soko bot",
           avatarSeed: null,
           userId: USER_ID,
           user: { id: USER_ID, name: "Task user", image: null },
@@ -346,7 +346,7 @@ describe("POST /{id}/events", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     waitUntilCapturedPromises.length = 0;
-    orchestratorFindFirstMock.mockResolvedValue(null);
+    sokoBotFindFirstMock.mockResolvedValue(null);
     createNotificationMock.mockResolvedValue({
       notification: { id: "notif_1" },
       created: true,

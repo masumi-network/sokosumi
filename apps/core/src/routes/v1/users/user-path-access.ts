@@ -5,7 +5,7 @@ import {
   type AuthenticationContext,
   hasAdminRole,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   isUserAuthContext,
   requireUserContext,
   type UserAuthenticationContext,
@@ -35,7 +35,7 @@ export const usersRoutePathUserIdSchema = z.string().openapi({
  * Resolves the first `/{id}` segment on user routes: `me` → effective user id;
  * otherwise enforces {@link requireAccessToTargetUserData}.
  *
- * Coworkers with `X-Context-User-Id` and orchestrators with their fixed owner
+ * Coworkers with `X-Context-User-Id` and sokoBots with their fixed owner
  * may resolve that user's tree (path `me` or matching concrete id). Agent
  * access to non-allowlisted subpaths is still rejected by
  * `agentUserRouteAllowlistMiddleware`.
@@ -70,10 +70,7 @@ function requireEffectiveUserPathContext(
     return { source: "session", ...authContext };
   }
 
-  if (
-    isCoworkerAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isCoworkerAuthContext(authContext) || isSokoBotAuthContext(authContext)) {
     return requireUserContext(authContext);
   }
 
@@ -102,10 +99,7 @@ export function requireAccessToTargetUserData(
     throw forbidden("You are not allowed to access this user's data");
   }
 
-  if (
-    isCoworkerAuthContext(authContext) ||
-    isOrchestratorAuthContext(authContext)
-  ) {
+  if (isCoworkerAuthContext(authContext) || isSokoBotAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
     if (userContext.userId !== resolvedUserId) {
       throw forbidden("You are not allowed to access this user's data");

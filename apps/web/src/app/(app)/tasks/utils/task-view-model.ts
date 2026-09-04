@@ -78,14 +78,14 @@ function mapTaskAssignee(
   coworkersById: Map<string, Coworker>,
   personalAssistantFallback: string,
 ): TaskAssigneeView | null {
-  if (task.assignee?.type === "orchestrator") {
-    const orchestrator = task.assignee.orchestrator;
+  if (task.assignee?.type === "sokoBot") {
+    const sokoBot = task.assignee.sokoBot;
     return {
       id: task.assignee.id,
-      name: orchestrator.name?.trim() || personalAssistantFallback,
-      image: orchestrator.avatarImageUrl,
-      kind: "orchestrator",
-      avatarSeed: orchestrator.avatarSeed,
+      name: sokoBot.name?.trim() || personalAssistantFallback,
+      image: sokoBot.avatarImageUrl,
+      kind: "sokoBot",
+      avatarSeed: sokoBot.avatarSeed,
     };
   }
 

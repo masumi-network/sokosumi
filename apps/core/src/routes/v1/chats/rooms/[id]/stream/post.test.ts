@@ -259,8 +259,8 @@ function roomWithOneCoworker(
     coworkerMembers?: Array<{
       coworker: { id: string; name: string; slug: string };
     }>;
-    orchestratorMembers?: Array<{
-      orchestrator: { id: string; name: string };
+    sokoBotMembers?: Array<{
+      sokoBot: { id: string; name: string };
     }>;
   } = {},
 ) {
@@ -284,7 +284,7 @@ function roomWithOneCoworker(
         },
       },
     ],
-    orchestratorMembers: overrides.orchestratorMembers ?? [],
+    sokoBotMembers: overrides.sokoBotMembers ?? [],
   };
 }
 
@@ -441,7 +441,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
             },
           },
         ],
-        orchestratorMembers: [],
+        sokoBotMembers: [],
       }),
     );
 

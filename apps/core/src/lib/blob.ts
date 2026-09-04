@@ -4,10 +4,10 @@ import * as Sentry from "@sentry/node";
 import {
   buildCoworkerChatRoomFilePathname,
   buildCoworkerImagePathname,
-  buildOrchestratorChatRoomFilePathname,
   buildOrganizationLogoContentHashPathname,
   buildOrganizationLogoPathname,
   buildProjectLogoContentHashPathname,
+  buildSokoBotChatRoomFilePathname,
   buildTaskFilePathname,
   buildUserChatRoomFilePathname,
   buildUserUploadPathname,
@@ -159,7 +159,7 @@ export async function createTaskFileUploadSession(
   options: {
     uploadedByUserId: string | null;
     uploadedByCoworkerId: string | null;
-    uploadedByOrchestratorId: string | null;
+    uploadedBySokoBotId: string | null;
     callbackUrl: string;
   },
 ): Promise<BlobUploadGrant> {
@@ -173,7 +173,7 @@ export async function createTaskFileUploadSession(
     size: file.size,
     uploadedByUserId: options.uploadedByUserId,
     uploadedByCoworkerId: options.uploadedByCoworkerId,
-    uploadedByOrchestratorId: options.uploadedByOrchestratorId,
+    uploadedBySokoBotId: options.uploadedBySokoBotId,
   });
 
   return createBlobUploadGrant({
@@ -200,7 +200,7 @@ export async function createChatRoomFileUploadSession(
   owner:
     | { kind: "user"; userId: string }
     | { kind: "coworker"; coworkerId: string }
-    | { kind: "orchestrator"; orchestratorId: string },
+    | { kind: "sokoBot"; sokoBotId: string },
   roomId: string,
   file: {
     filename: string;
@@ -219,8 +219,8 @@ export async function createChatRoomFileUploadSession(
             roomId,
             file.filename,
           )
-        : buildOrchestratorChatRoomFilePathname(
-            owner.orchestratorId,
+        : buildSokoBotChatRoomFilePathname(
+            owner.sokoBotId,
             roomId,
             file.filename,
           );

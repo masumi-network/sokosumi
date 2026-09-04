@@ -14,7 +14,7 @@ import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
-  ChatRoomOrchestratorParticipant,
+  ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { MembershipStatusRow } from "./membership-status-row";
@@ -42,8 +42,8 @@ export function ThreadPanel({
   onLoadOlder,
   coworkersById,
   coworkersBySlug,
-  orchestratorsById,
-  orchestratorsBySlug,
+  sokoBotsById,
+  sokoBotsBySlug,
   usersById,
   usersBySlug,
   mentionRecords,
@@ -90,8 +90,8 @@ export function ThreadPanel({
   onLoadOlder: () => void;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
-  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
+  sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
+  sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   mentionRecords: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
@@ -266,8 +266,8 @@ export function ThreadPanel({
                 message={parentMessage}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
-                orchestratorsById={orchestratorsById}
-                orchestratorsBySlug={orchestratorsBySlug}
+                sokoBotsById={sokoBotsById}
+                sokoBotsBySlug={sokoBotsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 mentions={mentionRecords}
@@ -323,8 +323,8 @@ export function ThreadPanel({
                           message={reply}
                           coworkersById={coworkersById}
                           coworkersBySlug={coworkersBySlug}
-                          orchestratorsById={orchestratorsById}
-                          orchestratorsBySlug={orchestratorsBySlug}
+                          sokoBotsById={sokoBotsById}
+                          sokoBotsBySlug={sokoBotsBySlug}
                           usersById={usersById}
                           usersBySlug={usersBySlug}
                           mentions={mentionRecords}
@@ -378,8 +378,8 @@ export function ThreadPanel({
             usersBySlug={usersBySlug}
             coworkersById={coworkersById}
             coworkersBySlug={coworkersBySlug}
-            orchestratorsById={orchestratorsById}
-            orchestratorsBySlug={orchestratorsBySlug}
+            sokoBotsById={sokoBotsById}
+            sokoBotsBySlug={sokoBotsBySlug}
             channels={channelOptions}
             channelLinks={channelLinks}
             placeholder={t("Thread.replyPlaceholder")}

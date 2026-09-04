@@ -5,7 +5,7 @@
  * Implemented as string literals so this package does not mirror Prisma
  * `TaskStatus` enums — OpenAPI/codegen owns web runtime types.
  *
- * Coworker- and orchestrator-assigned Tasks keep the original user table
+ * Coworker- and sokoBot-assigned Tasks keep the original user table
  * (queue, cancel, reopen). Human-assigned and unset Tasks use a simpler
  * in-progress path.
  */
@@ -28,7 +28,7 @@ export type UserTransitionTaskStatus =
   | "CANCELED";
 
 /** Who the Task is handed to. Agent-assigned work keeps today's user table. */
-export type TaskAssigneeKind = "coworker" | "orchestrator" | "human" | "unset";
+export type TaskAssigneeKind = "coworker" | "sokoBot" | "human" | "unset";
 
 const USER_TASK_STATUS_TRANSITIONS: Record<
   UserTransitionTaskStatus,

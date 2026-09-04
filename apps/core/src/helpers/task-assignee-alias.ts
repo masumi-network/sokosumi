@@ -1,7 +1,7 @@
 interface AssigneeIdAliasInput {
   assigneeId?: string | null;
   coworkerId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
 }
 
@@ -49,7 +49,7 @@ function hasAssigneeValue(value: string | null | undefined): boolean {
   return value != null && value.trim() !== "";
 }
 
-/** Coworker, orchestrator, and user assignee FKs are at most one. */
+/** Coworker, sokoBot, and user assignee FKs are at most one. */
 export function refineAssigneeXorConflict(
   data: AssigneeIdAliasInput,
   ctx: AssigneeIdAliasIssueContext,
@@ -57,7 +57,7 @@ export function refineAssigneeXorConflict(
   refineAssigneeIdAliasConflict(data, ctx);
   const setCount =
     (hasAssigneeValue(resolveAssigneeIdFromRequest(data)) ? 1 : 0) +
-    (hasAssigneeValue(data.assigneeOrchestratorId) ? 1 : 0) +
+    (hasAssigneeValue(data.assigneeSokoBotId) ? 1 : 0) +
     (hasAssigneeValue(data.assigneeUserId) ? 1 : 0);
   if (setCount > 1) {
     ctx.addIssue({
@@ -70,51 +70,51 @@ export function refineAssigneeXorConflict(
 
 /**
  * A provided assignee field replaces the whole assignee: coworker,
- * orchestrator, user, or neither. Omitted fields leave the current assignee
+ * sokoBot, user, or neither. Omitted fields leave the current assignee
  * untouched.
  */
 export function nextAssigneeWrite(input: {
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
 }):
   | {
       assigneeId: string | null;
-      assigneeOrchestratorId: string | null;
+      assigneeSokoBotId: string | null;
       assigneeUserId: string | null;
     }
   | undefined {
   const hasCoworker = input.assigneeId !== undefined;
-  const hasOrchestrator = input.assigneeOrchestratorId !== undefined;
+  const hasSokoBot = input.assigneeSokoBotId !== undefined;
   const hasUser = input.assigneeUserId !== undefined;
-  if (!hasCoworker && !hasOrchestrator && !hasUser) return undefined;
+  if (!hasCoworker && !hasSokoBot && !hasUser) return undefined;
   const coworkerId = input.assigneeId?.trim() || null;
-  const orchestratorId = input.assigneeOrchestratorId?.trim() || null;
+  const sokoBotId = input.assigneeSokoBotId?.trim() || null;
   const userId = input.assigneeUserId?.trim() || null;
   if (hasCoworker && coworkerId) {
     return {
       assigneeId: coworkerId,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: null,
     };
   }
-  if (hasOrchestrator && orchestratorId) {
+  if (hasSokoBot && sokoBotId) {
     return {
       assigneeId: null,
-      assigneeOrchestratorId: orchestratorId,
+      assigneeSokoBotId: sokoBotId,
       assigneeUserId: null,
     };
   }
   if (hasUser && userId) {
     return {
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: userId,
     };
   }
   return {
     assigneeId: null,
-    assigneeOrchestratorId: null,
+    assigneeSokoBotId: null,
     assigneeUserId: null,
   };
 }

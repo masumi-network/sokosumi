@@ -11,7 +11,7 @@ export const WORKSPACE_MEMBERS_VENDOR = {
   logos: { light: null, dark: null },
 } as const;
 
-export interface OwnerOrchestratorCopy {
+export interface OwnerSokoBotCopy {
   fallbackName: string;
   vendorName: string;
 }
@@ -86,9 +86,9 @@ export function findCoworkerIdBySlug(
   return match?.id ?? null;
 }
 
-export function getOwnerOrchestratorOption(
+export function getOwnerSokoBotOption(
   bot: SokoBot | null,
-  copy: OwnerOrchestratorCopy,
+  copy: OwnerSokoBotCopy,
 ): CoworkerOption | null {
   if (!bot) {
     return null;
@@ -99,18 +99,18 @@ export function getOwnerOrchestratorOption(
     slug: "soko-bots",
     name: bot.name?.trim() || copy.fallbackName,
     image: bot.avatarImageUrl ?? "",
-    kind: "orchestrator",
+    kind: "sokoBot",
     avatarSeed: bot.avatarSeed,
     vendor: sokoBotsVendor(copy.vendorName),
   };
 }
 
-export function withOwnerOrchestratorOption(
+export function withOwnerSokoBotOption(
   options: CoworkerOption[],
   bot: SokoBot | null,
-  copy: OwnerOrchestratorCopy,
+  copy: OwnerSokoBotCopy,
 ): CoworkerOption[] {
-  const option = getOwnerOrchestratorOption(bot, copy);
+  const option = getOwnerSokoBotOption(bot, copy);
   if (!option) {
     return options;
   }
@@ -142,7 +142,7 @@ export function getUserOptions(members: Member[]): CoworkerOption[] {
 export function resolveTaskAssigneeFields(
   selectedId: string | null | undefined,
   options: ReadonlyArray<Pick<CoworkerOption, "id" | "kind">>,
-  knownOrchestratorId?: string | null,
+  knownSokoBotId?: string | null,
   knownUserId?: string | null,
 ): TaskAssigneeFields {
   if (!selectedId) {
@@ -150,8 +150,8 @@ export function resolveTaskAssigneeFields(
   }
 
   const selected = options.find((option) => option.id === selectedId);
-  if (selected?.kind === "orchestrator") {
-    return clearedAssigneeFields({ assigneeOrchestratorId: selectedId });
+  if (selected?.kind === "sokoBot") {
+    return clearedAssigneeFields({ assigneeSokoBotId: selectedId });
   }
   if (selected?.kind === "user") {
     return clearedAssigneeFields({ assigneeUserId: selectedId });
@@ -160,8 +160,8 @@ export function resolveTaskAssigneeFields(
     return clearedAssigneeFields({ assigneeId: selectedId });
   }
 
-  if (knownOrchestratorId && selectedId === knownOrchestratorId) {
-    return clearedAssigneeFields({ assigneeOrchestratorId: selectedId });
+  if (knownSokoBotId && selectedId === knownSokoBotId) {
+    return clearedAssigneeFields({ assigneeSokoBotId: selectedId });
   }
 
   if (knownUserId && selectedId === knownUserId) {
@@ -173,7 +173,7 @@ export function resolveTaskAssigneeFields(
 
 export interface TaskAssigneeFields {
   assigneeId: string | null;
-  assigneeOrchestratorId: string | null;
+  assigneeSokoBotId: string | null;
   assigneeUserId: string | null;
 }
 
@@ -182,7 +182,7 @@ function clearedAssigneeFields(
 ): TaskAssigneeFields {
   return {
     assigneeId: null,
-    assigneeOrchestratorId: null,
+    assigneeSokoBotId: null,
     assigneeUserId: null,
     ...overrides,
   };
@@ -190,10 +190,8 @@ function clearedAssigneeFields(
 
 export function taskFormAssigneeId(task: {
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
 }): string {
-  return (
-    task.assigneeOrchestratorId ?? task.assigneeId ?? task.assigneeUserId ?? ""
-  );
+  return task.assigneeSokoBotId ?? task.assigneeId ?? task.assigneeUserId ?? "";
 }

@@ -27,7 +27,7 @@ function makeRoom(id = "room-1"): ChatRoom {
     myAccess: "member",
     userMembers: [],
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
   };
 }
 

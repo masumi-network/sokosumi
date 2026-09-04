@@ -6,10 +6,7 @@ import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  isCoworkerAuthContext,
-  isOrchestratorAuthContext,
-} from "@/middleware/auth";
+import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import { jobSummarySchema } from "@/schemas/job.schema";
 import { createTaskJobRequestSchema } from "@/schemas/task.schema";
 import { flattenJob } from "@/types/job";
@@ -53,7 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const authContext = c.var.authContext;
     if (
       !isCoworkerAuthContext(authContext) &&
-      !isOrchestratorAuthContext(authContext)
+      !isSokoBotAuthContext(authContext)
     ) {
       throw forbidden("Agent authentication required");
     }

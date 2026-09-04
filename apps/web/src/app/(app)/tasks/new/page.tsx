@@ -5,7 +5,7 @@ import { TaskForm } from "@/app/tasks/components/task-form";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   getCoworkerOptions,
-  withOwnerOrchestratorOption,
+  withOwnerSokoBotOption,
 } from "@/app/tasks/utils/coworker-options";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { getSession } from "@/lib/auth/auth.server";
@@ -35,7 +35,7 @@ export default async function NewTaskPage() {
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const memberOptions =
     await listTaskAssigneeMemberOptions(activeOrganizationId);
-  const coworkerOptions = withOwnerOrchestratorOption(
+  const coworkerOptions = withOwnerSokoBotOption(
     [...memberOptions, ...getCoworkerOptions(taskCoworkers)],
     ownerBot,
     { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },

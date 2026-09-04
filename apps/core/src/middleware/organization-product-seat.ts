@@ -5,7 +5,7 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   isUserAuthContext,
 } from "@/middleware/auth";
 
@@ -15,7 +15,7 @@ export function resolveOrganizationProductSeatUser(
   if (isCoworkerAuthContext(authContext)) {
     return null;
   }
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     return authContext.organizationId
       ? {
           organizationId: authContext.organizationId,

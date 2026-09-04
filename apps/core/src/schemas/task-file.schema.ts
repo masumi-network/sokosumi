@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
-import { orchestratorSummarySchema } from "@/schemas/orchestrator.schema";
+import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 
 const taskFileUploaderUserSchema = z
@@ -21,21 +21,21 @@ const taskFileUploaderCoworkerSchema = z
   })
   .openapi("TaskFileUploaderCoworker");
 
-const taskFileUploaderOrchestratorSchema = z
+const taskFileUploaderSokoBotSchema = z
   .object({
-    type: z.literal("orchestrator"),
+    type: z.literal("sokoBot"),
     id: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
-    orchestrator: orchestratorSummarySchema,
+    sokoBot: sokoBotSummarySchema,
   })
-  .openapi("TaskFileUploaderOrchestrator");
+  .openapi("TaskFileUploaderSokoBot");
 
 export const taskFileUploaderSchema = z
   .discriminatedUnion("type", [
     taskFileUploaderUserSchema,
     taskFileUploaderCoworkerSchema,
-    taskFileUploaderOrchestratorSchema,
+    taskFileUploaderSokoBotSchema,
   ])
   .openapi("TaskFileUploader");
 

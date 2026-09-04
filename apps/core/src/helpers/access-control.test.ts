@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
-  OrchestratorAuthenticationContext,
+  SokoBotAuthenticationContext,
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -30,7 +30,7 @@ import {
   requireMutableTaskOwnership,
   requireTaskArchiveAccess,
   requireTaskAssignableCoworker,
-  requireTaskAssignableOrchestrator,
+  requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
   requireTaskCancelAccess,
   requireTaskCollaboration,
@@ -136,9 +136,9 @@ function createCoworkerContext(
 }
 
 const workspaceId = "11111111-1111-7111-8111-111111111111";
-const orchestratorAuthContext: OrchestratorAuthenticationContext = {
-  actor: "orchestrator",
-  orchestratorId: "22222222-2222-7222-8222-222222222222",
+const sokoBotAuthContext: SokoBotAuthenticationContext = {
+  actor: "sokoBot",
+  sokoBotId: "22222222-2222-7222-8222-222222222222",
   userId: "user_123",
   workspaceId,
   organizationId: "org_123",
@@ -522,21 +522,21 @@ describe("requireTaskCollaboration", () => {
     });
   });
 
-  it("allows an orchestrator only on its assigned task in its workspace", async () => {
+  it("allows a soko bot only on its assigned task in its workspace", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
       status: TaskStatus.READY,
-      assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+      assigneeSokoBotId: sokoBotAuthContext.sokoBotId,
     } as never);
 
-    await requireTaskCollaboration(orchestratorAuthContext, "tsk_123", tx);
+    await requireTaskCollaboration(sokoBotAuthContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
         workspaceId,
-        assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+        assigneeSokoBotId: sokoBotAuthContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
         archivedAt: null,
       },
@@ -655,15 +655,15 @@ describe("requireTaskReadForRouteVars", () => {
     expect(tx.task.findFirst).not.toHaveBeenCalled();
   });
 
-  it("reads only the orchestrator's assigned task", async () => {
+  it("reads only the soko bot's assigned task", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+      assigneeSokoBotId: sokoBotAuthContext.sokoBotId,
     } as never);
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
-      authContext: orchestratorAuthContext,
+      authContext: sokoBotAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
 
@@ -673,7 +673,7 @@ describe("requireTaskReadForRouteVars", () => {
       where: {
         id: "tsk_123",
         workspaceId,
-        assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+        assigneeSokoBotId: sokoBotAuthContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
         archivedAt: null,
       },
@@ -1276,7 +1276,7 @@ describe("requireTaskStatusWriteAccess", () => {
       id: "tsk_123",
       ownerId: "user_owner",
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: "user_assignee",
       pendingVendorGrantId: null,
     } as never);
@@ -1294,7 +1294,7 @@ describe("requireTaskStatusWriteAccess", () => {
       id: "tsk_123",
       ownerId: "user_owner",
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: null,
       pendingVendorGrantId: null,
     } as never);
@@ -1312,7 +1312,7 @@ describe("requireTaskStatusWriteAccess", () => {
       id: "tsk_123",
       ownerId: "user_owner",
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: "user_assignee",
       pendingVendorGrantId: null,
     } as never);
@@ -1349,7 +1349,7 @@ describe("requireTaskStatusWriteAccess", () => {
               id: "tsk_123",
               ownerId: "user_123",
               assigneeId: "cow_123",
-              assigneeOrchestratorId: null,
+              assigneeSokoBotId: null,
               assigneeUserId: null,
               pendingVendorGrantId: null,
             } as never)
@@ -1783,7 +1783,7 @@ describe("requireTaskAssignableCoworker", () => {
   });
 });
 
-describe("requireTaskAssignableOrchestrator", () => {
+describe("requireTaskAssignableSokoBot", () => {
   it("lets the owner assign work to their own Soko Bot", async () => {
     const tx = {
       sokoBot: {
@@ -1792,7 +1792,7 @@ describe("requireTaskAssignableOrchestrator", () => {
     } as unknown as Prisma.TransactionClient;
 
     await expect(
-      requireTaskAssignableOrchestrator("bot_1", workspaceId, tx, {
+      requireTaskAssignableSokoBot("bot_1", workspaceId, tx, {
         kind: "user",
         userId: "user_1",
       }),
@@ -1807,7 +1807,7 @@ describe("requireTaskAssignableOrchestrator", () => {
     } as unknown as Prisma.TransactionClient;
 
     await expect(
-      requireTaskAssignableOrchestrator("bot_1", workspaceId, tx, {
+      requireTaskAssignableSokoBot("bot_1", workspaceId, tx, {
         kind: "soko_bot",
         sokoBotId: "bot_1",
       }),
@@ -1822,21 +1822,21 @@ describe("requireTaskAssignableOrchestrator", () => {
     } as unknown as Prisma.TransactionClient;
 
     await expect(
-      requireTaskAssignableOrchestrator("bot_1", workspaceId, tx, {
+      requireTaskAssignableSokoBot("bot_1", workspaceId, tx, {
         kind: "user",
         userId: "teammate",
       }),
     ).rejects.toThrow("Only the owner can assign work to this Soko Bot");
   });
 
-  it("rejects a missing or archived orchestrator", async () => {
+  it("rejects a missing or archived soko bot", async () => {
     const tx = {
       sokoBot: { findFirst: vi.fn().mockResolvedValue(null) },
     } as unknown as Prisma.TransactionClient;
 
     await expect(
-      requireTaskAssignableOrchestrator("bot_1", workspaceId, tx),
-    ).rejects.toThrow("Orchestrator is not usable in this workspace");
+      requireTaskAssignableSokoBot("bot_1", workspaceId, tx),
+    ).rejects.toThrow("Soko Bot is not usable in this workspace");
   });
 });
 
@@ -2241,7 +2241,7 @@ describe("requireJobReadForRouteVars", () => {
     ).rejects.toThrow("Job not found");
   });
 
-  it("allows an orchestrator to read a job on its assigned task", async () => {
+  it("allows a soko bot to read a job on its assigned task", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
@@ -2250,11 +2250,11 @@ describe("requireJobReadForRouteVars", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
-      assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+      assigneeSokoBotId: sokoBotAuthContext.sokoBotId,
     } as never);
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
-      authContext: orchestratorAuthContext,
+      authContext: sokoBotAuthContext,
       workspaceContext: jobReadWorkspaceContext,
     };
 
@@ -2267,7 +2267,7 @@ describe("requireJobReadForRouteVars", () => {
       where: {
         id: "tsk_123",
         workspaceId,
-        assigneeOrchestratorId: orchestratorAuthContext.orchestratorId,
+        assigneeSokoBotId: sokoBotAuthContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
         archivedAt: null,
       },

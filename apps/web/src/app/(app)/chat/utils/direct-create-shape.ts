@@ -5,12 +5,12 @@
 export function directCreateShapeError(
   memberUserIds: readonly string[],
   coworkerIds: readonly string[],
-  orchestratorIds: readonly string[] = [],
+  sokoBotIds: readonly string[] = [],
 ): string | null {
   const targetKinds = [
     memberUserIds.length > 0,
     coworkerIds.length > 0,
-    orchestratorIds.length > 0,
+    sokoBotIds.length > 0,
   ].filter(Boolean).length;
 
   if (targetKinds === 0) {
@@ -25,7 +25,7 @@ export function directCreateShapeError(
     return "Direct messages support one coworker only.";
   }
 
-  if (orchestratorIds.length > 1) {
+  if (sokoBotIds.length > 1) {
     return "Direct messages support one personal assistant only.";
   }
 

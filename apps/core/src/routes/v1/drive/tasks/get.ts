@@ -29,7 +29,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
@@ -236,8 +236,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     };
 
-    if (isOrchestratorAuthContext(authContext)) {
-      baseTaskWhere.assigneeOrchestratorId = authContext.orchestratorId;
+    if (isSokoBotAuthContext(authContext)) {
+      baseTaskWhere.assigneeSokoBotId = authContext.sokoBotId;
       baseTaskWhere.status = { not: TaskStatus.DRAFT };
     }
 
@@ -631,6 +631,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         workspaceId,
         projectId: projectId === "null" ? null : projectId,
         ...(assigneeId ? { assigneeId } : {}),
+        ...(isSokoBotAuthContext(authContext)
+          ? { assigneeSokoBotId: authContext.sokoBotId }
+          : {}),
         ...(coworkerAccess ? { coworkerAccess } : {}),
         ...(cursor ? { cursor } : {}),
         take,

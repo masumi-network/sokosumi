@@ -4,9 +4,9 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
 import {
-  generateOrchestratorApiKeyToken,
+  generateSokoBotApiKeyToken,
   hashApiKey,
-  ORCHESTRATOR_API_KEY_START_LENGTH,
+  SOKO_BOT_API_KEY_START_LENGTH,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -19,9 +19,9 @@ import {
   updateCoworkerApiKeyRequestSchema,
 } from "@/schemas/coworker-api-key.schema";
 import {
-  createOrchestratorApiKeyResponseSchema,
-  orchestratorApiKeySchema,
-} from "@/schemas/orchestrator-api-key.schema";
+  createSokoBotApiKeyResponseSchema,
+  sokoBotApiKeySchema,
+} from "@/schemas/soko-bot-api-key.schema";
 
 const botParamsSchema = z.object({
   id: z.uuid().openapi({
@@ -39,7 +39,7 @@ const keyParamsSchema = botParamsSchema.extend({
 
 const apiKeySelect = {
   id: true,
-  orchestratorId: true,
+  sokoBotId: true,
   name: true,
   keyStart: true,
   expiresAt: true,
@@ -55,7 +55,7 @@ const listRoute = createRoute({
   request: { params: botParamsSchema },
   responses: {
     200: jsonSuccessResponse(
-      z.array(orchestratorApiKeySchema),
+      z.array(sokoBotApiKeySchema),
       "Retrieve Soko Bot API keys",
     ),
     401: jsonErrorResponse("Unauthorized"),
@@ -78,7 +78,7 @@ const createRouteDefinition = createRoute({
   },
   responses: {
     201: jsonSuccessResponse(
-      createOrchestratorApiKeyResponseSchema,
+      createSokoBotApiKeyResponseSchema,
       "Create Soko Bot API key",
     ),
     401: jsonErrorResponse("Unauthorized"),
@@ -100,10 +100,7 @@ const updateRoute = createRoute({
     },
   },
   responses: {
-    200: jsonSuccessResponse(
-      orchestratorApiKeySchema,
-      "Update Soko Bot API key",
-    ),
+    200: jsonSuccessResponse(sokoBotApiKeySchema, "Update Soko Bot API key"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
@@ -116,10 +113,7 @@ const revokeRoute = createRoute({
   tags: ["Soko Bots"],
   request: { params: keyParamsSchema },
   responses: {
-    200: jsonSuccessResponse(
-      orchestratorApiKeySchema,
-      "Revoke Soko Bot API key",
-    ),
+    200: jsonSuccessResponse(sokoBotApiKeySchema, "Revoke Soko Bot API key"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
@@ -145,8 +139,8 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
 
     const keys = await prisma.coworkerApiKey.findMany({
       where: {
-        orchestratorId: id,
-        orchestrator: {
+        sokoBotId: id,
+        sokoBot: {
           userId: auth.userId,
           archivedAt: null,
           deletedAt: null,
@@ -155,16 +149,16 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
       select: apiKeySelect,
       orderBy: { createdAt: "desc" },
     });
-    return ok(c, z.array(orchestratorApiKeySchema).parse(keys));
+    return ok(c, z.array(sokoBotApiKeySchema).parse(keys));
   });
 
   app.openapi(createRouteDefinition, async (c) => {
     const auth = requireInteractiveUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
-    const token = generateOrchestratorApiKeyToken();
+    const token = generateSokoBotApiKeyToken();
     const keyHash = await hashApiKey(token);
-    const keyStart = token.slice(0, ORCHESTRATOR_API_KEY_START_LENGTH);
+    const keyStart = token.slice(0, SOKO_BOT_API_KEY_START_LENGTH);
 
     const apiKey = await prisma.$transaction(async (tx) => {
       const bot = await tx.sokoBot.findFirst({
@@ -183,7 +177,7 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
       return await tx.coworkerApiKey.create({
         data: {
           coworkerId: null,
-          orchestratorId: id,
+          sokoBotId: id,
           name: body.name ?? null,
           keyHash,
           keyStart,
@@ -196,7 +190,7 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
 
     return created(
       c,
-      createOrchestratorApiKeyResponseSchema.parse({ ...apiKey, token }),
+      createSokoBotApiKeyResponseSchema.parse({ ...apiKey, token }),
     );
   });
 
@@ -208,8 +202,8 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
       const updated = await tx.coworkerApiKey.updateMany({
         where: {
           id: keyId,
-          orchestratorId: id,
-          orchestrator: {
+          sokoBotId: id,
+          sokoBot: {
             userId: auth.userId,
             archivedAt: null,
             deletedAt: null,
@@ -229,7 +223,7 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
         throw notFound("Soko Bot API key not found");
       }
       return await tx.coworkerApiKey.findFirst({
-        where: { id: keyId, orchestratorId: id },
+        where: { id: keyId, sokoBotId: id },
         select: apiKeySelect,
       });
     });
@@ -237,7 +231,7 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
     if (!apiKey) {
       throw notFound("Soko Bot API key not found");
     }
-    return ok(c, orchestratorApiKeySchema.parse(apiKey));
+    return ok(c, sokoBotApiKeySchema.parse(apiKey));
   });
 
   app.openapi(revokeRoute, async (c) => {
@@ -248,9 +242,9 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
       await tx.coworkerApiKey.updateMany({
         where: {
           id: keyId,
-          orchestratorId: id,
+          sokoBotId: id,
           revokedAt: null,
-          orchestrator: {
+          sokoBot: {
             userId: auth.userId,
             archivedAt: null,
             deletedAt: null,
@@ -261,8 +255,8 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
       return await tx.coworkerApiKey.findFirst({
         where: {
           id: keyId,
-          orchestratorId: id,
-          orchestrator: {
+          sokoBotId: id,
+          sokoBot: {
             userId: auth.userId,
             archivedAt: null,
             deletedAt: null,
@@ -275,6 +269,6 @@ export function mountSokoBotApiKeyRoutes(app: OpenAPIHonoWithAuth): void {
     if (!apiKey) {
       throw notFound("Soko Bot API key not found");
     }
-    return ok(c, orchestratorApiKeySchema.parse(apiKey));
+    return ok(c, sokoBotApiKeySchema.parse(apiKey));
   });
 }

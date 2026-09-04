@@ -32,14 +32,14 @@ describe("dispatchTaskNotification", () => {
     createNotificationMock.mockResolvedValue({});
   });
 
-  it("names the assigned orchestrator in task notifications", async () => {
+  it("names the assigned soko bot in task notifications", async () => {
     await dispatchTaskNotification(
       {
         id: "task_1",
         ownerId: "user_1",
         name: "Launch",
         assignee: null,
-        assigneeOrchestrator: { name: "Nora" },
+        assigneeSokoBot: { name: "Nora" },
         project: null,
         projectId: null,
         workspaceId: null,

@@ -28,7 +28,7 @@ const baseLabels = {
   updated: "Updated",
   schedule: "Schedule",
   personalAssistantFallback: "Personal assistant",
-  formatOrchestratorRole: ({ owner }: { owner: string }) =>
+  formatSokoBotRole: ({ owner }: { owner: string }) =>
     `${owner}'s personal assistant`,
 };
 
@@ -139,9 +139,9 @@ describe("TaskMetadata", () => {
       <TaskMetadata
         task={createTask({
           creator: {
-            type: "orchestrator",
+            type: "sokoBot",
             id: "01960001-0001-7001-8001-000000000099",
-            orchestrator: {
+            sokoBot: {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Hermes",
               avatarSeed: null,
@@ -181,9 +181,9 @@ describe("TaskMetadata", () => {
       <TaskMetadata
         task={createTask({
           creator: {
-            type: "orchestrator",
+            type: "sokoBot",
             id: "01960001-0001-7001-8001-000000000099",
-            orchestrator: {
+            sokoBot: {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Joseph",
               avatarSeed: null,
@@ -211,9 +211,9 @@ describe("TaskMetadata", () => {
       <TaskMetadata
         task={createTask({
           creator: {
-            type: "orchestrator",
+            type: "sokoBot",
             id: "01960001-0001-7001-8001-000000000099",
-            orchestrator: {
+            sokoBot: {
               id: "01960001-0001-7001-8001-000000000099",
               name: "Ada Lovelace's personal assistant",
               avatarSeed: null,
@@ -234,15 +234,15 @@ describe("TaskMetadata", () => {
     ).toHaveLength(1);
   });
 
-  it("renders an orchestrator assignee with the assistant orb", () => {
+  it("renders an sokoBot assignee with the assistant orb", () => {
     render(
       <TaskMetadata
         task={{
           ...createTask({ assigneeName: null }),
           assignee: {
-            type: "orchestrator",
+            type: "sokoBot",
             id: "bot-1",
-            orchestrator: {
+            sokoBot: {
               id: "bot-1",
               name: "Jarvis",
               avatarSeed: null,

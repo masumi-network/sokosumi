@@ -22,7 +22,7 @@ const {
   projectFindFirstMock,
   refreshTaskSchedulePlannedOccurrencesMock,
   requireTaskAssignableCoworkerMock,
-  requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBotMock,
   requireTaskAssignableUserMock,
   requireTaskOwnershipMock,
   taskUpdateMock,
@@ -33,7 +33,7 @@ const {
   projectFindFirstMock: vi.fn(),
   refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireTaskAssignableOrchestratorMock: vi.fn(),
+  requireTaskAssignableSokoBotMock: vi.fn(),
   requireTaskAssignableUserMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
   taskUpdateMock: vi.fn(),
@@ -41,7 +41,7 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableOrchestrator: requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
   requireTaskAssignableUser: requireTaskAssignableUserMock,
   requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
@@ -104,7 +104,7 @@ function createTaskApi(projectId: string | null = null) {
       slug: "acme-labs",
     },
     assigneeId: null,
-    assigneeOrchestratorId: null,
+    assigneeSokoBotId: null,
     assigneeUserId: null,
     assignee: null,
     coworkerId: null,
@@ -118,8 +118,8 @@ function createTaskApi(projectId: string | null = null) {
         image: null,
       },
     },
-    orchestratorId: null,
-    orchestrator: null,
+    sokoBotId: null,
+    sokoBot: null,
     name: "Updated Task",
     description: null,
     status: TaskStatus.DRAFT,
@@ -199,11 +199,11 @@ describe("patchTaskRequestSchema", () => {
     }).toThrow();
   });
 
-  it("rejects assigneeId and assigneeOrchestratorId together", () => {
+  it("rejects assigneeId and assigneeSokoBotId together", () => {
     expect(() => {
       patchTaskRequestSchema.parse({
         assigneeId: "cow_a",
-        assigneeOrchestratorId: "01960001-0001-7001-8001-000000000099",
+        assigneeSokoBotId: "01960001-0001-7001-8001-000000000099",
       });
     }).toThrow();
   });
@@ -464,17 +464,17 @@ describe("PATCH /tasks/{id}", () => {
     expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
   });
 
-  it("assigns a personal assistant as orchestrator", async () => {
-    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+  it("assigns a personal assistant as soko bot", async () => {
+    const sokoBotId = "01960001-0001-7001-8001-000000000099";
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });
-    requireTaskAssignableOrchestratorMock.mockResolvedValue(undefined);
+    requireTaskAssignableSokoBotMock.mockResolvedValue(undefined);
 
     const app = createApp();
     const response = await app.request("http://localhost/tsk_123", {
@@ -483,13 +483,13 @@ describe("PATCH /tasks/{id}", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        assigneeOrchestratorId: orchestratorId,
+        assigneeSokoBotId: sokoBotId,
       }),
     });
 
     expect(response.status).toBe(200);
-    expect(requireTaskAssignableOrchestratorMock).toHaveBeenCalledWith(
-      orchestratorId,
+    expect(requireTaskAssignableSokoBotMock).toHaveBeenCalledWith(
+      sokoBotId,
       WORKSPACE_ID,
       expect.anything(),
       { kind: "user", userId: "user_123" },
@@ -498,23 +498,23 @@ describe("PATCH /tasks/{id}", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           assigneeId: null,
-          assigneeOrchestratorId: orchestratorId,
+          assigneeSokoBotId: sokoBotId,
         }),
       }),
     );
   });
 
   it("rejects assigning someone else's personal assistant with 403", async () => {
-    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    const sokoBotId = "01960001-0001-7001-8001-000000000099";
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       projectId: null,
       workspaceId: WORKSPACE_ID,
     });
-    requireTaskAssignableOrchestratorMock.mockRejectedValue(
+    requireTaskAssignableSokoBotMock.mockRejectedValue(
       forbidden("Only the owner can assign work to this Soko Bot"),
     );
 
@@ -525,7 +525,7 @@ describe("PATCH /tasks/{id}", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        assigneeOrchestratorId: orchestratorId,
+        assigneeSokoBotId: sokoBotId,
       }),
     });
 
@@ -543,7 +543,7 @@ describe("PATCH /tasks/{id}", () => {
         id: "tsk_123",
         status: TaskStatus.DRAFT,
         assigneeId: null,
-        assigneeOrchestratorId: null,
+        assigneeSokoBotId: null,
         assigneeUserId: null,
         projectId: null,
         workspaceId: WORKSPACE_ID,
@@ -592,7 +592,7 @@ describe("PATCH /tasks/{id}", () => {
         id: "tsk_123",
         status: TaskStatus.DRAFT,
         assigneeId: null,
-        assigneeOrchestratorId: null,
+        assigneeSokoBotId: null,
         assigneeUserId: "user_assignee",
         projectId: null,
         workspaceId: WORKSPACE_ID,

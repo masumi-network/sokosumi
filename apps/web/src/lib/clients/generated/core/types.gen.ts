@@ -1072,46 +1072,46 @@ export type Task = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Null when assigned to a user, an orchestrator, or unset. Prefer `assignee`.
+     * Marketplace coworker assignee. Null when assigned to a user, a Soko Bot, or unset. Prefer `assignee`.
      */
     assigneeId: string | null;
     /**
-     * Personal-assistant orchestrator assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.
+     * Soko Bot assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.
      */
-    assigneeOrchestratorId: string | null;
+    assigneeSokoBotId: string | null;
     /**
-     * Workspace-member assignee id. Null when assigned to a coworker, an orchestrator, or unset. Prefer `assignee`.
+     * Workspace-member assignee id. Null when assigned to a coworker, a Soko Bot, or unset. Prefer `assignee`.
      */
     assigneeUserId: string | null;
     /**
-     * Discriminated assignee: coworker, workspace member, orchestrator, or unassigned.
+     * Discriminated assignee: coworker, workspace member, Soko Bot, or unassigned.
      */
-    assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeOrchestrator | null;
+    assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeSokoBot | null;
     /**
-     * Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.
+     * Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.
      *
      * @deprecated
      */
     coworkerId: string | null;
     /**
-     * Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.
+     * Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.
      *
      * @deprecated
      */
     coworker: CoworkerSummary | null;
     creator: TaskCreator;
     /**
-     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
      * @deprecated
      */
-    orchestratorId: string | null;
+    sokoBotId: string | null;
     /**
-     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
      * @deprecated
      */
-    orchestrator: OrchestratorSummary | null;
+    sokoBot: SokoBotSummary | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -1178,13 +1178,13 @@ export type TaskAssigneeUser = {
     user: UserSummary;
 };
 
-export type TaskAssigneeOrchestrator = {
-    type: 'orchestrator';
+export type TaskAssigneeSokoBot = {
+    type: 'sokoBot';
     id: string;
-    orchestrator: OrchestratorSummary;
+    sokoBot: SokoBotSummary;
 };
 
-export type OrchestratorSummary = {
+export type SokoBotSummary = {
     id: string;
     name: string | null;
     avatarSeed: string | null;
@@ -1193,15 +1193,15 @@ export type OrchestratorSummary = {
 };
 
 /**
- * Actor that created the task. Exactly one of user, coworker, or orchestrator.
+ * Actor that created the task. Exactly one of user, coworker, or sokoBot.
  */
 export type TaskCreator = ({
     type: 'user';
 } & TaskCreatorUser) | ({
     type: 'coworker';
 } & TaskCreatorCoworker) | ({
-    type: 'orchestrator';
-} & TaskCreatorOrchestrator);
+    type: 'sokoBot';
+} & TaskCreatorSokoBot);
 
 export type TaskCreatorUser = {
     type: 'user';
@@ -1215,10 +1215,10 @@ export type TaskCreatorCoworker = {
     coworker: CoworkerSummary;
 };
 
-export type TaskCreatorOrchestrator = {
-    type: 'orchestrator';
+export type TaskCreatorSokoBot = {
+    type: 'sokoBot';
     id: string;
-    orchestrator: OrchestratorSummary;
+    sokoBot: SokoBotSummary;
 };
 
 export type TaskEvent = {
@@ -1234,7 +1234,7 @@ export type TaskEvent = {
      */
     userId?: string | null;
     /**
-     * Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
+     * Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
      *
      * @deprecated
      */
@@ -1250,7 +1250,7 @@ export type TaskEvent = {
      */
     coworkerId?: string | null;
     /**
-     * Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
+     * Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
      *
      * @deprecated
      */
@@ -1261,17 +1261,17 @@ export type TaskEvent = {
         slug: string;
     } | null;
     /**
-     * Deprecated. Use actor when type is orchestrator.
+     * Deprecated. Use actor when type is sokoBot.
      *
      * @deprecated
      */
-    orchestratorId?: string | null;
+    sokoBotId?: string | null;
     /**
-     * Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
+     * Deprecated. Prefer actor. Emitted only when the preferred actor is sokoBot (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
      *
      * @deprecated
      */
-    orchestrator?: {
+    sokoBot?: {
         id: string;
         name: string | null;
         avatarSeed: string | null;
@@ -1304,7 +1304,7 @@ export type TaskEvent = {
 /**
  * Actor that produced the event. Null when no actor FK is set.
  */
-export type TaskEventActor = TaskEventActorUser | TaskEventActorCoworker | TaskEventActorOrchestrator | null;
+export type TaskEventActor = TaskEventActorUser | TaskEventActorCoworker | TaskEventActorSokoBot | null;
 
 export type TaskEventActorUser = {
     type: 'user';
@@ -1318,10 +1318,10 @@ export type TaskEventActorCoworker = {
     coworker: CoworkerSummary;
 };
 
-export type TaskEventActorOrchestrator = {
-    type: 'orchestrator';
+export type TaskEventActorSokoBot = {
+    type: 'sokoBot';
     id: string;
-    orchestrator: OrchestratorSummary;
+    sokoBot: SokoBotSummary;
 };
 
 /**
@@ -1520,7 +1520,7 @@ export type TaskFileOrigin = typeof TaskFileOrigin[keyof typeof TaskFileOrigin];
 /**
  * Actor that uploaded the file. Null when both uploader FKs are unset (e.g. deleted actor).
  */
-export type TaskFileUploader = TaskFileUploaderUser | TaskFileUploaderCoworker | TaskFileUploaderOrchestrator | null;
+export type TaskFileUploader = TaskFileUploaderUser | TaskFileUploaderCoworker | TaskFileUploaderSokoBot | null;
 
 export type TaskFileUploaderUser = {
     type: 'user';
@@ -1534,10 +1534,10 @@ export type TaskFileUploaderCoworker = {
     coworker: CoworkerSummary;
 };
 
-export type TaskFileUploaderOrchestrator = {
-    type: 'orchestrator';
+export type TaskFileUploaderSokoBot = {
+    type: 'sokoBot';
     id: string;
-    orchestrator: OrchestratorSummary;
+    sokoBot: SokoBotSummary;
 };
 
 export type AdminTaskPaymentClaim = {
@@ -2290,7 +2290,7 @@ export type ChatRoom = {
     peerInActiveOrganization?: boolean;
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
-    orchestratorMembers: Array<ChatRoomOrchestratorParticipant>;
+    sokoBotMembers: Array<ChatRoomSokoBotParticipant>;
 };
 
 /**
@@ -2329,7 +2329,7 @@ export type ChatRoomCoworkerParticipant = {
     presence: ChatRoomPresence;
 };
 
-export type ChatRoomOrchestratorParticipant = {
+export type ChatRoomSokoBotParticipant = {
     id: string;
     name: string;
     caption: string | null;
@@ -2396,10 +2396,10 @@ export type CreateChatRoomRequest = {
     /**
      * Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.
      */
-    orchestratorIds?: Array<string>;
+    sokoBotIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (orchestrator). Human, coworker, and orchestrator targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/orchestrator DMs with an active org are org-scoped. Coworker and orchestrator DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
+     * Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1 is an Org Direct when both are Members of the active organization; otherwise a Personal Direct when they share an External channel. Multi-human groups and coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -2413,7 +2413,7 @@ export type CreateChatRoomRequest = {
     /**
      * Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.
      */
-    orchestratorIds?: Array<string>;
+    sokoBotIds?: Array<string>;
 };
 
 export type DiscoverableChatRoom = {
@@ -2522,8 +2522,8 @@ export type ChatRoomMessageSender = {
     type: 'coworker';
     coworker: ChatRoomCoworkerParticipant;
 } | {
-    type: 'orchestrator';
-    orchestrator: ChatRoomOrchestratorParticipant;
+    type: 'sokoBot';
+    sokoBot: ChatRoomSokoBotParticipant;
 } | {
     type: 'unknown';
 };
@@ -2531,7 +2531,7 @@ export type ChatRoomMessageSender = {
 export type ChatRoomMessageMention = {
     id: string;
     coworkerId: string | null;
-    orchestratorId: string | null;
+    sokoBotId: string | null;
     status: ChatRoomMentionStatus;
     responseMessageId: string | null;
 };
@@ -2587,7 +2587,7 @@ export type ChatRoomMessageMembershipSubject = {
     id: string;
     name: string;
 } | {
-    type: 'orchestrator';
+    type: 'sokoBot';
     id: string;
     name: string;
 };
@@ -2616,7 +2616,7 @@ export type UpdateChatRoomRequest = {
     /**
      * Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.
      */
-    orchestratorIds?: Array<string>;
+    sokoBotIds?: Array<string>;
 };
 
 /**
@@ -2719,7 +2719,7 @@ export type CreateChatRoomMessageRequest = {
     /**
      * Personal assistants addressed in the message.
      */
-    mentionedOrchestratorIds?: Array<string>;
+    mentionedSokoBotIds?: Array<string>;
     /**
      * Human room members addressed in the message. Validated against room membership; does not create ChatRoomMention rows or AI dispatch.
      */
@@ -3542,7 +3542,7 @@ export type HistoryTaskItem = {
     /**
      * Soko Bot ID associated with the task, when assigned
      */
-    orchestratorId: string | null;
+    sokoBotId: string | null;
 };
 
 export type HistoryOwner = {
@@ -4821,9 +4821,9 @@ export type PublicSharedTaskFile = {
     createdAt: Date;
 };
 
-export type OrchestratorApiKey = {
+export type SokoBotApiKey = {
     id: string;
-    orchestratorId: string;
+    sokoBotId: string;
     name: string | null;
     keyStart: string;
     expiresAt: Date | null;
@@ -4832,7 +4832,7 @@ export type OrchestratorApiKey = {
     updatedAt: Date;
 };
 
-export type CreateOrchestratorApiKeyResponse = {
+export type CreateSokoBotApiKeyResponse = {
     id: string;
     token: string;
     name: string | null;
@@ -5308,46 +5308,46 @@ export type TaskListItem = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Null when assigned to a user, an orchestrator, or unset. Prefer `assignee`.
+     * Marketplace coworker assignee. Null when assigned to a user, a Soko Bot, or unset. Prefer `assignee`.
      */
     assigneeId: string | null;
     /**
-     * Personal-assistant orchestrator assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.
+     * Soko Bot assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.
      */
-    assigneeOrchestratorId: string | null;
+    assigneeSokoBotId: string | null;
     /**
-     * Workspace-member assignee id. Null when assigned to a coworker, an orchestrator, or unset. Prefer `assignee`.
+     * Workspace-member assignee id. Null when assigned to a coworker, a Soko Bot, or unset. Prefer `assignee`.
      */
     assigneeUserId: string | null;
     /**
-     * Discriminated assignee: coworker, workspace member, orchestrator, or unassigned.
+     * Discriminated assignee: coworker, workspace member, Soko Bot, or unassigned.
      */
-    assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeOrchestrator | null;
+    assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeSokoBot | null;
     /**
-     * Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.
+     * Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.
      *
      * @deprecated
      */
     coworkerId: string | null;
     /**
-     * Deprecated marketplace coworker summary. Null when the assignee is an orchestrator.
+     * Deprecated marketplace coworker summary. Null when the assignee is a Soko Bot.
      *
      * @deprecated
      */
     coworker: CoworkerSummary | null;
     creator: TaskCreator;
     /**
-     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
      * @deprecated
      */
-    orchestratorId: string | null;
+    sokoBotId: string | null;
     /**
-     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
      * @deprecated
      */
-    orchestrator: OrchestratorSummary | null;
+    sokoBot: SokoBotSummary | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -31393,7 +31393,7 @@ export type GetSokoBotsByIdApiKeysResponses = {
      * Retrieve Soko Bot API keys
      */
     200: {
-        data: Array<OrchestratorApiKey>;
+        data: Array<SokoBotApiKey>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31468,7 +31468,7 @@ export type PostSokoBotsByIdApiKeysResponses = {
      * Create Soko Bot API key
      */
     201: {
-        data: CreateOrchestratorApiKeyResponse;
+        data: CreateSokoBotApiKeyResponse;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31541,7 +31541,7 @@ export type DeleteSokoBotsByIdApiKeysByKeyIdResponses = {
      * Revoke Soko Bot API key
      */
     200: {
-        data: OrchestratorApiKey;
+        data: SokoBotApiKey;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -31617,7 +31617,7 @@ export type PatchSokoBotsByIdApiKeysByKeyIdResponses = {
      * Update Soko Bot API key
      */
     200: {
-        data: OrchestratorApiKey;
+        data: SokoBotApiKey;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -35929,9 +35929,9 @@ export type GetTasksData = {
          */
         coworkerId?: string;
         /**
-         * Filter tasks by personal-assistant orchestrator assignee
+         * Filter tasks by personal-assistant sokoBot assignee
          */
-        assigneeOrchestratorId?: string;
+        assigneeSokoBotId?: string;
         /**
          * Filter tasks by workspace-member assignee
          */
@@ -36023,7 +36023,7 @@ export type PostTasksData = {
          * @deprecated
          */
         coworkerId?: string | null;
-        assigneeOrchestratorId?: string | null;
+        assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
         status?: 'DRAFT' | 'READY';
         channel?: Channel;
@@ -36724,7 +36724,7 @@ export type PatchTasksByIdData = {
          * @deprecated
          */
         coworkerId?: string | null;
-        assigneeOrchestratorId?: string | null;
+        assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
     };
     path: {

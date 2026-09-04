@@ -318,7 +318,7 @@ describe("getPublicSharedResourceByToken", () => {
               name: "Ops Agent",
               image: "https://example.com/coworker.png",
             },
-            orchestrator: null,
+            sokoBot: null,
             transaction: {
               amount: -15000000000n,
             },
@@ -337,7 +337,7 @@ describe("getPublicSharedResourceByToken", () => {
               image: "https://example.com/user.png",
             },
             coworker: null,
-            orchestrator: null,
+            sokoBot: null,
             transaction: null,
           },
           {
@@ -351,7 +351,7 @@ describe("getPublicSharedResourceByToken", () => {
             transactionId: null,
             user: null,
             coworker: null,
-            orchestrator: null,
+            sokoBot: null,
             transaction: null,
           },
           {
@@ -368,7 +368,7 @@ describe("getPublicSharedResourceByToken", () => {
               image: "https://example.com/user.png",
             },
             coworker: null,
-            orchestrator: null,
+            sokoBot: null,
             transaction: null,
           },
           {
@@ -382,7 +382,7 @@ describe("getPublicSharedResourceByToken", () => {
             transactionId: null,
             user: null,
             coworker: null,
-            orchestrator: null,
+            sokoBot: null,
             transaction: null,
           },
           {
@@ -399,7 +399,7 @@ describe("getPublicSharedResourceByToken", () => {
               image: "https://example.com/user.png",
             },
             coworker: null,
-            orchestrator: null,
+            sokoBot: null,
             transaction: null,
           },
           {
@@ -417,7 +417,7 @@ describe("getPublicSharedResourceByToken", () => {
               image: "https://example.com/user.png",
             },
             coworker: null,
-            orchestrator: null,
+            sokoBot: null,
             transaction: {
               amount: -20000000000n,
             },
@@ -433,7 +433,7 @@ describe("getPublicSharedResourceByToken", () => {
             transactionId: null,
             user: null,
             coworker: null,
-            orchestrator: {
+            sokoBot: {
               name: "Hermes",
             },
             transaction: null,
@@ -633,7 +633,7 @@ describe("getPublicSharedResourceByToken", () => {
               name: "Ops Agent",
               image: null,
             },
-            orchestrator: null,
+            sokoBot: null,
             transaction: {
               amount: -50000000000n,
             },

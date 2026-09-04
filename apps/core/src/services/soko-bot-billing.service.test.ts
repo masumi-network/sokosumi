@@ -35,7 +35,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: { findUnique: userFindUniqueMock },
     member: { findMany: memberFindManyMock },
-    orchestratorUsage: {
+    sokoBotUsage: {
       findMany: usageFindManyMock,
       findUnique: usageFindUniqueMock,
     },
@@ -72,7 +72,7 @@ const SOKO_BOT_ID = "01960001-0001-7001-8001-000000000001";
 
 function transactionClient() {
   return {
-    orchestratorUsage: {
+    sokoBotUsage: {
       create: usageCreateMock,
       findUnique: usageFindUniqueMock,
     },

@@ -55,7 +55,7 @@ import {
   type AuthenticationContext,
   isAgentAuthContext,
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   isUserAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
@@ -81,15 +81,15 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
     return {
       userId: authContext.userId,
       coworkerId: null,
-      orchestratorId: null,
+      sokoBotId: null,
     };
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     return {
       userId: null,
       coworkerId: null,
-      orchestratorId: authContext.orchestratorId,
+      sokoBotId: authContext.sokoBotId,
     };
   }
 
@@ -98,7 +98,7 @@ function getStatusEventActorData(authContext: AuthenticationContext) {
   return {
     userId: null,
     coworkerId: authContext.coworkerId,
-    orchestratorId: null,
+    sokoBotId: null,
   };
 }
 
@@ -107,15 +107,15 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
     return {
       userId: authContext.userId,
       coworkerId: null,
-      orchestratorId: null,
+      sokoBotId: null,
     };
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     return {
       userId: null,
       coworkerId: null,
-      orchestratorId: authContext.orchestratorId,
+      sokoBotId: authContext.sokoBotId,
     };
   }
 
@@ -123,16 +123,16 @@ function getCommentEventActorData(authContext: AuthenticationContext) {
   return {
     userId: null,
     coworkerId: authContext.coworkerId,
-    orchestratorId: null,
+    sokoBotId: null,
   };
 }
 
 function getAgentActorData(authContext: AuthenticationContext) {
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     return {
       userId: null,
       coworkerId: null,
-      orchestratorId: authContext.orchestratorId,
+      sokoBotId: authContext.sokoBotId,
     };
   }
 
@@ -142,7 +142,7 @@ function getAgentActorData(authContext: AuthenticationContext) {
   return {
     userId: null,
     coworkerId: authContext.coworkerId,
-    orchestratorId: null,
+    sokoBotId: null,
   };
 }
 
@@ -418,7 +418,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         validateTaskAssigneeAssignment({
           status,
           assigneeId: task.assigneeId,
-          assigneeOrchestratorId: task.assigneeOrchestratorId,
+          assigneeSokoBotId: task.assigneeSokoBotId,
           assigneeUserId: task.assigneeUserId,
         });
 

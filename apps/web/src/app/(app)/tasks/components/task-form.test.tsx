@@ -1222,7 +1222,7 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith({
       description: "Build landing page",
       assigneeId: "coworker-2",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: null,
       context: {
         brand: { enabled: true, source: "default", custom: null },
@@ -1269,7 +1269,7 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith({
       description: "Build landing page",
       assigneeId: "coworker-2",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: null,
       context: {
         brand: { enabled: false, source: "default", custom: null },
@@ -1318,7 +1318,7 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith({
       description: "Build landing page",
       assigneeId: "coworker-2",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: null,
       context: {
         brand: {
@@ -1939,7 +1939,7 @@ describe("TaskForm", () => {
     expect(onCreateTask).toHaveBeenCalledWith({
       description: "Write docs",
       assigneeId: "coworker-2",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: null,
       context: {
         brand: { enabled: true, source: "default", custom: null },

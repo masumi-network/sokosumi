@@ -181,10 +181,10 @@ async function resolveCoworkerCalendarTaskAccess(
   authContext: AuthenticationContext,
   workspaceId: string,
 ): Promise<Prisma.TaskWhereInput | undefined> {
-  if (authContext.actor === "orchestrator") {
+  if (authContext.actor === "sokoBot") {
     return {
       workspaceId,
-      assigneeOrchestratorId: authContext.orchestratorId,
+      assigneeSokoBotId: authContext.sokoBotId,
       status: { not: TaskStatus.DRAFT },
     };
   }

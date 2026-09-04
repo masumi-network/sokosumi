@@ -153,7 +153,7 @@ interface TaskFormInitialValues {
   name?: string;
   description?: string;
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
@@ -185,7 +185,7 @@ interface TaskFormProps {
   onCreateTask?: (input: {
     description: string;
     assigneeId: string | null;
-    assigneeOrchestratorId: string | null;
+    assigneeSokoBotId: string | null;
     assigneeUserId: string | null;
     projectId?: string | null;
     context: TaskContextSelectionInput;
@@ -264,7 +264,7 @@ export function TaskForm({
 
     return (
       initialValues?.assigneeId ??
-      initialValues?.assigneeOrchestratorId ??
+      initialValues?.assigneeSokoBotId ??
       initialValues?.assigneeUserId ??
       elenaCoworker?.id ??
       coworkerOptions[0]?.id ??
@@ -273,16 +273,16 @@ export function TaskForm({
   }, [
     coworkerOptions,
     initialValues?.assigneeId,
-    initialValues?.assigneeOrchestratorId,
+    initialValues?.assigneeSokoBotId,
     initialValues?.assigneeUserId,
   ]);
 
-  const knownOrchestratorId = useMemo(
+  const knownSokoBotId = useMemo(
     () =>
-      coworkerOptions.find((option) => option.kind === "orchestrator")?.id ??
-      initialValues?.assigneeOrchestratorId ??
+      coworkerOptions.find((option) => option.kind === "sokoBot")?.id ??
+      initialValues?.assigneeSokoBotId ??
       null,
-    [coworkerOptions, initialValues?.assigneeOrchestratorId],
+    [coworkerOptions, initialValues?.assigneeSokoBotId],
   );
 
   const coworkerTouchedRef = useRef(false);
@@ -344,13 +344,10 @@ export function TaskForm({
       const fields = resolveTaskAssigneeFields(
         id,
         coworkerOptions,
-        knownOrchestratorId,
+        knownSokoBotId,
         initialValues?.assigneeUserId,
       );
-      if (
-        fields.assigneeId === null &&
-        fields.assigneeOrchestratorId === null
-      ) {
+      if (fields.assigneeId === null && fields.assigneeSokoBotId === null) {
         setScheduleSelection((current) =>
           current.mode === "none"
             ? current
@@ -358,7 +355,7 @@ export function TaskForm({
         );
       }
     },
-    [coworkerOptions, knownOrchestratorId, initialValues?.assigneeUserId],
+    [coworkerOptions, knownSokoBotId, initialValues?.assigneeUserId],
   );
 
   const handleCreateProject = useCallback((searchQuery: string) => {
@@ -472,7 +469,7 @@ export function TaskForm({
   // default assignee.
   const hasPrefilledAssignee = Boolean(
     initialValues?.assigneeId ??
-      initialValues?.assigneeOrchestratorId ??
+      initialValues?.assigneeSokoBotId ??
       initialValues?.assigneeUserId,
   );
   const useWizard = isModal && mode === "create" && !hasPrefilledAssignee;
@@ -522,7 +519,7 @@ export function TaskForm({
             ...resolveTaskAssigneeFields(
               assigneeId,
               coworkerOptions,
-              knownOrchestratorId,
+              knownSokoBotId,
             ),
             context: {
               brand: {
@@ -593,7 +590,7 @@ export function TaskForm({
           ...resolveTaskAssigneeFields(
             assigneeId,
             coworkerOptions,
-            knownOrchestratorId,
+            knownSokoBotId,
             initialValues?.assigneeUserId,
           ),
           ...(shouldShowProjectSelect ? { projectId } : {}),
@@ -630,7 +627,7 @@ export function TaskForm({
       name,
       assigneeId,
       coworkerOptions,
-      knownOrchestratorId,
+      knownSokoBotId,
       initialValues?.assigneeUserId,
       projectId,
       shouldShowProjectSelect,
@@ -725,25 +722,25 @@ export function TaskForm({
   );
   // Schedules stay agent-only (SOK-868): human-assigned and unset tasks
   // cannot be scheduled. Core rejects QUEUED without a coworker or
-  // orchestrator assignee; the picker disables the schedule control first.
+  // sokoBot assignee; the picker disables the schedule control first.
   const selectedAssigneeFields = useMemo(
     () =>
       resolveTaskAssigneeFields(
         assigneeId,
         coworkerOptions,
-        knownOrchestratorId,
+        knownSokoBotId,
         initialValues?.assigneeUserId,
       ),
     [
       assigneeId,
       coworkerOptions,
-      knownOrchestratorId,
+      knownSokoBotId,
       initialValues?.assigneeUserId,
     ],
   );
   const isAgentAssignee =
     selectedAssigneeFields.assigneeId !== null ||
-    selectedAssigneeFields.assigneeOrchestratorId !== null;
+    selectedAssigneeFields.assigneeSokoBotId !== null;
   // Queued work must stay agent-assigned: Core rejects reassignment away
   // from an agent while QUEUED, so the edit picker locks non-agent options.
   const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
@@ -915,7 +912,7 @@ export function TaskForm({
 
           {showModalCoworkerHeader ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
-              {selectedOption.kind === "orchestrator" &&
+              {selectedOption.kind === "sokoBot" &&
               !selectedOption.image &&
               selectedOption.avatarSeed ? (
                 <AssistantOrb

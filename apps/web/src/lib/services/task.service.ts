@@ -21,7 +21,7 @@ import type { AgentJobStatus } from "@/lib/types/core-dto";
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
   assigneeId?: string;
-  assigneeOrchestratorId?: string;
+  assigneeSokoBotId?: string;
   assigneeUserId?: string;
   projectId?: string;
   q?: string;
@@ -44,7 +44,7 @@ interface CreateTaskInput {
   name?: string;
   description: string | null;
   assigneeId: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
@@ -55,7 +55,7 @@ interface PatchTaskInput {
   name?: string;
   description?: string | null;
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
   projectId?: string | null;
 }
@@ -73,26 +73,26 @@ interface CreateTaskLinkInput {
 
 function assigneeWriteFields(
   assigneeId?: string | null,
-  assigneeOrchestratorId?: string | null,
+  assigneeSokoBotId?: string | null,
   assigneeUserId?: string | null,
 ): {
   assigneeId?: string | null;
-  assigneeOrchestratorId?: string | null;
+  assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
 } {
   if (
     typeof assigneeId === "undefined" &&
-    typeof assigneeOrchestratorId === "undefined" &&
+    typeof assigneeSokoBotId === "undefined" &&
     typeof assigneeUserId === "undefined"
   ) {
     return {};
   }
 
-  const orchestratorId = assigneeOrchestratorId?.trim() || null;
-  if (orchestratorId) {
+  const sokoBotId = assigneeSokoBotId?.trim() || null;
+  if (sokoBotId) {
     return {
       assigneeId: null,
-      assigneeOrchestratorId: orchestratorId,
+      assigneeSokoBotId: sokoBotId,
       assigneeUserId: null,
     };
   }
@@ -102,14 +102,14 @@ function assigneeWriteFields(
   if (userId) {
     return {
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: userId,
     };
   }
 
   return {
     assigneeId: assigneeId?.trim() ? assigneeId : null,
-    assigneeOrchestratorId: null,
+    assigneeSokoBotId: null,
     assigneeUserId: null,
   };
 }
@@ -132,8 +132,8 @@ export const taskService = (() => {
         : params.status
           ? [params.status]
           : undefined,
-      ...(params.assigneeOrchestratorId
-        ? { assigneeOrchestratorId: params.assigneeOrchestratorId }
+      ...(params.assigneeSokoBotId
+        ? { assigneeSokoBotId: params.assigneeSokoBotId }
         : params.assigneeUserId
           ? { assigneeUserId: params.assigneeUserId }
           : { assigneeId: params.assigneeId }),
@@ -218,7 +218,7 @@ export const taskService = (() => {
       ...input,
       ...assigneeWriteFields(
         input.assigneeId,
-        input.assigneeOrchestratorId,
+        input.assigneeSokoBotId,
         input.assigneeUserId,
       ),
     });
@@ -251,7 +251,7 @@ export const taskService = (() => {
       ...input,
       ...assigneeWriteFields(
         input.assigneeId,
-        input.assigneeOrchestratorId,
+        input.assigneeSokoBotId,
         input.assigneeUserId,
       ),
     });

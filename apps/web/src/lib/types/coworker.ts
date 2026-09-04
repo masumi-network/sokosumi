@@ -25,11 +25,11 @@ export interface CoworkerOption {
   image: string;
   /**
    * Marketplace coworker by default. Owner personal assistant is
-   * `orchestrator`. Workspace members are `user`. Unset is represented by
+   * `sokoBot`. Workspace members are `user`. Unset is represented by
    * an empty selection, not an option.
    */
-  kind?: "coworker" | "orchestrator" | "user";
-  /** Present for orchestrator options without a claimed mascot. */
+  kind?: "coworker" | "sokoBot" | "user";
+  /** Present for sokoBot options without a claimed mascot. */
   avatarSeed?: string | null;
   description?: string;
   caption?: string;

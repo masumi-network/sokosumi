@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import {
   requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
-  requireTaskAssignableOrchestrator,
+  requireTaskAssignableSokoBot,
 } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict } from "@/helpers/error";
@@ -145,9 +145,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tx,
         );
       }
-      if (ownedTask.assigneeOrchestratorId) {
-        await requireTaskAssignableOrchestrator(
-          ownedTask.assigneeOrchestratorId,
+      if (ownedTask.assigneeSokoBotId) {
+        await requireTaskAssignableSokoBot(
+          ownedTask.assigneeSokoBotId,
           targetWorkspace.id,
           tx,
         );

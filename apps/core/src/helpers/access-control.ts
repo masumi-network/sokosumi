@@ -14,7 +14,7 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
   requireUserContext,
@@ -402,7 +402,7 @@ export type TaskAssigner =
 /**
  * Human task assign: marketplace coworker must be usable in the target
  * workspace and have the tasks capability. Personal assistants are assigned
- * via {@link requireTaskAssignableOrchestrator}.
+ * via {@link requireTaskAssignableSokoBot}.
  */
 export async function requireTaskAssignableCoworker(
   coworkerId: string,
@@ -467,15 +467,15 @@ export async function requireTaskAssignableUser(
  * Owner (or the PA itself) may assign a Task onto a live Soko Bot in this
  * workspace. Marketplace coworkers cannot dump work onto another user's PA.
  */
-export async function requireTaskAssignableOrchestrator(
-  orchestratorId: string,
+export async function requireTaskAssignableSokoBot(
+  sokoBotId: string,
   workspaceId: string,
   tx: Prisma.TransactionClient = prisma,
   assigner: TaskAssigner = null,
 ): Promise<void> {
   const bot = await tx.sokoBot.findFirst({
     where: {
-      id: orchestratorId,
+      id: sokoBotId,
       workspaceId,
       archivedAt: null,
       deletedAt: null,
@@ -483,7 +483,7 @@ export async function requireTaskAssignableOrchestrator(
     select: { id: true, userId: true },
   });
   if (!bot) {
-    throw notFound("Orchestrator is not usable in this workspace");
+    throw notFound("Soko Bot is not usable in this workspace");
   }
   if (!assigner) return;
   const isOwner =
@@ -640,21 +640,21 @@ async function requireCoworkerAssignedTaskRead(
   return task;
 }
 
-async function requireOrchestratorTaskRead(
-  orchestratorId: string,
+async function requireSokoBotTaskRead(
+  sokoBotId: string,
   taskId: string,
   workspaceId: string,
   tx?: Prisma.TransactionClient,
 ): Promise<Task>;
-async function requireOrchestratorTaskRead<I extends Prisma.TaskInclude>(
-  orchestratorId: string,
+async function requireSokoBotTaskRead<I extends Prisma.TaskInclude>(
+  sokoBotId: string,
   taskId: string,
   workspaceId: string,
   tx: Prisma.TransactionClient,
   include: I,
 ): Promise<Prisma.TaskGetPayload<{ include: I }>>;
-async function requireOrchestratorTaskRead(
-  orchestratorId: string,
+async function requireSokoBotTaskRead(
+  sokoBotId: string,
   taskId: string,
   workspaceId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -664,7 +664,7 @@ async function requireOrchestratorTaskRead(
     where: {
       id: taskId,
       workspaceId,
-      assigneeOrchestratorId: orchestratorId,
+      assigneeSokoBotId: sokoBotId,
       status: { not: TaskStatus.DRAFT },
       archivedAt: null,
     },
@@ -722,9 +722,9 @@ export async function requireTaskCollaboration(
     return task;
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
-    const task = await requireOrchestratorTaskRead(
-      authContext.orchestratorId,
+  if (isSokoBotAuthContext(authContext)) {
+    const task = await requireSokoBotTaskRead(
+      authContext.sokoBotId,
       taskId,
       authContext.workspaceId,
       tx,
@@ -789,9 +789,9 @@ export async function requireTaskCommentAccess(
     return task;
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
-    const task = await requireOrchestratorTaskRead(
-      authContext.orchestratorId,
+  if (isSokoBotAuthContext(authContext)) {
+    const task = await requireSokoBotTaskRead(
+      authContext.sokoBotId,
       taskId,
       authContext.workspaceId,
       tx,
@@ -841,7 +841,7 @@ export async function requireTaskCancelAccess(
     throw notFound("Task not found");
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     return await requireTaskCollaboration(authContext, taskId, tx);
   }
 
@@ -952,18 +952,18 @@ export async function requireTaskReadForRouteVars(
     return await requireTaskReadForWorkspace(workspace, taskId, tx);
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     if (include) {
-      return await requireOrchestratorTaskRead(
-        authContext.orchestratorId,
+      return await requireSokoBotTaskRead(
+        authContext.sokoBotId,
         taskId,
         authContext.workspaceId,
         tx,
         include,
       );
     }
-    return await requireOrchestratorTaskRead(
-      authContext.orchestratorId,
+    return await requireSokoBotTaskRead(
+      authContext.sokoBotId,
       taskId,
       authContext.workspaceId,
       tx,
@@ -1166,8 +1166,8 @@ async function assertCoworkerCanReadJob(
   await requireCoworkerTaskRead(coworker, job.taskId, job.workspaceId, tx);
 }
 
-async function assertOrchestratorCanAccessJob(
-  orchestratorId: string,
+async function assertSokoBotCanAccessJob(
+  sokoBotId: string,
   workspaceId: string,
   job: Job,
   tx: Prisma.TransactionClient = prisma,
@@ -1176,12 +1176,7 @@ async function assertOrchestratorCanAccessJob(
     throw forbidden("You can only access jobs assigned to your Soko Bot");
   }
 
-  await requireOrchestratorTaskRead(
-    orchestratorId,
-    job.taskId,
-    workspaceId,
-    tx,
-  );
+  await requireSokoBotTaskRead(sokoBotId, job.taskId, workspaceId, tx);
 }
 
 /**
@@ -1203,15 +1198,15 @@ export async function requireJobReadForRouteVars(
     );
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     const job = await tx.job.findFirst({
       where: { id: jobId, workspaceId: authContext.workspaceId },
     });
     if (!job) {
       throw notFound("Job not found");
     }
-    await assertOrchestratorCanAccessJob(
-      authContext.orchestratorId,
+    await assertSokoBotCanAccessJob(
+      authContext.sokoBotId,
       authContext.workspaceId,
       job,
       tx,
@@ -1281,15 +1276,15 @@ export async function requireJobCollaboration(
     return job;
   }
 
-  if (isOrchestratorAuthContext(authContext)) {
+  if (isSokoBotAuthContext(authContext)) {
     const job = await tx.job.findFirst({
       where: { id: jobId, workspaceId: authContext.workspaceId },
     });
     if (!job) {
       throw notFound("Job not found");
     }
-    await assertOrchestratorCanAccessJob(
-      authContext.orchestratorId,
+    await assertSokoBotCanAccessJob(
+      authContext.sokoBotId,
       authContext.workspaceId,
       job,
       tx,

@@ -8,7 +8,7 @@ import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
   getCoworkerOptions,
   taskFormAssigneeId,
-  withOwnerOrchestratorOption,
+  withOwnerSokoBotOption,
 } from "@/app/tasks/utils/coworker-options";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
@@ -79,7 +79,7 @@ export default async function TaskEditModalPage({
 
   const memberOptions =
     await listTaskAssigneeMemberOptions(targetOrganizationId);
-  const coworkerOptions = withOwnerOrchestratorOption(
+  const coworkerOptions = withOwnerSokoBotOption(
     [...memberOptions, ...getCoworkerOptions(taskCoworkers)],
     ownerBot,
     { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },
@@ -145,7 +145,7 @@ export default async function TaskEditModalPage({
         name: taskResult.name,
         description: taskResult.description ?? "",
         assigneeId: taskFormAssigneeId(taskResult),
-        assigneeOrchestratorId: taskResult.assigneeOrchestratorId ?? null,
+        assigneeSokoBotId: taskResult.assigneeSokoBotId ?? null,
         assigneeUserId: taskResult.assigneeUserId ?? null,
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,

@@ -6,7 +6,7 @@ import { LIMITS } from "@/config/constants";
 import {
   requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
-  requireTaskAssignableOrchestrator,
+  requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
 } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
@@ -56,7 +56,7 @@ export const patchTaskRequestSchema = z
       deprecated: true,
       description: "Deprecated. Use assigneeId instead.",
     }),
-    assigneeOrchestratorId: z.string().uuid().nullish().openapi({
+    assigneeSokoBotId: z.string().uuid().nullish().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
     assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
@@ -70,13 +70,13 @@ export const patchTaskRequestSchema = z
       data.projectId === undefined &&
       data.assigneeId === undefined &&
       data.coworkerId === undefined &&
-      data.assigneeOrchestratorId === undefined &&
+      data.assigneeSokoBotId === undefined &&
       data.assigneeUserId === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, assigneeId, assigneeOrchestratorId, or assigneeUserId is required",
+          "At least one of name, description, projectId, assigneeId, assigneeSokoBotId, or assigneeUserId is required",
         path: ["name"],
       });
     }
@@ -129,7 +129,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       description,
       projectId,
       assigneeId,
-      assigneeOrchestratorId,
+      assigneeSokoBotId,
       assigneeUserId,
     } = c.req.valid("json");
 
@@ -180,22 +180,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const assigneeWrite = nextAssigneeWrite({
         assigneeId,
-        assigneeOrchestratorId,
+        assigneeSokoBotId,
         assigneeUserId,
       });
       const nextAssigneeId = assigneeWrite
         ? assigneeWrite.assigneeId
         : task.assigneeId;
-      const nextAssigneeOrchestratorId = assigneeWrite
-        ? assigneeWrite.assigneeOrchestratorId
-        : task.assigneeOrchestratorId;
+      const nextAssigneeSokoBotId = assigneeWrite
+        ? assigneeWrite.assigneeSokoBotId
+        : task.assigneeSokoBotId;
       const nextAssigneeUserId = assigneeWrite
         ? assigneeWrite.assigneeUserId
         : task.assigneeUserId;
       validateTaskAssigneeAssignment({
         status: task.status,
         assigneeId: nextAssigneeId,
-        assigneeOrchestratorId: nextAssigneeOrchestratorId,
+        assigneeSokoBotId: nextAssigneeSokoBotId,
         assigneeUserId: nextAssigneeUserId,
       });
 
@@ -210,9 +210,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         );
       }
-      if (assigneeWrite?.assigneeOrchestratorId) {
-        await requireTaskAssignableOrchestrator(
-          assigneeWrite.assigneeOrchestratorId,
+      if (assigneeWrite?.assigneeSokoBotId) {
+        await requireTaskAssignableSokoBot(
+          assigneeWrite.assigneeSokoBotId,
           task.workspaceId,
           tx,
           {

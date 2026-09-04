@@ -233,7 +233,7 @@ function channelRoom(): ChatRoom {
       },
     ],
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
   };
 }
 

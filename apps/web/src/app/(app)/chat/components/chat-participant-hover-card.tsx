@@ -162,9 +162,9 @@ export function ChatParticipantHoverCard({
   }
 
   const isCoworker = profile.kind === "coworker";
-  const isOrchestrator = profile.kind === "orchestrator";
-  const isAi = isCoworker || isOrchestrator;
-  const kindLabel = isOrchestrator
+  const isSokoBot = profile.kind === "sokoBot";
+  const isAi = isCoworker || isSokoBot;
+  const kindLabel = isSokoBot
     ? t("personalAssistantBadge")
     : isCoworker
       ? t("coworkerBadge")
@@ -172,7 +172,7 @@ export function ChatParticipantHoverCard({
   const detail =
     profile.kind === "human"
       ? profile.email
-      : profile.kind === "orchestrator"
+      : profile.kind === "sokoBot"
         ? profile.caption?.trim() || null
         : profile.caption?.trim() || (profile.slug ? `@${profile.slug}` : null);
   const showOpenDirect = canShowOpenDirect({
@@ -202,7 +202,7 @@ export function ChatParticipantHoverCard({
       >
         <div className="flex gap-3">
           <div className="relative size-12 shrink-0 self-start">
-            {isOrchestrator && profile.avatarSeed && !profile.image ? (
+            {isSokoBot && profile.avatarSeed && !profile.image ? (
               <AuroraOrb
                 seed={profile.avatarSeed}
                 size={96}
@@ -239,9 +239,7 @@ export function ChatParticipantHoverCard({
               {isAi ? (
                 <AiCoworkerIcon
                   className="size-3.5 shrink-0"
-                  label={
-                    isOrchestrator ? t("personalAssistantBadge") : undefined
-                  }
+                  label={isSokoBot ? t("personalAssistantBadge") : undefined}
                 />
               ) : null}
             </div>

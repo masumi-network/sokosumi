@@ -32,7 +32,7 @@ interface LoadMoreTasksColumnParams {
   cursor: string | null;
   scope: TasksScope | null;
   assigneeId: string | null;
-  assigneeOrchestratorId: string | null;
+  assigneeSokoBotId: string | null;
   assigneeUserId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
@@ -42,7 +42,7 @@ interface LoadMoreTasksListParams {
   cursor: string | null;
   scope: TasksScope | null;
   assigneeId: string | null;
-  assigneeOrchestratorId: string | null;
+  assigneeSokoBotId: string | null;
   assigneeUserId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
@@ -65,7 +65,7 @@ export async function loadMoreTasksColumn({
   cursor,
   scope,
   assigneeId,
-  assigneeOrchestratorId,
+  assigneeSokoBotId,
   assigneeUserId,
   status,
   projectId,
@@ -83,18 +83,14 @@ export async function loadMoreTasksColumn({
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
-  const ownerOrchestratorId = ownerBot?.id ?? null;
+  const ownerSokoBotId = ownerBot?.id ?? null;
   const sanitizedAssigneeId =
-    assigneeId &&
-    coworkersById.has(assigneeId) &&
-    assigneeId !== ownerOrchestratorId
+    assigneeId && coworkersById.has(assigneeId) && assigneeId !== ownerSokoBotId
       ? assigneeId
       : null;
-  const sanitizedAssigneeOrchestratorId =
-    assigneeOrchestratorId &&
-    ownerOrchestratorId &&
-    assigneeOrchestratorId === ownerOrchestratorId
-      ? assigneeOrchestratorId
+  const sanitizedAssigneeSokoBotId =
+    assigneeSokoBotId && ownerSokoBotId && assigneeSokoBotId === ownerSokoBotId
+      ? assigneeSokoBotId
       : null;
   const sanitizedAssigneeUserId = await sanitizeAssigneeUserId(
     assigneeUserId,
@@ -108,7 +104,7 @@ export async function loadMoreTasksColumn({
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
     assigneeId: sanitizedAssigneeId,
-    assigneeOrchestratorId: sanitizedAssigneeOrchestratorId,
+    assigneeSokoBotId: sanitizedAssigneeSokoBotId,
     assigneeUserId: sanitizedAssigneeUserId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
@@ -126,7 +122,7 @@ export async function loadMoreTasksList({
   cursor,
   scope,
   assigneeId,
-  assigneeOrchestratorId,
+  assigneeSokoBotId,
   assigneeUserId,
   status,
   projectId,
@@ -144,18 +140,14 @@ export async function loadMoreTasksList({
   const coworkersById = new Map(
     coworkers.map((coworker) => [coworker.id, coworker]),
   );
-  const ownerOrchestratorId = ownerBot?.id ?? null;
+  const ownerSokoBotId = ownerBot?.id ?? null;
   const sanitizedAssigneeId =
-    assigneeId &&
-    coworkersById.has(assigneeId) &&
-    assigneeId !== ownerOrchestratorId
+    assigneeId && coworkersById.has(assigneeId) && assigneeId !== ownerSokoBotId
       ? assigneeId
       : null;
-  const sanitizedAssigneeOrchestratorId =
-    assigneeOrchestratorId &&
-    ownerOrchestratorId &&
-    assigneeOrchestratorId === ownerOrchestratorId
-      ? assigneeOrchestratorId
+  const sanitizedAssigneeSokoBotId =
+    assigneeSokoBotId && ownerSokoBotId && assigneeSokoBotId === ownerSokoBotId
+      ? assigneeSokoBotId
       : null;
   const sanitizedAssigneeUserId = await sanitizeAssigneeUserId(
     assigneeUserId,
@@ -168,7 +160,7 @@ export async function loadMoreTasksList({
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
     assigneeId: sanitizedAssigneeId,
-    assigneeOrchestratorId: sanitizedAssigneeOrchestratorId,
+    assigneeSokoBotId: sanitizedAssigneeSokoBotId,
     assigneeUserId: sanitizedAssigneeUserId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,

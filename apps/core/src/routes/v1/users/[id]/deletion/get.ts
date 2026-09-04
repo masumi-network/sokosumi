@@ -22,7 +22,7 @@ const route = createRoute({
   method: "get",
   path: "/deletion",
   description:
-    "Return current User-deletion blockers for the signed-in user (path `me` or their own user id). Empty `blockers` means the existing wipe may proceed. Coworkers, orchestrators, and other users (including platform admins) cannot call this.",
+    "Return current User-deletion blockers for the signed-in user (path `me` or their own user id). Empty `blockers` means the existing wipe may proceed. Coworkers, Soko Bots, and other users (including platform admins) cannot call this.",
   tags: ["Users"],
   request: {
     params,

@@ -133,7 +133,7 @@ function guestRoomRow() {
       },
     ],
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
   };
 }
 
@@ -187,7 +187,7 @@ function personalDirectRow() {
       },
     ],
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
   };
 }
 

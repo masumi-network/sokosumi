@@ -23,7 +23,7 @@ const {
   prismaTransactionMock,
   requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworkerMock,
-  requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBotMock,
   refreshTaskSchedulePlannedOccurrencesMock,
   resolveWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
@@ -39,7 +39,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requireMutableTaskOwnershipMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireTaskAssignableOrchestratorMock: vi.fn(),
+  requireTaskAssignableSokoBotMock: vi.fn(),
   refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
@@ -53,7 +53,7 @@ const {
 vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: requireMutableTaskOwnershipMock,
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
-  requireTaskAssignableOrchestrator: requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
 }));
 
 vi.mock("@/helpers/organization", () => ({
@@ -172,7 +172,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
             slug: "current-org",
           },
     assigneeId: "cow_123",
-    assigneeOrchestratorId: null,
+    assigneeSokoBotId: null,
     assigneeUserId: null,
     assignee: {
       type: "coworker" as const,
@@ -196,8 +196,8 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
       id: "user_123",
       user: { id: "user_123", name: "Task owner", image: null },
     },
-    orchestratorId: null,
-    orchestrator: null,
+    sokoBotId: null,
+    sokoBot: null,
     name: "Current task",
     description: "Current description",
     status: TaskStatus.READY,

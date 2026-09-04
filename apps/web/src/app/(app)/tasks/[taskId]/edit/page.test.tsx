@@ -46,7 +46,7 @@ vi.mock("@/app/tasks/utils/agent-names", () => ({
 vi.mock("@/app/tasks/utils/coworker-options", () => ({
   getCoworkerOptions: (...args: unknown[]) => getCoworkerOptionsMock(...args),
   getUserOptions: () => [],
-  withOwnerOrchestratorOption: (options: unknown) => options,
+  withOwnerSokoBotOption: (options: unknown) => options,
   taskFormAssigneeId: (task: { assigneeId?: string | null }) =>
     task.assigneeId ?? "",
 }));
@@ -131,7 +131,7 @@ describe("EditTaskPage", () => {
       name: "Task",
       description: "Desc",
       assigneeId: "cow_123",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: "READY",
       workspace: {
         organizationId: "org-workspace",
@@ -176,7 +176,7 @@ describe("EditTaskPage", () => {
       name: "Task",
       description: "Desc",
       assigneeId: "cow_123",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: "READY",
       workspace: {
         organizationId: "org-current",
@@ -222,7 +222,7 @@ describe("EditTaskPage", () => {
           name: "Task",
           description: "Desc",
           assigneeId: "cow_123",
-          assigneeOrchestratorId: null,
+          assigneeSokoBotId: null,
           assigneeUserId: null,
           projectId: null,
           status: "READY",
@@ -240,7 +240,7 @@ describe("EditTaskPage", () => {
       name: "Scheduled task",
       description: "Desc",
       assigneeId: "cow_123",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: "QUEUED",
       metadata: { schedule: { mode: "daily", timezone: "UTC" } },
       nextRunAt: new Date("2026-06-25T09:00:00.000Z"),

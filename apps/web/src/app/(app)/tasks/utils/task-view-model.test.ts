@@ -22,7 +22,7 @@ function buildTask(
     user: { id: "user-1", name: "Test User", image: null },
     organization: null,
     assigneeId: null,
-    assigneeOrchestratorId: null,
+    assigneeSokoBotId: null,
     assigneeUserId: null,
     assignee: null,
     coworkerId: null,
@@ -32,8 +32,8 @@ function buildTask(
       id: "user-1",
       user: { id: "user-1", name: "Test User", image: null },
     },
-    orchestratorId: null,
-    orchestrator: null,
+    sokoBotId: null,
+    sokoBot: null,
     name: "Test task",
     description: null,
     status,
@@ -183,14 +183,14 @@ describe("mapTaskToTaskWithCoworker", () => {
     expect(mapped.ownerId).toBe("user-2");
   });
 
-  it("maps an orchestrator assignee without looking it up in coworkers", () => {
+  it("maps a soko bot assignee without looking it up in coworkers", () => {
     const task = buildTask(TaskStatus.READY, {
       assigneeId: null,
-      assigneeOrchestratorId: "bot-1",
+      assigneeSokoBotId: "bot-1",
       assignee: {
-        type: "orchestrator",
+        type: "sokoBot",
         id: "bot-1",
-        orchestrator: {
+        sokoBot: {
           id: "bot-1",
           name: "Jarvis",
           avatarSeed: "orb:jewel-sky:user-1",
@@ -206,19 +206,19 @@ describe("mapTaskToTaskWithCoworker", () => {
       id: "bot-1",
       name: "Jarvis",
       image: null,
-      kind: "orchestrator",
+      kind: "sokoBot",
       avatarSeed: "orb:jewel-sky:user-1",
     });
   });
 
-  it("uses the translated fallback when the orchestrator has no name", () => {
+  it("uses the translated fallback when the soko bot has no name", () => {
     const task = buildTask(TaskStatus.READY, {
       assigneeId: null,
-      assigneeOrchestratorId: "bot-1",
+      assigneeSokoBotId: "bot-1",
       assignee: {
-        type: "orchestrator",
+        type: "sokoBot",
         id: "bot-1",
-        orchestrator: {
+        sokoBot: {
           id: "bot-1",
           name: "  ",
           avatarSeed: null,
@@ -234,7 +234,7 @@ describe("mapTaskToTaskWithCoworker", () => {
   it("maps a user assignee without looking it up in coworkers (SOK-868)", () => {
     const task = buildTask(TaskStatus.RUNNING, {
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       assigneeUserId: "user-2",
       assignee: {
         type: "user",

@@ -34,7 +34,7 @@ function AssigneeAvatar({
   const orbSize = size === "sm" ? 20 : 24;
 
   if (
-    assignee?.kind === "orchestrator" &&
+    assignee?.kind === "sokoBot" &&
     !image &&
     (assignee.avatarSeed || assignee.id)
   ) {

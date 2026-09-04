@@ -12,7 +12,7 @@ export const taskEventApiInclude = {
   coworker: {
     select: { id: true, name: true, image: true, slug: true, vendorId: true },
   },
-  orchestrator: {
+  sokoBot: {
     select: {
       id: true,
       name: true,
@@ -30,11 +30,11 @@ const taskOwnerAssigneeCreatorInclude = {
   owner: taskEventApiInclude.user,
   organization: { select: { id: true, name: true, slug: true } },
   assignee: taskEventApiInclude.coworker,
-  assigneeOrchestrator: taskEventApiInclude.orchestrator,
+  assigneeSokoBot: taskEventApiInclude.sokoBot,
   assigneeUser: taskEventApiInclude.user,
   creatorUser: taskEventApiInclude.user,
   creatorCoworker: taskEventApiInclude.coworker,
-  creatorOrchestrator: taskEventApiInclude.orchestrator,
+  creatorSokoBot: taskEventApiInclude.sokoBot,
 } as const;
 
 export const taskFileApiInclude = {
@@ -42,7 +42,7 @@ export const taskFileApiInclude = {
   uploadedByCoworker: {
     select: { id: true, name: true, image: true, slug: true },
   },
-  uploadedByOrchestrator: taskEventApiInclude.orchestrator,
+  uploadedBySokoBot: taskEventApiInclude.sokoBot,
 } as const;
 
 const taskFilesInclude = {

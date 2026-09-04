@@ -566,7 +566,7 @@ export class ContextPacketBuilder {
           status: true,
           projectId: true,
           assigneeId: true,
-          assigneeOrchestratorId: true,
+          assigneeSokoBotId: true,
           nextRunAt: true,
           updatedAt: true,
           events: {
@@ -869,7 +869,7 @@ export class ContextPacketBuilder {
         scheduledAt: task.nextRunAt?.toISOString() ?? null,
         projectId: boundedIdentifier(task.projectId),
         coworkerId: boundedIdentifier(task.assigneeId),
-        assigneeOrchestratorId: boundedIdentifier(task.assigneeOrchestratorId),
+        assigneeSokoBotId: boundedIdentifier(task.assigneeSokoBotId),
         blockedBy: task.linksTo.map((link) => ({
           id: boundedIdentifier(link.fromTask.id),
           name: sanitizeText(link.fromTask.name, TEXT_LIMITS.name),

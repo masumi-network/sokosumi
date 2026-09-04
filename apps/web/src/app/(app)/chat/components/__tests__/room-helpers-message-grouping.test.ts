@@ -76,19 +76,19 @@ function coworkerMessage(
   });
 }
 
-function orchestratorMessage(
+function sokoBotMessage(
   id: string,
   createdAt: string,
-  orchestratorId = "soko-1",
+  sokoBotId = "soko-1",
 ): ChatRoomMessage {
   return baseMessage({
     id,
     createdAt: new Date(createdAt),
     editedAt: null,
     sender: {
-      type: "orchestrator",
-      orchestrator: {
-        id: orchestratorId,
+      type: "sokoBot",
+      sokoBot: {
+        id: sokoBotId,
         name: "Personal assistant",
         caption: null,
         image: null,
@@ -109,7 +109,7 @@ function unknownMessage(id: string, createdAt: string): ChatRoomMessage {
 }
 
 describe("messageSenderKey", () => {
-  it("keys users, coworkers, and orchestrators by type and id", () => {
+  it("keys users, coworkers, and soko bots by type and id", () => {
     expect(
       messageSenderKey(userMessage("m1", "2026-07-01T12:00:00.000Z")),
     ).toBe("user:user-1");
@@ -117,8 +117,8 @@ describe("messageSenderKey", () => {
       messageSenderKey(coworkerMessage("m2", "2026-07-01T12:00:00.000Z")),
     ).toBe("coworker:cow-1");
     expect(
-      messageSenderKey(orchestratorMessage("m4", "2026-07-01T12:00:00.000Z")),
-    ).toBe("orchestrator:soko-1");
+      messageSenderKey(sokoBotMessage("m4", "2026-07-01T12:00:00.000Z")),
+    ).toBe("sokoBot:soko-1");
   });
 
   it("returns null for unknown senders", () => {
@@ -156,11 +156,11 @@ describe("messageSender", () => {
     });
   });
 
-  it("returns orchestrator profile with avatar seed and presence", () => {
+  it("returns soko bot profile with avatar seed and presence", () => {
     expect(
-      messageSender(orchestratorMessage("m4", "2026-07-01T12:00:00.000Z")),
+      messageSender(sokoBotMessage("m4", "2026-07-01T12:00:00.000Z")),
     ).toEqual({
-      kind: "orchestrator",
+      kind: "sokoBot",
       id: "soko-1",
       name: "Personal assistant",
       caption: null,

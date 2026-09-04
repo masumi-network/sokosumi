@@ -405,7 +405,7 @@ describe("chat room user auth guards", () => {
         },
       ],
       coworkerMembers: [],
-      orchestratorMembers: [],
+      sokoBotMembers: [],
     });
     organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
     memberFindUniqueMock.mockResolvedValue({ role: "member" });

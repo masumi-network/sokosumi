@@ -3,7 +3,7 @@
 import { Bot, Search, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import type { ChatComposeOrchestrator } from "@/app/chat/actions";
+import type { ChatComposeSokoBot } from "@/app/chat/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -17,13 +17,13 @@ import { toggleId } from "./room-helpers";
 export interface ParticipantCheckboxesProps {
   members: Member[];
   coworkers: Coworker[];
-  orchestrators?: ChatComposeOrchestrator[];
+  sokoBots?: ChatComposeSokoBot[];
   memberIds: string[];
   coworkerIds: string[];
-  orchestratorIds?: string[];
+  sokoBotIds?: string[];
   onMemberIdsChange: (ids: string[]) => void;
   onCoworkerIdsChange: (ids: string[]) => void;
-  onOrchestratorIdsChange?: (ids: string[]) => void;
+  onSokoBotIdsChange?: (ids: string[]) => void;
   membersLoadFailed: boolean;
   /** Host member who must stay on the roster (create/save caller). */
   lockedUserId?: string;
@@ -32,13 +32,13 @@ export interface ParticipantCheckboxesProps {
 export function ParticipantCheckboxes({
   members,
   coworkers,
-  orchestrators = [],
+  sokoBots = [],
   memberIds,
   coworkerIds,
-  orchestratorIds = [],
+  sokoBotIds = [],
   onMemberIdsChange,
   onCoworkerIdsChange,
-  onOrchestratorIdsChange,
+  onSokoBotIdsChange,
   membersLoadFailed,
   lockedUserId,
 }: ParticipantCheckboxesProps) {
@@ -48,7 +48,7 @@ export function ParticipantCheckboxes({
   const selectedCount =
     memberIds.length +
     coworkerIds.length +
-    orchestratorIds.length +
+    sokoBotIds.length +
     (lockedUserId && !memberIds.includes(lockedUserId) ? 1 : 0);
   const filteredMembers = useMemo(() => {
     if (!normalizedQuery) {
@@ -72,15 +72,15 @@ export function ParticipantCheckboxes({
         .some((value) => value.toLowerCase().includes(normalizedQuery)),
     );
   }, [coworkers, normalizedQuery]);
-  const filteredOrchestrators = useMemo(() => {
+  const filteredSokoBots = useMemo(() => {
     if (!normalizedQuery) {
-      return orchestrators;
+      return sokoBots;
     }
 
-    return orchestrators.filter((orchestrator) =>
-      orchestrator.name.toLowerCase().includes(normalizedQuery),
+    return sokoBots.filter((sokoBot) =>
+      sokoBot.name.toLowerCase().includes(normalizedQuery),
     );
-  }, [normalizedQuery, orchestrators]);
+  }, [normalizedQuery, sokoBots]);
 
   return (
     <div className="min-w-0 overflow-hidden rounded-lg border bg-background">
@@ -252,37 +252,34 @@ export function ParticipantCheckboxes({
             </div>
           ) : null}
 
-          {filteredOrchestrators.length > 0 && onOrchestratorIdsChange ? (
+          {filteredSokoBots.length > 0 && onSokoBotIdsChange ? (
             <div className="pt-1">
               <div className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1 pb-1.5 text-[0.6875rem] font-medium">
                 <Bot className="size-3" aria-hidden />
                 {t("Dialog.personalAssistants")}
               </div>
               <div className="space-y-0.5">
-                {filteredOrchestrators.map((orchestrator) => {
-                  const checked = orchestratorIds.includes(orchestrator.id);
+                {filteredSokoBots.map((sokoBot) => {
+                  const checked = sokoBotIds.includes(sokoBot.id);
 
                   return (
                     <label
-                      key={orchestrator.id}
+                      key={sokoBot.id}
                       className={cn(
                         "flex min-w-0 cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
                         checked ? "bg-muted/70" : "hover:bg-muted/50",
                       )}
                     >
                       <Avatar className="size-8 shrink-0">
-                        <AvatarImage
-                          src={orchestrator.image ?? undefined}
-                          alt=""
-                        />
+                        <AvatarImage src={sokoBot.image ?? undefined} alt="" />
                         <AvatarFallback className="text-xs">
-                          {getInitials(orchestrator.name)}
+                          {getInitials(sokoBot.name)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="min-w-0 flex-1">
                         <span className="flex min-w-0 items-center gap-2">
                           <span className="truncate text-sm font-medium">
-                            {orchestrator.name}
+                            {sokoBot.name}
                           </span>
                           <AiCoworkerIcon label={t("personalAssistantBadge")} />
                         </span>
@@ -291,10 +288,10 @@ export function ParticipantCheckboxes({
                         className="shrink-0"
                         checked={checked}
                         onCheckedChange={(nextChecked) =>
-                          onOrchestratorIdsChange(
+                          onSokoBotIdsChange(
                             toggleId(
-                              orchestratorIds,
-                              orchestrator.id,
+                              sokoBotIds,
+                              sokoBot.id,
                               nextChecked === true,
                             ),
                           )
@@ -310,7 +307,7 @@ export function ParticipantCheckboxes({
           {!membersLoadFailed &&
           filteredMembers.length === 0 &&
           filteredCoworkers.length === 0 &&
-          filteredOrchestrators.length === 0 ? (
+          filteredSokoBots.length === 0 ? (
             <div className="text-muted-foreground px-4 py-12 text-center text-sm">
               {t("Draft.noResults")}
             </div>

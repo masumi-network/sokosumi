@@ -69,8 +69,8 @@ export async function sokoBotUsageTotals(
     WHERE "sokoBotId" = ${sokoBotId}::uuid
   `;
 
-  const charged = await prisma.orchestratorUsage.aggregate({
-    where: { orchestratorId: sokoBotId },
+  const charged = await prisma.sokoBotUsage.aggregate({
+    where: { sokoBotId: sokoBotId },
     _sum: { cents: true },
   });
 

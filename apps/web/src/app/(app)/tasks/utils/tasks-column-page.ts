@@ -20,7 +20,7 @@ interface GetTasksColumnPageParams {
   limit: number;
   scope: TasksScope;
   assigneeId: string | null;
-  assigneeOrchestratorId: string | null;
+  assigneeSokoBotId: string | null;
   assigneeUserId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
@@ -39,7 +39,7 @@ export async function getTasksColumnPage({
   limit,
   scope,
   assigneeId,
-  assigneeOrchestratorId,
+  assigneeSokoBotId,
   assigneeUserId,
   status,
   projectId,
@@ -59,7 +59,7 @@ export async function getTasksColumnPage({
     status: statuses,
     scope,
     assigneeId: assigneeId ?? undefined,
-    assigneeOrchestratorId: assigneeOrchestratorId ?? undefined,
+    assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     assigneeUserId: assigneeUserId ?? undefined,
     projectId: projectId ?? undefined,
     cursor,

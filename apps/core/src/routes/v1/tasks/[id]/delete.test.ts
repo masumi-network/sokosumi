@@ -52,17 +52,17 @@ const {
               slug: "organization",
             }
           : null),
-      assigneeOrchestratorId:
-        (t.assigneeOrchestratorId as string | null | undefined) ?? null,
+      assigneeSokoBotId:
+        (t.assigneeSokoBotId as string | null | undefined) ?? null,
       assigneeUserId: (t.assigneeUserId as string | null | undefined) ?? null,
       assignee:
         t.assignee ??
-        (t.assigneeOrchestratorId
+        (t.assigneeSokoBotId
           ? {
-              type: "orchestrator" as const,
-              id: t.assigneeOrchestratorId,
-              orchestrator: {
-                id: t.assigneeOrchestratorId,
+              type: "sokoBot" as const,
+              id: t.assigneeSokoBotId,
+              sokoBot: {
+                id: t.assigneeSokoBotId,
                 name: "Personal assistant",
                 avatarSeed: null,
                 avatarImageUrl: null,
@@ -82,19 +82,16 @@ const {
               }
             : null),
       creator: (() => {
-        const creatorOrchestratorId =
-          (t.creatorOrchestratorId as string | null | undefined) ?? null;
-        if (creatorOrchestratorId != null) {
+        const creatorSokoBotId =
+          (t.creatorSokoBotId as string | null | undefined) ?? null;
+        if (creatorSokoBotId != null) {
           return {
-            type: "orchestrator" as const,
-            id: creatorOrchestratorId,
-            orchestrator: (t.creatorOrchestrator as
-              | object
-              | null
-              | undefined) ?? {
-              id: creatorOrchestratorId,
-              name: "Orchestrator",
-              slug: "orchestrator",
+            type: "sokoBot" as const,
+            id: creatorSokoBotId,
+            sokoBot: (t.creatorSokoBot as object | null | undefined) ?? {
+              id: creatorSokoBotId,
+              name: "SokoBot",
+              slug: "soko-bot",
             },
           };
         }
@@ -148,13 +145,13 @@ const {
               slug: "coworker",
             }
           : null),
-      orchestratorId:
-        (t.orchestratorId as string | null | undefined) ??
-        (t.creatorOrchestratorId as string | null | undefined) ??
+      sokoBotId:
+        (t.sokoBotId as string | null | undefined) ??
+        (t.creatorSokoBotId as string | null | undefined) ??
         null,
-      orchestrator:
-        (t.orchestrator as object | null | undefined) ??
-        (t.creatorOrchestrator as object | null | undefined) ??
+      sokoBot:
+        (t.sokoBot as object | null | undefined) ??
+        (t.creatorSokoBot as object | null | undefined) ??
         null,
     };
   }),
