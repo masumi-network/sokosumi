@@ -9,6 +9,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CARDANO_V2_RAIL_READINESS_KEY } from "@/helpers/agent";
 
+import { READINESS_BUDGET } from "./agent-sync.readiness.js";
+
 const {
   agentCreateMock,
   captureExceptionMock,
@@ -3453,6 +3455,116 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       expect(signal).toBeInstanceOf(AbortSignal);
       expect(signal?.aborted).toBe(false);
     }
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("ships the budget this rail was tuned for", () => {
+    // An operational decision, not an implementation detail. The test above
+    // proves the wiring holds for ANY budget of this shape, so without this
+    // the shipped numbers could drift by a factor of two unnoticed: 20s is
+    // what a healthy payment node is given to answer, and the ceiling has to
+    // outlast one attempt and fall short of two. Changing either is fine. It
+    // should cost a deliberate edit here.
+    expect(READINESS_BUDGET).toEqual({
+      attemptTimeoutMs: 20_000,
+      totalTimeoutMs: 25_000,
+      backoffMs: [250, 1_000, 2_000],
+    });
+  });
+
+  it("stops a hanging node at the ceiling, not at the attempt count", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    // A node that never answers on its own. Only a deadline ends this.
+    getCardanoV2RailReadinessMock.mockImplementation(
+      ({ signal }: { signal: AbortSignal }) =>
+        new Promise((resolve) => {
+          signal.addEventListener(
+            "abort",
+            () => resolve(err("rail-readiness unknown: AbortError")),
+            { once: true },
+          );
+        }),
+    );
+
+    await agentSyncService.syncCardanoV2RailReadiness({
+      sleep: noSleep,
+      // The shipped budget's shape, three orders of magnitude smaller. The
+      // real 20s and 25s are unreachable from a test: AbortSignal.timeout
+      // does not go through the global setTimeout, so no fake timer can wind
+      // one forward, and a real one would cost 20s of suite time.
+      budget: {
+        attemptTimeoutMs: 20,
+        totalTimeoutMs: 25,
+        backoffMs: [1, 1, 1],
+      },
+    });
+
+    // Two attempts, not four. This is the only test that reads the deadlines
+    // at all, so it is what stands between the wiring and three silent
+    // regressions: dropping the total ceiling gives four attempts, ignoring
+    // the per-attempt timeout hangs, and swapping the two numbers gives one.
+    expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(2);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("does not spend an attempt on a deadline that died during the wait", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    const controller = new AbortController();
+    getCardanoV2RailReadinessMock
+      .mockResolvedValueOnce(err("rail-readiness unknown: ECONNREFUSED"))
+      .mockResolvedValue(err("rail-readiness unknown: AbortError"));
+
+    await agentSyncService.syncCardanoV2RailReadiness({
+      signal: controller.signal,
+      // The backoff is where a short budget usually runs out: the node has
+      // already answered, so nothing else is watching the deadline.
+      sleep: async () => {
+        controller.abort();
+      },
+    });
+
+    expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(1);
+    // A request issued on an already-dead signal would overwrite the result
+    // and hand the operator "AbortError" instead of the reason the node
+    // failed, which is the one detail that makes the page actionable.
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("ECONNREFUSED"),
+      }),
+      expect.anything(),
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("backs off for real when the caller injects no sleep", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    getCardanoV2RailReadinessMock
+      .mockResolvedValueOnce(err("rail-readiness unknown: ECONNREFUSED"))
+      .mockResolvedValueOnce(ok(readySources));
+    const firstBackoffMs = READINESS_BUDGET.backoffMs[0] ?? 0;
+
+    const startedAt = Date.now();
+    await agentSyncService.syncCardanoV2RailReadiness();
+    const elapsedMs = Date.now() - startedAt;
+
+    // Every other test in this block injects a sleep, so this is the only one
+    // that runs the shipped default. A no-op default would retry inside the
+    // same millisecond and clear no blip at all, which is the whole reason
+    // the backoff exists.
+    expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(2);
+    expect(elapsedMs).toBeGreaterThanOrEqual(firstBackoffMs - 5);
 
     consoleWarnSpy.mockRestore();
   });

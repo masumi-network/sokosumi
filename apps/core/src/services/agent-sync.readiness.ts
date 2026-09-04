@@ -8,9 +8,37 @@ import {
 import prisma from "@/lib/db/prisma";
 
 /**
- * What one readiness attempt gets, how many attempts a failing check may
- * spend, and how long it may wait between them.
+ * The retry budget: what one attempt gets, how long the loop waits between
+ * attempts, and the ceiling on the whole check.
  *
+ * The three numbers only work as a set, so they travel as one and a caller
+ * overrides all of them or none. That override is also the only way the
+ * wiring below is testable at all: AbortSignal.timeout does not go through
+ * the global setTimeout, so no fake timer can wind a 20s deadline forward,
+ * and a real one would cost 20s of suite time.
+ */
+export interface ReadinessBudget {
+  /** What a healthy payment node has to answer one attempt within. */
+  attemptTimeoutMs: number;
+  /**
+   * Ceiling on the whole check, retries and backoff included. It must outlast
+   * one attempt and fall short of two.
+   *
+   * Owned here rather than by the caller so the function is bounded on its
+   * own: the attempt count alone allows four attempts, and a caller that
+   * passes no signal would hang for 83.25s. The caller's signal still
+   * composes with this one, so a cron deadline can still cut the check short.
+   *
+   * The backoff below is NOT abortable, so a check that is stopped mid-wait
+   * still finishes that wait. The real ceiling is therefore this number plus
+   * the last backoff step, 27s on the values below.
+   */
+  totalTimeoutMs: number;
+  /** Wait after the attempt that just failed, holding at the last step. */
+  backoffMs: readonly number[];
+}
+
+/**
  * The attempt timeout is what a healthy payment node has to answer within.
  * The retries are for a far side that fails FAST: a refused connection, a DNS
  * failure, a proxy 502. Those return in milliseconds, so WITHOUT the backoff
@@ -18,9 +46,12 @@ import prisma from "@/lib/db/prisma";
  * all. The wait is what makes a retry a retry.
  *
  * A repeated TIMEOUT is the opposite. It costs the full attempt timeout every
- * time, so the total ceiling below ends the loop long before the count does.
- * That is deliberate. The registry sync shares this cron's budget and must not
- * be starved to keep retrying a node that is not answering.
+ * time, so the total ceiling ends the loop long before the count does. That
+ * is deliberate. The registry sync shares this cron's budget and must not be
+ * starved to keep retrying a node that is not answering. 25s is the number
+ * that makes both failure shapes behave as documented: a fast-failing node
+ * fits all four attempts and the 3.25s of backoff inside it, and a hanging
+ * node gets two attempts and then stops.
  *
  * Deterministic failures are retried too, including a 401 or a 404 that cannot
  * succeed on a repeat. That is a deliberate difference from
@@ -30,24 +61,13 @@ import prisma from "@/lib/db/prisma";
  * a misconfigured node is cheaper than parsing our own error text and cheaper
  * than the coupling that parse would create.
  */
-export const READINESS_ATTEMPT_TIMEOUT_MS = 20_000;
-const READINESS_MAX_ATTEMPTS = 4;
-/** Wait after the attempt that just failed, holding at the last step. */
-export const READINESS_BACKOFF_MS = [250, 1_000, 2_000];
+export const READINESS_BUDGET: ReadinessBudget = {
+  attemptTimeoutMs: 20_000,
+  totalTimeoutMs: 25_000,
+  backoffMs: [250, 1_000, 2_000],
+};
 
-/**
- * Ceiling on the whole check, retries and backoff included.
- *
- * Owned here rather than by the caller so the function is bounded on its own:
- * the attempt count alone allows four 20s attempts, and a caller that passes
- * no signal would hang for 80s. The caller's signal still composes with this
- * one, so a cron deadline can still cut the check short.
- *
- * 25s is the number that makes the two failure shapes behave as documented. A
- * fast-failing node fits all four attempts and the 3.25s of backoff inside it.
- * A hanging node gets two attempts and then this stops it.
- */
-export const READINESS_TOTAL_TIMEOUT_MS = 25_000;
+const READINESS_MAX_ATTEMPTS = 4;
 
 /**
  * Local rather than shared with job-purchase-registration's identical
@@ -76,6 +96,8 @@ export interface SyncCardanoV2RailReadinessOptions {
   signal?: AbortSignal;
   /** Injected by tests so the backoff does not cost real seconds. */
   sleep?: (ms: number) => Promise<void>;
+  /** Injected by tests so the deadlines above are observable at all. */
+  budget?: ReadinessBudget;
 }
 
 /**
@@ -96,11 +118,13 @@ export interface SyncCardanoV2RailReadinessOptions {
 export async function syncCardanoV2RailReadiness(
   options: SyncCardanoV2RailReadinessOptions = {},
 ): Promise<boolean> {
+  const { attemptTimeoutMs, totalTimeoutMs, backoffMs } =
+    options.budget ?? READINESS_BUDGET;
   const sleep = options.sleep ?? sleepMs;
-  const deadline = withTimeout(options.signal, READINESS_TOTAL_TIMEOUT_MS);
+  const deadline = withTimeout(options.signal, totalTimeoutMs);
   const node = paymentClient();
   let readinessResult = await node.getCardanoV2RailReadiness({
-    signal: withTimeout(deadline, READINESS_ATTEMPT_TIMEOUT_MS),
+    signal: withTimeout(deadline, attemptTimeoutMs),
   });
   for (
     let attempt = 2;
@@ -113,15 +137,13 @@ export async function syncCardanoV2RailReadiness(
       `[sync/agents] Cardano V2 rail readiness attempt ${attempt - 1} failed; retrying:`,
       readinessResult.error,
     );
-    await sleep(
-      READINESS_BACKOFF_MS[attempt - 2] ?? READINESS_BACKOFF_MS.at(-1) ?? 0,
-    );
+    await sleep(backoffMs[attempt - 2] ?? backoffMs.at(-1) ?? 0);
     // The wait is where a short budget usually runs out.
     if (deadline.aborted) {
       break;
     }
     readinessResult = await node.getCardanoV2RailReadiness({
-      signal: withTimeout(deadline, READINESS_ATTEMPT_TIMEOUT_MS),
+      signal: withTimeout(deadline, attemptTimeoutMs),
     });
   }
 

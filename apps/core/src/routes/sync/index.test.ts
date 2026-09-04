@@ -353,8 +353,10 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncCardanoV2RailReadinessMock).toHaveBeenCalledTimes(1);
-    // The readiness refresh carries an abort signal so a hung payment node
-    // cannot pin the sync lock past its hard timeout.
+    // The readiness refresh carries the cron's abort signal, so the sync
+    // deadline reaches it. The ceiling it enforces on itself is asserted
+    // where it lives, in agent-sync.service.test.ts; this pins only that the
+    // signal is handed over at all.
     expect(syncCardanoV2RailReadinessMock).toHaveBeenCalledWith(
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );

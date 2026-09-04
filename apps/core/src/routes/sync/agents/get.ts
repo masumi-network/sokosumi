@@ -16,8 +16,9 @@ export const AGENTS_SYNC_METADATA_KEY =
   "agents-sync-metadata:dynamic-pricing-v1";
 // The two readiness syncs no longer get the same treatment, because they no
 // longer do the same thing: the Cardano sync retries a fast failure and owns
-// its own ceiling (READINESS_TOTAL_TIMEOUT_MS in agent-sync.readiness.ts,
-// 25s), while the x402 sync makes one pass and is bounded from here.
+// its own ceiling (READINESS_BUDGET.totalTimeoutMs in
+// agent-sync.readiness.ts, 25s), while the x402 sync makes one pass and is
+// bounded from here.
 //
 // x402: a single pass, so this IS its attempt timeout.
 const X402_READINESS_SYNC_TIMEOUT_MS = 20_000;
@@ -26,11 +27,15 @@ const X402_READINESS_SYNC_TIMEOUT_MS = 20_000;
 // `max(LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER, 1000)` in handleSyncRequest, and
 // the registry sync below gets what is left. That budget is NOT one number:
 // the Zod defaults in config/env.ts give 275s, apps/core/.env.example gives
-// 95s, and the deployed value decides. Worst-case readiness is 45s, so the
-// registry sync keeps 230s or 50s respectively.
+// 95s, and the deployed value decides.
+//
+// Worst-case readiness is 47s: 20s here, plus 27s for Cardano. That 27s is
+// its 25s ceiling plus its last 2s backoff, because the backoff is not
+// abortable and a check stopped mid-wait still finishes the wait it is in.
+// So the registry sync keeps 228s or 48s respectively.
 //
 // The schema minimum is the case worth naming: LOCK_TIMEOUT at 60_000 leaves
-// a 35s budget, which 45s of readiness would consume whole. The registry sync
+// a 35s budget, which 47s of readiness would consume whole. The registry sync
 // is cursor-based and resumable, so it loses a tick rather than failing, and
 // only while the payment node is down. Raising readiness further, or lowering
 // LOCK_TIMEOUT toward its minimum, needs that traded off deliberately.
