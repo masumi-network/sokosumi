@@ -69,18 +69,18 @@ export interface KindSpec {
    * Whether this kind survives when the reader trims the group.
    *
    * The presets read it: "Important" keeps these and drops the rest. Nearly
-   * every one of them waits on the reader. A finished task is the exception:
-   * there is nothing to do about it, and it is the answer the reader started
-   * the task for. It is a property of the kind rather than a preset's private
-   * list, so a kind added later answers the question once instead of in every
-   * preset.
+   * every one of them waits on the reader. A finished job or task is the
+   * exception: there is nothing to do about it, and it is the answer the
+   * reader started the work for. It is a property of the kind rather than a
+   * preset's private list, so a kind added later answers the question once
+   * instead of in every preset.
    */
   important: boolean;
   /**
    * Whether Sokosumi ever sends this kind by email.
    *
    * Only job status is mailed, and one account-wide switch gates it, so the
-   * two job kinds hold the same answer and move together. Nothing else has an
+   * job kinds hold the same answer and move together. Nothing else has an
    * email behind it yet, and a row says so rather than offering a control that
    * would reach nothing.
    */
@@ -113,6 +113,13 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "JOB_ATTENTION",
         labelKey: "kindJobAttention",
         hintKey: "kindJobAttentionHint",
+        important: true,
+        email: true,
+      },
+      {
+        category: "JOB_COMPLETED",
+        labelKey: "kindJobCompleted",
+        hintKey: "kindJobCompletedHint",
         important: true,
         email: true,
       },

@@ -74,6 +74,8 @@ vi.mock("sonner", () => ({
 const MATRIX = [
   { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
   { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: true },
+  { category: "JOB_COMPLETED", channel: "IN_APP", enabled: true },
+  { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: false },
   { category: "JOB_UPDATE", channel: "IN_APP", enabled: true },
   { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
@@ -449,7 +451,7 @@ describe("NotificationKinds", () => {
    * where a reader looks for it. What it writes is still that one switch, so
    * both job rows read the same value and a press on either moves both.
    */
-  it("carries the account's job emails on both job rows", async () => {
+  it("carries the account's job emails on every job row", async () => {
     const user = userEvent.setup();
     renderKinds();
 
@@ -459,9 +461,13 @@ describe("NotificationKinds", () => {
       "aria-pressed",
       "true",
     );
+    expect(emailCell("kindJobCompleted")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(emailCell("kindJobUpdate")).toHaveAttribute("aria-pressed", "true");
-    // One value behind two rows is the thing a reader cannot see, so both
-    // cells say it after their own name.
+    // One value behind three rows is the thing a reader cannot see, so every
+    // cell says it after its own name.
     expect(describedBy(emailCell("kindJobUpdate"))).toBe("channelEmailHint");
     // On is filled and off is outlined, so the answer survives without colour.
     expect(emailCell("kindJobUpdate")).toHaveClass("bg-primary");
@@ -877,7 +883,7 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(lastWrite()).toHaveLength(4);
+    expect(lastWrite()).toHaveLength(6);
     expect(written("JOB_ATTENTION", "OS_BANNER")).toBe(true);
     expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
     expect(written("JOB_UPDATE", "OS_BANNER")).toBe(false);
@@ -899,6 +905,37 @@ describe("NotificationKinds", () => {
     expect(written("TASK_COMPLETED", "OS_BANNER")).toBe(true);
     expect(written("TASK_UPDATE", "IN_APP")).toBe(false);
     expect(written("TASK_UPDATE", "OS_BANNER")).toBe(false);
+  });
+
+  /** The same split, on the kind that also carries the email switch. */
+  it("keeps a finished job loud when the jobs group is important", async () => {
+    renderKinds();
+
+    await pickPreset("groupJob", "presetImportant");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(written("JOB_COMPLETED", "IN_APP")).toBe(true);
+    expect(written("JOB_COMPLETED", "OS_BANNER")).toBe(true);
+    expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
+    expect(written("JOB_UPDATE", "OS_BANNER")).toBe(false);
+  });
+
+  it("draws the finished jobs as their own row", async () => {
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    expect(
+      screen
+        .getAllByRole("group", { name: /^deliveryAriaLabel kindJob/ })
+        .map((row) => row.getAttribute("aria-label")),
+    ).toEqual([
+      "deliveryAriaLabel kindJobAttention",
+      "deliveryAriaLabel kindJobCompleted",
+      "deliveryAriaLabel kindJobUpdate",
+    ]);
   });
 
   /** Between the row that waits on the reader and everything else. */
