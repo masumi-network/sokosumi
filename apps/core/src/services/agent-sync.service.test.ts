@@ -3345,6 +3345,12 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
 
     expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(3);
+    // The log names the attempt that FAILED, not the one about to start.
+    expect(consoleWarnSpy).toHaveBeenNthCalledWith(
+      1,
+      "[sync/agents] Cardano V2 rail readiness attempt 1 failed; retrying:",
+      "rail-readiness unknown: ECONNREFUSED",
+    );
     // A cycle that recovered is not a failed cycle: it caches, and it must
     // neither write the failure marker nor alert.
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
@@ -3473,6 +3479,33 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     });
   });
 
+  it("holds at the last backoff step when the budget runs short of retries", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    const waits: number[] = [];
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("rail-readiness unknown: ECONNREFUSED"),
+    );
+
+    await agentSyncService.syncCardanoV2RailReadiness({
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+      budget: { attemptTimeoutMs: 50, totalTimeoutMs: 200, backoffMs: [1, 5] },
+    });
+
+    // A budget with fewer steps than retries holds at its LAST one. Two
+    // distinct steps, because a single-element array cannot tell the last
+    // step from the first. Without the hold the index runs off the end and
+    // every later retry waits on `undefined`, which setTimeout reads as zero:
+    // the retries survive no blip and nothing else would notice.
+    expect(waits).toEqual([1, 5, 5]);
+
+    consoleWarnSpy.mockRestore();
+  });
+
   it("stops a hanging node at the ceiling, not at the attempt count", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
@@ -3490,8 +3523,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
         }),
     );
 
+    const waits: number[] = [];
     await agentSyncService.syncCardanoV2RailReadiness({
-      sleep: noSleep,
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
       // The shipped budget's shape, three orders of magnitude smaller. The
       // real 20s and 25s are unreachable from a test: AbortSignal.timeout
       // does not go through the global setTimeout, so no fake timer can wind
@@ -3508,6 +3544,10 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     // regressions: dropping the total ceiling gives four attempts, ignoring
     // the per-attempt timeout hangs, and swapping the two numbers gives one.
     expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(2);
+    // One wait, between the two attempts. A loop that noticed the dead
+    // deadline only AFTER sleeping would burn a second backoff on the way
+    // out, which is up to 2s of the cron's budget spent on nothing.
+    expect(waits).toEqual([1]);
 
     consoleWarnSpy.mockRestore();
   });

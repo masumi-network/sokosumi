@@ -29,9 +29,12 @@ export interface ReadinessBudget {
    * passes no signal would hang for 83.25s. The caller's signal still
    * composes with this one, so a cron deadline can still cut the check short.
    *
-   * The backoff below is NOT abortable, so a check that is stopped mid-wait
-   * still finishes that wait. The real ceiling is therefore this number plus
-   * the last backoff step, 27s on the values below.
+   * No node call can START after this fires: the loop checks before every
+   * attempt and again after every wait. The backoff is NOT abortable though,
+   * so a loop stopped mid-wait still finishes that wait, and the LOOP is
+   * bounded at this number plus the last backoff step, 27s below. The
+   * function is not bounded at all: the Prisma reads and writes that follow
+   * the loop carry no deadline.
    */
   totalTimeoutMs: number;
   /** Wait after the attempt that just failed, holding at the last step. */
@@ -60,6 +63,13 @@ export interface ReadinessBudget {
  * only status signal is a substring of an error message. Three wasted reads on
  * a misconfigured node is cheaper than parsing our own error text and cheaper
  * than the coupling that parse would create.
+ */
+/*
+ * What the suite pins about these values, and what it cannot. `backs off for
+ * real when the caller injects no sleep` runs this default end to end, so
+ * backoffMs is bound to what ships. The two timeouts are NOT bound: observing
+ * a 20s or a 25s deadline costs that much real time, so a default that drifted
+ * away from this object would pass. Change the two together.
  */
 export const READINESS_BUDGET: ReadinessBudget = {
   attemptTimeoutMs: 20_000,
