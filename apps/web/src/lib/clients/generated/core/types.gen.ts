@@ -395,7 +395,7 @@ export type SokoBotSchedule = {
 export type AdminSokoBotTurn = SokoBotTurn & {
     eveSessionId: string | null;
     eveTurnId: string | null;
-    contextSnapshot: SokoBotContextSnapshot;
+    contextSnapshot: SokoBotContextSnapshot | null;
 };
 
 export const SokoBotTurnStatus = {
@@ -506,7 +506,7 @@ export type SokoBotContextSnapshot = {
     omissions?: unknown;
     generatedAt: Date;
     createdAt: Date;
-} | null;
+};
 
 export type SokoBotTurn = {
     id: string;

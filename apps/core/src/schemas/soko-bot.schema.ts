@@ -433,7 +433,9 @@ export const adminSokoBotTurnSchema = sokoBotTurnSchema
   .extend({
     eveSessionId: z.string().nullable(),
     eveTurnId: z.string().nullable(),
-    contextSnapshot: sokoBotContextSnapshotSchema.nullable(),
+    // Union-with-null, not `.nullable()`: same codegen poison as runtimeHealth
+    // (unguarded `generatedAt` / `createdAt` conversion).
+    contextSnapshot: z.union([sokoBotContextSnapshotSchema, z.null()]),
     toolCalls: z.array(sokoBotToolCallSchema),
   })
   .openapi("AdminSokoBotTurn");

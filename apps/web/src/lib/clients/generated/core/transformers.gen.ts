@@ -267,7 +267,9 @@ const sokoBotContextSnapshotSchemaResponseTransformer = (data: any) => {
 
 const adminSokoBotTurnSchemaResponseTransformer = (data: any) => {
     data = sokoBotTurnSchemaResponseTransformer(data);
-    data.contextSnapshot = sokoBotContextSnapshotSchemaResponseTransformer(data.contextSnapshot);
+    if (data.contextSnapshot) {
+        data.contextSnapshot = sokoBotContextSnapshotSchemaResponseTransformer(data.contextSnapshot);
+    }
     return data;
 };
 
