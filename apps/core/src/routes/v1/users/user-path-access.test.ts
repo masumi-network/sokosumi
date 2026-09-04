@@ -43,7 +43,7 @@ describe("requireAccessToTargetUserData", () => {
 
   it("allows an orchestrator only for its fixed owner id", () => {
     const authContext = {
-      actor: "orchestrator" as const,
+      actor: "sokoBot" as const,
       sokoBotId: "11111111-1111-7111-8111-111111111111",
       userId: target,
       workspaceId: "22222222-2222-7222-8222-222222222222",
@@ -153,7 +153,7 @@ describe("resolveUsersPathUserId", () => {
   it("resolves me to the orchestrator owner id", () => {
     const { resolvedUserId, userContext } = resolveUsersPathUserId(
       {
-        actor: "orchestrator",
+        actor: "sokoBot",
         sokoBotId: "11111111-1111-7111-8111-111111111111",
         userId: "usr_owner",
         workspaceId: "22222222-2222-7222-8222-222222222222",

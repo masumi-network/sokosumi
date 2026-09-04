@@ -42,7 +42,7 @@ export interface CoworkerAuthenticationContext {
 }
 
 export interface SokoBotAuthenticationContext {
-  actor: "orchestrator";
+  actor: "sokoBot";
   sokoBotId: string;
   userId: string;
   workspaceId: string;
@@ -82,7 +82,7 @@ function syncSentryUser(context: AuthVariables) {
   if (isSokoBotAuthContext(context.authContext)) {
     const sokoBot = context.authContext;
     scope.setUser({
-      id: `orchestrator:${sokoBot.sokoBotId}`,
+      id: `sokoBot:${sokoBot.sokoBotId}`,
       sokoBotId: sokoBot.sokoBotId,
     });
     scope.setContext("orchestratorContext", {
@@ -135,7 +135,7 @@ function syncRequestLogger(context: AuthVariables) {
 
   if (isSokoBotAuthContext(authContext)) {
     attachAuthToLogger({
-      actor: "orchestrator",
+      actor: "sokoBot",
       sokoBotId: authContext.sokoBotId,
       contextUserId: authContext.userId,
       contextOrganizationId: authContext.organizationId,
@@ -169,7 +169,7 @@ export function isCoworkerAuthContext(
 export function isSokoBotAuthContext(
   authContext: AuthenticationContext,
 ): authContext is SokoBotAuthenticationContext {
-  return authContext.actor === "orchestrator";
+  return authContext.actor === "sokoBot";
 }
 
 /**
@@ -516,7 +516,7 @@ async function verifyAgentApiKey(
     setAuthContext(c, {
       isAuthenticated: true,
       authContext: {
-        actor: "orchestrator",
+        actor: "sokoBot",
         sokoBotId: apiKey.sokoBotId,
         userId: apiKey.sokoBot.userId,
         workspaceId: apiKey.sokoBot.workspaceId,

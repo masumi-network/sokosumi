@@ -117,7 +117,7 @@ export interface DirectDraftTarget {
   name: string;
   detail: string;
   image: string | null;
-  kind: "human" | "coworker" | "orchestrator";
+  kind: "human" | "coworker" | "sokoBot";
   slug?: string;
   caption?: string | null;
   avatarSeed?: string | null;
@@ -155,12 +155,12 @@ export function buildDirectDraftTargets(
       presence: "online" as const,
     })),
     ...sokoBots.map((sokoBot) => ({
-      key: `orchestrator:${sokoBot.id}`,
+      key: `sokoBot:${sokoBot.id}`,
       id: sokoBot.id,
       name: sokoBot.name,
       detail: "",
       image: sokoBot.image,
-      kind: "orchestrator" as const,
+      kind: "sokoBot" as const,
       avatarSeed: sokoBot.avatarSeed,
       presence: "online" as const,
     })),
@@ -227,10 +227,10 @@ export function DirectDraftTargetRow({
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-sm font-medium">{target.name}</span>
-          {target.kind === "coworker" || target.kind === "orchestrator" ? (
+          {target.kind === "coworker" || target.kind === "sokoBot" ? (
             <AiCoworkerIcon
               label={
-                target.kind === "orchestrator"
+                target.kind === "sokoBot"
                   ? t("personalAssistantBadge")
                   : undefined
               }
@@ -279,7 +279,7 @@ export function DirectDraftTargetList({
     (target) => target.kind === "coworker",
   );
   const orchestratorTargets = targets.filter(
-    (target) => target.kind === "orchestrator",
+    (target) => target.kind === "sokoBot",
   );
   const sectionCount = [
     humans.length > 0,

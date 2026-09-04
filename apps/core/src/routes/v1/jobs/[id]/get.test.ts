@@ -93,7 +93,7 @@ vi.mock("@/middleware/auth", () => ({
   isCoworkerAuthContext: (authContext: { actor: string }) =>
     authContext.actor === "coworker",
   isSokoBotAuthContext: (authContext: { actor: string }) =>
-    authContext.actor === "orchestrator",
+    authContext.actor === "sokoBot",
   requireCoworkerAuthContext: (authContext: { actor: string }) => {
     if (authContext.actor !== "coworker") {
       throw new Error("mock requireCoworkerAuthContext: not a coworker");

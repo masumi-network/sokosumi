@@ -130,7 +130,7 @@ export function TasksViewFilters({
         const selected = coworkerOptions.find(
           (option) => option.id === selectedId,
         );
-        if (selected?.kind === "orchestrator") {
+        if (selected?.kind === "sokoBot") {
           handleFilterChange({
             assigneeId: null,
             assigneeSokoBotId: selectedId,

@@ -91,7 +91,7 @@ export function getOwnerOrchestratorOption(
     slug: "soko-bots",
     name: bot.name?.trim() || copy.fallbackName,
     image: bot.avatarImageUrl ?? "",
-    kind: "orchestrator",
+    kind: "sokoBot",
     avatarSeed: bot.avatarSeed,
     vendor: sokoBotsVendor(copy.vendorName),
   };
@@ -122,7 +122,7 @@ export function resolveTaskAssigneeFields(
   }
 
   const selected = options.find((option) => option.id === selectedId);
-  if (selected?.kind === "orchestrator") {
+  if (selected?.kind === "sokoBot") {
     return { assigneeId: null, assigneeSokoBotId: selectedId };
   }
   if (selected) {

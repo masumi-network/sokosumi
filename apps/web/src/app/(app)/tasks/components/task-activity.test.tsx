@@ -205,7 +205,7 @@ function createEvent(
       ? actor
       : sokoBotId && sokoBot
         ? {
-            type: "orchestrator" as const,
+            type: "sokoBot" as const,
             id: sokoBotId,
             sokoBot,
           }
@@ -775,7 +775,7 @@ describe("TaskActivitySection", () => {
         createdAt: "2026-01-01T12:00:00.000Z",
         status: TaskStatus.READY,
         actor: {
-          type: "orchestrator",
+          type: "sokoBot",
           id: "orch-1",
           sokoBot: {
             id: "orch-1",

@@ -25,7 +25,7 @@ type TaskFileForMapping = TaskWithIncludes["files"][number];
 
 export function mapTaskFile(file: TaskFileForMapping) {
   let uploader: {
-    type: "user" | "coworker" | "orchestrator";
+    type: "user" | "coworker" | "sokoBot";
     id: string;
     user?: { id: string; name: string; image: string | null };
     coworker?: {
@@ -76,7 +76,7 @@ export function mapTaskFile(file: TaskFileForMapping) {
       );
     }
     uploader = {
-      type: "orchestrator",
+      type: "sokoBot",
       id: file.uploadedBySokoBotId,
       sokoBot,
     };
@@ -486,7 +486,7 @@ export function mapTaskEventActor(event: TaskEventForMapping) {
     }
 
     return {
-      type: "orchestrator" as const,
+      type: "sokoBot" as const,
       id: event.sokoBotId,
       sokoBot,
     };
@@ -559,7 +559,7 @@ export function mapTaskEvent(event: TaskEventForMapping) {
           coworker: actor.coworker,
         }
       : {}),
-    ...(actor?.type === "orchestrator"
+    ...(actor?.type === "sokoBot"
       ? {
           sokoBot: actor.sokoBot,
         }
@@ -612,7 +612,7 @@ function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
     }
 
     return {
-      type: "orchestrator" as const,
+      type: "sokoBot" as const,
       id: task.creatorSokoBotId,
       sokoBot,
     };
@@ -637,7 +637,7 @@ function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
     }
 
     return {
-      type: "orchestrator" as const,
+      type: "sokoBot" as const,
       id: task.assigneeSokoBotId,
       sokoBot,
     };
@@ -700,8 +700,8 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     coworker: assignee?.type === "coworker" ? assignee.coworker : null,
     creator,
     // Deprecated aliases for legacy sokoBot-created tasks.
-    sokoBotId: creator.type === "orchestrator" ? creator.id : null,
-    sokoBot: creator.type === "orchestrator" ? creator.sokoBot : null,
+    sokoBotId: creator.type === "sokoBot" ? creator.id : null,
+    sokoBot: creator.type === "sokoBot" ? creator.sokoBot : null,
     name: task.name,
     description: task.description,
     status: task.status,

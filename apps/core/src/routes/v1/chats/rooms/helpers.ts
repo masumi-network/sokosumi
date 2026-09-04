@@ -1123,7 +1123,7 @@ export function mapChatRoomMessage(
 
     if (message.senderSokoBot) {
       return {
-        type: "orchestrator" as const,
+        type: "sokoBot" as const,
         sokoBot: {
           id: message.senderSokoBot.id,
           name: sokoBotDisplayName(message.senderSokoBot),
@@ -2446,7 +2446,7 @@ function parseDirectCreateShape(params: {
   }
 
   return {
-    kind: "orchestrator-1to1",
+    kind: "sokoBot-1to1",
     memberUserIds: [],
     coworkerIds: [],
     sokoBotIds: [sokoBotIds[0]],
@@ -2483,7 +2483,7 @@ type DirectCreateShape =
       sokoBotIds: [];
     }
   | {
-      kind: "orchestrator-1to1";
+      kind: "sokoBot-1to1";
       memberUserIds: [];
       coworkerIds: [];
       sokoBotIds: [string];
@@ -2586,7 +2586,7 @@ export async function createOrGetDirectRoom(params: {
         });
       }
 
-      if (shape.kind === "orchestrator-1to1") {
+      if (shape.kind === "sokoBot-1to1") {
         const workspaceId = await resolveWorkspaceIdForChatRoom({
           organizationId: activeOrganizationId,
           personalUserId: currentUserId,
@@ -2715,7 +2715,7 @@ export async function createOrGetDirectRoom(params: {
     // directKey race: another request won the create — return that room.
     if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
       const existing =
-        shape.kind === "coworker-1to1" || shape.kind === "orchestrator-1to1"
+        shape.kind === "coworker-1to1" || shape.kind === "sokoBot-1to1"
           ? await findOrRestoreDirectByKey(prisma, {
               organizationId: createOrganizationIdRef.current,
               directKey: directKeyRef.current,
@@ -2728,7 +2728,7 @@ export async function createOrGetDirectRoom(params: {
 
       if (existing) {
         const room =
-          shape.kind === "orchestrator-1to1"
+          shape.kind === "sokoBot-1to1"
             ? await ensureDirectOrchestratorMembership(
                 prisma,
                 existing,

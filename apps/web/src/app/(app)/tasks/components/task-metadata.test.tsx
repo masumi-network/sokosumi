@@ -139,7 +139,7 @@ describe("TaskMetadata", () => {
       <TaskMetadata
         task={createTask({
           creator: {
-            type: "orchestrator",
+            type: "sokoBot",
             id: "01960001-0001-7001-8001-000000000099",
             sokoBot: {
               id: "01960001-0001-7001-8001-000000000099",
@@ -181,7 +181,7 @@ describe("TaskMetadata", () => {
       <TaskMetadata
         task={createTask({
           creator: {
-            type: "orchestrator",
+            type: "sokoBot",
             id: "01960001-0001-7001-8001-000000000099",
             sokoBot: {
               id: "01960001-0001-7001-8001-000000000099",
@@ -211,7 +211,7 @@ describe("TaskMetadata", () => {
       <TaskMetadata
         task={createTask({
           creator: {
-            type: "orchestrator",
+            type: "sokoBot",
             id: "01960001-0001-7001-8001-000000000099",
             sokoBot: {
               id: "01960001-0001-7001-8001-000000000099",
@@ -240,7 +240,7 @@ describe("TaskMetadata", () => {
         task={{
           ...createTask({ assigneeName: null }),
           assignee: {
-            type: "orchestrator",
+            type: "sokoBot",
             id: "bot-1",
             sokoBot: {
               id: "bot-1",

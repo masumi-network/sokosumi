@@ -475,7 +475,7 @@ export function TaskActivitySection({
                 ? actorCoworkerLabel
                 : actorKind === "user"
                   ? actorUserLabel
-                  : actorKind === "orchestrator"
+                  : actorKind === "sokoBot"
                     ? actorOrchestratorLabel
                     : actorSystemLabel;
             const actorInfo = getEventActorInfo(
@@ -496,7 +496,7 @@ export function TaskActivitySection({
             // its face in chat and the sidebar, and an orb here made the same
             // assistant look like two different ones.
             const showAssistantOrb =
-              actorKind === "orchestrator" && !actorInfo?.image;
+              actorKind === "sokoBot" && !actorInfo?.image;
             const ChannelIcon = CHANNEL_ICON_MAP[event.channel];
             const channelAppName = t(
               `channelApp.${CHANNEL_APP_NAME_KEY_MAP[event.channel]}`,

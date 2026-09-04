@@ -447,7 +447,7 @@ describe("tasks-filters", () => {
       expect(
         getTasksFiltersFromSearchParams(params, "org-1", [
           { id: "coworker-1" },
-          { id: "bot-1", kind: "orchestrator" },
+          { id: "bot-1", kind: "sokoBot" },
         ]),
       ).toEqual({
         scope: "workspace",
@@ -467,7 +467,7 @@ describe("tasks-filters", () => {
       expect(
         getTasksFiltersFromSearchParams(params, "org-1", [
           { id: "coworker-1" },
-          { id: "bot-1", kind: "orchestrator" },
+          { id: "bot-1", kind: "sokoBot" },
         ]),
       ).toEqual({
         scope: "workspace",

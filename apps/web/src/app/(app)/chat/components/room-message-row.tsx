@@ -2262,9 +2262,7 @@ export function ChatMessageRow({
             data-testid="message-sender-avatar"
             className="relative inline-flex size-8 shrink-0"
           >
-            {sender.kind === "orchestrator" &&
-            sender.avatarSeed &&
-            !sender.image ? (
+            {sender.kind === "sokoBot" && sender.avatarSeed && !sender.image ? (
               <AuroraOrb
                 seed={sender.avatarSeed}
                 size={64}

@@ -200,7 +200,7 @@ export async function createChatRoomFileUploadSession(
   owner:
     | { kind: "user"; userId: string }
     | { kind: "coworker"; coworkerId: string }
-    | { kind: "orchestrator"; sokoBotId: string },
+    | { kind: "sokoBot"; sokoBotId: string },
   roomId: string,
   file: {
     filename: string;

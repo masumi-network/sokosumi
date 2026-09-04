@@ -11,7 +11,7 @@ type ChatRoomMessageWithInclude = Prisma.ChatRoomMessageGetPayload<{
 export type MembershipSubject =
   | { type: "user"; id: string; name: string }
   | { type: "coworker"; id: string; name: string }
-  | { type: "orchestrator"; id: string; name: string };
+  | { type: "sokoBot"; id: string; name: string };
 
 export type ChannelMembershipChange = {
   action: "joined" | "left";
@@ -78,7 +78,7 @@ export function diffChannelMembershipRoster(args: {
       changes.push({
         action: "left",
         subject: {
-          type: "orchestrator",
+          type: "sokoBot",
           id: sokoBot.id,
           name: sokoBot.name,
         },
@@ -109,7 +109,7 @@ export function diffChannelMembershipRoster(args: {
       changes.push({
         action: "joined",
         subject: {
-          type: "orchestrator",
+          type: "sokoBot",
           id: sokoBot.id,
           name: sokoBot.name,
         },
@@ -193,7 +193,7 @@ export function readMembershipFromMetadata(
   if (
     (subject.type !== "user" &&
       subject.type !== "coworker" &&
-      subject.type !== "orchestrator") ||
+      subject.type !== "sokoBot") ||
     typeof subject.id !== "string" ||
     typeof subject.name !== "string"
   ) {

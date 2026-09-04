@@ -136,7 +136,7 @@ describe("owner orchestrator option", () => {
       id: "bot-1",
       slug: "soko-bots",
       name: "Jarvis",
-      kind: "orchestrator",
+      kind: "sokoBot",
       vendor: { id: "soko-bots", name: "Soko Bots", slug: "soko-bots" },
     });
   });
@@ -148,7 +148,7 @@ describe("owner orchestrator option", () => {
       baseBot(),
       OWNER_ORCHESTRATOR_COPY,
     );
-    expect(withBot[0]?.kind).toBe("orchestrator");
+    expect(withBot[0]?.kind).toBe("sokoBot");
     expect(
       withOwnerOrchestratorOption(withBot, baseBot(), OWNER_ORCHESTRATOR_COPY),
     ).toHaveLength(withBot.length);

@@ -23,7 +23,7 @@ const taskFileUploaderCoworkerSchema = z
 
 const taskFileUploaderOrchestratorSchema = z
   .object({
-    type: z.literal("orchestrator"),
+    type: z.literal("sokoBot"),
     id: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),

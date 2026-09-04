@@ -45,7 +45,7 @@ export function bindCoreRequestId(): MiddlewareHandler<{
 }
 
 export interface CoreLogAuthIdentity {
-  actor: "anonymous" | "user" | "coworker" | "orchestrator";
+  actor: "anonymous" | "user" | "coworker" | "sokoBot";
   userId?: string;
   organizationId?: string | null;
   coworkerId?: string;

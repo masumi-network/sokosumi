@@ -186,7 +186,7 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
 };
 
 const sokoBotAuthContext: AuthVariables["authContext"] = {
-  actor: "orchestrator",
+  actor: "sokoBot",
   sokoBotId: SOKO_BOT_ID,
   userId: USER_ID,
   workspaceId: "01960001-0001-7001-8001-000000000088",
@@ -536,7 +536,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       });
 
       expect(response.status).toBe(201);
-      expect((await response.json()).data.sender.type).toBe("orchestrator");
+      expect((await response.json()).data.sender.type).toBe("sokoBot");
       expect(messageCreateMock).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({

@@ -104,7 +104,7 @@ function createOrchestratorApp(sokoBotId = SOKO_BOT_ID) {
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
-      actor: "orchestrator",
+      actor: "sokoBot",
       sokoBotId,
       userId: USER_ID,
       workspaceId: "22222222-2222-7222-8222-222222222222",
@@ -219,7 +219,7 @@ describe("POST /chats/rooms/{id}/files", () => {
 
     expect(response.status).toBe(201);
     expect(createChatRoomFileUploadSessionMock).toHaveBeenCalledWith(
-      { kind: "orchestrator", sokoBotId: SOKO_BOT_ID },
+      { kind: "sokoBot", sokoBotId: SOKO_BOT_ID },
       ROOM_ID,
       expect.objectContaining({ filename: "notes.txt" }),
       "blob-token",

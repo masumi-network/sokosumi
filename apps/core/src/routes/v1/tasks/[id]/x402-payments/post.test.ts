@@ -190,7 +190,7 @@ const COWORKER_AGENT_CONTEXT: AuthenticationContext = {
 } as AuthenticationContext;
 
 const SOKO_BOT_CONTEXT: AuthenticationContext = {
-  actor: "orchestrator",
+  actor: "sokoBot",
   sokoBotId: "01960001-0001-7001-8001-000000000099",
   userId: USER_ID,
   workspaceId: "01960001-0001-7001-8001-000000000010",

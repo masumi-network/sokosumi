@@ -24,7 +24,7 @@ export interface CoworkerOption {
   name: string;
   image: string;
   /** Marketplace coworker by default. Owner personal assistant is `orchestrator`. */
-  kind?: "coworker" | "orchestrator";
+  kind?: "coworker" | "sokoBot";
   /** Present for sokoBot options without a claimed mascot. */
   avatarSeed?: string | null;
   description?: string;

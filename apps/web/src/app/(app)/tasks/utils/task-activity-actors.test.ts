@@ -14,7 +14,7 @@ describe("resolveTaskEventActorKind", () => {
   it("prefers nested actor type over flat FKs", () => {
     const event = {
       actor: {
-        type: "orchestrator",
+        type: "sokoBot",
         id: "orch-1",
         sokoBot: {
           id: "orch-1",
@@ -28,7 +28,7 @@ describe("resolveTaskEventActorKind", () => {
       sokoBotId: "orch-1",
     } as TaskEvent;
 
-    expect(resolveTaskEventActorKind(event)).toBe("orchestrator");
+    expect(resolveTaskEventActorKind(event)).toBe("sokoBot");
   });
 
   it("falls back to deprecated flat FKs when actor is null", () => {
@@ -50,7 +50,7 @@ describe("resolveTaskEventActorKind", () => {
         userId: "user-1",
         sokoBotId: "orch-1",
       } as TaskEvent),
-    ).toBe("orchestrator");
+    ).toBe("sokoBot");
   });
 });
 
@@ -83,7 +83,7 @@ describe("getEventActorInfo", () => {
   it("reads name, owner, and avatarSeed from nested orchestrator actor", () => {
     const event = {
       actor: {
-        type: "orchestrator",
+        type: "sokoBot",
         id: "orch-1",
         sokoBot: {
           id: "orch-1",
@@ -128,7 +128,7 @@ describe("buildTaskActivityActors", () => {
         },
       },
       creator: {
-        type: "orchestrator" as const,
+        type: "sokoBot" as const,
         id: "orch-1",
         sokoBot: {
           id: "orch-1",
@@ -215,7 +215,7 @@ describe("buildTaskActivityActors", () => {
           createdAt: new Date("2026-01-01T14:00:00.000Z"),
           updatedAt: new Date("2026-01-01T14:00:00.000Z"),
           actor: {
-            type: "orchestrator",
+            type: "sokoBot",
             id: "orch-2",
             sokoBot: {
               id: "orch-2",

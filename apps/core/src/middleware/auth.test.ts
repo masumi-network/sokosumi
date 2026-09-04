@@ -171,7 +171,7 @@ describe("authMiddleware", () => {
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
-        actor: "orchestrator",
+        actor: "sokoBot",
         sokoBotId: "01960001-0001-7001-8001-000000000099",
         userId: "user_123",
         workspaceId: "01960001-0001-7001-8001-000000000010",

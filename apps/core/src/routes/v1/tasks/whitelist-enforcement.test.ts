@@ -65,7 +65,7 @@ const {
         t.assignee ??
         (t.assigneeSokoBotId
           ? {
-              type: "orchestrator" as const,
+              type: "sokoBot" as const,
               id: t.assigneeSokoBotId,
               sokoBot: {
                 id: t.assigneeSokoBotId,
@@ -92,7 +92,7 @@ const {
           (t.creatorSokoBotId as string | null | undefined) ?? null;
         if (creatorSokoBotId != null) {
           return {
-            type: "orchestrator" as const,
+            type: "sokoBot" as const,
             id: creatorSokoBotId,
             sokoBot: (t.creatorSokoBot as object | null | undefined) ?? {
               id: creatorSokoBotId,

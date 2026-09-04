@@ -76,7 +76,7 @@ export function CreateDirectDialog() {
     .filter((target) => target.kind === "coworker")
     .map((target) => target.id);
   const selectedOrchestratorIds = selectedTargets
-    .filter((target) => target.kind === "orchestrator")
+    .filter((target) => target.kind === "sokoBot")
     .map((target) => target.id);
   const hasSelectedHumans = selectedMemberUserIds.length > 0;
   const hasSelectedCoworker = selectedCoworkerIds.length > 0;
@@ -97,7 +97,7 @@ export function CreateDirectDialog() {
     if (hasSelectedAi && target.kind === "human") {
       return true;
     }
-    if (hasSelectedCoworker && target.kind === "orchestrator") {
+    if (hasSelectedCoworker && target.kind === "sokoBot") {
       return true;
     }
     if (hasSelectedOrchestrator && target.kind === "coworker") {
@@ -117,7 +117,7 @@ export function CreateDirectDialog() {
     if (isTargetDisabled(target)) {
       return;
     }
-    if (target.kind === "coworker" || target.kind === "orchestrator") {
+    if (target.kind === "coworker" || target.kind === "sokoBot") {
       setSelectedKeys([target.key]);
     } else {
       setSelectedKeys((current) =>
@@ -229,12 +229,11 @@ export function CreateDirectDialog() {
               </Avatar>
               <span className="flex min-w-0 items-center gap-1">
                 <span className="truncate">{target.name}</span>
-                {target.kind === "coworker" ||
-                target.kind === "orchestrator" ? (
+                {target.kind === "coworker" || target.kind === "sokoBot" ? (
                   <AiCoworkerIcon
                     className="size-3"
                     label={
-                      target.kind === "orchestrator"
+                      target.kind === "sokoBot"
                         ? t("personalAssistantBadge")
                         : undefined
                     }

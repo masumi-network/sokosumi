@@ -51,7 +51,7 @@ const coworkerProfile: ChatParticipantHoverProfile = {
 };
 
 const orchestratorProfile: ChatParticipantHoverProfile = {
-  kind: "orchestrator",
+  kind: "sokoBot",
   id: "soko-1",
   name: "Personal assistant",
   caption: null,

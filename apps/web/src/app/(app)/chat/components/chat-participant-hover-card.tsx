@@ -162,7 +162,7 @@ export function ChatParticipantHoverCard({
   }
 
   const isCoworker = profile.kind === "coworker";
-  const isOrchestrator = profile.kind === "orchestrator";
+  const isOrchestrator = profile.kind === "sokoBot";
   const isAi = isCoworker || isOrchestrator;
   const kindLabel = isOrchestrator
     ? t("personalAssistantBadge")
@@ -172,7 +172,7 @@ export function ChatParticipantHoverCard({
   const detail =
     profile.kind === "human"
       ? profile.email
-      : profile.kind === "orchestrator"
+      : profile.kind === "sokoBot"
         ? profile.caption?.trim() || null
         : profile.caption?.trim() || (profile.slug ? `@${profile.slug}` : null);
   const showOpenDirect = canShowOpenDirect({

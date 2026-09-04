@@ -303,7 +303,7 @@ function taskAssigneeDisplayName(
   if (!assignee) {
     return null;
   }
-  if (assignee.type === "orchestrator") {
+  if (assignee.type === "sokoBot") {
     return assignee.sokoBot.name?.trim() || personalAssistantFallback;
   }
   return assignee.coworker.name ?? null;

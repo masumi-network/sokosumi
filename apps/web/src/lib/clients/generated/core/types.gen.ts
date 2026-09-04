@@ -1097,13 +1097,13 @@ export type Task = {
     coworker: CoworkerSummary | null;
     creator: TaskCreator;
     /**
-     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
      * @deprecated
      */
     sokoBotId: string | null;
     /**
-     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
      * @deprecated
      */
@@ -1169,7 +1169,7 @@ export type CoworkerSummary = {
 };
 
 export type TaskAssigneeSokoBot = {
-    type: 'orchestrator';
+    type: 'sokoBot';
     id: string;
     sokoBot: SokoBotSummary;
 };
@@ -1190,7 +1190,7 @@ export type TaskCreator = ({
 } & TaskCreatorUser) | ({
     type: 'coworker';
 } & TaskCreatorCoworker) | ({
-    type: 'orchestrator';
+    type: 'sokoBot';
 } & TaskCreatorSokoBot);
 
 export type TaskCreatorUser = {
@@ -1206,7 +1206,7 @@ export type TaskCreatorCoworker = {
 };
 
 export type TaskCreatorSokoBot = {
-    type: 'orchestrator';
+    type: 'sokoBot';
     id: string;
     sokoBot: SokoBotSummary;
 };
@@ -1224,7 +1224,7 @@ export type TaskEvent = {
      */
     userId?: string | null;
     /**
-     * Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
+     * Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
      *
      * @deprecated
      */
@@ -1240,7 +1240,7 @@ export type TaskEvent = {
      */
     coworkerId?: string | null;
     /**
-     * Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
+     * Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
      *
      * @deprecated
      */
@@ -1251,13 +1251,13 @@ export type TaskEvent = {
         slug: string;
     } | null;
     /**
-     * Deprecated. Use actor when type is orchestrator.
+     * Deprecated. Use actor when type is sokoBot.
      *
      * @deprecated
      */
     sokoBotId?: string | null;
     /**
-     * Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
+     * Deprecated. Prefer actor. Emitted only when the preferred actor is sokoBot (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.
      *
      * @deprecated
      */
@@ -1309,7 +1309,7 @@ export type TaskEventActorCoworker = {
 };
 
 export type TaskEventActorSokoBot = {
-    type: 'orchestrator';
+    type: 'sokoBot';
     id: string;
     sokoBot: SokoBotSummary;
 };
@@ -1525,7 +1525,7 @@ export type TaskFileUploaderCoworker = {
 };
 
 export type TaskFileUploaderSokoBot = {
-    type: 'orchestrator';
+    type: 'sokoBot';
     id: string;
     sokoBot: SokoBotSummary;
 };
@@ -2512,7 +2512,7 @@ export type ChatRoomMessageSender = {
     type: 'coworker';
     coworker: ChatRoomCoworkerParticipant;
 } | {
-    type: 'orchestrator';
+    type: 'sokoBot';
     sokoBot: ChatRoomSokoBotParticipant;
 } | {
     type: 'unknown';
@@ -2577,7 +2577,7 @@ export type ChatRoomMessageMembershipSubject = {
     id: string;
     name: string;
 } | {
-    type: 'orchestrator';
+    type: 'sokoBot';
     id: string;
     name: string;
 };
@@ -5323,13 +5323,13 @@ export type TaskListItem = {
     coworker: CoworkerSummary | null;
     creator: TaskCreator;
     /**
-     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
      * @deprecated
      */
     sokoBotId: string | null;
     /**
-     * Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.
+     * Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.
      *
      * @deprecated
      */

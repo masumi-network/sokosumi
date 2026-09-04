@@ -78,7 +78,7 @@ function buildVisiblePeerTaskWhere(
         ownerId: authContext.userId,
       };
     }
-    case "orchestrator": {
+    case "sokoBot": {
       return {
         workspaceId: workspaceId ?? authContext.workspaceId,
         assigneeSokoBotId: authContext.sokoBotId,

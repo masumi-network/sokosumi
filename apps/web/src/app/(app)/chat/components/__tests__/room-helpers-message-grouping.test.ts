@@ -86,7 +86,7 @@ function orchestratorMessage(
     createdAt: new Date(createdAt),
     editedAt: null,
     sender: {
-      type: "orchestrator",
+      type: "sokoBot",
       sokoBot: {
         id: sokoBotId,
         name: "Personal assistant",
@@ -118,7 +118,7 @@ describe("messageSenderKey", () => {
     ).toBe("coworker:cow-1");
     expect(
       messageSenderKey(orchestratorMessage("m4", "2026-07-01T12:00:00.000Z")),
-    ).toBe("orchestrator:soko-1");
+    ).toBe("sokoBot:soko-1");
   });
 
   it("returns null for unknown senders", () => {
@@ -160,7 +160,7 @@ describe("messageSender", () => {
     expect(
       messageSender(orchestratorMessage("m4", "2026-07-01T12:00:00.000Z")),
     ).toEqual({
-      kind: "orchestrator",
+      kind: "sokoBot",
       id: "soko-1",
       name: "Personal assistant",
       caption: null,

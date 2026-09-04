@@ -68,7 +68,7 @@ const DELEGATED_COWORKER_AUTH_CONTEXT: AuthenticationContext = {
 };
 
 const ORCHESTRATOR_AUTH_CONTEXT: AuthenticationContext = {
-  actor: "orchestrator",
+  actor: "sokoBot",
   sokoBotId: "33333333-3333-7333-8333-333333333333",
   userId: "user_123",
   workspaceId: "11111111-1111-7111-8111-111111111111",

@@ -187,7 +187,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       assigneeId: null,
       assigneeSokoBotId: "bot-1",
       assignee: {
-        type: "orchestrator",
+        type: "sokoBot",
         id: "bot-1",
         sokoBot: {
           id: "bot-1",
@@ -205,7 +205,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       id: "bot-1",
       name: "Jarvis",
       image: null,
-      kind: "orchestrator",
+      kind: "sokoBot",
       avatarSeed: "orb:jewel-sky:user-1",
     });
   });
@@ -215,7 +215,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       assigneeId: null,
       assigneeSokoBotId: "bot-1",
       assignee: {
-        type: "orchestrator",
+        type: "sokoBot",
         id: "bot-1",
         sokoBot: {
           id: "bot-1",

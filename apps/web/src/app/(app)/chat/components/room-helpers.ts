@@ -40,7 +40,7 @@ export interface DirectParticipantPreview {
   detail: string | null;
   image: string | null;
   presence: ChatRoomPresence;
-  kind: "human" | "coworker" | "orchestrator";
+  kind: "human" | "coworker" | "sokoBot";
 }
 
 /** Shared hover / roster shape for humans, marketplace coworkers, and PAs. */
@@ -63,7 +63,7 @@ export type ChatParticipantHoverProfile =
       presence: ChatRoomPresence;
     }
   | {
-      kind: "orchestrator";
+      kind: "sokoBot";
       id: string;
       name: string;
       caption: string | null;
@@ -149,7 +149,7 @@ export function composerMentionDisplayNames({
 
 /** Shared mention-picker payload for humans, coworkers, PAs, and synthetic @all. */
 export interface RoomMentionParticipant {
-  kind: "human" | "coworker" | "orchestrator" | "all";
+  kind: "human" | "coworker" | "sokoBot" | "all";
   id: string;
   name: string;
   slug: string;
@@ -207,7 +207,7 @@ export function partitionRoomMentionSuggestions(
   for (const mention of filtered) {
     if (mention.data?.kind === "coworker") {
       coworkers.push(mention);
-    } else if (mention.data?.kind === "orchestrator") {
+    } else if (mention.data?.kind === "sokoBot") {
       sokoBots.push(mention);
     } else {
       // human | all | missing kind → People (safe fallback for humans-shaped rows)
@@ -460,10 +460,10 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
       presence: coworker.presence,
     };
   }
-  if (message.sender.type === "orchestrator") {
+  if (message.sender.type === "sokoBot") {
     const sokoBot = message.sender.sokoBot;
     return {
-      kind: "orchestrator",
+      kind: "sokoBot",
       id: sokoBot.id,
       name: sokoBot.name,
       caption: sokoBot.caption,
@@ -487,8 +487,8 @@ export function messageSenderKey(message: ChatRoomMessage): string | null {
   if (message.sender.type === "coworker") {
     return `coworker:${message.sender.coworker.id}`;
   }
-  if (message.sender.type === "orchestrator") {
-    return `orchestrator:${message.sender.sokoBot.id}`;
+  if (message.sender.type === "sokoBot") {
+    return `sokoBot:${message.sender.sokoBot.id}`;
   }
   return null;
 }
@@ -609,7 +609,7 @@ export function getDirectRoomParticipants(
       detail: sokoBot.caption,
       image: sokoBot.image,
       presence: sokoBot.presence,
-      kind: "orchestrator" as const,
+      kind: "sokoBot" as const,
     }))
     .toSorted(compareByDisplayNameThenId);
 
@@ -766,7 +766,7 @@ export function getRoomParticipantPreviews(
   const sokoBots = room.sokoBotMembers
     .map(
       (sokoBot): ChatParticipantHoverProfile => ({
-        kind: "orchestrator",
+        kind: "sokoBot",
         id: sokoBot.id,
         name: sokoBot.name,
         caption: sokoBot.caption,
@@ -802,7 +802,7 @@ export function escapeHtml(value: string): string {
 }
 
 export interface MentionDirectTarget {
-  kind: "human" | "coworker" | "orchestrator";
+  kind: "human" | "coworker" | "sokoBot";
   id: string;
 }
 
@@ -827,10 +827,7 @@ export function mentionDirectTargetFromAttributes(
     attributes["data-directId"];
   const kind = typeof kindRaw === "string" ? kindRaw : null;
   const id = typeof idRaw === "string" ? idRaw : null;
-  if (
-    (kind !== "human" && kind !== "coworker" && kind !== "orchestrator") ||
-    !id
-  ) {
+  if ((kind !== "human" && kind !== "coworker" && kind !== "sokoBot") || !id) {
     return null;
   }
   return { kind, id };
@@ -879,13 +876,13 @@ export function chatParticipantProfileForDirectTarget(
       presence: coworker.presence,
     };
   }
-  if (target.kind === "orchestrator") {
+  if (target.kind === "sokoBot") {
     const sokoBot = lookups.sokoBotsById?.get(target.id);
     if (!sokoBot) {
       return null;
     }
     return {
-      kind: "orchestrator",
+      kind: "sokoBot",
       id: sokoBot.id,
       name: sokoBot.name,
       caption: sokoBot.caption,
@@ -938,7 +935,7 @@ export function resolveMentionDirectTarget({
   const sokoBot =
     sokoBotsById?.get(mentionId) ?? sokoBotsBySlug?.get(mentionSlug);
   if (sokoBot) {
-    return { kind: "orchestrator", id: sokoBot.id };
+    return { kind: "sokoBot", id: sokoBot.id };
   }
   const user = usersById?.get(mentionId) ?? usersBySlug?.get(mentionSlug);
   if (!user) {

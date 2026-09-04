@@ -103,7 +103,7 @@ describe("buildVisibleTaskLinksInclude", () => {
   it("scopes orchestrator peers to its assigned non-draft tasks", () => {
     const include = buildVisibleTaskLinksInclude(
       {
-        actor: "orchestrator",
+        actor: "sokoBot",
         sokoBotId: "30000000-0000-4000-8000-000000000001",
         userId: "user_1",
         workspaceId: "10000000-0000-4000-8000-000000000001",

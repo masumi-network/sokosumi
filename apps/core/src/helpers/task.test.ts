@@ -1112,7 +1112,7 @@ describe("mapTaskEventActor", () => {
     });
 
     expect(mapTaskEventActor(event)).toEqual({
-      type: "orchestrator",
+      type: "sokoBot",
       id: sokoBot.id,
       sokoBot: {
         id: sokoBot.id,
@@ -1163,7 +1163,7 @@ describe("mapTaskEventActor", () => {
         }),
       ),
     ).toEqual({
-      type: "orchestrator",
+      type: "sokoBot",
       id: sokoBot.id,
       sokoBot: {
         id: sokoBot.id,
@@ -1193,7 +1193,7 @@ describe("mapTaskEventActor", () => {
         }),
       ),
     ).toEqual({
-      type: "orchestrator",
+      type: "sokoBot",
       id: sokoBot.id,
       sokoBot: {
         id: sokoBot.id,
@@ -1242,9 +1242,7 @@ describe("mapTaskEvent", () => {
     expect(mapTaskEvent(buildTaskEventFixture())).not.toHaveProperty(
       "coworker",
     );
-    expect(mapTaskEvent(buildTaskEventFixture())).not.toHaveProperty(
-      "orchestrator",
-    );
+    expect(mapTaskEvent(buildTaskEventFixture())).not.toHaveProperty("sokoBot");
   });
 
   it("keeps all flat FKs but only preferred summary on legacy multi-FK rows", () => {
@@ -1268,7 +1266,7 @@ describe("mapTaskEvent", () => {
       coworker: defaultTaskCoworker,
     });
     expect(mapped).not.toHaveProperty("user");
-    expect(mapped).not.toHaveProperty("orchestrator");
+    expect(mapped).not.toHaveProperty("sokoBot");
   });
 });
 
@@ -1425,7 +1423,7 @@ describe("mapTask", () => {
       coworkerId: null,
       coworker: null,
       assignee: {
-        type: "orchestrator",
+        type: "sokoBot",
         id: assigneeSokoBot.id,
         sokoBot: {
           id: assigneeSokoBot.id,
@@ -1493,7 +1491,7 @@ describe("mapTask", () => {
       coworkerId: "cow_123",
       coworker: defaultTaskCoworker,
       creator: {
-        type: "orchestrator",
+        type: "sokoBot",
         id: creatorSokoBot.id,
         sokoBot: mappedSokoBot,
       },

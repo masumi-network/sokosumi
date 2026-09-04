@@ -48,7 +48,7 @@ const taskEventActorCoworkerSchema = z
 
 const taskEventActorSokoBotSchema = z
   .object({
-    type: z.literal("orchestrator"),
+    type: z.literal("sokoBot"),
     id: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
@@ -84,7 +84,7 @@ export const taskEventSchema = z
     user: userSummarySchema.nullish().openapi({
       deprecated: true,
       description:
-        "Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
+        "Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
     }),
     /** @deprecated Use `actor` when `actor.type === "coworker"`. */
     coworkerId: z.string().nullish().openapi({
@@ -96,19 +96,19 @@ export const taskEventSchema = z
     coworker: coworkerSummarySchema.nullish().openapi({
       deprecated: true,
       description:
-        "Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
+        "Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
     }),
-    /** @deprecated Use `actor` when `actor.type === "orchestrator"`. */
+    /** @deprecated Use `actor` when `actor.type === "sokoBot"`. */
     sokoBotId: z.string().uuid().nullish().openapi({
       example: "01960001-0001-7001-8001-000000000099",
       deprecated: true,
-      description: "Deprecated. Use actor when type is orchestrator.",
+      description: "Deprecated. Use actor when type is sokoBot.",
     }),
-    /** @deprecated Use `actor` when `actor.type === "orchestrator"`. */
+    /** @deprecated Use `actor` when `actor.type === "sokoBot"`. */
     sokoBot: sokoBotSummarySchema.nullish().openapi({
       deprecated: true,
       description:
-        "Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
+        "Deprecated. Prefer actor. Emitted only when the preferred actor is sokoBot (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.",
     }),
     transactionId: z.string().nullish().openapi({ example: "txn_123" }),
     credits: z.number().nullish().openapi({ example: 2.5 }),
@@ -170,7 +170,7 @@ const taskCreatorCoworkerSchema = z
 
 const taskCreatorSokoBotSchema = z
   .object({
-    type: z.literal("orchestrator"),
+    type: z.literal("sokoBot"),
     id: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
@@ -196,7 +196,7 @@ const taskAssigneeCoworkerSchema = z
 
 const taskAssigneeSokoBotSchema = z
   .object({
-    type: z.literal("orchestrator"),
+    type: z.literal("sokoBot"),
     id: z.string().uuid().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
@@ -268,18 +268,18 @@ const taskBaseSchema = z.object({
     description:
       "Actor that created the task. Exactly one of user, coworker, or orchestrator.",
   }),
-  /** @deprecated Use `creator` when `creator.type === "orchestrator"`. */
+  /** @deprecated Use `creator` when `creator.type === "sokoBot"`. */
   sokoBotId: z.string().uuid().nullable().openapi({
     example: "01960001-0001-7001-8001-000000000099",
     deprecated: true,
     description:
-      "Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.",
+      "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
-  /** @deprecated Use `creator` when `creator.type === "orchestrator"`. */
+  /** @deprecated Use `creator` when `creator.type === "sokoBot"`. */
   sokoBot: z.union([sokoBotSummarySchema, z.null()]).openapi({
     deprecated: true,
     description:
-      "Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.",
+      "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),

@@ -254,7 +254,7 @@ export function TaskForm({
 
   const knownOrchestratorId = useMemo(
     () =>
-      coworkerOptions.find((option) => option.kind === "orchestrator")?.id ??
+      coworkerOptions.find((option) => option.kind === "sokoBot")?.id ??
       initialValues?.assigneeSokoBotId ??
       null,
     [coworkerOptions, initialValues?.assigneeSokoBotId],
@@ -839,7 +839,7 @@ export function TaskForm({
 
           {showModalCoworkerHeader ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
-              {selectedOption.kind === "orchestrator" &&
+              {selectedOption.kind === "sokoBot" &&
               !selectedOption.image &&
               selectedOption.avatarSeed ? (
                 <AssistantOrb

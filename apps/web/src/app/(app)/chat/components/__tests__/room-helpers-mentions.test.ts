@@ -495,7 +495,7 @@ describe("partitionRoomMentionSuggestions", () => {
       value: "Personal assistant",
       slug: "personal-assistant",
       data: {
-        kind: "orchestrator",
+        kind: "sokoBot",
         id: "soko-1",
         name: "Personal assistant",
         slug: "personal-assistant",

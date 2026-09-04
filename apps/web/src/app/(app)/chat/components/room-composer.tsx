@@ -105,7 +105,7 @@ function RoomMentionSuggestion({
 }) {
   const t = useTranslations("App.Channels");
   const isCoworker = mention.data?.kind === "coworker";
-  const isOrchestrator = mention.data?.kind === "orchestrator";
+  const isOrchestrator = mention.data?.kind === "sokoBot";
   const isAll = mention.data?.kind === "all";
   const displayName = isAll ? t("MentionAll.label") : mention.value;
   return (
@@ -198,7 +198,7 @@ function mentionLookupMapsFromCatalog(
       coworkersBySlug.set(data.slug, coworker);
       continue;
     }
-    if (data.kind === "orchestrator") {
+    if (data.kind === "sokoBot") {
       const sokoBot: ChatRoomSokoBotParticipant = {
         id: data.id,
         name: data.name,

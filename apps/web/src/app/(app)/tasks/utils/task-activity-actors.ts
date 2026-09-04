@@ -20,7 +20,7 @@ export interface TaskActivityActors {
   sokoBotById?: Record<string, TaskActivityActorInfo>;
 }
 
-export type TaskEventActorKind = "user" | "coworker" | "orchestrator";
+export type TaskEventActorKind = "user" | "coworker" | "sokoBot";
 
 type TaskActivityActorSource = Pick<
   Task,
@@ -51,7 +51,7 @@ export function resolveTaskEventActorKind(
 
   // Match Core prefer order: sokoBot → coworker → user.
   if (event.sokoBotId) {
-    return "orchestrator";
+    return "sokoBot";
   }
 
   if (event.coworkerId) {
@@ -90,7 +90,7 @@ export function getEventActorInfo(
           image: getCoworkerImage(event.actor.coworker),
         };
       }
-      case "orchestrator":
+      case "sokoBot":
         return orchestratorActorInfo(event.actor.sokoBot);
       default: {
         const _exhaustive: never = event.actor;
@@ -144,7 +144,7 @@ export function buildTaskActivityActors(
   addUserActor(userById, task.owner);
 
   if (task.assignee) {
-    if (task.assignee.type === "orchestrator") {
+    if (task.assignee.type === "sokoBot") {
       addOrchestratorActor(sokoBotById, task.assignee.sokoBot);
     } else {
       addCoworkerActor(coworkerById, task.assignee.coworker);
@@ -162,7 +162,7 @@ export function buildTaskActivityActors(
         addCoworkerActor(coworkerById, task.creator.coworker);
       }
       break;
-    case "orchestrator":
+    case "sokoBot":
       if (task.creator.sokoBot) {
         addOrchestratorActor(sokoBotById, task.creator.sokoBot);
       }
@@ -184,7 +184,7 @@ export function buildTaskActivityActors(
             addCoworkerActor(coworkerById, event.actor.coworker);
           }
           break;
-        case "orchestrator":
+        case "sokoBot":
           addOrchestratorActor(sokoBotById, event.actor.sokoBot);
           break;
         default: {

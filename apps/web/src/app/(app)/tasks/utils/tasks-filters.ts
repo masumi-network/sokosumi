@@ -142,7 +142,7 @@ export function getTasksFiltersFromSearchParams(
   activeOrganizationId: string | null,
   assigneeOptions: ReadonlyArray<{
     id: string;
-    kind?: "coworker" | "orchestrator";
+    kind?: "coworker" | "sokoBot";
   }>,
   projectOptions?: ReadonlyArray<ProjectFilterOption>,
 ): TasksFilters {
@@ -165,7 +165,7 @@ export function getTasksFiltersFromSearchParams(
   const validCoworkerIds = new Set<string>();
   const validOrchestratorIds = new Set<string>();
   for (const option of assigneeOptions) {
-    if (option.kind === "orchestrator") {
+    if (option.kind === "sokoBot") {
       validOrchestratorIds.add(option.id);
     } else {
       validCoworkerIds.add(option.id);

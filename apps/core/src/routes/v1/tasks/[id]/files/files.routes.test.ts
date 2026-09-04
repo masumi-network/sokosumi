@@ -149,7 +149,7 @@ function createOrchestratorApp(sokoBotId = SOKO_BOT_ID) {
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", {
-      actor: "orchestrator",
+      actor: "sokoBot",
       sokoBotId,
       userId: OWNER_ID,
       workspaceId: WORKSPACE_ID,

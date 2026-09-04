@@ -4506,7 +4506,7 @@ export const TaskSchema = {
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099',
             deprecated: true,
-            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
+            description: 'Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.'
         },
         sokoBot: {
             anyOf: [
@@ -4518,7 +4518,7 @@ export const TaskSchema = {
                 }
             ],
             deprecated: true,
-            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
+            description: 'Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.'
         },
         name: {
             type: 'string',
@@ -4783,7 +4783,7 @@ export const TaskAssigneeSokoBotSchema = {
         type: {
             type: 'string',
             enum: [
-                'orchestrator'
+                'sokoBot'
             ]
         },
         id: {
@@ -4861,7 +4861,7 @@ export const TaskCreatorSchema = {
         mapping: {
             user: '#/components/schemas/TaskCreatorUser',
             coworker: '#/components/schemas/TaskCreatorCoworker',
-            orchestrator: '#/components/schemas/TaskCreatorSokoBot'
+            sokoBot: '#/components/schemas/TaskCreatorSokoBot'
         }
     },
     description: 'Actor that created the task. Exactly one of user, coworker, or orchestrator.'
@@ -4921,7 +4921,7 @@ export const TaskCreatorSokoBotSchema = {
         type: {
             type: 'string',
             enum: [
-                'orchestrator'
+                'sokoBot'
             ]
         },
         id: {
@@ -5000,7 +5000,7 @@ export const TaskEventSchema = {
                 'name'
             ],
             deprecated: true,
-            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
+            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is user (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
         },
         coworkerId: {
             type: [
@@ -5043,7 +5043,7 @@ export const TaskEventSchema = {
                 'slug'
             ],
             deprecated: true,
-            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
+            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is coworker (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
         },
         sokoBotId: {
             type: [
@@ -5053,7 +5053,7 @@ export const TaskEventSchema = {
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099',
             deprecated: true,
-            description: 'Deprecated. Use actor when type is orchestrator.'
+            description: 'Deprecated. Use actor when type is sokoBot.'
         },
         sokoBot: {
             type: [
@@ -5099,7 +5099,7 @@ export const TaskEventSchema = {
                 'owner'
             ],
             deprecated: true,
-            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is orchestrator (prefer order: orchestrator → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
+            description: 'Deprecated. Prefer actor. Emitted only when the preferred actor is sokoBot (prefer order: sokoBot → coworker → user). Legacy multi-FK rows may still set other actor FKs without this summary.'
         },
         transactionId: {
             type: [
@@ -5277,7 +5277,7 @@ export const TaskEventActorSokoBotSchema = {
         type: {
             type: 'string',
             enum: [
-                'orchestrator'
+                'sokoBot'
             ]
         },
         id: {
@@ -5935,7 +5935,7 @@ export const TaskFileUploaderSokoBotSchema = {
         type: {
             type: 'string',
             enum: [
-                'orchestrator'
+                'sokoBot'
             ]
         },
         id: {
@@ -9265,7 +9265,7 @@ export const ChatRoomMessageSenderSchema = {
                 type: {
                     type: 'string',
                     enum: [
-                        'orchestrator'
+                        'sokoBot'
                     ]
                 },
                 sokoBot: {
@@ -9538,7 +9538,7 @@ export const ChatRoomMessageMembershipSubjectSchema = {
                 type: {
                     type: 'string',
                     enum: [
-                        'orchestrator'
+                        'sokoBot'
                     ]
                 },
                 id: {
@@ -18337,7 +18337,7 @@ export const TaskListItemSchema = {
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099',
             deprecated: true,
-            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
+            description: 'Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.'
         },
         sokoBot: {
             anyOf: [
@@ -18349,7 +18349,7 @@ export const TaskListItemSchema = {
                 }
             ],
             deprecated: true,
-            description: 'Deprecated. Use creator when type is orchestrator. Only set when an orchestrator created the task.'
+            description: 'Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.'
         },
         name: {
             type: 'string',

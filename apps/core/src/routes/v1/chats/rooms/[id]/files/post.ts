@@ -126,7 +126,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const session = await createChatRoomFileUploadSession(
         {
-          kind: "orchestrator",
+          kind: "sokoBot",
           sokoBotId: authContext.sokoBotId,
         },
         roomId,

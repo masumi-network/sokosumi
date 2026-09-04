@@ -76,7 +76,7 @@ function resolveTaskCreatorDisplay(
         image: getCoworkerImage(coworker),
       };
     }
-    case "orchestrator": {
+    case "sokoBot": {
       const sokoBot = task.creator.sokoBot;
       if (!sokoBot) {
         return null;
@@ -129,7 +129,7 @@ function resolveTaskAssigneeDisplay(
     return { name: "—", image: null };
   }
 
-  if (assignee.type === "orchestrator") {
+  if (assignee.type === "sokoBot") {
     const sokoBot = assignee.sokoBot;
     const claimed = sokoBot.avatarImageUrl
       ? resolveIpfsOrHttpUrl(sokoBot.avatarImageUrl)

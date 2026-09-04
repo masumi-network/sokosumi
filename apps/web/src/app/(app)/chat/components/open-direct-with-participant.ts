@@ -9,7 +9,7 @@ import type { ChatParticipantHoverProfile } from "./room-helpers";
 
 export function participantDirectKey(
   profile: ChatParticipantHoverProfile,
-): `${"human" | "coworker" | "orchestrator"}:${string}` {
+): `${"human" | "coworker" | "sokoBot"}:${string}` {
   return `${profile.kind}:${profile.id}`;
 }
 
@@ -51,7 +51,7 @@ export async function openDirectWithParticipant(options: {
   const result =
     profile.kind === "coworker"
       ? await ensureCoworkerDirectRoomAction(profile.id)
-      : profile.kind === "orchestrator"
+      : profile.kind === "sokoBot"
         ? await ensureOrchestratorDirectRoomAction(profile.id)
         : await createDirectRoomAction({ memberUserId: profile.id });
 

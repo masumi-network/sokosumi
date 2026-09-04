@@ -401,7 +401,7 @@ export const chatRoomMessageSenderSchema = z
       coworker: chatRoomCoworkerParticipantSchema,
     }),
     z.object({
-      type: z.literal("orchestrator"),
+      type: z.literal("sokoBot"),
       sokoBot: chatRoomSokoBotParticipantSchema,
     }),
     z.object({
@@ -471,7 +471,7 @@ export const chatRoomMessageMembershipSubjectSchema = z
       name: z.string(),
     }),
     z.object({
-      type: z.literal("orchestrator"),
+      type: z.literal("sokoBot"),
       id: z.string(),
       name: z.string(),
     }),

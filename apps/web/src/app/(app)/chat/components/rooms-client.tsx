@@ -335,7 +335,7 @@ function RoomParticipantStack({
               className={cn(
                 "text-[0.625rem]",
                 participant.kind === "coworker" ||
-                  participant.kind === "orchestrator"
+                  participant.kind === "sokoBot"
                   ? "bg-primary/10 text-primary"
                   : "bg-muted text-muted-foreground",
               )}
@@ -347,8 +347,7 @@ function RoomParticipantStack({
             className="absolute -right-0.5 -bottom-0.5"
             fallback={participant.presence}
             isCoworker={
-              participant.kind === "coworker" ||
-              participant.kind === "orchestrator"
+              participant.kind === "coworker" || participant.kind === "sokoBot"
             }
             userId={participant.id}
           />
@@ -1487,7 +1486,7 @@ export function RoomsClient({
       (sokoBot) => {
         const slug = sokoBotMentionSlug(sokoBot);
         const participant: RoomMentionParticipant = {
-          kind: "orchestrator",
+          kind: "sokoBot",
           id: sokoBot.id,
           name: sokoBot.name,
           slug,
