@@ -1,4 +1,4 @@
-import type { Link, Prisma } from "../generated/prisma/client.js";
+import type { Prisma } from "../generated/prisma/client.js";
 import {
   flattenLinkJobId,
   type LinkWithJobId,
@@ -6,26 +6,24 @@ import {
 } from "../types/link.js";
 
 export const linkRepository = {
-  async upsertLink(
+  /**
+   * Insert links for a job event, skipping ones already stored.
+   * `skipDuplicates` skips a row that collides with any unique on the model,
+   * not only `eventId_url`; today that unique and the primary key are the only
+   * ones. One statement covers the batch, and Prisma splits a very large one
+   * into chunks. The per-link upsert this replaced spent a nested write, and so
+   * an implicit transaction, on every URL.
+   */
+  async createLinks(
     data: {
       eventId: string;
       url: string;
-      title?: string;
-    },
+    }[],
     tx: Prisma.TransactionClient,
-  ): Promise<Link> {
-    return tx.link.upsert({
-      where: {
-        eventId_url: { eventId: data.eventId, url: data.url },
-      },
-      update: {
-        title: data.title,
-      },
-      create: {
-        event: { connect: { id: data.eventId } },
-        url: data.url,
-        title: data.title,
-      },
+  ): Promise<void> {
+    await tx.link.createMany({
+      data,
+      skipDuplicates: true,
     });
   },
 
