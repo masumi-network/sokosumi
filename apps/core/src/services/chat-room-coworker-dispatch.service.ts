@@ -171,7 +171,7 @@ async function publishMentionThoughtPlaceholder(params: {
   sourceMessageId: string;
   mentionId: string;
   coworkerId?: string | null;
-  orchestratorId?: string | null;
+  sokoBotId?: string | null;
   reasoningSteps: Array<{ type: string; text: string }>;
   thoughtStartedAtMs: number;
 }): Promise<string> {
@@ -198,7 +198,7 @@ async function publishMentionThoughtPlaceholder(params: {
         roomId: params.roomId,
         parentMessageId: params.parentMessageId,
         senderCoworkerId: params.coworkerId ?? null,
-        senderOrchestratorId: params.orchestratorId ?? null,
+        senderSokoBotId: params.sokoBotId ?? null,
         content: "",
         metadata,
       },
@@ -290,7 +290,7 @@ async function failMentionWithCoworkerShell(params: {
   roomId: string;
   parentMessageId: string | null;
   coworkerId?: string | null;
-  orchestratorId?: string | null;
+  sokoBotId?: string | null;
   existingPlaceholderId: string | null;
   error: unknown;
 }): Promise<void> {
@@ -313,7 +313,7 @@ async function failMentionWithCoworkerShell(params: {
         sourceMessageId: params.sourceMessageId,
         mentionId: params.mentionId,
         coworkerId: params.coworkerId,
-        orchestratorId: params.orchestratorId,
+        sokoBotId: params.sokoBotId,
         reasoningSteps: [],
         thoughtStartedAtMs: 0,
       });
@@ -340,7 +340,7 @@ const ROOM_CONTEXT_MESSAGE_MAX_CHARS = 500;
 export interface RoomContextMessage {
   senderName: string;
   isCoworker: boolean;
-  isOrchestrator?: boolean;
+  isSokoBot?: boolean;
   content: string;
 }
 
@@ -350,7 +350,7 @@ function formatContextLine(message: RoomContextMessage): string {
     flattened.length > ROOM_CONTEXT_MESSAGE_MAX_CHARS
       ? `${flattened.slice(0, ROOM_CONTEXT_MESSAGE_MAX_CHARS)}…`
       : flattened;
-  const senderLabel = message.isOrchestrator
+  const senderLabel = message.isSokoBot
     ? `${message.senderName} (personal assistant)`
     : message.isCoworker
       ? `${message.senderName} (AI coworker)`
@@ -412,17 +412,17 @@ async function loadRoomContextMessages(params: {
       content: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
-      senderOrchestrator: { select: { name: true } },
+      senderSokoBot: { select: { name: true } },
     },
   });
   return contextRows.reverse().map((row) => ({
     senderName:
-      row.senderOrchestrator?.name?.trim() ||
+      row.senderSokoBot?.name?.trim() ||
       row.senderCoworker?.name ||
       row.senderUser?.name ||
       "Unknown sender",
     isCoworker: row.senderCoworker != null,
-    isOrchestrator: row.senderOrchestrator != null,
+    isSokoBot: row.senderSokoBot != null,
     content: row.content,
   }));
 }
@@ -555,7 +555,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           baseURL: true,
         },
       },
-      orchestrator: {
+      sokoBot: {
         select: {
           id: true,
           userId: true,
@@ -584,7 +584,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
               name: true,
             },
           },
-          senderOrchestrator: {
+          senderSokoBot: {
             select: {
               id: true,
               userId: true,
@@ -617,7 +617,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       roomId: mention.message.roomId,
       parentMessageId: mention.message.parentMessageId,
       coworkerId: mention.coworkerId,
-      orchestratorId: mention.orchestratorId,
+      sokoBotId: mention.sokoBotId,
       existingPlaceholderId: mention.responseMessageId,
       error,
     });
@@ -637,7 +637,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   // A bot may summon another bot, but only in an organization room: a personal
   // room has no shared workspace to run in, and every bot conversation stays
   // somewhere a person can see it.
-  const senderBot = mention.message.senderOrchestrator ?? null;
+  const senderBot = mention.message.senderSokoBot ?? null;
   const askedByBot = mention.message.senderUserId == null && senderBot != null;
   if (askedByBot && !mention.message.room.organizationId) {
     await failWithShell("Soko Bots can only talk to each other in a channel");
@@ -667,7 +667,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
-  if (mention.orchestratorId) {
+  if (mention.sokoBotId) {
     await runSokoBotMentionDispatch({
       mentionId,
       mention,
@@ -1094,12 +1094,12 @@ async function runSokoBotMentionDispatch(params: {
       };
     };
     responseMessageId: string | null;
-    orchestrator: {
+    sokoBot: {
       id: string;
       userId: string;
       archivedAt: Date | null;
     } | null;
-    orchestratorId: string | null;
+    sokoBotId: string | null;
   };
   userId: string;
   workspaceId: string;
@@ -1116,7 +1116,7 @@ async function runSokoBotMentionDispatch(params: {
     askedByBot,
     chainDepth,
   } = params;
-  const bot = mention.orchestrator;
+  const bot = mention.sokoBot;
   if (!bot || bot.archivedAt) {
     await failWithShell("This Soko Bot is no longer active");
     return;
@@ -1129,11 +1129,11 @@ async function runSokoBotMentionDispatch(params: {
     await failWithShell("Only the owner can message this assistant here");
     return;
   }
-  const membership = await prisma.chatRoomOrchestratorMember.findUnique({
+  const membership = await prisma.chatRoomSokoBotMember.findUnique({
     where: {
-      roomId_orchestratorId: {
+      roomId_sokoBotId: {
         roomId: mention.message.roomId,
-        orchestratorId: bot.id,
+        sokoBotId: bot.id,
       },
     },
     select: { id: true },
@@ -1154,7 +1154,7 @@ async function runSokoBotMentionDispatch(params: {
       parentMessageId: mention.message.parentMessageId,
       sourceMessageId: mention.message.id,
       mentionId,
-      orchestratorId: bot.id,
+      sokoBotId: bot.id,
       reasoningSteps: [],
       thoughtStartedAtMs: startedAtMs,
     });
@@ -1190,7 +1190,7 @@ async function runSokoBotMentionDispatch(params: {
       sourceMessageId: mention.message.id,
       roomId: mention.message.roomId,
       parentMessageId: mention.message.parentMessageId,
-      orchestratorId: bot.id,
+      sokoBotId: bot.id,
       existingPlaceholderId: placeholderId,
       error,
     });

@@ -825,7 +825,7 @@ export class SokoBotControlPlane {
       await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
           SELECT "id"
-          FROM "orchestrator"
+          FROM "soko_bot"
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
@@ -1828,7 +1828,7 @@ export class SokoBotControlPlane {
       const reservation = await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
           SELECT "id"
-          FROM "orchestrator"
+          FROM "soko_bot"
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
@@ -2048,7 +2048,7 @@ export class SokoBotControlPlane {
       await serializableTransaction(async (tx) => {
         await tx.$queryRaw`
           SELECT "id"
-          FROM "orchestrator"
+          FROM "soko_bot"
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
@@ -3090,7 +3090,7 @@ export class SokoBotControlPlane {
         active = await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "orchestrator"
+            FROM "soko_bot"
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -3162,7 +3162,7 @@ export class SokoBotControlPlane {
         await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "orchestrator"
+            FROM "soko_bot"
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -3309,7 +3309,7 @@ export class SokoBotControlPlane {
         resetPreparation = await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "orchestrator"
+            FROM "soko_bot"
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -3419,7 +3419,7 @@ export class SokoBotControlPlane {
         await serializableTransaction(async (tx) => {
           await tx.$queryRaw`
             SELECT "id"
-            FROM "orchestrator"
+            FROM "soko_bot"
             WHERE "id" = ${bot.id}::uuid
             FOR UPDATE
           `;
@@ -3696,7 +3696,7 @@ export class SokoBotControlPlane {
       if (!bot) return null;
       await tx.$queryRaw`
         SELECT "id"
-        FROM "orchestrator"
+        FROM "soko_bot"
         WHERE "id" = ${bot.id}::uuid
         FOR UPDATE
       `;
@@ -3738,13 +3738,13 @@ export class SokoBotControlPlane {
       });
       const mentionMessageIds = await failOpenChatRoomMentions(
         {
-          where: { orchestratorId: bot.id },
+          where: { sokoBotId: bot.id },
           error: "Personal assistant is no longer a member of this room",
         },
         tx,
       );
-      await tx.chatRoomOrchestratorMember.deleteMany({
-        where: { orchestratorId: bot.id },
+      await tx.chatRoomSokoBotMember.deleteMany({
+        where: { sokoBotId: bot.id },
       });
       return { activeTurn, mentionMessageIds };
     }, "Soko Bot archive collided with active work");

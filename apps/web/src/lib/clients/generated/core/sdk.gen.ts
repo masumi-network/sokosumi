@@ -1052,7 +1052,7 @@ export const getChatsRoomsByIdMessages = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Post a room message. Mentioned AI coworkers and personal assistants are called asynchronously and reply into the room. Agent API keys may post as their coworker or orchestrator identity into rooms it belongs to. Agent posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender.
+ * Post a room message. Mentioned AI coworkers and personal assistants are called asynchronously and reply into the room. Agent API keys may post as their coworker or Soko Bot identity into rooms it belongs to. Agent posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender.
  */
 export const postChatsRoomsByIdMessages = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdMessagesData, ThrowOnError>): RequestResult<PostChatsRoomsByIdMessagesResponses, PostChatsRoomsByIdMessagesErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdMessagesResponses, PostChatsRoomsByIdMessagesErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdMessagesResponseTransformer,
@@ -1556,7 +1556,7 @@ export const getUsersByIdCredits = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Return current User-deletion blockers for the signed-in user (path `me` or their own user id). Empty `blockers` means the existing wipe may proceed. Coworkers, orchestrators, and other users (including platform admins) cannot call this.
+ * Return current User-deletion blockers for the signed-in user (path `me` or their own user id). Empty `blockers` means the existing wipe may proceed. Coworkers, Soko Bots, and other users (including platform admins) cannot call this.
  */
 export const getUsersByIdDeletion = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdDeletionData, ThrowOnError>): RequestResult<GetUsersByIdDeletionResponses, GetUsersByIdDeletionErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdDeletionResponses, GetUsersByIdDeletionErrors, ThrowOnError>({
     responseTransformer: getUsersByIdDeletionResponseTransformer,

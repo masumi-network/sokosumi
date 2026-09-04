@@ -17,7 +17,7 @@ export async function dispatchTaskNotification(
     ownerId: string;
     name: string | null;
     assignee: { name: string } | null;
-    assigneeOrchestrator: { name: string | null } | null;
+    assigneeSokoBot: { name: string | null } | null;
     project: { name: string } | null;
     projectId: string | null;
     workspaceId: string | null;
@@ -60,9 +60,7 @@ export async function dispatchTaskNotification(
 
     const taskName = task.name ?? "Untitled task";
     const coworkerName =
-      task.assigneeOrchestrator?.name?.trim() ||
-      task.assignee?.name ||
-      "Assistant";
+      task.assigneeSokoBot?.name?.trim() || task.assignee?.name || "Assistant";
     const projectName = task.project?.name;
 
     const messageParams: Record<string, unknown> = {
@@ -126,7 +124,7 @@ export async function notifyTaskStatusEvent(
             name: true,
           },
         },
-        assigneeOrchestrator: {
+        assigneeSokoBot: {
           select: {
             name: true,
           },

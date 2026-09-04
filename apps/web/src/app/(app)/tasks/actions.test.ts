@@ -103,7 +103,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: "current-column-cursor",
       scope: "workspace",
       assigneeId: "coworker-1",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -117,7 +117,7 @@ describe("loadMoreTasksColumn", () => {
       limit: 20,
       scope: "workspace",
       assigneeId: "coworker-1",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -142,7 +142,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: null,
       scope: "owned",
       assigneeId: "removed-coworker",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: null,
       projectId: null,
     });
@@ -150,7 +150,7 @@ describe("loadMoreTasksColumn", () => {
     expect(getTasksColumnPageMock).toHaveBeenCalledTimes(1);
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
     });
   });
 
@@ -166,7 +166,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: null,
       scope: "malicious" as never,
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: null,
       projectId: null,
     });
@@ -193,7 +193,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: null,
       scope: "workspace",
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: null,
       projectId: null,
     });
@@ -215,7 +215,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: null,
       scope: "owned",
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: "malicious" as never,
       projectId: null,
     });
@@ -237,7 +237,7 @@ describe("loadMoreTasksColumn", () => {
       cursor: null,
       scope: "owned",
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: TaskStatus.READY,
       projectId: null,
     });
@@ -276,7 +276,7 @@ describe("loadMoreTasksList", () => {
       cursor: "current-list-cursor",
       scope: "workspace",
       assigneeId: "coworker-1",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -289,7 +289,7 @@ describe("loadMoreTasksList", () => {
       limit: 20,
       scope: "workspace",
       assigneeId: "coworker-1",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -313,7 +313,7 @@ describe("loadMoreTasksList", () => {
       cursor: null,
       scope: "owned",
       assigneeId: "removed-coworker",
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: null,
       projectId: null,
     });
@@ -321,7 +321,7 @@ describe("loadMoreTasksList", () => {
     expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
     expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
     });
   });
 
@@ -336,7 +336,7 @@ describe("loadMoreTasksList", () => {
       cursor: null,
       scope: "malicious" as never,
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: null,
       projectId: null,
     });
@@ -360,7 +360,7 @@ describe("loadMoreTasksList", () => {
       cursor: null,
       scope: "workspace",
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: null,
       projectId: null,
     });
@@ -381,7 +381,7 @@ describe("loadMoreTasksList", () => {
       cursor: null,
       scope: "owned",
       assigneeId: null,
-      assigneeOrchestratorId: null,
+      assigneeSokoBotId: null,
       status: TaskStatus.READY,
       projectId: null,
     });

@@ -149,7 +149,7 @@ function publicChannel(overrides: Record<string, unknown> = {}) {
     archivedAt: null,
     userMembers: [member(OTHER_ID)],
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
     ...overrides,
   };
 }

@@ -29,14 +29,14 @@ describe("chat room mention status", () => {
 
     const messageIds = await failOpenChatRoomMentions(
       {
-        where: { orchestratorId: "bot_1" },
+        where: { sokoBotId: "bot_1" },
         error: "Personal assistant is no longer a member of this room",
       },
       tx as never,
     );
 
     const where = {
-      orchestratorId: "bot_1",
+      sokoBotId: "bot_1",
       status: { in: ["pending", "sent"] },
     };
     expect(findMany).toHaveBeenCalledWith({

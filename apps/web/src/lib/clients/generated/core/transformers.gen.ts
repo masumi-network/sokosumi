@@ -2214,7 +2214,7 @@ export const getShareByTokenResponseTransformer = async (data: any): Promise<Get
     return data;
 };
 
-const orchestratorApiKeySchemaResponseTransformer = (data: any) => {
+const sokoBotApiKeySchemaResponseTransformer = (data: any) => {
     if (data.expiresAt) {
         data.expiresAt = new Date(data.expiresAt);
     }
@@ -2227,12 +2227,12 @@ const orchestratorApiKeySchemaResponseTransformer = (data: any) => {
 };
 
 export const getSokoBotsByIdApiKeysResponseTransformer = async (data: any): Promise<GetSokoBotsByIdApiKeysResponse> => {
-    data.data = data.data.map((item: any) => orchestratorApiKeySchemaResponseTransformer(item));
+    data.data = data.data.map((item: any) => sokoBotApiKeySchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
 
-const createOrchestratorApiKeyResponseSchemaResponseTransformer = (data: any) => {
+const createSokoBotApiKeyResponseSchemaResponseTransformer = (data: any) => {
     if (data.expiresAt) {
         data.expiresAt = new Date(data.expiresAt);
     }
@@ -2240,19 +2240,19 @@ const createOrchestratorApiKeyResponseSchemaResponseTransformer = (data: any) =>
 };
 
 export const postSokoBotsByIdApiKeysResponseTransformer = async (data: any): Promise<PostSokoBotsByIdApiKeysResponse> => {
-    data.data = createOrchestratorApiKeyResponseSchemaResponseTransformer(data.data);
+    data.data = createSokoBotApiKeyResponseSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
 
 export const deleteSokoBotsByIdApiKeysByKeyIdResponseTransformer = async (data: any): Promise<DeleteSokoBotsByIdApiKeysByKeyIdResponse> => {
-    data.data = orchestratorApiKeySchemaResponseTransformer(data.data);
+    data.data = sokoBotApiKeySchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
 
 export const patchSokoBotsByIdApiKeysByKeyIdResponseTransformer = async (data: any): Promise<PatchSokoBotsByIdApiKeysByKeyIdResponse> => {
-    data.data = orchestratorApiKeySchemaResponseTransformer(data.data);
+    data.data = sokoBotApiKeySchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

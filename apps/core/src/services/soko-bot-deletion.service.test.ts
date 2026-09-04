@@ -7,7 +7,7 @@ const {
   txBotFindFirstMock,
   txBotDeleteMock,
   txBotUpdateMock,
-  txOrchestratorMemberDeleteManyMock,
+  txSokoBotMemberDeleteManyMock,
   txTurnUpdateManyMock,
   failOpenMentionsMock,
   publishMentionStatusesMock,
@@ -19,7 +19,7 @@ const {
   txBotFindFirstMock: vi.fn(),
   txBotDeleteMock: vi.fn(),
   txBotUpdateMock: vi.fn(),
-  txOrchestratorMemberDeleteManyMock: vi.fn(),
+  txSokoBotMemberDeleteManyMock: vi.fn(),
   txTurnUpdateManyMock: vi.fn(),
   failOpenMentionsMock: vi.fn(),
   publishMentionStatusesMock: vi.fn(),
@@ -63,8 +63,8 @@ vi.mock("@/lib/db/transaction", () => ({
         delete: txBotDeleteMock,
         update: txBotUpdateMock,
       },
-      chatRoomOrchestratorMember: {
-        deleteMany: txOrchestratorMemberDeleteManyMock,
+      chatRoomSokoBotMember: {
+        deleteMany: txSokoBotMemberDeleteManyMock,
       },
       sokoBotTurn: {
         updateMany: txTurnUpdateManyMock,
@@ -82,14 +82,14 @@ vi.mock("@/lib/db/transaction", () => ({
       coworkerApiKey: { deleteMany: deleteManyRecorder("apiKeys") },
       task: {
         count: vi.fn(async (args: { where: Record<string, unknown> }) => {
-          if ("creatorOrchestratorId" in args.where) return counts.task;
+          if ("creatorSokoBotId" in args.where) return counts.task;
           return counts.taskAssignee;
         }),
       },
       taskEvent: {
         count: vi.fn(async () => counts.taskEvent),
       },
-      orchestratorUsage: { count: vi.fn(async () => counts.usage) },
+      sokoBotUsage: { count: vi.fn(async () => counts.usage) },
       chatRoomMessage: { count: vi.fn(async () => counts.chatMessage) },
       taskFile: { count: vi.fn(async () => counts.uploadedTaskFile) },
     }),
@@ -113,7 +113,7 @@ describe("deleteSokoBot", () => {
     });
     failOpenMentionsMock.mockResolvedValue([]);
     publishMentionStatusesMock.mockResolvedValue(undefined);
-    txOrchestratorMemberDeleteManyMock.mockResolvedValue({ count: 0 });
+    txSokoBotMemberDeleteManyMock.mockResolvedValue({ count: 0 });
   });
 
   it("removes the row outright when nothing references the bot", async () => {
@@ -121,8 +121,8 @@ describe("deleteSokoBot", () => {
 
     expect(result.outcome).toBe("deleted");
     expect(txBotDeleteMock).toHaveBeenCalledWith({ where: { id: BOT_ID } });
-    expect(txOrchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
-      where: { orchestratorId: BOT_ID },
+    expect(txSokoBotMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { sokoBotId: BOT_ID },
     });
     expect(txBotUpdateMock).not.toHaveBeenCalled();
   });
@@ -153,7 +153,7 @@ describe("deleteSokoBot", () => {
     expect(result.retained.billingRecords).toBe(261);
   });
 
-  it("tombstones the orchestrator when it authored chat", async () => {
+  it("tombstones the soko bot when it authored chat", async () => {
     counts.chatMessage = 52;
 
     const result = await deleteSokoBot(BOT_ID);
@@ -161,8 +161,8 @@ describe("deleteSokoBot", () => {
     expect(result.outcome).toBe("tombstoned");
     expect(result.retained.chatMessages).toBe(52);
     expect(txBotDeleteMock).not.toHaveBeenCalled();
-    expect(txOrchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
-      where: { orchestratorId: BOT_ID },
+    expect(txSokoBotMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { sokoBotId: BOT_ID },
     });
     const data = txBotUpdateMock.mock.calls[0]?.[0]?.data;
     expect(data.deletedAt).toBeInstanceOf(Date);
@@ -191,23 +191,23 @@ describe("deleteSokoBot", () => {
     );
   });
 
-  it("fails pending orchestrator mentions before dropping memberships", async () => {
+  it("fails pending soko bot mentions before dropping memberships", async () => {
     failOpenMentionsMock.mockResolvedValue(["message_1"]);
 
     await deleteSokoBot(BOT_ID);
 
     expect(failOpenMentionsMock).toHaveBeenCalledWith(
       {
-        where: { orchestratorId: BOT_ID },
+        where: { sokoBotId: BOT_ID },
         error: "Personal assistant is no longer a member of this room",
       },
       expect.any(Object),
     );
-    expect(txOrchestratorMemberDeleteManyMock).toHaveBeenCalledWith({
-      where: { orchestratorId: BOT_ID },
+    expect(txSokoBotMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { sokoBotId: BOT_ID },
     });
     expect(failOpenMentionsMock.mock.invocationCallOrder[0]).toBeLessThan(
-      txOrchestratorMemberDeleteManyMock.mock.invocationCallOrder[0],
+      txSokoBotMemberDeleteManyMock.mock.invocationCallOrder[0],
     );
     expect(publishMentionStatusesMock).toHaveBeenCalledWith(["message_1"]);
   });

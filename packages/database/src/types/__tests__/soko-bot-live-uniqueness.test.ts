@@ -38,12 +38,21 @@ describe("one live Soko Bot per user and workspace", () => {
     expect(sokoBotModel()).not.toMatch(/@@unique\(\[userId, workspaceId\]\)/);
   });
 
+  it("maps the entity to soko_bot, not orchestrator", () => {
+    expect(sokoBotModel()).toMatch(/@@map\("soko_bot"\)/);
+    expect(schema).toMatch(/@@map\("soko_bot_usage"\)/);
+    expect(schema).toMatch(/@@map\("chat_room_soko_bot_member"\)/);
+    expect(schema).not.toMatch(/@@map\("orchestrator"\)/);
+  });
+
   it("enforces the rule with a partial unique index instead", () => {
     // Prisma cannot express the predicate, so the index lives in raw SQL and
     // this test is what keeps it from being dropped silently.
     const sql = migrationSql();
-    expect(sql).toMatch(
-      /CREATE UNIQUE INDEX "orchestrator_user_workspace_live_key"/,
+    const lastLiveKey = sql.lastIndexOf("user_workspace_live_key");
+    expect(lastLiveKey).toBeGreaterThan(-1);
+    expect(sql.slice(Math.max(0, lastLiveKey - 80))).toMatch(
+      /CREATE UNIQUE INDEX "soko_bot_user_workspace_live_key"/,
     );
     expect(sql).toMatch(
       /DROP INDEX IF EXISTS "orchestrator_userId_workspaceId_key"/,
@@ -51,7 +60,7 @@ describe("one live Soko Bot per user and workspace", () => {
   });
 
   it("names the column the way Prisma will query it", () => {
-    // `orchestrator` maps only its table name, so its columns stay camelCase.
+    // `soko_bot` maps only its table name, so its columns stay camelCase.
     // Adding `deleted_at` instead made Prisma query a column that did not
     // exist and every Soko Bot read returned 500.
     expect(sokoBotModel()).toMatch(/deletedAt\s+DateTime\?/);
@@ -59,12 +68,23 @@ describe("one live Soko Bot per user and workspace", () => {
 
     const sql = migrationSql();
     const lastDeletedAtIndex = sql.lastIndexOf(
-      'CREATE UNIQUE INDEX "orchestrator_user_workspace_live_key"',
+      'CREATE UNIQUE INDEX "soko_bot_user_workspace_live_key"',
     );
     const finalIndex = sql.slice(lastDeletedAtIndex);
     expect(finalIndex).toMatch(/WHERE "deletedAt" IS NULL/);
     expect(sql).toMatch(
       /RENAME COLUMN "deleted_at" TO "deletedAt"|ADD COLUMN "deletedAt"/,
+    );
+  });
+});
+
+describe("stored orchestrator: prefixes", () => {
+  it("rewrites chat_room.directKey and mention tokens to sokoBot:", () => {
+    const sql = migrationSql();
+    expect(sql).toMatch(/replace\("directKey", 'orchestrator:', 'sokoBot:'\)/);
+    expect(sql).toMatch(/replace\("content", '@orchestrator:', '@sokoBot:'\)/);
+    expect(sql).toMatch(
+      /replace\("content", '\/orchestrators\/', '\/soko-bots\/'\)/,
     );
   });
 });

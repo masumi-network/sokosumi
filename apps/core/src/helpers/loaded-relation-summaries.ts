@@ -92,7 +92,7 @@ export function coworkerSummaryFromLoadedRelation(
   };
 }
 
-interface OrchestratorLoadedRelation {
+interface SokoBotLoadedRelation {
   id: string;
   name: string | null;
   avatarSeed: string | null;
@@ -101,7 +101,7 @@ interface OrchestratorLoadedRelation {
   user: UserSummaryFields | null;
 }
 
-export interface OrchestratorSummaryFields {
+export interface SokoBotSummaryFields {
   id: string;
   name: string | null;
   avatarSeed: string | null;
@@ -110,33 +110,33 @@ export interface OrchestratorSummaryFields {
 }
 
 /**
- * When `orchestratorId` is null, there is no orchestrator summary.
- * When it is set, the orchestrator relation (including owner user) must be loaded.
+ * When `sokoBotId` is null, there is no sokoBot summary.
+ * When it is set, the sokoBot relation (including owner user) must be loaded.
  */
-export function orchestratorSummaryFromLoadedRelation(
+export function sokoBotSummaryFromLoadedRelation(
   context: string,
-  orchestratorId: string | null,
-  orchestrator: OrchestratorLoadedRelation | null,
-): OrchestratorSummaryFields | null {
-  if (orchestratorId == null) {
+  sokoBotId: string | null,
+  sokoBot: SokoBotLoadedRelation | null,
+): SokoBotSummaryFields | null {
+  if (sokoBotId == null) {
     return null;
   }
 
-  if (orchestrator == null) {
+  if (sokoBot == null) {
     throw new Error(
-      `${context}: orchestrator relation must be loaded for API mapping (orchestratorId=${orchestratorId}).`,
+      `${context}: sokoBot relation must be loaded for API mapping (sokoBotId=${sokoBotId}).`,
     );
   }
 
   return {
-    id: orchestrator.id,
-    name: orchestrator.name,
-    avatarSeed: orchestrator.avatarSeed,
-    avatarImageUrl: orchestrator.avatarImageUrl,
+    id: sokoBot.id,
+    name: sokoBot.name,
+    avatarSeed: sokoBot.avatarSeed,
+    avatarImageUrl: sokoBot.avatarImageUrl,
     owner: userSummaryFromLoadedRelation(
-      `${context} orchestrator owner`,
-      orchestrator.userId,
-      orchestrator.user,
+      `${context} sokoBot owner`,
+      sokoBot.userId,
+      sokoBot.user,
     ),
   };
 }

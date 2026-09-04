@@ -969,7 +969,7 @@ export function TaskDetailActions({
             onCreateTask={async ({
               description,
               assigneeId,
-              assigneeOrchestratorId,
+              assigneeSokoBotId,
               projectId,
               status,
               schedule,
@@ -979,7 +979,7 @@ export function TaskDetailActions({
                 taskId,
                 description,
                 assigneeId,
-                assigneeOrchestratorId,
+                assigneeSokoBotId,
                 projectId,
                 status,
                 schedule,

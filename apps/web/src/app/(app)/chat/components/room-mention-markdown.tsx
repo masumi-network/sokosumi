@@ -7,7 +7,7 @@ import type { Components } from "react-markdown";
 import Markdown from "@/components/markdown";
 import type {
   ChatRoomCoworkerParticipant,
-  ChatRoomOrchestratorParticipant,
+  ChatRoomSokoBotParticipant,
 } from "@/lib/clients/generated/core";
 
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
@@ -22,7 +22,7 @@ import {
 
 interface RoomMentionHoverLookups {
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
-  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
@@ -55,7 +55,7 @@ function RoomMentionHoverSpan({
   const profile = target
     ? chatParticipantProfileForDirectTarget(target, {
         coworkersById: lookups.coworkersById,
-        orchestratorsById: lookups.orchestratorsById,
+        sokoBotsById: lookups.sokoBotsById,
         usersById: lookups.usersById,
       })
     : null;
@@ -91,8 +91,8 @@ export function RoomMessageMarkdown({
   markdownClassName,
   coworkersById,
   coworkersBySlug,
-  orchestratorsById,
-  orchestratorsBySlug,
+  sokoBotsById,
+  sokoBotsBySlug,
   usersById,
   usersBySlug,
   channelLinks = [],
@@ -106,8 +106,8 @@ export function RoomMessageMarkdown({
   markdownClassName?: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
-  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
-  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
+  sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
+  sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
   usersById?: Map<string, MentionHoverUserLookup>;
   usersBySlug?: Map<string, MentionHoverUserLookup>;
   channelLinks?: readonly ChannelLinkTarget[];
@@ -119,7 +119,7 @@ export function RoomMessageMarkdown({
 }) {
   const lookups: RoomMentionHoverLookups = {
     coworkersById,
-    orchestratorsById,
+    sokoBotsById,
     usersById,
     currentUserId,
     canOpenHumanDirect,
@@ -149,8 +149,8 @@ export function RoomMessageMarkdown({
         content,
         coworkersById,
         coworkersBySlug,
-        orchestratorsById,
-        orchestratorsBySlug,
+        sokoBotsById,
+        sokoBotsBySlug,
         usersById,
         usersBySlug,
         channelLinks,

@@ -28,16 +28,16 @@ vi.mock("@/lib/db/prisma", () => ({
 const BOT_ID = "01960001-0001-7001-8001-000000000099";
 const WORKSPACE_ID = "01960001-0001-7001-8001-000000000010";
 
-function createApp(actor: "orchestrator" | "user") {
+function createApp(actor: "sokoBot" | "user") {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set(
       "authContext",
-      actor === "orchestrator"
+      actor === "sokoBot"
         ? {
             actor,
-            orchestratorId: BOT_ID,
+            sokoBotId: BOT_ID,
             userId: "owner_1",
             workspaceId: WORKSPACE_ID,
             organizationId: null,
@@ -64,7 +64,7 @@ describe("Soko Bot task events", () => {
   });
 
   it("lists only non-draft events for tasks assigned to the authenticated bot", async () => {
-    const response = await createApp("orchestrator").request(
+    const response = await createApp("sokoBot").request(
       "http://localhost/me/events?limit=10",
     );
 
@@ -73,7 +73,7 @@ describe("Soko Bot task events", () => {
       expect.objectContaining({
         where: {
           task: {
-            assigneeOrchestratorId: BOT_ID,
+            assigneeSokoBotId: BOT_ID,
             workspaceId: WORKSPACE_ID,
             status: { not: "DRAFT" },
           },

@@ -6,7 +6,7 @@ import {
 import prisma from "@/lib/db/prisma";
 
 /**
- * Soko Bot in chat. The bot is a first-class orchestrator member, sender,
+ * Soko Bot in chat. The bot is a first-class sokoBot member, sender,
  * and mention target. A mention starts a Soko Bot turn and the turn's
  * outcome is written back here.
  */
@@ -190,14 +190,14 @@ export async function introduceSokoBot(input: {
     where: {
       id: input.roomId,
       kind: "direct",
-      orchestratorMembers: { some: { orchestratorId: bot.id } },
+      sokoBotMembers: { some: { sokoBotId: bot.id } },
       userMembers: { some: { userId: input.userId } },
     },
     select: { id: true },
   });
   if (!room) throw new SokoBotIntroductionError("Direct room not found");
   const existing = await prisma.chatRoomMessage.findFirst({
-    where: { roomId: room.id, senderOrchestratorId: bot.id },
+    where: { roomId: room.id, senderSokoBotId: bot.id },
     select: { id: true },
   });
   if (existing) return { messageId: existing.id };
@@ -205,7 +205,7 @@ export async function introduceSokoBot(input: {
     const created = await tx.chatRoomMessage.create({
       data: {
         roomId: room.id,
-        senderOrchestratorId: bot.id,
+        senderSokoBotId: bot.id,
         content: composeSokoBotIntroduction({
           name: bot.name,
           ownerName: bot.user.name,
@@ -253,7 +253,7 @@ export async function deliverSokoBotTurnToDirectRoom(
     where: {
       kind: "direct",
       archivedAt: null,
-      orchestratorMembers: { some: { orchestratorId: turn.sokoBotId } },
+      sokoBotMembers: { some: { sokoBotId: turn.sokoBotId } },
       userMembers: { some: { userId: turn.userId } },
     },
     select: { id: true },
@@ -263,7 +263,7 @@ export async function deliverSokoBotTurnToDirectRoom(
     const created = await tx.chatRoomMessage.create({
       data: {
         roomId: room.id,
-        senderOrchestratorId: turn.sokoBotId,
+        senderSokoBotId: turn.sokoBotId,
         content: answer,
         metadata: { soko_bot: { turn_id: turnId, source: turn.source } },
       },

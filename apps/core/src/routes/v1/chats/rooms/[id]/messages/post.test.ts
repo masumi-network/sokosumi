@@ -109,7 +109,7 @@ const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
 const MENTION_ID = "550e8400-e29b-41d4-a716-446655440003";
 const QUOTE_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440004";
 const COWORKER_ID = "coworker_1";
-const ORCHESTRATOR_ID = "01960001-0001-7001-8001-000000000099";
+const SOKO_BOT_ID = "01960001-0001-7001-8001-000000000099";
 const USER_ID = "user_123";
 const ALICE_ID = "user_alice";
 const BOB_ID = "user_bob";
@@ -185,9 +185,9 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
   vendorId: "vendor_1",
 };
 
-const orchestratorAuthContext: AuthVariables["authContext"] = {
-  actor: "orchestrator",
-  orchestratorId: ORCHESTRATOR_ID,
+const sokoBotAuthContext: AuthVariables["authContext"] = {
+  actor: "sokoBot",
+  sokoBotId: SOKO_BOT_ID,
   userId: USER_ID,
   workspaceId: "01960001-0001-7001-8001-000000000088",
   organizationId: "org_1",
@@ -210,8 +210,8 @@ function roomWithMembers(
         image: string | null;
       };
     }>;
-    orchestratorMembers?: Array<{
-      orchestrator: {
+    sokoBotMembers?: Array<{
+      sokoBot: {
         id: string;
         name: string | null;
         avatarImageUrl: string | null;
@@ -246,7 +246,7 @@ function roomWithMembers(
         },
       },
     ],
-    orchestratorMembers: overrides.orchestratorMembers ?? [],
+    sokoBotMembers: overrides.sokoBotMembers ?? [],
   };
 }
 
@@ -273,7 +273,7 @@ function coworkerOnlyDirectRoom() {
         },
       },
     ],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
   };
 }
 
@@ -281,13 +281,13 @@ function createdMessage(
   overrides: Partial<{
     senderUserId: string | null;
     senderCoworkerId: string | null;
-    senderOrchestratorId: string | null;
+    senderSokoBotId: string | null;
     parentMessageId: string | null;
     metadata: Record<string, unknown> | null;
     mentionsAsSource: Array<{
       id: string;
       coworkerId: string | null;
-      orchestratorId: string | null;
+      sokoBotId: string | null;
       status: string;
       responseMessageId: string | null;
     }>;
@@ -299,7 +299,7 @@ function createdMessage(
     parentMessageId: overrides.parentMessageId ?? null,
     senderUserId: overrides.senderUserId ?? null,
     senderCoworkerId: overrides.senderCoworkerId ?? null,
-    senderOrchestratorId: overrides.senderOrchestratorId ?? null,
+    senderSokoBotId: overrides.senderSokoBotId ?? null,
     content: "hello",
     metadata: overrides.metadata ?? null,
     createdAt: new Date("2025-01-02T00:00:00.000Z"),
@@ -322,9 +322,9 @@ function createdMessage(
           image: null,
         }
       : null,
-    senderOrchestrator: overrides.senderOrchestratorId
+    senderSokoBot: overrides.senderSokoBotId
       ? {
-          id: overrides.senderOrchestratorId,
+          id: overrides.senderSokoBotId,
           name: "Nora",
           avatarImageUrl: null,
           avatarSeed: null,
@@ -516,8 +516,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
   });
 
-  describe("orchestrator actor", () => {
-    it("posts with the orchestrator sender after membership authorization", async () => {
+  describe("soko bot actor", () => {
+    it("posts with the soko bot sender after membership authorization", async () => {
       roomFindFirstMock.mockResolvedValue({
         id: ROOM_ID,
         name: "general",
@@ -525,10 +525,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
         organizationId: "org_1",
       });
       messageCreateMock.mockResolvedValue(
-        createdMessage({ senderOrchestratorId: ORCHESTRATOR_ID }),
+        createdMessage({ senderSokoBotId: SOKO_BOT_ID }),
       );
 
-      const app = createApp(orchestratorAuthContext);
+      const app = createApp(sokoBotAuthContext);
       const response = await app.request(`/${ROOM_ID}/messages`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -536,20 +536,20 @@ describe("POST /chats/rooms/{id}/messages", () => {
       });
 
       expect(response.status).toBe(201);
-      expect((await response.json()).data.sender.type).toBe("orchestrator");
+      expect((await response.json()).data.sender.type).toBe("sokoBot");
       expect(messageCreateMock).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             senderCoworkerId: null,
-            senderOrchestratorId: ORCHESTRATOR_ID,
+            senderSokoBotId: SOKO_BOT_ID,
           }),
         }),
       );
       expect(roomFindFirstMock).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            orchestratorMembers: {
-              some: { orchestratorId: ORCHESTRATOR_ID },
+            sokoBotMembers: {
+              some: { sokoBotId: SOKO_BOT_ID },
             },
           }),
         }),
@@ -588,8 +588,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
   });
 
-  describe("orchestrator mentions", () => {
-    it("creates an orchestrator mention and dispatches a Soko Bot turn", async () => {
+  describe("soko bot mentions", () => {
+    it("creates a soko bot mention and dispatches a Soko Bot turn", async () => {
       roomFindFirstMock.mockResolvedValue(
         roomWithMembers({
           userMembers: [
@@ -599,10 +599,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
             },
           ],
           coworkerMembers: [],
-          orchestratorMembers: [
+          sokoBotMembers: [
             {
-              orchestrator: {
-                id: ORCHESTRATOR_ID,
+              sokoBot: {
+                id: SOKO_BOT_ID,
                 name: "Soko Bot",
                 avatarImageUrl: null,
                 avatarSeed: "orb:user_123",
@@ -620,7 +620,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             {
               id: MENTION_ID,
               coworkerId: null,
-              orchestratorId: ORCHESTRATOR_ID,
+              sokoBotId: SOKO_BOT_ID,
               status: "pending",
               responseMessageId: null,
             },
@@ -633,8 +633,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          content: `@orchestrator:${ORCHESTRATOR_ID} check the board`,
-          mentionedOrchestratorIds: [ORCHESTRATOR_ID],
+          content: `@sokoBot:${SOKO_BOT_ID} check the board`,
+          mentionedSokoBotIds: [SOKO_BOT_ID],
         }),
       });
 
@@ -644,7 +644,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         {
           id: MENTION_ID,
           coworkerId: null,
-          orchestratorId: ORCHESTRATOR_ID,
+          sokoBotId: SOKO_BOT_ID,
           status: "pending",
           responseMessageId: null,
         },
@@ -653,7 +653,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             mentionsAsSource: {
-              create: [{ coworkerId: null, orchestratorId: ORCHESTRATOR_ID }],
+              create: [{ coworkerId: null, sokoBotId: SOKO_BOT_ID }],
             },
           }),
         }),
@@ -684,7 +684,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             {
               id: MENTION_ID,
               coworkerId: COWORKER_ID,
-              orchestratorId: null,
+              sokoBotId: null,
               status: "pending",
               responseMessageId: null,
             },
@@ -726,7 +726,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             mentionsAsSource: {
-              create: [{ coworkerId: COWORKER_ID, orchestratorId: null }],
+              create: [{ coworkerId: COWORKER_ID, sokoBotId: null }],
             },
           }),
         }),
@@ -781,7 +781,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             {
               id: MENTION_ID,
               coworkerId: COWORKER_ID,
-              orchestratorId: null,
+              sokoBotId: null,
               status: "pending",
               responseMessageId: null,
             },
@@ -805,7 +805,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             mentionsAsSource: {
-              create: [{ coworkerId: COWORKER_ID, orchestratorId: null }],
+              create: [{ coworkerId: COWORKER_ID, sokoBotId: null }],
             },
             userMentionsAsSource: {
               create: [{ userId: ALICE_ID }],
@@ -864,7 +864,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             },
           ],
           coworkerMembers: [],
-          orchestratorMembers: [],
+          sokoBotMembers: [],
         }),
       );
       messageCreateMock.mockResolvedValue(
@@ -907,7 +907,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             },
           ],
           coworkerMembers: [],
-          orchestratorMembers: [],
+          sokoBotMembers: [],
         }),
       );
       messageCreateMock.mockResolvedValue(
@@ -953,7 +953,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             },
           ],
           coworkerMembers: [],
-          orchestratorMembers: [],
+          sokoBotMembers: [],
         }),
       );
       messageCreateMock.mockResolvedValue(
@@ -992,7 +992,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             },
           ],
           coworkerMembers: [],
-          orchestratorMembers: [],
+          sokoBotMembers: [],
         }),
       );
       messageCreateMock.mockResolvedValue(
@@ -1128,7 +1128,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
           {
             id: MENTION_ID,
             coworkerId: COWORKER_ID,
-            orchestratorId: null,
+            sokoBotId: null,
             status: "pending",
             responseMessageId: null,
           },
@@ -1298,7 +1298,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
             {
               id: MENTION_ID,
               coworkerId: COWORKER_ID,
-              orchestratorId: null,
+              sokoBotId: null,
               status: "pending",
               responseMessageId: null,
             },

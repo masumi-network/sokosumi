@@ -13,7 +13,7 @@ import { ok } from "@/helpers/response";
 import { mapTaskEvent, taskEventApiInclude } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireOrchestratorAuthContext } from "@/middleware/auth";
+import { requireSokoBotAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
 
@@ -36,13 +36,13 @@ const route = createRoute({
 
 export function mountSokoBotEventRoutes(app: OpenAPIHonoWithAuth): void {
   app.openapi(route, async (c) => {
-    const auth = requireOrchestratorAuthContext(c.var.authContext);
+    const auth = requireSokoBotAuthContext(c.var.authContext);
     const query = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(query);
     const takePlusOne = take + 1;
     const where = {
       task: {
-        assigneeOrchestratorId: auth.orchestratorId,
+        assigneeSokoBotId: auth.sokoBotId,
         workspaceId: auth.workspaceId,
         status: { not: TaskStatus.DRAFT },
       },

@@ -493,7 +493,7 @@ Fields described above, including workspace ownership and unique scheduled occur
 
 ### Renames/relations
 
-- Prisma code names become Soko Bot language through `@@map`/`@map` while physical `orchestrator`, `orchestrator_usage`, `creatorOrchestratorId`, and `TaskEvent.orchestratorId` remain during deploy/rollback window;
+- Physical Soko Bot storage is `soko_bot` / `soko_bot_usage` with `sokoBot*` FKs (SOK-946). Vendor-facing actor discriminant remains `"orchestrator"`;
 - vendor-facing v1 Task actor wire value remains `"orchestrator"` as compatibility alias. Additive Soko Bot detail may be introduced without changing existing discriminant; wire rename requires API versioning;
 - any Phase 5 physical rename also recreates `task_creator_exactly_one_check`, `upsert_history_task`, indexes/FKs, validates rollback, and preserves ids;
 - legacy `HermesMessage` and `HermesPendingConnection` physical tables remain read-only through rollback/data-retention window; no live Core/Web path reads or writes them;

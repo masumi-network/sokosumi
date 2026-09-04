@@ -10,7 +10,7 @@ export interface TaskAssigneeView {
   name: string;
   image?: string | null;
   slug?: string;
-  kind: "coworker" | "orchestrator";
+  kind: "coworker" | "sokoBot";
   avatarSeed?: string | null;
 }
 

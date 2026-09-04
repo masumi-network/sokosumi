@@ -14,9 +14,9 @@ describe("resolveTaskEventActorKind", () => {
   it("prefers nested actor type over flat FKs", () => {
     const event = {
       actor: {
-        type: "orchestrator",
+        type: "sokoBot",
         id: "orch-1",
-        orchestrator: {
+        sokoBot: {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
@@ -25,10 +25,10 @@ describe("resolveTaskEventActorKind", () => {
       },
       userId: "user-1",
       coworkerId: "cow-1",
-      orchestratorId: "orch-1",
+      sokoBotId: "orch-1",
     } as TaskEvent;
 
-    expect(resolveTaskEventActorKind(event)).toBe("orchestrator");
+    expect(resolveTaskEventActorKind(event)).toBe("sokoBot");
   });
 
   it("falls back to deprecated flat FKs when actor is null", () => {
@@ -37,20 +37,20 @@ describe("resolveTaskEventActorKind", () => {
         actor: null,
         coworkerId: "cow-1",
         userId: "user-1",
-        orchestratorId: null,
+        sokoBotId: null,
       } as TaskEvent),
     ).toBe("coworker");
   });
 
-  it("prefers orchestrator over coworker/user on flat multi-FK fallback", () => {
+  it("prefers soko bot over coworker/user on flat multi-FK fallback", () => {
     expect(
       resolveTaskEventActorKind({
         actor: null,
         coworkerId: "cow-1",
         userId: "user-1",
-        orchestratorId: "orch-1",
+        sokoBotId: "orch-1",
       } as TaskEvent),
-    ).toBe("orchestrator");
+    ).toBe("sokoBot");
   });
 });
 
@@ -80,12 +80,12 @@ describe("getEventActorInfo", () => {
     });
   });
 
-  it("reads name, owner, and avatarSeed from nested orchestrator actor", () => {
+  it("reads name, owner, and avatarSeed from nested soko bot actor", () => {
     const event = {
       actor: {
-        type: "orchestrator",
+        type: "sokoBot",
         id: "orch-1",
-        orchestrator: {
+        sokoBot: {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
@@ -128,9 +128,9 @@ describe("buildTaskActivityActors", () => {
         },
       },
       creator: {
-        type: "orchestrator" as const,
+        type: "sokoBot" as const,
         id: "orch-1",
-        orchestrator: {
+        sokoBot: {
           id: "orch-1",
           name: "Hermes",
           avatarSeed: "orb:jewel-sky:user_123",
@@ -165,8 +165,8 @@ describe("buildTaskActivityActors", () => {
           },
           coworkerId: null,
           coworker: null,
-          orchestratorId: null,
-          orchestrator: null,
+          sokoBotId: null,
+          sokoBot: null,
           transactionId: null,
           credits: null,
           comment: "Looks good",
@@ -199,8 +199,8 @@ describe("buildTaskActivityActors", () => {
             image: null,
             slug: "research-agent",
           },
-          orchestratorId: null,
-          orchestrator: null,
+          sokoBotId: null,
+          sokoBot: null,
           transactionId: null,
           credits: null,
           comment: "Investigating",
@@ -215,9 +215,9 @@ describe("buildTaskActivityActors", () => {
           createdAt: new Date("2026-01-01T14:00:00.000Z"),
           updatedAt: new Date("2026-01-01T14:00:00.000Z"),
           actor: {
-            type: "orchestrator",
+            type: "sokoBot",
             id: "orch-2",
-            orchestrator: {
+            sokoBot: {
               id: "orch-2",
               name: "Athena",
               avatarSeed: null,
@@ -233,8 +233,8 @@ describe("buildTaskActivityActors", () => {
           user: null,
           coworkerId: null,
           coworker: null,
-          orchestratorId: "orch-2",
-          orchestrator: {
+          sokoBotId: "orch-2",
+          sokoBot: {
             id: "orch-2",
             name: "Athena",
             avatarSeed: null,
@@ -278,7 +278,7 @@ describe("buildTaskActivityActors", () => {
         image: null,
       },
     });
-    expect(result.orchestratorById).toMatchObject({
+    expect(result.sokoBotById).toMatchObject({
       "orch-1": {
         name: "Hermes",
         image: null,

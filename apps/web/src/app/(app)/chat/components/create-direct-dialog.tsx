@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   createDirectRoomAction,
   ensureCoworkerDirectRoomAction,
-  ensureOrchestratorDirectRoomAction,
+  ensureSokoBotDirectRoomAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -53,15 +53,10 @@ export function CreateDirectDialog() {
       buildDirectDraftTargets(
         roster.members,
         roster.coworkers,
-        roster.orchestrators,
+        roster.sokoBots,
         roster.currentUserId,
       ),
-    [
-      roster.coworkers,
-      roster.currentUserId,
-      roster.members,
-      roster.orchestrators,
-    ],
+    [roster.coworkers, roster.currentUserId, roster.members, roster.sokoBots],
   );
   const selectedTargets = useMemo(() => {
     const byKey = new Map(targets.map((target) => [target.key, target]));
@@ -80,18 +75,18 @@ export function CreateDirectDialog() {
   const selectedCoworkerIds = selectedTargets
     .filter((target) => target.kind === "coworker")
     .map((target) => target.id);
-  const selectedOrchestratorIds = selectedTargets
-    .filter((target) => target.kind === "orchestrator")
+  const selectedSokoBotIds = selectedTargets
+    .filter((target) => target.kind === "sokoBot")
     .map((target) => target.id);
   const hasSelectedHumans = selectedMemberUserIds.length > 0;
   const hasSelectedCoworker = selectedCoworkerIds.length > 0;
-  const hasSelectedOrchestrator = selectedOrchestratorIds.length > 0;
-  const hasSelectedAi = hasSelectedCoworker || hasSelectedOrchestrator;
+  const hasSelectedSokoBot = selectedSokoBotIds.length > 0;
+  const hasSelectedAi = hasSelectedCoworker || hasSelectedSokoBot;
   const crossKindDisabledReason = hasSelectedHumans
     ? t("Draft.groupDirectHumansOnly")
     : hasSelectedCoworker
       ? t("Draft.coworkerDirectOneToOneOnly")
-      : hasSelectedOrchestrator
+      : hasSelectedSokoBot
         ? t("Draft.personalAssistantDirectOneToOneOnly")
         : undefined;
 
@@ -102,10 +97,10 @@ export function CreateDirectDialog() {
     if (hasSelectedAi && target.kind === "human") {
       return true;
     }
-    if (hasSelectedCoworker && target.kind === "orchestrator") {
+    if (hasSelectedCoworker && target.kind === "sokoBot") {
       return true;
     }
-    if (hasSelectedOrchestrator && target.kind === "coworker") {
+    if (hasSelectedSokoBot && target.kind === "coworker") {
       return true;
     }
     if (
@@ -122,7 +117,7 @@ export function CreateDirectDialog() {
     if (isTargetDisabled(target)) {
       return;
     }
-    if (target.kind === "coworker" || target.kind === "orchestrator") {
+    if (target.kind === "coworker" || target.kind === "sokoBot") {
       setSelectedKeys([target.key]);
     } else {
       setSelectedKeys((current) =>
@@ -167,10 +162,8 @@ export function CreateDirectDialog() {
       const result =
         selectedCoworkerIds.length === 1
           ? await ensureCoworkerDirectRoomAction(selectedCoworkerIds[0])
-          : selectedOrchestratorIds.length === 1
-            ? await ensureOrchestratorDirectRoomAction(
-                selectedOrchestratorIds[0],
-              )
+          : selectedSokoBotIds.length === 1
+            ? await ensureSokoBotDirectRoomAction(selectedSokoBotIds[0])
             : await createDirectRoomAction({
                 memberUserIds: selectedMemberUserIds,
               });
@@ -234,12 +227,11 @@ export function CreateDirectDialog() {
               </Avatar>
               <span className="flex min-w-0 items-center gap-1">
                 <span className="truncate">{target.name}</span>
-                {target.kind === "coworker" ||
-                target.kind === "orchestrator" ? (
+                {target.kind === "coworker" || target.kind === "sokoBot" ? (
                   <AiCoworkerIcon
                     className="size-3"
                     label={
-                      target.kind === "orchestrator"
+                      target.kind === "sokoBot"
                         ? t("personalAssistantBadge")
                         : undefined
                     }

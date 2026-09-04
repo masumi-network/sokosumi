@@ -125,7 +125,7 @@ describe("create-channel-wizard", () => {
       createChannelSubmitFields(details, {
         memberUserIds: ["user-1"],
         coworkerIds: [],
-        orchestratorIds: [],
+        sokoBotIds: [],
       }),
     ).toBeNull();
 
@@ -134,7 +134,7 @@ describe("create-channel-wizard", () => {
       createChannelSubmitFields(people, {
         memberUserIds: ["user-1", "user-2"],
         coworkerIds: ["c1"],
-        orchestratorIds: [],
+        sokoBotIds: [],
       }),
     ).toEqual({
       name: "Team Soko",
@@ -143,7 +143,7 @@ describe("create-channel-wizard", () => {
       discoverability: "private",
       memberUserIds: ["user-1", "user-2"],
       coworkerIds: ["c1"],
-      orchestratorIds: [],
+      sokoBotIds: [],
     });
   });
 
@@ -154,7 +154,7 @@ describe("create-channel-wizard", () => {
           setTopic(setSlug(createInitialWizard(), "welcome"), "  "),
           "user-1",
         ),
-        { memberUserIds: [], coworkerIds: [], orchestratorIds: [] },
+        { memberUserIds: [], coworkerIds: [], sokoBotIds: [] },
       ),
     ).toEqual({
       name: "Welcome",
@@ -162,7 +162,7 @@ describe("create-channel-wizard", () => {
       discoverability: "public",
       memberUserIds: [],
       coworkerIds: [],
-      orchestratorIds: [],
+      sokoBotIds: [],
     });
   });
 
@@ -201,7 +201,7 @@ describe("create-channel-wizard", () => {
       mode: "all",
       memberUserIds: ["user-1"],
       coworkerIds: [],
-      orchestratorIds: [],
+      sokoBotIds: [],
     });
     expect(toAddPeople(createInitialWizard(), "user-1").step).toBe(
       "add-people",
@@ -236,7 +236,7 @@ describe("create-channel-wizard", () => {
       setSpecificMembers(specific, {
         memberUserIds: ["u1"],
         coworkerIds: ["c1"],
-        orchestratorIds: [],
+        sokoBotIds: [],
       }),
     ).toMatchObject({
       memberUserIds: ["u1"],
@@ -249,7 +249,7 @@ describe("create-channel-wizard", () => {
       setSpecificMembers(create, {
         memberUserIds: ["u1"],
         coworkerIds: [],
-        orchestratorIds: [],
+        sokoBotIds: [],
       }),
     ).toBe(create);
   });

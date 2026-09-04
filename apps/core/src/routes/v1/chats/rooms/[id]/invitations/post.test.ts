@@ -159,7 +159,7 @@ function externalRoom(
     archivedAt: null,
     userMembers: members,
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
     ...overrides,
   };
 }

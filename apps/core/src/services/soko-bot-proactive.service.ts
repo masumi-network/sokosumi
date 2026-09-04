@@ -193,20 +193,20 @@ export async function findAttentionItems(bot: {
       // failed Task in the workspace made it chase a week of other people's
       // abandoned work and, now that it can act rather than draft, restart it.
       id: { in: delegatedIds },
-      NOT: { assigneeOrchestratorId: bot.id },
+      NOT: { assigneeSokoBotId: bot.id },
     },
     select: {
       id: true,
       name: true,
       status: true,
       assigneeId: true,
-      assigneeOrchestratorId: true,
+      assigneeSokoBotId: true,
       assignee: { select: { name: true } },
-      assigneeOrchestrator: { select: { name: true } },
+      assigneeSokoBot: { select: { name: true } },
       events: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { createdAt: true, status: true, orchestratorId: true },
+        select: { createdAt: true, status: true, sokoBotId: true },
       },
     },
     take: 100,
@@ -218,7 +218,7 @@ export async function findAttentionItems(bot: {
     if (age > ATTENTION_MAX_AGE_MS) continue;
     const name = task.name ?? "Untitled task";
     const who =
-      task.assignee?.name ?? task.assigneeOrchestrator?.name ?? "the assignee";
+      task.assignee?.name ?? task.assigneeSokoBot?.name ?? "the assignee";
     if (task.status === "RUNNING" && age > STALE_RUNNING_MS) {
       candidates.push({
         key: `stale:${task.id}`,
@@ -384,7 +384,7 @@ export async function buildSystemBeatMessage(input: {
         ? {}
         : {
             OR: [
-              { assigneeOrchestratorId: bot.id },
+              { assigneeSokoBotId: bot.id },
               { sokoBotWatches: { some: { sokoBotId: bot.id } } },
             ],
           }),

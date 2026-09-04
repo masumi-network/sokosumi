@@ -18,7 +18,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
 import {
@@ -33,15 +33,15 @@ import {
   mapChatRoomMessage,
   markChatRoomThreadRead,
   mergeChatRoomMessageMetadata,
-  orchestratorDisplayName,
   requireChatRoomCoworkerAccess,
-  requireChatRoomOrchestratorAccess,
+  requireChatRoomSokoBotAccess,
   requireChatRoomUserWriteAccess,
   resolveMentionedCoworkerIds,
-  resolveMentionedOrchestratorIds,
+  resolveMentionedSokoBotIds,
   resolveMentionedUserIds,
   resolveRoomQuoteSnapshot,
   resolveThreadParentMessageId,
+  sokoBotDisplayName,
 } from "../../helpers";
 
 const paramsSchema = z.object({
@@ -59,7 +59,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/messages",
     description:
-      "Post a room message. Mentioned AI coworkers and personal assistants are called asynchronously and reply into the room. Agent API keys may post as their coworker or orchestrator identity into rooms it belongs to. Agent posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender.",
+      "Post a room message. Mentioned AI coworkers and personal assistants are called asynchronously and reply into the room. Agent API keys may post as their coworker or Soko Bot identity into rooms it belongs to. Agent posts into a Direct with at most two human members emit the same CHAT Direct notification as a human sender.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -91,16 +91,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (
       isCoworkerAuthContext(authContext) ||
-      isOrchestratorAuthContext(authContext)
+      isSokoBotAuthContext(authContext)
     ) {
       const persisted = await prisma.$transaction(async (tx) => {
         const room = isCoworkerAuthContext(authContext)
           ? await requireChatRoomCoworkerAccess(id, authContext.coworkerId, tx)
-          : await requireChatRoomOrchestratorAccess(
-              id,
-              authContext.orchestratorId,
-              tx,
-            );
+          : await requireChatRoomSokoBotAccess(id, authContext.sokoBotId, tx);
 
         const parentMessageId = await resolveThreadParentMessageId(
           tx,
@@ -121,8 +117,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             senderCoworkerId: isCoworkerAuthContext(authContext)
               ? authContext.coworkerId
               : null,
-            senderOrchestratorId: isOrchestratorAuthContext(authContext)
-              ? authContext.orchestratorId
+            senderSokoBotId: isSokoBotAuthContext(authContext)
+              ? authContext.sokoBotId
               : null,
             content: body.content,
             ...(metadata ? { metadata } : {}),
@@ -165,8 +161,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               organizationId: room.organizationId,
               messageId: message.id,
               authorUserId: null,
-              authorName: message.senderOrchestrator
-                ? orchestratorDisplayName(message.senderOrchestrator)
+              authorName: message.senderSokoBot
+                ? sokoBotDisplayName(message.senderSokoBot)
                 : (message.senderCoworker?.name ?? "Someone"),
               recipientUserIds: memberUserIds,
             }),
@@ -233,7 +229,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const skipCoworkerMentions =
           room.kind === "direct" &&
           room.coworkerMembers.length === 1 &&
-          room.orchestratorMembers.length === 0 &&
+          room.sokoBotMembers.length === 0 &&
           room.userMembers.length === 1 &&
           room.userMembers[0]?.userId === userContext.userId;
 
@@ -241,13 +237,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.kind === "direct" && !skipCoworkerMentions
             ? room.coworkerMembers.map(({ coworker }) => coworker.id)
             : [];
-        const directOrchestratorIds =
+        const directSokoBotIds =
           room.kind === "direct" &&
-          room.orchestratorMembers.length === 1 &&
+          room.sokoBotMembers.length === 1 &&
           room.coworkerMembers.length === 0
-            ? room.orchestratorMembers.map(
-                ({ orchestrator }) => orchestrator.id,
-              )
+            ? room.sokoBotMembers.map(({ sokoBot }) => sokoBot.id)
             : [];
 
         const parentMessageId = await resolveThreadParentMessageId(
@@ -268,7 +262,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // A thread reply goes to every coworker already part of the thread —
         // as a sender or a mention target — without requiring a fresh @mention.
         let threadCoworkerIds: string[] = [];
-        let threadOrchestratorIds: string[] = [];
+        let threadSokoBotIds: string[] = [];
         if (parentMessageId) {
           const threadMessages = await tx.chatRoomMessage.findMany({
             where: {
@@ -277,9 +271,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
             select: {
               senderCoworkerId: true,
-              senderOrchestratorId: true,
+              senderSokoBotId: true,
               mentionsAsSource: {
-                select: { coworkerId: true, orchestratorId: true },
+                select: { coworkerId: true, sokoBotId: true },
               },
             },
           });
@@ -291,12 +285,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               mention.coworkerId ? [mention.coworkerId] : [],
             ),
           ]);
-          threadOrchestratorIds = threadMessages.flatMap((threadMessage) => [
-            ...(threadMessage.senderOrchestratorId
-              ? [threadMessage.senderOrchestratorId]
+          threadSokoBotIds = threadMessages.flatMap((threadMessage) => [
+            ...(threadMessage.senderSokoBotId
+              ? [threadMessage.senderSokoBotId]
               : []),
             ...threadMessage.mentionsAsSource.flatMap((mention) =>
-              mention.orchestratorId ? [mention.orchestratorId] : [],
+              mention.sokoBotId ? [mention.sokoBotId] : [],
             ),
           ]);
         }
@@ -316,19 +310,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 slug: coworker.slug,
               })),
             });
-        const mentionedOrchestratorIds = resolveMentionedOrchestratorIds({
+        const mentionedSokoBotIds = resolveMentionedSokoBotIds({
           content: body.content,
-          explicitOrchestratorIds: [
-            ...(body.mentionedOrchestratorIds ?? []),
-            ...directOrchestratorIds,
-            ...threadOrchestratorIds,
+          explicitSokoBotIds: [
+            ...(body.mentionedSokoBotIds ?? []),
+            ...directSokoBotIds,
+            ...threadSokoBotIds,
           ],
-          roomOrchestrators: room.orchestratorMembers.map(
-            ({ orchestrator }) => ({
-              id: orchestrator.id,
-              name: orchestratorDisplayName(orchestrator),
-            }),
-          ),
+          roomSokoBots: room.sokoBotMembers.map(({ sokoBot }) => ({
+            id: sokoBot.id,
+            name: sokoBotDisplayName(sokoBot),
+          })),
         });
 
         const mentionedUserIds = resolveMentionedUserIds({
@@ -353,11 +345,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               create: [
                 ...mentionedCoworkerIds.map((coworkerId) => ({
                   coworkerId,
-                  orchestratorId: null,
+                  sokoBotId: null,
                 })),
-                ...mentionedOrchestratorIds.map((orchestratorId) => ({
+                ...mentionedSokoBotIds.map((sokoBotId) => ({
                   coworkerId: null,
-                  orchestratorId,
+                  sokoBotId: sokoBotId,
                 })),
               ],
             },

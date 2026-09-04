@@ -13,16 +13,28 @@ import {
 } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
-const taskFileUploadCompletedTokenPayloadSchema = z.object({
-  taskId: z.string().min(1),
-  name: z.string().min(1).max(512),
-  mimeType: z.string().min(1).max(255),
-  /** Declared size used as the mint-time grant cap; not stored on TaskFile. */
-  size: z.number().int().positive(),
-  uploadedByUserId: z.string().min(1).nullable(),
-  uploadedByCoworkerId: z.string().min(1).nullable(),
-  uploadedByOrchestratorId: z.uuid().nullable().optional().default(null),
-});
+const taskFileUploadCompletedTokenPayloadSchema = z
+  .object({
+    taskId: z.string().min(1),
+    name: z.string().min(1).max(512),
+    mimeType: z.string().min(1).max(255),
+    /** Declared size used as the mint-time grant cap; not stored on TaskFile. */
+    size: z.number().int().positive(),
+    uploadedByUserId: z.string().min(1).nullable(),
+    uploadedByCoworkerId: z.string().min(1).nullable(),
+    uploadedBySokoBotId: z.uuid().nullable().optional(),
+    uploadedByOrchestratorId: z.uuid().nullable().optional(),
+  })
+  .transform((payload) => ({
+    taskId: payload.taskId,
+    name: payload.name,
+    mimeType: payload.mimeType,
+    size: payload.size,
+    uploadedByUserId: payload.uploadedByUserId,
+    uploadedByCoworkerId: payload.uploadedByCoworkerId,
+    uploadedBySokoBotId:
+      payload.uploadedBySokoBotId ?? payload.uploadedByOrchestratorId ?? null,
+  }));
 
 type TaskFileUploadCompletedTokenPayload = z.infer<
   typeof taskFileUploadCompletedTokenPayloadSchema
@@ -110,7 +122,7 @@ export async function registerTaskFileFromUploadCompleted(params: {
         size: BigInt(blobMetadata.size),
         uploadedByUserId: payload.uploadedByUserId,
         uploadedByCoworkerId: payload.uploadedByCoworkerId,
-        uploadedByOrchestratorId: payload.uploadedByOrchestratorId,
+        uploadedBySokoBotId: payload.uploadedBySokoBotId,
       },
     });
   } catch (error) {

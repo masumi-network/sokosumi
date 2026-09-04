@@ -13,7 +13,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { ensureOrchestratorDirectRoomAction } from "@/app/chat/actions";
+import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import Markdown from "@/components/markdown";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
@@ -167,7 +167,7 @@ export function SokoBotConsole({
 
   function openChat() {
     startOpeningChat(async () => {
-      const result = await ensureOrchestratorDirectRoomAction(bot.id);
+      const result = await ensureSokoBotDirectRoomAction(bot.id);
       if (!result.ok || !result.value) {
         toast.error(t("Console.openChatError"));
         return;

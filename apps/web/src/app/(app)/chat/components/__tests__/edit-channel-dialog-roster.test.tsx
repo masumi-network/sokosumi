@@ -117,7 +117,7 @@ function externalChannel(): ChatRoom {
       },
     ],
     coworkerMembers: [],
-    orchestratorMembers: [],
+    sokoBotMembers: [],
   };
 }
 

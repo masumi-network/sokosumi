@@ -18,7 +18,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
-  isOrchestratorAuthContext,
+  isSokoBotAuthContext,
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -165,8 +165,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         agentId: id,
         scope,
         coworkerId,
-        orchestratorId: isOrchestratorAuthContext(c.var.authContext)
-          ? c.var.authContext.orchestratorId
+        sokoBotId: isSokoBotAuthContext(c.var.authContext)
+          ? c.var.authContext.sokoBotId
           : undefined,
         cursor,
         take,

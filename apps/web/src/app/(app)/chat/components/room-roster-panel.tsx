@@ -35,7 +35,7 @@ function rosterMemberCaption(
   if (participant.kind === "human") {
     return participant.email || null;
   }
-  if (participant.kind === "orchestrator") {
+  if (participant.kind === "sokoBot") {
     return participant.caption;
   }
   return participant.slug ? `@${participant.slug}` : null;
@@ -47,10 +47,10 @@ function RosterMemberAvatar({
   participant: ChatParticipantHoverProfile;
 }) {
   const isAi =
-    participant.kind === "coworker" || participant.kind === "orchestrator";
+    participant.kind === "coworker" || participant.kind === "sokoBot";
   return (
     <span className="relative inline-flex size-8 shrink-0">
-      {participant.kind === "orchestrator" &&
+      {participant.kind === "sokoBot" &&
       participant.avatarSeed &&
       !participant.image ? (
         <AuroraOrb
@@ -111,7 +111,7 @@ function RosterMemberRow({
           {labels.coworkerBadge}
         </span>
       ) : null}
-      {participant.kind === "orchestrator" && labels.personalAssistantBadge ? (
+      {participant.kind === "sokoBot" && labels.personalAssistantBadge ? (
         <span className="text-muted-foreground shrink-0 text-xs">
           {labels.personalAssistantBadge}
         </span>

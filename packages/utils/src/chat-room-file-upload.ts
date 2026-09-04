@@ -3,7 +3,7 @@ import { sanitizeUserUploadFilename } from "./user-upload-path.js";
 
 const USER_UPLOADS_DIR = "users";
 const COWORKER_UPLOADS_DIR = "coworkers";
-const ORCHESTRATOR_UPLOADS_DIR = "orchestrators";
+const SOKO_BOT_UPLOADS_DIR = "soko-bots";
 const CHATS_DIR = "chats";
 
 /** Max file size for room chat attaches (same as user/task direct uploads). */
@@ -23,11 +23,11 @@ export function buildCoworkerChatRoomFilePrefix(
   return `${COWORKER_UPLOADS_DIR}/${coworkerId}/${CHATS_DIR}/${roomId}/`;
 }
 
-export function buildOrchestratorChatRoomFilePrefix(
-  orchestratorId: string,
+export function buildSokoBotChatRoomFilePrefix(
+  sokoBotId: string,
   roomId: string,
 ): string {
-  return `${ORCHESTRATOR_UPLOADS_DIR}/${orchestratorId}/${CHATS_DIR}/${roomId}/`;
+  return `${SOKO_BOT_UPLOADS_DIR}/${sokoBotId}/${CHATS_DIR}/${roomId}/`;
 }
 
 /**
@@ -54,12 +54,16 @@ export function buildCoworkerChatRoomFilePathname(
   return `${buildCoworkerChatRoomFilePrefix(coworkerId, roomId)}${sanitizeUserUploadFilename(fileName)}`;
 }
 
-export function buildOrchestratorChatRoomFilePathname(
-  orchestratorId: string,
+/**
+ * Base pathname before Vercel Blob applies a random suffix.
+ * Example: `soko-bots/{sokoBotId}/chats/{roomId}/notes.txt`
+ */
+export function buildSokoBotChatRoomFilePathname(
+  sokoBotId: string,
   roomId: string,
   fileName: string,
 ): string {
-  return `${buildOrchestratorChatRoomFilePrefix(orchestratorId, roomId)}${sanitizeUserUploadFilename(fileName)}`;
+  return `${buildSokoBotChatRoomFilePrefix(sokoBotId, roomId)}${sanitizeUserUploadFilename(fileName)}`;
 }
 
 function isOwnedPrefixUrl(url: string, prefix: string): boolean {

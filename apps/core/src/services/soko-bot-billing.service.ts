@@ -113,9 +113,9 @@ export async function requireSokoBotTurnFunding(
   ]);
   const [recentUsage, shortfallUsage] = await Promise.all([
     completedTurns.length > 0
-      ? prisma.orchestratorUsage.findMany({
+      ? prisma.sokoBotUsage.findMany({
           where: {
-            orchestratorId: sokoBotId,
+            sokoBotId,
             userId,
             idempotencyKey: {
               in: completedTurns.map(({ id }) =>
@@ -127,10 +127,10 @@ export async function requireSokoBotTurnFunding(
         })
       : [],
     shortfallTurn
-      ? prisma.orchestratorUsage.findUnique({
+      ? prisma.sokoBotUsage.findUnique({
           where: {
-            orchestratorId_idempotencyKey: {
-              orchestratorId: sokoBotId,
+            sokoBotId_idempotencyKey: {
+              sokoBotId,
               idempotencyKey: sokoBotTurnUsageIdempotencyKey(shortfallTurn.id),
             },
           },
@@ -180,10 +180,10 @@ export async function recordSokoBotTurnUsage(
   }
 
   const idempotencyKey = sokoBotTurnUsageIdempotencyKey(input.turnId);
-  const existing = await tx.orchestratorUsage.findUnique({
+  const existing = await tx.sokoBotUsage.findUnique({
     where: {
-      orchestratorId_idempotencyKey: {
-        orchestratorId: input.sokoBotId,
+      sokoBotId_idempotencyKey: {
+        sokoBotId: input.sokoBotId,
         idempotencyKey,
       },
     },
@@ -221,9 +221,9 @@ export async function recordSokoBotTurnUsage(
     },
     select: { id: true },
   });
-  await tx.orchestratorUsage.create({
+  await tx.sokoBotUsage.create({
     data: {
-      orchestratorId: input.sokoBotId,
+      sokoBotId: input.sokoBotId,
       userId: input.userId,
       organizationId: null,
       idempotencyKey,
