@@ -27,7 +27,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { TIP_DELAY_MS, TIP_OFFSET_PX } from "./notification-cells";
 import {
   groupScopes,
   type KindSpec,
@@ -74,6 +73,16 @@ const STOP_OFF = "text-muted-foreground hover:text-foreground";
  */
 const PANEL =
   "max-w-72 px-3 py-2 text-left text-xs motion-safe:animation-duration-200 ease-out";
+
+/**
+ * The beat before a panel opens, and the gap it stands off at.
+ *
+ * The stops sit flush inside the rail, so a pointer on its way across it
+ * crosses all three. Opening on contact, each would flash a paragraph and two
+ * lists. A reader who means to read one holds still for longer.
+ */
+const TIP_DELAY_MS = 200;
+const TIP_OFFSET_PX = 6;
 
 /**
  * The face of each answer.
@@ -291,12 +300,21 @@ function AnswerMenu({
           disabled={saving}
           aria-describedby={hintId}
           className={cn(
-            "border-input bg-background focus-visible:ring-ring/50 inline-flex h-8 items-center gap-2 rounded-lg border pr-2 pl-3 text-xs font-medium outline-none focus-visible:ring-[3px]",
+            "focus-visible:ring-ring/50 inline-flex h-8 items-center gap-2 rounded-lg border pr-2 pl-3 text-xs font-medium outline-none focus-visible:ring-[3px]",
+            // The same mark the rail's chip carries at the widths it is drawn
+            // at: on a preset it is a plain control, and off every preset it
+            // says the group is on settings of its own.
+            scope === "CUSTOM"
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-input bg-background",
             saving && "opacity-50",
           )}
         >
           <Icon
-            className="text-muted-foreground size-3.5 shrink-0"
+            className={cn(
+              "size-3.5 shrink-0",
+              scope === "CUSTOM" ? "text-primary" : "text-muted-foreground",
+            )}
             aria-hidden="true"
           />
           {t(PRESET_SCOPE_LABEL_KEY[scope])}
@@ -443,8 +461,12 @@ export function GroupAnswer({
             className={cn(
               STOP,
               "hidden rounded-lg border border-dashed md:inline-flex",
+              // Dashed while it is an offer, solid and filled once it is the
+              // state the group is in: the reader left the presets behind and
+              // set the rows one by one, and the row should say so as loudly
+              // as a pressed stop does.
               scope === "CUSTOM"
-                ? "border-primary/40 text-primary bg-primary/5"
+                ? "border-primary bg-primary/10 text-primary border-solid"
                 : "border-input text-muted-foreground hover:text-foreground",
             )}
           >
