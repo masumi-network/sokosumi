@@ -214,22 +214,14 @@ function scope(group: string, name: string) {
 }
 
 /**
- * The dashed chip beside the rail, which opens the group.
+ * The dashed chip beside a group's rail, which opens that group.
  *
- * Both controls are in the markup and the browser draws one, so the menu that
- * replaces the rail on a phone is here too, showing the same word. It answers
- * a press by opening a menu, which is what `aria-haspopup` says.
+ * Every group carries one, so it is named for the group it opens: its own
+ * word first, then the group. The menu that replaces the rail on a phone
+ * shows the same word and is a menu item rather than a button.
  */
-function customChip() {
-  const chip = screen
-    .getAllByRole("button", { name: "scopeCustom" })
-    .find((button) => !button.hasAttribute("aria-haspopup"));
-
-  if (!chip) {
-    throw new Error("no Custom chip on the page");
-  }
-
-  return chip;
+function customChip(group: string) {
+  return screen.getByRole("button", { name: `scopeCustom ${group}` });
 }
 
 async function pickScope(group: string, name: string) {
@@ -424,7 +416,7 @@ describe("NotificationKinds", () => {
       ),
     );
 
-    const custom = customChip();
+    const custom = customChip("groupJob");
     expect(custom).toHaveAttribute("aria-expanded", "false");
 
     await user.click(custom);
@@ -440,6 +432,32 @@ describe("NotificationKinds", () => {
    * A group of one is drawn as its kind, with its channels. Its presets would
    * be those same channels under other names.
    */
+  /**
+   * It is the way into the kinds, not only a report on them. A group that
+   * sits on an answer still offers it, so a reader who wants one kind
+   * different does not have to find the chevron to say so.
+   */
+  it("offers the way in from a group that is on an answer", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    expect(scope("groupChat", "scopeImportant")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    const custom = customChip("groupChat");
+    expect(custom).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(custom);
+
+    expect(custom).toHaveAttribute("aria-expanded", "true");
+    expect(cellFor("kindChatMention", "channelInApp")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
   it("leaves a single kind with its channel cells", () => {
     renderKinds();
 

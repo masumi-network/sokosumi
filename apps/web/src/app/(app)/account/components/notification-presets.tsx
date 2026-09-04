@@ -14,9 +14,11 @@ import { CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -223,6 +225,27 @@ function AnswerMenu({
               );
             })}
           </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
+          {/* Not one of the answers, so it sits under them rather than in the
+              radio group: it writes nothing and opens the group instead. The
+              rail beside it carries the same chip at the widths it is drawn
+              at. */}
+          <CollapsibleTrigger asChild>
+            <DropdownMenuItem className="items-start py-2">
+              <SlidersHorizontal
+                className="text-muted-foreground mt-0.5 size-3.5"
+                aria-hidden="true"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium">
+                  {t(PRESET_SCOPE_LABEL_KEY.CUSTOM)}
+                </span>
+                <span className="text-muted-foreground block text-xs">
+                  {t(PRESET_SCOPE_HINT_KEY.CUSTOM)}
+                </span>
+              </span>
+            </DropdownMenuItem>
+          </CollapsibleTrigger>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -260,6 +283,8 @@ export function GroupAnswer({
   const answers = groupScopes(kinds);
   const label = t("scopeAriaLabel", { group });
   const customId = useId();
+  const chipId = useId();
+  const nameId = useId();
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -283,34 +308,41 @@ export function GroupAnswer({
           />
         ))}
       </div>
-      {scope === "CUSTOM" ? (
-        <>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <CollapsibleTrigger
-                aria-describedby={customId}
-                className={cn(
-                  STOP,
-                  "text-primary bg-primary/5 hidden rounded-lg border border-dashed md:inline-flex",
-                )}
-              >
-                <SlidersHorizontal
-                  className="size-3.5 shrink-0"
-                  aria-hidden="true"
-                />
-                {t(PRESET_SCOPE_LABEL_KEY.CUSTOM)}
-              </CollapsibleTrigger>
-            </TooltipTrigger>
-            <TooltipContent>{t(PRESET_SCOPE_HINT_KEY.CUSTOM)}</TooltipContent>
-          </Tooltip>
-          {/* The stops beside it carry their sentence this way too: a tooltip
-              exists only while it is open, and this one says what pressing
-              does. */}
-          <span aria-hidden="true" id={customId} className="sr-only">
-            {t(PRESET_SCOPE_HINT_KEY.CUSTOM)}
-          </span>
-        </>
-      ) : null}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <CollapsibleTrigger
+            id={chipId}
+            // Named for the group it opens, so four of them on a page are
+            // four different controls to a screen reader. Its own text comes
+            // first, so the word on the chip is still the word in its name.
+            aria-labelledby={`${chipId} ${nameId}`}
+            aria-describedby={customId}
+            className={cn(
+              STOP,
+              "hidden rounded-lg border border-dashed md:inline-flex",
+              scope === "CUSTOM"
+                ? "border-primary/40 text-primary bg-primary/5"
+                : "border-input text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <SlidersHorizontal
+              className="size-3.5 shrink-0"
+              aria-hidden="true"
+            />
+            {t(PRESET_SCOPE_LABEL_KEY.CUSTOM)}
+          </CollapsibleTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{t(PRESET_SCOPE_HINT_KEY.CUSTOM)}</TooltipContent>
+      </Tooltip>
+      {/* The stops beside it carry their sentence this way too: a tooltip
+          exists only while it is open, and this one says what pressing
+          does. */}
+      <span aria-hidden="true" id={customId} className="sr-only">
+        {t(PRESET_SCOPE_HINT_KEY.CUSTOM)}
+      </span>
+      <span id={nameId} className="sr-only">
+        {group}
+      </span>
       <AnswerMenu
         label={label}
         answers={answers}
