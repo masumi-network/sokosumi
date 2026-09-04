@@ -58,7 +58,8 @@ publicHoistPattern:
   - pg-pool
   - "@biomejs/biome"
 
-# Vitest 5.0.0 + TypeScript 7 drops Assertion.not from mapped Chai types.
-# Remove when a Vitest release restores it.
+# Workaround: TypeScript 7 drops Assertion.not from Vitest 5's mapped Chai types.
+# Re-check when bumping vitest or typescript; drop the patch if tsc is clean without it.
+# Upstream: https://github.com/vitest-dev/vitest/issues/11144
 patchedDependencies:
   vitest@5.0.0: patches/vitest@5.0.0.patch
