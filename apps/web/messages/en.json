@@ -1801,7 +1801,7 @@
         "collapse": "Show less",
         "actorCoworker": "Coworker",
         "actorUser": "User",
-        "actorOrchestrator": "Orchestrator",
+        "actorOrchestrator": "Assistant",
         "actorOrchestratorWithOwner": "{assistant} · {owner}'s assistant",
         "actorOrchestratorRole": "{owner}'s personal assistant",
         "actorSystem": "System",
@@ -2632,8 +2632,8 @@
           "unreachable": "Couldn't reach your assistant. Check your connection."
         },
         "mockReplies": {
-          "0": "I'm a mock response from your local assistant preview. Set ?state=running off to see the real assistant wired through the orchestrator.",
-          "1": "Got it. In production, your message goes through Sokosumi's server, the orchestrator returns your private endpoint, and your assistant responds.",
+          "0": "I'm a mock response from your local assistant preview. Set ?state=running off to see the real assistant wired through Sokosumi.",
+          "1": "Got it. In production, your message goes through Sokosumi's server, Sokosumi returns your private endpoint, and your assistant responds.",
           "2": "Here's what I'd do: persist this in long-term memory, add a follow-up to your task list, and keep the context for our next session."
         },
         "thinkingMessages": {
@@ -2866,7 +2866,7 @@
         "etaSettling": "Almost done…",
         "stepFallbackLabel": "Warming things up",
         "footerHint": "When this finishes, the chat will open with a personalized intro from your assistant.",
-        "pollError": "Can't reach the orchestrator right now — still trying.",
+        "pollError": "Can't reach your assistant right now — still trying.",
         "hints": {
           "0": "Pro tip: ask \"what's important in my inbox today?\" once you're in.",
           "1": "Your assistant remembers your projects, your contacts, your preferences.",
@@ -2916,7 +2916,7 @@
         "modelValue": "deepseek-4-flash",
         "modelProviderLabel": "Provider",
         "modelProviderValue": "OpenRouter (managed)",
-        "modelManagedHelp": "Model selection is managed by the orchestrator. Changing this will require an update from your admin.",
+        "modelManagedHelp": "Model selection is managed by Sokosumi. Changing this will require an update from your admin.",
         "autonomySection": "Autonomy",
         "autonomyHelp": "How much initiative your assistant is allowed to take. Lower tiers ask before acting.",
         "autonomySaving": "Saving…",
@@ -2970,7 +2970,7 @@
       },
       "Error": {
         "title": "We couldn't start your assistant",
-        "description": "The orchestrator returned an error. Try again in a minute. If it keeps happening, contact support.",
+        "description": "Your assistant returned an error. Try again in a minute. If it keeps happening, contact support.",
         "retry": "Try again",
         "startOver": "Start over"
       },

@@ -257,7 +257,7 @@ const baseProps = {
   submitLabel: "Submit",
   actorCoworkerLabel: "Coworker",
   actorUserLabel: "User",
-  actorOrchestratorLabel: "Orchestrator",
+  actorOrchestratorLabel: "Assistant",
   actorSystemLabel: "System",
   actionCommentedLabel: "commented",
   actionUpdatedStatusLabel: "updated status",
