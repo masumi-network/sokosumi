@@ -12,7 +12,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { authClient } from "@/lib/auth/auth.client";
-import { NOTIFICATION_PREFERENCES_ANCHOR } from "../constants";
 import { NotificationKinds } from "./notification-kinds";
 
 interface NotificationPreferencesProps {
@@ -101,7 +100,7 @@ export function NotificationPreferences({
   );
 
   return (
-    <Card className="flex h-full flex-col" id={NOTIFICATION_PREFERENCES_ANCHOR}>
+    <Card className="flex h-full flex-col">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>

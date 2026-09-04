@@ -16,7 +16,7 @@ import { DeletePersonalWorkspaceForm } from "./delete-personal-workspace-form";
 import { EmailForm } from "./email-form";
 import { NameForm } from "./name-form";
 import { NewPasswordForm } from "./new-password-form";
-import { NotificationPreferences } from "./notification-preferences";
+import { NotificationSettingsLink } from "./notification-settings-link";
 import { PasskeySettings } from "./passkey-settings";
 import { PasswordForm } from "./password-form";
 import { PreferencesSection } from "./preferences-section";
@@ -28,11 +28,9 @@ interface AccountSettingsProps {
   billingDetailsLoadError?: ReactNode;
   designMdValue?: DesignMdProfileValue;
   credentialAccountsLoadError?: ReactNode;
-  notificationsOptIn: boolean;
   userImage?: null | string;
   userLogo?: null | string;
   userMetadata?: null | string;
-  marketingOptIn: boolean;
   hasPersonalWorkspace?: boolean;
   hasOrganizationMembership?: boolean;
   fallbackOrganizationId?: string | null;
@@ -49,11 +47,9 @@ export function AccountSettings({
   billingDetailsLoadError,
   designMdValue,
   credentialAccountsLoadError,
-  notificationsOptIn,
   userImage,
   userLogo,
   userMetadata,
-  marketingOptIn,
   hasPersonalWorkspace = false,
   hasOrganizationMembership = false,
   fallbackOrganizationId = null,
@@ -110,10 +106,7 @@ export function AccountSettings({
       </div>
 
       <div className="border-t pt-8">
-        <NotificationPreferences
-          notificationsOptIn={notificationsOptIn}
-          marketingOptIn={marketingOptIn}
-        />
+        <NotificationSettingsLink />
       </div>
 
       <div className="border-t pt-8">

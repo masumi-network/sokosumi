@@ -4082,6 +4082,7 @@
       "Notifications": {
         "title": "Benachrichtigungen",
         "description": "Wähle, wie wir dich über Jobs und Chats informieren",
+        "manageLink": "Benachrichtigungen verwalten",
         "jobStatusEmailsEnabledSuccess": "Job-Benachrichtigungen per E-Mail aktiviert",
         "jobStatusEmailsDisabledSuccess": "Job-Benachrichtigungen per E-Mail deaktiviert",
         "marketingEmailsTitle": "Marketing-E-Mails",
