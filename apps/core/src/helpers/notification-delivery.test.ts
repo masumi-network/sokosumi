@@ -14,6 +14,7 @@ import {
   resolveNotificationMatrix,
   type StoredNotificationPreference,
   TASK_ATTENTION_MESSAGE_KEYS,
+  TASK_COMPLETED_MESSAGE_KEY,
   toNotificationCategory,
 } from "./notification-delivery";
 
@@ -30,7 +31,7 @@ describe("toNotificationCategory", () => {
     ).toBe("JOB_UPDATE");
   });
 
-  it("splits tasks the same way", () => {
+  it("splits tasks three ways", () => {
     expect(
       toNotificationCategory(
         NotificationKind.TASK,
@@ -40,9 +41,34 @@ describe("toNotificationCategory", () => {
     expect(
       toNotificationCategory(
         NotificationKind.TASK,
-        "Notifications.Task.completed",
+        "Notifications.Task.canceled",
       ),
     ).toBe("TASK_UPDATE");
+  });
+
+  /**
+   * The row the reader started the task for. It is written out rather than
+   * read from the constant on both sides, so renaming the constant cannot
+   * quietly move a finished task back in with the cancellations.
+   */
+  it("gives a finished task a row of its own", () => {
+    expect(TASK_COMPLETED_MESSAGE_KEY).toBe("Notifications.Task.completed");
+    expect(
+      toNotificationCategory(
+        NotificationKind.TASK,
+        "Notifications.Task.completed",
+      ),
+    ).toBe("TASK_COMPLETED");
+  });
+
+  /** A finished job is still an update: only tasks split that row. */
+  it("leaves a finished job on the update row", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.JOB,
+        "Notifications.Job.completed",
+      ),
+    ).toBe("JOB_UPDATE");
   });
 
   /**
