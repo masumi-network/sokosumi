@@ -1515,7 +1515,14 @@ export const AdminSokoBotDetailSchema = {
                     }
                 },
                 runtimeHealth: {
-                    $ref: '#/components/schemas/SokoBotRuntimeHealth'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotRuntimeHealth'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 },
                 usage: {
                     $ref: '#/components/schemas/SokoBotUsage'
@@ -1894,7 +1901,14 @@ export const AdminSokoBotTurnSchema = {
                     ]
                 },
                 contextSnapshot: {
-                    $ref: '#/components/schemas/SokoBotContextSnapshot'
+                    anyOf: [
+                        {
+                            $ref: '#/components/schemas/SokoBotContextSnapshot'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
                 }
             },
             required: [
@@ -2273,10 +2287,7 @@ export const SokoBotContextSummarySchema = {
 } as const;
 
 export const SokoBotContextSnapshotSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -2702,10 +2713,7 @@ export const SokoBotAdminActionSchema = {
 } as const;
 
 export const SokoBotRuntimeHealthSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         healthy: {
             type: 'boolean'

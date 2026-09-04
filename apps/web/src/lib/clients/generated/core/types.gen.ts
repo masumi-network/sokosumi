@@ -346,7 +346,7 @@ export type AdminSokoBotDetail = SokoBot & {
     turns: Array<AdminSokoBotTurn>;
     memoryRevisions: Array<SokoBotMemory>;
     adminActions: Array<SokoBotAdminAction>;
-    runtimeHealth: SokoBotRuntimeHealth;
+    runtimeHealth: SokoBotRuntimeHealth | null;
     usage: SokoBotUsage;
 };
 
@@ -420,7 +420,7 @@ export type SokoBotSchedule = {
 export type AdminSokoBotTurn = SokoBotTurn & {
     eveSessionId: string | null;
     eveTurnId: string | null;
-    contextSnapshot: SokoBotContextSnapshot;
+    contextSnapshot: SokoBotContextSnapshot | null;
 };
 
 export const SokoBotTurnStatus = {
@@ -531,7 +531,7 @@ export type SokoBotContextSnapshot = {
     omissions?: unknown;
     generatedAt: Date;
     createdAt: Date;
-} | null;
+};
 
 export type SokoBotTurn = {
     id: string;
@@ -609,7 +609,7 @@ export type SokoBotRuntimeHealth = {
     sessionStatus: string | null;
     checkedAt: Date;
     errorKind: string | null;
-} | null;
+};
 
 export type SokoBotUsage = {
     turns: number;
