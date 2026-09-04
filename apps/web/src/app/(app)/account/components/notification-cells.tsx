@@ -283,10 +283,11 @@ function KindCells({
   // it is the reader's only way to silence or wake the devices that can push.
   // What changes is what the cell says.
   //
-  // Three sentences, in the order a reader needs them: what the column is for,
-  // why it will not happen here, and that the press still counts elsewhere.
-  // The first is kept rather than replaced, or a reader who meets Push on a
-  // blocked browser never learns what the column would have done.
+  // Three parts, in the order a reader needs them: what the column is for,
+  // why it will not happen here and what would change that, and that the press
+  // still counts elsewhere. The first is kept rather than replaced, or a
+  // reader who meets Push on a blocked browser never learns what the column
+  // would have done.
   const pushHint = pushBlock
     ? [
         t("channelPushHint"),
