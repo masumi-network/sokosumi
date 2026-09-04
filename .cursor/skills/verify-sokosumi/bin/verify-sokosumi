@@ -20,7 +20,11 @@ CORE_URL="${VERIFY_SOKOSUMI_CORE_URL:-${CORE_URL:-}}"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR" "$ARTIFACT_ROOT"
 
-# Cursor runtime secrets login_email/login_pwd fill the existing VERIFY_* defaults.
+# Capture whether VERIFY_* arrived from the environment before alias copy.
+_VERIFY_EMAIL_FROM_ENV="${VERIFY_SOKOSUMI_EMAIL:-}"
+_VERIFY_PASSWORD_FROM_ENV="${VERIFY_SOKOSUMI_PASSWORD:-}"
+
+# Cursor secrets: VERIFY_SOKOSUMI_* preferred; login_email/login_pwd (or LOGIN_*) as aliases.
 : "${VERIFY_SOKOSUMI_EMAIL:=${login_email:-${LOGIN_EMAIL:-}}}"
 : "${VERIFY_SOKOSUMI_PASSWORD:=${login_pwd:-${LOGIN_PWD:-}}}"
 
@@ -29,18 +33,46 @@ DEFAULT_FIXTURE_PASSWORD="${VERIFY_SOKOSUMI_PASSWORD:-Password123!}"
 AUTH_EMAIL_SELECTOR='[data-testid="auth-field-email"]'
 AUTH_PASSWORD_SELECTOR='[data-testid="auth-field-currentPassword"]'
 
+function credentials_status() {
+  # Presence-only — never echo secret values (Runtime Secrets redact; still avoid leaking).
+  local email_set=unset password_set=unset source=fixture-default
+  if [[ -n "$_VERIFY_EMAIL_FROM_ENV" ]]; then
+    email_set=set
+    source=VERIFY_SOKOSUMI_EMAIL
+  elif [[ -n "${login_email:-${LOGIN_EMAIL:-}}" ]]; then
+    email_set=set
+    source=login_email
+  elif [[ -n "${VERIFY_SOKOSUMI_EMAIL:-}" ]]; then
+    email_set=set
+    source=VERIFY_SOKOSUMI_EMAIL
+  fi
+  if [[ -n "$_VERIFY_PASSWORD_FROM_ENV" || -n "${login_pwd:-${LOGIN_PWD:-}}" || -n "${VERIFY_SOKOSUMI_PASSWORD:-}" ]]; then
+    password_set=set
+  fi
+  echo "verify_credentials_email=$email_set"
+  echo "verify_credentials_password=$password_set"
+  echo "verify_credentials_source=$source"
+  if [[ "$email_set" == "unset" || "$password_set" == "unset" ]]; then
+    echo "warn: VERIFY_SOKOSUMI_EMAIL / VERIFY_SOKOSUMI_PASSWORD unset in this VM."
+    echo "warn: do not invent random signup users for computer-use — fix secrets or use fixture_auth=ok / vault."
+  fi
+}
+
 function usage() {
   cat <<'EOF'
 Usage: verify-sokosumi <command> [options]
 
 Commands:
-  launch     Bootstrap .env, start the portless HTTPS proxy on 443, then start
-             Core (core.sokosumi) and Web (web.sokosumi) for this worktree.
-             Uses with-db.mjs when .cursor/cloud-agent-db.env exists.
-  doctor     Read-only health check (named URLs, OpenAPI, sign-in page, fixture probe).
-  sign-in    Authenticate into agent-browser (fixtures, then coworker vault).
-  cleanup    Stop processes started by launch (keeps proof artifacts).
-  core-smoke GET Core OpenAPI JSON; exit 0 if HTTP 200.
+  launch              Bootstrap .env, start the portless HTTPS proxy on 443, then start
+                      Core (core.sokosumi) and Web (web.sokosumi) for this worktree.
+                      Uses with-db.mjs when .cursor/cloud-agent-db.env exists.
+  doctor              Read-only health check (named URLs, OpenAPI, sign-in page, fixture probe,
+                      VERIFY_SOKOSUMI_* credential presence).
+  credentials-status  Print whether VERIFY_SOKOSUMI_EMAIL / PASSWORD (or login_* aliases) are set.
+                      Never prints secret values.
+  sign-in             Authenticate into agent-browser (VERIFY_* / fixtures, then coworker vault).
+  cleanup             Stop processes started by launch (keeps proof artifacts).
+  core-smoke          GET Core OpenAPI JSON; exit 0 if HTTP 200.
 
 sign-in options:
   --email <email>       default alice@sokosumi.test (or VERIFY_SOKOSUMI_EMAIL)
@@ -832,6 +864,9 @@ function doctor() {
     echo "warn: no pid file — do not mutate a foreign instance; read-only checks only"
   fi
 
+  # Always report VERIFY_* presence so computer-use agents stop inventing users.
+  credentials_status
+
   # Fixture probe when Core is up — warn-only (local DB may lack fixtures).
   if [[ "$core_code" =~ ^[23] ]]; then
     fixture_probe "$DEFAULT_FIXTURE_EMAIL" "$DEFAULT_FIXTURE_PASSWORD" || true
@@ -888,6 +923,7 @@ function core_smoke() {
 case "${1:-}" in
   launch) launch ;;
   doctor) doctor ;;
+  credentials-status) credentials_status ;;
   sign-in)
     shift
     sign_in "$@"

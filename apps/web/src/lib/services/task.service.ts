@@ -21,6 +21,7 @@ import type { AgentJobStatus } from "@/lib/types/core-dto";
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
   assigneeId?: string;
+  assigneeOrchestratorId?: string;
   projectId?: string;
   q?: string;
   scope?: "workspace" | "owned";
@@ -42,6 +43,7 @@ interface CreateTaskInput {
   name?: string;
   description: string | null;
   assigneeId: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -51,6 +53,7 @@ interface PatchTaskInput {
   name?: string;
   description?: string | null;
   assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
   projectId?: string | null;
 }
 
@@ -63,6 +66,31 @@ interface CreateTaskLinkInput {
   toTaskId: string;
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
+}
+
+function assigneeWriteFields(
+  assigneeId?: string | null,
+  assigneeOrchestratorId?: string | null,
+): {
+  assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
+} {
+  if (
+    typeof assigneeId === "undefined" &&
+    typeof assigneeOrchestratorId === "undefined"
+  ) {
+    return {};
+  }
+
+  const orchestratorId = assigneeOrchestratorId?.trim() || null;
+  if (orchestratorId) {
+    return { assigneeId: null, assigneeOrchestratorId: orchestratorId };
+  }
+
+  return {
+    assigneeId: assigneeId?.trim() ? assigneeId : null,
+    assigneeOrchestratorId: null,
+  };
 }
 
 export interface WorkspaceCalendarPage {
@@ -83,7 +111,9 @@ export const taskService = (() => {
         : params.status
           ? [params.status]
           : undefined,
-      assigneeId: params.assigneeId,
+      ...(params.assigneeOrchestratorId
+        ? { assigneeOrchestratorId: params.assigneeOrchestratorId }
+        : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
       q: params.q,
       scope: params.scope,
@@ -161,7 +191,10 @@ export const taskService = (() => {
   }
 
   async function createTask(input: CreateTaskInput): Promise<Task> {
-    const result = await coreClient.createTask(input);
+    const result = await coreClient.createTask({
+      ...input,
+      ...assigneeWriteFields(input.assigneeId, input.assigneeOrchestratorId),
+    });
 
     if (!result.data) {
       throw new Error("Failed to create task");
@@ -187,7 +220,10 @@ export const taskService = (() => {
     taskId: string,
     input: PatchTaskInput,
   ): Promise<Task> {
-    const result = await coreClient.patchTask(taskId, input);
+    const result = await coreClient.patchTask(taskId, {
+      ...input,
+      ...assigneeWriteFields(input.assigneeId, input.assigneeOrchestratorId),
+    });
 
     if (!result.data) {
       throw new Error("Failed to update task");

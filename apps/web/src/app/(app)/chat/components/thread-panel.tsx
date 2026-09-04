@@ -14,6 +14,7 @@ import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomOrchestratorParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { MembershipStatusRow } from "./membership-status-row";
@@ -41,6 +42,8 @@ export function ThreadPanel({
   onLoadOlder,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   usersById,
   usersBySlug,
   mentionRecords,
@@ -87,6 +90,8 @@ export function ThreadPanel({
   onLoadOlder: () => void;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   mentionRecords: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
@@ -261,6 +266,8 @@ export function ThreadPanel({
                 message={parentMessage}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 mentions={mentionRecords}
@@ -316,6 +323,8 @@ export function ThreadPanel({
                           message={reply}
                           coworkersById={coworkersById}
                           coworkersBySlug={coworkersBySlug}
+                          orchestratorsById={orchestratorsById}
+                          orchestratorsBySlug={orchestratorsBySlug}
                           usersById={usersById}
                           usersBySlug={usersBySlug}
                           mentions={mentionRecords}
@@ -369,6 +378,8 @@ export function ThreadPanel({
             usersBySlug={usersBySlug}
             coworkersById={coworkersById}
             coworkersBySlug={coworkersBySlug}
+            orchestratorsById={orchestratorsById}
+            orchestratorsBySlug={orchestratorsBySlug}
             channels={channelOptions}
             channelLinks={channelLinks}
             placeholder={t("Thread.replyPlaceholder")}

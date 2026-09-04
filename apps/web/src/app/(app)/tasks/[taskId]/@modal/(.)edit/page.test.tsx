@@ -43,6 +43,9 @@ vi.mock("@/app/tasks/utils/agent-names", () => ({
 
 vi.mock("@/app/tasks/utils/coworker-options", () => ({
   getCoworkerOptions: (...args: unknown[]) => getCoworkerOptionsMock(...args),
+  withOwnerOrchestratorOption: (options: unknown) => options,
+  taskFormAssigneeId: (task: { assigneeId?: string | null }) =>
+    task.assigneeId ?? "",
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -59,6 +62,12 @@ vi.mock("@/lib/services", () => ({
 vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
     listCoworkers: (...args: unknown[]) => listCoworkersMock(...args),
+  },
+}));
+
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: {
+    getMine: vi.fn(async () => null),
   },
 }));
 
@@ -105,6 +114,7 @@ describe("TaskEditModalPage", () => {
       name: "Task",
       description: "Desc",
       assigneeId: "cow_123",
+      assigneeOrchestratorId: null,
       status: "DRAFT",
       workspace: {
         organizationId: "org-workspace",

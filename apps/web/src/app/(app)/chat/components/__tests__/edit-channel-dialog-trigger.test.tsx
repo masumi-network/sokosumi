@@ -41,6 +41,7 @@ function channel(): ChatRoom {
     myAccess: "member",
     userMembers: [],
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 

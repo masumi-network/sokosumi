@@ -1,5 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
-import type { Prisma } from "@sokosumi/database";
+import { type Prisma, TaskStatus } from "@sokosumi/database";
 import {
   buildOrganizationDriveFilePrefix,
   buildUserDriveFilePrefix,
@@ -26,7 +26,11 @@ import {
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isOrchestratorAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import {
   driveRecentsListSchema,
   driveRecentsQuerySchema,
@@ -108,6 +112,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         some: DRIVE_TASK_FILE_WHERE,
       },
     };
+
+    if (isOrchestratorAuthContext(authContext)) {
+      baseTaskWhere.assigneeOrchestratorId = authContext.orchestratorId;
+      baseTaskWhere.status = { not: TaskStatus.DRAFT };
+    }
 
     if (isCoworkerAuthContext(authContext) && authContext.context) {
       const hasWorkspaceGrant = await hasGrantedWorkspaceAccess({

@@ -14,6 +14,7 @@ const MOBILE_TAB_LIST_PATHS = [
   "/agents",
   "/drive",
   "/projects",
+  "/you",
   "/history",
 ] as const;
 
@@ -124,7 +125,8 @@ export function shouldShowMobileBottomNav(
 
 /**
  * Leading slot shows Sokosumi brand on Chats list and every bottom-nav tab
- * root (Tasks / Projects / Search). Agents shows back to home. Nested pages keep back.
+ * root (Tasks / Projects / You). Agents shows back to home. Nested pages keep back.
+ * `/history` keeps brand chrome after Search left the tab bar.
  */
 export function shouldShowMobileBrandLeading(
   pathname: string | null | undefined,

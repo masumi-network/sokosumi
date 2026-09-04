@@ -41,8 +41,8 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type AuthenticationContext,
-  isCoworkerAgentContext,
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
 } from "@/middleware/auth";
 import type { TaskX402PaymentSigned } from "@/schemas/x402-payment.schema";
 import {
@@ -90,6 +90,11 @@ export type PayTaskX402Result =
   | { outcome: "signed"; payment: TaskX402PaymentSigned }
   | { outcome: "out_of_credits"; attemptedCredits: number };
 
+interface TaskEventAgentAttribution {
+  coworkerId?: string;
+  orchestratorId?: string;
+}
+
 /**
  * Everything that must commit atomically BEFORE the node is contacted
  * (PR1-SPEC §3.1–§3.6): authz, idempotency, verify-against-the-listed-agent,
@@ -100,7 +105,7 @@ export type PayTaskX402Result =
  */
 async function runX402ChargePhase(
   input: PayTaskX402Input,
-  coworkerId: string,
+  taskEventAttribution: TaskEventAgentAttribution,
 ): Promise<ChargePhaseOutcome> {
   const { authContext, taskId, idempotencyKey, agentId } = input;
 
@@ -356,7 +361,7 @@ async function runX402ChargePhase(
           data: {
             taskId,
             status: charge.eventStatus,
-            coworkerId,
+            ...taskEventAttribution,
             cents,
           },
         });
@@ -389,7 +394,7 @@ async function runX402ChargePhase(
           taskId,
           cents,
           transactionId: charge.transactionId,
-          coworkerId,
+          ...taskEventAttribution,
         },
       });
 
@@ -494,7 +499,7 @@ function schedulePostCommitFanout(
 }
 
 /**
- * The coworker x402 pay flow (PR1-SPEC §3): a thin, verified proxy of the
+ * The agent x402 pay flow (PR1-SPEC §3): a thin, verified proxy of the
  * node's `POST /x402/pay`, charged to the task's org in credits.
  *
  * Charge-then-sign: the debit, the task event, and the PENDING record commit
@@ -512,9 +517,11 @@ export async function payTaskX402(
 ): Promise<PayTaskX402Result> {
   const { authContext, taskId } = input;
 
-  // Actor gate: users and orchestrators cannot read task state.
-  if (!isCoworkerAuthContext(authContext)) {
-    throw forbidden("Coworker agent authentication required");
+  if (
+    !isCoworkerAuthContext(authContext) &&
+    !isOrchestratorAuthContext(authContext)
+  ) {
+    throw forbidden("Agent authentication required");
   }
 
   // Contextual coworker calls resolve collaboration before the direct-auth
@@ -522,15 +529,18 @@ export async function payTaskX402(
   // `task_parked`) win without letting context auth reach parsing, readiness
   // reads, the serializable charge transaction, or any mutation. When access
   // itself succeeds, payment still requires the coworker to act as itself.
-  if (!isCoworkerAgentContext(authContext)) {
+  if (isCoworkerAuthContext(authContext) && authContext.context) {
     await requireTaskCollaboration(authContext, taskId);
     throw forbidden(
       "Direct coworker authentication required; remove X-Context-User-Id and X-Context-Organization-Id",
     );
   }
-  const coworkerId = authContext.coworkerId;
 
-  const outcome = await runX402ChargePhase(input, coworkerId);
+  const taskEventAttribution = isCoworkerAuthContext(authContext)
+    ? { coworkerId: authContext.coworkerId }
+    : { orchestratorId: authContext.orchestratorId };
+
+  const outcome = await runX402ChargePhase(input, taskEventAttribution);
 
   if (outcome.kind === "replay_verified") {
     return { outcome: "signed", payment: outcome.payment };

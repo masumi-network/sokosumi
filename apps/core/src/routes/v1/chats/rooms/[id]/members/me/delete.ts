@@ -4,6 +4,10 @@ import {
   expireStalePendingInvitations,
   livePendingInvitationWhere,
 } from "@/helpers/chat-room-invitation";
+import {
+  failOpenChatRoomMentions,
+  publishChatRoomMentionStatuses,
+} from "@/helpers/chat-room-mention-status";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -58,6 +62,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
+    const leftBehindMentionMessageIds: string[] = [];
     const { result, statusMessages } = await prisma.$transaction(async (tx) => {
       // Doubles as the membership check: it only resolves rooms the caller
       // actually belongs to, so leaving twice 404s.
@@ -182,6 +187,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await tx.chatRoomUserMember.deleteMany({
         where: { roomId: existing.id, userId: userContext.userId },
       });
+      // The assistant goes with its owner. Left behind in a channel it would
+      // stay mentionable by everyone still in the room, answering on behalf of
+      // someone who is no longer there and spending their credits.
+      if (existing.kind === "channel") {
+        const ownBots = await tx.sokoBot.findMany({
+          where: { userId: userContext.userId },
+          select: { id: true },
+        });
+        const ownBotIds = ownBots.map((bot) => bot.id);
+        if (ownBotIds.length > 0) {
+          leftBehindMentionMessageIds.push(
+            ...(await failOpenChatRoomMentions(
+              {
+                where: {
+                  orchestratorId: { in: ownBotIds },
+                  message: { roomId: existing.id },
+                },
+                error: "Personal assistant is no longer a member of this room",
+              },
+              tx,
+            )),
+          );
+          await tx.chatRoomOrchestratorMember.deleteMany({
+            where: { roomId: existing.id, orchestratorId: { in: ownBotIds } },
+          });
+        }
+      }
       // Drop the read marker too, so rejoining later starts clean rather than
       // resuming a stale position.
       await tx.chatRoomReadState.deleteMany({
@@ -203,6 +235,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         statusMessages: createdStatus,
       };
     });
+
+    // After commit: the mentions this leave failed are now stale on every
+    // open client until their status is republished.
+    await publishChatRoomMentionStatuses(leftBehindMentionMessageIds);
 
     // Membership already committed. Status timeline and multi-tab revoke must
     // not gate each other (or fail the leave after the row is gone).

@@ -5,7 +5,10 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 vi.mock("next-intl/server", () => ({
-  getTranslations: vi.fn(),
+  getTranslations: vi.fn(
+    async () => (key: string) =>
+      key === "personalAssistantBadge" ? "Personal assistant" : key,
+  ),
 }));
 vi.mock("@/app/components/private-sidebar-cache", () => ({
   invalidatePrivateSidebarChrome: vi.fn(),
@@ -32,6 +35,13 @@ const listCoworkersMock = vi.fn();
 vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
     listCoworkers: (...args: unknown[]) => listCoworkersMock(...args),
+  },
+}));
+
+const getMineMock = vi.fn();
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: {
+    getMine: (...args: unknown[]) => getMineMock(...args),
   },
 }));
 
@@ -62,6 +72,7 @@ describe("loadChatComposeRosterAction", () => {
       failed: false,
     });
     listCoworkersMock.mockResolvedValue([]);
+    getMineMock.mockResolvedValue(null);
   });
 
   it("returns an error DTO when roster services throw", async () => {
@@ -91,6 +102,7 @@ describe("loadChatComposeRosterAction", () => {
         canCreateExternal: false,
         members: [],
         coworkers: [],
+        orchestrators: [],
         membersLoadFailed: true,
       },
     });

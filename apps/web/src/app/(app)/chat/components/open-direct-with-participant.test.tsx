@@ -12,16 +12,19 @@ import type { ChatParticipantHoverProfile } from "./room-helpers";
 const {
   createDirectRoomActionMock,
   ensureCoworkerDirectRoomActionMock,
+  ensureOrchestratorDirectRoomActionMock,
   notifyOrganizationChatRoomsChangedMock,
 } = vi.hoisted(() => ({
   createDirectRoomActionMock: vi.fn(),
   ensureCoworkerDirectRoomActionMock: vi.fn(),
+  ensureOrchestratorDirectRoomActionMock: vi.fn(),
   notifyOrganizationChatRoomsChangedMock: vi.fn(),
 }));
 
 vi.mock("@/app/chat/actions", () => ({
   createDirectRoomAction: createDirectRoomActionMock,
   ensureCoworkerDirectRoomAction: ensureCoworkerDirectRoomActionMock,
+  ensureOrchestratorDirectRoomAction: ensureOrchestratorDirectRoomActionMock,
 }));
 
 vi.mock("@/components/chat/organization-chat-events", () => ({
@@ -45,6 +48,16 @@ const coworkerProfile: ChatParticipantHoverProfile = {
   caption: "Research assistant",
   image: null,
   presence: "afk",
+};
+
+const orchestratorProfile: ChatParticipantHoverProfile = {
+  kind: "orchestrator",
+  id: "soko-1",
+  name: "Personal assistant",
+  caption: null,
+  image: null,
+  avatarSeed: "seed-1",
+  presence: "online",
 };
 
 function room(id: string): ChatRoom {
@@ -169,6 +182,7 @@ describe("openDirectWithParticipant", () => {
       memberUserId: humanProfile.id,
     });
     expect(ensureCoworkerDirectRoomActionMock).not.toHaveBeenCalled();
+    expect(ensureOrchestratorDirectRoomActionMock).not.toHaveBeenCalled();
     expect(notifyOrganizationChatRoomsChangedMock).toHaveBeenCalledWith(
       directRoom,
     );
@@ -196,10 +210,37 @@ describe("openDirectWithParticipant", () => {
       coworkerProfile.id,
     );
     expect(createDirectRoomActionMock).not.toHaveBeenCalled();
+    expect(ensureOrchestratorDirectRoomActionMock).not.toHaveBeenCalled();
     expect(notifyOrganizationChatRoomsChangedMock).toHaveBeenCalledWith(
       directRoom,
     );
     expect(push).toHaveBeenCalledWith("/chat/rooms/room-coworker");
+  });
+
+  it("ensures an orchestrator direct, notifies, and navigates", async () => {
+    const directRoom = room("room-orchestrator");
+    const push = vi.fn();
+    ensureOrchestratorDirectRoomActionMock.mockResolvedValue({
+      ok: true,
+      value: directRoom,
+    });
+
+    await openDirectWithParticipant({
+      profile: orchestratorProfile,
+      selectedRoomId: null,
+      router: { push },
+      onError: vi.fn(),
+    });
+
+    expect(ensureOrchestratorDirectRoomActionMock).toHaveBeenCalledWith(
+      orchestratorProfile.id,
+    );
+    expect(ensureCoworkerDirectRoomActionMock).not.toHaveBeenCalled();
+    expect(createDirectRoomActionMock).not.toHaveBeenCalled();
+    expect(notifyOrganizationChatRoomsChangedMock).toHaveBeenCalledWith(
+      directRoom,
+    );
+    expect(push).toHaveBeenCalledWith("/chat/rooms/room-orchestrator");
   });
 
   it("skips navigation when the direct is already selected", async () => {

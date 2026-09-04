@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import { coworkerUserRouteAllowlistMiddleware } from "@/routes/v1/users/user-coworker-route-allowlist";
+import { agentUserRouteAllowlistMiddleware } from "@/routes/v1/users/user-coworker-route-allowlist";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
@@ -132,6 +132,14 @@ const SESSION_USER: AuthenticationContext = {
   role: "user",
 };
 
+const ORCHESTRATOR: AuthenticationContext = {
+  actor: "orchestrator",
+  orchestratorId: "11111111-1111-7111-8111-111111111111",
+  userId: "user_123",
+  workspaceId: "22222222-2222-7222-8222-222222222222",
+  organizationId: null,
+};
+
 function createUserRouteApp(
   authContext: AuthenticationContext,
 ): OpenAPIHonoWithAuth {
@@ -145,7 +153,7 @@ function createUserRouteApp(
 
   const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  userByIdApp.use("*", coworkerUserRouteAllowlistMiddleware);
+  userByIdApp.use("*", agentUserRouteAllowlistMiddleware);
   mountGetUserById(userByIdApp);
   mountGetUserCredits(userByIdApp);
   mountGetUserOrganizations(userByIdApp);
@@ -207,6 +215,13 @@ describe("coworker user route allowlist", () => {
     expect(buildCreditsPayloadMock).toHaveBeenCalled();
   });
 
+  it("allows an orchestrator to read its owner's allowlisted profile and credits", async () => {
+    const app = createUserRouteApp(ORCHESTRATOR);
+
+    expect((await app.request("http://localhost/me")).status).toBe(200);
+    expect((await app.request("http://localhost/me/credits")).status).toBe(200);
+  });
+
   it("allows coworker with context headers on organizations list", async () => {
     const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request("http://localhost/me/organizations");
@@ -234,6 +249,12 @@ describe("coworker user route allowlist", () => {
 
   it("rejects coworker with context headers on preferences", async () => {
     const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request("http://localhost/me/preferences");
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects an orchestrator on non-allowlisted owner settings", async () => {
+    const app = createUserRouteApp(ORCHESTRATOR);
     const response = await app.request("http://localhost/me/preferences");
     expect(response.status).toBe(403);
   });

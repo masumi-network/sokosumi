@@ -22,6 +22,7 @@ function buildTask(
     user: { id: "user-1", name: "Test User", image: null },
     organization: null,
     assigneeId: null,
+    assigneeOrchestratorId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -30,9 +31,8 @@ function buildTask(
       id: "user-1",
       user: { id: "user-1", name: "Test User", image: null },
     },
-    // Generated deprecated `orchestrator` intersection omits `| null`.
     orchestratorId: null,
-    orchestrator: null as unknown as TaskListItem["orchestrator"],
+    orchestrator: null,
     name: "Test task",
     description: null,
     status,
@@ -52,11 +52,22 @@ function buildTask(
   };
 }
 
+const PERSONAL_ASSISTANT = "Personal assistant";
+
+function map(task: TaskListItem | Task) {
+  return mapTaskToTaskWithCoworker(
+    task,
+    new Map(),
+    new Map(),
+    PERSONAL_ASSISTANT,
+  );
+}
+
 describe("mapTaskToTaskWithCoworker", () => {
   it("maps queued tasks to backlog column", () => {
     const task = buildTask(TaskStatus.QUEUED);
 
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+    const mapped = map(task);
 
     expect(mapped.columnId).toBe("backlog");
   });
@@ -64,7 +75,7 @@ describe("mapTaskToTaskWithCoworker", () => {
   it("maps canceled tasks to done column", () => {
     const task = buildTask(TaskStatus.CANCELED);
 
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+    const mapped = map(task);
 
     expect(mapped.columnId).toBe("done");
     expect(mapped.status).toBe(TaskStatus.CANCELED);
@@ -74,7 +85,7 @@ describe("mapTaskToTaskWithCoworker", () => {
   it("keeps completed tasks in done column", () => {
     const task = buildTask(TaskStatus.COMPLETED);
 
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+    const mapped = map(task);
 
     expect(mapped.columnId).toBe("done");
   });
@@ -82,7 +93,7 @@ describe("mapTaskToTaskWithCoworker", () => {
   it("maps awaiting external tasks to in-progress column", () => {
     const task = buildTask(TaskStatus.AWAITING_EXTERNAL);
 
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+    const mapped = map(task);
 
     expect(mapped.columnId).toBe("in-progress");
   });
@@ -90,7 +101,7 @@ describe("mapTaskToTaskWithCoworker", () => {
   it("maps out of credits tasks to input-required column", () => {
     const task = buildTask(TaskStatus.OUT_OF_CREDITS);
 
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+    const mapped = map(task);
 
     expect(mapped.columnId).toBe("input-required");
   });
@@ -100,7 +111,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       grantResumeStatus: TaskStatus.READY,
     });
 
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+    const mapped = map(task);
 
     expect(mapped.columnId).toBe("input-required");
     expect(mapped.status).toBe(TaskStatus.GRANT_PENDING);
@@ -116,7 +127,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       nextRunAt,
     });
 
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+    const mapped = map(task);
 
     expect(mapped.createdAt).toBe("2026-01-01T00:00:00.000Z");
     expect(mapped.updatedAt).toBe("2026-01-01T01:00:00.000Z");
@@ -129,7 +140,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       jobsCount: 1,
     });
 
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+    const mapped = map(task);
 
     expect(mapped.jobsCount).toBe(1);
     expect(mapped.commentsCount).toBe(2);
@@ -154,7 +165,7 @@ describe("mapTaskToTaskWithCoworker", () => {
       links: [],
     };
 
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+    const mapped = map(task);
 
     expect(mapped.share?.token).toBe("public-share-token");
   });
@@ -165,9 +176,57 @@ describe("mapTaskToTaskWithCoworker", () => {
       ownerId: "user-2",
     });
 
-    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+    const mapped = map(task);
 
     expect(mapped.owner).toEqual(task.owner);
     expect(mapped.ownerId).toBe("user-2");
+  });
+
+  it("maps an orchestrator assignee without looking it up in coworkers", () => {
+    const task = buildTask(TaskStatus.READY, {
+      assigneeId: null,
+      assigneeOrchestratorId: "bot-1",
+      assignee: {
+        type: "orchestrator",
+        id: "bot-1",
+        orchestrator: {
+          id: "bot-1",
+          name: "Jarvis",
+          avatarSeed: "orb:jewel-sky:user-1",
+          avatarImageUrl: null,
+          owner: { id: "user-1", name: "Ada", image: null },
+        },
+      },
+    });
+
+    const mapped = map(task);
+
+    expect(mapped.assignee).toEqual({
+      id: "bot-1",
+      name: "Jarvis",
+      image: null,
+      kind: "orchestrator",
+      avatarSeed: "orb:jewel-sky:user-1",
+    });
+  });
+
+  it("uses the translated fallback when the orchestrator has no name", () => {
+    const task = buildTask(TaskStatus.READY, {
+      assigneeId: null,
+      assigneeOrchestratorId: "bot-1",
+      assignee: {
+        type: "orchestrator",
+        id: "bot-1",
+        orchestrator: {
+          id: "bot-1",
+          name: "  ",
+          avatarSeed: null,
+          avatarImageUrl: null,
+          owner: { id: "user-1", name: "Ada", image: null },
+        },
+      },
+    });
+
+    expect(map(task).assignee?.name).toBe(PERSONAL_ASSISTANT);
   });
 });

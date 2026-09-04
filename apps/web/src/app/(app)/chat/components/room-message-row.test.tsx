@@ -2353,6 +2353,7 @@ describe("ChatMessageRow coworker Thought", () => {
           {
             id: "mention-1",
             coworkerId: "cow-1",
+            orchestratorId: null,
             status: "sent",
             responseMessageId: null,
           },
@@ -2388,6 +2389,7 @@ describe("ChatMessageRow coworker Thought", () => {
           {
             id: "mention-1",
             coworkerId: "cow-1",
+            orchestratorId: null,
             status: "sent",
             responseMessageId: "shell_1",
           },
@@ -2423,6 +2425,7 @@ describe("ChatMessageRow coworker Thought", () => {
           {
             id: "m1",
             coworkerId: "cow-1",
+            orchestratorId: null,
             status: "failed",
             responseMessageId: null,
           },

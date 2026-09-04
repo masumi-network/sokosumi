@@ -5,26 +5,29 @@
 export function directCreateShapeError(
   memberUserIds: readonly string[],
   coworkerIds: readonly string[],
+  orchestratorIds: readonly string[] = [],
 ): string | null {
-  if (memberUserIds.length === 0 && coworkerIds.length === 0) {
+  const targetKinds = [
+    memberUserIds.length > 0,
+    coworkerIds.length > 0,
+    orchestratorIds.length > 0,
+  ].filter(Boolean).length;
+
+  if (targetKinds === 0) {
     return "Choose a direct message target";
   }
 
-  if (memberUserIds.length > 0 && coworkerIds.length > 0) {
-    return "Group direct messages cannot include coworkers.";
+  if (targetKinds > 1) {
+    return "Direct messages cannot mix humans, coworkers, and personal assistants.";
   }
 
   if (coworkerIds.length > 1) {
     return "Direct messages support one coworker only.";
   }
 
-  if (memberUserIds.length >= 1 && coworkerIds.length === 0) {
-    return null;
+  if (orchestratorIds.length > 1) {
+    return "Direct messages support one personal assistant only.";
   }
 
-  if (memberUserIds.length === 0 && coworkerIds.length === 1) {
-    return null;
-  }
-
-  return "Choose a direct message target";
+  return null;
 }

@@ -1,6 +1,7 @@
 interface AssigneeIdAliasInput {
   assigneeId?: string | null;
   coworkerId?: string | null;
+  assigneeOrchestratorId?: string | null;
 }
 
 interface AssigneeIdAliasIssueContext {
@@ -41,4 +42,50 @@ export function refineAssigneeIdAliasConflict(
       path: ["assigneeId"],
     });
   }
+}
+
+function hasAssigneeValue(value: string | null | undefined): boolean {
+  return value != null && value.trim() !== "";
+}
+
+/** Coworker and orchestrator assignee FKs are XOR. */
+export function refineAssigneeXorConflict(
+  data: AssigneeIdAliasInput,
+  ctx: AssigneeIdAliasIssueContext,
+): void {
+  refineAssigneeIdAliasConflict(data, ctx);
+  if (
+    hasAssigneeValue(resolveAssigneeIdFromRequest(data)) &&
+    hasAssigneeValue(data.assigneeOrchestratorId)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message: "assigneeId and assigneeOrchestratorId cannot both be set",
+      path: ["assigneeOrchestratorId"],
+    });
+  }
+}
+
+/**
+ * A provided assignee field replaces the whole assignee: coworker, orchestrator,
+ * or neither. Omitted fields leave the current assignee untouched.
+ */
+export function nextAssigneeWrite(input: {
+  assigneeId?: string | null;
+  assigneeOrchestratorId?: string | null;
+}):
+  | { assigneeId: string | null; assigneeOrchestratorId: string | null }
+  | undefined {
+  const hasCoworker = input.assigneeId !== undefined;
+  const hasOrchestrator = input.assigneeOrchestratorId !== undefined;
+  if (!hasCoworker && !hasOrchestrator) return undefined;
+  const coworkerId = input.assigneeId?.trim() || null;
+  const orchestratorId = input.assigneeOrchestratorId?.trim() || null;
+  if (hasCoworker && coworkerId) {
+    return { assigneeId: coworkerId, assigneeOrchestratorId: null };
+  }
+  if (hasOrchestrator && orchestratorId) {
+    return { assigneeId: null, assigneeOrchestratorId: orchestratorId };
+  }
+  return { assigneeId: null, assigneeOrchestratorId: null };
 }

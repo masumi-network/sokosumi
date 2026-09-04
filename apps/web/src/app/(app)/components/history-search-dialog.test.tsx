@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getHistoryMock, pushMock } = vi.hoisted(() => ({
@@ -39,6 +41,10 @@ vi.mock("@/lib/utils/datetime.client", () => ({
 }));
 
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
+import {
+  HISTORY_SEARCH_DEBOUNCE_MS,
+  HISTORY_SEARCH_PAGE_SIZE,
+} from "@/app/components/use-history-search-corpus";
 import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 
 const labels = {
@@ -63,8 +69,23 @@ function createTaskItem(id: string, title: string): HistoryItem {
     credits: null,
     projectId: null,
     coworkerId: null,
+    orchestratorId: null,
     owner: null,
   };
+}
+
+function renderWithQuery(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  );
 }
 
 describe("HistorySearchDialog", () => {
@@ -84,7 +105,7 @@ describe("HistorySearchDialog", () => {
   });
 
   it("requests owned scope for organization users", async () => {
-    render(
+    renderWithQuery(
       <HistorySearchDialog
         open
         onOpenChange={vi.fn()}
@@ -96,7 +117,7 @@ describe("HistorySearchDialog", () => {
     await waitFor(() => {
       expect(getHistoryMock).toHaveBeenCalledWith({
         q: undefined,
-        limit: 50,
+        limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
         types: ["task", "job"],
       });
@@ -104,7 +125,7 @@ describe("HistorySearchDialog", () => {
   });
 
   it("requests owned scope for personal workspace users", async () => {
-    render(
+    renderWithQuery(
       <HistorySearchDialog
         open
         onOpenChange={vi.fn()}
@@ -116,7 +137,7 @@ describe("HistorySearchDialog", () => {
     await waitFor(() => {
       expect(getHistoryMock).toHaveBeenCalledWith({
         q: undefined,
-        limit: 50,
+        limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
         types: ["task", "job"],
       });
@@ -141,7 +162,7 @@ describe("HistorySearchDialog", () => {
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    render(
+    renderWithQuery(
       <HistorySearchDialog
         open
         onOpenChange={vi.fn()}
@@ -157,7 +178,7 @@ describe("HistorySearchDialog", () => {
     await user.type(screen.getByPlaceholderText("Search history..."), "new");
 
     await act(async () => {
-      vi.advanceTimersByTime(250);
+      vi.advanceTimersByTime(HISTORY_SEARCH_DEBOUNCE_MS);
     });
 
     expect(screen.queryByText("Old query result")).not.toBeInTheDocument();
@@ -180,7 +201,7 @@ describe("HistorySearchDialog", () => {
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
 
-    render(
+    renderWithQuery(
       <HistorySearchDialog
         open
         onOpenChange={vi.fn()}
@@ -192,13 +213,13 @@ describe("HistorySearchDialog", () => {
     await user.type(screen.getByPlaceholderText("Search history..."), "new");
 
     await act(async () => {
-      vi.advanceTimersByTime(250);
+      vi.advanceTimersByTime(HISTORY_SEARCH_DEBOUNCE_MS);
     });
 
     await waitFor(() => {
       expect(getHistoryMock).toHaveBeenLastCalledWith({
         q: "new",
-        limit: 50,
+        limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
         types: ["task", "job"],
       });

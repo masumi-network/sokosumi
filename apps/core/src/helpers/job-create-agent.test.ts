@@ -257,7 +257,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     ]);
     calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(2));
     creditBucketPrepareConsumptionMock.mockResolvedValue([]);
-    createPurchaseMock.mockResolvedValue(err("payment unavailable"));
+    // A PurchaseFailure shape, not a bare string: registerJobPurchase retries
+    // an `ambiguous` verdict, and these tests assert the payload the node
+    // receives rather than the retry policy, which has its own tests.
+    createPurchaseMock.mockResolvedValue(
+      err({ kind: "permanent", message: "payment unavailable" }),
+    );
     agentFindFirstMock.mockResolvedValue(createAgentRecord());
     projectFindFirstMock.mockResolvedValue({ id: "project_1" });
     createAgentClientMock.mockReturnValue({

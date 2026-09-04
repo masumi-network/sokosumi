@@ -9,10 +9,7 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
-import {
-  creditBucketRepository,
-  jobPurchaseRepository,
-} from "@sokosumi/database/repositories";
+import { creditBucketRepository } from "@sokosumi/database/repositories";
 import {
   type JobWithListSummaryRelations,
   jobListSummaryInclude,
@@ -33,7 +30,6 @@ import type {
 } from "@sokosumi/masumi/schemas";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { v4 as uuidv4 } from "uuid";
-import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
@@ -51,6 +47,7 @@ import {
   getAgentCost,
 } from "@/helpers/agent-cost";
 import { incrementAgentJobCount } from "@/helpers/agent-job-count";
+import { registerJobPurchase } from "@/helpers/job-purchase-registration";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -60,7 +57,6 @@ import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent-cost";
 import { badRequest, notFound, unprocessableEntity } from "./error";
-import { transformPurchaseToJobUpdate } from "./purchase";
 import { getCents } from "./user";
 
 export interface JobContext {
@@ -888,55 +884,21 @@ export async function createAgentJobForUser(
     paidJobResult &&
     identifierFromPurchaser
   ) {
-    const createPurchaseResult = await paymentClient().createPurchase(
-      agent.blockchainIdentifier,
-      paidJobResult,
-      agentInput.inputData,
+    await registerJobPurchase({
+      jobId: job.id,
+      agentId: agentInput.agentId,
+      agentBlockchainIdentifier: agent.blockchainIdentifier,
+      startJobResponse: paidJobResult,
+      inputData: agentInput.inputData,
       identifierFromPurchaser,
       // Spell ADA the way the payment node's contract does. Internally the
       // canonical unit is `lovelace`; POST /purchase documents an empty string
       // for ADA, so a literal comparison against `lovelace` would reject every
       // ADA-priced drift guard.
-      purchaseRequestAmounts
+      amounts: purchaseRequestAmounts
         ? toMasumiPaymentNodeAmounts(purchaseRequestAmounts)
         : undefined,
-    );
-
-    if (createPurchaseResult.isOk()) {
-      const purchaseData = transformPurchaseToJobUpdate(
-        createPurchaseResult.value,
-      );
-      await jobPurchaseRepository
-        .createJobPurchase(
-          {
-            jobId: job.id,
-            ...purchaseData,
-          },
-          prisma,
-        )
-        .catch((error) => {
-          Sentry.captureException(error);
-        });
-    } else {
-      // A permanent rejection is not transient — with the Amounts guard it
-      // most likely means on-chain pricing drifted from the synced pricing the
-      // credits charge used. Page it; the job follows the payment-failed
-      // credit-refund path.
-      if (createPurchaseResult.error.kind === "permanent") {
-        Sentry.captureException(
-          new Error(
-            `Purchase rejected by payment node (likely price drift) for agent ${agentInput.agentId}: ${createPurchaseResult.error.message}`,
-          ),
-        );
-      }
-      // Job already exists; purchase registration is retried by job sync. A
-      // transient Masumi payment outage should not page Sentry (SOKOSUMI-CORE-2N).
-      console.warn("[createAgentJobForUser] purchase registration failed", {
-        jobId: job.id,
-        agentId: agentInput.agentId,
-        error: createPurchaseResult.error.message,
-      });
-    }
+    });
   }
 
   return job;
@@ -984,6 +946,7 @@ export async function getUserJobs(
     status?: AgentJobStatus;
     scope?: "workspace" | "owned";
     coworkerId?: string;
+    orchestratorId?: string;
     cursor?: string;
     take: number;
     skip?: number;
@@ -1000,6 +963,7 @@ export async function getUserJobs(
     status,
     scope = "owned",
     coworkerId,
+    orchestratorId,
     cursor,
     take,
     skip,
@@ -1024,6 +988,9 @@ export async function getUserJobs(
       // `task` is an optional to-one relation, so this filter requires the job
       // to HAVE a task assigned to this coworker — null-task jobs are excluded.
       ...(coworkerId ? [{ task: { assigneeId: coworkerId } }] : []),
+      ...(orchestratorId
+        ? [{ task: { assigneeOrchestratorId: orchestratorId } }]
+        : []),
     ],
   };
 

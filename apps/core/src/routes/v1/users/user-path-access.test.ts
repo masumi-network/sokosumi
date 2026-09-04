@@ -41,6 +41,25 @@ describe("requireAccessToTargetUserData", () => {
     });
   });
 
+  it("allows an orchestrator only for its fixed owner id", () => {
+    const authContext = {
+      actor: "orchestrator" as const,
+      orchestratorId: "11111111-1111-7111-8111-111111111111",
+      userId: target,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+      organizationId: null,
+    };
+
+    expect(requireAccessToTargetUserData(authContext, target)).toEqual({
+      source: "context",
+      userId: target,
+      organizationId: null,
+    });
+    expect(() =>
+      requireAccessToTargetUserData(authContext, "usr_other"),
+    ).toThrow();
+  });
+
   it("rejects bare coworker without context headers", () => {
     expect(() =>
       requireAccessToTargetUserData(
@@ -127,6 +146,26 @@ describe("resolveUsersPathUserId", () => {
     expect(userContext).toEqual({
       source: "context",
       userId: "usr_ctx",
+      organizationId: "org_1",
+    });
+  });
+
+  it("resolves me to the orchestrator owner id", () => {
+    const { resolvedUserId, userContext } = resolveUsersPathUserId(
+      {
+        actor: "orchestrator",
+        orchestratorId: "11111111-1111-7111-8111-111111111111",
+        userId: "usr_owner",
+        workspaceId: "22222222-2222-7222-8222-222222222222",
+        organizationId: "org_1",
+      },
+      USERS_PATH_ME,
+    );
+
+    expect(resolvedUserId).toBe("usr_owner");
+    expect(userContext).toEqual({
+      source: "context",
+      userId: "usr_owner",
       organizationId: "org_1",
     });
   });

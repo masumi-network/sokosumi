@@ -10,7 +10,7 @@ import {
   toMasumiPaymentNodeAmounts,
 } from "../utils/payment-amounts.js";
 import { createX402PaymentMethods } from "./masumi-payment-x402.js";
-import { extractNodeErrorMessage } from "./node-error.js";
+import { extractNodeErrorMessage, readNodeErrorMessage } from "./node-error.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
   type GetPurchaseDiffResponses,
@@ -45,6 +45,20 @@ type ResolvedPurchase =
  */
 export type MasumiPurchaseDiffEntry =
   GetPurchaseDiffResponses["200"]["data"]["Purchases"][number];
+
+/**
+ * A failed diff request. The status rides alongside the message because the
+ * caller's paging policy branches on it. `hasNodeErrorEnvelope` records whether
+ * the payment node supplied its documented `{ error: { message } }` envelope.
+ * A node-owned response must still page when its status also looks like a
+ * transient proxy status. `status` is null when no response arrived.
+ */
+export interface MasumiPurchaseDiffFailure {
+  hasNodeErrorEnvelope: boolean;
+  message: string;
+  status: number | null;
+}
+
 type CreatedPurchase = PostPurchaseResponses["200"]["data"];
 type PurchaseRequest = NonNullable<PostPurchaseData["body"]>;
 
@@ -393,7 +407,7 @@ export function createPaymentClient(
       cursorId: string | null,
       limit: number,
       options: PaymentClientRequestOptions = {},
-    ): Promise<Result<MasumiPurchaseDiffEntry[], string>> {
+    ): Promise<Result<MasumiPurchaseDiffEntry[], MasumiPurchaseDiffFailure>> {
       try {
         const response = await getPurchaseDiff({
           client: client(),
@@ -405,14 +419,18 @@ export function createPaymentClient(
           },
           signal: options.signal,
         });
+        const status = response.response?.status ?? null;
         if (
           response.error ||
           !response.data ||
           response.response?.status !== 200
         ) {
-          return err(
-            `purchase-diff ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
-          );
+          const nodeErrorMessage = readNodeErrorMessage(response.error);
+          return err({
+            hasNodeErrorEnvelope: nodeErrorMessage !== null,
+            message: `purchase-diff ${status ?? "unknown"}: ${nodeErrorMessage ?? extractNodeErrorMessage(response.error)}`,
+            status,
+          });
         }
         const purchases = response.data.data.Purchases;
         const invalidCursorPurchase = purchases.find((purchase) => {
@@ -428,13 +446,21 @@ export function createPaymentClient(
           );
         });
         if (invalidCursorPurchase) {
-          return err(
-            `purchase-diff 200: invalid change timestamp for purchase ${invalidCursorPurchase.id}`,
-          );
+          // A 200 the node itself served: the body is wrong, not the far side
+          // absent, so this must stay pageable.
+          return err({
+            hasNodeErrorEnvelope: false,
+            message: `purchase-diff 200: invalid change timestamp for purchase ${invalidCursorPurchase.id}`,
+            status,
+          });
         }
         return ok(purchases);
       } catch (error) {
-        return err(String(error) || "Failed to fetch the purchase diff");
+        return err({
+          hasNodeErrorEnvelope: false,
+          message: String(error) || "Failed to fetch the purchase diff",
+          status: null,
+        });
       }
     },
 

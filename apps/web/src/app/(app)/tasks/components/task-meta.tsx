@@ -3,6 +3,7 @@
 import { Calendar, MessageSquare, UserCog } from "lucide-react";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import { AssistantOrb } from "@/components/aurora-orb";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -10,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface TaskMetaDetailsProps {
@@ -29,6 +31,24 @@ function AssigneeAvatar({
 }) {
   const image = getCoworkerImage(assignee);
   const sizeClass = size === "sm" ? "size-5" : "size-6";
+  const orbSize = size === "sm" ? 20 : 24;
+
+  if (
+    assignee?.kind === "orchestrator" &&
+    !image &&
+    (assignee.avatarSeed || assignee.id)
+  ) {
+    return (
+      <AssistantOrb
+        seed={assignee.avatarSeed ?? defaultOrbSeed(assignee.id)}
+        expression="idle"
+        animate={false}
+        size={orbSize}
+        className={`${sizeClass} shrink-0`}
+        alt={assignee.name}
+      />
+    );
+  }
 
   return (
     <Avatar className={`${sizeClass} shrink-0`}>

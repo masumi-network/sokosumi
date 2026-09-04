@@ -257,6 +257,27 @@ describe("buildRoomMentionPrompt", () => {
     );
   });
 
+  it("labels orchestrator senders as personal assistants, not unnamed humans", () => {
+    const prompt = buildRoomMentionPrompt({
+      roomName: "general",
+      senderName: "Patrick",
+      content: "@soko pick this up",
+      isThreadReply: false,
+      contextMessages: [
+        {
+          senderName: "Soko Bot",
+          isCoworker: false,
+          isOrchestrator: true,
+          content: "I already replied",
+        },
+      ],
+    });
+
+    expect(prompt).toContain(
+      "- Soko Bot (personal assistant): I already replied",
+    );
+  });
+
   it("labels thread replies instead of claiming a mention", () => {
     const prompt = buildRoomMentionPrompt({
       roomName: "general",

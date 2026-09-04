@@ -13,6 +13,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
 import {
@@ -31,6 +32,7 @@ import {
   resolveChannelName,
   resolveWorkspaceIdForChatRoom,
   validateChatCoworkerIds,
+  validateChatOrchestratorIds,
   validateOrganizationUserIds,
 } from "./helpers";
 
@@ -92,6 +94,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return direct.created ? created(c, direct.room) : ok(c, direct.room);
     }
 
+    if (isOrchestratorAuthContext(authContext)) {
+      const direct = await createOrGetOrchestratorOriginatedDirect({
+        orchestratorId: authContext.orchestratorId,
+        ownerUserId: authContext.userId,
+        organizationId: authContext.organizationId,
+        memberUserIds: body.kind === "direct" ? (body.memberUserIds ?? []) : [],
+        coworkerIds: body.kind === "direct" ? (body.coworkerIds ?? []) : [],
+        orchestratorIds:
+          body.kind === "direct" ? (body.orchestratorIds ?? []) : [],
+        kind: body.kind,
+      });
+
+      return direct.created ? created(c, direct.room) : ok(c, direct.room);
+    }
+
     const userContext = requireUserAuthContext(authContext);
 
     if (body.kind === "direct") {
@@ -104,6 +121,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         currentUserId: userContext.userId,
         memberUserIds: body.memberUserIds ?? [],
         coworkerIds: body.coworkerIds ?? [],
+        orchestratorIds: body.orchestratorIds ?? [],
       });
 
       return direct.created ? created(c, direct.room) : ok(c, direct.room);
@@ -145,6 +163,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId,
           tx,
         );
+        const orchestratorIds = await validateChatOrchestratorIds(
+          body.orchestratorIds ?? [],
+          workspaceId,
+          userContext.userId,
+          [],
+          tx,
+        );
 
         return tx.chatRoom.create({
           data: {
@@ -165,6 +190,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
             coworkerMembers: {
               create: coworkerIds.map((coworkerId) => ({ coworkerId })),
+            },
+            orchestratorMembers: {
+              create: orchestratorIds.map((orchestratorId) => ({
+                orchestratorId,
+              })),
             },
           },
           include: chatRoomInclude,
@@ -221,6 +251,46 @@ async function createOrGetCoworkerOriginatedDirect(params: {
     currentUserId: params.memberUserIds[0]!,
     memberUserIds: [],
     coworkerIds: [params.coworkerId],
+    viewerUserId: null,
+  });
+}
+
+async function createOrGetOrchestratorOriginatedDirect(params: {
+  orchestratorId: string;
+  /** The bot's owner. The room's human participant is the colleague. */
+  ownerUserId: string;
+  organizationId: string | null;
+  memberUserIds: readonly string[];
+  coworkerIds: readonly string[];
+  orchestratorIds: readonly string[];
+  kind: "channel" | "direct";
+}): Promise<{ room: ChatRoom; created: boolean }> {
+  if (params.kind !== "direct") {
+    throw forbidden("Soko Bot API keys cannot create channels");
+  }
+
+  if (!params.organizationId) {
+    throw badRequest("Switch to an organization to message a teammate.");
+  }
+
+  if (params.coworkerIds.length > 0 || params.orchestratorIds.length > 0) {
+    throw badRequest("Soko Bot API keys cannot include agent ids");
+  }
+
+  if (params.memberUserIds.length !== 1) {
+    throw badRequest("Choose a direct message target");
+  }
+
+  return await createOrGetDirectRoom({
+    organizationId: params.organizationId,
+    currentUserId: params.memberUserIds[0]!,
+    memberUserIds: [],
+    coworkerIds: [],
+    orchestratorIds: [params.orchestratorId],
+    // Who may add the assistant is the owner, not the colleague on the other
+    // side of the DM. Without this the helper asks whether the colleague owns
+    // the bot, and every colleague DM a bot opens is refused with a 403.
+    orchestratorActorUserId: params.ownerUserId,
     viewerUserId: null,
   });
 }

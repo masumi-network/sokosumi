@@ -1,6 +1,7 @@
 import {
   createDirectRoomAction,
   ensureCoworkerDirectRoomAction,
+  ensureOrchestratorDirectRoomAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 
@@ -8,7 +9,7 @@ import type { ChatParticipantHoverProfile } from "./room-helpers";
 
 export function participantDirectKey(
   profile: ChatParticipantHoverProfile,
-): `${"human" | "coworker"}:${string}` {
+): `${"human" | "coworker" | "orchestrator"}:${string}` {
   return `${profile.kind}:${profile.id}`;
 }
 
@@ -50,7 +51,9 @@ export async function openDirectWithParticipant(options: {
   const result =
     profile.kind === "coworker"
       ? await ensureCoworkerDirectRoomAction(profile.id)
-      : await createDirectRoomAction({ memberUserId: profile.id });
+      : profile.kind === "orchestrator"
+        ? await ensureOrchestratorDirectRoomAction(profile.id)
+        : await createDirectRoomAction({ memberUserId: profile.id });
 
   if (!result.ok) {
     onError(result.error.message ?? "Could not start direct message.");

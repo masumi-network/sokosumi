@@ -1,16 +1,13 @@
 import type { SessionUser } from "@sokosumi/utils";
-import { act, render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import HeaderProfileSectionClient, {
-  type HeaderAccountSummary,
-} from "@/app/components/header/header-profile-section.client";
+import HeaderProfileSectionClient from "@/app/components/header/header-profile-section.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 const useSessionMock = vi.fn();
 const headerWorkspaceSwitchMock = vi.fn();
 const useWorkspaceSwitcherMock = vi.fn();
-const headerAccountControlMock = vi.fn();
 
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: (...args: unknown[]) => useSessionMock(...args),
@@ -24,14 +21,7 @@ vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
 vi.mock("@/app/components/header/header-workspace-switch.client", () => ({
   default: (props: unknown) => {
     headerWorkspaceSwitchMock(props);
-    return null;
-  },
-}));
-
-vi.mock("@/app/components/header/header-account-control.client", () => ({
-  HeaderAccountControl: (props: unknown) => {
-    headerAccountControlMock(props);
-    return null;
+    return <div data-testid="header-workspace-switch-mock" />;
   },
 }));
 
@@ -84,36 +74,17 @@ const members: MemberWithOrganization[] = [
   },
 ];
 
-const accountSummary: HeaderAccountSummary = {
-  planName: "Pro",
-  totalCredits: 1000,
-  extraCredits: 0,
-  creditUsage: null,
-  subscriptionPeriodEndMs: null,
-  currentTimestampMs: 1_700_000_000_000,
-  lowCreditsThreshold: 100,
-  buyCreditsLabel: "getMoreCredits",
-  buyCreditsPath: "/billing?tab=credits",
-  adminMenuEnabled: true,
-  showDeveloperVendors: false,
-};
-
 async function renderProfileSection(props: {
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
   hasPersonalWorkspace?: boolean;
   activeOrganizationId: string | null;
-  accountSummaryPromise?: Promise<HeaderAccountSummary>;
 }) {
-  const { accountSummaryPromise, ...rest } = props;
   await act(async () => {
     render(
       <HeaderProfileSectionClient
-        {...rest}
-        hasPersonalWorkspace={rest.hasPersonalWorkspace ?? true}
-        accountSummaryPromise={
-          accountSummaryPromise ?? Promise.resolve(accountSummary)
-        }
+        {...props}
+        hasPersonalWorkspace={props.hasPersonalWorkspace ?? true}
       />,
     );
   });
@@ -125,8 +96,29 @@ describe("HeaderProfileSectionClient", () => {
       isPending: false,
       handleSelectWorkspace: vi.fn(),
     });
-    headerAccountControlMock.mockClear();
     headerWorkspaceSwitchMock.mockClear();
+  });
+
+  it("shows Workspace switch on mobile and desktop", async () => {
+    useSessionMock.mockReturnValue({
+      data: {
+        session: {
+          activeOrganizationId: "org-a",
+        },
+      },
+    });
+
+    await renderProfileSection({
+      sessionUser,
+      members,
+      activeOrganizationId: "org-a",
+    });
+
+    const chrome = screen.getByTestId("header-workspace-chrome");
+    expect(chrome.className).toContain("flex");
+    expect(chrome.className).not.toContain("hidden");
+    expect(chrome.className).not.toContain("md:flex");
+    expect(screen.getByTestId("header-workspace-switch-mock")).toBeTruthy();
   });
 
   it("prefers the client session active organization when it matches the server", async () => {
@@ -240,62 +232,5 @@ describe("HeaderProfileSectionClient", () => {
         isPending: true,
       }),
     );
-  });
-
-  it("mounts the mobile account control after the bell with admin settings", async () => {
-    useSessionMock.mockReturnValue({
-      data: {
-        session: {
-          activeOrganizationId: "org-a",
-        },
-      },
-    });
-
-    await renderProfileSection({
-      sessionUser,
-      members,
-      activeOrganizationId: "org-a",
-    });
-
-    expect(headerAccountControlMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        className: "ml-0.5 md:hidden",
-        planName: "Pro",
-        adminSettingsChrome: expect.objectContaining({
-          adminMenuEnabled: true,
-          activeOrganizationId: "org-a",
-          members,
-        }),
-      }),
-    );
-  });
-
-  it("shows workspace switch while account summary is still pending", async () => {
-    useSessionMock.mockReturnValue({
-      data: {
-        session: {
-          activeOrganizationId: "org-a",
-        },
-      },
-    });
-
-    await act(async () => {
-      render(
-        <HeaderProfileSectionClient
-          sessionUser={sessionUser}
-          members={members}
-          hasPersonalWorkspace
-          activeOrganizationId="org-a"
-          accountSummaryPromise={new Promise<HeaderAccountSummary>(() => {})}
-        />,
-      );
-    });
-
-    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        activeOrganizationId: "org-a",
-      }),
-    );
-    expect(headerAccountControlMock).not.toHaveBeenCalled();
   });
 });

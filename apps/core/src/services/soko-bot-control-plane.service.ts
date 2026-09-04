@@ -23,6 +23,10 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { getEnv } from "@/config/env";
+import {
+  failOpenChatRoomMentions,
+  publishChatRoomMentionStatuses,
+} from "@/helpers/chat-room-mention-status";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -44,7 +48,6 @@ import {
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
 } from "@/services/soko-bot-billing.service";
-import { ensureSokoBotCoworker } from "@/services/soko-bot-chat.service";
 import {
   type CreateSokoBotScheduleInput,
   createSokoBotSchedule,
@@ -187,6 +190,13 @@ export interface SokoBotTurnStartResult {
   reconciliationLeaseToken?: string;
 }
 
+/**
+ * How many failed bots a fleet migration names. The count is exact; the list
+ * is a sample, because the response schema bounds it and a migration must not
+ * throw on its own output after it has already moved bots.
+ */
+const MIGRATION_FAILURE_SAMPLE = 100;
+
 export type SokoBotAdminActionName =
   | "PAUSE"
   | "RESUME"
@@ -194,7 +204,8 @@ export type SokoBotAdminActionName =
   | "RESET_MEMORY"
   | "RETRY_LAST_FAILED"
   | "RETRY_SCHEDULE_RUN"
-  | "DISABLE_SCHEDULE";
+  | "DISABLE_SCHEDULE"
+  | "SET_VERSION";
 
 interface AdminActionSnapshotInput {
   status: string;
@@ -202,6 +213,7 @@ interface AdminActionSnapshotInput {
   eveSessionId: string | null;
   memoryVersion: number;
   archivedAt: Date | null;
+  versionId: string | null;
 }
 
 interface AdminActionIntentInput {
@@ -220,6 +232,9 @@ function adminActionSnapshot(bot: AdminActionSnapshotInput) {
     hasEveSession: bot.eveSessionId !== null,
     memoryVersion: bot.memoryVersion,
     archivedAt: bot.archivedAt,
+    // Which version the bot ran before and after. `SET_VERSION` is otherwise
+    // invisible in the audit trail: nothing else on the snapshot changes.
+    versionId: bot.versionId,
   };
 }
 
@@ -1059,7 +1074,6 @@ export class SokoBotControlPlane {
             },
           });
         }
-        await ensureSokoBotCoworker(updated.id, tx);
         if (input.avatarId) await claimAvatar(updated.id, input.avatarId, tx);
         return updated;
       }
@@ -1091,7 +1105,6 @@ export class SokoBotControlPlane {
           source: "created",
         },
       });
-      await ensureSokoBotCoworker(bot.id, tx);
       if (input.avatarId) await claimAvatar(bot.id, input.avatarId, tx);
       return bot;
     });
@@ -1112,11 +1125,53 @@ export class SokoBotControlPlane {
     return created;
   }
 
+  /**
+   * Is anything happening, in one indexed read.
+   *
+   * The console watches turns it did not start, so it has to poll often enough
+   * to catch one that runs for a few seconds. Polling the full chat state that
+   * often is not affordable — that loads the bot plus twenty turns with their
+   * events, delegations and decisions — so this carries only what tells the
+   * client whether to go and fetch it.
+   */
+  async getActivityForUser(
+    userId: string,
+    workspaceId: string,
+  ): Promise<{
+    status: string;
+    activeTurnId: string | null;
+    lastTurnAt: Date | null;
+  } | null> {
+    // One Prisma call, though not one SQL statement: the generator does not
+    // enable `relationJoins`, so this still selects the bot and the turn
+    // separately. Both predicates are indexed and the payload is three
+    // columns, which is what makes it affordable to ask every couple of
+    // seconds — not a saved round trip, which it is not.
+    const bot = await prisma.sokoBot.findFirst({
+      where: { userId, workspaceId, archivedAt: null },
+      select: {
+        status: true,
+        lastTurnAt: true,
+        turns: {
+          where: { status: { in: [...ACTIVE_TURN_STATUSES] } },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { id: true },
+        },
+      },
+    });
+    if (!bot) return null;
+    return {
+      status: bot.status,
+      activeTurnId: bot.turns[0]?.id ?? null,
+      lastTurnAt: bot.lastTurnAt,
+    };
+  }
+
   async getForUser(userId: string, workspaceId: string) {
     const bot = await prisma.sokoBot.findFirst({
       where: { userId, workspaceId, archivedAt: null },
       include: {
-        coworker: { select: { id: true, slug: true } },
         memoryRevisions: { orderBy: { version: "desc" }, take: 1 },
         legacyMessages: {
           orderBy: { createdAt: "desc" },
@@ -1131,11 +1186,6 @@ export class SokoBotControlPlane {
       },
     });
     if (!bot) return null;
-    // Bots created before chat support have no coworker row yet; heal lazily
-    // so "Open chat" works for them without a data migration.
-    if (!bot.coworker) {
-      bot.coworker = await ensureSokoBotCoworker(bot.id);
-    }
     const memoryRevisions = (bot.memoryRevisions ?? []).map(safeMemoryRevision);
     return {
       ...bot,
@@ -2604,6 +2654,119 @@ export class SokoBotControlPlane {
       throw new SokoBotNotFoundError("Soko Bot not found");
   }
 
+  /**
+   * How many live bots run each version, counted across the whole fleet.
+   *
+   * The fleet page lists one page of bots; deriving the counts from that page
+   * would tell an operator they are about to move twenty when the migration
+   * moves every matching bot in the database.
+   */
+  async versionUsage(): Promise<{ versionId: string; count: number }[]> {
+    const rows = await prisma.sokoBot.groupBy({
+      by: ["versionId"],
+      where: { archivedAt: null, versionId: { not: null } },
+      _count: { _all: true },
+    });
+    return rows
+      .flatMap((row) =>
+        row.versionId
+          ? [{ versionId: row.versionId, count: row._count._all }]
+          : [],
+      )
+      .sort(
+        (a, b) => b.count - a.count || a.versionId.localeCompare(b.versionId),
+      );
+  }
+
+  /**
+   * Moves many bots onto one version.
+   *
+   * Every bot goes through the same audited action a single-bot move uses, so
+   * each gets its own before/after record rather than one opaque "bulk" entry.
+   * One bot that cannot be moved does not stop the rest; it is reported.
+   *
+   * Re-running is safe and is the way to retry: bots already on the target are
+   * skipped before any work happens, and every attempt gets fresh operation
+   * ids, so a bot that failed last time is tried again rather than replaying
+   * its recorded failure forever.
+   */
+  async migrateVersions(input: {
+    operatorId: string;
+    /** Only bots on this version. Omitted, every live bot is moved. */
+    fromVersionId?: string;
+    toVersionId: string;
+    reason: string;
+    requestId?: string;
+    traceId?: string;
+  }): Promise<{
+    total: number;
+    moved: number;
+    alreadyOnVersion: number;
+    failed: number;
+    failures: { sokoBotId: string; message: string }[];
+  }> {
+    if (!(await isKnownSokoBotVersionId(input.toVersionId))) {
+      throw new SokoBotValidationError(
+        `Unknown Soko Bot version ${input.toVersionId}`,
+      );
+    }
+    const bots = await prisma.sokoBot.findMany({
+      where: {
+        archivedAt: null,
+        ...(input.fromVersionId ? { versionId: input.fromVersionId } : {}),
+      },
+      select: { id: true, versionId: true },
+      orderBy: { id: "asc" },
+    });
+    // One base per run, not one supplied by the caller. A caller-supplied id
+    // would make a retry replay each bot's recorded outcome, which is exactly
+    // backwards: the bots worth retrying are the ones that failed.
+    const runId = randomUUID();
+    const failures: { sokoBotId: string; message: string }[] = [];
+    let moved = 0;
+    let alreadyOnVersion = 0;
+    let failed = 0;
+    for (const bot of bots) {
+      // Skipping before the action is what makes a re-run idempotent: a bot
+      // already on the target never reaches the audit path a second time.
+      if (bot.versionId === input.toVersionId) {
+        alreadyOnVersion += 1;
+        continue;
+      }
+      try {
+        await this.applyAdminAction({
+          sokoBotId: bot.id,
+          operatorId: input.operatorId,
+          action: "SET_VERSION",
+          versionId: input.toVersionId,
+          reason: input.reason,
+          operationId: `${runId}:${bot.id}`,
+          requestId: input.requestId,
+          traceId: input.traceId,
+        });
+        moved += 1;
+      } catch (error) {
+        failed += 1;
+        // Counted without limit, listed with one: the response schema bounds
+        // the array, and a run where everything failed must still return the
+        // result rather than throwing on its own output after the writes.
+        if (failures.length < MIGRATION_FAILURE_SAMPLE) {
+          failures.push({
+            sokoBotId: bot.id,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
+    return {
+      total: bots.length,
+      moved,
+      alreadyOnVersion,
+      failed,
+      failures,
+    };
+  }
+
   async createSchedule(input: CreateSokoBotScheduleInput) {
     return translateScheduleErrors(() => createSokoBotSchedule(input));
   }
@@ -2734,11 +2897,19 @@ export class SokoBotControlPlane {
     });
   }
 
-  async performAdminAction(input: {
+  /**
+   * The operator action itself. Returns nothing: reading the bot back is a
+   * heavy query (turns with their tool calls, legacy messages, schedules,
+   * audit rows, runtime health), and a fleet migration doing that once per bot
+   * would spend most of its request budget on reads nobody looks at.
+   */
+  private async applyAdminAction(input: {
     sokoBotId: string;
     operatorId: string;
     action: SokoBotAdminActionName;
     targetId?: string;
+    /** `SET_VERSION` only: the version slug to move the bot to. */
+    versionId?: string;
     reason: string;
     operationId?: string;
     requestId?: string;
@@ -2747,6 +2918,19 @@ export class SokoBotControlPlane {
     const reason = input.reason.trim();
     if (!reason)
       throw new SokoBotValidationError("Admin action reason is required");
+    if (input.action === "SET_VERSION") {
+      if (!input.versionId) {
+        throw new SokoBotValidationError("SET_VERSION requires a versionId");
+      }
+      // Checked before the intent is recorded: a slug that does not exist is a
+      // bad request, not a failed operation, and writing an ATTEMPTED row for
+      // it would leave an outbox entry nothing can ever complete.
+      if (!(await isKnownSokoBotVersionId(input.versionId))) {
+        throw new SokoBotValidationError(
+          `Unknown Soko Bot version ${input.versionId}`,
+        );
+      }
+    }
     const requestId = normalizeAdminActionIdentifier(
       input.requestId,
       "Request ID",
@@ -2767,7 +2951,15 @@ export class SokoBotControlPlane {
         operationId_status: { operationId, status: "ATTEMPTED" },
       },
     });
-    let resolvedTargetId = input.targetId ?? null;
+    // The version slug rides in `targetId`, the column that already holds
+    // whatever an action points at (a turn for RETRY_LAST_FAILED, a schedule
+    // for DISABLE_SCHEDULE). Keeping it there means the idempotency check
+    // below compares it for free: the same operation id with a different
+    // target version is rejected rather than silently accepted.
+    let resolvedTargetId =
+      input.action === "SET_VERSION"
+        ? (input.versionId ?? null)
+        : (input.targetId ?? null);
     if (
       existing &&
       resolvedTargetId === null &&
@@ -2836,7 +3028,7 @@ export class SokoBotControlPlane {
         orderBy: { createdAt: "desc" },
         select: { status: true, errorDetail: true },
       });
-      if (outcome?.status === "SUCCEEDED") return this.getForAdmin(bot.id);
+      if (outcome?.status === "SUCCEEDED") return;
       if (outcome?.status === "FAILED") {
         throw new SokoBotValidationError(
           outcome.errorDetail ?? "Admin action already failed",
@@ -3076,6 +3268,36 @@ export class SokoBotControlPlane {
             },
           });
         }, "Soko Bot memory changed concurrently");
+      } catch (error) {
+        await recordFailure(error);
+        throw error;
+      }
+    } else if (input.action === "SET_VERSION") {
+      const versionId = input.versionId as string;
+      try {
+        await serializableTransaction(async (tx) => {
+          const current = await tx.sokoBot.findUnique({
+            where: { id: bot.id },
+          });
+          if (!current || current.archivedAt) {
+            throw new SokoBotNotFoundError("Soko Bot not found");
+          }
+          const updated = await tx.sokoBot.update({
+            where: { id: bot.id },
+            data: { versionId },
+          });
+          await tx.sokoBotAdminAction.create({
+            data: {
+              operationId,
+              status: "SUCCEEDED",
+              ...intent,
+              before: jsonInput(before),
+              after: jsonInput(adminActionSnapshot(updated)),
+              requestId,
+              traceId,
+            },
+          });
+        }, "Soko Bot version changed concurrently");
       } catch (error) {
         await recordFailure(error);
         throw error;
@@ -3462,12 +3684,18 @@ export class SokoBotControlPlane {
         },
       });
     }
+  }
 
-    return this.getForAdmin(bot.id);
+  /** One bot, with its refreshed diagnostics for the operator screen. */
+  async performAdminAction(
+    input: Parameters<SokoBotControlPlane["applyAdminAction"]>[0],
+  ) {
+    await this.applyAdminAction(input);
+    return this.getForAdmin(input.sokoBotId);
   }
 
   async archive(userId: string, workspaceId: string): Promise<void> {
-    const active = await serializableTransaction(async (tx) => {
+    const archived = await serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findFirst({
         where: { userId, workspaceId, archivedAt: null },
       });
@@ -3514,16 +3742,27 @@ export class SokoBotControlPlane {
           eveSessionId: null,
         },
       });
-      await ensureSokoBotCoworker(bot.id, tx);
-      return activeTurn;
+      const mentionMessageIds = await failOpenChatRoomMentions(
+        {
+          where: { orchestratorId: bot.id },
+          error: "Personal assistant is no longer a member of this room",
+        },
+        tx,
+      );
+      await tx.chatRoomOrchestratorMember.deleteMany({
+        where: { orchestratorId: bot.id },
+      });
+      return { activeTurn, mentionMessageIds };
     }, "Soko Bot archive collided with active work");
-    if (!active) return;
+    if (!archived) return;
+    await publishChatRoomMentionStatuses(archived.mentionMessageIds);
+    if (!archived.activeTurn) return;
     try {
-      await this.deliverRuntimeCancellation(active);
+      await this.deliverRuntimeCancellation(archived.activeTurn);
     } catch (error) {
       console.warn("Soko Bot runtime cancellation failed during archive", {
-        sokoBotId: active.sokoBotId,
-        turnId: active.id,
+        sokoBotId: archived.activeTurn.sokoBotId,
+        turnId: archived.activeTurn.id,
         error: error instanceof Error ? error.message : "unknown",
       });
     }

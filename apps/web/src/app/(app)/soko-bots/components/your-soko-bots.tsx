@@ -61,14 +61,12 @@ export async function YourSokoBots({ me }: { me: Member | null }) {
                   <ArrowRight aria-hidden className="size-3.5" />
                 </Link>
               </Button>
-              {bot.coworkerId ? (
-                <MessageBotButton
-                  coworkerId={bot.coworkerId}
-                  label={t("openChat")}
-                  errorLabel={t("chatError")}
-                  variant="button"
-                />
-              ) : null}
+              <MessageBotButton
+                orchestratorId={bot.id}
+                label={t("openChat")}
+                errorLabel={t("chatError")}
+                variant="button"
+              />
             </div>
           </div>
         ) : (

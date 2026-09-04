@@ -17,6 +17,7 @@ export const EMPTY_CHAT_COMPOSE_ROSTER: ChatComposeRoster = {
   canCreateExternal: false,
   members: [],
   coworkers: [],
+  orchestrators: [],
   membersLoadFailed: false,
 };
 

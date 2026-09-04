@@ -22,6 +22,7 @@ function job(id: string): ClassicOutboundJob {
     roomId: "room-1",
     content: `msg-${id}`,
     mentionedCoworkerIds: [],
+    mentionedOrchestratorIds: [],
     mentionedUserIds: [],
     clientMessageId: id,
   };

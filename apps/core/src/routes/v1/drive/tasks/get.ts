@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma } from "@sokosumi/database";
+import { Prisma, TaskStatus } from "@sokosumi/database";
 
 import {
   requireCoworkerCapability,
@@ -27,7 +27,11 @@ import {
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isOrchestratorAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   type DriveListSort,
@@ -231,6 +235,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         some: DRIVE_TASK_FILE_WHERE,
       },
     };
+
+    if (isOrchestratorAuthContext(authContext)) {
+      baseTaskWhere.assigneeOrchestratorId = authContext.orchestratorId;
+      baseTaskWhere.status = { not: TaskStatus.DRAFT };
+    }
 
     // Apply coworker access filter if needed
     let coworkerAccess:

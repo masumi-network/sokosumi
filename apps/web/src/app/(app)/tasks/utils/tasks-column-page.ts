@@ -20,9 +20,11 @@ interface GetTasksColumnPageParams {
   limit: number;
   scope: TasksScope;
   assigneeId: string | null;
+  assigneeOrchestratorId: string | null;
   status: TaskStatus | null;
   projectId: string | null;
   coworkersById: Map<string, Coworker>;
+  personalAssistantFallback: string;
 }
 
 interface GetTasksColumnPageResult {
@@ -36,9 +38,11 @@ export async function getTasksColumnPage({
   limit,
   scope,
   assigneeId,
+  assigneeOrchestratorId,
   status,
   projectId,
   coworkersById,
+  personalAssistantFallback,
 }: GetTasksColumnPageParams): Promise<GetTasksColumnPageResult> {
   const { statuses } = getColumnListQueryOptions(columnId, status);
 
@@ -53,6 +57,7 @@ export async function getTasksColumnPage({
     status: statuses,
     scope,
     assigneeId: assigneeId ?? undefined,
+    assigneeOrchestratorId: assigneeOrchestratorId ?? undefined,
     projectId: projectId ?? undefined,
     cursor,
     limit,
@@ -61,7 +66,12 @@ export async function getTasksColumnPage({
     result.tasks.map((task) => task.description),
   );
   const tasks = result.tasks.map((task) =>
-    mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
+    mapTaskToTaskWithCoworker(
+      task,
+      coworkersById,
+      agentsById,
+      personalAssistantFallback,
+    ),
   );
 
   return {

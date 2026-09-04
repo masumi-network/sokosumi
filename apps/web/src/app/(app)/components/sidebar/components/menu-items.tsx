@@ -4,6 +4,7 @@ import {
   Bot,
   CalendarDays,
   FolderKanban,
+  HardDrive,
   History,
   ListTodo,
   Plus,
@@ -106,6 +107,17 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
             href: "/calendar",
             label: t("calendar"),
             Icon: CalendarDays,
+          },
+        ]
+      : []),
+    // Desktop only: mobile keeps Files on the You page account surface.
+    ...(!isMobile
+      ? [
+          {
+            key: "drive",
+            href: "/drive",
+            label: t("drive"),
+            Icon: HardDrive,
           },
         ]
       : []),

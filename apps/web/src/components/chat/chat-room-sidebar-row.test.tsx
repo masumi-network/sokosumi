@@ -299,6 +299,7 @@ function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     userMembers: [makeUser("user-1"), makeUser("user-2")],
     coworkerMembers: [],
     ...overrides,
+    orchestratorMembers: overrides.orchestratorMembers ?? [],
   };
 }
 

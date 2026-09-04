@@ -27,6 +27,7 @@ const baseLabels = {
   created: "Created",
   updated: "Updated",
   schedule: "Schedule",
+  personalAssistantFallback: "Personal assistant",
   formatOrchestratorRole: ({ owner }: { owner: string }) =>
     `${owner}'s personal assistant`,
 };
@@ -61,10 +62,14 @@ function createTask(
       overrides.assigneeName === null
         ? null
         : {
+            type: "coworker" as const,
             id: "cw_1",
-            name: overrides.assigneeName ?? "Hepha",
-            image: null,
-            slug: "hepha",
+            coworker: {
+              id: "cw_1",
+              name: overrides.assigneeName ?? "Hepha",
+              image: null,
+              slug: "hepha",
+            },
           },
     credits: overrides.credits ?? 0,
     metadata: null,
@@ -171,8 +176,7 @@ describe("TaskMetadata", () => {
   });
 
   it("shows the mascot the bot claimed, not a generated orb", () => {
-    // Claiming writes the coworker's image too, so the picture appeared in
-    // chat and the sidebar while a Task showed a blank disc for the same bot.
+    // Claimed mascot is the bot's face; the orb is only the fallback.
     render(
       <TaskMetadata
         task={createTask({
@@ -228,5 +232,33 @@ describe("TaskMetadata", () => {
     expect(
       screen.getAllByText("Ada Lovelace's personal assistant"),
     ).toHaveLength(1);
+  });
+
+  it("renders an orchestrator assignee with the assistant orb", () => {
+    render(
+      <TaskMetadata
+        task={{
+          ...createTask({ assigneeName: null }),
+          assignee: {
+            type: "orchestrator",
+            id: "bot-1",
+            orchestrator: {
+              id: "bot-1",
+              name: "Jarvis",
+              avatarSeed: null,
+              avatarImageUrl: null,
+              owner: { id: "user_1", name: "Andreas Osberghaus", image: null },
+            },
+          },
+        }}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    expect(screen.getByText("Jarvis")).toBeInTheDocument();
+    expect(screen.getByTestId("assistant-orb")).toBeInTheDocument();
   });
 });

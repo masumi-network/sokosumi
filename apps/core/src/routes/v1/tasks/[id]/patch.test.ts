@@ -1,6 +1,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -20,6 +21,7 @@ const {
   projectFindFirstMock,
   refreshTaskSchedulePlannedOccurrencesMock,
   requireTaskAssignableCoworkerMock,
+  requireTaskAssignableOrchestratorMock,
   requireTaskOwnershipMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
@@ -28,12 +30,14 @@ const {
   projectFindFirstMock: vi.fn(),
   refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
+  requireTaskAssignableOrchestratorMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
   taskUpdateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  requireTaskAssignableOrchestrator: requireTaskAssignableOrchestratorMock,
   requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
@@ -91,6 +95,7 @@ function createTaskApi(projectId: string | null = null) {
       slug: "acme-labs",
     },
     assigneeId: null,
+    assigneeOrchestratorId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -180,6 +185,15 @@ describe("patchTaskRequestSchema", () => {
       patchTaskRequestSchema.parse({
         assigneeId: "cow_a",
         coworkerId: "cow_b",
+      });
+    }).toThrow();
+  });
+
+  it("rejects assigneeId and assigneeOrchestratorId together", () => {
+    expect(() => {
+      patchTaskRequestSchema.parse({
+        assigneeId: "cow_a",
+        assigneeOrchestratorId: "01960001-0001-7001-8001-000000000099",
       });
     }).toThrow();
   });
@@ -421,5 +435,77 @@ describe("PATCH /tasks/{id}", () => {
 
     expect(response.status).toBe(403);
     expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+  });
+
+  it("assigns a personal assistant as orchestrator", async () => {
+    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+    });
+    requireTaskAssignableOrchestratorMock.mockResolvedValue(undefined);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assigneeOrchestratorId: orchestratorId,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(requireTaskAssignableOrchestratorMock).toHaveBeenCalledWith(
+      orchestratorId,
+      WORKSPACE_ID,
+      expect.anything(),
+      { kind: "user", userId: "user_123" },
+    );
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assigneeId: null,
+          assigneeOrchestratorId: orchestratorId,
+        }),
+      }),
+    );
+  });
+
+  it("rejects assigning someone else's personal assistant with 403", async () => {
+    const orchestratorId = "01960001-0001-7001-8001-000000000099";
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+    });
+    requireTaskAssignableOrchestratorMock.mockRejectedValue(
+      forbidden("Only the owner can assign work to this Soko Bot"),
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        assigneeOrchestratorId: orchestratorId,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.text()).toContain(
+      "Only the owner can assign work to this Soko Bot",
+    );
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 });

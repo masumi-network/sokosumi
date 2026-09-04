@@ -44,6 +44,7 @@ function directRoom(overrides: {
   return {
     id: "room-1",
     organizationId: "org-1",
+    organizationName: "Acme",
     name: "Direct",
     slug: null,
     kind: "direct",
@@ -58,7 +59,9 @@ function directRoom(overrides: {
     starredAt: null,
     mutedAt: null,
     markedUnread: false,
+    myAccess: "member",
     coworkerMembers: [],
+    orchestratorMembers: [],
     ...overrides,
   } as ChatRoom;
 }

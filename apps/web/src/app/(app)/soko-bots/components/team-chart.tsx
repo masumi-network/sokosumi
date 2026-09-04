@@ -104,11 +104,11 @@ async function BotNode({ member }: { member: Member }) {
       ) : (
         <div className="flex items-center gap-3 px-3 py-3 text-sm">{body}</div>
       )}
-      {bot.coworkerId ? (
+      {member.isYou ? (
         <div className="border-t px-3 py-1.5">
           <MessageBotButton
-            coworkerId={bot.coworkerId}
-            label={member.isYou ? t("openChat") : t("messageAssistant")}
+            orchestratorId={bot.id}
+            label={t("openChat")}
             errorLabel={t("chatError")}
           />
         </div>

@@ -74,6 +74,10 @@ export const historyTaskItemSchema = historyBaseItemSchema
       description: "Coworker ID associated with the task, when assigned",
       example: "cow_123",
     }),
+    orchestratorId: z.string().uuid().nullable().openapi({
+      description: "Soko Bot ID associated with the task, when assigned",
+      example: "01960001-0001-7001-8001-000000000099",
+    }),
   })
   .openapi("HistoryTaskItem");
 
@@ -125,6 +129,7 @@ export const historyListResponseExample = {
       credits: 2.5,
       projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       coworkerId: "cow_123",
+      orchestratorId: null,
       owner: {
         userId: "550e8400-e29b-41d4-a716-446655440001",
         name: "Alice Johnson",
