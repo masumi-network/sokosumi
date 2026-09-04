@@ -66,20 +66,6 @@ export interface KindSpec {
   /** What happens, in the reader's terms, under the name. */
   hintKey: string;
   /**
-   * Whether this kind is one the reader is waiting for or one that waits on
-   * them.
-   *
-   * Every preset reads it: the ones that ask something of the reader, and the
-   * results they started the work for, are what a preset keeps loud or keeps
-   * at all. A job that needs input asks; a finished job answers; a mention and
-   * a direct message ask. Progress updates and the ordinary traffic of a room
-   * do neither, and those are what a reader turns down first.
-   *
-   * It is a property of the kind rather than a list inside each preset, so a
-   * kind added later answers the question once instead of six times.
-   */
-  important: boolean;
-  /**
    * Whether Sokosumi ever sends this kind by email.
    *
    * Only job status is mailed, and one account-wide switch gates it, so the
@@ -90,21 +76,98 @@ export interface KindSpec {
   email: boolean;
 }
 
+/**
+ * How far one kind reaches under a preset.
+ *
+ * Three rungs rather than a set of channels, because a preset is a situation
+ * rather than a row of switches: the kind is off, it is in Sokosumi, or it is
+ * on the device as well. `REACH_CHANNELS` turns each into the cells it means.
+ */
+type Reach = "NONE" | "IN_APP" | "PUSH";
+
+/**
+ * One situation a group can be in, as the whole of its cells.
+ *
+ * One press, and the group is set: which of its notifications the reader gets,
+ * and which of them reach the device. The two questions are one decision here,
+ * because they are one decision in life. A reader watching a job run wants the
+ * phone to say so; the same reader on a Monday wants the list in Sokosumi and
+ * a quiet phone.
+ *
+ * Written per group rather than shared. What a reader wants from Jobs and what
+ * they want from Chat are different shapes: a job update is traffic to be
+ * turned down, and every message in a room is a thing to opt into. A shared
+ * list would have to name both in one word, and did.
+ *
+ * A preset is picked from the rail only while the cells say exactly what it
+ * writes, so the rail never claims a situation the reader is not in. Anything
+ * else is Custom.
+ */
+export interface PresetSpec {
+  id: Preset;
+  /** What it does, in this group's own kinds. Written once per group. */
+  hintKey: string;
+  /**
+   * Where each of the group's kinds lands.
+   *
+   * Keyed by category rather than listed beside the kinds, so the table can be
+   * read a row at a time and a group whose kinds Core does not all return
+   * still writes the right ones. A kind the preset does not name is left
+   * exactly as it was: `notification-delivery.test` holds that every preset
+   * names every kind of its group, so that is a bug rather than a silence.
+   */
+  reach: Partial<Record<NotificationCategory, Reach>>;
+}
+
+/**
+ * The situations, by name.
+ *
+ * Three of them mean the same thing in every group, and the rail reads across
+ * the card because of it: Essential is what is addressed to you, In app is all
+ * of it with a quiet phone, and Off is none of it. The first stop is the one
+ * that differs, because what a reader opts into differs.
+ *
+ * None of them touches email, which is one switch for the account rather than
+ * a cell per kind. So the loudest of these is loud in Sokosumi and on the
+ * device, and a reader who picks it is not signing up for a mailbox as well.
+ */
+export type Preset =
+  | "RESULTS"
+  | "EVERYTHING"
+  | "ESSENTIAL"
+  | "APP_ONLY"
+  | "OFF";
+
+/** A group whose kinds are set one by one. Reported on the group, never written. */
+export type PresetState = Preset | "CUSTOM";
+
+export const PRESET_LABEL_KEY: Record<PresetState, string> = {
+  RESULTS: "presetResults",
+  EVERYTHING: "presetEverything",
+  ESSENTIAL: "presetEssential",
+  APP_ONLY: "presetAppOnly",
+  OFF: "presetOff",
+  CUSTOM: "presetCustom",
+};
+
 export interface GroupSpec {
   id: string;
   labelKey: string;
   /** Says what the group holds while it is closed. Only groups that fold. */
   descriptionKey?: string;
   kinds: readonly KindSpec[];
+  /** The situations this group offers, loudest first. Empty for a group of one. */
+  presets: readonly PresetSpec[];
 }
 
 /**
  * The kinds, grouped by what a reader would decide about at once.
  *
  * A group of one is drawn as a plain row: folding a single kind away behind a
- * chevron hides it without shortening anything. The rest fold, because each
- * holds something the reader keeps next to something they would rather be rid
- * of, and those are the ones they want to set apart.
+ * chevron hides it without shortening anything, and one kind is already its
+ * own situation. The rest fold, because each holds something the reader keeps
+ * next to something they would rather be rid of, and those are the ones they
+ * want to set apart.
  */
 export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
   {
@@ -116,22 +179,60 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "JOB_ATTENTION",
         labelKey: "kindJobAttention",
         hintKey: "kindJobAttentionHint",
-        important: true,
         email: true,
       },
       {
         category: "JOB_COMPLETED",
         labelKey: "kindJobCompleted",
         hintKey: "kindJobCompletedHint",
-        important: true,
         email: true,
       },
       {
         category: "JOB_UPDATE",
         labelKey: "kindJobUpdate",
         hintKey: "kindJobUpdateHint",
-        important: false,
         email: true,
+      },
+    ],
+    // A job is work the reader started and is waiting on, so the loudest thing
+    // worth offering is the answer arriving. What a job reports on the way
+    // there asks nothing of them, and no stop here pushes it.
+    presets: [
+      {
+        id: "RESULTS",
+        hintKey: "presetJobResultsHint",
+        reach: {
+          JOB_ATTENTION: "PUSH",
+          JOB_COMPLETED: "PUSH",
+          JOB_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "ESSENTIAL",
+        hintKey: "presetJobEssentialHint",
+        reach: {
+          JOB_ATTENTION: "PUSH",
+          JOB_COMPLETED: "IN_APP",
+          JOB_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "APP_ONLY",
+        hintKey: "presetJobAppOnlyHint",
+        reach: {
+          JOB_ATTENTION: "IN_APP",
+          JOB_COMPLETED: "IN_APP",
+          JOB_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "OFF",
+        hintKey: "presetJobOffHint",
+        reach: {
+          JOB_ATTENTION: "NONE",
+          JOB_COMPLETED: "NONE",
+          JOB_UPDATE: "NONE",
+        },
       },
     ],
   },
@@ -144,22 +245,60 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "TASK_ATTENTION",
         labelKey: "kindTaskAttention",
         hintKey: "kindTaskAttentionHint",
-        important: true,
         email: false,
       },
       {
         category: "TASK_COMPLETED",
         labelKey: "kindTaskCompleted",
         hintKey: "kindTaskCompletedHint",
-        important: true,
         email: false,
       },
       {
         category: "TASK_UPDATE",
         labelKey: "kindTaskUpdate",
         hintKey: "kindTaskUpdateHint",
-        important: false,
         email: false,
+      },
+    ],
+    // The same four as Jobs, and deliberately: a task is work of the same
+    // shape, and a reader who has just answered this question one row above
+    // should not have to read a different set of words to answer it again.
+    presets: [
+      {
+        id: "RESULTS",
+        hintKey: "presetTaskResultsHint",
+        reach: {
+          TASK_ATTENTION: "PUSH",
+          TASK_COMPLETED: "PUSH",
+          TASK_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "ESSENTIAL",
+        hintKey: "presetTaskEssentialHint",
+        reach: {
+          TASK_ATTENTION: "PUSH",
+          TASK_COMPLETED: "IN_APP",
+          TASK_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "APP_ONLY",
+        hintKey: "presetTaskAppOnlyHint",
+        reach: {
+          TASK_ATTENTION: "IN_APP",
+          TASK_COMPLETED: "IN_APP",
+          TASK_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "OFF",
+        hintKey: "presetTaskOffHint",
+        reach: {
+          TASK_ATTENTION: "NONE",
+          TASK_COMPLETED: "NONE",
+          TASK_UPDATE: "NONE",
+        },
       },
     ],
   },
@@ -172,22 +311,61 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "CHAT_ROOM_MESSAGE",
         labelKey: "kindChatRoomMessage",
         hintKey: "kindChatRoomMessageHint",
-        important: false,
         email: false,
       },
       {
         category: "CHAT_MENTION",
         labelKey: "kindChatMention",
         hintKey: "kindChatMentionHint",
-        important: true,
         email: false,
       },
       {
         category: "CHAT_DIRECT_MESSAGE",
         labelKey: "kindChatDirectMessage",
         hintKey: "kindChatDirectMessageHint",
-        important: true,
         email: false,
+      },
+    ],
+    // Chat is read where it is written, so these turn on the app rather than
+    // the phone: every stop but Off keeps mentions and direct messages in
+    // Sokosumi, and only a room the reader chose to follow is ever added. No
+    // stop pushes a room, which is the one thing a busy room would be.
+    presets: [
+      {
+        id: "EVERYTHING",
+        hintKey: "presetChatEverythingHint",
+        reach: {
+          CHAT_ROOM_MESSAGE: "IN_APP",
+          CHAT_MENTION: "PUSH",
+          CHAT_DIRECT_MESSAGE: "PUSH",
+        },
+      },
+      {
+        id: "ESSENTIAL",
+        hintKey: "presetChatEssentialHint",
+        reach: {
+          CHAT_ROOM_MESSAGE: "NONE",
+          CHAT_MENTION: "PUSH",
+          CHAT_DIRECT_MESSAGE: "PUSH",
+        },
+      },
+      {
+        id: "APP_ONLY",
+        hintKey: "presetChatAppOnlyHint",
+        reach: {
+          CHAT_ROOM_MESSAGE: "IN_APP",
+          CHAT_MENTION: "IN_APP",
+          CHAT_DIRECT_MESSAGE: "IN_APP",
+        },
+      },
+      {
+        id: "OFF",
+        hintKey: "presetChatOffHint",
+        reach: {
+          CHAT_ROOM_MESSAGE: "NONE",
+          CHAT_MENTION: "NONE",
+          CHAT_DIRECT_MESSAGE: "NONE",
+        },
       },
     ],
   },
@@ -199,10 +377,12 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "SYSTEM",
         labelKey: "kindSystem",
         hintKey: "kindSystemHint",
-        important: true,
         email: false,
       },
     ],
+    // A group of one is drawn as a plain row with its own cells. A rail over
+    // it would offer four words for what two cells already say.
+    presets: [],
   },
 ];
 
@@ -279,87 +459,6 @@ export function withChannel(
 }
 
 /**
- * A situation the reader is in, as the whole of a group's cells.
- *
- * One press, and the group is set: how many of its notifications reach the
- * reader, and whether they push to the device. The two questions are one
- * decision here, because they are one decision in life. A reader who is
- * watching a job run wants the phone to say so; the same reader on a Monday
- * wants the list in Sokosumi and nothing on the phone.
- *
- * `key` is where the ones that need the reader land, and `rest` is where the
- * others do. `KindSpec.important` says which is which, so a kind added later
- * answers that once rather than in six places.
- *
- * A preset writes every cell of the group. It is picked from the list only
- * while the cells say exactly what it writes, so the row never claims a
- * situation the reader is not in. Anything else is Custom.
- */
-type Reach = "NONE" | "IN_APP" | "PUSH";
-
-interface PresetSpec {
-  id: Preset;
-  key: Reach;
-  rest: Reach;
-}
-
-/**
- * The situations, loudest first.
- *
- * The pushing ones come first and the quiet ones after, so the list reads down
- * from the phone to Sokosumi to nothing. Inside each pair, the one that keeps
- * everything comes before the one that drops what does not need the reader.
- *
- * None of them touches email, which is one switch for the account rather than
- * a cell per kind. So the loudest of these is loud in Sokosumi and on the
- * device, and a reader who picks it is not signing up for a mailbox as well.
- */
-const PRESET_SPECS = [
-  { id: "ALL_PUSH", key: "PUSH", rest: "PUSH" },
-  { id: "NEEDED_PUSH", key: "PUSH", rest: "IN_APP" },
-  { id: "NEEDED_PUSH_ONLY", key: "PUSH", rest: "NONE" },
-  { id: "ALL_QUIET", key: "IN_APP", rest: "IN_APP" },
-  { id: "NEEDED_QUIET", key: "IN_APP", rest: "NONE" },
-  { id: "NOTHING", key: "NONE", rest: "NONE" },
-] as const;
-
-/**
- * The name of one situation.
- *
- * Read off the list rather than written twice: a spec whose `key` or `rest` is
- * not a reach fails where `groupPresetSpecs` promises `PresetSpec[]`.
- */
-export type Preset = (typeof PRESET_SPECS)[number]["id"];
-
-/** A group whose kinds are set one by one. Reported on the group, never written. */
-export type PresetState = Preset | "CUSTOM";
-
-export const PRESET_LABEL_KEY: Record<PresetState, string> = {
-  ALL_PUSH: "presetAllPush",
-  NEEDED_PUSH: "presetNeededPush",
-  NEEDED_PUSH_ONLY: "presetNeededPushOnly",
-  ALL_QUIET: "presetAllQuiet",
-  NEEDED_QUIET: "presetNeededQuiet",
-  NOTHING: "presetNothing",
-  CUSTOM: "presetCustom",
-};
-
-export const PRESET_HINT_KEY: Record<PresetState, string> = {
-  ALL_PUSH: "presetAllPushHint",
-  NEEDED_PUSH: "presetNeededPushHint",
-  NEEDED_PUSH_ONLY: "presetNeededPushOnlyHint",
-  ALL_QUIET: "presetAllQuietHint",
-  NEEDED_QUIET: "presetNeededQuietHint",
-  NOTHING: "presetNothingHint",
-  CUSTOM: "presetCustomHint",
-};
-
-/** Where a preset sends one kind. */
-function reach(preset: PresetSpec, kind: KindSpec): Reach {
-  return kind.important ? preset.key : preset.rest;
-}
-
-/**
  * The cells one reach means.
  *
  * A push carries the in-app entry with it, the same pairing the cells hold
@@ -377,33 +476,20 @@ const REACH_CHANNELS: Record<Reach, readonly StoredChannel[]> = {
   PUSH: ["IN_APP", "OS_BANNER"],
 };
 
-/** The channels a preset gives one kind. */
-function presetChannels(preset: PresetSpec, kind: KindSpec): StoredChannel[] {
-  return [...REACH_CHANNELS[reach(preset, kind)]];
-}
-
 /**
- * The situations worth offering for this group.
+ * The channels a preset gives one kind, or nothing for a kind it does not name.
  *
- * Three of the six tell the kinds that need the reader from the ones that do
- * not, and a group holding only one sort cannot hear the difference: in a
- * group where everything matters, "only what matters" is every row of it, and
- * in a group where nothing does, it is none of them. Either way the words
- * would describe a group the reader is not looking at, and two stops would
- * write the same cells. So such a group is offered the three that speak about
- * all of it.
+ * A preset names every kind of its group, and a test holds that. Where one
+ * does not, the kind is left exactly as the reader had it rather than being
+ * silenced by a press that never mentioned it.
  */
-function groupPresetSpecs(kinds: readonly KindSpec[]): PresetSpec[] {
-  const both =
-    kinds.some((kind) => kind.important) &&
-    kinds.some((kind) => !kind.important);
+function presetChannels(
+  preset: PresetSpec,
+  kind: KindSpec,
+): StoredChannel[] | null {
+  const reach = preset.reach[kind.category];
 
-  return PRESET_SPECS.filter((preset) => both || preset.key === preset.rest);
-}
-
-/** The situations worth offering for this group, in the order they are drawn. */
-export function groupPresets(kinds: readonly KindSpec[]): Preset[] {
-  return groupPresetSpecs(kinds).map((preset) => preset.id);
+  return reach ? [...REACH_CHANNELS[reach]] : null;
 }
 
 /**
@@ -416,16 +502,19 @@ export function groupPresets(kinds: readonly KindSpec[]): Preset[] {
  */
 export function groupPreset(
   cells: readonly NotificationPreference[],
+  presets: readonly PresetSpec[],
   kinds: readonly KindSpec[],
 ): PresetState {
   return (
-    groupPresetSpecs(kinds).find((preset) =>
-      kinds.every((kind) =>
-        sameChannels(
-          categoryChannels(cells, kind.category),
-          presetChannels(preset, kind),
-        ),
-      ),
+    presets.find((preset) =>
+      kinds.every((kind) => {
+        const channels = presetChannels(preset, kind);
+
+        return (
+          channels !== null &&
+          sameChannels(categoryChannels(cells, kind.category), channels)
+        );
+      }),
     )?.id ?? "CUSTOM"
   );
 }
@@ -460,49 +549,43 @@ export function cellsFor(
  * The cells a preset writes: every kind of the group, wherever it puts them.
  *
  * The reader's own cells are not consulted. A preset is the whole situation
- * rather than a filter over the one before it, which is what lets the row say
+ * rather than a filter over the one before it, which is what lets the rail say
  * which one the group is in: pick it, and the cells say exactly this.
- *
- * A name no spec claims writes nothing at all. It cannot arrive from the row,
- * which offers what `groupPresets` returned, and silencing a group would be a
- * strange thing to do about a name this file does not know.
  */
 export function presetChanges(
-  preset: Preset,
+  preset: PresetSpec,
   kinds: readonly KindSpec[],
 ): DeliveryChange[] {
-  const spec = PRESET_SPECS.find((candidate) => candidate.id === preset);
+  return kinds.flatMap((kind) => {
+    const channels = presetChannels(preset, kind);
 
-  if (!spec) {
-    return [];
-  }
+    return channels ? [{ category: kind.category, channels }] : [];
+  });
+}
 
-  return kinds.map((kind) => ({
-    category: kind.category,
-    channels: presetChannels(spec, kind),
-  }));
+/** The kinds a preset puts at one reach, in the order the group holds them. */
+function presetKinds(
+  preset: PresetSpec,
+  kinds: readonly KindSpec[],
+  reach: Reach,
+): KindSpec[] {
+  return kinds.filter((kind) => preset.reach[kind.category] === reach);
 }
 
 /**
  * The kinds a preset sends to the device, in the order the group holds them.
  *
- * "What matters" is two named things in Jobs and two different ones in Chat,
- * and no sentence shared by every group can say which. The row names them
- * under the answer instead. A situation that pushes all of them says nothing
- * here, and neither does one that pushes none: its own word already says so.
+ * "What is essential" is two named things in Jobs and two different ones in
+ * Chat, and no sentence shared by every group can say which. The panel names
+ * them under the word instead. A situation that pushes all of them says
+ * nothing here, and neither does one that pushes none: its own word already
+ * says so.
  */
 export function presetPushes(
-  preset: Preset,
+  preset: PresetSpec,
   kinds: readonly KindSpec[],
 ): KindSpec[] {
-  const changes = presetChanges(preset, kinds);
-  const pushed = kinds.filter((kind) =>
-    changes.some(
-      (change) =>
-        change.category === kind.category &&
-        change.channels.includes("OS_BANNER"),
-    ),
-  );
+  const pushed = presetKinds(preset, kinds, "PUSH");
 
   return pushed.length === kinds.length ? [] : pushed;
 }
@@ -510,21 +593,15 @@ export function presetPushes(
 /**
  * The kinds a preset stops entirely, in the order the group holds them.
  *
- * The row names them under the answer. A preset that keeps everything says
+ * The panel names them under the word. A preset that keeps everything says
  * nothing here, and neither does one that stops everything: its own word
  * already says so, and a list of every kind in the group under it is noise.
  */
 export function presetStops(
-  preset: Preset,
+  preset: PresetSpec,
   kinds: readonly KindSpec[],
 ): KindSpec[] {
-  const changes = presetChanges(preset, kinds);
-  const stopped = kinds.filter((kind) =>
-    changes.some(
-      (change) =>
-        change.category === kind.category && change.channels.length === 0,
-    ),
-  );
+  const stopped = presetKinds(preset, kinds, "NONE");
 
   return stopped.length === kinds.length ? [] : stopped;
 }

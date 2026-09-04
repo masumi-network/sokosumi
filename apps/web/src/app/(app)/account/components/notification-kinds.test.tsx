@@ -74,23 +74,23 @@ vi.mock("sonner", () => ({
 }));
 
 /**
- * Jobs are on everywhere and in two different places, which is no situation
- * the presets write, so that group reads Custom. Tasks keep the ones that
- * matter in the app, chat pushes them, and both stop the rest. Access requests
- * is a single kind, so it is drawn as a plain row with its channel cells.
+ * Jobs push what waits on the reader, keep finished jobs in the app and stop
+ * the rest, which is no situation the presets write, so that group reads
+ * Custom. Tasks are on Results and chat on Essential. Access requests is a
+ * single kind, so it is drawn as a plain row with its channel cells.
  */
 const MATRIX = [
   { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
   { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: true },
   { category: "JOB_COMPLETED", channel: "IN_APP", enabled: true },
   { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: false },
-  { category: "JOB_UPDATE", channel: "IN_APP", enabled: true },
+  { category: "JOB_UPDATE", channel: "IN_APP", enabled: false },
   { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
-  { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: false },
+  { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: true },
   { category: "TASK_COMPLETED", channel: "IN_APP", enabled: true },
-  { category: "TASK_COMPLETED", channel: "OS_BANNER", enabled: false },
-  { category: "TASK_UPDATE", channel: "IN_APP", enabled: false },
+  { category: "TASK_COMPLETED", channel: "OS_BANNER", enabled: true },
+  { category: "TASK_UPDATE", channel: "IN_APP", enabled: true },
   { category: "TASK_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: false },
   { category: "CHAT_ROOM_MESSAGE", channel: "OS_BANNER", enabled: false },
@@ -249,6 +249,25 @@ function presetButton(group: string) {
   });
 }
 
+/**
+ * The rail, which is the same situations as buttons rather than as a list.
+ *
+ * Both are drawn here: they take turns by width, and a media query decides
+ * nothing in this environment. So each is asked about directly.
+ */
+function rail(group: string) {
+  return screen.getByRole("group", { name: `presetAriaLabel ${group}` });
+}
+
+function railStop(group: string, name: string) {
+  return within(rail(group)).getByRole("button", { name });
+}
+
+/** Beside the rail rather than in it: it writes nothing and opens the rows. */
+function customChip(group: string) {
+  return screen.getByRole("button", { name: `presetCustom ${group}` });
+}
+
 /** The situations that group offers, once its menu is open. */
 async function openPresets(group: string) {
   const user = userEvent.setup();
@@ -396,10 +415,11 @@ describe("NotificationKinds", () => {
     // Read before any cell: the groups answer while every row is still folded,
     // and the cell accessors open the rows to reach a cell.
     expect(groupTrigger("groupChat")).toHaveAttribute("aria-expanded", "false");
-    expect(presetButton("groupTask")).toHaveTextContent("presetNeededQuiet");
-    expect(presetButton("groupChat")).toHaveTextContent("presetNeededPushOnly");
-    // Every job kind is on, and one of them in a place the others are not.
-    // No situation writes that, so the group says the reader set it by hand.
+    expect(presetButton("groupTask")).toHaveTextContent("presetResults");
+    expect(presetButton("groupChat")).toHaveTextContent("presetEssential");
+    // The jobs waiting on the reader push, the finished ones stay in the app,
+    // and what a job merely reports is off. No situation writes that, so the
+    // group says the reader set it by hand.
     expect(presetButton("groupJob")).toHaveTextContent("presetCustom");
 
     expect(cellFor("kindSystem", "channelInApp")).toHaveAttribute(
@@ -419,7 +439,7 @@ describe("NotificationKinds", () => {
   it("leaves the situation for Custom when a single cell is set by hand", async () => {
     renderKinds();
 
-    expect(presetButton("groupChat")).toHaveTextContent("presetNeededPushOnly");
+    expect(presetButton("groupChat")).toHaveTextContent("presetEssential");
 
     await toggle("kindChatMention", "channelPush");
 
@@ -436,13 +456,75 @@ describe("NotificationKinds", () => {
     // The same elements in the same order, loudest first: the list reads down
     // from the device to Sokosumi to nothing.
     expect(within(menu).getAllByRole("menuitemradio")).toEqual([
-      presetItem("presetAllPush"),
-      presetItem("presetNeededPush"),
-      presetItem("presetNeededPushOnly"),
-      presetItem("presetAllQuiet"),
-      presetItem("presetNeededQuiet"),
-      presetItem("presetNothing"),
+      presetItem("presetResults"),
+      presetItem("presetEssential"),
+      presetItem("presetAppOnly"),
+      presetItem("presetOff"),
     ]);
+  });
+
+  it("draws the situations as a rail, with the group's own one pressed", () => {
+    renderKinds();
+
+    // The same words as the menu, in the same order, loudest first.
+    expect(
+      within(rail("groupChat"))
+        .getAllByRole("button")
+        .map((stop) => [stop.textContent, stop.getAttribute("aria-pressed")]),
+    ).toEqual([
+      ["presetEverything", "false"],
+      ["presetEssential", "true"],
+      ["presetAppOnly", "false"],
+      ["presetOff", "false"],
+    ]);
+  });
+
+  /**
+   * One word cannot say what it writes, and the panel that says it exists only
+   * while a pointer is on it. A reader who hears the rail has neither, so the
+   * sentence and the kinds are the stop's own description.
+   */
+  it("describes a stop with its sentence and the kinds it names", () => {
+    renderKinds();
+
+    expect(
+      railStop("groupChat", "presetEssential"),
+    ).toHaveAccessibleDescription(
+      "presetChatEssentialHint channelPush: kindChatMention, kindChatDirectMessage. presetStopsLabel: kindChatRoomMessage.",
+    );
+  });
+
+  it("writes the whole group from one stop of the rail", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await user.click(railStop("groupChat", "presetOff"));
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(lastWrite()).toHaveLength(6);
+    expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
+    expect(railStop("groupChat", "presetOff")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  /**
+   * Custom is not one of the situations, so it stands beside the rail. It
+   * writes nothing: it opens the rows, which is where that state is set.
+   */
+  it("opens the group from the Custom chip, and writes nothing", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    expect(groupTrigger("groupChat")).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(customChip("groupChat"));
+
+    expect(groupTrigger("groupChat")).toHaveAttribute("aria-expanded", "true");
+    expect(patchMyPreferences).not.toHaveBeenCalled();
   });
 
   /**
@@ -456,28 +538,28 @@ describe("NotificationKinds", () => {
 
     await openPresets("groupJob");
 
-    expect(presetItem("presetAllPush")).toHaveTextContent("presetAllPushHint");
-    // It stops none of them, so it names none.
-    expect(presetItem("presetAllPush")).not.toHaveTextContent(
-      "presetStopsLabel",
+    expect(presetItem("presetResults")).toHaveTextContent(
+      "presetJobResultsHint",
     );
-    expect(presetItem("presetNeededPush")).toHaveTextContent(
-      "presetNeededPushHint",
-    );
-    // Which kinds "what matters" means, named for this group rather than left
+    // Which kinds this group sends to the device, named here rather than left
     // to a sentence every group shares.
-    expect(presetItem("presetNeededPush")).toHaveTextContent(
+    expect(presetItem("presetResults")).toHaveTextContent(
       "channelPush: kindJobAttention, kindJobCompleted",
     );
-    expect(presetItem("presetNeededPushOnly")).toHaveTextContent(
-      "presetStopsLabel: kindJobUpdate",
-    );
-    // It pushes every kind, so naming them would name the whole group.
-    expect(presetItem("presetAllPush")).not.toHaveTextContent("channelPush:");
-    // Nothing stops all three, and its own word says so.
-    expect(presetItem("presetNothing")).not.toHaveTextContent(
+    // It stops none of them, so it names none.
+    expect(presetItem("presetResults")).not.toHaveTextContent(
       "presetStopsLabel",
     );
+    expect(presetItem("presetEssential")).toHaveTextContent(
+      "presetJobEssentialHint",
+    );
+    expect(presetItem("presetEssential")).toHaveTextContent(
+      "channelPush: kindJobAttention",
+    );
+    // It pushes none of them, and its own word says where they land instead.
+    expect(presetItem("presetAppOnly")).not.toHaveTextContent("channelPush:");
+    // Off stops all three, and its own word says so.
+    expect(presetItem("presetOff")).not.toHaveTextContent("presetStopsLabel");
   });
 
   /**
@@ -488,7 +570,7 @@ describe("NotificationKinds", () => {
   it("writes where the kinds arrive as well as which of them do", async () => {
     renderKinds();
 
-    await pickPreset("groupTask", "presetAllQuiet");
+    await pickPreset("groupTask", "presetAppOnly");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
@@ -521,7 +603,7 @@ describe("NotificationKinds", () => {
     await user.click(customItem());
 
     expect(groupTrigger("groupJob")).toHaveAttribute("aria-expanded", "true");
-    expect(cellFor("kindJobUpdate", "channelInApp")).toHaveAttribute(
+    expect(cellFor("kindJobCompleted", "channelInApp")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -557,7 +639,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    expect(presetButton("groupChat")).toHaveTextContent("presetNeededPushOnly");
+    expect(presetButton("groupChat")).toHaveTextContent("presetEssential");
     expect(groupTrigger("groupChat")).toHaveAttribute("aria-expanded", "false");
 
     await openPresets("groupChat");
@@ -1018,7 +1100,7 @@ describe("NotificationKinds", () => {
       );
     });
 
-    await pickPreset("groupChat", "presetNothing");
+    await pickPreset("groupChat", "presetOff");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(2);
@@ -1050,10 +1132,10 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    // The loud row keeps its push while the quiet one goes silent, which is
-    // the split this vocabulary exists for.
+    // The quiet row comes back on its own while the loud one keeps its push,
+    // which is the split this vocabulary exists for.
     expect(lastWrite()).toHaveLength(2);
-    expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
+    expect(written("JOB_UPDATE", "IN_APP")).toBe(true);
     expect(written("JOB_ATTENTION", "OS_BANNER")).toBeUndefined();
     expect(cellFor("kindJobAttention", "channelPush")).toHaveAttribute(
       "aria-pressed",
@@ -1064,7 +1146,7 @@ describe("NotificationKinds", () => {
   it("sets every kind in a group from the group's own control", async () => {
     renderKinds();
 
-    await pickPreset("groupChat", "presetNothing");
+    await pickPreset("groupChat", "presetOff");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
@@ -1077,21 +1159,21 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * The point of the split rows: one press pushes the job that is stuck and
-   * silences the one that merely reported something.
+   * The point of the split rows: one press pushes what is addressed to the
+   * reader and stops the traffic of a room they happen to be in.
    */
-  it("keeps what matters and stops the rest, in one request", async () => {
+  it("keeps what is essential and stops the rest, in one request", async () => {
     renderKinds();
 
-    await pickPreset("groupJob", "presetNeededPushOnly");
+    await pickPreset("groupChat", "presetEssential");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
     expect(lastWrite()).toHaveLength(6);
-    expect(written("JOB_ATTENTION", "OS_BANNER")).toBe(true);
-    expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
-    expect(written("JOB_UPDATE", "OS_BANNER")).toBe(false);
+    expect(written("CHAT_MENTION", "OS_BANNER")).toBe(true);
+    expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(false);
+    expect(written("CHAT_ROOM_MESSAGE", "OS_BANNER")).toBe(false);
   });
 
   /**
@@ -1099,32 +1181,32 @@ describe("NotificationKinds", () => {
    * started it for, so it counts as one that matters and stays while the
    * cancellations go quiet.
    */
-  it("keeps a finished task when the tasks group drops the rest", async () => {
+  it("keeps a finished task in the app when the tasks group quiets down", async () => {
     renderKinds();
 
-    await pickPreset("groupTask", "presetNeededQuiet");
+    await pickPreset("groupTask", "presetEssential");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
+    expect(written("TASK_ATTENTION", "OS_BANNER")).toBe(true);
     expect(written("TASK_COMPLETED", "IN_APP")).toBe(true);
     expect(written("TASK_COMPLETED", "OS_BANNER")).toBe(false);
-    expect(written("TASK_UPDATE", "IN_APP")).toBe(false);
     expect(written("TASK_UPDATE", "OS_BANNER")).toBe(false);
   });
 
   /** The same split, on the kind that also carries the email switch. */
-  it("keeps a finished job when the jobs group drops the rest", async () => {
+  it("keeps a finished job in the app when the jobs group quiets down", async () => {
     renderKinds();
 
-    await pickPreset("groupJob", "presetNeededQuiet");
+    await pickPreset("groupJob", "presetEssential");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
+    expect(written("JOB_ATTENTION", "OS_BANNER")).toBe(true);
     expect(written("JOB_COMPLETED", "IN_APP")).toBe(true);
     expect(written("JOB_COMPLETED", "OS_BANNER")).toBe(false);
-    expect(written("JOB_UPDATE", "IN_APP")).toBe(false);
     expect(written("JOB_UPDATE", "OS_BANNER")).toBe(false);
   });
 
@@ -1171,7 +1253,8 @@ describe("NotificationKinds", () => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
     expect(lastWrite()).toHaveLength(2);
-    expect(written("TASK_COMPLETED", "OS_BANNER")).toBe(true);
+    expect(written("TASK_COMPLETED", "OS_BANNER")).toBe(false);
+    // The entry stays: dropping the push is not the same as silencing the row.
     expect(written("TASK_COMPLETED", "IN_APP")).toBe(true);
   });
 
@@ -1185,7 +1268,7 @@ describe("NotificationKinds", () => {
   it("turns on a kind that was arriving nowhere, where the situation says", async () => {
     renderKinds();
 
-    await pickPreset("groupChat", "presetAllQuiet");
+    await pickPreset("groupChat", "presetAppOnly");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
@@ -1201,15 +1284,15 @@ describe("NotificationKinds", () => {
    * it back has to land somewhere. The situation says where, so the group
    * comes back exactly as loud as the word the reader pressed.
    */
-  it("turns a silenced group back on everywhere", async () => {
+  it("turns a silenced group back on where the situation says", async () => {
     renderKinds();
 
-    await pickPreset("groupChat", "presetNothing");
+    await pickPreset("groupChat", "presetOff");
     await waitFor(() => {
-      expect(presetButton("groupChat")).toHaveTextContent("presetNothing");
+      expect(presetButton("groupChat")).toHaveTextContent("presetOff");
     });
 
-    await pickPreset("groupChat", "presetAllPush");
+    await pickPreset("groupChat", "presetEverything");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(2);
@@ -1217,7 +1300,9 @@ describe("NotificationKinds", () => {
     expect(written("CHAT_MENTION", "IN_APP")).toBe(true);
     expect(written("CHAT_MENTION", "OS_BANNER")).toBe(true);
     expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(true);
-    expect(written("CHAT_ROOM_MESSAGE", "OS_BANNER")).toBe(true);
+    // Everything is every message in the room, in Sokosumi. No situation puts
+    // a room on the device.
+    expect(written("CHAT_ROOM_MESSAGE", "OS_BANNER")).toBe(false);
   });
 
   /**
@@ -1285,7 +1370,7 @@ describe("NotificationKinds", () => {
     isAccountEnabled = false;
     renderKinds();
 
-    await pickPreset("groupChat", "presetNeededPushOnly");
+    await pickPreset("groupChat", "presetEssential");
 
     await waitFor(() => {
       expect(setAccountEnabled).toHaveBeenCalledWith(true);
@@ -1640,10 +1725,10 @@ describe("NotificationKinds", () => {
   it("stays on the stop the reader picked once the write lands", async () => {
     renderKinds();
 
-    await pickPreset("groupChat", "presetNothing");
+    await pickPreset("groupChat", "presetOff");
 
     await waitFor(() => {
-      expect(presetButton("groupChat")).toHaveTextContent("presetNothing");
+      expect(presetButton("groupChat")).toHaveTextContent("presetOff");
     });
   });
 
@@ -1705,7 +1790,7 @@ describe("NotificationKinds", () => {
     setAccountEnabled.mockReturnValue(new Promise(() => {}));
     renderKinds();
 
-    await pickPreset("groupChat", "presetAllPush");
+    await pickPreset("groupChat", "presetEverything");
 
     await waitFor(() => {
       expect(presetButton("groupChat")).toHaveAttribute(
@@ -1714,7 +1799,7 @@ describe("NotificationKinds", () => {
       );
     });
 
-    await pickPreset("groupChat", "presetNothing");
+    await pickPreset("groupChat", "presetOff");
     expect(patchMyPreferences).not.toHaveBeenCalled();
   });
 
@@ -1728,7 +1813,7 @@ describe("NotificationKinds", () => {
     patchMyPreferences.mockReturnValue(new Promise(() => {}));
     renderKinds();
 
-    await pickPreset("groupChat", "presetAllPush");
+    await pickPreset("groupChat", "presetEverything");
 
     const answer = presetButton("groupChat");
     await waitFor(() => {
@@ -1736,7 +1821,7 @@ describe("NotificationKinds", () => {
     });
     expect(answer).toBeEnabled();
 
-    await pickPreset("groupChat", "presetNothing");
+    await pickPreset("groupChat", "presetOff");
     expect(patchMyPreferences).toHaveBeenCalledTimes(1);
   });
 
@@ -1744,12 +1829,12 @@ describe("NotificationKinds", () => {
     patchMyPreferences.mockRejectedValueOnce(new Error("nope"));
     renderKinds();
 
-    await pickPreset("groupChat", "presetNothing");
+    await pickPreset("groupChat", "presetOff");
 
     await waitFor(() => {
       expect(vi.mocked(toast.error)).toHaveBeenCalled();
     });
-    expect(presetButton("groupChat")).toHaveTextContent("presetNeededPushOnly");
+    expect(presetButton("groupChat")).toHaveTextContent("presetEssential");
   });
 
   /**

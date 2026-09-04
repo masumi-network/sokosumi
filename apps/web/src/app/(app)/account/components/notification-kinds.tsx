@@ -143,6 +143,7 @@ function GroupRows({
           <GroupAnswer
             group={t(group.spec.labelKey)}
             kinds={kinds}
+            presets={group.spec.presets}
             preset={group.preset}
             saving={group.saving}
             onPick={(preset) => {
