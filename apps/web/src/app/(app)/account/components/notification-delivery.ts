@@ -276,113 +276,125 @@ export function withChannel(
 }
 
 /**
- * The answers a group's own control offers.
+ * The first of a group's two questions: which of its kinds arrive at all.
  *
- * Ordered loudest first, and each one means the same thing in every group:
- * everything, only what matters, only what matters and quietly, or nothing.
- * What they write differs by group, because what matters differs by group.
+ * One question per control. The old single ladder answered two of them at
+ * once, and the step from Everything to Important dropped kinds while the
+ * step from Important to Quiet dropped a channel, so no reader could predict
+ * a stop from its neighbour.
  */
-export const PRESETS = ["EVERYTHING", "IMPORTANT", "QUIET", "OFF"] as const;
-export type Preset = (typeof PRESETS)[number];
+export const PRESET_SCOPES = ["ALL", "IMPORTANT", "NONE"] as const;
+export type PresetScope = (typeof PRESET_SCOPES)[number];
 
-/** A group whose kinds match no preset. Reported, never written. */
-export type PresetState = Preset | "CUSTOM";
+/** A group whose kinds are on one by one. Reported on the scope, never written. */
+export type ScopeState = PresetScope | "CUSTOM";
 
-export const PRESET_LABEL_KEY: Record<PresetState, string> = {
-  EVERYTHING: "presetEverything",
-  IMPORTANT: "presetImportant",
-  QUIET: "presetQuiet",
-  OFF: "presetOff",
-  CUSTOM: "presetCustom",
+/**
+ * The second question: where the kinds it keeps arrive.
+ *
+ * Loudest first, so the two rows read the same way down the page. Email is no
+ * answer here: it is one switch for the account rather than a channel of the
+ * matrix, and only some kinds have one at all.
+ */
+export const PRESET_PLACES = ["PUSH", "IN_APP"] as const;
+export type PresetPlace = (typeof PRESET_PLACES)[number];
+
+export const PRESET_SCOPE_LABEL_KEY: Record<ScopeState, string> = {
+  ALL: "scopeAll",
+  IMPORTANT: "scopeImportant",
+  NONE: "scopeNone",
+  CUSTOM: "scopeCustom",
 };
 
-export const PRESET_HINT_KEY: Record<PresetState, string> = {
-  EVERYTHING: "presetEverythingHint",
-  IMPORTANT: "presetImportantHint",
-  QUIET: "presetQuietHint",
-  OFF: "presetOffHint",
-  CUSTOM: "presetCustomHint",
+export const PRESET_SCOPE_HINT_KEY: Record<ScopeState, string> = {
+  ALL: "scopeAllHint",
+  IMPORTANT: "scopeImportantHint",
+  NONE: "scopeNoneHint",
+  CUSTOM: "scopeCustomHint",
 };
 
-/** The channels one preset sets one kind to. */
-export function presetChannels(
-  preset: Preset,
+export const PRESET_PLACE_LABEL_KEY: Record<PresetPlace, string> = {
+  PUSH: "placePush",
+  IN_APP: "placeInApp",
+};
+
+export const PRESET_PLACE_HINT_KEY: Record<PresetPlace, string> = {
+  PUSH: "placePushHint",
+  IN_APP: "placeInAppHint",
+};
+
+/** The channels one place writes. A push carries the entry with it. */
+export function placeChannels(place: PresetPlace): StoredChannel[] {
+  return place === "PUSH" ? ["IN_APP", "OS_BANNER"] : ["IN_APP"];
+}
+
+/** Whether a scope keeps a kind. */
+function keeps(scope: PresetScope, kind: KindSpec): boolean {
+  return scope === "ALL" || (scope === "IMPORTANT" && kind.important);
+}
+
+/** Whether this kind arrives anywhere as the cells stand. */
+function isOn(
+  cells: readonly NotificationPreference[],
   kind: KindSpec,
-): StoredChannel[] {
-  if (preset === "OFF") {
-    return [];
-  }
-
-  if (preset === "EVERYTHING") {
-    return ["IN_APP", "OS_BANNER"];
-  }
-
-  if (!kind.important) {
-    return [];
-  }
-
-  return preset === "IMPORTANT" ? ["IN_APP", "OS_BANNER"] : ["IN_APP"];
+): boolean {
+  return categoryChannels(cells, kind.category).length > 0;
 }
 
 /**
- * Whether these channels silence the group.
+ * The scopes worth showing for this group.
  *
- * The one tie `PRESETS` order settles wrongly. That order runs loudest first,
- * so the loudest preset writing a shape is the one that describes it, except
- * at the quiet end: a group whose kinds Important keeps none of is silenced by
- * it as well, and Important is not what a reader calls a stop that silences a
- * group.
+ * Important keeps every kind of a group whose kinds all matter, and none of a
+ * group where none of them do. Either way it writes what a neighbour writes,
+ * and a stop that changes nothing reads as broken, so it is dropped rather
+ * than explained. All and Nothing always mean something and always show.
  */
-function silencesEverything(shape: readonly StoredChannel[][]): boolean {
-  return shape.every((channels) => channels.length === 0);
+export function groupScopes(kinds: readonly KindSpec[]): PresetScope[] {
+  const some = kinds.some((kind) => kind.important);
+  const every = kinds.every((kind) => kind.important);
+
+  return PRESET_SCOPES.filter(
+    (scope) => scope !== "IMPORTANT" || (some && !every),
+  );
 }
 
-/**
- * The presets worth showing for this group.
- *
- * A group whose kinds Important keeps every one of cannot tell "Everything"
- * from "Important": both write the same cells, and a control that never
- * changes anything reads as broken. So a preset that writes what another one writes is
- * dropped rather than explained.
- *
- * Which of the two survives is the one whose name describes what it writes:
- * the loudest, since `PRESETS` runs loudest first, except where the shape
- * silences the group (`silencesEverything`).
- */
-export function groupPresets(kinds: readonly KindSpec[]): Preset[] {
-  const shapeOf = (preset: Preset): StoredChannel[][] =>
-    kinds.map((kind) => presetChannels(preset, kind));
-  const keyOf = (preset: Preset): string =>
-    shapeOf(preset)
-      .map((channels) => channels.join("+"))
-      .join("|");
-  const kept = new Map<string, Preset>();
-
-  for (const preset of PRESETS) {
-    const key = keyOf(preset);
-    kept.set(
-      key,
-      silencesEverything(shapeOf(preset)) ? "OFF" : (kept.get(key) ?? preset),
-    );
-  }
-
-  return PRESETS.filter((preset) => kept.get(keyOf(preset)) === preset);
-}
-
-/** Which preset the group is on, or that the reader set its kinds one by one. */
-export function groupPreset(
+/** Which scope the stored cells are on, or that the reader set the kinds one by one. */
+export function groupScope(
   cells: readonly NotificationPreference[],
   kinds: readonly KindSpec[],
-): PresetState {
+): ScopeState {
   return (
-    groupPresets(kinds).find((preset) =>
-      kinds.every((kind) =>
+    groupScopes(kinds).find((scope) =>
+      kinds.every((kind) => isOn(cells, kind) === keeps(scope, kind)),
+    ) ?? "CUSTOM"
+  );
+}
+
+/**
+ * Where the kinds that are on arrive, when they all arrive in the same place.
+ *
+ * Null when they do not, and null when none of them are on. The second row
+ * reads it: nothing pressed rather than a place the group is not on.
+ */
+export function groupPlace(
+  cells: readonly NotificationPreference[],
+  kinds: readonly KindSpec[],
+): PresetPlace | null {
+  const on = kinds.filter((kind) => isOn(cells, kind));
+
+  if (on.length === 0) {
+    return null;
+  }
+
+  return (
+    PRESET_PLACES.find((place) =>
+      on.every((kind) =>
         sameChannels(
           categoryChannels(cells, kind.category),
-          presetChannels(preset, kind),
+          placeChannels(place),
         ),
       ),
-    ) ?? "CUSTOM"
+    ) ?? null
   );
 }
 
@@ -412,13 +424,47 @@ export function cellsFor(
   });
 }
 
-/** The changes a preset writes for a group. */
-export function presetChanges(
-  preset: Preset,
+/**
+ * The changes a scope writes: the kinds it keeps, where the group already is.
+ *
+ * A group that is on nowhere has no place to keep, so turning its kinds on
+ * puts them everywhere. That is the loudest of the two answers, and the one
+ * the reader can quiet in a single press on the row below.
+ */
+export function scopeChanges(
+  scope: PresetScope,
   kinds: readonly KindSpec[],
+  place: PresetPlace | null,
 ): DeliveryChange[] {
+  const channels = placeChannels(place ?? "PUSH");
+
   return kinds.map((kind) => ({
     category: kind.category,
-    channels: presetChannels(preset, kind),
+    channels: keeps(scope, kind) ? channels : [],
   }));
+}
+
+/**
+ * The changes a place writes: the kinds that are on, moved to it.
+ *
+ * It answers where, not which, so a kind that is off stays off and is left out
+ * of the write rather than named with an empty channel list.
+ *
+ * It reads the channels the row already holds rather than the whole matrix,
+ * because the row that calls this is drawn from them. Asking the matrix again
+ * would let the two disagree.
+ */
+export function placeChanges(
+  place: PresetPlace,
+  kinds: readonly {
+    spec: KindSpec;
+    channels: readonly StoredChannel[];
+  }[],
+): DeliveryChange[] {
+  return kinds
+    .filter((kind) => kind.channels.length > 0)
+    .map((kind) => ({
+      category: kind.spec.category,
+      channels: placeChannels(place),
+    }));
 }

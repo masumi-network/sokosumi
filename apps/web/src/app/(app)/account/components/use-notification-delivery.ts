@@ -22,12 +22,14 @@ import {
   cellsFor,
   type DeliveryChange,
   type GroupSpec,
-  groupPreset,
+  groupPlace,
+  groupScope,
   type KindSpec,
   NOTIFICATION_GROUPS,
   type NotificationCategory,
-  type PresetState,
+  type PresetPlace,
   type PushBlock,
+  type ScopeState,
   type StoredChannel,
 } from "./notification-delivery";
 
@@ -39,8 +41,10 @@ export interface KindChoice {
 
 export interface GroupChoice {
   spec: GroupSpec;
-  /** Which of the group's own answers it is on, or that it is on none. */
-  preset: PresetState;
+  /** Which kinds arrive at all, or that the reader set them one by one. */
+  scope: ScopeState;
+  /** Where the kinds that are on arrive, when they share a place. */
+  place: PresetPlace | null;
   kinds: KindChoice[];
   saving: boolean;
 }
@@ -109,7 +113,8 @@ export function useNotificationDelivery(): NotificationDelivery {
     return [
       {
         spec,
-        preset: groupPreset(cells, kinds),
+        scope: groupScope(cells, kinds),
+        place: groupPlace(cells, kinds),
         kinds: kinds.map((kind) => ({
           spec: kind,
           channels: categoryChannels(cells, kind.category),
