@@ -22,12 +22,12 @@ import {
   cellsFor,
   type DeliveryChange,
   type GroupSpec,
-  groupPreset,
+  groupScope,
   type KindSpec,
   NOTIFICATION_GROUPS,
   type NotificationCategory,
-  type PresetState,
   type PushBlock,
+  type ScopeState,
   type StoredChannel,
 } from "./notification-delivery";
 
@@ -39,8 +39,8 @@ export interface KindChoice {
 
 export interface GroupChoice {
   spec: GroupSpec;
-  /** Which of the group's own answers it is on, or that it is on none. */
-  preset: PresetState;
+  /** Which kinds arrive at all, or that the reader set them one by one. */
+  scope: ScopeState;
   kinds: KindChoice[];
   saving: boolean;
 }
@@ -56,6 +56,21 @@ export interface NotificationDelivery {
    * that theirs cannot push.
    */
   pushBlock: PushBlock | null;
+  /**
+   * Whether any kind is asking for a push at all.
+   *
+   * The banner reads it with `pushBlock`: a browser that cannot show a push is
+   * only worth saying something about while something is trying to arrive on
+   * it. With every banner cell off, nothing is going wrong.
+   */
+  pushWanted: boolean;
+  /** A push write is in flight, so the banner's button waits for it. */
+  pushSaving: boolean;
+  /**
+   * Subscribes this browser, asking the browser for the permission if it has
+   * not been asked. The same path a push cell takes, from the banner instead.
+   */
+  activatePush: () => Promise<void>;
   /**
    * An answer is still coming.
    *
@@ -109,7 +124,7 @@ export function useNotificationDelivery(): NotificationDelivery {
     return [
       {
         spec,
-        preset: groupPreset(cells, kinds),
+        scope: groupScope(cells, kinds),
         kinds: kinds.map((kind) => ({
           spec: kind,
           channels: categoryChannels(cells, kind.category),
@@ -355,6 +370,11 @@ export function useNotificationDelivery(): NotificationDelivery {
   return {
     groups,
     pushBlock,
+    pushWanted: cells.some(
+      (cell) => cell.channel === "OS_BANNER" && cell.enabled,
+    ),
+    pushSaving: push.isSaving,
+    activatePush: activatePushIfNeeded,
     loading: sessionPending || (Boolean(userId) && isPending),
     setDeliveries,
   };
