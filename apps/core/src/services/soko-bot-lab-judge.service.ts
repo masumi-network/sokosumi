@@ -226,6 +226,14 @@ export class SokoBotJudgeFailure extends SokoBotLabJudgeError {
   }
 }
 
+/** Lab HTTP: a miss is upstream (502); missing turn/scenario is 404. */
+export function sokoBotLabJudgeErrorKind(
+  error: unknown,
+): "miss" | "not_found" | undefined {
+  if (error instanceof SokoBotJudgeFailure) return "miss";
+  if (error instanceof SokoBotLabJudgeError) return "not_found";
+}
+
 /**
  * Adds one model call's spend to a turn.
  *

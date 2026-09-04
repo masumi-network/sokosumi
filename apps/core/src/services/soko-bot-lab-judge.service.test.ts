@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { sokoBotJudgeVerdictSchema } from "@sokosumi/soko-bot";
 import { generateText, NoOutputGeneratedError, Output } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
@@ -22,6 +21,9 @@ vi.mock("@/lib/db/prisma", () => ({
 import {
   generateSokoBotJudgeText,
   reportFailedTurnJudge,
+  SokoBotJudgeFailure,
+  SokoBotLabJudgeError,
+  sokoBotLabJudgeErrorKind,
 } from "./soko-bot-lab-judge.service";
 
 const VALID_VERDICT = {
@@ -44,13 +46,13 @@ function usage(outputTotal: number, reasoning: number, text: number) {
 }
 
 /**
- * gpt-5.5-style: reasoning consumes a small maxOutputTokens cap, so the JSON
- * never arrives. No cap (production) leaves room for the verdict.
+ * gpt-5.5-style: reasoning consumes maxOutputTokens, so the JSON never
+ * arrives whenever a cap is set. No cap (production) leaves room for JSON.
  */
 function budgetSensitiveJudgeModel() {
   return new MockLanguageModelV3({
     doGenerate: async (options) => {
-      if (options.maxOutputTokens != null && options.maxOutputTokens <= 800) {
+      if (options.maxOutputTokens != null) {
         return {
           content: [
             {
@@ -74,20 +76,23 @@ function budgetSensitiveJudgeModel() {
 }
 
 describe("soko-bot lab judge generateText", () => {
-  it("throws AI_NoOutputGeneratedError when reasoning fills an 800-token cap", async () => {
-    const resultPromise = generateText({
-      model: budgetSensitiveJudgeModel(),
-      output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
-      maxOutputTokens: 800,
-      prompt: "{}",
-    });
+  it.each([800, 8_000])(
+    "throws AI_NoOutputGeneratedError when a %s-token cap is set",
+    async (maxOutputTokens) => {
+      const resultPromise = generateText({
+        model: budgetSensitiveJudgeModel(),
+        output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
+        maxOutputTokens,
+        prompt: "{}",
+      });
 
-    await expect(
-      resultPromise.then((result) => result.output),
-    ).rejects.toSatisfy((error: unknown) =>
-      NoOutputGeneratedError.isInstance(error),
-    );
-  });
+      await expect(
+        resultPromise.then((result) => result.output),
+      ).rejects.toSatisfy((error: unknown) =>
+        NoOutputGeneratedError.isInstance(error),
+      );
+    },
+  );
 
   it("parses a verdict when the production judge call does not cap output tokens", async () => {
     const result = await generateSokoBotJudgeText({
@@ -118,19 +123,17 @@ describe("soko-bot judge failure reporting", () => {
     );
   });
 
-  it("maps a lab judge miss to 502, not 404", () => {
-    const route = readFileSync(
-      new URL("../routes/v1/soko-bots/index.ts", import.meta.url),
-      "utf8",
-    );
-    const handler = route.slice(
-      route.indexOf("judgeLabTurnRoute"),
-      route.indexOf("export default app"),
-    );
-    expect(handler).toContain("SokoBotJudgeFailure");
-    expect(handler).toContain("badGateway");
-    expect(handler).toMatch(
-      /SokoBotJudgeFailure[\s\S]*badGateway[\s\S]*SokoBotLabJudgeError[\s\S]*notFound/,
-    );
+  it("treats a judge miss as miss even though it is also a lab-judge error", () => {
+    const miss = new SokoBotJudgeFailure("No output generated.", {
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: 0,
+    });
+    expect(miss).toBeInstanceOf(SokoBotLabJudgeError);
+    expect(sokoBotLabJudgeErrorKind(miss)).toBe("miss");
+    expect(
+      sokoBotLabJudgeErrorKind(new SokoBotLabJudgeError("Turn not found")),
+    ).toBe("not_found");
+    expect(sokoBotLabJudgeErrorKind(new Error("boom"))).toBeUndefined();
   });
 });

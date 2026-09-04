@@ -115,8 +115,7 @@ import {
 } from "@/services/soko-bot-lab.service";
 import {
   judgeSokoBotLabTurn,
-  SokoBotJudgeFailure,
-  SokoBotLabJudgeError,
+  sokoBotLabJudgeErrorKind,
 } from "@/services/soko-bot-lab-judge.service";
 import { retimeSystemSchedules } from "@/services/soko-bot-proactive.service";
 import {
@@ -1726,8 +1725,15 @@ app.openapi(judgeLabTurnRoute, async (c) => {
     });
     return ok(c, sokoBotLabVerdictSchema.parse({ model, ...verdict }));
   } catch (error) {
-    if (error instanceof SokoBotJudgeFailure) throw badGateway(error.message);
-    if (error instanceof SokoBotLabJudgeError) throw notFound(error.message);
+    const kind = sokoBotLabJudgeErrorKind(error);
+    if (kind === "miss") {
+      throw badGateway(
+        error instanceof Error ? error.message : "Judge produced no verdict",
+      );
+    }
+    if (kind === "not_found") {
+      throw notFound(error instanceof Error ? error.message : "Not Found");
+    }
     throw error;
   }
 });
