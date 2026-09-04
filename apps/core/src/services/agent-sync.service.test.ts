@@ -3340,7 +3340,12 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
         message:
           "Cardano V2 rail readiness check failed: payment node unavailable",
       }),
-      expect.objectContaining({ tags: { cardano_v2_readiness: "stale" } }),
+      expect.objectContaining({
+        // Warm failures are a warning, not a page: the last recorded value is
+        // still being served, so nothing user-visible has degraded.
+        level: "warning",
+        tags: { cardano_v2_readiness: "stale" },
+      }),
     );
 
     // A different process loses the atomic insert race and also dedupes.
@@ -3375,6 +3380,8 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
         message: expect.stringContaining("has never been recorded"),
       }),
       expect.objectContaining({
+        // Cold IS the outage, so it keeps the error level.
+        level: "error",
         tags: { cardano_v2_readiness: "never_recorded" },
       }),
     );

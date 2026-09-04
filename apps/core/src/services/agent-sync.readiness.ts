@@ -79,6 +79,15 @@ export async function syncCardanoV2RailReadiness(
               : `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
           ),
           {
+            // Severity follows the user-visible impact, not the check result.
+            // Cold IS the outage: the whole V2 catalogue is hidden right now.
+            // Warm is not. Readers keep serving the last recorded value, the
+            // next cron tick is five minutes out, and the usual cause is one
+            // 10s timeout that costs nothing anybody can see. Paging for that
+            // teaches people to skip the alert, which is how the cold case
+            // gets missed too. It stays reported, so a lasting outage is
+            // still visible in the same place.
+            level: hasNeverBeenRecorded ? "error" : "warning",
             tags: {
               cardano_v2_readiness: hasNeverBeenRecorded
                 ? "never_recorded"
