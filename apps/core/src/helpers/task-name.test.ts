@@ -216,6 +216,52 @@ describe("resolveTaskName", () => {
     ).toBe("Write the launch email");
   });
 
+  it("does not treat a backtick fence inside a tilde fence as a close", async () => {
+    generateTaskNameMock.mockResolvedValue(null);
+    expect(
+      await resolveTaskName({
+        description: [
+          "~~~",
+          "const leaked = 1;",
+          "```",
+          'console.log("still inside");',
+          "~~~",
+          "Write the launch email",
+        ].join("\n"),
+      }),
+    ).toBe("Write the launch email");
+  });
+
+  it("does not close a longer fence with a shorter marker of the same delimiter", async () => {
+    generateTaskNameMock.mockResolvedValue(null);
+    expect(
+      await resolveTaskName({
+        description: [
+          "````",
+          "not the title",
+          "```",
+          "still inside",
+          "````",
+          "Write the launch email",
+        ].join("\n"),
+      }),
+    ).toBe("Write the launch email");
+  });
+
+  it("closes a fence with a longer marker of the same delimiter", async () => {
+    generateTaskNameMock.mockResolvedValue(null);
+    expect(
+      await resolveTaskName({
+        description: [
+          "```",
+          "not the title",
+          "````",
+          "Write the launch email",
+        ].join("\n"),
+      }),
+    ).toBe("Write the launch email");
+  });
+
   it("keeps a hash that is part of ordinary generated text", async () => {
     generateTaskNameMock.mockResolvedValue("Upgrade C# API");
     expect(await resolveTaskName({ description: "Upgrade the C# API" })).toBe(

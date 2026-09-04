@@ -66,13 +66,22 @@ function isRejectedGeneratedName(raw: string, cleaned: string): boolean {
 }
 
 function fallbackTaskName(source: string): string {
-  let inFence = false;
+  let openFence: string | null = null;
   for (const line of source.split("\n")) {
-    if (FENCE_LINE_REGEX.test(line)) {
-      inFence = !inFence;
+    const fence = line.match(FENCE_LINE_REGEX)?.[1];
+    if (fence) {
+      if (
+        openFence &&
+        fence[0] === openFence[0] &&
+        fence.length >= openFence.length
+      ) {
+        openFence = null;
+      } else if (!openFence) {
+        openFence = fence;
+      }
       continue;
     }
-    if (inFence || !line.trim()) {
+    if (openFence || !line.trim()) {
       continue;
     }
     const cleaned = cleanAutoName(line);
