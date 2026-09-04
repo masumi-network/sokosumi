@@ -259,8 +259,9 @@ function rail(group: string) {
   return screen.getByRole("group", { name: `presetAriaLabel ${group}` });
 }
 
+/** Every stop is named for the group it sets, so four words are not twelve. */
 function railStop(group: string, name: string) {
-  return within(rail(group)).getByRole("button", { name });
+  return within(rail(group)).getByRole("button", { name: `${name} ${group}` });
 }
 
 /** Beside the rail rather than in it: it writes nothing and opens the rows. */
@@ -512,6 +513,72 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * Every situation is written as the whole group. Missing a kind, its
+   * sentence names a row that is not on screen, and two of them can come to
+   * write the same cells, so the rail would light a word nobody pressed.
+   */
+  it("offers no situation for a group Core answered in part", () => {
+    renderKinds(MATRIX.filter((cell) => cell.category !== "CHAT_ROOM_MESSAGE"));
+
+    expect(
+      screen.queryByRole("group", { name: "presetAriaLabel groupChat" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        description: "presetAriaLabel groupChat",
+      }),
+    ).toBeNull();
+    // The rows still answer for themselves, one kind at a time.
+    expect(cellFor("kindChatMention", "channelPush")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  /**
+   * A control the browser disables drops out of the tab order under the
+   * reader's finger. The rail stays reachable, says it is busy, and refuses
+   * the second press until the first write lands.
+   */
+  it("keeps the rail reachable while a write is in flight", async () => {
+    const user = userEvent.setup();
+    patchMyPreferences.mockReturnValue(new Promise(() => {}));
+    renderKinds();
+
+    await user.click(railStop("groupChat", "presetOff"));
+
+    const stop = railStop("groupChat", "presetEverything");
+    await waitFor(() => {
+      expect(stop).toHaveAttribute("aria-disabled", "true");
+    });
+    expect(stop).toBeEnabled();
+
+    await user.click(stop);
+    expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * One word cannot say what it writes, so the panel under the pointer says
+   * it. What it holds is the same sentence and the same two lists the stop
+   * carries as its description.
+   */
+  it("opens what a stop does under the pointer", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await user.hover(railStop("groupChat", "presetEssential"));
+
+    const panel = await screen.findByRole("tooltip");
+    expect(panel).toHaveTextContent("presetChatEssentialHint");
+    // The lists are a description list, so each label and its names are two
+    // elements rather than one line with a colon between them.
+    expect(panel).toHaveTextContent(
+      /channelPush\s*kindChatMention, kindChatDirectMessage/,
+    );
+    expect(panel).toHaveTextContent(/presetStopsLabel\s*kindChatRoomMessage/);
+  });
+
+  /**
    * Custom is not one of the situations, so it stands beside the rail. It
    * writes nothing: it opens the rows, which is where that state is set.
    */
@@ -525,6 +592,20 @@ describe("NotificationKinds", () => {
 
     expect(groupTrigger("groupChat")).toHaveAttribute("aria-expanded", "true");
     expect(patchMyPreferences).not.toHaveBeenCalled();
+  });
+
+  /** The tint that says the group is off every situation is no use unseen. */
+  it("says the Custom chip is the state the group is in", async () => {
+    renderKinds();
+
+    expect(customChip("groupJob")).toHaveAttribute("aria-pressed", "true");
+    expect(customChip("groupChat")).toHaveAttribute("aria-pressed", "false");
+
+    await toggle("kindChatMention", "channelPush");
+
+    await waitFor(() => {
+      expect(customChip("groupChat")).toHaveAttribute("aria-pressed", "true");
+    });
   });
 
   /**
@@ -655,6 +736,9 @@ describe("NotificationKinds", () => {
   it("leaves a single kind with its channel cells", () => {
     renderKinds();
 
+    expect(
+      screen.queryByRole("group", { name: "presetAriaLabel kindSystem" }),
+    ).toBeNull();
     expect(
       screen.queryByRole("button", {
         description: "presetAriaLabel kindSystem",

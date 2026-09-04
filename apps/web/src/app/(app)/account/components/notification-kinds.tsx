@@ -139,11 +139,13 @@ function GroupRows({
             : ""
       }
       answer={
-        alone ? null : (
+        // A group of one is its own situation, and a group Core answered only
+        // part of is one no word covers. Both leave the rows to answer.
+        alone || group.presets.length === 0 ? null : (
           <GroupAnswer
             group={t(group.spec.labelKey)}
             kinds={kinds}
-            presets={group.spec.presets}
+            presets={group.presets}
             preset={group.preset}
             saving={group.saving}
             onPick={(preset) => {

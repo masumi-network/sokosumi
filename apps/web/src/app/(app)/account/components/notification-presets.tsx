@@ -51,6 +51,9 @@ import {
  */
 const RAIL = "border-input bg-background shrink-0 rounded-lg border p-0.5";
 
+/** Custom is not one of the situations, so no table holds its sentence. */
+const CUSTOM_HINT_KEY = "presetCustomHint";
+
 const STOP =
   "focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,scale] outline-none focus-visible:ring-[3px] motion-safe:active:scale-95";
 
@@ -216,6 +219,7 @@ function Stop({
   hint,
   pushes,
   stops,
+  nameId,
   pressed,
   saving,
   onPick,
@@ -225,6 +229,8 @@ function Stop({
   hint: string;
   pushes: readonly string[];
   stops: readonly string[];
+  /** The group's name, which every stop of the rail is named after. */
+  nameId: string;
   pressed: boolean;
   /** A write is in flight. The stop stays reachable, and does nothing. */
   saving: boolean;
@@ -232,6 +238,7 @@ function Stop({
 }) {
   const t = useTranslations("App.Account.Notifications");
   const hintId = useId();
+  const stopId = useId();
   const Icon = PRESET_ICON[id];
 
   return (
@@ -240,6 +247,12 @@ function Stop({
         <TooltipTrigger asChild>
           <button
             type="button"
+            id={stopId}
+            // Named for its group, so the four words a reader meets three
+            // times over are three different sets of controls to a screen
+            // reader and to voice control. The rail's own name is announced
+            // on the way in and is in neither of their lists.
+            aria-labelledby={`${stopId} ${nameId}`}
             aria-pressed={pressed}
             // Reachable while a write is in flight, and doing nothing: a
             // control the browser disables drops out of the tab order under
@@ -397,7 +410,7 @@ function AnswerMenu({
                 {t(PRESET_LABEL_KEY.CUSTOM)}
               </span>
               <span className="text-muted-foreground block text-xs leading-snug">
-                {t("presetCustomHint")}
+                {t(CUSTOM_HINT_KEY)}
               </span>
             </span>
           </DropdownMenuItem>
@@ -466,6 +479,7 @@ export function GroupAnswer({
             label={t(PRESET_LABEL_KEY[one.id])}
             hint={t(one.hintKey)}
             {...named(one)}
+            nameId={nameId}
             pressed={preset === one.id}
             saving={saving}
             onPick={() => {
@@ -484,6 +498,10 @@ export function GroupAnswer({
             // first, so the word on the chip is still the word in its name.
             aria-labelledby={`${chipId} ${nameId}`}
             aria-describedby={customId}
+            // Pressed the way the stops beside it are: it is the state the
+            // group is in whenever the cells are on none of the situations,
+            // and the tint that says so is no use to a reader who hears it.
+            aria-pressed={preset === "CUSTOM"}
             onClick={onCustom}
             className={cn(
               STOP,
@@ -509,7 +527,7 @@ export function GroupAnswer({
               open the group, and the kinds answer for themselves in there. */}
           <PresetBody
             label={t(PRESET_LABEL_KEY.CUSTOM)}
-            hint={t("presetCustomHint")}
+            hint={t(CUSTOM_HINT_KEY)}
             pushes={[]}
             stops={[]}
           />
@@ -518,9 +536,12 @@ export function GroupAnswer({
       {/* The stops beside it carry their sentence this way too: a tooltip
           exists only while it is open, and this one says what pressing does. */}
       <span aria-hidden="true" id={customId} className="sr-only">
-        {t("presetCustomHint")}
+        {t(CUSTOM_HINT_KEY)}
       </span>
-      <span id={nameId} className="sr-only">
+      {/* Referenced by every stop and by the chip, so it is read as part of
+          their names. Left visible to the reading order, it would be the
+          group's name a second time, after the rail and out of nowhere. */}
+      <span aria-hidden="true" id={nameId} className="sr-only">
         {group}
       </span>
       <AnswerMenu
