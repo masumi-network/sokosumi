@@ -145,8 +145,12 @@ export function ChannelLegend({ pushBlock }: { pushBlock: PushBlock | null }) {
     <div
       role="group"
       aria-label={t("channelsLegendLabel")}
+      // Tight to the top of the fold, and tight to the first row under it.
+      // Wide, the names sit at the right-hand end of the line and the rest of
+      // it is empty, so any padding here reads as a band of nothing between
+      // the group and its first kind rather than as air around a legend.
       className={cn(
-        "text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 pb-2 text-xs",
+        "text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 pb-0.5 text-xs",
         "sm:flex-nowrap sm:items-end sm:justify-end sm:gap-2",
       )}
     >
