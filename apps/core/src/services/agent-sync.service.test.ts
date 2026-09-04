@@ -3356,7 +3356,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it("keeps paging while readiness has never been recorded", async () => {
+  it("keeps paging while no readiness row has ever been written", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
@@ -3365,7 +3365,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     // Cold start: no readiness row has ever been written, so
     // getCardanoV2ReadySources returns [] and the ENTIRE V2 catalogue is
     // hidden — every V2 agent unlistable, every V2 task payment 422. The
-    // one-shot latch is right for the warm case but would spend its single
+    // one-shot latch is right for the stale case but would spend its single
     // page minutes after deploy and then go quiet through the whole outage,
     // leaving silence indistinguishable from "no V2 agents configured".
     syncMetadataFindUniqueMock.mockResolvedValue(null);
@@ -3377,17 +3377,58 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     expect(captureExceptionMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        message: expect.stringContaining("has never been recorded"),
+        message: expect.stringContaining("the entire V2 catalogue is hidden"),
       }),
       expect.objectContaining({
-        // Cold IS the outage, so it keeps the error level.
+        // A hidden catalogue IS the outage, so it keeps the error level.
         level: "error",
-        tags: { cardano_v2_readiness: "never_recorded" },
+        tags: { cardano_v2_readiness: "hidden" },
       }),
     );
 
-    // The latch is now held by the earlier insert, so a warm failure would go
-    // quiet here. Never-recorded must page anyway.
+    // The latch is now held by the earlier insert, so a stale failure would go
+    // quiet here. A hidden catalogue must page anyway.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("treats a recorded empty source set as hidden, not stale", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    // A tick where the node reported nothing purchase-ready still upserts a
+    // row, holding "[]". Row EXISTENCE therefore says "warm" while readers
+    // see exactly the cold outage: getCardanoV2ReadySources returns [], no V2
+    // agent is listable, every V2 payment 422s. Gating on row existence would
+    // downgrade this to a warning and then latch it into silence for the
+    // whole outage, which is strictly worse than what it replaced.
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: "[]",
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("the entire V2 catalogue is hidden"),
+      }),
+      expect.objectContaining({
+        level: "error",
+        tags: { cardano_v2_readiness: "hidden" },
+      }),
+    );
+
+    // And it must keep paging through the streak, exactly like a missing row.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
     await agentSyncService.syncCardanoV2RailReadiness();
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);

@@ -135,7 +135,12 @@ function summarizeEmptyX402Readiness(
 
 /**
  * Refreshes the recorded x402 buy-side readiness of the payment node (read
- * by getX402ReadySources). Mirrors syncCardanoV2RailReadiness exactly:
+ * by getX402ReadySources). Same shape as syncCardanoV2RailReadiness, with one
+ * deliberate difference: this rail still reports a failed check at Sentry's
+ * default `error` level, while the Cardano rail drops a check that is still
+ * serving a usable value to `warning`. Aligning the two is a follow-up, not
+ * an oversight — the x402 path also carries its own preview-deploy muting,
+ * which has to be reasoned about in the same change.
  *
  * On check failure the last known value is kept and a marker is written, so
  * readers keep serving it rather than losing the x402 listing to an outage

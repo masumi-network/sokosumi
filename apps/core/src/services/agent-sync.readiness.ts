@@ -4,6 +4,7 @@ import { paymentClient } from "@/clients/masumi-payment.client";
 import {
   CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
   CARDANO_V2_RAIL_READINESS_KEY,
+  getCardanoV2ReadySources,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 
@@ -35,23 +36,25 @@ export async function syncCardanoV2RailReadiness(
       readinessResult.error,
     );
     try {
-      // Has readiness EVER been recorded? The two cases degrade completely
-      // differently and must not share one alert.
+      // Is a usable fallback actually being served? The two cases degrade
+      // completely differently and must not share one alert.
       //
-      // Warm (a row exists): readers keep serving the last known value, so a
-      // failed check costs nothing user-visible. One page is right — repeating
-      // it for the length of an outage would be noise.
+      // Ask the question readers ask. Row EXISTENCE is a different question
+      // and answering that one gets it wrong: the success path upserts
+      // whatever it got, so a tick where the node reported nothing ready
+      // leaves a row holding "[]". That row hides the catalogue exactly as
+      // completely as no row at all, and calling it "warm" would downgrade a
+      // live outage to a warning and then latch it into silence.
       //
-      // Cold (no row): getCardanoV2ReadySources cannot tell "never recorded"
-      // from "nothing ready" and returns [], which hides the ENTIRE V2
-      // catalogue and 422s every V2 task payment. That is an outage, and it is
-      // the state a fresh environment or a deploy landing before the node
-      // serves /rail-readiness starts in.
-      const recordedReadiness = await prisma.syncMetadata.findUnique({
-        where: { key: CARDANO_V2_RAIL_READINESS_KEY },
-        select: { key: true },
-      });
-      const hasNeverBeenRecorded = !recordedReadiness;
+      // Hidden (no usable source): every V2 agent is unlistable and every V2
+      // task payment 422s. That is an outage, and it is the state a fresh
+      // environment, a deploy landing before the node serves /rail-readiness,
+      // and a node reporting nothing purchase-ready all share.
+      //
+      // Stale (sources are being served): readers keep serving the last known
+      // value, so a failed check costs nothing user-visible.
+      const isCatalogueHidden =
+        (await getCardanoV2ReadySources(prisma)).length === 0;
 
       // createMany + skipDuplicates is an atomic cross-instance latch:
       // exactly one serverless worker creates the marker and reports the
@@ -66,32 +69,30 @@ export async function syncCardanoV2RailReadiness(
         ],
         skipDuplicates: true,
       });
-      // The latch is deliberately bypassed while readiness has never been
-      // recorded: silence would otherwise be indistinguishable from a healthy
-      // deployment that simply has no V2 agents, and the single page that the
-      // latch does allow is spent on the first tick — minutes after deploy,
-      // long before anyone looks.
-      if (marker.count > 0 || hasNeverBeenRecorded) {
+      // The latch is deliberately bypassed while the catalogue is hidden:
+      // silence would otherwise be indistinguishable from a healthy deployment
+      // that simply has no V2 agents, and the single page that the latch does
+      // allow is spent on the first tick — minutes after deploy, long before
+      // anyone looks.
+      if (marker.count > 0 || isCatalogueHidden) {
         Sentry.captureException(
           new Error(
-            hasNeverBeenRecorded
-              ? `Cardano V2 rail readiness has never been recorded; the entire V2 catalogue is hidden. Last error: ${readinessResult.error}`
+            isCatalogueHidden
+              ? `Cardano V2 rail readiness has no usable value; the entire V2 catalogue is hidden. Last error: ${readinessResult.error}`
               : `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
           ),
           {
             // Severity follows the user-visible impact, not the check result.
-            // Cold IS the outage: the whole V2 catalogue is hidden right now.
-            // Warm is not. Readers keep serving the last recorded value, the
-            // next cron tick is five minutes out, and the usual cause is one
-            // 10s timeout that costs nothing anybody can see. Paging for that
-            // teaches people to skip the alert, which is how the cold case
-            // gets missed too. It stays reported, so a lasting outage is
-            // still visible in the same place.
-            level: hasNeverBeenRecorded ? "error" : "warning",
+            // Hidden IS the outage: no V2 agent can be listed or paid right
+            // now. Stale is not. Readers keep serving the last recorded
+            // sources, the next cron tick is five minutes out, and the usual
+            // cause is one timed-out attempt that costs nothing anybody can
+            // see. Paging for that teaches people to skip the alert, which is
+            // how the hidden case gets missed too. It stays reported, so a
+            // lasting outage is still visible in the same place.
+            level: isCatalogueHidden ? "error" : "warning",
             tags: {
-              cardano_v2_readiness: hasNeverBeenRecorded
-                ? "never_recorded"
-                : "stale",
+              cardano_v2_readiness: isCatalogueHidden ? "hidden" : "stale",
             },
           },
         );
