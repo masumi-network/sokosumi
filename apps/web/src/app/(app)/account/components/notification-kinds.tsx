@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/collapsible";
 import {
   ChannelGrid,
+  ColumnHeadRow,
   ColumnHeads,
   EmailCell,
   type EmailChoice,
@@ -93,7 +94,7 @@ function GroupRows({
         </div>
       </div>
       <CollapsibleContent>
-        <div className="bg-muted/20 border-t px-4 pt-3 pb-1">
+        <div className="bg-muted/20 border-t px-4 pt-1 pb-1">
           <ChannelGrid
             kinds={group.kinds}
             email={email}
@@ -139,7 +140,7 @@ function NewsRow({ news }: { news: EmailChoice }) {
       <div>
         <div
           aria-hidden="true"
-          className="flex items-end justify-end gap-2 pb-1"
+          className="flex items-end justify-end gap-2 pb-1 sm:hidden"
         >
           <ColumnHeads />
         </div>
@@ -327,6 +328,9 @@ export function NotificationKinds({
         />
       ) : null}
       <div className="divide-y rounded-lg border">
+        {/* One line of column names for the whole card, above every row that
+            answers in those columns. */}
+        <ColumnHeadRow />
         {showKinds ? (
           <KindGroups
             email={email}
