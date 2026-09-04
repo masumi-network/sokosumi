@@ -87,9 +87,27 @@ describe("refineAssigneeXorConflict", () => {
     );
     expect(issues).toEqual([
       expect.objectContaining({
-        message: "assigneeId and assigneeOrchestratorId cannot both be set",
+        message: "Task cannot be assigned to more than one assignee",
       }),
     ]);
+  });
+
+  it("rejects coworker and user assignees together", () => {
+    const issues: Array<{ message: string }> = [];
+    refineAssigneeXorConflict(
+      { assigneeId: "cow_1", assigneeUserId: "user_1" },
+      { addIssue: (issue) => issues.push(issue) },
+    );
+    expect(issues).toHaveLength(1);
+  });
+
+  it("accepts only a user assignee", () => {
+    const issues: Array<{ message: string }> = [];
+    refineAssigneeXorConflict(
+      { assigneeUserId: "user_1" },
+      { addIssue: (issue) => issues.push(issue) },
+    );
+    expect(issues).toEqual([]);
   });
 });
 
@@ -103,6 +121,7 @@ describe("nextAssigneeWrite", () => {
     ).toEqual({
       assigneeId: null,
       assigneeOrchestratorId: "bot-1",
+      assigneeUserId: null,
     });
   });
 
@@ -110,6 +129,7 @@ describe("nextAssigneeWrite", () => {
     expect(nextAssigneeWrite({ assigneeId: "   " })).toEqual({
       assigneeId: null,
       assigneeOrchestratorId: null,
+      assigneeUserId: null,
     });
   });
 
@@ -117,6 +137,23 @@ describe("nextAssigneeWrite", () => {
     expect(nextAssigneeWrite({ assigneeId: "cow_1" })).toEqual({
       assigneeId: "cow_1",
       assigneeOrchestratorId: null,
+      assigneeUserId: null,
+    });
+  });
+
+  it("writes a user assignee and clears the agent assignees", () => {
+    expect(nextAssigneeWrite({ assigneeUserId: "user_1" })).toEqual({
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: "user_1",
+    });
+  });
+
+  it("unsets all assignees when assigneeUserId is null", () => {
+    expect(nextAssigneeWrite({ assigneeUserId: null })).toEqual({
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: null,
     });
   });
 });

@@ -43,6 +43,7 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   description: string;
   assigneeId: string | null;
   assigneeOrchestratorId?: string | null;
+  assigneeUserId?: string | null;
   projectId?: string | null;
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -65,6 +66,7 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   description: string;
   assigneeId: string | null;
   assigneeOrchestratorId?: string | null;
+  assigneeUserId?: string | null;
   projectId?: string | null;
   currentStatus: TaskStatus;
   desiredStatus: TaskStatus;
@@ -156,6 +158,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   description: string;
   assigneeId: string | null;
   assigneeOrchestratorId?: string | null;
+  assigneeUserId?: string | null;
   projectId?: string | null;
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -328,15 +331,35 @@ function toCoreTaskContext(
 function resolveAssigneeWrite(
   assigneeId?: string | null,
   assigneeOrchestratorId?: string | null,
-): { assigneeId: string | null; assigneeOrchestratorId: string | null } {
+  assigneeUserId?: string | null,
+): {
+  assigneeId: string | null;
+  assigneeOrchestratorId: string | null;
+  assigneeUserId: string | null;
+} {
   const orchestratorId = assigneeOrchestratorId?.trim() || null;
   if (orchestratorId) {
-    return { assigneeId: null, assigneeOrchestratorId: orchestratorId };
+    return {
+      assigneeId: null,
+      assigneeOrchestratorId: orchestratorId,
+      assigneeUserId: null,
+    };
+  }
+
+  const userId =
+    typeof assigneeUserId === "string" ? assigneeUserId.trim() || null : null;
+  if (userId) {
+    return {
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: userId,
+    };
   }
 
   return {
     assigneeId: assigneeId?.trim() ? assigneeId : null,
     assigneeOrchestratorId: null,
+    assigneeUserId: null,
   };
 }
 
@@ -344,6 +367,7 @@ async function createTaskFromDescription(input: {
   description: string;
   assigneeId: string | null;
   assigneeOrchestratorId?: string | null;
+  assigneeUserId?: string | null;
   projectId?: string | null;
   userId: string;
   context?: TaskContextSelectionInput;
@@ -362,7 +386,11 @@ async function createTaskFromDescription(input: {
 
   const task = await taskService.createTask({
     description: trimmedDescription,
-    ...resolveAssigneeWrite(input.assigneeId, input.assigneeOrchestratorId),
+    ...resolveAssigneeWrite(
+      input.assigneeId,
+      input.assigneeOrchestratorId,
+      input.assigneeUserId,
+    ),
     projectId: normalizedProjectId ?? null,
     ...(context ? { context } : {}),
     status: resolveCreateStatus(input.status, input.schedule),
@@ -503,6 +531,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     description,
     assigneeId,
     assigneeOrchestratorId,
+    assigneeUserId,
     projectId,
     session,
     context,
@@ -514,6 +543,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         description,
         assigneeId,
         assigneeOrchestratorId,
+        assigneeUserId,
         projectId,
         userId: session.user.id,
         context,
@@ -544,6 +574,7 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     description,
     assigneeId,
     assigneeOrchestratorId,
+    assigneeUserId,
     projectId,
     currentStatus,
     desiredStatus,
@@ -566,7 +597,11 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
       await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
-        ...resolveAssigneeWrite(assigneeId, assigneeOrchestratorId),
+        ...resolveAssigneeWrite(
+          assigneeId,
+          assigneeOrchestratorId,
+          assigneeUserId,
+        ),
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
           : {}),
@@ -852,6 +887,7 @@ export const createTaskAndLink = withSession<
     description,
     assigneeId,
     assigneeOrchestratorId,
+    assigneeUserId,
     projectId,
     session,
     status,
@@ -873,6 +909,7 @@ export const createTaskAndLink = withSession<
         description,
         assigneeId,
         assigneeOrchestratorId,
+        assigneeUserId,
         projectId,
         userId: session.user.id,
         context,

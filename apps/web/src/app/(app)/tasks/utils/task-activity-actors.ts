@@ -146,6 +146,8 @@ export function buildTaskActivityActors(
   if (task.assignee) {
     if (task.assignee.type === "orchestrator") {
       addOrchestratorActor(orchestratorById, task.assignee.orchestrator);
+    } else if (task.assignee.type === "user") {
+      addUserActor(userById, task.assignee.user);
     } else {
       addCoworkerActor(coworkerById, task.assignee.coworker);
     }

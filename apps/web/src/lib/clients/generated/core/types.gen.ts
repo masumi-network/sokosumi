@@ -1072,17 +1072,21 @@ export type Task = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Null when the assignee is an orchestrator.
+     * Marketplace coworker assignee. Null when assigned to a user, an orchestrator, or unset. Prefer `assignee`.
      */
     assigneeId: string | null;
     /**
-     * Personal-assistant orchestrator assignee. Null when the assignee is a coworker.
+     * Personal-assistant orchestrator assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.
      */
     assigneeOrchestratorId: string | null;
     /**
-     * Discriminated assignee: coworker, orchestrator, or unassigned.
+     * Workspace-member assignee id. Null when assigned to a coworker, an orchestrator, or unset. Prefer `assignee`.
      */
-    assignee: TaskAssigneeCoworker | TaskAssigneeOrchestrator | null;
+    assigneeUserId: string | null;
+    /**
+     * Discriminated assignee: coworker, workspace member, orchestrator, or unassigned.
+     */
+    assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeOrchestrator | null;
     /**
      * Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.
      *
@@ -1166,6 +1170,12 @@ export type CoworkerSummary = {
     name: string;
     image?: string | null;
     slug: string;
+};
+
+export type TaskAssigneeUser = {
+    type: 'user';
+    id: string;
+    user: UserSummary;
 };
 
 export type TaskAssigneeOrchestrator = {
@@ -5298,17 +5308,21 @@ export type TaskListItem = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Null when the assignee is an orchestrator.
+     * Marketplace coworker assignee. Null when assigned to a user, an orchestrator, or unset. Prefer `assignee`.
      */
     assigneeId: string | null;
     /**
-     * Personal-assistant orchestrator assignee. Null when the assignee is a coworker.
+     * Personal-assistant orchestrator assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.
      */
     assigneeOrchestratorId: string | null;
     /**
-     * Discriminated assignee: coworker, orchestrator, or unassigned.
+     * Workspace-member assignee id. Null when assigned to a coworker, an orchestrator, or unset. Prefer `assignee`.
      */
-    assignee: TaskAssigneeCoworker | TaskAssigneeOrchestrator | null;
+    assigneeUserId: string | null;
+    /**
+     * Discriminated assignee: coworker, workspace member, orchestrator, or unassigned.
+     */
+    assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeOrchestrator | null;
     /**
      * Deprecated marketplace coworker assignee. Null when the assignee is an orchestrator.
      *
@@ -35919,6 +35933,10 @@ export type GetTasksData = {
          */
         assigneeOrchestratorId?: string;
         /**
+         * Filter tasks by workspace-member assignee
+         */
+        assigneeUserId?: string;
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -36006,6 +36024,7 @@ export type PostTasksData = {
          */
         coworkerId?: string | null;
         assigneeOrchestratorId?: string | null;
+        assigneeUserId?: string | null;
         status?: 'DRAFT' | 'READY';
         channel?: Channel;
         origin?: Channel & unknown;
@@ -36706,6 +36725,7 @@ export type PatchTasksByIdData = {
          */
         coworkerId?: string | null;
         assigneeOrchestratorId?: string | null;
+        assigneeUserId?: string | null;
     };
     path: {
         id: string;

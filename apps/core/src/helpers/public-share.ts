@@ -35,6 +35,13 @@ const publicTaskInclude = {
       image: true,
     },
   },
+  assigneeUser: {
+    select: {
+      id: true,
+      name: true,
+      image: true,
+    },
+  },
   jobs: {
     include: {
       ...jobWithEvents,
@@ -154,7 +161,7 @@ function mapPublicTaskJob(taskJob: PublicTaskWithRelations["jobs"][number]) {
 }
 
 function mapPublicTask(task: PublicTaskWithRelations) {
-  const assignee = task.assignee
+  const coworkerAssignee = task.assignee
     ? {
         id: task.assignee.id,
         name: task.assignee.name,
@@ -162,6 +169,15 @@ function mapPublicTask(task: PublicTaskWithRelations) {
         image: task.assignee.image,
       }
     : null;
+  const userAssignee = task.assigneeUser
+    ? {
+        id: task.assigneeUser.id,
+        name: task.assigneeUser.name,
+        slug: null,
+        image: task.assigneeUser.image,
+      }
+    : null;
+  const assignee = coworkerAssignee ?? userAssignee;
 
   return {
     id: task.id,
@@ -171,8 +187,8 @@ function mapPublicTask(task: PublicTaskWithRelations) {
     description: task.description,
     status: task.status,
     assignee,
-    /** @deprecated Use `assignee`. */
-    coworker: assignee,
+    /** @deprecated Use `assignee`. Coworker assignee only. */
+    coworker: coworkerAssignee,
     jobs: task.jobs.map((job) => mapPublicTaskJob(job)),
     events: task.events
       .map((event) => mapPublicTaskMilestone(event))

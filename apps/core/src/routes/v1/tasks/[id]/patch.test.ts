@@ -17,20 +17,24 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   mapTaskMock,
+  notifyTaskHumanAssigneeMock,
   prismaTransactionMock,
   projectFindFirstMock,
   refreshTaskSchedulePlannedOccurrencesMock,
   requireTaskAssignableCoworkerMock,
   requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableUserMock,
   requireTaskOwnershipMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
   mapTaskMock: vi.fn(),
+  notifyTaskHumanAssigneeMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   requireTaskAssignableOrchestratorMock: vi.fn(),
+  requireTaskAssignableUserMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
   taskUpdateMock: vi.fn(),
 }));
@@ -38,6 +42,7 @@ const {
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskAssignableOrchestrator: requireTaskAssignableOrchestratorMock,
+  requireTaskAssignableUser: requireTaskAssignableUserMock,
   requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
@@ -53,6 +58,10 @@ vi.mock("@/helpers/task", async (importOriginal) => {
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
   refreshTaskSchedulePlannedOccurrences:
     refreshTaskSchedulePlannedOccurrencesMock,
+}));
+
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskHumanAssignee: notifyTaskHumanAssigneeMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -96,6 +105,7 @@ function createTaskApi(projectId: string | null = null) {
     },
     assigneeId: null,
     assigneeOrchestratorId: null,
+    assigneeUserId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -194,6 +204,23 @@ describe("patchTaskRequestSchema", () => {
       patchTaskRequestSchema.parse({
         assigneeId: "cow_a",
         assigneeOrchestratorId: "01960001-0001-7001-8001-000000000099",
+      });
+    }).toThrow();
+  });
+
+  it("accepts assigneeUserId as the only patch field", () => {
+    const result = patchTaskRequestSchema.parse({
+      assigneeUserId: "user_123",
+    });
+
+    expect(result.assigneeUserId).toBe("user_123");
+  });
+
+  it("rejects coworker and user assignees together", () => {
+    expect(() => {
+      patchTaskRequestSchema.parse({
+        assigneeId: "cow_a",
+        assigneeUserId: "user_a",
       });
     }).toThrow();
   });
@@ -507,5 +534,91 @@ describe("PATCH /tasks/{id}", () => {
       "Only the owner can assign work to this Soko Bot",
     );
     expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  describe("PATCH /tasks/{id} human assignee (SOK-868)", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      requireTaskOwnershipMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        assigneeOrchestratorId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+      });
+      taskUpdateMock.mockResolvedValue(createTaskApi(null));
+      mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
+      prismaTransactionMock.mockImplementation(async (callback) => {
+        return await callback({
+          project: { findFirst: projectFindFirstMock },
+          task: { update: taskUpdateMock },
+        });
+      });
+    });
+
+    it("notifies when a workspace member becomes the assignee", async () => {
+      taskUpdateMock.mockResolvedValue({
+        ...createTaskApi(null),
+        assigneeUserId: "user_assignee",
+      });
+      mapTaskMock.mockImplementation(() => ({
+        ...createTaskApi(null),
+        assigneeUserId: "user_assignee",
+      }));
+
+      const app = createApp();
+      const response = await app.request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeUserId: "user_assignee" }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(requireTaskAssignableUserMock).toHaveBeenCalledWith(
+        "user_assignee",
+        WORKSPACE_ID,
+        expect.anything(),
+      );
+      expect(notifyTaskHumanAssigneeMock).toHaveBeenCalledWith(
+        "tsk_123",
+        "user_assignee",
+      );
+    });
+
+    it("does not notify when the human assignee is cleared", async () => {
+      requireTaskOwnershipMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.DRAFT,
+        assigneeId: null,
+        assigneeOrchestratorId: null,
+        assigneeUserId: "user_assignee",
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+      });
+
+      const app = createApp();
+      const response = await app.request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeUserId: null }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(notifyTaskHumanAssigneeMock).not.toHaveBeenCalled();
+    });
+
+    it("does not notify when the task is assigned to a coworker", async () => {
+      const app = createApp();
+      const response = await app.request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeId: "cow_123", assigneeUserId: null }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(notifyTaskHumanAssigneeMock).not.toHaveBeenCalled();
+    });
   });
 });

@@ -306,6 +306,9 @@ function taskAssigneeDisplayName(
   if (assignee.type === "orchestrator") {
     return assignee.orchestrator.name?.trim() || personalAssistantFallback;
   }
+  if (assignee.type === "user") {
+    return assignee.user.name ?? null;
+  }
   return assignee.coworker.name ?? null;
 }
 
@@ -446,7 +449,7 @@ async function TaskOverviewSection({
           organization: t("organization"),
           personalWorkspace: t("personalWorkspace"),
           project: t("project"),
-          coworker: t("coworker"),
+          coworker: t("assignee"),
           credits: t("credits"),
           created: t("created"),
           updated: t("updated"),
@@ -560,6 +563,15 @@ async function TaskDetailActionsSlot({
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
       defaultAssigneeId={taskFormAssigneeId(task) || undefined}
+      assigneeKind={
+        task.assignee?.type === "coworker"
+          ? "coworker"
+          : task.assignee?.type === "orchestrator"
+            ? "orchestrator"
+            : task.assignee?.type === "user"
+              ? "human"
+              : "unset"
+      }
       initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
@@ -591,6 +603,12 @@ async function TaskDetailActionsSlot({
         revertToDraft: t("actions.revertToDraft"),
         cancel: t("actions.cancel"),
         share: t("actions.share"),
+        startWorking: t("actions.startWorking"),
+        pauseToReady: t("actions.pauseToReady"),
+        waitExternal: t("actions.waitExternal"),
+        resumeRunning: t("actions.resumeRunning"),
+        resumeReady: t("actions.resumeReady"),
+        markComplete: t("actions.markComplete"),
       }}
     />
   );

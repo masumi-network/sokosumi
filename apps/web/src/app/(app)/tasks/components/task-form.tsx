@@ -4,9 +4,11 @@ import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
 import {
   ArrowLeft,
   CalendarClock,
+  Check,
   Command,
   CornerDownLeft,
   Loader2,
+  UserX,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -41,6 +43,15 @@ import {
 } from "@/components/ui/file-upload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -91,6 +102,8 @@ export interface TaskFormLabels {
   coworkerDescription: string;
   chooseAgent?: string;
   chooseAgentDescription?: string;
+  unassigned?: string;
+  unassignedDescription?: string;
   defaultBadge?: string;
   modelLabel?: string;
   hostingLabel?: string;
@@ -141,6 +154,7 @@ interface TaskFormInitialValues {
   description?: string;
   assigneeId?: string | null;
   assigneeOrchestratorId?: string | null;
+  assigneeUserId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
   metadata?: string | null;
@@ -148,6 +162,9 @@ interface TaskFormInitialValues {
 }
 
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
+
+/** Sentinel for the edit assignee select's Unassigned item (Radix needs non-empty values). */
+const UNASSIGNED_SELECT_VALUE = "__unassigned__";
 
 interface TaskFormProps {
   mode: "create" | "edit";
@@ -169,6 +186,7 @@ interface TaskFormProps {
     description: string;
     assigneeId: string | null;
     assigneeOrchestratorId: string | null;
+    assigneeUserId: string | null;
     projectId?: string | null;
     context: TaskContextSelectionInput;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -246,11 +264,18 @@ export function TaskForm({
 
     return (
       initialValues?.assigneeId ??
+      initialValues?.assigneeOrchestratorId ??
+      initialValues?.assigneeUserId ??
       elenaCoworker?.id ??
       coworkerOptions[0]?.id ??
       ""
     );
-  }, [coworkerOptions, initialValues?.assigneeId]);
+  }, [
+    coworkerOptions,
+    initialValues?.assigneeId,
+    initialValues?.assigneeOrchestratorId,
+    initialValues?.assigneeUserId,
+  ]);
 
   const knownOrchestratorId = useMemo(
     () =>
@@ -424,7 +449,11 @@ export function TaskForm({
   // is prefilled (gallery offer, agents-page deep link). A prompt alone does not
   // skip step 1 — otherwise a bad coworker slug would land on compose with the
   // default assignee.
-  const hasPrefilledAssignee = Boolean(initialValues?.assigneeId);
+  const hasPrefilledAssignee = Boolean(
+    initialValues?.assigneeId ??
+      initialValues?.assigneeOrchestratorId ??
+      initialValues?.assigneeUserId,
+  );
   const useWizard = isModal && mode === "create" && !hasPrefilledAssignee;
   const [step, setStep] = useState<1 | 2>(hasPrefilledAssignee ? 2 : 1);
   const showTaskStep = !useWizard || step === 2;
@@ -671,6 +700,24 @@ export function TaskForm({
     () => coworkerOptions.find((option) => option.id === assigneeId),
     [coworkerOptions, assigneeId],
   );
+  // Schedules stay agent-only (SOK-868): human-assigned and unset tasks
+  // cannot be scheduled. Core rejects QUEUED without a coworker or
+  // orchestrator assignee; the picker disables the schedule control first.
+  const selectedAssigneeFields = useMemo(
+    () =>
+      resolveTaskAssigneeFields(
+        assigneeId,
+        coworkerOptions,
+        knownOrchestratorId,
+      ),
+    [assigneeId, coworkerOptions, knownOrchestratorId],
+  );
+  const isAgentAssignee =
+    selectedAssigneeFields.assigneeId !== null ||
+    selectedAssigneeFields.assigneeOrchestratorId !== null;
+  // Queued work must stay agent-assigned: Core rejects reassignment away
+  // from an agent while QUEUED, so the edit picker locks non-agent options.
+  const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
   const showModalCoworkerHeader =
     selectedOption !== undefined &&
     (useComposeLayout || (isModal && mode === "edit"));
@@ -910,6 +957,73 @@ export function TaskForm({
                 </div>
               ) : null}
 
+              {mode === "edit" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="task-assignee">{labels.coworker}</Label>
+                  <Select
+                    value={assigneeId || UNASSIGNED_SELECT_VALUE}
+                    onValueChange={(value) =>
+                      handleCoworkerSelect(
+                        value === UNASSIGNED_SELECT_VALUE ? "" : value,
+                      )
+                    }
+                  >
+                    <SelectTrigger id="task-assignee" className="w-full">
+                      <SelectValue
+                        placeholder={labels.unassigned ?? "Unassigned"}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        value={UNASSIGNED_SELECT_VALUE}
+                        disabled={isAssigneeLockedToAgent}
+                      >
+                        {labels.unassigned ?? "Unassigned"}
+                      </SelectItem>
+                      {coworkerOptions.some(
+                        (option) => option.kind === "user",
+                      ) ? (
+                        <SelectGroup>
+                          <SelectLabel>
+                            {
+                              coworkerOptions.find(
+                                (option) => option.kind === "user",
+                              )?.vendor.name
+                            }
+                          </SelectLabel>
+                          {coworkerOptions
+                            .filter((option) => option.kind === "user")
+                            .map((option) => (
+                              <SelectItem
+                                key={option.id}
+                                value={option.id}
+                                disabled={isAssigneeLockedToAgent}
+                              >
+                                {option.name}
+                              </SelectItem>
+                            ))}
+                        </SelectGroup>
+                      ) : null}
+                      <SelectGroup>
+                        <SelectLabel>{labels.coworker}</SelectLabel>
+                        {coworkerOptions
+                          .filter((option) => option.kind !== "user")
+                          .map((option) => (
+                            <SelectItem key={option.id} value={option.id}>
+                              {option.name}
+                            </SelectItem>
+                          ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {labels.coworkerDescription ? (
+                    <p className="text-muted-foreground text-xs">
+                      {labels.coworkerDescription}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
               {shouldShowProjectSelect ? (
                 <div className="space-y-2">
                   <Label>{labels.projectLabel}</Label>
@@ -1025,6 +1139,45 @@ export function TaskForm({
                 ) : null}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => handleCoworkerSelect("")}
+                  aria-pressed={assigneeId === ""}
+                  className={cn(
+                    "group relative flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.99]",
+                    assigneeId === ""
+                      ? "border-primary bg-primary/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
+                      : "border-border bg-card hover:border-primary hover:shadow-sm",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "bg-primary absolute top-4 right-4 flex size-5 items-center justify-center rounded-full transition-opacity duration-150",
+                      assigneeId === "" ? "opacity-100" : "opacity-0",
+                    )}
+                    aria-hidden
+                  >
+                    <Check className="size-3 text-white" strokeWidth={3} />
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="bg-muted flex size-11 shrink-0 items-center justify-center rounded-xl">
+                      <UserX
+                        className="text-muted-foreground size-5"
+                        aria-hidden
+                      />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {labels.unassigned ?? "Unassigned"}
+                      </p>
+                      {labels.unassignedDescription ? (
+                        <p className="text-muted-foreground truncate text-xs">
+                          {labels.unassignedDescription}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </button>
                 {coworkerOptions.map((option) => (
                   <CoworkerCard
                     key={option.id}
@@ -1086,7 +1239,7 @@ export function TaskForm({
                     type="button"
                     variant="outline"
                     size="icon"
-                    disabled={createdTask !== null}
+                    disabled={createdTask !== null || !isAgentAssignee}
                     aria-label={labels.openSchedule}
                     aria-pressed={hasSchedule}
                     onClick={() => setIsScheduleModalOpen(true)}
@@ -1143,7 +1296,7 @@ export function TaskForm({
                     type="button"
                     variant="outline"
                     size="icon"
-                    disabled={createdTask !== null}
+                    disabled={createdTask !== null || !isAgentAssignee}
                     aria-label={labels.openSchedule}
                     aria-pressed={hasSchedule}
                     onClick={() => setIsScheduleModalOpen(true)}

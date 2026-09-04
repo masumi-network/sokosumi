@@ -2,6 +2,7 @@ interface AssigneeIdAliasInput {
   assigneeId?: string | null;
   coworkerId?: string | null;
   assigneeOrchestratorId?: string | null;
+  assigneeUserId?: string | null;
 }
 
 interface AssigneeIdAliasIssueContext {
@@ -48,44 +49,72 @@ function hasAssigneeValue(value: string | null | undefined): boolean {
   return value != null && value.trim() !== "";
 }
 
-/** Coworker and orchestrator assignee FKs are XOR. */
+/** Coworker, orchestrator, and user assignee FKs are at most one. */
 export function refineAssigneeXorConflict(
   data: AssigneeIdAliasInput,
   ctx: AssigneeIdAliasIssueContext,
 ): void {
   refineAssigneeIdAliasConflict(data, ctx);
-  if (
-    hasAssigneeValue(resolveAssigneeIdFromRequest(data)) &&
-    hasAssigneeValue(data.assigneeOrchestratorId)
-  ) {
+  const setCount =
+    (hasAssigneeValue(resolveAssigneeIdFromRequest(data)) ? 1 : 0) +
+    (hasAssigneeValue(data.assigneeOrchestratorId) ? 1 : 0) +
+    (hasAssigneeValue(data.assigneeUserId) ? 1 : 0);
+  if (setCount > 1) {
     ctx.addIssue({
       code: "custom",
-      message: "assigneeId and assigneeOrchestratorId cannot both be set",
-      path: ["assigneeOrchestratorId"],
+      message: "Task cannot be assigned to more than one assignee",
+      path: ["assigneeUserId"],
     });
   }
 }
 
 /**
- * A provided assignee field replaces the whole assignee: coworker, orchestrator,
- * or neither. Omitted fields leave the current assignee untouched.
+ * A provided assignee field replaces the whole assignee: coworker,
+ * orchestrator, user, or neither. Omitted fields leave the current assignee
+ * untouched.
  */
 export function nextAssigneeWrite(input: {
   assigneeId?: string | null;
   assigneeOrchestratorId?: string | null;
+  assigneeUserId?: string | null;
 }):
-  | { assigneeId: string | null; assigneeOrchestratorId: string | null }
+  | {
+      assigneeId: string | null;
+      assigneeOrchestratorId: string | null;
+      assigneeUserId: string | null;
+    }
   | undefined {
   const hasCoworker = input.assigneeId !== undefined;
   const hasOrchestrator = input.assigneeOrchestratorId !== undefined;
-  if (!hasCoworker && !hasOrchestrator) return undefined;
+  const hasUser = input.assigneeUserId !== undefined;
+  if (!hasCoworker && !hasOrchestrator && !hasUser) return undefined;
   const coworkerId = input.assigneeId?.trim() || null;
   const orchestratorId = input.assigneeOrchestratorId?.trim() || null;
+  const userId = input.assigneeUserId?.trim() || null;
   if (hasCoworker && coworkerId) {
-    return { assigneeId: coworkerId, assigneeOrchestratorId: null };
+    return {
+      assigneeId: coworkerId,
+      assigneeOrchestratorId: null,
+      assigneeUserId: null,
+    };
   }
   if (hasOrchestrator && orchestratorId) {
-    return { assigneeId: null, assigneeOrchestratorId: orchestratorId };
+    return {
+      assigneeId: null,
+      assigneeOrchestratorId: orchestratorId,
+      assigneeUserId: null,
+    };
   }
-  return { assigneeId: null, assigneeOrchestratorId: null };
+  if (hasUser && userId) {
+    return {
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: userId,
+    };
+  }
+  return {
+    assigneeId: null,
+    assigneeOrchestratorId: null,
+    assigneeUserId: null,
+  };
 }

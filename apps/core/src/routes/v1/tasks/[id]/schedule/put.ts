@@ -129,6 +129,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           status: TaskStatus.QUEUED,
           assigneeId: currentTask.assigneeId,
           assigneeOrchestratorId: currentTask.assigneeOrchestratorId,
+          assigneeUserId: currentTask.assigneeUserId,
         });
 
         const task = await tx.task.update({

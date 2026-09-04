@@ -1,9 +1,13 @@
 /**
- * User-initiated task status transitions. Mirrors the user branch of
- * `getAllowedTransitions` in Core (`apps/core/src/helpers/task.ts`).
+ * User-initiated task status transitions. Mirrors Core
+ * `getAllowedTransitions` (`apps/core/src/helpers/task.ts`).
  *
  * Implemented as string literals so this package does not mirror Prisma
  * `TaskStatus` enums — OpenAPI/codegen owns web runtime types.
+ *
+ * Coworker- and orchestrator-assigned Tasks keep the original user table
+ * (queue, cancel, reopen). Human-assigned and unset Tasks use a simpler
+ * in-progress path.
  */
 
 /** Task statuses referenced by the user transition table. */
@@ -22,6 +26,9 @@ export type UserTransitionTaskStatus =
   | "COMPLETED"
   | "FAILED"
   | "CANCELED";
+
+/** Who the Task is handed to. Agent-assigned work keeps today's user table. */
+export type TaskAssigneeKind = "coworker" | "orchestrator" | "human" | "unset";
 
 const USER_TASK_STATUS_TRANSITIONS: Record<
   UserTransitionTaskStatus,
@@ -45,15 +52,41 @@ const USER_TASK_STATUS_TRANSITIONS: Record<
   CANCELED: ["READY"],
 };
 
+const HUMAN_TASK_STATUS_TRANSITIONS: Record<
+  UserTransitionTaskStatus,
+  readonly UserTransitionTaskStatus[]
+> = {
+  DRAFT: ["READY", "CANCELED"],
+  QUEUED: [],
+  READY: ["DRAFT", "CANCELED", "RUNNING"],
+  GRANT_PENDING: [],
+  INPUT_REQUIRED: ["CANCELED"],
+  APPROVAL_REQUIRED: ["CANCELED"],
+  AUTHENTICATION_REQUIRED: ["CANCELED"],
+  OUT_OF_CREDITS: ["CANCELED"],
+  CREDITS_TOPPED_UP: ["CANCELED"],
+  RUNNING: ["READY", "AWAITING_EXTERNAL", "COMPLETED", "CANCELED"],
+  AWAITING_EXTERNAL: ["RUNNING", "READY", "COMPLETED", "CANCELED"],
+  COMPLETED: ["READY"],
+  FAILED: [],
+  CANCELED: ["READY"],
+};
+
 export function canUserTransitionTaskStatus(
   from: UserTransitionTaskStatus,
   to: UserTransitionTaskStatus,
+  assigneeKind: TaskAssigneeKind = "coworker",
 ): boolean {
   if (from === to) {
     return false;
   }
 
-  return USER_TASK_STATUS_TRANSITIONS[from].includes(to);
+  const table =
+    assigneeKind === "human" || assigneeKind === "unset"
+      ? HUMAN_TASK_STATUS_TRANSITIONS
+      : USER_TASK_STATUS_TRANSITIONS;
+
+  return table[from].includes(to);
 }
 
 /**

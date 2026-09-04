@@ -18,6 +18,7 @@ import {
   parseJobsListFilters,
   sanitizeJobAgentIdForPersistedFilter,
 } from "@/app/tasks/utils/jobs-filters";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
   firstQueryString,
@@ -121,6 +122,8 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     "normal";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const [taskCoworkers, projectsPage, ownerBot] = await loadTasksPageData();
+  const memberOptions =
+    await listTaskAssigneeMemberOptions(activeOrganizationId);
   const filters = parseTasksFilters(
     {
       scope,
@@ -273,7 +276,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         ) as Record<KanbanColumnId, string | null>);
 
   const coworkerOptions: CoworkerOption[] = withOwnerOrchestratorOption(
-    getCoworkerOptions(taskCoworkers),
+    [...memberOptions, ...getCoworkerOptions(taskCoworkers)],
     ownerBot,
     { fallbackName: t("sokoBot"), vendorName: t("sokoBots") },
   );

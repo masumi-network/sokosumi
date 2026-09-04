@@ -329,4 +329,62 @@ describe("PUT /tasks/{id}/schedule", () => {
     expect(response.status).toBe(409);
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
+
+  it("rejects scheduling a human-assigned task (SOK-868)", async () => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.READY,
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: "user_123",
+      ownerId: "user_123",
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      projectId: null,
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects scheduling an unset task (SOK-868)", async () => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.READY,
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: null,
+      ownerId: "user_123",
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      projectId: null,
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
 });

@@ -7,6 +7,7 @@ import {
   getCoworkerOptions,
   withOwnerOrchestratorOption,
 } from "@/app/tasks/utils/coworker-options";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -31,8 +32,11 @@ export default async function NewTaskPage() {
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const memberOptions =
+    await listTaskAssigneeMemberOptions(activeOrganizationId);
   const coworkerOptions = withOwnerOrchestratorOption(
-    getCoworkerOptions(taskCoworkers),
+    [...memberOptions, ...getCoworkerOptions(taskCoworkers)],
     ownerBot,
     { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },
   );
@@ -61,6 +65,8 @@ export default async function NewTaskPage() {
             projectEmptyResults: t("projectEmptyResults"),
             coworker: t("coworker"),
             coworkerDescription: t("coworkerDescription"),
+            unassigned: t("unassigned"),
+            unassignedDescription: t("unassignedDescription"),
             status: t("status"),
             statusDescription: t("statusDescription"),
             statusDraft: t("statusDraft"),

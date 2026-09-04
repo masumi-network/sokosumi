@@ -143,6 +143,15 @@ function resolveTaskAssigneeDisplay(
     };
   }
 
+  if (assignee.type === "user") {
+    return {
+      name: assignee.user.name,
+      image: assignee.user.image
+        ? resolveIpfsOrHttpUrl(assignee.user.image)
+        : null,
+    };
+  }
+
   return {
     name: assignee.coworker.name,
     image: getCoworkerImage(assignee.coworker),

@@ -1891,7 +1891,13 @@
             "scheduleRun": "Scheduled run",
             "scheduleSeries": "Schedule"
           },
-          "personalWorkspace": "Personal"
+          "personalWorkspace": "Personal",
+          "startWorking": "Start working",
+          "pauseToReady": "Pause to Ready",
+          "waitExternal": "Wait on external",
+          "resumeRunning": "Resume running",
+          "resumeReady": "Back to Ready",
+          "markComplete": "Mark complete"
         },
         "ShareModal": {
           "title": "Share task",
@@ -1943,7 +1949,8 @@
           "description": "This task is blocked until a workspace owner or admin approves vendor access.",
           "descriptionWithCoworker": "{coworkerName} created this task. It is blocked until a workspace owner or admin approves vendor access."
         },
-        "files": "Files"
+        "files": "Files",
+        "assignee": "Assignee"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -2017,7 +2024,9 @@
         "taskCreatedHint": "Everything's set up and ready to go.",
         "goToTask": "Bring me to the task",
         "createAnother": "Create another task",
-        "close": "Close"
+        "close": "Close",
+        "unassigned": "Unassigned",
+        "unassignedDescription": "Leave ready work for anyone to pick up"
       },
       "EditTask": {
         "title": "Edit Task",
@@ -2047,7 +2056,9 @@
         "save": "Save",
         "openSchedule": "Set schedule",
         "cancel": "Cancel",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "unassigned": "Unassigned",
+        "unassignedDescription": "Leave ready work for anyone to pick up"
       },
       "Schedule": {
         "title": "Schedule",
@@ -7044,7 +7055,8 @@
         "failed": "{coworkerName} failed to complete {taskName}",
         "canceled": "{taskName} was canceled",
         "scheduleRepaired": "The schedule for {taskName} was repaired",
-        "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review"
+        "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review",
+        "assigned": "You were assigned {taskName}"
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",

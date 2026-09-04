@@ -134,6 +134,14 @@ const query = z
         description: "Filter tasks by personal-assistant orchestrator assignee",
         example: "01960001-0001-7001-8001-000000000099",
       }),
+    assigneeUserId: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "assigneeUserId", in: "query" },
+        description: "Filter tasks by workspace-member assignee",
+        example: "user_123",
+      }),
   })
   .extend(cursorPaginationQuerySchema.shape)
   .superRefine(refineAssigneeIdAliasConflict)
@@ -170,6 +178,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const {
       assigneeId,
       assigneeOrchestratorId,
+      assigneeUserId,
       projectId,
       q,
       scope,
@@ -231,6 +240,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               : {}),
             ...(assigneeId ? { assigneeId } : {}),
             ...(assigneeOrchestratorId ? { assigneeOrchestratorId } : {}),
+            ...(assigneeUserId ? { assigneeUserId } : {}),
             ...projectFilter,
             ...searchFilter,
           },
@@ -275,6 +285,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
           ...(assigneeId ? { assigneeId } : {}),
           ...(assigneeOrchestratorId ? { assigneeOrchestratorId } : {}),
+          ...(assigneeUserId ? { assigneeUserId } : {}),
           ...projectFilter,
           ...searchFilter,
         },

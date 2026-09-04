@@ -1890,7 +1890,13 @@
             "scheduleRun": "Ejecución programada",
             "scheduleSeries": "Programación"
           },
-          "personalWorkspace": "Personal"
+          "personalWorkspace": "Personal",
+          "startWorking": "Empezar a trabajar",
+          "pauseToReady": "Pausar",
+          "waitExternal": "Esperar factor externo",
+          "resumeRunning": "Reanudar",
+          "resumeReady": "Volver a Lista",
+          "markComplete": "Marcar como completada"
         },
         "ShareModal": {
           "title": "Share task",
@@ -1943,7 +1949,8 @@
           "description": "Esta tarea está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor.",
           "descriptionWithCoworker": "{coworkerName} creó esta tarea. Está bloqueada hasta que un propietario o administrador del espacio de trabajo apruebe el acceso del proveedor."
         },
-        "files": "Archivos"
+        "files": "Archivos",
+        "assignee": "Responsable"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -2017,7 +2024,9 @@
         "taskCreatedHint": "Todo está configurado y listo.",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
-        "close": "Cerrar"
+        "close": "Cerrar",
+        "unassigned": "Sin asignar",
+        "unassignedDescription": "Dejar el trabajo listo para que cualquiera lo tome"
       },
       "EditTask": {
         "title": "Editar Task",
@@ -2047,7 +2056,9 @@
         "save": "Guardar",
         "openSchedule": "Configurar programación",
         "cancel": "Cancelar",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "unassigned": "Sin asignar",
+        "unassignedDescription": "Dejar el trabajo listo para que cualquiera lo tome"
       },
       "Schedule": {
         "title": "Programación",
@@ -7044,7 +7055,8 @@
         "failed": "{coworkerName} no pudo completar {taskName}",
         "canceled": "{taskName} fue cancelado",
         "scheduleRepaired": "Se reparó la programación de {taskName}",
-        "scheduleRemovedByOperator": "Se eliminó la programación de {taskName} después de revisarla"
+        "scheduleRemovedByOperator": "Se eliminó la programación de {taskName} después de revisarla",
+        "assigned": "Se te asignó {taskName}"
       },
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",

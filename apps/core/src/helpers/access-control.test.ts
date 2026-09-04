@@ -31,12 +31,14 @@ import {
   requireTaskArchiveAccess,
   requireTaskAssignableCoworker,
   requireTaskAssignableOrchestrator,
+  requireTaskAssignableUser,
   requireTaskCancelAccess,
   requireTaskCollaboration,
   requireTaskCommentAccess,
   requireTaskOwnership,
   requireTaskReadForRouteVars,
   requireTaskReadForWorkspace,
+  requireTaskStatusWriteAccess,
   resolveConversationCoworkerId,
 } from "./access-control";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
@@ -103,6 +105,9 @@ function createTransactionClient() {
     },
     workspace: {
       findUnique: vi.fn(),
+    },
+    member: {
+      findFirst: vi.fn(),
     },
   } as unknown as Prisma.TransactionClient;
 }
@@ -1246,6 +1251,125 @@ describe("requireTaskCancelAccess", () => {
   });
 });
 
+describe("requireTaskStatusWriteAccess", () => {
+  const orgMemberAuthContext: UserAuthenticationContext = {
+    actor: "user",
+    userId: "user_member",
+    organizationId: "org_123",
+    role: "user",
+  };
+
+  function varsFor(
+    authContext: UserAuthenticationContext,
+    workspaceContext: WorkspaceContext = jobReadWorkspaceContext,
+  ): EnvVariables["Variables"] {
+    return {
+      isAuthenticated: true,
+      authContext,
+      workspaceContext,
+    };
+  }
+
+  it("lets an org member write a human-assigned task (routing, not a lock)", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_owner",
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: "user_assignee",
+      pendingVendorGrantId: null,
+    } as never);
+
+    await requireTaskStatusWriteAccess(
+      varsFor(orgMemberAuthContext),
+      "tsk_123",
+      tx,
+    );
+  });
+
+  it("lets an org member write an unset task", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_owner",
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: null,
+      pendingVendorGrantId: null,
+    } as never);
+
+    await requireTaskStatusWriteAccess(
+      varsFor(orgMemberAuthContext),
+      "tsk_123",
+      tx,
+    );
+  });
+
+  it("rejects a personal-workspace non-owner on human tasks", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_owner",
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: "user_assignee",
+      pendingVendorGrantId: null,
+    } as never);
+
+    const personalWorkspace: WorkspaceContext = {
+      workspaceId,
+      userId: "user_member",
+      organizationId: null,
+    };
+    const personalAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: null,
+      role: "user",
+    };
+
+    await expect(
+      requireTaskStatusWriteAccess(
+        varsFor(personalAuthContext, personalWorkspace),
+        "tsk_123",
+        tx,
+      ),
+    ).rejects.toThrow("Task not found");
+  });
+
+  it("keeps agent-assigned tasks on owner-only collaboration", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockImplementation(((args: {
+      where: { ownerId?: string };
+    }) =>
+      Promise.resolve(
+        args.where.ownerId === undefined || args.where.ownerId === "user_123"
+          ? ({
+              id: "tsk_123",
+              ownerId: "user_123",
+              assigneeId: "cow_123",
+              assigneeOrchestratorId: null,
+              assigneeUserId: null,
+              pendingVendorGrantId: null,
+            } as never)
+          : null,
+      )) as never);
+
+    // Non-owner org member is denied on a coworker-assigned task.
+    await expect(
+      requireTaskStatusWriteAccess(
+        varsFor(orgMemberAuthContext),
+        "tsk_123",
+        tx,
+      ),
+    ).rejects.toThrow("Task not found");
+
+    // Owner is allowed.
+    await requireTaskStatusWriteAccess(varsFor(userAuthContext), "tsk_123", tx);
+  });
+});
+
 describe("requireTaskReadForRouteVars vendor grants", () => {
   beforeEach(() => {
     getWorkspaceGrantMock.mockReset();
@@ -1713,6 +1837,63 @@ describe("requireTaskAssignableOrchestrator", () => {
     await expect(
       requireTaskAssignableOrchestrator("bot_1", workspaceId, tx),
     ).rejects.toThrow("Orchestrator is not usable in this workspace");
+  });
+});
+
+describe("requireTaskAssignableUser", () => {
+  it("accepts the personal workspace owner", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.workspace.findUnique).mockResolvedValue({
+      userId: "user_1",
+      organizationId: null,
+    } as never);
+
+    await expect(
+      requireTaskAssignableUser("user_1", workspaceId, tx),
+    ).resolves.toBeUndefined();
+    expect(tx.member.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("accepts an organization member in an org workspace", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.workspace.findUnique).mockResolvedValue({
+      userId: "owner",
+      organizationId: "org_1",
+    } as never);
+    vi.mocked(tx.member.findFirst).mockResolvedValue({ id: "m_1" } as never);
+
+    await expect(
+      requireTaskAssignableUser("user_1", workspaceId, tx),
+    ).resolves.toBeUndefined();
+    expect(tx.member.findFirst).toHaveBeenCalledWith({
+      where: { organizationId: "org_1", userId: "user_1" },
+      select: { id: true },
+    });
+  });
+
+  it("rejects a non-member in a personal workspace", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.workspace.findUnique).mockResolvedValue({
+      userId: "owner",
+      organizationId: null,
+    } as never);
+
+    await expect(
+      requireTaskAssignableUser("user_1", workspaceId, tx),
+    ).rejects.toThrow("User is not a member of this workspace");
+  });
+
+  it("rejects an org outsider", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.workspace.findUnique).mockResolvedValue({
+      userId: "owner",
+      organizationId: "org_1",
+    } as never);
+    vi.mocked(tx.member.findFirst).mockResolvedValue(null);
+
+    await expect(
+      requireTaskAssignableUser("user_1", workspaceId, tx),
+    ).rejects.toThrow("User is not a member of this workspace");
   });
 });
 

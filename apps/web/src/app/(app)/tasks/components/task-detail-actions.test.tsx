@@ -506,6 +506,12 @@ const labels = {
   revertToDraft: "Revert to Draft",
   cancel: "Cancel",
   share: "Share",
+  startWorking: "Start working",
+  pauseToReady: "Pause to Ready",
+  waitExternal: "Wait on external",
+  resumeRunning: "Resume running",
+  resumeReady: "Back to Ready",
+  markComplete: "Mark complete",
 };
 
 const actionsMenuLabel = "Actions";
@@ -1036,21 +1042,79 @@ describe("TaskDetailActions", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides reopen when a canceled task has no coworker", async () => {
+  it("shows reopen when a canceled task is unset (SOK-868)", async () => {
     const user = userEvent.setup();
     renderActions({
       status: TaskStatus.CANCELED,
       defaultAssigneeId: null,
+      assigneeKind: "unset",
       organizations: undefined,
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
     expect(
-      screen.queryByRole("menuitem", { name: labels.reopenToReady }),
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers start working for a human-assigned ready task (SOK-868)", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.READY,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.startWorking }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.revertToDraft }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers pause, wait, and complete for a human running task (SOK-868)", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.RUNNING,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.markComplete }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.waitExternal }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.pauseToReady }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps agent running tasks on cancel-only (SOK-868)", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.RUNNING,
+      defaultAssigneeId: "coworker-1",
+      assigneeKind: "coworker",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: labels.markComplete }),
     ).toBeNull();
     expect(
-      screen.getByRole("menuitem", { name: labels.archive }),
+      screen.getByRole("menuitem", { name: labels.cancel }),
     ).toBeInTheDocument();
   });
 
