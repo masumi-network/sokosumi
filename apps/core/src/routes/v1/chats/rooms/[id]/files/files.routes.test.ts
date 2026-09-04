@@ -200,7 +200,7 @@ describe("POST /chats/rooms/{id}/files", () => {
     roomFindFirstMock.mockResolvedValueOnce({ id: ROOM_ID });
     createChatRoomFileUploadSessionMock.mockResolvedValueOnce({
       ...UPLOAD_SESSION,
-      pathname: `orchestrators/${SOKO_BOT_ID}/chats/${ROOM_ID}/notes.txt`,
+      pathname: `soko-bots/${SOKO_BOT_ID}/chats/${ROOM_ID}/notes.txt`,
       headers: { "Content-Type": "text/plain" },
     });
 

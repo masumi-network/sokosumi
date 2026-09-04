@@ -83,5 +83,8 @@ describe("stored orchestrator: prefixes", () => {
     const sql = migrationSql();
     expect(sql).toMatch(/replace\("directKey", 'orchestrator:', 'sokoBot:'\)/);
     expect(sql).toMatch(/replace\("content", '@orchestrator:', '@sokoBot:'\)/);
+    expect(sql).toMatch(
+      /replace\("content", '\/orchestrators\/', '\/soko-bots\/'\)/,
+    );
   });
 });
