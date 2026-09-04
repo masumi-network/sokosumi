@@ -44,5 +44,6 @@ describe("Soko Bot beta gate", () => {
     );
     expect(middleware).toContain("isNmkrEmail");
     expect(middleware).toContain("SOKO_BOT_ENABLED");
+    expect(middleware).toContain("reportToSentry");
   });
 });
