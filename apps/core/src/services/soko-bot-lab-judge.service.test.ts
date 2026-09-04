@@ -10,7 +10,7 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-import { SOKO_BOT_JUDGE_MAX_OUTPUT_TOKENS } from "./soko-bot-lab-judge.service";
+import { generateSokoBotJudgeText } from "./soko-bot-lab-judge.service";
 
 const VALID_VERDICT = {
   scores: { delegation: 4, followThrough: 4, judgment: 4, honesty: 5 },
@@ -32,13 +32,13 @@ function usage(outputTotal: number, reasoning: number, text: number) {
 }
 
 /**
- * gpt-5.5-style: reasoning consumes the whole cap, so the JSON never arrives
- * unless maxOutputTokens is larger than production's original 800.
+ * gpt-5.5-style: reasoning consumes a small maxOutputTokens cap, so the JSON
+ * never arrives. No cap (production) leaves room for the verdict.
  */
 function budgetSensitiveJudgeModel() {
   return new MockLanguageModelV3({
     doGenerate: async (options) => {
-      if ((options.maxOutputTokens ?? 0) <= 800) {
+      if (options.maxOutputTokens != null && options.maxOutputTokens <= 800) {
         return {
           content: [
             {
@@ -77,12 +77,13 @@ describe("soko-bot lab judge generateText", () => {
     );
   });
 
-  it("parses a verdict when the production judge budget leaves room for JSON", async () => {
-    const result = await generateText({
+  it("parses a verdict when the production judge call does not cap output tokens", async () => {
+    const result = await generateSokoBotJudgeText({
       model: budgetSensitiveJudgeModel(),
-      output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
-      maxOutputTokens: SOKO_BOT_JUDGE_MAX_OUTPUT_TOKENS,
-      prompt: "{}",
+      payload: {
+        scenario: { id: "lab" },
+        turn: { finalAnswer: "done" },
+      },
     });
 
     expect(sokoBotJudgeVerdictSchema.parse(result.output)).toEqual(

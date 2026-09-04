@@ -7,15 +7,13 @@ import {
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
 } from "@sokosumi/soko-bot";
-import { generateText, Output } from "ai";
+import { generateText, type LanguageModel, Output } from "ai";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 const JUDGE_TIMEOUT_MS = 90_000;
-/** Reasoning tokens count against this cap. 800 left gpt-5.5 with empty JSON (SOKOSUMI-CORE-3D). */
-export const SOKO_BOT_JUDGE_MAX_OUTPUT_TOKENS = 8_000;
 // Tool results are the judge's evidence. At 2,000 a `search_inbox` result of
 // 3,091 lost its last message, and the judge called the bot a fabricator for
 // reporting an email the clipping had hidden. The limit exists to bound the
@@ -157,6 +155,25 @@ export interface JudgeCall {
   usage: { inputTokens: number; outputTokens: number; costUsd: number };
 }
 
+/**
+ * No maxOutputTokens: that cap includes reasoning, so gpt-5.5 can finish
+ * `length` with empty JSON (SOKOSUMI-CORE-3D). The schema bounds the verdict;
+ * JUDGE_TIMEOUT_MS bounds the call.
+ */
+export async function generateSokoBotJudgeText(options: {
+  model: LanguageModel | string;
+  payload: unknown;
+  abortSignal?: AbortSignal;
+}) {
+  return generateText({
+    model: options.model,
+    output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
+    abortSignal: options.abortSignal,
+    instructions: SOKO_BOT_JUDGE_RUBRIC,
+    prompt: JSON.stringify(options.payload),
+  });
+}
+
 async function askJudge(
   payload: unknown,
   modelOverride?: string,
@@ -166,13 +183,10 @@ async function askJudge(
   const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const result = await generateText({
+      const result = await generateSokoBotJudgeText({
         model: modelOverride ?? sokoBotJudgeModel(),
-        output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
-        maxOutputTokens: SOKO_BOT_JUDGE_MAX_OUTPUT_TOKENS,
+        payload,
         abortSignal: AbortSignal.timeout(JUDGE_TIMEOUT_MS),
-        instructions: SOKO_BOT_JUDGE_RUBRIC,
-        prompt: JSON.stringify(payload),
       });
       // Counted before the parse: a verdict this call cannot read still cost
       // what it cost, and the retry below spends again on top.
