@@ -2615,6 +2615,63 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(sendEmailsMock).toHaveBeenCalled();
   });
 
+  it("awaits source import enqueue so sync waitUntil covers link upserts", async () => {
+    const enqueueGate = Promise.withResolvers<void>();
+    const enqueueStarted = Promise.withResolvers<void>();
+
+    const completedJob = createJob({
+      status: SokosumiJobStatus.COMPLETED,
+      jobStatusSettled: true,
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.COMPLETED,
+          result: "[report](https://example.com/out.pdf)",
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    mockInitialJobQueries({ unfinished: [createJob()] });
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "[report](https://example.com/out.pdf)",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    sourceImportEnqueueMock.mockImplementation(async () => {
+      enqueueStarted.resolve();
+      await enqueueGate.promise;
+    });
+
+    const syncPromise = jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+    let syncSettled = false;
+    void syncPromise.then(() => {
+      syncSettled = true;
+    });
+
+    await enqueueStarted.promise;
+    // Fire-and-forget enqueue lets the rest of sync settle while upserts
+    // are still in flight. Flush that work before asserting coverage.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(syncSettled).toBe(false);
+
+    enqueueGate.resolve();
+    await expect(syncPromise).resolves.toEqual(
+      expect.objectContaining({ processed: 1 }),
+    );
+    expect(syncSettled).toBe(true);
+    expect(sourceImportEnqueueMock).toHaveBeenCalledWith(
+      "event_2",
+      "[report](https://example.com/out.pdf)",
+    );
+  });
+
   it("flushes pending status emails in one sendEmails batch call", async () => {
     const completedById = new Map([
       [
