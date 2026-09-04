@@ -159,6 +159,18 @@ describe("AppMobileChrome", () => {
     expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
   });
 
+  it("hides bottom nav on You submenu stacks", () => {
+    mockPathname = "/you/developer";
+
+    render(
+      <AppMobileChrome>
+        <div>child</div>
+      </AppMobileChrome>,
+    );
+
+    expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
+  });
+
   it("keeps bottom nav on bare /chat home", () => {
     mockPathname = "/chat";
 

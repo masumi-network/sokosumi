@@ -5,13 +5,15 @@ import { sourceImportService } from "./source-import.service";
 
 const {
   captureExceptionMock,
-  upsertLinkMock,
-  upsertOutputBlobMock,
+  captureMessageMock,
+  createLinksMock,
+  createOutputBlobsMock,
   mockTaskFileClient,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
-  upsertLinkMock: vi.fn(),
-  upsertOutputBlobMock: vi.fn(),
+  captureMessageMock: vi.fn(),
+  createLinksMock: vi.fn(),
+  createOutputBlobsMock: vi.fn(),
   mockTaskFileClient: {
     taskFile: {
       findFirst: vi.fn(),
@@ -22,14 +24,15 @@ const {
 
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
+  captureMessage: captureMessageMock,
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
   blobRepository: {
-    upsertOutputBlob: upsertOutputBlobMock,
+    createOutputBlobs: createOutputBlobsMock,
   },
   linkRepository: {
-    upsertLink: upsertLinkMock,
+    createLinks: createLinksMock,
   },
 }));
 
@@ -42,41 +45,54 @@ describe("sourceImportService.enqueueFromMarkdown", () => {
     vi.clearAllMocks();
   });
 
-  it("upserts unique file blobs and http links from markdown", async () => {
+  it("writes unique file blobs and http links in one batch each", async () => {
     await sourceImportService.enqueueFromMarkdown(
       "event_1",
       [
         "[file](https://example.com/result.pdf)",
         "[dup file](https://example.com/result.pdf)",
+        "[second file](https://example.com/notes.pdf)",
         "<https://example.com/page>",
         "[link](https://example.com/page)",
+        "[other](https://example.com/other)",
         "[skip](mailto:test@example.com)",
+        // `new URL()` reads this as https, `isHttpUrl` does not. The filter
+        // between them is load-bearing.
+        "[schemeless](https:example.com/nope)",
       ].join("\n"),
     );
 
-    expect(upsertOutputBlobMock).toHaveBeenCalledTimes(1);
-    expect(upsertOutputBlobMock).toHaveBeenCalledWith(
-      {
-        eventId: "event_1",
-        sourceUrl: "https://example.com/result.pdf",
-        name: "result.pdf",
-      },
+    expect(createOutputBlobsMock).toHaveBeenCalledTimes(1);
+    expect(createOutputBlobsMock).toHaveBeenCalledWith(
+      [
+        {
+          eventId: "event_1",
+          sourceUrl: "https://example.com/result.pdf",
+          name: "result.pdf",
+        },
+        {
+          eventId: "event_1",
+          sourceUrl: "https://example.com/notes.pdf",
+          name: "notes.pdf",
+        },
+      ],
       expect.anything(),
     );
-    expect(upsertLinkMock).toHaveBeenCalledTimes(1);
-    expect(upsertLinkMock).toHaveBeenCalledWith(
-      {
-        eventId: "event_1",
-        url: "https://example.com/page",
-        title: undefined,
-      },
+    expect(createLinksMock).toHaveBeenCalledTimes(1);
+    expect(createLinksMock).toHaveBeenCalledWith(
+      [
+        { eventId: "event_1", url: "https://example.com/page" },
+        { eventId: "event_1", url: "https://example.com/other" },
+      ],
       expect.anything(),
     );
   });
 
-  it("captures repository errors and continues processing other links", async () => {
-    upsertOutputBlobMock.mockRejectedValueOnce(new Error("blob failed"));
-    upsertLinkMock.mockRejectedValueOnce(new Error("link failed"));
+  it("captures a failing batch with its job event and still attempts the other", async () => {
+    const blobFailure = new Error("blob failed");
+    const linkFailure = new Error("link failed");
+    createOutputBlobsMock.mockRejectedValueOnce(blobFailure);
+    createLinksMock.mockRejectedValueOnce(linkFailure);
 
     await sourceImportService.enqueueFromMarkdown(
       "event_1",
@@ -86,16 +102,70 @@ describe("sourceImportService.enqueueFromMarkdown", () => {
       ].join("\n"),
     );
 
+    expect(createOutputBlobsMock).toHaveBeenCalledTimes(1);
+    expect(createLinksMock).toHaveBeenCalledTimes(1);
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
-    expect(upsertOutputBlobMock).toHaveBeenCalledTimes(1);
-    expect(upsertLinkMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenCalledWith(blobFailure, {
+      extra: { jobEventId: "event_1", blobs: 1 },
+    });
+    expect(captureExceptionMock).toHaveBeenCalledWith(linkFailure, {
+      extra: { jobEventId: "event_1", links: 1 },
+    });
   });
 
-  it("skips upserts when markdown contains no importable links", async () => {
+  it("drops URLs the unique index cannot hold and reports the count", async () => {
+    // The two batches filter separately, so each needs its own fixture. A
+    // `.pdf` URL only ever reaches the blob batch, because `extractHttpLinks`
+    // excludes file-like URLs.
+    const oversizedFile = `https://example.com/${"a".repeat(2100)}.pdf`;
+    const oversizedLink = `https://example.com/${"b".repeat(2100)}`;
+    // Exactly MAX_INDEXABLE_URL_BYTES, so it must survive. This pins the
+    // boundary itself, not just the magnitude of the constant.
+    const atTheLimit = `https://example.com/${"c".repeat(1980)}`;
+
+    await sourceImportService.enqueueFromMarkdown(
+      "event_1",
+      [
+        `[huge file](${oversizedFile})`,
+        "[file](https://example.com/result.pdf)",
+        `[huge link](${oversizedLink})`,
+        `[at the limit](${atTheLimit})`,
+        "[link](https://example.com/page)",
+      ].join("\n"),
+    );
+
+    // An oversized row would abort its whole statement, taking the good rows
+    // with it. Only the good rows are written, and every drop is reported.
+    expect(createOutputBlobsMock).toHaveBeenCalledWith(
+      [
+        {
+          eventId: "event_1",
+          sourceUrl: "https://example.com/result.pdf",
+          name: "result.pdf",
+        },
+      ],
+      expect.anything(),
+    );
+    expect(createLinksMock).toHaveBeenCalledWith(
+      [
+        { eventId: "event_1", url: atTheLimit },
+        { eventId: "event_1", url: "https://example.com/page" },
+      ],
+      expect.anything(),
+    );
+    // One report per batch, so the count says which batch lost the URL.
+    expect(captureMessageMock).toHaveBeenCalledTimes(2);
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Dropped source-import URLs over the index limit",
+      { level: "warning", extra: { jobEventId: "event_1", dropped: 1 } },
+    );
+  });
+
+  it("writes nothing when markdown contains no importable links", async () => {
     await sourceImportService.enqueueFromMarkdown("event_1", "No links here");
 
-    expect(upsertOutputBlobMock).not.toHaveBeenCalled();
-    expect(upsertLinkMock).not.toHaveBeenCalled();
+    expect(createOutputBlobsMock).not.toHaveBeenCalled();
+    expect(createLinksMock).not.toHaveBeenCalled();
   });
 });
 

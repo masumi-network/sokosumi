@@ -8,6 +8,9 @@ packages/*/node_modules
 # Turborepo
 .turbo
 
+# Vitest 5 artifact root
+.vitest
+
 # dependencies
 node_modules
 /.pnp

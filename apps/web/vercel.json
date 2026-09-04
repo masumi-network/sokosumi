@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "installCommand": "pnpm install --frozen-lockfile --filter web...",
   "buildCommand": "node ./scripts/vercel-build.mjs",
   "git": {
     "deploymentEnabled": false
