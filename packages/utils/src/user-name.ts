@@ -17,6 +17,11 @@ export function getStoredUserName(
   return normalizedName || getFallbackUserName(email);
 }
 
+/** Prefer trimmed name; otherwise the full email (account chrome labels). */
+export function resolveAccountDisplayName(name: string, email: string): string {
+  return name.trim() || email;
+}
+
 /**
  * Given name only (e.g. greetings). Uses namefully; mononyms supported.
  * Returns undefined when input is blank or unparsable.

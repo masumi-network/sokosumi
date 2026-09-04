@@ -3,10 +3,6 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 export const ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS =
   "bg-popover text-popover-foreground max-h-(--radix-popover-content-available-height) w-64 overflow-y-auto overscroll-contain rounded-xl border p-3 shadow-md";
 
-export function resolveAccountDisplayName(name: string, email: string): string {
-  return name.trim() || email;
-}
-
 export function resolveAccountCreditsLabel(
   totalCredits: number | null,
   formatBalanceLabel: (credits: number) => string,

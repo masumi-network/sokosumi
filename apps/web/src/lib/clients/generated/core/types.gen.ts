@@ -34302,6 +34302,20 @@ export type JudgeMySokoBotLabTurnErrors = {
             method: string;
         };
     };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type JudgeMySokoBotLabTurnError = JudgeMySokoBotLabTurnErrors[keyof JudgeMySokoBotLabTurnErrors];

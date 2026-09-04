@@ -1430,6 +1430,9 @@
         "placeholder": "Verlauf durchsuchen...",
         "clear": "Suche löschen"
       },
+      "ResultsCount": {
+        "resultsCount": "{count, plural, =0 {Keine Ergebnisse gefunden} =1 {1 Ergebnis gefunden} other {# Ergebnisse gefunden}}"
+      },
       "Filters": {
         "title": "Filter",
         "searchPlaceholder": "Filtern...",
@@ -3094,6 +3097,11 @@
       },
       "Plan": {
         "getMoreCredits": "Mehr Credits erhalten"
+      },
+      "Search": {
+        "open": "Suchen",
+        "inputLabel": "Verlauf durchsuchen",
+        "searchPlaceholder": "Suchen..."
       }
     },
     "Subscriptions": {
@@ -5779,7 +5787,7 @@
         "chats": "Chats",
         "projects": "Projekte",
         "chatsUnread": "Ungelesene Chats",
-        "search": "Suche",
+        "you": "Du",
         "ariaLabel": "Hauptnavigation",
         "backToChats": "Zurück zu Chats",
         "back": "Zurück",
@@ -6811,6 +6819,12 @@
         "title": "Kalender konnte nicht geladen werden",
         "description": "Bitte versuche es gleich noch einmal.",
         "retry": "Erneut versuchen"
+      }
+    },
+    "You": {
+      "Metadata": {
+        "title": "Du",
+        "description": "Dein Konto, Workspace, Credits und Einstellungen"
       }
     }
   },
