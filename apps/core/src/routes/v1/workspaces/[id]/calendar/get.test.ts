@@ -197,7 +197,7 @@ describe("GET /workspaces/{id}/calendar", () => {
           id: "00000000-0000-7000-8000-000000000001",
           taskId: "tsk_history",
           taskName: "Released task",
-          canEditSchedule: true,
+          canEditSchedule: false,
           taskStatus: "QUEUED",
           taskAssigneeId: null,
           scheduledAt: "2026-06-03T09:00:00.000Z",
