@@ -26,6 +26,7 @@ const {
   delegationUpdateManyMock,
   getEnvMock,
   jobEventFindFirstMock,
+  integrationFindManyMock,
   jobInputCreateMock,
   jobInputFindManyMock,
   jobInputFindUniqueMock,
@@ -107,6 +108,7 @@ const {
   delegationUpdateManyMock: vi.fn(),
   getEnvMock: vi.fn(),
   jobEventFindFirstMock: vi.fn(),
+  integrationFindManyMock: vi.fn(),
   jobInputCreateMock: vi.fn(),
   jobInputFindManyMock: vi.fn(),
   jobInputFindUniqueMock: vi.fn(),
@@ -220,6 +222,7 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: toolCallUpdateManyMock,
     },
     agent: { findFirst: agentFindFirstMock },
+    sokoBotIntegration: { findMany: integrationFindManyMock },
     task: { findFirst: taskFindFirstMock },
     jobEvent: { findFirst: jobEventFindFirstMock },
     jobInput: {
@@ -3175,6 +3178,87 @@ describe("get_agent_input_schema", () => {
     expect(agentFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ isShown: true }),
+      }),
+    );
+  });
+});
+
+describe("list_integration_tools", () => {
+  function armTurn() {
+    vi.clearAllMocks();
+    availabilityMock.mockResolvedValue({
+      disabled: false,
+      disabledAt: null,
+      disabledReason: null,
+    });
+    getEnvMock.mockReturnValue({
+      SOKO_BOT_ENABLED: true,
+      SOKO_BOT_EVE_PROJECT_ID: "prj_soko_bot",
+      SOKO_BOT_EVE_ENVIRONMENT: "production",
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["list_integration_tools"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "What can you do with Google?",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(0);
+    transactionToolCallCreateMock.mockResolvedValue({});
+    serializableTransactionMock.mockImplementation(
+      async (run: (tx: unknown) => unknown) =>
+        await run({
+          $queryRaw: transactionTurnLockMock,
+          sokoBotToolCall: {
+            count: transactionToolCallCountMock,
+            create: transactionToolCallCreateMock,
+            findUnique: transactionToolCallFindUniqueMock,
+            update: transactionToolCallUpdateMock,
+          },
+        }),
+    );
+    workspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: null,
+    });
+    integrationFindManyMock.mockResolvedValue([]);
+  }
+
+  it("returns an empty list when the provider has no generic account", async () => {
+    armTurn();
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_integration_tools",
+      toolCallId: "call_29960",
+      input: { provider: "google" },
+    });
+
+    expect(result).toEqual({
+      tools: [],
+      note: "No connected account for provider google (mailboxes use search_inbox)",
+    });
+    expect(toolCallUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "COMPLETED" }),
+      }),
+    );
+    expect(toolCallUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "FAILED" }),
       }),
     );
   });
