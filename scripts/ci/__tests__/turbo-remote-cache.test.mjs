@@ -159,6 +159,11 @@ describe("Vercel web turbo build command", () => {
     );
   });
 
+  it("does not auto-install on pnpm run after a filtered Vercel install", async () => {
+    const workspace = await readRepoFile("pnpm-workspace.yaml");
+    assert.match(workspace, /^verifyDepsBeforeRun:\s*warn\s*$/m);
+  });
+
   it("leaves Core vercel-build as tsup plus migrate", async () => {
     const core = JSON.parse(await readRepoFile("apps", "core", "vercel.json"));
     assert.equal(core.buildCommand, "pnpm vercel-build");
