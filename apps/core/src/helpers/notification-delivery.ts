@@ -48,6 +48,9 @@ export const JOB_ATTENTION_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Job.paymentFailed",
 ];
 
+/** The key a finished job carries. Its own row for the same reason. */
+export const JOB_COMPLETED_MESSAGE_KEY = "Notifications.Job.completed";
+
 /**
  * One stored choice, as the database holds it: strings rather than the unions,
  * because a row written by an older build can name a category or a channel this
@@ -79,7 +82,7 @@ export interface NotificationDelivery {
  * Every kind splits by message key, because a reader chooses between an
  * @mention and a direct message, or between a task that waits on them, a task
  * that finished and a task that was canceled, rather than between the kinds a
- * producer happens to emit.
+ * producer happens to emit. Jobs split the same three ways.
  *
  * Null means the defaults apply and nothing is stored against it: a chat key
  * added later that nobody mapped, and BILLING, which no producer emits yet. A
@@ -91,8 +94,11 @@ export function toNotificationCategory(
 ): NotificationCategory | null {
   switch (kind) {
     case "JOB":
-      return JOB_ATTENTION_MESSAGE_KEYS.includes(messageKey)
-        ? "JOB_ATTENTION"
+      if (JOB_ATTENTION_MESSAGE_KEYS.includes(messageKey)) {
+        return "JOB_ATTENTION";
+      }
+      return messageKey === JOB_COMPLETED_MESSAGE_KEY
+        ? "JOB_COMPLETED"
         : "JOB_UPDATE";
     case "TASK":
       if (TASK_ATTENTION_MESSAGE_KEYS.includes(messageKey)) {

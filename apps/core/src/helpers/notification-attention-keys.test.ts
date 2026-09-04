@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   JOB_ATTENTION_MESSAGE_KEYS,
+  JOB_COMPLETED_MESSAGE_KEY,
   TASK_ATTENTION_MESSAGE_KEYS,
   TASK_COMPLETED_MESSAGE_KEY,
 } from "./notification-delivery";
@@ -19,7 +20,6 @@ import {
  * key and it fails until someone puts the key on a row.
  */
 const UPDATE_MESSAGE_KEYS: readonly string[] = [
-  "Notifications.Job.completed",
   "Notifications.Job.failed",
   "Notifications.Job.disputeResolved",
   "Notifications.Job.refundResolved",
@@ -79,6 +79,7 @@ describe("the job and task keys Core names", () => {
   it("are each classified onto a row", () => {
     const classified = new Set([
       ...JOB_ATTENTION_MESSAGE_KEYS,
+      JOB_COMPLETED_MESSAGE_KEY,
       ...TASK_ATTENTION_MESSAGE_KEYS,
       TASK_COMPLETED_MESSAGE_KEY,
       ...UPDATE_MESSAGE_KEYS,
@@ -96,6 +97,7 @@ describe("the job and task keys Core names", () => {
     expect(
       [
         ...JOB_ATTENTION_MESSAGE_KEYS,
+        JOB_COMPLETED_MESSAGE_KEY,
         ...TASK_ATTENTION_MESSAGE_KEYS,
         TASK_COMPLETED_MESSAGE_KEY,
         ...UPDATE_MESSAGE_KEYS,

@@ -10,6 +10,7 @@ import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   JOB_ATTENTION_MESSAGE_KEYS,
+  JOB_COMPLETED_MESSAGE_KEY,
   resolveNotificationDelivery,
   resolveNotificationMatrix,
   type StoredNotificationPreference,
@@ -19,7 +20,7 @@ import {
 } from "./notification-delivery";
 
 describe("toNotificationCategory", () => {
-  it("splits jobs by whether the reader has to do something", () => {
+  it("splits jobs three ways", () => {
     expect(
       toNotificationCategory(
         NotificationKind.JOB,
@@ -61,14 +62,15 @@ describe("toNotificationCategory", () => {
     ).toBe("TASK_COMPLETED");
   });
 
-  /** A finished job is still an update: only tasks split that row. */
-  it("leaves a finished job on the update row", () => {
+  /** Same row, same reason, for the kind the reader started themselves. */
+  it("gives a finished job a row of its own", () => {
+    expect(JOB_COMPLETED_MESSAGE_KEY).toBe("Notifications.Job.completed");
     expect(
       toNotificationCategory(
         NotificationKind.JOB,
         "Notifications.Job.completed",
       ),
-    ).toBe("JOB_UPDATE");
+    ).toBe("JOB_COMPLETED");
   });
 
   /**

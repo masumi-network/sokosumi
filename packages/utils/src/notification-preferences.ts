@@ -6,12 +6,12 @@
  * than a schema migration. Core validates an incoming value against these
  * lists.
  *
- * Jobs are two rows and tasks are three. Something that waits on you and
+ * Jobs and tasks are three rows each. Something that waits on you and
  * something that merely happened are the same kind to the producer and
  * different things to the reader, and one row for both meant silencing the ones
- * that need you to be rid of the ones that do not. A finished task is the third
- * row: it is the answer the reader was waiting for, and it read as noise only
- * while it sat with the cancellations.
+ * that need you to be rid of the ones that do not. Finishing is the third row:
+ * it is the answer the reader was waiting for, and it read as noise only while
+ * it sat with the failures and the cancellations.
  *
  * Chat is three rows: every message in a room you belong to, the messages that
  * name you, and your direct messages. The first is the only one that is off
@@ -22,6 +22,7 @@
  */
 export const NOTIFICATION_CATEGORIES = [
   "JOB_ATTENTION",
+  "JOB_COMPLETED",
   "JOB_UPDATE",
   "TASK_ATTENTION",
   "TASK_COMPLETED",
