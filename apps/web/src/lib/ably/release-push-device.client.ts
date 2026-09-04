@@ -118,8 +118,9 @@ export async function releasePushDeviceOnSignOut(
     clearTimeout(capTimer);
   } catch (error) {
     // Signing out must not fail because Ably did. The registration is then
-    // still live, and the reader can clear it from the settings switch or
-    // from the browser's own site data.
+    // still live, and the reader can clear it from the browser's own site
+    // data. Signing back in and pressing a Push cell also resubscribes this
+    // browser, which replaces the registration rather than adding one.
     console.error("Failed to release the push device on sign out", error);
   }
 }
