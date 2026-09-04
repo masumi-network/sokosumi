@@ -124,7 +124,7 @@ export function useNotificationDelivery(): NotificationDelivery {
     return [
       {
         spec,
-        preset: groupPreset(cells, kinds),
+        preset: groupPreset(cells, spec.presets, kinds),
         kinds: kinds.map((kind) => ({
           spec: kind,
           channels: categoryChannels(cells, kind.category),

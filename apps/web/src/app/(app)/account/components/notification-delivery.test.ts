@@ -3,38 +3,51 @@ import { describe, expect, it } from "vitest";
 import {
   categoryChannels,
   cellsFor,
+  type GroupSpec,
   groupPreset,
-  groupPresets,
   type KindSpec,
+  NOTIFICATION_GROUPS,
+  type NotificationCategory,
+  type Preset,
+  type PresetSpec,
   presetChanges,
+  presetPushes,
   presetStops,
   sameChannels,
   withChannel,
 } from "./notification-delivery";
 
-const ATTENTION: KindSpec = {
-  category: "JOB_ATTENTION",
-  labelKey: "kindJobAttention",
-  hintKey: "kindJobAttentionHint",
-  important: true,
-  email: true,
-};
-
-const UPDATE: KindSpec = {
-  category: "JOB_UPDATE",
-  labelKey: "kindJobUpdate",
-  hintKey: "kindJobUpdateHint",
-  important: false,
-  email: true,
-};
-
 const MENTION: KindSpec = {
   category: "CHAT_MENTION",
   labelKey: "kindChatMention",
   hintKey: "kindChatMentionHint",
-  important: true,
   email: false,
 };
+
+/** The group as the page holds it: these pin the table the reader presses. */
+function group(id: string): GroupSpec {
+  const spec = NOTIFICATION_GROUPS.find((one) => one.id === id);
+
+  if (!spec) {
+    throw new Error(`No group ${id}`);
+  }
+
+  return spec;
+}
+
+function preset(groupId: string, id: Preset): PresetSpec {
+  const spec = group(groupId).presets.find((one) => one.id === id);
+
+  if (!spec) {
+    throw new Error(`No ${id} in ${groupId}`);
+  }
+
+  return spec;
+}
+
+function categories(kinds: readonly KindSpec[]): NotificationCategory[] {
+  return kinds.map((kind) => kind.category);
+}
 
 function cells(...rows: [string, string, boolean][]) {
   return rows.map(([category, channel, enabled]) => ({
@@ -115,7 +128,10 @@ describe("cellsFor", () => {
           ["JOB_UPDATE", "IN_APP", true],
           ["JOB_UPDATE", "OS_BANNER", true],
         ),
-        presetChanges("NEEDED_QUIET", [ATTENTION, UPDATE]),
+        [
+          { category: "JOB_ATTENTION", channels: ["IN_APP"] },
+          { category: "JOB_UPDATE", channels: [] },
+        ],
       ),
     ).toEqual([
       { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
@@ -164,38 +180,69 @@ describe("sameChannels", () => {
   });
 });
 
-describe("groupPresets", () => {
-  it("offers every situation where the group holds both sorts of kind", () => {
-    expect(groupPresets([ATTENTION, UPDATE])).toEqual([
-      "ALL_PUSH",
-      "NEEDED_PUSH",
-      "NEEDED_PUSH_ONLY",
-      "ALL_QUIET",
-      "NEEDED_QUIET",
-      "NOTHING",
-    ]);
+describe("NOTIFICATION_GROUPS", () => {
+  /**
+   * A kind a preset does not name is left as the reader had it, which is the
+   * safe half of the bargain. The other half is this: a kind that reaches no
+   * preset would sit outside every word on the rail, and the group would say
+   * Custom for a reader who never set anything by hand.
+   */
+  it("gives every situation a place for every kind of its group", () => {
+    const missing = NOTIFICATION_GROUPS.flatMap((spec) =>
+      spec.presets.flatMap((one) =>
+        spec.kinds
+          .filter((kind) => !one.reach[kind.category])
+          .map((kind) => `${spec.id} ${one.id} ${kind.category}`),
+      ),
+    );
+
+    expect(missing).toEqual([]);
+  });
+
+  /** The other direction: a name the group does not hold writes nothing. */
+  it("names no kind its group does not hold", () => {
+    const strays = NOTIFICATION_GROUPS.flatMap((spec) =>
+      spec.presets.flatMap((one) =>
+        Object.keys(one.reach)
+          .filter(
+            (category) =>
+              !categories(spec.kinds).includes(
+                category as NotificationCategory,
+              ),
+          )
+          .map((category) => `${spec.id} ${one.id} ${category}`),
+      ),
+    );
+
+    expect(strays).toEqual([]);
   });
 
   /**
-   * "Only what matters" is every kind of a group where everything matters, so
-   * it writes what its neighbour writes and says something about the group
-   * that is not true of it.
+   * A task is work of the same shape as a job, and a reader who has just
+   * answered this question one row above should not have to read a different
+   * set of words to answer it again.
    */
-  it("speaks about all of a group where every kind matters", () => {
-    expect(groupPresets([ATTENTION, MENTION])).toEqual([
-      "ALL_PUSH",
-      "ALL_QUIET",
-      "NOTHING",
-    ]);
+  it("offers the same situations for tasks as for jobs", () => {
+    expect(group("TASK").presets.map((one) => one.id)).toEqual(
+      group("JOB").presets.map((one) => one.id),
+    );
   });
 
-  /** The other end: nothing in the group is one of the ones that matter. */
-  it("speaks about all of a group where no kind matters", () => {
-    expect(groupPresets([UPDATE])).toEqual([
-      "ALL_PUSH",
-      "ALL_QUIET",
-      "NOTHING",
-    ]);
+  /**
+   * The traffic a reader turns down first is the traffic no press should put
+   * on their phone: what a job reports on its way to an answer, and every
+   * message in a room they happen to be in.
+   */
+  it("sends the traffic a reader turns down first to no device", () => {
+    const pushed = NOTIFICATION_GROUPS.flatMap((spec) =>
+      spec.presets.flatMap((one) =>
+        (["JOB_UPDATE", "TASK_UPDATE", "CHAT_ROOM_MESSAGE"] as const)
+          .filter((category) => one.reach[category] === "PUSH")
+          .map((category) => `${spec.id} ${one.id} ${category}`),
+      ),
+    );
+
+    expect(pushed).toEqual([]);
   });
 });
 
@@ -206,26 +253,33 @@ describe("groupPreset", () => {
         cells(
           ["JOB_ATTENTION", "IN_APP", true],
           ["JOB_ATTENTION", "OS_BANNER", true],
+          ["JOB_COMPLETED", "IN_APP", true],
+          ["JOB_COMPLETED", "OS_BANNER", true],
           ["JOB_UPDATE", "IN_APP", true],
           ["JOB_UPDATE", "OS_BANNER", false],
         ),
-        [ATTENTION, UPDATE],
+        group("JOB").presets,
+        group("JOB").kinds,
       ),
-    ).toBe("NEEDED_PUSH");
+    ).toBe("RESULTS");
   });
 
-  it("tells the quiet situations apart by what they stop", () => {
+  /** One cell apart, and the two situations are different words. */
+  it("tells the situations apart by the cell that differs", () => {
     expect(
       groupPreset(
         cells(
           ["JOB_ATTENTION", "IN_APP", true],
-          ["JOB_ATTENTION", "OS_BANNER", false],
-          ["JOB_UPDATE", "IN_APP", false],
+          ["JOB_ATTENTION", "OS_BANNER", true],
+          ["JOB_COMPLETED", "IN_APP", true],
+          ["JOB_COMPLETED", "OS_BANNER", false],
+          ["JOB_UPDATE", "IN_APP", true],
           ["JOB_UPDATE", "OS_BANNER", false],
         ),
-        [ATTENTION, UPDATE],
+        group("JOB").presets,
+        group("JOB").kinds,
       ),
-    ).toBe("NEEDED_QUIET");
+    ).toBe("ESSENTIAL");
   });
 
   /**
@@ -237,79 +291,134 @@ describe("groupPreset", () => {
     expect(
       groupPreset(
         cells(
-          ["JOB_ATTENTION", "IN_APP", true],
-          ["JOB_ATTENTION", "OS_BANNER", true],
-          ["JOB_UPDATE", "IN_APP", true],
-          ["JOB_UPDATE", "OS_BANNER", true],
+          ["CHAT_ROOM_MESSAGE", "IN_APP", true],
+          ["CHAT_ROOM_MESSAGE", "OS_BANNER", true],
           ["CHAT_MENTION", "IN_APP", true],
-          ["CHAT_MENTION", "OS_BANNER", false],
+          ["CHAT_MENTION", "OS_BANNER", true],
+          ["CHAT_DIRECT_MESSAGE", "IN_APP", true],
+          ["CHAT_DIRECT_MESSAGE", "OS_BANNER", true],
         ),
-        [ATTENTION, UPDATE, MENTION],
+        group("CHAT").presets,
+        group("CHAT").kinds,
       ),
     ).toBe("CUSTOM");
   });
 
   /** A push with no entry behind it is a situation none of them writes. */
-  it("says Custom for a push the presets never write", () => {
+  it("says Custom for a push the situations never write", () => {
     expect(
       groupPreset(
         cells(
           ["JOB_ATTENTION", "IN_APP", false],
           ["JOB_ATTENTION", "OS_BANNER", true],
+          ["JOB_COMPLETED", "IN_APP", false],
+          ["JOB_COMPLETED", "OS_BANNER", true],
           ["JOB_UPDATE", "IN_APP", false],
           ["JOB_UPDATE", "OS_BANNER", true],
         ),
-        [ATTENTION, UPDATE],
+        group("JOB").presets,
+        group("JOB").kinds,
       ),
     ).toBe("CUSTOM");
+  });
+
+  /**
+   * Core answers with the kinds it knows. A group whose cells have not all
+   * arrived is read on the ones that did, so a page against an older Core
+   * still names a situation rather than calling every group Custom.
+   */
+  it("reads a group on the kinds that came back", () => {
+    expect(
+      groupPreset(
+        cells(
+          ["CHAT_MENTION", "IN_APP", true],
+          ["CHAT_MENTION", "OS_BANNER", true],
+          ["CHAT_DIRECT_MESSAGE", "IN_APP", true],
+          ["CHAT_DIRECT_MESSAGE", "OS_BANNER", true],
+        ),
+        group("CHAT").presets,
+        group("CHAT").kinds.filter(
+          (kind) => kind.category !== "CHAT_ROOM_MESSAGE",
+        ),
+      ),
+    ).toBe("EVERYTHING");
   });
 });
 
 describe("presetChanges", () => {
   /**
    * The whole group, every cell of it. The reader's own cells are not read:
-   * that is what lets the button name the situation the group is in.
+   * that is what lets the rail name the situation the group is in.
    */
-  it("writes the loud situation on every kind", () => {
-    expect(presetChanges("ALL_PUSH", [ATTENTION, UPDATE])).toEqual([
-      { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
-      { category: "JOB_UPDATE", channels: ["IN_APP", "OS_BANNER"] },
-    ]);
-  });
-
-  it("pushes the ones that matter and keeps the rest in Sokosumi", () => {
-    expect(presetChanges("NEEDED_PUSH", [ATTENTION, UPDATE])).toEqual([
-      { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
-      { category: "JOB_UPDATE", channels: ["IN_APP"] },
-    ]);
-  });
-
-  it("stops the rest where the situation says only what matters", () => {
-    expect(presetChanges("NEEDED_PUSH_ONLY", [ATTENTION, UPDATE])).toEqual([
-      { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
-      { category: "JOB_UPDATE", channels: [] },
-    ]);
+  it("writes the situation on every kind of the group", () => {
+    expect(presetChanges(preset("JOB", "RESULTS"), group("JOB").kinds)).toEqual(
+      [
+        { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
+        { category: "JOB_COMPLETED", channels: ["IN_APP", "OS_BANNER"] },
+        { category: "JOB_UPDATE", channels: ["IN_APP"] },
+      ],
+    );
   });
 
   it("silences the group", () => {
-    expect(presetChanges("NOTHING", [ATTENTION, UPDATE])).toEqual([
-      { category: "JOB_ATTENTION", channels: [] },
-      { category: "JOB_UPDATE", channels: [] },
+    expect(presetChanges(preset("CHAT", "OFF"), group("CHAT").kinds)).toEqual([
+      { category: "CHAT_ROOM_MESSAGE", channels: [] },
+      { category: "CHAT_MENTION", channels: [] },
+      { category: "CHAT_DIRECT_MESSAGE", channels: [] },
     ]);
+  });
+
+  /** A press says nothing about a kind its situation never named. */
+  it("leaves a kind the situation does not name alone", () => {
+    expect(
+      presetChanges(preset("JOB", "OFF"), [...group("JOB").kinds, MENTION]).map(
+        (change) => change.category,
+      ),
+    ).toEqual(["JOB_ATTENTION", "JOB_COMPLETED", "JOB_UPDATE"]);
+  });
+});
+
+describe("presetPushes", () => {
+  it("names the kinds a situation sends to the device", () => {
+    expect(
+      categories(presetPushes(preset("JOB", "RESULTS"), group("JOB").kinds)),
+    ).toEqual(["JOB_ATTENTION", "JOB_COMPLETED"]);
+  });
+
+  /** Its own word says so, and a list of the whole group under it is noise. */
+  it("names none where the situation pushes them all", () => {
+    expect(
+      presetPushes(
+        preset("CHAT", "ESSENTIAL"),
+        group("CHAT").kinds.filter(
+          (kind) => kind.category !== "CHAT_ROOM_MESSAGE",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("names none where the situation pushes nothing", () => {
+    expect(
+      presetPushes(preset("TASK", "APP_ONLY"), group("TASK").kinds),
+    ).toEqual([]);
   });
 });
 
 describe("presetStops", () => {
   it("names the kinds a situation stops", () => {
-    expect(presetStops("NEEDED_QUIET", [ATTENTION, UPDATE])).toEqual([UPDATE]);
+    expect(
+      categories(presetStops(preset("CHAT", "ESSENTIAL"), group("CHAT").kinds)),
+    ).toEqual(["CHAT_ROOM_MESSAGE"]);
   });
 
   it("names none where the situation keeps them all", () => {
-    expect(presetStops("ALL_QUIET", [ATTENTION, UPDATE])).toEqual([]);
+    expect(presetStops(preset("JOB", "RESULTS"), group("JOB").kinds)).toEqual(
+      [],
+    );
   });
 
-  /** Nothing stops every kind, and the word Nothing already says that. */
+  /** Off stops every kind, and the word Off already says that. */
   it("names none where the situation stops them all", () => {
-    expect(presetStops("NOTHING", [ATTENTION, UPDATE])).toEqual([]);
+    expect(presetStops(preset("JOB", "OFF"), group("JOB").kinds)).toEqual([]);
   });
 });
