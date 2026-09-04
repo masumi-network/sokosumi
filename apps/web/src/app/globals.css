@@ -517,12 +517,17 @@
 }
 
 .workspace-calendar-theme {
-  --fc-border-color: var(--border);
-  --fc-list-event-hover-bg-color: var(--accent);
-  --fc-neutral-bg-color: var(--muted);
-  --fc-neutral-text-color: var(--muted-foreground);
-  --fc-page-bg-color: var(--background);
-  --fc-today-bg-color: var(--primary-quinary);
+  --fc-classic-border: var(--border);
+  --fc-classic-muted: var(--accent);
+  --fc-classic-faint: var(--muted);
+  --fc-classic-muted-foreground: var(--muted-foreground);
+  --fc-classic-background: var(--background);
+  --fc-classic-today: var(--primary-quinary);
+}
+
+.workspace-calendar-theme[data-view="week"] {
+  --fc-classic-event: transparent;
+  --fc-classic-event-contrast: transparent;
 }
 
 /*

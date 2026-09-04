@@ -422,12 +422,12 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(container.querySelector(".fc-timegrid-event")).toHaveClass(
-      "!bg-transparent",
-      "!border-transparent",
+    expect(screen.getAllByTestId("calendar-week")[0]).toHaveAttribute(
+      "data-view",
+      "week",
     );
     expect(
-      container.querySelector(".fc-timegrid-event [role='link']"),
+      container.querySelector("[role='button'] [role='link']"),
     ).toHaveClass("bg-primary/10");
     expect(screen.queryByText("all-day")).not.toBeInTheDocument();
   });

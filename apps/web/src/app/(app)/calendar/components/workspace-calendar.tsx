@@ -1,11 +1,13 @@
 "use client";
 
-import dayGridPlugin from "@fullcalendar/daygrid";
-import listPlugin from "@fullcalendar/list";
-import luxonPlugin from "@fullcalendar/luxon3";
 import FullCalendar from "@fullcalendar/react";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import { Temporal } from "@js-temporal/polyfill";
+import dayGridPlugin from "@fullcalendar/react/daygrid";
+import listPlugin from "@fullcalendar/react/list";
+import classicTheme from "@fullcalendar/react/themes/classic";
+import timeGridPlugin from "@fullcalendar/react/timegrid";
+import "@fullcalendar/react/skeleton.css";
+import "@fullcalendar/react/themes/classic/theme.css";
+import "@fullcalendar/react/themes/classic/palette.css";
 import {
   addDays,
   addMonths,
@@ -31,6 +33,7 @@ import {
   useQueryStates,
 } from "nuqs";
 import { useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
@@ -252,19 +255,18 @@ function CalendarView({
   return (
     <div
       className="workspace-calendar-theme overflow-x-auto"
+      data-view={view}
       data-testid={`calendar-${view}`}
     >
       <FullCalendar
         key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
-        plugins={[dayGridPlugin, timeGridPlugin, listPlugin, luxonPlugin]}
+        plugins={[dayGridPlugin, timeGridPlugin, listPlugin, classicTheme]}
         initialDate={getCalendarDayKey(date)}
         initialView={pluginView}
         events={items.map((item) => ({
           id: item.id,
           title: item.taskName,
           start: item.scheduledAt.toISOString(),
-          classNames:
-            view === "week" ? ["!bg-transparent", "!border-transparent"] : [],
         }))}
         timeZone={timeZone}
         allDaySlot={false}
