@@ -109,32 +109,12 @@ describe("organization subscription credit routing matrix", () => {
         );
 
         const grantUserIds = createTransactionMock.mock.calls.map(
-          (
-            call: [
-              {
-                data: {
-                  sourceCreditBucket: {
-                    create: { userId: string | null; referenceId: string };
-                  };
-                };
-              },
-            ],
-          ) => call[0].data.sourceCreditBucket.create.userId,
+          (call) => call[0].data.sourceCreditBucket.create.userId,
         );
         assert.deepEqual(grantUserIds, expectedGrantUserIds);
 
         const grantReferenceIds = createTransactionMock.mock.calls.map(
-          (
-            call: [
-              {
-                data: {
-                  sourceCreditBucket: {
-                    create: { referenceId: string };
-                  };
-                };
-              },
-            ],
-          ) => call[0].data.sourceCreditBucket.create.referenceId,
+          (call) => call[0].data.sourceCreditBucket.create.referenceId,
         );
         assert.deepEqual(grantReferenceIds, expectedReferenceIds);
 

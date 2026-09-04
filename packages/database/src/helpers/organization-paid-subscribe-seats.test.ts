@@ -63,9 +63,7 @@ describe("autoAssignSeatsOnPaidSubscribe", () => {
 
     assert.equal(newlyAssigned, 2);
     assert.deepEqual(
-      updateMock.mock.calls.map(
-        (call: [{ where: { id: string } }]) => call[0].where.id,
-      ),
+      updateMock.mock.calls.map((call) => call[0].where.id),
       ["m-owner", "m-old"],
     );
   });
@@ -247,10 +245,7 @@ describe("unassignSeatsOverPurchasedCapacity", () => {
 
     assert.equal(unassigned, 2);
     assert.deepEqual(
-      updateMock.mock.calls.map(
-        (call: [{ where: { id: string }; data: { seatAssignedAt: null } }]) =>
-          call[0].where.id,
-      ),
+      updateMock.mock.calls.map((call) => call[0].where.id),
       ["m-newest", "m-middle"],
     );
     assert.equal(updateMock.mock.calls[0]?.[0].data.seatAssignedAt, null);
