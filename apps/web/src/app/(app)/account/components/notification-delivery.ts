@@ -327,9 +327,9 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
       },
     ],
     // Chat is read where it is written, so these turn on the app rather than
-    // the phone: every stop but Off keeps mentions and direct messages in
-    // Sokosumi, and only a room the reader chose to follow is ever added. No
-    // stop pushes a room, which is the one thing a busy room would be.
+    // the phone: every stop but Off keeps mentions and direct messages, and
+    // the rooms are what the reader opts into. No stop puts a room on the
+    // device, which is the one thing a busy room would be.
     presets: [
       {
         id: "EVERYTHING",

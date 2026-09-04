@@ -26,6 +26,7 @@ import {
   type KindSpec,
   NOTIFICATION_GROUPS,
   type NotificationCategory,
+  type PresetSpec,
   type PresetState,
   type PushBlock,
   type StoredChannel,
@@ -39,6 +40,8 @@ export interface KindChoice {
 
 export interface GroupChoice {
   spec: GroupSpec;
+  /** The situations worth offering for the kinds that came back. */
+  presets: readonly PresetSpec[];
   /** The situation its cells are in, or that the reader set them one by one. */
   preset: PresetState;
   kinds: KindChoice[];
@@ -121,10 +124,18 @@ export function useNotificationDelivery(): NotificationDelivery {
       return [];
     }
 
+    // A group Core answered only part of is one no situation can speak for.
+    // Each is written as the whole group: its sentence names rows that are not
+    // on screen, and two of them can come to write the same cells, so the rail
+    // would light a word the reader did not press. The rows still answer for
+    // themselves, one kind at a time.
+    const presets = kinds.length === spec.kinds.length ? spec.presets : [];
+
     return [
       {
         spec,
-        preset: groupPreset(cells, spec.presets, kinds),
+        presets,
+        preset: groupPreset(cells, presets, kinds),
         kinds: kinds.map((kind) => ({
           spec: kind,
           channels: categoryChannels(cells, kind.category),

@@ -323,6 +323,28 @@ describe("groupPreset", () => {
   });
 
   /**
+   * The other half of leaving an unnamed kind alone: a situation that says
+   * nothing about a kind cannot claim to be the one the group is in, or the
+   * rail would light a word that never wrote those cells.
+   */
+  it("says Custom for a situation that does not name every kind", () => {
+    expect(
+      groupPreset(
+        cells(
+          ["JOB_ATTENTION", "IN_APP", false],
+          ["JOB_ATTENTION", "OS_BANNER", false],
+          ["JOB_COMPLETED", "IN_APP", false],
+          ["JOB_COMPLETED", "OS_BANNER", false],
+          ["JOB_UPDATE", "IN_APP", false],
+          ["JOB_UPDATE", "OS_BANNER", false],
+        ),
+        [{ id: "OFF", hintKey: "presetJobOffHint", reach: {} }],
+        group("JOB").kinds,
+      ),
+    ).toBe("CUSTOM");
+  });
+
+  /**
    * Core answers with the kinds it knows. A group whose cells have not all
    * arrived is read on the ones that did, so a page against an older Core
    * still names a situation rather than calling every group Custom.
