@@ -22,12 +22,12 @@ import {
   cellsFor,
   type DeliveryChange,
   type GroupSpec,
-  groupScope,
+  groupPreset,
   type KindSpec,
   NOTIFICATION_GROUPS,
   type NotificationCategory,
+  type PresetState,
   type PushBlock,
-  type ScopeState,
   type StoredChannel,
 } from "./notification-delivery";
 
@@ -39,8 +39,8 @@ export interface KindChoice {
 
 export interface GroupChoice {
   spec: GroupSpec;
-  /** Which kinds arrive at all, or that the reader set them one by one. */
-  scope: ScopeState;
+  /** The situation its cells are in, or that the reader set them one by one. */
+  preset: PresetState;
   kinds: KindChoice[];
   saving: boolean;
 }
@@ -124,7 +124,7 @@ export function useNotificationDelivery(): NotificationDelivery {
     return [
       {
         spec,
-        scope: groupScope(cells, kinds),
+        preset: groupPreset(cells, kinds),
         kinds: kinds.map((kind) => ({
           spec: kind,
           channels: categoryChannels(cells, kind.category),

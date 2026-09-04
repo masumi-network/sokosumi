@@ -18,7 +18,7 @@ import {
 } from "./notification-cells";
 import {
   type PushBlock,
-  scopeChanges,
+  presetChanges,
   withChannel,
 } from "./notification-delivery";
 import { ChannelLegend } from "./notification-legend";
@@ -44,12 +44,18 @@ import {
  * the name instead, indented to the words rather than to the chevron, because
  * the chevron's column belongs to the fold. A `size-4` mark and a `gap-2` make
  * the 24px that indent is.
+ *
+ * Whether it stands open is the caller's to hold. The answer under the name
+ * can ask for the rows, and only the caller that draws that answer can say
+ * open rather than toggle.
  */
 function FoldRow({
   name,
   description,
   descriptionId,
   answer,
+  open,
+  onOpenChange,
   children,
 }: {
   name: string;
@@ -58,12 +64,12 @@ function FoldRow({
   descriptionId?: string;
   /** What the whole row answers at once, for a row that has such an answer. */
   answer?: ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={onOpenChange}>
       <div className="px-4 py-3">
         <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px]">
           <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
@@ -112,12 +118,15 @@ function GroupRows({
   choices: NotificationDelivery;
 }) {
   const t = useTranslations("App.Account.Notifications");
+  const [open, setOpen] = useState(false);
   const kinds = group.kinds.map((kind) => kind.spec);
   const [only] = group.kinds;
   const alone = group.kinds.length === 1 && only;
 
   return (
     <FoldRow
+      open={open}
+      onOpenChange={setOpen}
       name={t(group.spec.labelKey)}
       // A group of one is its kind, so the line under the name is what that
       // kind is rather than what the group holds. Nothing else would be there:
@@ -134,10 +143,13 @@ function GroupRows({
           <GroupAnswer
             group={t(group.spec.labelKey)}
             kinds={kinds}
-            scope={group.scope}
+            preset={group.preset}
             saving={group.saving}
-            onPick={(scope) => {
-              void choices.setDeliveries(scopeChanges(scope, group.kinds));
+            onPick={(preset) => {
+              void choices.setDeliveries(presetChanges(preset, kinds));
+            }}
+            onCustom={() => {
+              setOpen(true);
             }}
           />
         )
@@ -172,6 +184,7 @@ function GroupRows({
  */
 function NewsRow({ news }: { news: EmailChoice }) {
   const t = useTranslations("App.Account.Notifications");
+  const [open, setOpen] = useState(false);
   const label = t("marketingEmailsTitle");
   const hintId = useId();
 
@@ -180,6 +193,8 @@ function NewsRow({ news }: { news: EmailChoice }) {
       name={label}
       description={t("marketingEmailsDescription")}
       descriptionId={hintId}
+      open={open}
+      onOpenChange={setOpen}
     >
       <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
         {/* Only where the row breaks in two. The card names its columns once
@@ -218,6 +233,7 @@ function NewsRow({ news }: { news: EmailChoice }) {
 /** The account switch on a row of its own, for when no kind row carries it. */
 function EmailRow({ email }: { email: EmailChoice }) {
   const t = useTranslations("App.Account.Notifications");
+  const [open, setOpen] = useState(false);
   const hintId = useId();
 
   return (
@@ -227,6 +243,8 @@ function EmailRow({ email }: { email: EmailChoice }) {
       // rather than which rows hold the same switch.
       description={t("channelEmailFallbackHint")}
       descriptionId={hintId}
+      open={open}
+      onOpenChange={setOpen}
     >
       <div className="flex items-center justify-end gap-2 py-2">
         <EmailCell

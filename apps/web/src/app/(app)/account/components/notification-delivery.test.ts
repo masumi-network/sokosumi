@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   categoryChannels,
   cellsFor,
-  groupScope,
-  groupScopes,
+  groupPreset,
+  groupPresets,
   type KindSpec,
+  presetChanges,
+  presetStops,
   sameChannels,
-  scopeChanges,
   withChannel,
 } from "./notification-delivery";
 
@@ -40,7 +41,7 @@ function cells(...rows: [string, string, boolean][]) {
     category,
     channel,
     enabled,
-  })) as Parameters<typeof groupScope>[0];
+  })) as Parameters<typeof groupPreset>[0];
 }
 
 describe("categoryChannels", () => {
@@ -114,14 +115,11 @@ describe("cellsFor", () => {
           ["JOB_UPDATE", "IN_APP", true],
           ["JOB_UPDATE", "OS_BANNER", true],
         ),
-        scopeChanges("IMPORTANT", [
-          { spec: ATTENTION, channels: [] },
-          { spec: UPDATE, channels: ["IN_APP", "OS_BANNER"] },
-        ]),
+        presetChanges("NEEDED_QUIET", [ATTENTION, UPDATE]),
       ),
     ).toEqual([
       { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
-      { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: true },
+      { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: false },
       { category: "JOB_UPDATE", channel: "IN_APP", enabled: false },
       { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
     ]);
@@ -166,49 +164,45 @@ describe("sameChannels", () => {
   });
 });
 
-describe("groupScopes", () => {
-  it("offers all three where they mean different things", () => {
-    expect(groupScopes([ATTENTION, UPDATE])).toEqual([
-      "ALL",
-      "IMPORTANT",
-      "NONE",
+describe("groupPresets", () => {
+  it("offers every situation where the group holds both sorts of kind", () => {
+    expect(groupPresets([ATTENTION, UPDATE])).toEqual([
+      "ALL_PUSH",
+      "NEEDED_PUSH",
+      "NEEDED_PUSH_ONLY",
+      "ALL_QUIET",
+      "NEEDED_QUIET",
+      "NOTHING",
     ]);
   });
 
   /**
-   * Important keeps every kind of a group whose kinds all matter, so it writes
-   * what All writes. Two stops that do the same thing read as a broken
-   * control.
+   * "Only what matters" is every kind of a group where everything matters, so
+   * it writes what its neighbour writes and says something about the group
+   * that is not true of it.
    */
-  it("drops Important where it keeps everything", () => {
-    expect(groupScopes([ATTENTION, MENTION])).toEqual(["ALL", "NONE"]);
+  it("speaks about all of a group where every kind matters", () => {
+    expect(groupPresets([ATTENTION, MENTION])).toEqual([
+      "ALL_PUSH",
+      "ALL_QUIET",
+      "NOTHING",
+    ]);
   });
 
-  /** The other end: Important keeps nothing, so it writes what Nothing writes. */
-  it("drops Important where it keeps nothing", () => {
-    expect(groupScopes([UPDATE])).toEqual(["ALL", "NONE"]);
+  /** The other end: nothing in the group is one of the ones that matter. */
+  it("speaks about all of a group where no kind matters", () => {
+    expect(groupPresets([UPDATE])).toEqual([
+      "ALL_PUSH",
+      "ALL_QUIET",
+      "NOTHING",
+    ]);
   });
 });
 
-describe("groupScope", () => {
-  it("names the scope the kinds that are on match", () => {
+describe("groupPreset", () => {
+  it("names the situation every cell of the group matches", () => {
     expect(
-      groupScope(
-        cells(
-          ["JOB_ATTENTION", "IN_APP", true],
-          ["JOB_ATTENTION", "OS_BANNER", false],
-          ["JOB_UPDATE", "IN_APP", false],
-          ["JOB_UPDATE", "OS_BANNER", false],
-        ),
-        [ATTENTION, UPDATE],
-      ),
-    ).toBe("IMPORTANT");
-  });
-
-  /** Which kinds arrive, not where: two kinds on in two places are still All. */
-  it("reads only whether a kind arrives at all", () => {
-    expect(
-      groupScope(
+      groupPreset(
         cells(
           ["JOB_ATTENTION", "IN_APP", true],
           ["JOB_ATTENTION", "OS_BANNER", true],
@@ -217,17 +211,53 @@ describe("groupScope", () => {
         ),
         [ATTENTION, UPDATE],
       ),
-    ).toBe("ALL");
+    ).toBe("NEEDED_PUSH");
   });
 
-  it("says Custom when the kinds that are on are neither all nor the ones that matter", () => {
+  it("tells the quiet situations apart by what they stop", () => {
     expect(
-      groupScope(
+      groupPreset(
+        cells(
+          ["JOB_ATTENTION", "IN_APP", true],
+          ["JOB_ATTENTION", "OS_BANNER", false],
+          ["JOB_UPDATE", "IN_APP", false],
+          ["JOB_UPDATE", "OS_BANNER", false],
+        ),
+        [ATTENTION, UPDATE],
+      ),
+    ).toBe("NEEDED_QUIET");
+  });
+
+  /**
+   * Every cell has to match. A kind that arrives in one more place than the
+   * situation says is a group doing something the word does not cover, and the
+   * reader would read the word rather than the rows and believe it.
+   */
+  it("says Custom when one cell is off the situation", () => {
+    expect(
+      groupPreset(
+        cells(
+          ["JOB_ATTENTION", "IN_APP", true],
+          ["JOB_ATTENTION", "OS_BANNER", true],
+          ["JOB_UPDATE", "IN_APP", true],
+          ["JOB_UPDATE", "OS_BANNER", true],
+          ["CHAT_MENTION", "IN_APP", true],
+          ["CHAT_MENTION", "OS_BANNER", false],
+        ),
+        [ATTENTION, UPDATE, MENTION],
+      ),
+    ).toBe("CUSTOM");
+  });
+
+  /** A push with no entry behind it is a situation none of them writes. */
+  it("says Custom for a push the presets never write", () => {
+    expect(
+      groupPreset(
         cells(
           ["JOB_ATTENTION", "IN_APP", false],
-          ["JOB_ATTENTION", "OS_BANNER", false],
-          ["JOB_UPDATE", "IN_APP", true],
-          ["JOB_UPDATE", "OS_BANNER", false],
+          ["JOB_ATTENTION", "OS_BANNER", true],
+          ["JOB_UPDATE", "IN_APP", false],
+          ["JOB_UPDATE", "OS_BANNER", true],
         ),
         [ATTENTION, UPDATE],
       ),
@@ -235,59 +265,51 @@ describe("groupScope", () => {
   });
 });
 
-describe("scopeChanges", () => {
-  it("keeps the kinds it names and silences the rest", () => {
-    expect(
-      scopeChanges("IMPORTANT", [
-        { spec: ATTENTION, channels: ["IN_APP"] },
-        { spec: UPDATE, channels: ["IN_APP"] },
-      ]),
-    ).toEqual([
-      { category: "JOB_ATTENTION", channels: ["IN_APP"] },
-      { category: "JOB_UPDATE", channels: [] },
-    ]);
-  });
-
+describe("presetChanges", () => {
   /**
-   * An answer says which kinds arrive, never where. So a kind it keeps comes
-   * back on the channels it was already on, and a group the reader has quieted
-   * to the app alone does not start buzzing because they asked for everything.
+   * The whole group, every cell of it. The reader's own cells are not read:
+   * that is what lets the button name the situation the group is in.
    */
-  it("leaves each kept kind on its own channels", () => {
-    expect(
-      scopeChanges("ALL", [
-        { spec: ATTENTION, channels: ["IN_APP"] },
-        { spec: UPDATE, channels: ["IN_APP", "OS_BANNER"] },
-      ]),
-    ).toEqual([
-      { category: "JOB_ATTENTION", channels: ["IN_APP"] },
+  it("writes the loud situation on every kind", () => {
+    expect(presetChanges("ALL_PUSH", [ATTENTION, UPDATE])).toEqual([
+      { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
       { category: "JOB_UPDATE", channels: ["IN_APP", "OS_BANNER"] },
     ]);
   });
 
-  /** A kind that arrives nowhere has nothing to keep, so it takes the group's. */
-  it("gives a silent kind the channels the group uses", () => {
-    expect(
-      scopeChanges("ALL", [
-        { spec: ATTENTION, channels: [] },
-        { spec: UPDATE, channels: ["IN_APP"] },
-      ]),
-    ).toEqual([
-      { category: "JOB_ATTENTION", channels: ["IN_APP"] },
+  it("pushes the ones that matter and keeps the rest in Sokosumi", () => {
+    expect(presetChanges("NEEDED_PUSH", [ATTENTION, UPDATE])).toEqual([
+      { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
       { category: "JOB_UPDATE", channels: ["IN_APP"] },
     ]);
   });
 
-  /** A group that is on nowhere has no channel to keep, so it comes back loud. */
-  it("turns a silent group on everywhere", () => {
-    expect(
-      scopeChanges("ALL", [
-        { spec: ATTENTION, channels: [] },
-        { spec: UPDATE, channels: [] },
-      ]),
-    ).toEqual([
+  it("stops the rest where the situation says only what matters", () => {
+    expect(presetChanges("NEEDED_PUSH_ONLY", [ATTENTION, UPDATE])).toEqual([
       { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
-      { category: "JOB_UPDATE", channels: ["IN_APP", "OS_BANNER"] },
+      { category: "JOB_UPDATE", channels: [] },
     ]);
+  });
+
+  it("silences the group", () => {
+    expect(presetChanges("NOTHING", [ATTENTION, UPDATE])).toEqual([
+      { category: "JOB_ATTENTION", channels: [] },
+      { category: "JOB_UPDATE", channels: [] },
+    ]);
+  });
+});
+
+describe("presetStops", () => {
+  it("names the kinds a situation stops", () => {
+    expect(presetStops("NEEDED_QUIET", [ATTENTION, UPDATE])).toEqual([UPDATE]);
+  });
+
+  it("names none where the situation keeps them all", () => {
+    expect(presetStops("ALL_QUIET", [ATTENTION, UPDATE])).toEqual([]);
+  });
+
+  /** Nothing stops every kind, and the word Nothing already says that. */
+  it("names none where the situation stops them all", () => {
+    expect(presetStops("NOTHING", [ATTENTION, UPDATE])).toEqual([]);
   });
 });

@@ -66,14 +66,17 @@ export interface KindSpec {
   /** What happens, in the reader's terms, under the name. */
   hintKey: string;
   /**
-   * Whether this kind survives when the reader trims the group.
+   * Whether this kind is one the reader is waiting for or one that waits on
+   * them.
    *
-   * The presets read it: "Important" keeps these and drops the rest. Nearly
-   * every one of them waits on the reader. A finished job or task is the
-   * exception: there is nothing to do about it, and it is the answer the
-   * reader started the work for. It is a property of the kind rather than a
-   * preset's private list, so a kind added later answers the question once
-   * instead of in every preset.
+   * Every preset reads it: the ones that ask something of the reader, and the
+   * results they started the work for, are what a preset keeps loud or keeps
+   * at all. A job that needs input asks; a finished job answers; a mention and
+   * a direct message ask. Progress updates and the ordinary traffic of a room
+   * do neither, and those are what a reader turns down first.
+   *
+   * It is a property of the kind rather than a list inside each preset, so a
+   * kind added later answers the question once instead of six times.
    */
   important: boolean;
   /**
@@ -276,117 +279,155 @@ export function withChannel(
 }
 
 /**
- * A group's answer: which of its kinds arrive at all.
+ * A situation the reader is in, as the whole of a group's cells.
  *
- * One question, and only one. Where a kind arrives is the grid's answer and
- * it is asked per kind, so an answer here keeps the places the reader already
- * chose: a group they set to the app alone stays that way when they trim it
- * to the kinds that matter. The old ladder answered both at once, and its
- * step from Everything to Important dropped kinds while its step from
- * Important to Quiet dropped a channel, so no stop told the reader what the
- * next one would do.
+ * One press, and the group is set: how many of its notifications reach the
+ * reader, and whether they push to the device. The two questions are one
+ * decision here, because they are one decision in life. A reader who is
+ * watching a job run wants the phone to say so; the same reader on a Monday
+ * wants the list in Sokosumi and nothing on the phone.
+ *
+ * `key` is where the ones that need the reader land, and `rest` is where the
+ * others do. `KindSpec.important` says which is which, so a kind added later
+ * answers that once rather than in six places.
+ *
+ * A preset writes every cell of the group. It is picked from the list only
+ * while the cells say exactly what it writes, so the row never claims a
+ * situation the reader is not in. Anything else is Custom.
  */
-export const PRESET_SCOPES = ["ALL", "IMPORTANT", "NONE"] as const;
-export type PresetScope = (typeof PRESET_SCOPES)[number];
+type Reach = "NONE" | "IN_APP" | "PUSH";
 
-/** A group whose kinds are on one by one. Reported on the scope, never written. */
-export type ScopeState = PresetScope | "CUSTOM";
-
-export const PRESET_SCOPE_LABEL_KEY: Record<ScopeState, string> = {
-  ALL: "scopeAll",
-  IMPORTANT: "scopeImportant",
-  NONE: "scopeNone",
-  CUSTOM: "scopeCustom",
-};
-
-export const PRESET_SCOPE_HINT_KEY: Record<ScopeState, string> = {
-  ALL: "scopeAllHint",
-  IMPORTANT: "scopeImportantHint",
-  NONE: "scopeNoneHint",
-  CUSTOM: "scopeCustomHint",
-};
-
-/** Whether a scope keeps a kind. The answers name the kinds they keep. */
-export function keeps(scope: PresetScope, kind: KindSpec): boolean {
-  return scope === "ALL" || (scope === "IMPORTANT" && kind.important);
-}
-
-/** Whether this kind arrives anywhere as the cells stand. */
-function isOn(
-  cells: readonly NotificationPreference[],
-  kind: KindSpec,
-): boolean {
-  return categoryChannels(cells, kind.category).length > 0;
+interface PresetSpec {
+  id: Preset;
+  key: Reach;
+  rest: Reach;
 }
 
 /**
- * The scopes worth showing for this group.
+ * The situations, loudest first.
  *
- * Important keeps every kind of a group whose kinds all matter, and none of a
- * group where none of them do. Either way it writes what a neighbour writes,
- * and a stop that changes nothing reads as broken, so it is dropped rather
- * than explained. All and Nothing always mean something and always show.
+ * The pushing ones come first and the quiet ones after, so the list reads down
+ * from the phone to Sokosumi to nothing. Inside each pair, the one that keeps
+ * everything comes before the one that drops what does not need the reader.
+ *
+ * None of them touches email, which is one switch for the account rather than
+ * a cell per kind. So the loudest of these is loud in Sokosumi and on the
+ * device, and a reader who picks it is not signing up for a mailbox as well.
  */
-export function groupScopes(kinds: readonly KindSpec[]): PresetScope[] {
-  const some = kinds.some((kind) => kind.important);
-  const every = kinds.every((kind) => kind.important);
+const PRESET_SPECS = [
+  { id: "ALL_PUSH", key: "PUSH", rest: "PUSH" },
+  { id: "NEEDED_PUSH", key: "PUSH", rest: "IN_APP" },
+  { id: "NEEDED_PUSH_ONLY", key: "PUSH", rest: "NONE" },
+  { id: "ALL_QUIET", key: "IN_APP", rest: "IN_APP" },
+  { id: "NEEDED_QUIET", key: "IN_APP", rest: "NONE" },
+  { id: "NOTHING", key: "NONE", rest: "NONE" },
+] as const;
 
-  return PRESET_SCOPES.filter(
-    (scope) => scope !== "IMPORTANT" || (some && !every),
-  );
+/**
+ * The name of one situation.
+ *
+ * Read off the list rather than written twice: a spec whose `key` or `rest` is
+ * not a reach fails where `groupPresetSpecs` promises `PresetSpec[]`.
+ */
+export type Preset = (typeof PRESET_SPECS)[number]["id"];
+
+/** A group whose kinds are set one by one. Reported on the group, never written. */
+export type PresetState = Preset | "CUSTOM";
+
+export const PRESET_LABEL_KEY: Record<PresetState, string> = {
+  ALL_PUSH: "presetAllPush",
+  NEEDED_PUSH: "presetNeededPush",
+  NEEDED_PUSH_ONLY: "presetNeededPushOnly",
+  ALL_QUIET: "presetAllQuiet",
+  NEEDED_QUIET: "presetNeededQuiet",
+  NOTHING: "presetNothing",
+  CUSTOM: "presetCustom",
+};
+
+export const PRESET_HINT_KEY: Record<PresetState, string> = {
+  ALL_PUSH: "presetAllPushHint",
+  NEEDED_PUSH: "presetNeededPushHint",
+  NEEDED_PUSH_ONLY: "presetNeededPushOnlyHint",
+  ALL_QUIET: "presetAllQuietHint",
+  NEEDED_QUIET: "presetNeededQuietHint",
+  NOTHING: "presetNothingHint",
+  CUSTOM: "presetCustomHint",
+};
+
+/** Where a preset sends one kind. */
+function reach(preset: PresetSpec, kind: KindSpec): Reach {
+  return kind.important ? preset.key : preset.rest;
 }
 
-/** Which scope the stored cells are on, or that the reader set the kinds one by one. */
-export function groupScope(
+/**
+ * The cells one reach means.
+ *
+ * A push carries the in-app entry with it, the same pairing the cells hold
+ * themselves: a push that leaves nothing behind is a notification the reader
+ * cannot find again once the banner is gone.
+ *
+ * A channel Core adds later needs a place in each of these, the same way it
+ * needs a cell in `CHANNEL_SPECS`. Without one, every press of a preset writes
+ * it `enabled: false` for the whole group, and this page would quietly turn
+ * off a channel it never showed.
+ */
+const REACH_CHANNELS: Record<Reach, readonly StoredChannel[]> = {
+  NONE: [],
+  IN_APP: ["IN_APP"],
+  PUSH: ["IN_APP", "OS_BANNER"],
+};
+
+/** The channels a preset gives one kind. */
+function presetChannels(preset: PresetSpec, kind: KindSpec): StoredChannel[] {
+  return [...REACH_CHANNELS[reach(preset, kind)]];
+}
+
+/**
+ * The situations worth offering for this group.
+ *
+ * Three of the six tell the kinds that need the reader from the ones that do
+ * not, and a group holding only one sort cannot hear the difference: in a
+ * group where everything matters, "only what matters" is every row of it, and
+ * in a group where nothing does, it is none of them. Either way the words
+ * would describe a group the reader is not looking at, and two stops would
+ * write the same cells. So such a group is offered the three that speak about
+ * all of it.
+ */
+function groupPresetSpecs(kinds: readonly KindSpec[]): PresetSpec[] {
+  const both =
+    kinds.some((kind) => kind.important) &&
+    kinds.some((kind) => !kind.important);
+
+  return PRESET_SPECS.filter((preset) => both || preset.key === preset.rest);
+}
+
+/** The situations worth offering for this group, in the order they are drawn. */
+export function groupPresets(kinds: readonly KindSpec[]): Preset[] {
+  return groupPresetSpecs(kinds).map((preset) => preset.id);
+}
+
+/**
+ * The situation the stored cells are in, or that the reader set the kinds one
+ * by one.
+ *
+ * Every cell has to match. A preset that only nearly fits would light up while
+ * the group is doing something else, and the reader would read the word rather
+ * than the rows and believe it.
+ */
+export function groupPreset(
   cells: readonly NotificationPreference[],
   kinds: readonly KindSpec[],
-): ScopeState {
+): PresetState {
   return (
-    groupScopes(kinds).find((scope) =>
-      kinds.every((kind) => isOn(cells, kind) === keeps(scope, kind)),
-    ) ?? "CUSTOM"
+    groupPresetSpecs(kinds).find((preset) =>
+      kinds.every((kind) =>
+        sameChannels(
+          categoryChannels(cells, kind.category),
+          presetChannels(preset, kind),
+        ),
+      ),
+    )?.id ?? "CUSTOM"
   );
-}
-
-/**
- * Where a group arrives as the cells stand, for a kind that arrives nowhere.
- *
- * An answer says which kinds arrive, never where, so a kind it keeps holds on
- * to the channels it already has and only a kind that is on nowhere needs
- * somewhere to land. It lands where the rest of the group already does. In a
- * group that is silent everywhere there is nothing to copy, so it lands on
- * every channel: the reader just asked to hear about this, and the grid under
- * it takes any of that back in one press.
- *
- * Folded through `withChannel` rather than collected, so the pairing rule
- * holds here too: a group whose only banner cell somehow stands without its
- * entry does not hand that pairing to a kind this writes.
- */
-function groupChannels(kinds: readonly KindState[]): StoredChannel[] {
-  const used = STORED_CHANNELS.filter((channel) =>
-    kinds.some((kind) => kind.channels.includes(channel)),
-  );
-
-  if (used.length === 0) {
-    return [...STORED_CHANNELS];
-  }
-
-  return used.reduce<StoredChannel[]>(
-    (channels, channel) => withChannel(channels, channel, true),
-    [],
-  );
-}
-
-/**
- * One kind as the row that draws it holds it.
- *
- * An answer reads these rather than the stored matrix, because the row that
- * calls it is drawn from them. Asking the matrix again would let the two
- * disagree while a write is in flight.
- */
-export interface KindState {
-  spec: KindSpec;
-  channels: readonly StoredChannel[];
 }
 
 /** One category, and the channels the reader wants it on. */
@@ -416,26 +457,74 @@ export function cellsFor(
 }
 
 /**
- * The changes an answer writes: the kinds it keeps, where they already are.
+ * The cells a preset writes: every kind of the group, wherever it puts them.
  *
- * A kind it keeps that already arrives somewhere is left exactly where it is,
- * so picking Everything on a group the reader had quieted does not start it
- * buzzing. Only a kind that arrives nowhere needs a place, and it takes the
- * group's. A kind the answer drops is written empty, which is what off means
- * here: no channel at all.
+ * The reader's own cells are not consulted. A preset is the whole situation
+ * rather than a filter over the one before it, which is what lets the row say
+ * which one the group is in: pick it, and the cells say exactly this.
+ *
+ * A name no spec claims writes nothing at all. It cannot arrive from the row,
+ * which offers what `groupPresets` returned, and silencing a group would be a
+ * strange thing to do about a name this file does not know.
  */
-export function scopeChanges(
-  scope: PresetScope,
-  kinds: readonly KindState[],
+export function presetChanges(
+  preset: Preset,
+  kinds: readonly KindSpec[],
 ): DeliveryChange[] {
-  const fallback = groupChannels(kinds);
+  const spec = PRESET_SPECS.find((candidate) => candidate.id === preset);
+
+  if (!spec) {
+    return [];
+  }
 
   return kinds.map((kind) => ({
-    category: kind.spec.category,
-    channels: keeps(scope, kind.spec)
-      ? kind.channels.length > 0
-        ? [...kind.channels]
-        : fallback
-      : [],
+    category: kind.category,
+    channels: presetChannels(spec, kind),
   }));
+}
+
+/**
+ * The kinds a preset sends to the device, in the order the group holds them.
+ *
+ * "What matters" is two named things in Jobs and two different ones in Chat,
+ * and no sentence shared by every group can say which. The row names them
+ * under the answer instead. A situation that pushes all of them says nothing
+ * here, and neither does one that pushes none: its own word already says so.
+ */
+export function presetPushes(
+  preset: Preset,
+  kinds: readonly KindSpec[],
+): KindSpec[] {
+  const changes = presetChanges(preset, kinds);
+  const pushed = kinds.filter((kind) =>
+    changes.some(
+      (change) =>
+        change.category === kind.category &&
+        change.channels.includes("OS_BANNER"),
+    ),
+  );
+
+  return pushed.length === kinds.length ? [] : pushed;
+}
+
+/**
+ * The kinds a preset stops entirely, in the order the group holds them.
+ *
+ * The row names them under the answer. A preset that keeps everything says
+ * nothing here, and neither does one that stops everything: its own word
+ * already says so, and a list of every kind in the group under it is noise.
+ */
+export function presetStops(
+  preset: Preset,
+  kinds: readonly KindSpec[],
+): KindSpec[] {
+  const changes = presetChanges(preset, kinds);
+  const stopped = kinds.filter((kind) =>
+    changes.some(
+      (change) =>
+        change.category === kind.category && change.channels.length === 0,
+    ),
+  );
+
+  return stopped.length === kinds.length ? [] : stopped;
 }
