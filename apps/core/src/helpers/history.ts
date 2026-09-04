@@ -22,6 +22,7 @@ export interface HistoryRowForApi {
   archivedAt: Date | null;
   bucketSlug: string | null;
   coworkerId: string | null;
+  orchestratorId: string | null;
   amount: bigint | null;
   description: string | null;
   entityId: string;
@@ -494,6 +495,7 @@ export function mapHistoryRow(
         credits: row.amount != null ? convertCentsToCredits(row.amount) : null,
         projectId: row.projectId,
         coworkerId: row.coworkerId,
+        orchestratorId: row.orchestratorId,
       };
     case HistoryKind.JOB: {
       const agentId = row.agentId ?? "";

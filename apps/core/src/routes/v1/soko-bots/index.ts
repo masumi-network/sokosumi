@@ -6,6 +6,7 @@ import { waitUntil } from "@vercel/functions";
 
 import { getEnv } from "@/config/env";
 import {
+  badGateway,
   badRequest,
   conflict,
   forbidden,
@@ -27,6 +28,7 @@ import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   hasAdminRole,
+  isOrchestratorAuthContext,
   isUserAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
@@ -48,6 +50,7 @@ import {
   listSokoBotLabRunsQuerySchema,
   resolveSokoBotDecisionRequestSchema,
   simulateSokoBotTaskEventRequestSchema,
+  sokoBotActivitySchema,
   sokoBotAvatarSchema,
   sokoBotDailyStatsSchema,
   sokoBotDeletionResultSchema,
@@ -85,7 +88,6 @@ import {
 } from "@/services/soko-bot-avatar.service";
 import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 import {
-  ensureSokoBotCoworker,
   introduceSokoBot,
   SokoBotIntroductionError,
 } from "@/services/soko-bot-chat.service";
@@ -113,7 +115,7 @@ import {
 } from "@/services/soko-bot-lab.service";
 import {
   judgeSokoBotLabTurn,
-  SokoBotLabJudgeError,
+  sokoBotLabJudgeErrorKind,
 } from "@/services/soko-bot-lab-judge.service";
 import { retimeSystemSchedules } from "@/services/soko-bot-proactive.service";
 import {
@@ -135,6 +137,8 @@ import {
   listSelectableSokoBotVersions,
   listSokoBotVersions,
 } from "@/services/soko-bot-version.service";
+import { mountSokoBotApiKeyRoutes } from "./api-keys.js";
+import { mountSokoBotEventRoutes } from "./events.js";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
@@ -150,6 +154,10 @@ app.use("*", async (c, next) => {
     throw serviceUnavailable(
       availability.disabledReason ??
         "Soko Bot is temporarily disabled by an administrator",
+      {
+        kind: "soko-bot-disabled",
+        reportToSentry: false,
+      },
     );
   }
   // Beta gate, matching the web route's 404 and the calendar routes' rule.
@@ -159,6 +167,10 @@ app.use("*", async (c, next) => {
   // endpoint added later for a coworker key must not slip past the beta by
   // simply not being a user.
   const auth = c.var.authContext;
+  if (isOrchestratorAuthContext(auth)) {
+    await next();
+    return;
+  }
   if (!isUserAuthContext(auth)) {
     throw notFound("Soko Bot is not enabled");
   }
@@ -175,6 +187,9 @@ app.use("*", async (c, next) => {
   await next();
 });
 
+mountSokoBotApiKeyRoutes(app);
+mountSokoBotEventRoutes(app);
+
 function mapBot(
   bot: Awaited<ReturnType<typeof sokoBotControlPlane.getForUser>>,
 ) {
@@ -182,7 +197,6 @@ function mapBot(
   return {
     ...bot,
     memory: bot.memoryRevisions[0] ?? null,
-    coworker: bot.coworker ?? null,
     memoryRevisions: undefined,
   };
 }
@@ -238,13 +252,52 @@ const getMeRoute = createRoute({
 });
 
 app.openapi(getMeRoute, async (c) => {
-  const auth = requireUserAuthContext(c.var.authContext);
+  const authContext = c.var.authContext;
+  const auth = isOrchestratorAuthContext(authContext)
+    ? authContext
+    : requireUserAuthContext(authContext);
   const workspace = requireWorkspaceContext(c.var.workspaceContext);
   const bot = await sokoBotControlPlane.getForUser(
     auth.userId,
     workspace.workspaceId,
   );
+  if (
+    isOrchestratorAuthContext(authContext) &&
+    bot?.id !== authContext.orchestratorId
+  ) {
+    throw notFound("Soko Bot not found");
+  }
   return ok(c, sokoBotStateSchema.parse({ sokoBot: mapBot(bot) }));
+});
+
+// Polled every couple of seconds by the console, which watches turns started
+// elsewhere. One indexed read, so it can be asked often enough to catch a turn
+// that only runs for a few seconds.
+const getMyActivityRoute = createRoute({
+  method: "get",
+  path: "/me/activity",
+  operationId: "getMySokoBotActivity",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotActivitySchema,
+      "Whether the assistant is working right now",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+app.openapi(getMyActivityRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const activity = await sokoBotControlPlane.getActivityForUser(
+    auth.userId,
+    workspace.workspaceId,
+  );
+  if (!activity) throw notFound("Soko Bot not found");
+  return ok(c, sokoBotActivitySchema.parse(activity));
 });
 
 const getMyUsageRoute = createRoute({
@@ -263,13 +316,20 @@ const getMyUsageRoute = createRoute({
 // Its own route rather than a field on `/me`: that one is polled for turn
 // state and this aggregates every turn the bot has ever taken.
 app.openapi(getMyUsageRoute, async (c) => {
-  const auth = requireUserAuthContext(c.var.authContext);
+  const authContext = c.var.authContext;
+  const auth = isOrchestratorAuthContext(authContext)
+    ? authContext
+    : requireUserAuthContext(authContext);
   const workspace = requireWorkspaceContext(c.var.workspaceContext);
   const bot = await sokoBotControlPlane.getForUser(
     auth.userId,
     workspace.workspaceId,
   );
-  if (!bot) {
+  if (
+    !bot ||
+    (isOrchestratorAuthContext(authContext) &&
+      bot.id !== authContext.orchestratorId)
+  ) {
     throw notFound("Soko Bot not found");
   }
   const { sokoBotUsageTotals } = await import(
@@ -979,7 +1039,6 @@ app.openapi(claimAvatarRoute, async (c) => {
   );
   if (!bot) throw notFound("Create a Soko Bot first");
   await claimAvatar(bot.id, c.req.valid("json").avatarId);
-  await ensureSokoBotCoworker(bot.id);
   const refreshed = await sokoBotControlPlane.getForUser(
     auth.userId,
     workspace.workspaceId,
@@ -1309,7 +1368,6 @@ const BOT_TEAM_SELECT = {
   avatarSeed: true,
   status: true,
   archivedAt: true,
-  coworker: { select: { id: true } },
 } as const;
 
 const teamRoute = createRoute({
@@ -1347,7 +1405,6 @@ app.openapi(teamRoute, async (c) => {
     avatarSeed: string | null;
     status: string;
     archivedAt: Date | null;
-    coworker: { id: string } | null;
   }) =>
     bot.archivedAt
       ? null
@@ -1357,7 +1414,6 @@ app.openapi(teamRoute, async (c) => {
           avatarImageUrl: bot.avatarImageUrl,
           avatarSeed: bot.avatarSeed,
           status: bot.status,
-          coworkerId: bot.coworker?.id ?? null,
         };
   if (workspace.organizationId) {
     const organization = await prisma.organization.findUnique({
@@ -1660,6 +1716,7 @@ const judgeLabTurnRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
+    502: jsonErrorResponse("Bad Gateway"),
   },
 });
 
@@ -1672,7 +1729,15 @@ app.openapi(judgeLabTurnRoute, async (c) => {
     });
     return ok(c, sokoBotLabVerdictSchema.parse({ model, ...verdict }));
   } catch (error) {
-    if (error instanceof SokoBotLabJudgeError) throw notFound(error.message);
+    const kind = sokoBotLabJudgeErrorKind(error);
+    if (kind === "miss") {
+      throw badGateway(
+        error instanceof Error ? error.message : "Judge produced no verdict",
+      );
+    }
+    if (kind === "not_found") {
+      throw notFound(error instanceof Error ? error.message : "Not Found");
+    }
     throw error;
   }
 });

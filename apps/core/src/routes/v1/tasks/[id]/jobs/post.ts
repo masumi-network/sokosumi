@@ -1,11 +1,15 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireCoworkerTaskCollaboration } from "@/helpers/access-control";
+import { requireTaskCollaboration } from "@/helpers/access-control";
+import { forbidden } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireCoworkerAuthContext } from "@/middleware/auth";
+import {
+  isCoworkerAuthContext,
+  isOrchestratorAuthContext,
+} from "@/middleware/auth";
 import { jobSummarySchema } from "@/schemas/job.schema";
 import { createTaskJobRequestSchema } from "@/schemas/task.schema";
 import { flattenJob } from "@/types/job";
@@ -46,14 +50,20 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireCoworkerAuthContext(c.var.authContext);
+    const authContext = c.var.authContext;
+    if (
+      !isCoworkerAuthContext(authContext) &&
+      !isOrchestratorAuthContext(authContext)
+    ) {
+      throw forbidden("Agent authentication required");
+    }
 
     const { id: taskId } = c.req.valid("param");
-    // Assigned-agent-only collaboration: this endpoint is coworker-scoped and
-    // intentionally does NOT honor X-Context-* delegation. Standalone user/orch
-    // job creation uses POST /agents/{id}/jobs (coworker keys rejected there).
+    // Assigned-agent-only collaboration: this endpoint is agent-scoped and
+    // intentionally does NOT honor X-Context-* delegation. Standalone user job
+    // creation uses POST /agents/{id}/jobs.
     // See SOK-554: per-coworker delegation authz before broadening this.
-    const task = await requireCoworkerTaskCollaboration(authContext, taskId);
+    const task = await requireTaskCollaboration(authContext, taskId);
 
     const { agentId, inputData, inputSchema, maxCredits, name } =
       c.req.valid("json");

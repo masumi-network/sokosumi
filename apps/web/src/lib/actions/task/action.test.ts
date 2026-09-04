@@ -109,6 +109,7 @@ function buildTask(
     name: "Generated task name",
     description: "Created related task",
     assigneeId: null,
+    assigneeOrchestratorId: null,
     status: TaskStatus.READY,
     ...overrides,
   } as Task;
@@ -193,6 +194,7 @@ describe("task link actions", () => {
     await createTask({
       description: "Created related task",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       context: {
         brand: { enabled: true, source: "project", custom: null },
@@ -205,6 +207,7 @@ describe("task link actions", () => {
     expect(taskServiceMock.createTask).toHaveBeenCalledWith({
       description: "Created related task",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       context: {
         brand: true,
@@ -227,6 +230,7 @@ describe("task link actions", () => {
     await createTask({
       description: "Created related task",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       context: {
         brand: { enabled: true, source: "default", custom: null },
         briefingEnabled: false,
@@ -256,6 +260,7 @@ describe("task link actions", () => {
     await createTask({
       description: "Created related task",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       context: {
         brand: { enabled: false, source: "project", custom: null },
         briefingEnabled: true,
@@ -286,6 +291,7 @@ describe("task link actions", () => {
     await createTask({
       description: "Created related task",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       context: {
         brand: {
           enabled: true,
@@ -319,6 +325,7 @@ describe("task link actions", () => {
       createTask({
         description: "Created related task",
         assigneeId: null,
+        assigneeOrchestratorId: null,
         context: {
           brand: { enabled: true, source: "custom", custom: null },
           briefingEnabled: true,
@@ -332,6 +339,7 @@ describe("task link actions", () => {
       createTask({
         description: "Created related task",
         assigneeId: null,
+        assigneeOrchestratorId: null,
         context: {
           brand: {
             enabled: true,
@@ -351,6 +359,7 @@ describe("task link actions", () => {
       createTask({
         description: "Created related task",
         assigneeId: null,
+        assigneeOrchestratorId: null,
         context: {
           brand: {
             enabled: true,
@@ -370,6 +379,7 @@ describe("task link actions", () => {
       createTask({
         description: "Created related task",
         assigneeId: null,
+        assigneeOrchestratorId: null,
         context: {
           brand: {
             enabled: true,
@@ -397,6 +407,7 @@ describe("task link actions", () => {
       createTask({
         description: "Task with stale project",
         assigneeId: null,
+        assigneeOrchestratorId: null,
         projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
         status: TaskStatus.READY,
       }),
@@ -538,6 +549,7 @@ describe("task link actions", () => {
         taskId: "task-1",
         description: "Created related task",
         assigneeId: null,
+        assigneeOrchestratorId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.CHILD,
       }),
@@ -547,6 +559,7 @@ describe("task link actions", () => {
       expect.objectContaining({
         description: "Created related task",
         assigneeId: null,
+        assigneeOrchestratorId: null,
         status: TaskStatus.READY,
       }),
     );
@@ -597,6 +610,7 @@ describe("task link actions", () => {
         taskId: "task-1",
         description: "Created related task",
         assigneeId: null,
+        assigneeOrchestratorId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.CHILD,
       }),
@@ -646,6 +660,7 @@ describe("task link actions", () => {
       taskId: "task-1",
       description: "Related scheduled task",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: TaskStatus.READY,
       schedule: {
         mode: "recurring",
@@ -693,6 +708,7 @@ describe("updateTask schedule status", () => {
       name: "Task",
       description: "Do work",
       assigneeId: "coworker-1",
+      assigneeOrchestratorId: null,
       currentStatus: TaskStatus.QUEUED,
       desiredStatus: TaskStatus.QUEUED,
       hadSchedule: true,
@@ -719,6 +735,7 @@ describe("updateTask schedule status", () => {
       name: "Task",
       description: "Do work",
       assigneeId: "coworker-1",
+      assigneeOrchestratorId: null,
       currentStatus: TaskStatus.DRAFT,
       desiredStatus: TaskStatus.DRAFT,
       hadSchedule: false,
@@ -738,6 +755,7 @@ describe("updateTask schedule status", () => {
       name: "Task",
       description: "Do work",
       assigneeId: "coworker-1",
+      assigneeOrchestratorId: null,
       currentStatus: TaskStatus.DRAFT,
       desiredStatus: TaskStatus.READY,
       hadSchedule: false,
@@ -762,6 +780,7 @@ describe("updateTask schedule status", () => {
       name: "Task",
       description: "Do work",
       assigneeId: "coworker-1",
+      assigneeOrchestratorId: null,
       currentStatus: TaskStatus.QUEUED,
       desiredStatus: TaskStatus.DRAFT,
       hadSchedule: true,
@@ -969,6 +988,7 @@ describe("createTask schedule", () => {
     await createTask({
       description: "Draft task",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: TaskStatus.DRAFT,
       schedule: recurringSchedule,
     });
@@ -991,6 +1011,7 @@ describe("createTask schedule", () => {
     await createTask({
       description: "Scheduled task",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: TaskStatus.READY,
       schedule: recurringSchedule,
     });
@@ -1014,6 +1035,7 @@ describe("createTask schedule", () => {
     const result = await createTask({
       description: "Scheduled task",
       assigneeId: null,
+      assigneeOrchestratorId: null,
       status: TaskStatus.READY,
       schedule: recurringSchedule,
     });

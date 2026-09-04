@@ -299,15 +299,24 @@ export const sokoBotSchema = z
     ingestTimezone: z.string().optional(),
     proactivePaused: z.boolean().optional(),
     proactiveDailyLimit: z.number().int().optional(),
-    /** Chat-facing coworker row; open a direct with it to chat with the bot. */
-    coworker: z
-      .object({ id: z.string(), slug: z.string() })
-      .nullable()
-      .optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
   .openapi("SokoBot");
+
+/**
+ * The cheap "is anything happening" probe. Deliberately not the chat state:
+ * the console polls this often, and the full state loads twenty turns with
+ * their events and decisions.
+ */
+export const sokoBotActivitySchema = z
+  .object({
+    status: sokoBotStatusSchema,
+    /** The turn to watch, when one is running. */
+    activeTurnId: z.string().uuid().nullable(),
+    lastTurnAt: dateTimeSchema.nullable(),
+  })
+  .openapi("SokoBotActivity");
 
 export const sokoBotStateSchema = z
   .object({ sokoBot: z.union([sokoBotSchema, z.null()]) })
@@ -518,6 +527,13 @@ export const adminSokoBotDetailSchema = sokoBotSchema
   })
   .openapi("AdminSokoBotDetail");
 
+/** Built-in ids (`v16`) and authored slugs share one namespace and one shape. */
+export const sokoBotVersionSlugSchema = z
+  .string()
+  .min(2)
+  .max(41)
+  .regex(/^[a-z0-9][a-z0-9-]*$/, "lowercase letters, numbers and dashes");
+
 export const adminSokoBotActionRequestSchema = z
   .object({
     operationId: z.string().trim().min(1).max(200),
@@ -529,8 +545,11 @@ export const adminSokoBotActionRequestSchema = z
       "RETRY_LAST_FAILED",
       "RETRY_SCHEDULE_RUN",
       "DISABLE_SCHEDULE",
+      "SET_VERSION",
     ]),
     targetId: z.string().uuid().optional(),
+    /** `SET_VERSION` only: the version to move this bot onto. */
+    versionId: sokoBotVersionSlugSchema.optional(),
     reason: z.string().trim().min(1).max(2_000),
   })
   .strict()
@@ -551,8 +570,58 @@ export const adminSokoBotActionRequestSchema = z
         message: "targetId is only valid for schedule actions",
       });
     }
+    if (input.action === "SET_VERSION" && !input.versionId) {
+      context.addIssue({
+        code: "custom",
+        path: ["versionId"],
+        message: "SET_VERSION requires versionId",
+      });
+    } else if (input.action !== "SET_VERSION" && input.versionId) {
+      context.addIssue({
+        code: "custom",
+        path: ["versionId"],
+        message: "versionId is only valid for SET_VERSION",
+      });
+    }
   })
   .openapi("AdminSokoBotActionRequest");
+
+/**
+ * Moving many bots at once. `fromVersionId` omitted means every live bot,
+ * which is the "bring the fleet up to date" case; naming it is the safer
+ * "move the ones still on v14" case.
+ */
+/** How many live bots run each version, across the whole fleet. */
+export const adminSokoBotVersionUsageSchema = z
+  .object({
+    versions: z.array(
+      z.object({ versionId: z.string(), count: z.number().int() }),
+    ),
+  })
+  .openapi("AdminSokoBotVersionUsage");
+
+export const adminSokoBotVersionMigrationRequestSchema = z
+  .object({
+    fromVersionId: sokoBotVersionSlugSchema.optional(),
+    toVersionId: sokoBotVersionSlugSchema,
+    reason: z.string().trim().min(1).max(2_000),
+  })
+  .strict()
+  .openapi("AdminSokoBotVersionMigrationRequest");
+
+export const adminSokoBotVersionMigrationResultSchema = z
+  .object({
+    /** Bots that matched the filter, including ones already on the target. */
+    total: z.number().int(),
+    moved: z.number().int(),
+    alreadyOnVersion: z.number().int(),
+    failed: z.number().int(),
+    /** A sample of the failures, so a partial run says where to look. */
+    failures: z
+      .array(z.object({ sokoBotId: z.string(), message: z.string() }))
+      .max(100),
+  })
+  .openapi("AdminSokoBotVersionMigrationResult");
 
 export const sokoBotAvatarSchema = z
   .object({
@@ -715,11 +784,7 @@ export const sokoBotVersionListSchema = z
 
 export const sokoBotVersionWriteSchema = z
   .object({
-    slug: z
-      .string()
-      .min(2)
-      .max(41)
-      .regex(/^[a-z0-9][a-z0-9-]*$/, "lowercase letters, numbers and dashes"),
+    slug: sokoBotVersionSlugSchema,
     name: z.string().min(1).max(120),
     summary: z.string().max(2_000).default(""),
     model: z.string().min(1).max(200),
@@ -854,7 +919,6 @@ export const sokoBotTeamSchema = z
             avatarImageUrl: z.string().nullable(),
             avatarSeed: z.string().nullable(),
             status: sokoBotStatusSchema,
-            coworkerId: z.string().nullable(),
           })
           .nullable(),
       }),
@@ -1004,6 +1068,8 @@ export const sokoBotDeletionResultSchema = z
       taskEvents: z.number().int().nonnegative(),
       billingRecords: z.number().int().nonnegative(),
       chatMessages: z.number().int().nonnegative(),
+      /** Files it uploaded onto Tasks; they outlive the assistant. */
+      uploadedTaskFiles: z.number().int().nonnegative(),
     }),
   })
   .openapi("SokoBotDeletionResult");

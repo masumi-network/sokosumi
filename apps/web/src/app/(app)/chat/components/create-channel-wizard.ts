@@ -34,6 +34,7 @@ export type CreateChannelWizard =
       mode: AddPeopleMode;
       memberUserIds: string[];
       coworkerIds: string[];
+      orchestratorIds: string[];
     } & CreateChannelFormFields);
 
 export function createInitialWizard(): CreateChannelWizard {
@@ -124,7 +125,11 @@ export function canCreateChannel(
 
 export function createChannelSubmitFields(
   wizard: CreateChannelWizard,
-  roster: { memberUserIds: string[]; coworkerIds: string[] },
+  roster: {
+    memberUserIds: string[];
+    coworkerIds: string[];
+    orchestratorIds: string[];
+  },
 ): {
   name: string;
   slug: string;
@@ -132,6 +137,7 @@ export function createChannelSubmitFields(
   discoverability: Discoverability;
   memberUserIds: string[];
   coworkerIds: string[];
+  orchestratorIds: string[];
 } | null {
   if (wizard.step !== "add-people") {
     return null;
@@ -149,6 +155,7 @@ export function createChannelSubmitFields(
     discoverability: wizard.discoverability,
     memberUserIds: roster.memberUserIds,
     coworkerIds: roster.coworkerIds,
+    orchestratorIds: roster.orchestratorIds,
   };
 }
 
@@ -165,6 +172,7 @@ export function toAddPeople(
     mode: "all",
     memberUserIds: [currentUserId],
     coworkerIds: [],
+    orchestratorIds: [],
   };
 }
 
@@ -195,7 +203,11 @@ export function setAddPeopleMode(
 
 export function setSpecificMembers(
   wizard: CreateChannelWizard,
-  members: { memberUserIds: string[]; coworkerIds: string[] },
+  members: {
+    memberUserIds: string[];
+    coworkerIds: string[];
+    orchestratorIds: string[];
+  },
 ): CreateChannelWizard {
   if (wizard.step !== "add-people") {
     return wizard;
@@ -204,6 +216,7 @@ export function setSpecificMembers(
     ...wizard,
     memberUserIds: members.memberUserIds,
     coworkerIds: members.coworkerIds,
+    orchestratorIds: members.orchestratorIds,
   };
 }
 

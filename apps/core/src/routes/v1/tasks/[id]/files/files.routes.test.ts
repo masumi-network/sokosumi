@@ -69,6 +69,7 @@ vi.mock("@/lib/blob", () => ({
 const TASK_ID = "tsk_123";
 const OWNER_ID = "user_123";
 const COWORKER_ID = "cow_123";
+const ORCHESTRATOR_ID = "11111111-1111-7111-8111-222222222222";
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const FILE_URL =
   "https://abc.public.blob.vercel-storage.com/tasks/tsk_123/report-xyz.pdf";
@@ -135,6 +136,30 @@ function createCoworkerApp(assigneeId = COWORKER_ID) {
       vendorId: "11111111-1111-7111-8111-111111111111",
     });
     c.set("workspaceContext", null);
+    return await next();
+  });
+
+  mountFiles(app);
+  return app;
+}
+
+function createOrchestratorApp(orchestratorId = ORCHESTRATOR_ID) {
+  const app = new OpenAPIHonoWithAuth();
+
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "orchestrator",
+      orchestratorId,
+      userId: OWNER_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+    });
+    c.set("workspaceContext", {
+      workspaceId: WORKSPACE_ID,
+      userId: OWNER_ID,
+      organizationId: null,
+    });
     return await next();
   });
 
@@ -227,6 +252,7 @@ describe("task files routes", () => {
       {
         uploadedByUserId: OWNER_ID,
         uploadedByCoworkerId: null,
+        uploadedByOrchestratorId: null,
         callbackUrl:
           "https://core.example.com/v1/webhooks/tasks/files/uploaded",
       },
@@ -263,6 +289,41 @@ describe("task files routes", () => {
       {
         uploadedByUserId: null,
         uploadedByCoworkerId: COWORKER_ID,
+        uploadedByOrchestratorId: null,
+        callbackUrl:
+          "https://core.example.com/v1/webhooks/tasks/files/uploaded",
+      },
+    );
+  });
+
+  it("mints for the assigned orchestrator with orchestrator uploader id", async () => {
+    taskFindFirstMock.mockResolvedValueOnce(
+      ownedTask({ assigneeId: null, assigneeOrchestratorId: ORCHESTRATOR_ID }),
+    );
+
+    const app = createOrchestratorApp();
+    const response = await app.request(`http://localhost/${TASK_ID}/files`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "notes.txt",
+        contentType: "text/plain",
+        size: 5,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createTaskFileUploadSessionMock).toHaveBeenCalledWith(
+      TASK_ID,
+      expect.objectContaining({
+        filename: "notes.txt",
+        contentType: "text/plain",
+      }),
+      "blob-token",
+      {
+        uploadedByUserId: null,
+        uploadedByCoworkerId: null,
+        uploadedByOrchestratorId: ORCHESTRATOR_ID,
         callbackUrl:
           "https://core.example.com/v1/webhooks/tasks/files/uploaded",
       },

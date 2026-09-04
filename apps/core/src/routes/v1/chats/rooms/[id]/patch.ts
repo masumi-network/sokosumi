@@ -4,6 +4,10 @@ import {
   expireStalePendingInvitations,
   livePendingInvitationWhere,
 } from "@/helpers/chat-room-invitation";
+import {
+  failOpenChatRoomMentions,
+  publishChatRoomMentionStatuses,
+} from "@/helpers/chat-room-mention-status";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -29,9 +33,11 @@ import {
   mapChatRoomWithSidebarFlags,
   membershipAccessForUser,
   normalizeUniqueStrings,
+  orchestratorDisplayName,
   requireChatRoomUserAccess,
   resolveWorkspaceIdForChatRoom,
   validateChatCoworkerIds,
+  validateChatOrchestratorIds,
 } from "../helpers";
 import {
   diffChannelMembershipRoster,
@@ -89,7 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Serializable so a concurrent leave cannot commit under a stale roster
     // snapshot that would re-create the leaver's membership (SSI → 409
     // concurrency_conflict). Leave still uses FOR UPDATE on the room row.
-    const { room, statusMessages, removedUserIds } =
+    const { room, statusMessages, removedUserIds, mentionMessageIds } =
       await serializableTransaction(async (tx) => {
         const existing = await requireChatRoomUserAccess(
           id,
@@ -111,6 +117,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw badRequest("Channel rooms require an organization.");
         }
         const organizationId = existing.organizationId;
+        const mentionMessageIds: string[] = [];
 
         // Guests may read/write messages but cannot manage settings or roster.
         // Fail before host-org role resolution so the message is guest-specific.
@@ -219,9 +226,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 name: member.coworker.name,
               }))
             : [];
+        const priorOrchestrators =
+          body.orchestratorIds !== undefined
+            ? existing.orchestratorMembers.map((member) => ({
+                id: member.orchestrator.id,
+                name: orchestratorDisplayName(member.orchestrator),
+              }))
+            : [];
 
         let nextUsers = priorUsers;
         let nextCoworkers = priorCoworkers;
+        let nextOrchestrators = priorOrchestrators;
 
         if (body.memberUserIds !== undefined) {
           // Host roster only. Guest ids echoed in memberUserIds are ignored
@@ -355,17 +370,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           // Fail open mentions for coworkers dropped from the roster so a
           // queued dispatch cannot post after eviction.
-          await tx.chatRoomMention.updateMany({
-            where: {
-              status: { in: ["pending", "sent"] },
-              coworkerId: { notIn: coworkerIds },
-              message: { roomId: existing.id },
-            },
-            data: {
-              status: "failed",
-              error: "Coworker is no longer a member of this room",
-            },
-          });
+          mentionMessageIds.push(
+            ...(await failOpenChatRoomMentions(
+              {
+                where: {
+                  coworkerId: { notIn: coworkerIds },
+                  message: { roomId: existing.id },
+                },
+                error: "Coworker is no longer a member of this room",
+              },
+              tx,
+            )),
+          );
           await tx.chatRoomCoworkerMember.deleteMany({
             where: { roomId: existing.id },
           });
@@ -379,9 +395,132 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
         }
 
+        if (body.orchestratorIds !== undefined) {
+          const workspaceId = await resolveWorkspaceIdForChatRoom({
+            organizationId,
+            personalUserId: userContext.userId,
+            tx,
+          });
+          const alreadyInRoom = existing.orchestratorMembers.map(
+            (member) => member.orchestrator.id,
+          );
+          const orchestratorIds = await validateChatOrchestratorIds(
+            body.orchestratorIds,
+            workspaceId,
+            userContext.userId,
+            alreadyInRoom,
+            tx,
+          );
+          const bots = await tx.sokoBot.findMany({
+            where: { id: { in: orchestratorIds } },
+            select: {
+              id: true,
+              name: true,
+              user: { select: { name: true } },
+            },
+          });
+          const nameById = new Map(
+            bots.map((bot) => [bot.id, orchestratorDisplayName(bot)]),
+          );
+          nextOrchestrators = orchestratorIds.map((orchestratorId) => ({
+            id: orchestratorId,
+            name: nameById.get(orchestratorId) ?? orchestratorId,
+          }));
+
+          mentionMessageIds.push(
+            ...(await failOpenChatRoomMentions(
+              {
+                where: {
+                  orchestratorId: { notIn: orchestratorIds },
+                  message: { roomId: existing.id },
+                },
+                error: "Personal assistant is no longer a member of this room",
+              },
+              tx,
+            )),
+          );
+          await tx.chatRoomOrchestratorMember.deleteMany({
+            where: { roomId: existing.id },
+          });
+          if (orchestratorIds.length > 0) {
+            await tx.chatRoomOrchestratorMember.createMany({
+              data: orchestratorIds.map((orchestratorId) => ({
+                roomId: existing.id,
+                orchestratorId,
+              })),
+            });
+          }
+        }
+
+        // A channel must not keep a personal assistant whose owner has left.
+        // The ownership check that gates *adding* one skips assistants already
+        // in the room, so another host could drop the owner from the roster and
+        // leave the assistant behind — still mentionable by everyone, still
+        // spending the departed owner's credits. Directs are exempt: a
+        // colleague DM is deliberately the bot without its owner.
+        // Both rosters have to be the effective ones. `nextUsers` and
+        // `nextOrchestrators` are empty whenever the caller did not send that
+        // field, and this case is reached precisely by a request that changes
+        // only one of them.
+        const effectiveUserIds =
+          body.memberUserIds !== undefined
+            ? nextUsers.map((user) => user.id)
+            : existing.userMembers.map((member) => member.user.id);
+        const effectiveOrchestratorIds =
+          body.orchestratorIds !== undefined
+            ? nextOrchestrators.map((bot) => bot.id)
+            : existing.orchestratorMembers.map(
+                (member) => member.orchestrator.id,
+              );
+        if (
+          existing.kind === "channel" &&
+          effectiveOrchestratorIds.length > 0
+        ) {
+          const remainingUserIds = new Set(effectiveUserIds);
+          const owners = await tx.sokoBot.findMany({
+            where: { id: { in: effectiveOrchestratorIds } },
+            select: { id: true, userId: true },
+          });
+          const ownerlessIds = owners
+            .filter((bot) => !remainingUserIds.has(bot.userId))
+            .map((bot) => bot.id);
+          if (ownerlessIds.length > 0) {
+            nextOrchestrators = nextOrchestrators.filter(
+              (bot) => !ownerlessIds.includes(bot.id),
+            );
+            mentionMessageIds.push(
+              ...(await failOpenChatRoomMentions(
+                {
+                  where: {
+                    orchestratorId: { in: ownerlessIds },
+                    message: { roomId: existing.id },
+                  },
+                  error:
+                    "Personal assistant is no longer a member of this room",
+                },
+                tx,
+              )),
+            );
+            await tx.chatRoomOrchestratorMember.deleteMany({
+              where: {
+                roomId: existing.id,
+                orchestratorId: { in: ownerlessIds },
+              },
+            });
+          }
+        }
+
         const changes = diffChannelMembershipRoster({
-          prior: { users: priorUsers, coworkers: priorCoworkers },
-          next: { users: nextUsers, coworkers: nextCoworkers },
+          prior: {
+            users: priorUsers,
+            coworkers: priorCoworkers,
+            orchestrators: priorOrchestrators,
+          },
+          next: {
+            users: nextUsers,
+            coworkers: nextCoworkers,
+            orchestrators: nextOrchestrators,
+          },
         });
         const createdStatus = await recordChannelMembershipStatus(tx, {
           roomId: existing.id,
@@ -406,19 +545,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room,
           statusMessages: createdStatus,
           removedUserIds,
+          mentionMessageIds,
         };
       }, "Chat room was modified concurrently; please retry.");
 
     // Status timeline and revoke are independent: membership is already
     // committed; a failed status publish must not skip cap revoke.
-    const [statusResults, revokeResult] = await Promise.allSettled([
-      Promise.all(
-        statusMessages.map((message) =>
-          publishChatRoomMessageRealtime(message, "create"),
+    const [statusResults, revokeResult, mentionStatusResult] =
+      await Promise.allSettled([
+        Promise.all(
+          statusMessages.map((message) =>
+            publishChatRoomMessageRealtime(message, "create"),
+          ),
         ),
-      ),
-      publishChatMembershipRevokedToUsers(room.id, removedUserIds, "removed"),
-    ]);
+        publishChatMembershipRevokedToUsers(room.id, removedUserIds, "removed"),
+        publishChatRoomMentionStatuses(mentionMessageIds),
+      ]);
     if (statusResults.status === "rejected") {
       console.error(
         "Failed to publish chat membership status messages after roster patch",
@@ -429,6 +571,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       console.error(
         "Failed to publish chat membership revoke after roster patch",
         revokeResult.reason,
+      );
+    }
+    if (mentionStatusResult.status === "rejected") {
+      console.error(
+        "Failed to publish chat mention status after roster patch",
+        mentionStatusResult.reason,
       );
     }
 

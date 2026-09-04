@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 import {
   type ScenarioCheck,
@@ -7,7 +8,7 @@ import {
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
 } from "@sokosumi/soko-bot";
-import { generateText, Output } from "ai";
+import { generateText, type LanguageModel, Output } from "ai";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -155,6 +156,25 @@ export interface JudgeCall {
   usage: { inputTokens: number; outputTokens: number; costUsd: number };
 }
 
+/**
+ * No maxOutputTokens: that cap includes reasoning, so gpt-5.5 can finish
+ * `length` with empty JSON (SOKOSUMI-CORE-3D). The schema bounds the verdict;
+ * JUDGE_TIMEOUT_MS bounds the call.
+ */
+export async function generateSokoBotJudgeText(options: {
+  model: LanguageModel | string;
+  payload: unknown;
+  abortSignal?: AbortSignal;
+}) {
+  return generateText({
+    model: options.model,
+    output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
+    abortSignal: options.abortSignal,
+    instructions: SOKO_BOT_JUDGE_RUBRIC,
+    prompt: JSON.stringify(options.payload),
+  });
+}
+
 async function askJudge(
   payload: unknown,
   modelOverride?: string,
@@ -164,13 +184,10 @@ async function askJudge(
   const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const result = await generateText({
+      const result = await generateSokoBotJudgeText({
         model: modelOverride ?? sokoBotJudgeModel(),
-        output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
-        maxOutputTokens: 800,
+        payload,
         abortSignal: AbortSignal.timeout(JUDGE_TIMEOUT_MS),
-        instructions: SOKO_BOT_JUDGE_RUBRIC,
-        prompt: JSON.stringify(payload),
       });
       // Counted before the parse: a verdict this call cannot read still cost
       // what it cost, and the retry below spends again on top.
@@ -207,6 +224,14 @@ export class SokoBotJudgeFailure extends SokoBotLabJudgeError {
   ) {
     super(message);
   }
+}
+
+/** Lab HTTP: a miss is upstream (502); missing turn/scenario is 404. */
+export function sokoBotLabJudgeErrorKind(
+  error: unknown,
+): "miss" | "not_found" | undefined {
+  if (error instanceof SokoBotJudgeFailure) return "miss";
+  if (error instanceof SokoBotLabJudgeError) return "not_found";
 }
 
 /**
@@ -399,4 +424,20 @@ export async function recordFailedJudgeUsage(
   if (!(error instanceof SokoBotJudgeFailure)) return;
   if (error.usage.costUsd === 0 && error.usage.inputTokens === 0) return;
   await addTurnOverheadUsage(turnId, error.usage).catch(() => undefined);
+}
+
+/** Background quality scoring: page Sentry, then keep the spend. */
+export async function reportFailedTurnJudge(
+  turnId: string,
+  error: unknown,
+): Promise<void> {
+  console.error("Soko Bot turn judge failed", {
+    turnId,
+    error: error instanceof Error ? error.message : "unknown",
+  });
+  Sentry.captureException(error, {
+    tags: { error_type: "soko_bot_turn_judge_failed" },
+    extra: { turnId },
+  });
+  await recordFailedJudgeUsage(turnId, error);
 }

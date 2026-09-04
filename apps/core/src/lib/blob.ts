@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/node";
 import {
   buildCoworkerChatRoomFilePathname,
   buildCoworkerImagePathname,
+  buildOrchestratorChatRoomFilePathname,
   buildOrganizationLogoContentHashPathname,
   buildOrganizationLogoPathname,
   buildProjectLogoContentHashPathname,
@@ -158,6 +159,7 @@ export async function createTaskFileUploadSession(
   options: {
     uploadedByUserId: string | null;
     uploadedByCoworkerId: string | null;
+    uploadedByOrchestratorId: string | null;
     callbackUrl: string;
   },
 ): Promise<BlobUploadGrant> {
@@ -171,6 +173,7 @@ export async function createTaskFileUploadSession(
     size: file.size,
     uploadedByUserId: options.uploadedByUserId,
     uploadedByCoworkerId: options.uploadedByCoworkerId,
+    uploadedByOrchestratorId: options.uploadedByOrchestratorId,
   });
 
   return createBlobUploadGrant({
@@ -196,7 +199,8 @@ export async function createTaskFileUploadSession(
 export async function createChatRoomFileUploadSession(
   owner:
     | { kind: "user"; userId: string }
-    | { kind: "coworker"; coworkerId: string },
+    | { kind: "coworker"; coworkerId: string }
+    | { kind: "orchestrator"; orchestratorId: string },
   roomId: string,
   file: {
     filename: string;
@@ -209,11 +213,17 @@ export async function createChatRoomFileUploadSession(
   const pathname =
     owner.kind === "user"
       ? buildUserChatRoomFilePathname(owner.userId, roomId, file.filename)
-      : buildCoworkerChatRoomFilePathname(
-          owner.coworkerId,
-          roomId,
-          file.filename,
-        );
+      : owner.kind === "coworker"
+        ? buildCoworkerChatRoomFilePathname(
+            owner.coworkerId,
+            roomId,
+            file.filename,
+          )
+        : buildOrchestratorChatRoomFilePathname(
+            owner.orchestratorId,
+            roomId,
+            file.filename,
+          );
 
   return createBlobUploadGrant({
     pathname,

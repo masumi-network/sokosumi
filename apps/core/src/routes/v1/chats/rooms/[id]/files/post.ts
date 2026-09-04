@@ -20,6 +20,7 @@ import {
 } from "@/lib/hono";
 import {
   isCoworkerAuthContext,
+  isOrchestratorAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
 import {
@@ -29,6 +30,7 @@ import {
 
 import {
   requireChatRoomCoworkerAccess,
+  requireChatRoomOrchestratorAccess,
   requireChatRoomUserMembership,
 } from "../../helpers";
 
@@ -118,6 +120,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const filename = body.filename.trim() || "file";
+
+    if (isOrchestratorAuthContext(authContext)) {
+      await requireChatRoomOrchestratorAccess(
+        roomId,
+        authContext.orchestratorId,
+        prisma,
+      );
+
+      const session = await createChatRoomFileUploadSession(
+        {
+          kind: "orchestrator",
+          orchestratorId: authContext.orchestratorId,
+        },
+        roomId,
+        {
+          filename,
+          contentType: resolvedContentType,
+          size: body.size,
+          maxSizeBytes: CHAT_ROOM_FILE_MAX_SIZE_BYTES,
+        },
+        token,
+      );
+
+      return created(c, chatRoomFileUploadSessionSchema.parse(session));
+    }
 
     if (isCoworkerAuthContext(authContext)) {
       await requireChatRoomCoworkerAccess(

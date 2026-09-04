@@ -393,6 +393,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
     onCreateTask?: (input: {
       description: string;
       assigneeId: string | null;
+      assigneeOrchestratorId: string | null;
       status: TaskStatus;
       context: {
         brand: {
@@ -420,6 +421,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
           const result = await onCreateTask({
             description: "Created related task",
             assigneeId: initialValues?.assigneeId ?? null,
+            assigneeOrchestratorId: null,
             status: TaskStatus.READY,
             context: {
               brand: { enabled: true, source: "default", custom: null },
@@ -475,6 +477,7 @@ function buildTaskListItem(
     user: { id: "user-1", name: "Test User", image: null },
     organizationId: null,
     assigneeId: null,
+    assigneeOrchestratorId: null,
     name: "Alpha task",
     description: null,
     status: TaskStatus.READY,
@@ -1399,6 +1402,7 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         description: "Created related task",
         assigneeId: "coworker-1",
+        assigneeOrchestratorId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {
@@ -1451,6 +1455,7 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         description: "Created related task",
         assigneeId: "coworker-1",
+        assigneeOrchestratorId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {
@@ -1748,6 +1753,7 @@ describe("TaskDetailActions", () => {
         taskId: "task-1",
         description: "Created related task",
         assigneeId: "coworker-1",
+        assigneeOrchestratorId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {

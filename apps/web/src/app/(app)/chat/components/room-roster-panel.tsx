@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, MessageCircle, X } from "lucide-react";
+import { AuroraOrb } from "@/components/aurora-orb";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ export interface RoomRosterPanelLabels {
   close: string;
   empty: string;
   coworkerBadge: string;
+  personalAssistantBadge?: string;
   message: (name: string) => string;
   copy: (value: string) => string;
   copySuccess: string;
@@ -33,6 +35,9 @@ function rosterMemberCaption(
   if (participant.kind === "human") {
     return participant.email || null;
   }
+  if (participant.kind === "orchestrator") {
+    return participant.caption;
+  }
   return participant.slug ? `@${participant.slug}` : null;
 }
 
@@ -41,25 +46,38 @@ function RosterMemberAvatar({
 }: {
   participant: ChatParticipantHoverProfile;
 }) {
+  const isAi =
+    participant.kind === "coworker" || participant.kind === "orchestrator";
   return (
     <span className="relative inline-flex size-8 shrink-0">
-      <Avatar className="size-8">
-        <AvatarImage src={participant.image ?? undefined} alt="" />
-        <AvatarFallback
-          className={cn(
-            "text-[0.625rem]",
-            participant.kind === "coworker"
-              ? "bg-primary/10 text-primary"
-              : "bg-muted text-muted-foreground",
-          )}
-        >
-          {getInitials(participant.name)}
-        </AvatarFallback>
-      </Avatar>
+      {participant.kind === "orchestrator" &&
+      participant.avatarSeed &&
+      !participant.image ? (
+        <AuroraOrb
+          seed={participant.avatarSeed}
+          size={64}
+          alt=""
+          className="ring-border/40 size-8 ring-1"
+        />
+      ) : (
+        <Avatar className="size-8">
+          <AvatarImage src={participant.image ?? undefined} alt="" />
+          <AvatarFallback
+            className={cn(
+              "text-[0.625rem]",
+              isAi
+                ? "bg-primary/10 text-primary"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            {getInitials(participant.name)}
+          </AvatarFallback>
+        </Avatar>
+      )}
       <LiveMemberPresenceDot
         className="absolute -right-0.5 -bottom-0.5"
         fallback={participant.presence}
-        isCoworker={participant.kind === "coworker"}
+        isCoworker={isAi}
         userId={participant.id}
       />
     </span>
@@ -91,6 +109,11 @@ function RosterMemberRow({
       {participant.kind === "coworker" ? (
         <span className="text-muted-foreground shrink-0 text-xs">
           {labels.coworkerBadge}
+        </span>
+      ) : null}
+      {participant.kind === "orchestrator" && labels.personalAssistantBadge ? (
+        <span className="text-muted-foreground shrink-0 text-xs">
+          {labels.personalAssistantBadge}
         </span>
       ) : null}
     </span>

@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { type Prisma, TaskScheduleOccurrenceState } from "@sokosumi/database";
+import {
+  type Prisma,
+  TaskScheduleOccurrenceState,
+  TaskStatus,
+} from "@sokosumi/database";
 import { isNmkrEmail } from "@sokosumi/utils";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
@@ -177,6 +181,14 @@ async function resolveCoworkerCalendarTaskAccess(
   authContext: AuthenticationContext,
   workspaceId: string,
 ): Promise<Prisma.TaskWhereInput | undefined> {
+  if (authContext.actor === "orchestrator") {
+    return {
+      workspaceId,
+      assigneeOrchestratorId: authContext.orchestratorId,
+      status: { not: TaskStatus.DRAFT },
+    };
+  }
+
   if (authContext.actor !== "coworker") {
     return undefined;
   }

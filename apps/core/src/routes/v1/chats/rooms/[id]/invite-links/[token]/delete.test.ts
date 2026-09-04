@@ -89,6 +89,7 @@ function externalRoom() {
     archivedAt: null,
     userMembers: [{ userId: MEMBER_ID, access: "member" }],
     coworkerMembers: [],
+    orchestratorMembers: [],
     organization: { id: ORG_ID, name: "Acme" },
   };
 }

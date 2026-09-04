@@ -307,6 +307,7 @@ function channelRoom(): ChatRoom {
       userParticipant("user-2", "Bob"),
     ],
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 
@@ -332,6 +333,7 @@ function coworkerDirectRoom(): ChatRoom {
     myAccess: "member",
     userMembers: [userParticipant("user-1", "Ada")],
     coworkerMembers: [coworkerParticipant("cow-1", "Jamal")],
+    orchestratorMembers: [],
   };
 }
 

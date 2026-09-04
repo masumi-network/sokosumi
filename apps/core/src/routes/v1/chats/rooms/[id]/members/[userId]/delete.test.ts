@@ -134,6 +134,7 @@ function room(
       },
     ],
     coworkerMembers: [],
+    orchestratorMembers: [],
   };
 }
 

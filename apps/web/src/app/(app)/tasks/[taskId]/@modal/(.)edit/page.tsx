@@ -5,7 +5,11 @@ import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
-import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import {
+  getCoworkerOptions,
+  taskFormAssigneeId,
+  withOwnerOrchestratorOption,
+} from "@/app/tasks/utils/coworker-options";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
@@ -13,6 +17,7 @@ import type { Project } from "@/lib/clients/generated/core";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
+import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
@@ -62,13 +67,20 @@ export default async function TaskEditModalPage({
     );
   }
 
-  const [taskCoworkers, agents, projectsPage] = await Promise.all([
-    coworkerService.listCoworkers("tasks").catch(() => []),
-    agentService.getAvailableAgentsWithCreditsPrice(),
-    projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
-  ]);
+  const [taskCoworkers, agents, projectsPage, ownerBot, tTasks] =
+    await Promise.all([
+      coworkerService.listCoworkers("tasks").catch(() => []),
+      agentService.getAvailableAgentsWithCreditsPrice(),
+      projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+      sokoBotService.getMine().catch(() => null),
+      getTranslations("App.Tasks"),
+    ]);
 
-  const coworkerOptions = getCoworkerOptions(taskCoworkers);
+  const coworkerOptions = withOwnerOrchestratorOption(
+    getCoworkerOptions(taskCoworkers),
+    ownerBot,
+    { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },
+  );
   const projectOptions = await buildProjectOptions(
     projectsPage.projects,
     taskResult.projectId ?? null,
@@ -127,7 +139,8 @@ export default async function TaskEditModalPage({
       initialValues={{
         name: taskResult.name,
         description: taskResult.description ?? "",
-        assigneeId: taskResult.assigneeId ?? "",
+        assigneeId: taskFormAssigneeId(taskResult),
+        assigneeOrchestratorId: taskResult.assigneeOrchestratorId ?? null,
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
         metadata: taskResult.metadata,

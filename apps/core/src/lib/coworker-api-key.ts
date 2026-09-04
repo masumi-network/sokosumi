@@ -3,25 +3,29 @@ import { randomBytes } from "node:crypto";
 import { base64Url } from "@better-auth/utils/base64";
 import { createHash } from "@better-auth/utils/hash";
 
-/** Prefix for dedicated coworker API key tokens. Must match in CLI and auth. */
+/** Prefix for third-party vendor Coworker API keys. */
 export const COWORKER_API_KEY_PREFIX = "coworker_";
+/** Prefix for Soko Bot Orchestrator API keys. */
+export const ORCHESTRATOR_API_KEY_PREFIX = "orchestrator_";
 
-/** Length of the key start stored for display (prefix + 8 chars). */
+/** Length of the stored key start used for display. */
 export const COWORKER_API_KEY_START_LENGTH = COWORKER_API_KEY_PREFIX.length + 8;
+export const ORCHESTRATOR_API_KEY_START_LENGTH =
+  ORCHESTRATOR_API_KEY_PREFIX.length + 8;
 
-const COWORKER_API_KEY_RANDOM_BYTES = 32;
+const API_KEY_RANDOM_BYTES = 32;
 
-/** Generates a dedicated coworker API key token. */
+/** Generates a third-party vendor Coworker API key token. */
 export function generateCoworkerApiKeyToken(): string {
-  return `${COWORKER_API_KEY_PREFIX}${randomBytes(
-    COWORKER_API_KEY_RANDOM_BYTES,
-  ).toString("base64url")}`;
+  return `${COWORKER_API_KEY_PREFIX}${randomBytes(API_KEY_RANDOM_BYTES).toString("base64url")}`;
 }
 
-/**
- * Hashes a coworker API key token (SHA-256 + base64url, no padding).
- * Single source of truth for key creation and verification.
- */
+/** Generates a Soko Bot Orchestrator API key token. */
+export function generateOrchestratorApiKeyToken(): string {
+  return `${ORCHESTRATOR_API_KEY_PREFIX}${randomBytes(API_KEY_RANDOM_BYTES).toString("base64url")}`;
+}
+
+/** Hashes an agent API key token for storage and lookup. */
 export async function hashApiKey(token: string): Promise<string> {
   const hash = await createHash("SHA-256").digest(
     new TextEncoder().encode(token),

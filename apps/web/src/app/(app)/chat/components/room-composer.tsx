@@ -61,6 +61,7 @@ import {
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import type {
   ChatRoomCoworkerParticipant,
+  ChatRoomOrchestratorParticipant,
   ChatRoomUserParticipant,
   DriveFile,
 } from "@/lib/clients/generated/core";
@@ -104,6 +105,7 @@ function RoomMentionSuggestion({
 }) {
   const t = useTranslations("App.Channels");
   const isCoworker = mention.data?.kind === "coworker";
+  const isOrchestrator = mention.data?.kind === "orchestrator";
   const isAll = mention.data?.kind === "all";
   const displayName = isAll ? t("MentionAll.label") : mention.value;
   return (
@@ -123,7 +125,11 @@ function RoomMentionSuggestion({
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="truncate font-medium">{displayName}</span>
-          {isCoworker ? <AiCoworkerIcon /> : null}
+          {isCoworker || isOrchestrator ? (
+            <AiCoworkerIcon
+              label={isOrchestrator ? t("personalAssistantBadge") : undefined}
+            />
+          ) : null}
         </div>
         <div className="text-muted-foreground truncate text-xs">
           @{mention.slug}
@@ -154,17 +160,26 @@ function mentionLookupMapsFromCatalog(
   roster?: {
     coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
     coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+    orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+    orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
     usersById?: Map<string, UserMentionLookup>;
     usersBySlug?: Map<string, UserMentionLookup>;
   },
 ): {
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug: Map<string, ChatRoomOrchestratorParticipant>;
   usersById: Map<string, UserMentionLookup>;
   usersBySlug: Map<string, UserMentionLookup>;
 } {
   const coworkersById = new Map<string, ChatRoomCoworkerParticipant>();
   const coworkersBySlug = new Map<string, ChatRoomCoworkerParticipant>();
+  const orchestratorsById = new Map<string, ChatRoomOrchestratorParticipant>();
+  const orchestratorsBySlug = new Map<
+    string,
+    ChatRoomOrchestratorParticipant
+  >();
   const usersById = new Map<string, UserMentionLookup>();
   const usersBySlug = new Map<string, UserMentionLookup>();
 
@@ -186,6 +201,19 @@ function mentionLookupMapsFromCatalog(
       coworkersBySlug.set(data.slug, coworker);
       continue;
     }
+    if (data.kind === "orchestrator") {
+      const orchestrator: ChatRoomOrchestratorParticipant = {
+        id: data.id,
+        name: data.name,
+        caption: null,
+        image: data.image,
+        avatarSeed: null,
+        presence: "offline",
+      };
+      orchestratorsById.set(data.id, orchestrator);
+      orchestratorsBySlug.set(data.slug, orchestrator);
+      continue;
+    }
     if (data.kind === "human") {
       const user: UserMentionLookup = { id: data.id, name: data.name };
       usersById.set(data.id, user);
@@ -196,6 +224,14 @@ function mentionLookupMapsFromCatalog(
   return {
     coworkersById: mergeLookupMap(coworkersById, roster?.coworkersById),
     coworkersBySlug: mergeLookupMap(coworkersBySlug, roster?.coworkersBySlug),
+    orchestratorsById: mergeLookupMap(
+      orchestratorsById,
+      roster?.orchestratorsById,
+    ),
+    orchestratorsBySlug: mergeLookupMap(
+      orchestratorsBySlug,
+      roster?.orchestratorsBySlug,
+    ),
     usersById: mergeLookupMap(usersById, roster?.usersById),
     usersBySlug: mergeLookupMap(usersBySlug, roster?.usersBySlug),
   };
@@ -209,6 +245,8 @@ function PendingQuotePreview({
   usersBySlug: rosterUsersBySlug,
   coworkersById: rosterCoworkersById,
   coworkersBySlug: rosterCoworkersBySlug,
+  orchestratorsById: rosterOrchestratorsById,
+  orchestratorsBySlug: rosterOrchestratorsBySlug,
   channelLinks,
   currentUserId,
   canOpenHumanDirect,
@@ -222,6 +260,8 @@ function PendingQuotePreview({
   usersBySlug?: Map<string, UserMentionLookup>;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   channelLinks: readonly ChannelLinkTarget[];
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
@@ -229,13 +269,21 @@ function PendingQuotePreview({
   openingDirectParticipantKey?: string | null;
 }) {
   const t = useTranslations("App.Channels.Quote");
-  const { coworkersById, coworkersBySlug, usersById, usersBySlug } =
-    mentionLookupMapsFromCatalog(mentions, {
-      usersById: rosterUsersById,
-      usersBySlug: rosterUsersBySlug,
-      coworkersById: rosterCoworkersById,
-      coworkersBySlug: rosterCoworkersBySlug,
-    });
+  const {
+    coworkersById,
+    coworkersBySlug,
+    orchestratorsById,
+    orchestratorsBySlug,
+    usersById,
+    usersBySlug,
+  } = mentionLookupMapsFromCatalog(mentions, {
+    usersById: rosterUsersById,
+    usersBySlug: rosterUsersBySlug,
+    coworkersById: rosterCoworkersById,
+    coworkersBySlug: rosterCoworkersBySlug,
+    orchestratorsById: rosterOrchestratorsById,
+    orchestratorsBySlug: rosterOrchestratorsBySlug,
+  });
 
   const attachment = quote.attachment;
 
@@ -265,6 +313,8 @@ function PendingQuotePreview({
                 markdownClassName={ROOM_QUOTE_MARKDOWN_CLASSNAME}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
                 channelLinks={channelLinks}
@@ -302,6 +352,8 @@ export function RoomComposer({
   usersBySlug,
   coworkersById,
   coworkersBySlug,
+  orchestratorsById,
+  orchestratorsBySlug,
   channels = [],
   channelLinks = [],
   onSelectedKeysChange,
@@ -333,6 +385,8 @@ export function RoomComposer({
   usersBySlug?: Map<string, UserMentionLookup>;
   coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
+  orchestratorsById?: Map<string, ChatRoomOrchestratorParticipant>;
+  orchestratorsBySlug?: Map<string, ChatRoomOrchestratorParticipant>;
   channels?: readonly ComposerChannelOption[];
   channelLinks?: readonly ChannelLinkTarget[];
   onSelectedKeysChange: (selectedKeys: string[]) => void;
@@ -400,9 +454,19 @@ export function RoomComposer({
         usersBySlug,
         coworkersById,
         coworkersBySlug,
+        orchestratorsById,
+        orchestratorsBySlug,
         mentionCatalog: mentions,
       }),
-    [coworkersById, coworkersBySlug, mentions, usersById, usersBySlug],
+    [
+      coworkersById,
+      coworkersBySlug,
+      mentions,
+      orchestratorsById,
+      orchestratorsBySlug,
+      usersById,
+      usersBySlug,
+    ],
   );
 
   // Stored pref wins; else desktop open / mobile closed (SOK-681).
@@ -671,6 +735,8 @@ export function RoomComposer({
                 usersBySlug={usersBySlug}
                 coworkersById={coworkersById}
                 coworkersBySlug={coworkersBySlug}
+                orchestratorsById={orchestratorsById}
+                orchestratorsBySlug={orchestratorsBySlug}
                 channelLinks={channelLinks}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
@@ -795,6 +861,7 @@ export function RoomComposer({
             partitionRoomMentionSuggestions(filtered, {
               peopleLabel: t("MentionSections.people"),
               coworkersLabel: t("MentionSections.coworkers"),
+              personalAssistantsLabel: t("MentionSections.personalAssistants"),
             })
           }
           renderMentionItem={(mention) => (

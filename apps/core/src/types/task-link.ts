@@ -1,4 +1,4 @@
-import { type Prisma } from "@sokosumi/database";
+import { type Prisma, TaskStatus } from "@sokosumi/database";
 
 import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
 import { type AuthenticationContext } from "@/middleware/auth";
@@ -76,6 +76,14 @@ function buildVisiblePeerTaskWhere(
 
       return {
         ownerId: authContext.userId,
+      };
+    }
+    case "orchestrator": {
+      return {
+        workspaceId: workspaceId ?? authContext.workspaceId,
+        assigneeOrchestratorId: authContext.orchestratorId,
+        status: { not: TaskStatus.DRAFT },
+        archivedAt: null,
       };
     }
     default: {

@@ -11,6 +11,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import type { ChatComposeOrchestrator } from "@/app/chat/actions";
 import {
   archiveRoomAction,
   leaveRoomAction,
@@ -70,6 +71,7 @@ export function EditChannelDialog({
   channel,
   members,
   coworkers,
+  orchestrators = [],
   currentUserId,
   canEditMembers,
   canManageSettings,
@@ -82,6 +84,7 @@ export function EditChannelDialog({
   channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
+  orchestrators?: ChatComposeOrchestrator[];
   currentUserId: string;
   /** Any active channel member may rewrite the roster. */
   canEditMembers: boolean;
@@ -125,6 +128,9 @@ export function EditChannelDialog({
   const [coworkerIds, setCoworkerIds] = useState<string[]>(
     channel.coworkerMembers.map((coworker) => coworker.id),
   );
+  const [orchestratorIds, setOrchestratorIds] = useState<string[]>(
+    channel.orchestratorMembers.map((orchestrator) => orchestrator.id),
+  );
   const [isPending, startTransition] = useTransition();
 
   const canSubmit = canEditMembers || canManageSettings;
@@ -137,6 +143,9 @@ export function EditChannelDialog({
     setDiscoverability(channelDiscoverability(channel.discoverability));
     setMemberIds(hostRosterUserIds(channel));
     setCoworkerIds(channel.coworkerMembers.map((coworker) => coworker.id));
+    setOrchestratorIds(
+      channel.orchestratorMembers.map((orchestrator) => orchestrator.id),
+    );
     setGuestMembers(
       channel.userMembers.filter((member) => member.access === "guest"),
     );
@@ -159,10 +168,12 @@ export function EditChannelDialog({
               discoverability,
               memberUserIds,
               coworkerIds,
+              orchestratorIds,
             }
           : {
               memberUserIds,
               coworkerIds,
+              orchestratorIds,
             },
       );
       if (!result.ok) {
@@ -324,11 +335,14 @@ export function EditChannelDialog({
                   <ParticipantCheckboxes
                     members={members}
                     coworkers={coworkers}
+                    orchestrators={orchestrators}
                     memberIds={memberIds}
                     coworkerIds={coworkerIds}
+                    orchestratorIds={orchestratorIds}
                     lockedUserId={currentUserId}
                     onMemberIdsChange={setMemberIds}
                     onCoworkerIdsChange={setCoworkerIds}
+                    onOrchestratorIdsChange={setOrchestratorIds}
                     membersLoadFailed={membersLoadFailed}
                   />
                 ) : null}

@@ -98,8 +98,6 @@ export interface ChatTurn {
   chatRoom: { id: string; name: string | null; kind: string } | null;
   /** Judge model's 1–5 overall score, once graded. */
   qualityScore: number | null;
-  /** Client-only: sent but Core has not echoed it back yet. */
-  optimistic?: boolean;
 }
 
 /** Detail route only: everything the owner needs to explain a turn. */
@@ -163,8 +161,6 @@ export interface ChatBot {
   ingestTimezone: string;
   proactivePaused: boolean;
   proactiveDailyLimit: number;
-  /** Chat coworker row id; open a direct with it to talk to the bot. */
-  coworkerId: string | null;
   status: SokoBotStatus;
   memoryVersion: number;
   memory: ChatMemory | null;
@@ -327,7 +323,6 @@ export function toChatBot(bot: SokoBot): ChatBot {
     ingestTimezone: bot.ingestTimezone ?? "Europe/Berlin",
     proactivePaused: bot.proactivePaused ?? false,
     proactiveDailyLimit: bot.proactiveDailyLimit ?? 20,
-    coworkerId: bot.coworker?.id ?? null,
     status: bot.status,
     memoryVersion: bot.memoryVersion,
     memory: memory

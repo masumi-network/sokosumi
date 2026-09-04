@@ -1,5 +1,5 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { coworkerUserRouteAllowlistMiddleware } from "../user-coworker-route-allowlist.js";
+import { agentUserRouteAllowlistMiddleware } from "../user-coworker-route-allowlist.js";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
@@ -43,7 +43,7 @@ import mountGetUserWorkspaceAccess from "./workspace-access/get.js";
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
 app.use("*", usersPathUserContextMiddleware);
-app.use("*", coworkerUserRouteAllowlistMiddleware);
+app.use("*", agentUserRouteAllowlistMiddleware);
 
 mountGetUserCredits(app);
 mountGetUserDeletion(app);

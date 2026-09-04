@@ -64,6 +64,8 @@ export {
 export {
   buildCoworkerChatRoomFilePathname,
   buildCoworkerChatRoomFilePrefix,
+  buildOrchestratorChatRoomFilePathname,
+  buildOrchestratorChatRoomFilePrefix,
   buildUserChatRoomFilePathname,
   buildUserChatRoomFilePrefix,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
@@ -382,6 +384,7 @@ export {
   getFallbackUserName,
   getFirstName,
   getStoredUserName,
+  resolveAccountDisplayName,
 } from "./user-name.js";
 export {
   isUserUploadAllowedContentType,

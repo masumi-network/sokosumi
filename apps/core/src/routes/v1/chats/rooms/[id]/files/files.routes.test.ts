@@ -50,6 +50,7 @@ vi.mock("@/lib/blob", () => ({
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER_ID = "user_123";
 const COWORKER_ID = "cow_123";
+const ORCHESTRATOR_ID = "11111111-1111-7111-8111-222222222222";
 
 const UPLOAD_SESSION = {
   uploadUrl: "https://blob.example/upload?sig=1",
@@ -89,6 +90,25 @@ function createCoworkerApp(coworkerId = COWORKER_ID) {
       actor: "coworker",
       coworkerId,
       vendorId: "11111111-1111-7111-8111-111111111111",
+    });
+    return await next();
+  });
+
+  mountPostChatRoomFile(app);
+  return app;
+}
+
+function createOrchestratorApp(orchestratorId = ORCHESTRATOR_ID) {
+  const app = new OpenAPIHonoWithAuth();
+
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "orchestrator",
+      orchestratorId,
+      userId: USER_ID,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+      organizationId: null,
     });
     return await next();
   });
@@ -173,6 +193,45 @@ describe("POST /chats/rooms/{id}/files", () => {
         contentType: "text/plain",
       }),
       "blob-token",
+    );
+  });
+
+  it("mints an orchestrator-owned room chat grant", async () => {
+    roomFindFirstMock.mockResolvedValueOnce({ id: ROOM_ID });
+    createChatRoomFileUploadSessionMock.mockResolvedValueOnce({
+      ...UPLOAD_SESSION,
+      pathname: `orchestrators/${ORCHESTRATOR_ID}/chats/${ROOM_ID}/notes.txt`,
+      headers: { "Content-Type": "text/plain" },
+    });
+
+    const response = await createOrchestratorApp().request(
+      `http://localhost/${ROOM_ID}/files`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: "notes.txt",
+          contentType: "text/plain",
+          size: 5,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(createChatRoomFileUploadSessionMock).toHaveBeenCalledWith(
+      { kind: "orchestrator", orchestratorId: ORCHESTRATOR_ID },
+      ROOM_ID,
+      expect.objectContaining({ filename: "notes.txt" }),
+      "blob-token",
+    );
+    expect(roomFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          orchestratorMembers: {
+            some: { orchestratorId: ORCHESTRATOR_ID },
+          },
+        }),
+      }),
     );
   });
 

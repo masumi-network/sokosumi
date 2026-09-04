@@ -1430,6 +1430,9 @@
         "placeholder": "Search history...",
         "clear": "Clear search"
       },
+      "ResultsCount": {
+        "resultsCount": "{count, plural, =0 {No results found} =1 {1 result found} other {# results found}}"
+      },
       "Filters": {
         "title": "Filters",
         "searchPlaceholder": "Filter...",
@@ -1679,6 +1682,9 @@
         "showGuide": "Show guide"
       },
       "createTaskFab": "Create task",
+      "personalAssistant": "Personal assistant",
+      "sokoBot": "Soko Bot",
+      "sokoBots": "Soko Bots",
       "Errors": {
         "updateStatus": "Failed to update task status",
         "loadMore": "Failed to load more tasks",
@@ -3091,6 +3097,11 @@
       },
       "Plan": {
         "getMoreCredits": "Get more credits"
+      },
+      "Search": {
+        "open": "Search",
+        "inputLabel": "Search history",
+        "searchPlaceholder": "Search..."
       }
     },
     "EmailVerificationNotice": {
@@ -4385,7 +4396,18 @@
           "noBotLink": "Create it here.",
           "runsAgainst": "Every run is a real turn on {bot}, the assistant belonging to {account}.",
           "unnamedBot": "your assistant",
-          "failedChecks": "Failed: {labels}"
+          "failedChecks": "Failed: {labels}",
+          "phaseStarting": "Starting the turn…",
+          "phaseQueued": "Queued — waiting for the assistant to pick it up",
+          "phaseRunning": "Running",
+          "phaseJudging": "Turn finished — judging",
+          "liveRoute": "Route: {route}",
+          "liveNoSteps": "No tool calls yet.",
+          "stepWorking": "running",
+          "stepDone": "done",
+          "stepFailed": "failed",
+          "previousRun": "Previous run",
+          "batchProgress": "Running {done} of {total}"
         },
         "KillSwitch": {
           "title": "Feature switch",
@@ -4399,6 +4421,37 @@
           "disabled": "Soko Bot disabled.",
           "enabled": "Soko Bot enabled.",
           "error": "Could not change the feature switch."
+        },
+        "Version": {
+          "title": "Agent version",
+          "description": "Promoting a version only changes what new bots are created on. This moves this one.",
+          "versionLabel": "Move to",
+          "defaultOption": "{name} (default for new bots)",
+          "current": "Currently on {version}.",
+          "currentUnset": "No version pinned; this bot runs the built-in default.",
+          "reasonLabel": "Reason",
+          "reasonPlaceholder": "Why are you moving this bot? (required, recorded in the audit log)",
+          "confirm": "Move this bot",
+          "working": "Moving…",
+          "done": "Moved to {version}.",
+          "error": "Could not move this bot."
+        },
+        "Migration": {
+          "title": "Move bots between versions",
+          "description": "Promotion decides what new bots are created on and leaves existing ones where they are. Each bot moved here gets its own audit entry.",
+          "fromLabel": "Bots currently on",
+          "everyBot": "Every bot",
+          "inUseOption": "{version} ({count} bots)",
+          "toLabel": "Move to",
+          "defaultOption": "{name} (default for new bots)",
+          "reasonLabel": "Reason",
+          "reasonPlaceholder": "Why are you moving the fleet? (required, recorded against every bot)",
+          "confirm": "Move {count} bots",
+          "nothingToMove": "Nothing to move for this selection.",
+          "working": "Moving…",
+          "done": "Moved {moved} bots.",
+          "result": "Moved {moved}. Already on this version: {alreadyOnVersion}. Could not move: {failed}.",
+          "error": "Could not move these bots."
         }
       },
       "MatchedChannels": {
@@ -5734,7 +5787,7 @@
         "chats": "Chats",
         "projects": "Projects",
         "chatsUnread": "Unread chats",
-        "search": "Search",
+        "you": "You",
         "ariaLabel": "Main navigation",
         "backToChats": "Back to chats",
         "back": "Back",
@@ -5783,6 +5836,7 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "personalAssistantBadge": "Personal assistant",
       "humanBadge": "Human",
       "openDirectMessage": "Message",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
@@ -5831,6 +5885,7 @@
         "cannotRemoveSelf": "You can't remove yourself",
         "humans": "Humans",
         "coworkers": "AI coworkers",
+        "personalAssistants": "Personal assistants",
         "cancel": "Cancel",
         "create": "Create",
         "save": "Save changes"
@@ -5859,7 +5914,8 @@
         "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
-        "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1."
+        "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1.",
+        "personalAssistantDirectOneToOneOnly": "Personal assistant direct messages are 1:1."
       },
       "RoomSearch": {
         "open": "Search in this chat",
@@ -5944,11 +6000,7 @@
         "messageRequired": "Message is required.",
         "roomRequired": "Room is required.",
         "pinError": "Could not pin message.",
-        "unpinError": "Could not unpin message.",
-        "count": "{count, plural, =0 {Pinned} one {# pinned} other {# pinned}}",
-        "latest": "Latest pin",
-        "jumpToLatest": "Jump to pinned message from {author}",
-        "viewAll": "View all pinned messages"
+        "unpinError": "Could not unpin message."
       },
       "Quote": {
         "action": "Quote",
@@ -5986,7 +6038,8 @@
       },
       "MentionSections": {
         "people": "People",
-        "coworkers": "Coworkers"
+        "coworkers": "Coworkers",
+        "personalAssistants": "Personal assistants"
       },
       "Browse": {
         "trigger": "Browse channels",
@@ -6766,6 +6819,12 @@
         "title": "Unable to load the calendar",
         "description": "Please try again in a moment.",
         "retry": "Try again"
+      }
+    },
+    "You": {
+      "Metadata": {
+        "title": "You",
+        "description": "Your account, workspace, credits, and settings"
       }
     }
   },

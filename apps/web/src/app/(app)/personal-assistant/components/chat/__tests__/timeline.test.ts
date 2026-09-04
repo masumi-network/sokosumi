@@ -88,7 +88,6 @@ function state(overrides: Partial<SokoBotChatState> = {}): SokoBotChatState {
       ingestTimezone: "Europe/Berlin",
       proactivePaused: false,
       proactiveDailyLimit: 20,
-      coworkerId: null,
       status: "IDLE",
       memoryVersion: 0,
       memory: null,
