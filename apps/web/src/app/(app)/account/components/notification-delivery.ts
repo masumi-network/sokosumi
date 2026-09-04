@@ -45,8 +45,20 @@ const STORED_CHANNELS: readonly StoredChannel[] = CHANNEL_SPECS.map(
  * not one per browser, so this browser is still where the reader silences or
  * wakes the devices that can push. Only the words change: the cell says why
  * nothing will arrive here, and that the reader's other devices still hear it.
+ *
+ * The third one is the browser's own doing rather than a refusal: signing out
+ * drops this browser's subscription, and clearing site data drops it without
+ * asking anyone. The account consent stands through both, so the cells stay on
+ * and this browser hears nothing until something subscribes it again.
  */
-export type PushBlock = "unsupported" | "denied";
+export type PushBlock = "unsupported" | "denied" | "unsubscribed";
+
+/** Why nothing arrives here, in the reader's terms. */
+export const PUSH_BLOCK_HINT_KEY: Record<PushBlock, string> = {
+  unsupported: "pushUnsupported",
+  denied: "pushBlockedHint",
+  unsubscribed: "pushUnsubscribedHint",
+};
 
 export interface KindSpec {
   category: NotificationCategory;

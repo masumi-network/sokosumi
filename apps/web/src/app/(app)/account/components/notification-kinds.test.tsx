@@ -17,6 +17,8 @@ const setJobEmails = vi.fn();
 const setMarketing = vi.fn();
 let isAccountEnabled = true;
 let isDeviceEnabled = true;
+/** Whether the browser has answered whether it holds a subscription. */
+let isDeviceKnown = true;
 /** Null until the capability read lands, which is not an answer. */
 let isSupported: boolean | null = true;
 let isBlocked = false;
@@ -47,6 +49,7 @@ vi.mock("@/lib/ably/use-push-preference", () => ({
   usePushPreference: () => ({
     isAccountEnabled,
     isDeviceEnabled,
+    isDeviceKnown,
     isSupported,
     isBlocked,
     canToggleAccount: true,
@@ -273,6 +276,7 @@ describe("NotificationKinds", () => {
     vi.clearAllMocks();
     isAccountEnabled = true;
     isDeviceEnabled = true;
+    isDeviceKnown = true;
     isSupported = true;
     isBlocked = false;
     isSaving = false;
@@ -1076,6 +1080,61 @@ describe("NotificationKinds", () => {
 
     expect(cell).not.toHaveAttribute("aria-describedby");
     expect(screen.queryByText("pushUnsupported")).toBeNull();
+  });
+
+  /**
+   * Consent stands, the cell is on, and this browser was dropped from push
+   * behind the reader's back. Left saying what a push is for, the cell would
+   * promise one that never arrives, and the reader would have no reason to
+   * press the one thing that fixes it.
+   */
+  it("says when this browser holds no push subscription", () => {
+    isDeviceEnabled = false;
+    renderKinds();
+
+    expect(describedBy(cellFor("kindSystem", "channelPush"))).toBe(
+      "channelPushHint pushUnsubscribedHint pushOtherDevicesHint",
+    );
+  });
+
+  /**
+   * A browser the reader blocked cannot hold a subscription either, and it has
+   * its own words: the block is the thing they can act on.
+   */
+  it("says a browser is blocked before it says it is missing", () => {
+    isBlocked = true;
+    isDeviceEnabled = false;
+    renderKinds();
+
+    expect(describedBy(cellFor("kindSystem", "channelPush"))).toBe(
+      "channelPushHint pushBlockedHint pushOtherDevicesHint",
+    );
+  });
+
+  /**
+   * The subscription read needs `window` as well, so it lands after the first
+   * paint and every browser reports none until it does. Reported as an answer,
+   * a subscribed browser would be told it is missing from push on every load.
+   */
+  it("says nothing about the subscription until the browser answers", () => {
+    isDeviceEnabled = false;
+    isDeviceKnown = false;
+    renderKinds();
+
+    expect(cellFor("kindSystem", "channelPush")).not.toHaveAttribute(
+      "aria-describedby",
+    );
+  });
+
+  /** Consent withdrawn silences every device, which is the louder answer. */
+  it("says nothing about the subscription while consent is off", () => {
+    isAccountEnabled = false;
+    isDeviceEnabled = false;
+    renderKinds();
+
+    expect(cellFor("kindSystem", "channelPush")).not.toHaveAttribute(
+      "aria-describedby",
+    );
   });
 
   /**

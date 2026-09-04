@@ -68,6 +68,14 @@ export interface PushPreference {
   /** Whether this browser holds a live push subscription. */
   isDeviceEnabled: boolean;
   /**
+   * Whether that answer has arrived. The read needs `window`, so it lands
+   * after the first paint, and every browser reports no subscription until it
+   * does. A view that told the two apart by `isDeviceEnabled` alone would say
+   * this browser is missing from push on every load, on the browsers that are
+   * not.
+   */
+  isDeviceKnown: boolean;
+  /**
    * Whether this browser can push at all. Null until the mount read lands: the
    * answer needs `window`, so it cannot be read during render, and reporting
    * `false` in the meantime told every reader on every browser that theirs does
@@ -115,7 +123,11 @@ export interface PushPreference {
 }
 
 export function usePushPreference(userId: string | undefined): PushPreference {
-  const [hasPushSubscription, setHasPushSubscription] = useState(false);
+  // Null until the browser answers, which is not the same as no subscription:
+  // see `isDeviceKnown`.
+  const [hasPushSubscription, setHasPushSubscription] = useState<
+    boolean | null
+  >(null);
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [permission, setPermission] =
@@ -398,7 +410,8 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     isAccountEnabled,
     // The browser's own state, reported even while account consent is off, so
     // the reader can see which of their devices would wake up when it returns.
-    isDeviceEnabled: hasPushSubscription,
+    isDeviceEnabled: hasPushSubscription === true,
+    isDeviceKnown: hasPushSubscription !== null,
     isSupported,
     isBlocked,
     canToggleAccount: hasSession && accountOptIn !== null,
