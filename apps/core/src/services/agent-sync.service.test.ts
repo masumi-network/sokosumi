@@ -3193,6 +3193,24 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
         update: expect.objectContaining({ cursorId: "[]" }),
       }),
     );
+    // This page is load-bearing for the failure path's latch: a recorded "[]"
+    // is left latched there precisely BECAUSE going empty already paged here.
+    // Delete this and the two together go silent for a whole outage.
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Cardano V2 rail reports no purchase-ready source; all V2 agents are hidden",
+      "error",
+    );
+
+    // On the transition only. A catalogue that was already empty must not
+    // page again every five minutes for as long as it stays empty.
+    captureMessageMock.mockClear();
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: "[]",
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureMessageMock).not.toHaveBeenCalled();
 
     consoleWarnSpy.mockRestore();
   });
@@ -3386,11 +3404,22 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       }),
     );
 
-    // The latch is now held by the earlier insert, so a stale failure would go
-    // quiet here. A hidden catalogue must page anyway.
+    // The latch is now held by the earlier insert, so any other failure would
+    // go quiet here. A catalogue that has never been recorded must page
+    // anyway: it produced no page of its own to fall back on, and silence is
+    // indistinguishable from a healthy deployment with no V2 agents.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
     await agentSyncService.syncCardanoV2RailReadiness();
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+    // Sustained error-level paging IS the bypass. A repeat that quietly
+    // dropped to a warning would satisfy the count above and defeat it.
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        level: "error",
+        tags: { cardano_v2_readiness: "hidden" },
+      }),
+    );
 
     consoleWarnSpy.mockRestore();
   });
@@ -3404,9 +3433,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     // A tick where the node reported nothing purchase-ready still upserts a
     // row, holding "[]". Row EXISTENCE therefore says "warm" while readers
     // see exactly the cold outage: getCardanoV2ReadySources returns [], no V2
-    // agent is listable, every V2 payment 422s. Gating on row existence would
-    // downgrade this to a warning and then latch it into silence for the
-    // whole outage, which is strictly worse than what it replaced.
+    // agent is listable, every V2 payment 422s. Gating the SEVERITY on row
+    // existence would call that "warm" and downgrade a live outage to a
+    // warning.
     syncMetadataFindUniqueMock.mockResolvedValue({
       key: CARDANO_V2_RAIL_READINESS_KEY,
       cursorId: "[]",
@@ -3428,10 +3457,14 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       }),
     );
 
-    // And it must keep paging through the streak, exactly like a missing row.
+    // The severity is where this case differs, and only the severity. The
+    // latch still holds it to one page per streak, because the catalogue
+    // going empty already paged on the success path that recorded it.
+    // Bypassing the latch here too would page every five minutes for the
+    // length of the outage, which is noise this change exists to cut.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
     await agentSyncService.syncCardanoV2RailReadiness();
-    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
 
     consoleWarnSpy.mockRestore();
   });

@@ -14,9 +14,11 @@ import prisma from "@/lib/db/prisma";
  *
  * On check failure the last known value is kept and a marker is written, so
  * readers keep serving it rather than losing the V2 catalog to an outage of
- * our own polling. That graceful degradation only exists once a value HAS been
- * recorded — before then there is nothing to fall back on and the whole V2
- * catalogue is hidden, which is why the two cases alert differently.
+ * our own polling. That degradation is only graceful while the last known
+ * value is a USABLE one. A recorded empty set hides the whole V2 catalogue as
+ * completely as no recording at all, which is why the alert below takes its
+ * SEVERITY from what readers are served. How OFTEN it may fire is a separate
+ * question, and that one still turns on whether a row exists at all.
  *
  * Returns whether the purchase-ready source set CHANGED, which is what makes
  * the caller replay the registry — and, since a change from "nothing recorded"
@@ -36,11 +38,11 @@ export async function syncCardanoV2RailReadiness(
       readinessResult.error,
     );
     try {
-      // Is a usable fallback actually being served? The two cases degrade
-      // completely differently and must not share one alert.
+      // HOW BAD is it? Is a usable fallback actually being served? The two
+      // cases degrade completely differently and must not share one alert.
       //
-      // Ask the question readers ask. Row EXISTENCE is a different question
-      // and answering that one gets it wrong: the success path upserts
+      // Ask the question readers ask. Row EXISTENCE answers a different
+      // question and answers this one wrong: the success path upserts
       // whatever it got, so a tick where the node reported nothing ready
       // leaves a row holding "[]". That row hides the catalogue exactly as
       // completely as no row at all, and calling it "warm" would downgrade a
@@ -56,6 +58,18 @@ export async function syncCardanoV2RailReadiness(
       const isCatalogueHidden =
         (await getCardanoV2ReadySources(prisma)).length === 0;
 
+      // HOW OFTEN may it page is a separate question, and row existence is
+      // the right answer to THIS one. A catalogue that was recorded and then
+      // went empty already paged when it went empty, on the success path
+      // below. Bypassing the latch for it as well would page every five
+      // minutes for the length of an outage, which is the noise this change
+      // exists to cut, not add to.
+      const recordedReadiness = await prisma.syncMetadata.findUnique({
+        where: { key: CARDANO_V2_RAIL_READINESS_KEY },
+        select: { key: true },
+      });
+      const hasNeverBeenRecorded = !recordedReadiness;
+
       // createMany + skipDuplicates is an atomic cross-instance latch:
       // exactly one serverless worker creates the marker and reports the
       // failure; later workers see count=0 until a successful check clears it.
@@ -69,12 +83,12 @@ export async function syncCardanoV2RailReadiness(
         ],
         skipDuplicates: true,
       });
-      // The latch is deliberately bypassed while the catalogue is hidden:
-      // silence would otherwise be indistinguishable from a healthy deployment
-      // that simply has no V2 agents, and the single page that the latch does
-      // allow is spent on the first tick — minutes after deploy, long before
-      // anyone looks.
-      if (marker.count > 0 || isCatalogueHidden) {
+      // The latch is deliberately bypassed while readiness has never been
+      // recorded: silence would otherwise be indistinguishable from a healthy
+      // deployment that simply has no V2 agents, and the single page that the
+      // latch does allow is spent on the first tick — minutes after deploy,
+      // long before anyone looks.
+      if (marker.count > 0 || hasNeverBeenRecorded) {
         Sentry.captureException(
           new Error(
             isCatalogueHidden
