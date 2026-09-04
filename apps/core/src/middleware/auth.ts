@@ -9,7 +9,7 @@ import { auth } from "@/lib/auth";
 import {
   COWORKER_API_KEY_PREFIX,
   hashApiKey,
-  SOKO_BOT_API_KEY_PREFIX,
+  isSokoBotApiKeyToken,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import { attachAuthToLogger } from "@/lib/evlog";
@@ -446,7 +446,7 @@ async function verifyAgentApiKey(
 ): Promise<boolean> {
   if (
     !token.startsWith(COWORKER_API_KEY_PREFIX) &&
-    !token.startsWith(SOKO_BOT_API_KEY_PREFIX)
+    !isSokoBotApiKeyToken(token)
   ) {
     return false;
   }
@@ -642,7 +642,7 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
     // Dedicated agent-prefixed tokens must not fall back to user auth schemes.
     if (
       token.startsWith(COWORKER_API_KEY_PREFIX) ||
-      token.startsWith(SOKO_BOT_API_KEY_PREFIX)
+      isSokoBotApiKeyToken(token)
     ) {
       const coworkerApiKeyValid = await verifyAgentApiKey(token, c);
       if (coworkerApiKeyValid) {

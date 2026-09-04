@@ -311,7 +311,17 @@ describe("contentIncludesRoomAllMention", () => {
 });
 
 describe("resolveMentionedSokoBotIds", () => {
-  it("matches an @orchestrator:<uuid> token in the room", () => {
+  it("matches an @sokoBot:<uuid> token in the room", () => {
+    const id = "01960001-0001-7001-8001-000000000099";
+    expect(
+      resolveMentionedSokoBotIds({
+        content: `hello @sokoBot:${id}`,
+        roomSokoBots: [{ id, name: "Jarvis" }],
+      }),
+    ).toEqual([id]);
+  });
+
+  it("still matches a stored @orchestrator:<uuid> token", () => {
     const id = "01960001-0001-7001-8001-000000000099";
     expect(
       resolveMentionedSokoBotIds({
@@ -325,16 +335,16 @@ describe("resolveMentionedSokoBotIds", () => {
     const id = "01960001-0001-7001-8001-000000000099";
     expect(
       resolveMentionedSokoBotIds({
-        content: `@ORCHESTRATOR:${id.toUpperCase()}`,
+        content: `@SOKOBOT:${id.toUpperCase()}`,
         roomSokoBots: [{ id, name: "Jarvis" }],
       }),
     ).toEqual([id]);
   });
 
-  it("ignores orchestrators that are not in the room", () => {
+  it("ignores soko bots that are not in the room", () => {
     expect(
       resolveMentionedSokoBotIds({
-        content: "@orchestrator:01960001-0001-7001-8001-000000000001",
+        content: "@sokoBot:01960001-0001-7001-8001-000000000001",
         roomSokoBots: [
           { id: "01960001-0001-7001-8001-000000000099", name: "Jarvis" },
         ],
@@ -389,7 +399,17 @@ describe("buildDirectRoomKey", () => {
         coworkerIds: [],
         sokoBotIds: ["01960001-0001-7001-8001-000000000099"],
       }),
-    ).toBe("orchestrator:user_a:01960001-0001-7001-8001-000000000099");
+    ).toBe("sokoBot:user_a:01960001-0001-7001-8001-000000000099");
+    expect(
+      buildDirectParticipantRoomKey({
+        currentUserId: "user_b",
+        memberUserIds: ["user_a"],
+        coworkerIds: [],
+        sokoBotIds: ["01960001-0001-7001-8001-000000000099"],
+      }),
+    ).toBe(
+      "direct:v2:sokoBot:01960001-0001-7001-8001-000000000099:user:user_a:user:user_b",
+    );
   });
 });
 

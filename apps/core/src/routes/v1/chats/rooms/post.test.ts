@@ -142,7 +142,7 @@ function createAppWithErrorHandler(authContext: AuthVariables["authContext"]) {
 const COWORKER_ID = "cow_123";
 const COWORKER_DIRECT_KEY = `coworker:${OTHER_USER_ID}:${COWORKER_ID}`;
 const SOKO_BOT_ID = "01960001-0001-7001-8001-000000000099";
-const SOKO_BOT_DIRECT_KEY = `orchestrator:${USER_ID}:${SOKO_BOT_ID}`;
+const SOKO_BOT_DIRECT_KEY = `sokoBot:${USER_ID}:${SOKO_BOT_ID}`;
 
 const userAuthContext: AuthVariables["authContext"] = {
   actor: "user",

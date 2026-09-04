@@ -9,7 +9,7 @@ export const sokoBotApiKeySchema = z
       example: "01960001-0001-7001-8001-000000000099",
     }),
     name: z.string().nullable().openapi({ example: "Production key" }),
-    keyStart: z.string().openapi({ example: "orchestrator_abcdefgh" }),
+    keyStart: z.string().openapi({ example: "sokoBot_abcdefgh" }),
     expiresAt: dateTimeSchema.nullable().openapi({
       example: "2026-12-31T23:59:59.000Z",
     }),
@@ -22,7 +22,7 @@ export const sokoBotApiKeySchema = z
 export const createSokoBotApiKeyResponseSchema = z
   .object({
     id: z.string().openapi({ example: "agentkey_123" }),
-    token: z.string().openapi({ example: "orchestrator_very_secret_value" }),
+    token: z.string().openapi({ example: "sokoBot_very_secret_value" }),
     name: z.string().nullable().openapi({ example: "Production key" }),
     expiresAt: dateTimeSchema.nullable().openapi({
       example: "2026-12-31T23:59:59.000Z",

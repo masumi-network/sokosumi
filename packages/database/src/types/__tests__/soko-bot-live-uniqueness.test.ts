@@ -77,3 +77,11 @@ describe("one live Soko Bot per user and workspace", () => {
     );
   });
 });
+
+describe("stored orchestrator: prefixes", () => {
+  it("rewrites chat_room.directKey and mention tokens to sokoBot:", () => {
+    const sql = migrationSql();
+    expect(sql).toMatch(/replace\("directKey", 'orchestrator:', 'sokoBot:'\)/);
+    expect(sql).toMatch(/replace\("content", '@orchestrator:', '@sokoBot:'\)/);
+  });
+});

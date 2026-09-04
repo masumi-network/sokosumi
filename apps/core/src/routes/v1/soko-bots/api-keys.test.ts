@@ -34,7 +34,7 @@ function createRecord(overrides: Record<string, unknown> = {}) {
     id: "agentkey_123",
     sokoBotId: BOT_ID,
     name: "CLI key",
-    keyStart: "orchestrator_abcdefgh",
+    keyStart: "sokoBot_abcdefgh",
     expiresAt: null,
     revokedAt: null,
     createdAt: new Date("2026-09-02T10:00:00.000Z"),
@@ -68,7 +68,7 @@ describe("Soko Bot API keys", () => {
     botFindFirstMock.mockResolvedValue({ id: BOT_ID });
   });
 
-  it("creates an orchestrator-prefixed key for an owned live bot", async () => {
+  it("creates a sokoBot-prefixed key for an owned live bot", async () => {
     const tx = {
       sokoBot: {
         findFirst: vi.fn().mockResolvedValue({ id: BOT_ID }),
@@ -92,7 +92,7 @@ describe("Soko Bot API keys", () => {
     expect(await response.json()).toMatchObject({
       data: {
         id: "agentkey_123",
-        token: expect.stringMatching(/^orchestrator_/),
+        token: expect.stringMatching(/^sokoBot_/),
         name: "CLI key",
         expiresAt: null,
       },
@@ -127,7 +127,7 @@ describe("Soko Bot API keys", () => {
     const body = await response.json();
     expect(body.data[0]).toMatchObject({
       sokoBotId: BOT_ID,
-      keyStart: "orchestrator_abcdefgh",
+      keyStart: "sokoBot_abcdefgh",
     });
     expect(body.data[0].keyHash).toBeUndefined();
     expect(apiKeyFindManyMock).toHaveBeenCalledWith(

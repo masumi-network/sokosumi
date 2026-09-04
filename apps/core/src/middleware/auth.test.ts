@@ -146,8 +146,12 @@ describe("authMiddleware", () => {
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it.each(["coworker_legacytoken", "orchestrator_currenttoken"])(
-    "authenticates %s for a remapped Soko Bot key as the orchestrator",
+  it.each([
+    "coworker_legacytoken",
+    "orchestrator_currenttoken",
+    "sokoBot_currenttoken",
+  ])(
+    "authenticates %s for a remapped Soko Bot key as the soko bot",
     async (token) => {
       coworkerApiKeyFindUniqueMock.mockResolvedValue({
         coworkerId: null,

@@ -16279,7 +16279,7 @@ export const SokoBotApiKeySchema = {
         },
         keyStart: {
             type: 'string',
-            example: 'orchestrator_abcdefgh'
+            example: 'sokoBot_abcdefgh'
         },
         expiresAt: {
             type: [
@@ -16329,7 +16329,7 @@ export const CreateSokoBotApiKeyResponseSchema = {
         },
         token: {
             type: 'string',
-            example: 'orchestrator_very_secret_value'
+            example: 'sokoBot_very_secret_value'
         },
         name: {
             type: [

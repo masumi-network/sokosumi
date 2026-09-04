@@ -633,7 +633,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          content: `@orchestrator:${SOKO_BOT_ID} check the board`,
+          content: `@sokoBot:${SOKO_BOT_ID} check the board`,
           mentionedSokoBotIds: [SOKO_BOT_ID],
         }),
       });

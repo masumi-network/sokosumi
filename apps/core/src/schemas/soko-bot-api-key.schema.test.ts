@@ -5,12 +5,12 @@ import {
   sokoBotApiKeySchema,
 } from "./soko-bot-api-key.schema";
 
-describe("orchestrator API key response schemas", () => {
-  it("requires the orchestrator owner", () => {
+describe("soko bot API key response schemas", () => {
+  it("requires the soko bot owner", () => {
     const metadata = {
       id: "agentkey_123",
       name: null,
-      keyStart: "orchestrator_abcdefgh",
+      keyStart: "sokoBot_abcdefgh",
       expiresAt: null,
       revokedAt: null,
       createdAt: "2026-01-01T00:00:00.000Z",
@@ -30,14 +30,14 @@ describe("orchestrator API key response schemas", () => {
     expect(
       createSokoBotApiKeyResponseSchema.safeParse({
         id: "agentkey_123",
-        token: "orchestrator_secret",
+        token: "sokoBot_secret",
         name: null,
         expiresAt: null,
       }).success,
     ).toBe(true);
     expect(
       createSokoBotApiKeyResponseSchema.safeParse({
-        token: "orchestrator_secret",
+        token: "sokoBot_secret",
         expiresAt: null,
       }).success,
     ).toBe(false);

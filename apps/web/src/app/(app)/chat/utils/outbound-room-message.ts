@@ -147,7 +147,7 @@ export function buildPendingCoworkerMentions(
       responseMessageId: null,
     })),
     ...mentionedSokoBotIds.map((sokoBotId) => ({
-      id: `pending-mention:${clientTurnId}:orchestrator:${sokoBotId}`,
+      id: `pending-mention:${clientTurnId}:sokoBot:${sokoBotId}`,
       coworkerId: null,
       sokoBotId,
       status: ChatRoomMentionStatus.PENDING,
