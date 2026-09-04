@@ -432,11 +432,9 @@ export function ChannelGrid({
   return (
     <div>
       {/* Only where the row breaks in two. The card names its columns once
-          at the top and every row right-aligns its cells under those names,
-          so a second set here would be the same words a few lines lower.
-          Below `sm` the name and the cells sit on separate lines and the
-          card's own heads are a whole block away, so the cells bring their
-          heads with them. */}
+          at the top of the expanded section and every row right-aligns its
+          cells under those names. Below `sm` the name and the cells sit on
+          separate lines, so the cells bring their heads with them. */}
       {showNames ? null : (
         <div
           aria-hidden="true"

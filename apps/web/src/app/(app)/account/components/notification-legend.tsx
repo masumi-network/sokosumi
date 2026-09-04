@@ -127,11 +127,11 @@ function ChannelExplainer({
 }
 
 /**
- * The columns, named once for the whole card and able to explain themselves.
+ * The columns, named inside an expanded row and able to explain themselves.
  *
  * Every row right-aligns its cells into the same column, so one line of names
- * covers all of them, and the names are where the explanation belongs: a
- * channel means the same thing on every row under it.
+ * covers all of them in that row, and the names are where the explanation
+ * belongs: a channel means the same thing on every kind under it.
  *
  * Wide, the names sit over their own columns on the line's floor, so a name
  * that wraps in one language does not lift its column. Narrow, the columns are
@@ -146,7 +146,7 @@ export function ChannelLegend({ pushBlock }: { pushBlock: PushBlock | null }) {
       role="group"
       aria-label={t("channelsLegendLabel")}
       className={cn(
-        "text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 px-4 pt-3 pb-2 text-xs",
+        "text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 pb-2 text-xs",
         "sm:flex-nowrap sm:items-end sm:justify-end sm:gap-2",
       )}
     >
