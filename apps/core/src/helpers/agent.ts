@@ -240,8 +240,10 @@ const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
 
 /**
  * Exact Cardano V2 policy/contract sources the payment node last reported
- * purchase-ready. Returns an empty list only when readiness has never been
- * recorded, or the recorded payload is unusable.
+ * purchase-ready. Returns an empty list when readiness has never been
+ * recorded, when the recorded payload is unusable, and when the node last
+ * reported nothing purchase-ready. Callers cannot tell those apart from the
+ * result, and all three hide the entire V2 catalogue.
  *
  * Deliberately NOT expired on age. Readiness is static configuration — the
  * node derives it from config presence (an active source, a current contract,
