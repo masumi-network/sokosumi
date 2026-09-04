@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import {
   groupScopes,
   type KindSpec,
+  keeps,
   PRESET_SCOPE_HINT_KEY,
   PRESET_SCOPE_LABEL_KEY,
   type PresetScope,
@@ -71,17 +72,96 @@ const ANSWER_ICON: Record<ScopeState, LucideIcon> = {
 };
 
 /**
+ * What an answer does, in the words the reader needs to decide.
+ *
+ * A one-word stop cannot say what it writes, and the sentence under it is
+ * about the group rather than about these kinds. So the panel names them: the
+ * kinds this answer keeps, and the kinds it stops. Nothing else on the page
+ * says which of the three "Important" would keep here.
+ *
+ * The lists are left out when they say nothing. Everything stops none, and
+ * Nothing keeps none, so each of those shows one list rather than a second
+ * that is empty.
+ */
+function AnswerBody({
+  icon: Icon,
+  label,
+  hint,
+  kept,
+  stopped,
+}: {
+  icon: LucideIcon;
+  label: string;
+  hint: string;
+  kept: readonly string[];
+  stopped: readonly string[];
+}) {
+  const t = useTranslations("App.Account.Notifications");
+
+  return (
+    <div className="space-y-1.5">
+      <p className="flex items-center gap-1.5 font-medium">
+        <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+        {label}
+      </p>
+      <p className="text-primary-foreground/80 leading-relaxed">{hint}</p>
+      {kept.length > 0 || stopped.length > 0 ? (
+        <dl className="border-primary-foreground/20 space-y-1 border-t pt-1.5">
+          {[
+            { key: "answerKeepsLabel", names: kept },
+            { key: "answerStopsLabel", names: stopped },
+          ].map((row) =>
+            row.names.length > 0 ? (
+              <div key={row.key} className="flex gap-2">
+                <dt className="text-primary-foreground/60 min-w-11 shrink-0">
+                  {t(row.key)}
+                </dt>
+                <dd className="min-w-0 flex-1">{row.names.join(", ")}</dd>
+              </div>
+            ) : null,
+          )}
+        </dl>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The same words in one line, for the reader who hears the row.
+ *
+ * A tooltip exists only while it is open, so the panel is written into the row
+ * as well, where `aria-describedby` can always reach it. The lists are read
+ * out with their own labels rather than as a bare run of names.
+ */
+function answerSentence(
+  hint: string,
+  kept: readonly string[],
+  stopped: readonly string[],
+  label: (key: string) => string,
+): string {
+  return [
+    hint,
+    kept.length > 0 ? `${label("answerKeepsLabel")}: ${kept.join(", ")}.` : "",
+    stopped.length > 0
+      ? `${label("answerStopsLabel")}: ${stopped.join(", ")}.`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
  * One stop, with what it does under the pointer and in the ear.
  *
  * The tooltip is the one the channel cells carry, and for the same reason: the
- * label is a word, and the sentence that makes it a choice does not fit beside
- * it. Tooltip content exists only while it is open, so the sentence is also
- * written into the row where `aria-describedby` can always reach it.
+ * label is a word, and what makes it a choice does not fit beside it.
  */
 function Stop({
   answer,
   label,
   hint,
+  kept,
+  stopped,
   pressed,
   saving,
   onPick,
@@ -89,11 +169,15 @@ function Stop({
   answer: PresetScope;
   label: string;
   hint: string;
+  /** The kinds this answer keeps, and the kinds it stops, by name. */
+  kept: readonly string[];
+  stopped: readonly string[];
   pressed: boolean;
   /** A write is in flight. The stop stays reachable, and does nothing. */
   saving: boolean;
   onPick: () => void;
 }) {
+  const t = useTranslations("App.Account.Notifications");
   const hintId = useId();
   const Icon = ANSWER_ICON[answer];
 
@@ -123,10 +207,18 @@ function Stop({
             {label}
           </button>
         </TooltipTrigger>
-        <TooltipContent>{hint}</TooltipContent>
+        <TooltipContent className="max-w-72 px-3 py-2 text-left text-xs">
+          <AnswerBody
+            icon={Icon}
+            label={label}
+            hint={hint}
+            kept={kept}
+            stopped={stopped}
+          />
+        </TooltipContent>
       </Tooltip>
       <span aria-hidden="true" id={hintId} className="sr-only">
-        {hint}
+        {answerSentence(hint, kept, stopped, t)}
       </span>
     </>
   );
@@ -282,6 +374,13 @@ export function GroupAnswer({
   const t = useTranslations("App.Account.Notifications");
   const answers = groupScopes(kinds);
   const label = t("scopeAriaLabel", { group });
+
+  /** The kinds an answer keeps, or the kinds it stops, by name. */
+  const names = (answer: PresetScope, on: boolean) =>
+    kinds
+      .filter((kind) => keeps(answer, kind) === on)
+      .map((kind) => t(kind.labelKey));
+
   const customId = useId();
   const chipId = useId();
   const nameId = useId();
@@ -300,6 +399,8 @@ export function GroupAnswer({
             answer={answer}
             label={t(PRESET_SCOPE_LABEL_KEY[answer])}
             hint={t(PRESET_SCOPE_HINT_KEY[answer])}
+            kept={names(answer, true)}
+            stopped={names(answer, false)}
             pressed={scope === answer}
             saving={saving}
             onPick={() => {
@@ -332,7 +433,17 @@ export function GroupAnswer({
             {t(PRESET_SCOPE_LABEL_KEY.CUSTOM)}
           </CollapsibleTrigger>
         </TooltipTrigger>
-        <TooltipContent>{t(PRESET_SCOPE_HINT_KEY.CUSTOM)}</TooltipContent>
+        <TooltipContent className="max-w-72 px-3 py-2 text-left text-xs">
+          {/* No lists: it keeps and stops nothing on its own. What it does is
+              open the group, and the kinds answer for themselves in there. */}
+          <AnswerBody
+            icon={ANSWER_ICON.CUSTOM}
+            label={t(PRESET_SCOPE_LABEL_KEY.CUSTOM)}
+            hint={t(PRESET_SCOPE_HINT_KEY.CUSTOM)}
+            kept={[]}
+            stopped={[]}
+          />
+        </TooltipContent>
       </Tooltip>
       {/* The stops beside it carry their sentence this way too: a tooltip
           exists only while it is open, and this one says what pressing

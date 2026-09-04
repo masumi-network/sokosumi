@@ -306,8 +306,8 @@ export const PRESET_SCOPE_HINT_KEY: Record<ScopeState, string> = {
   CUSTOM: "scopeCustomHint",
 };
 
-/** Whether a scope keeps a kind. */
-function keeps(scope: PresetScope, kind: KindSpec): boolean {
+/** Whether a scope keeps a kind. The answers name the kinds they keep. */
+export function keeps(scope: PresetScope, kind: KindSpec): boolean {
   return scope === "ALL" || (scope === "IMPORTANT" && kind.important);
 }
 

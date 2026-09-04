@@ -368,18 +368,30 @@ describe("NotificationKinds", () => {
    * The words beside a one-word stop do not fit, so they arrive on hover and
    * stay reachable by ear. The cells of the grid carry theirs the same way.
    */
-  it("explains every stop it offers", async () => {
+  it("explains every stop it offers, and names the kinds it acts on", async () => {
     const user = userEvent.setup();
     renderKinds();
 
+    // Each stop names one list or two, never an empty one: Everything stops
+    // nothing, and Nothing keeps nothing.
     const all = scope("groupJob", "scopeAll");
-    expect(describedBy(all)).toBe("scopeAllHint");
+    expect(describedBy(all)).toBe(
+      "scopeAllHint answerKeepsLabel: kindJobAttention, kindJobCompleted, kindJobUpdate.",
+    );
+    expect(describedBy(scope("groupJob", "scopeImportant"))).toBe(
+      "scopeImportantHint answerKeepsLabel: kindJobAttention, kindJobCompleted. answerStopsLabel: kindJobUpdate.",
+    );
+    expect(describedBy(scope("groupJob", "scopeNone"))).toBe(
+      "scopeNoneHint answerStopsLabel: kindJobAttention, kindJobCompleted, kindJobUpdate.",
+    );
 
     await user.hover(all);
 
     await waitFor(() => {
       expect(screen.getByRole("tooltip")).toHaveTextContent("scopeAllHint");
     });
+    // The same words the row carries, so the panel and the ear agree.
+    expect(screen.getByRole("tooltip")).toHaveTextContent("kindJobAttention");
   });
 
   /**
