@@ -323,15 +323,34 @@ export function useNotificationDelivery(): NotificationDelivery {
     }
   }
 
-  // `isSupported` is null until the mount read lands, so only an explicit
-  // false is an answer. A blocked browser can be told apart from one that
-  // cannot push at all, and the two need different words.
-  const pushBlock: PushBlock | null =
-    push.isSupported === false
-      ? "unsupported"
-      : push.isBlocked
-        ? "denied"
-        : null;
+  /**
+   * Why no push arrives on this browser, when none does.
+   *
+   * `isSupported` is null until the mount read lands, so only an explicit
+   * false is an answer. A blocked browser can be told apart from one that
+   * cannot push at all, and the two need different words.
+   *
+   * A browser that can push and holds no subscription is the third: consent
+   * stands, the cells are on, and nothing reaches this browser until a press
+   * subscribes it again. `canToggleDevice` carries the rest of that sentence,
+   * a session and standing consent included, and `isDeviceKnown` keeps the
+   * mount read from reporting every browser as missing on the first paint.
+   */
+  const pushBlock: PushBlock | null = readPushBlock();
+
+  function readPushBlock(): PushBlock | null {
+    if (push.isSupported === false) {
+      return "unsupported";
+    }
+
+    if (push.isBlocked) {
+      return "denied";
+    }
+
+    return push.canToggleDevice && push.isDeviceKnown && !push.isDeviceEnabled
+      ? "unsubscribed"
+      : null;
+  }
 
   return {
     groups,
