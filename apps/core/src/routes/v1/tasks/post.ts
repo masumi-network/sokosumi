@@ -35,6 +35,7 @@ import {
   resolveTaskEventChannel,
 } from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
+import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { notifyWorkspaceApproversOfPendingGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -105,6 +106,7 @@ export const createTaskRequestSchema = z
     assigneeOrchestratorId: z.string().uuid().nullish().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
+    assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
     status: z
       .enum([TaskStatus.DRAFT, TaskStatus.READY])
       .optional()
@@ -120,20 +122,6 @@ export const createTaskRequestSchema = z
   .superRefine((data, ctx) => {
     refineChannelOriginConflict(data, ctx);
     refineAssigneeXorConflict(data, ctx);
-
-    const assigneeId = resolveAssigneeIdFromRequest(data);
-    const hasCoworker = assigneeId != null && assigneeId !== "";
-    const hasOrchestrator =
-      data.assigneeOrchestratorId != null && data.assigneeOrchestratorId !== "";
-
-    if (data.status !== TaskStatus.DRAFT && !hasCoworker && !hasOrchestrator) {
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "assigneeId or assigneeOrchestratorId is required when creating a non-draft task",
-        path: ["assigneeId"],
-      });
-    }
   })
   .transform((data) => {
     const { coworkerId: _coworkerId, ...rest } = data;
@@ -141,6 +129,7 @@ export const createTaskRequestSchema = z
       ...rest,
       assigneeId: resolveAssigneeIdFromRequest(data),
       assigneeOrchestratorId: data.assigneeOrchestratorId ?? null,
+      assigneeUserId: data.assigneeUserId ?? null,
       channel: resolveTaskEventChannel(data),
     };
   });
@@ -450,6 +439,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
           assigneeId: body.assigneeId,
           assigneeOrchestratorId: body.assigneeOrchestratorId,
+          assigneeUserId: body.assigneeUserId,
           status: body.status,
           channel: body.channel,
         },
@@ -486,6 +476,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
       }
+    }
+
+    if (task.assigneeUserId) {
+      await notifyTaskHumanAssignee(task.id, task.assigneeUserId);
     }
 
     return created(c, taskSchema.parse(mapTask(task)));

@@ -11,6 +11,7 @@ import { isTaskEditableStatus } from "@sokosumi/utils";
 import {
   requireTaskAssignableCoworker,
   requireTaskAssignableOrchestrator,
+  requireTaskAssignableUser,
   type TaskAssigner,
 } from "@/helpers/access-control";
 import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
@@ -44,6 +45,7 @@ export interface CreateTaskDomainInput {
   resolveDescription?: (tx: Prisma.TransactionClient) => Promise<string | null>;
   assigneeId?: string | null;
   assigneeOrchestratorId?: string | null;
+  assigneeUserId?: string | null;
   status: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
   channel?: Channel;
 }
@@ -60,6 +62,7 @@ export interface UpdateTaskDomainInput {
   projectId?: string | null;
   assigneeId?: string | null;
   assigneeOrchestratorId?: string | null;
+  assigneeUserId?: string | null;
   status?: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
   channel?: Channel;
 }
@@ -69,13 +72,37 @@ interface PendingGrantState {
   grantResumeStatus: GrantResumeStatus;
 }
 
+function hasAssigneeValue(value: string | null | undefined): boolean {
+  return value != null && value !== "";
+}
+
+// Agent-only statuses (queue, grants, HITL, credits, failed) require a
+// coworker or orchestrator assignee. Kept local so this domain seam does not
+// import `@/helpers/task`, which pulls HTTP middleware at module load.
+// Mirrors `AGENT_ONLY_TASK_STATUSES` in `@/helpers/task`.
+const AGENT_ONLY_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  TaskStatus.QUEUED,
+  TaskStatus.GRANT_PENDING,
+  TaskStatus.INPUT_REQUIRED,
+  TaskStatus.APPROVAL_REQUIRED,
+  TaskStatus.AUTHENTICATION_REQUIRED,
+  TaskStatus.OUT_OF_CREDITS,
+  TaskStatus.CREDITS_TOPPED_UP,
+  TaskStatus.FAILED,
+]);
+
 function requireAssigneeXor(
   assigneeId: string | null | undefined,
   assigneeOrchestratorId: string | null | undefined,
+  assigneeUserId?: string | null | undefined,
 ): void {
-  if (assigneeId != null && assigneeId !== "" && assigneeOrchestratorId) {
+  const setCount =
+    (hasAssigneeValue(assigneeId) ? 1 : 0) +
+    (hasAssigneeValue(assigneeOrchestratorId) ? 1 : 0) +
+    (hasAssigneeValue(assigneeUserId) ? 1 : 0);
+  if (setCount > 1) {
     throw unprocessableEntity(
-      "assigneeId and assigneeOrchestratorId cannot both be set",
+      "Task cannot be assigned to more than one assignee",
     );
   }
 }
@@ -84,13 +111,16 @@ function requireAssigneeForExecutableStatus(
   status: TaskStatus,
   assigneeId: string | null | undefined,
   assigneeOrchestratorId?: string | null,
+  assigneeUserId?: string | null | undefined,
 ): void {
-  const allowsMissingAssignee =
-    status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
-  const hasAssignee = assigneeId != null || assigneeOrchestratorId != null;
-  if (!allowsMissingAssignee && !hasAssignee) {
+  requireAssigneeXor(assigneeId, assigneeOrchestratorId, assigneeUserId);
+  if (
+    AGENT_ONLY_STATUSES.has(status) &&
+    !hasAssigneeValue(assigneeId) &&
+    !hasAssigneeValue(assigneeOrchestratorId)
+  ) {
     throw unprocessableEntity(
-      "assigneeId or assigneeOrchestratorId is required for statuses other than draft or canceled",
+      "An agent (Coworker or orchestrator) assignee is required for this status",
     );
   }
 }
@@ -129,6 +159,7 @@ async function requireTaskReferences(
     projectId?: string | null;
     assigneeId?: string | null;
     assigneeOrchestratorId?: string | null;
+    assigneeUserId?: string | null;
     workspaceId: string;
     actor: TaskDomainActor;
   },
@@ -152,6 +183,13 @@ async function requireTaskReferences(
       input.workspaceId,
       tx,
       taskAssigner(input.actor),
+    );
+  }
+  if (input.assigneeUserId !== null && input.assigneeUserId !== undefined) {
+    await requireTaskAssignableUser(
+      input.assigneeUserId,
+      input.workspaceId,
+      tx,
     );
   }
 }
@@ -238,15 +276,35 @@ export async function createTaskForActor(
   input: CreateTaskDomainInput,
   tx: Prisma.TransactionClient,
 ): Promise<Task> {
-  requireAssigneeXor(input.assigneeId, input.assigneeOrchestratorId);
-  requireAssigneeForExecutableStatus(
-    input.status,
+  requireAssigneeXor(
     input.assigneeId,
     input.assigneeOrchestratorId,
+    input.assigneeUserId,
   );
   await requireTaskReferences(input, tx);
   const pendingGrant = await resolvePendingGrant(input, tx);
   const status = pendingGrant ? TaskStatus.GRANT_PENDING : input.status;
+  // GRANT_PENDING is agent-only. A delegated create that parks for a vendor
+  // grant and omitted assigneeId still belongs to the acting coworker.
+  const hasUserAssignee =
+    input.assigneeUserId != null && input.assigneeUserId !== "";
+  const hasAgentAssignee =
+    (input.assigneeId != null && input.assigneeId !== "") ||
+    (input.assigneeOrchestratorId != null &&
+      input.assigneeOrchestratorId !== "");
+  const assigneeId =
+    pendingGrant &&
+    input.actor.kind === "coworker" &&
+    !hasAgentAssignee &&
+    !hasUserAssignee
+      ? input.actor.coworkerId
+      : input.assigneeId;
+  requireAssigneeForExecutableStatus(
+    status,
+    assigneeId,
+    input.assigneeOrchestratorId,
+    input.assigneeUserId,
+  );
   const description =
     pendingGrant || !input.resolveDescription
       ? (input.description ?? null)
@@ -260,8 +318,9 @@ export async function createTaskForActor(
       projectId: input.projectId ?? null,
       name: input.name,
       description,
-      assigneeId: input.assigneeId ?? null,
+      assigneeId: assigneeId ?? null,
       assigneeOrchestratorId: input.assigneeOrchestratorId ?? null,
+      assigneeUserId: input.assigneeUserId ?? null,
       ...creatorFields(input.actor),
       status,
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
@@ -347,10 +406,15 @@ export async function updateTaskForActor(
     );
   }
 
-  requireAssigneeXor(input.assigneeId, input.assigneeOrchestratorId);
+  requireAssigneeXor(
+    input.assigneeId,
+    input.assigneeOrchestratorId,
+    input.assigneeUserId,
+  );
   const assigneeWrite = nextAssigneeWrite({
     assigneeId: input.assigneeId,
     assigneeOrchestratorId: input.assigneeOrchestratorId,
+    assigneeUserId: input.assigneeUserId,
   });
   const nextAssigneeId = assigneeWrite
     ? assigneeWrite.assigneeId
@@ -358,11 +422,15 @@ export async function updateTaskForActor(
   const nextAssigneeOrchestratorId = assigneeWrite
     ? assigneeWrite.assigneeOrchestratorId
     : task.assigneeOrchestratorId;
+  const nextAssigneeUserId = assigneeWrite
+    ? assigneeWrite.assigneeUserId
+    : task.assigneeUserId;
   const nextStatus = input.status ?? task.status;
   requireAssigneeForExecutableStatus(
     nextStatus,
     nextAssigneeId,
     nextAssigneeOrchestratorId,
+    nextAssigneeUserId,
   );
 
   await requireTaskReferences(
@@ -373,6 +441,7 @@ export async function updateTaskForActor(
       assigneeOrchestratorId: assigneeWrite
         ? assigneeWrite.assigneeOrchestratorId
         : undefined,
+      assigneeUserId: assigneeWrite ? assigneeWrite.assigneeUserId : undefined,
       actor: input.actor,
     },
     tx,

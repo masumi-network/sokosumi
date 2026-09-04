@@ -142,7 +142,7 @@ export function getTasksFiltersFromSearchParams(
   activeOrganizationId: string | null,
   assigneeOptions: ReadonlyArray<{
     id: string;
-    kind?: "coworker" | "orchestrator";
+    kind?: "coworker" | "orchestrator" | "user";
   }>,
   projectOptions?: ReadonlyArray<ProjectFilterOption>,
 ): TasksFilters {
@@ -167,6 +167,9 @@ export function getTasksFiltersFromSearchParams(
   for (const option of assigneeOptions) {
     if (option.kind === "orchestrator") {
       validOrchestratorIds.add(option.id);
+    } else if (option.kind === "user") {
+      // Human assignees are picked in the task form, not via URL filters.
+      continue;
     } else {
       validCoworkerIds.add(option.id);
     }

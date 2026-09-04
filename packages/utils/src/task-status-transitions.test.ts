@@ -42,6 +42,36 @@ describe("canUserTransitionTaskStatus", () => {
       false,
     );
   });
+
+  it.each([
+    ["READY", "RUNNING"],
+    ["RUNNING", "READY"],
+    ["RUNNING", "AWAITING_EXTERNAL"],
+    ["RUNNING", "COMPLETED"],
+    ["AWAITING_EXTERNAL", "RUNNING"],
+    ["AWAITING_EXTERNAL", "READY"],
+    ["AWAITING_EXTERNAL", "COMPLETED"],
+  ] as const)("accepts human %s → %s", (from, to) => {
+    expect(canUserTransitionTaskStatus(from, to, "human")).toBe(true);
+    expect(canUserTransitionTaskStatus(from, to, "unset")).toBe(true);
+  });
+
+  it.each([
+    ["READY", "COMPLETED"],
+    ["READY", "QUEUED"],
+    ["DRAFT", "QUEUED"],
+    ["RUNNING", "FAILED"],
+    ["AWAITING_EXTERNAL", "FAILED"],
+  ] as const)("rejects human %s → %s", (from, to) => {
+    expect(canUserTransitionTaskStatus(from, to, "human")).toBe(false);
+  });
+
+  it("keeps agent RUNNING → CANCELED only for coworker tasks", () => {
+    expect(canUserTransitionTaskStatus("RUNNING", "COMPLETED")).toBe(false);
+    expect(canUserTransitionTaskStatus("RUNNING", "COMPLETED", "human")).toBe(
+      true,
+    );
+  });
 });
 
 describe("userTaskStatusTransitionRequiresComment", () => {

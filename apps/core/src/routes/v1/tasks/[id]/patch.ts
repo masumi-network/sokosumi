@@ -7,6 +7,7 @@ import {
   requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
   requireTaskAssignableOrchestrator,
+  requireTaskAssignableUser,
 } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, forbidden, notFound } from "@/helpers/error";
@@ -19,6 +20,7 @@ import {
   refineAssigneeXorConflict,
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
+import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -57,6 +59,7 @@ export const patchTaskRequestSchema = z
     assigneeOrchestratorId: z.string().uuid().nullish().openapi({
       example: "01960001-0001-7001-8001-000000000099",
     }),
+    assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
   })
   .superRefine((data, ctx) => {
     refineAssigneeXorConflict(data, ctx);
@@ -67,12 +70,13 @@ export const patchTaskRequestSchema = z
       data.projectId === undefined &&
       data.assigneeId === undefined &&
       data.coworkerId === undefined &&
-      data.assigneeOrchestratorId === undefined
+      data.assigneeOrchestratorId === undefined &&
+      data.assigneeUserId === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, assigneeId or assigneeOrchestratorId is required",
+          "At least one of name, description, projectId, assigneeId, assigneeOrchestratorId, or assigneeUserId is required",
         path: ["name"],
       });
     }
@@ -120,10 +124,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
-    const { name, description, projectId, assigneeId, assigneeOrchestratorId } =
-      c.req.valid("json");
+    const {
+      name,
+      description,
+      projectId,
+      assigneeId,
+      assigneeOrchestratorId,
+      assigneeUserId,
+    } = c.req.valid("json");
 
-    const task = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskOwnership(
         userContext,
         id,
@@ -171,6 +181,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const assigneeWrite = nextAssigneeWrite({
         assigneeId,
         assigneeOrchestratorId,
+        assigneeUserId,
       });
       const nextAssigneeId = assigneeWrite
         ? assigneeWrite.assigneeId
@@ -178,10 +189,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const nextAssigneeOrchestratorId = assigneeWrite
         ? assigneeWrite.assigneeOrchestratorId
         : task.assigneeOrchestratorId;
+      const nextAssigneeUserId = assigneeWrite
+        ? assigneeWrite.assigneeUserId
+        : task.assigneeUserId;
       validateTaskAssigneeAssignment({
         status: task.status,
         assigneeId: nextAssigneeId,
         assigneeOrchestratorId: nextAssigneeOrchestratorId,
+        assigneeUserId: nextAssigneeUserId,
       });
 
       if (assigneeWrite?.assigneeId) {
@@ -206,6 +221,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         );
       }
+      if (assigneeWrite?.assigneeUserId) {
+        await requireTaskAssignableUser(
+          assigneeWrite.assigneeUserId,
+          task.workspaceId,
+          tx,
+        );
+      }
+
+      const previousAssigneeUserId = task.assigneeUserId;
 
       const updatedTask = await tx.task.update({
         where: {
@@ -234,9 +258,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           nextRunAt: task.nextRunAt,
         });
       }
-      return updatedTask;
+      return { task: updatedTask, previousAssigneeUserId };
     });
 
-    return ok(c, taskSchema.parse(mapTask(task)));
+    if (
+      result.previousAssigneeUserId !== result.task.assigneeUserId &&
+      result.task.assigneeUserId
+    ) {
+      await notifyTaskHumanAssignee(result.task.id, result.task.assigneeUserId);
+    }
+
+    return ok(c, taskSchema.parse(mapTask(result.task)));
   });
 }

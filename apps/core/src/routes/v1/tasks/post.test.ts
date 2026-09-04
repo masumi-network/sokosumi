@@ -21,6 +21,7 @@ const {
   ensureProjectFilesTokenMock,
   generateTaskNameMock,
   mapTaskMock,
+  notifyTaskHumanAssigneeMock,
   notifyWorkspaceApproversOfPendingGrantMock,
   projectFindFirstMock,
   projectUpdateManyMock,
@@ -37,6 +38,7 @@ const {
   ensureProjectFilesTokenMock: vi.fn(),
   generateTaskNameMock: vi.fn(),
   mapTaskMock: vi.fn(),
+  notifyTaskHumanAssigneeMock: vi.fn(),
   notifyWorkspaceApproversOfPendingGrantMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
@@ -94,6 +96,7 @@ function buildMapTaskResponse(task: {
       : null,
     assigneeId: null,
     assigneeOrchestratorId: null,
+    assigneeUserId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -165,6 +168,10 @@ vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
       notifyWorkspaceApproversOfPendingGrantMock,
   };
 });
+
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskHumanAssignee: notifyTaskHumanAssigneeMock,
+}));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/helpers/task")>();
@@ -284,12 +291,25 @@ describe("createTaskRequestSchema", () => {
     }).toThrow();
   });
 
-  it("rejects READY status without assigneeId", () => {
+  it("accepts READY status without assignee (unset Ready is valid, SOK-868)", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "Ready task",
+      description: null,
+      assigneeId: null,
+      status: TaskStatus.READY,
+    });
+
+    expect(result.status).toBe(TaskStatus.READY);
+    expect(result.assigneeUserId).toBeNull();
+  });
+
+  it("rejects coworker and user assignees together", () => {
     expect(() => {
       createTaskRequestSchema.parse({
         name: "Ready task",
         description: null,
-        assigneeId: null,
+        assigneeId: "cow_123",
+        assigneeUserId: "user_123",
         status: TaskStatus.READY,
       });
     }).toThrow();

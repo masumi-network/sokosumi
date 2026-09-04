@@ -61,6 +61,7 @@ const {
           : null),
       assigneeOrchestratorId:
         (t.assigneeOrchestratorId as string | null | undefined) ?? null,
+      assigneeUserId: (t.assigneeUserId as string | null | undefined) ?? null,
       assignee:
         t.assignee ??
         (t.assigneeOrchestratorId

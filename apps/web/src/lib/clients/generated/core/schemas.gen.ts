@@ -4448,7 +4448,7 @@ export const TaskSchema = {
                 'null'
             ],
             example: 'cow_123',
-            description: 'Marketplace coworker assignee. Null when the assignee is an orchestrator.'
+            description: 'Marketplace coworker assignee. Null when assigned to a user, an orchestrator, or unset. Prefer `assignee`.'
         },
         assigneeOrchestratorId: {
             type: [
@@ -4457,12 +4457,23 @@ export const TaskSchema = {
             ],
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099',
-            description: 'Personal-assistant orchestrator assignee. Null when the assignee is a coworker.'
+            description: 'Personal-assistant orchestrator assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'user_123',
+            description: 'Workspace-member assignee id. Null when assigned to a coworker, an orchestrator, or unset. Prefer `assignee`.'
         },
         assignee: {
             anyOf: [
                 {
                     $ref: '#/components/schemas/TaskAssigneeCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/TaskAssigneeUser'
                 },
                 {
                     $ref: '#/components/schemas/TaskAssigneeOrchestrator'
@@ -4471,7 +4482,7 @@ export const TaskSchema = {
                     type: 'null'
                 }
             ],
-            description: 'Discriminated assignee: coworker, orchestrator, or unassigned.',
+            description: 'Discriminated assignee: coworker, workspace member, orchestrator, or unassigned.',
             example: null
         },
         coworkerId: {
@@ -4649,6 +4660,7 @@ export const TaskSchema = {
         'projectId',
         'assigneeId',
         'assigneeOrchestratorId',
+        'assigneeUserId',
         'assignee',
         'coworkerId',
         'coworker',
@@ -4774,6 +4786,30 @@ export const CoworkerSummarySchema = {
         'id',
         'name',
         'slug'
+    ]
+} as const;
+
+export const TaskAssigneeUserSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'user'
+            ]
+        },
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        }
+    },
+    required: [
+        'type',
+        'id',
+        'user'
     ]
 } as const;
 
@@ -18279,7 +18315,7 @@ export const TaskListItemSchema = {
                 'null'
             ],
             example: 'cow_123',
-            description: 'Marketplace coworker assignee. Null when the assignee is an orchestrator.'
+            description: 'Marketplace coworker assignee. Null when assigned to a user, an orchestrator, or unset. Prefer `assignee`.'
         },
         assigneeOrchestratorId: {
             type: [
@@ -18288,12 +18324,23 @@ export const TaskListItemSchema = {
             ],
             format: 'uuid',
             example: '01960001-0001-7001-8001-000000000099',
-            description: 'Personal-assistant orchestrator assignee. Null when the assignee is a coworker.'
+            description: 'Personal-assistant orchestrator assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'user_123',
+            description: 'Workspace-member assignee id. Null when assigned to a coworker, an orchestrator, or unset. Prefer `assignee`.'
         },
         assignee: {
             anyOf: [
                 {
                     $ref: '#/components/schemas/TaskAssigneeCoworker'
+                },
+                {
+                    $ref: '#/components/schemas/TaskAssigneeUser'
                 },
                 {
                     $ref: '#/components/schemas/TaskAssigneeOrchestrator'
@@ -18302,7 +18349,7 @@ export const TaskListItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'Discriminated assignee: coworker, orchestrator, or unassigned.',
+            description: 'Discriminated assignee: coworker, workspace member, orchestrator, or unassigned.',
             example: null
         },
         coworkerId: {
@@ -18446,6 +18493,7 @@ export const TaskListItemSchema = {
         'projectId',
         'assigneeId',
         'assigneeOrchestratorId',
+        'assigneeUserId',
         'assignee',
         'coworkerId',
         'coworker',

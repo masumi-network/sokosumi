@@ -1,4 +1,4 @@
-import type { Coworker, SokoBot } from "@/lib/clients/generated/core";
+import type { Coworker, Member, SokoBot } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
@@ -112,33 +112,91 @@ export function withOwnerOrchestratorOption(
   return [option, ...options];
 }
 
+export function getUserOptions(members: Member[]): CoworkerOption[] {
+  const seen = new Set<string>();
+  const options: CoworkerOption[] = [];
+  for (const member of members) {
+    const user = member.user;
+    if (!user || seen.has(user.id)) continue;
+    seen.add(user.id);
+    options.push({
+      id: user.id,
+      slug: user.email?.toLowerCase() ?? user.id,
+      name: user.name?.trim() || user.email || "Member",
+      kind: "user" as const,
+      image: user.image ?? "",
+      vendor: {
+        id: "workspace-members",
+        name: "Members",
+        slug: "workspace-members",
+        logos: { light: null, dark: null },
+      },
+    });
+  }
+  return options.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function resolveTaskAssigneeFields(
   selectedId: string | null | undefined,
   options: ReadonlyArray<Pick<CoworkerOption, "id" | "kind">>,
   knownOrchestratorId?: string | null,
-): { assigneeId: string | null; assigneeOrchestratorId: string | null } {
+): {
+  assigneeId: string | null;
+  assigneeOrchestratorId: string | null;
+  assigneeUserId: string | null;
+} {
   if (!selectedId) {
-    return { assigneeId: null, assigneeOrchestratorId: null };
+    return {
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: null,
+    };
   }
 
   const selected = options.find((option) => option.id === selectedId);
   if (selected?.kind === "orchestrator") {
-    return { assigneeId: null, assigneeOrchestratorId: selectedId };
+    return {
+      assigneeId: null,
+      assigneeOrchestratorId: selectedId,
+      assigneeUserId: null,
+    };
+  }
+  if (selected?.kind === "user") {
+    return {
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: selectedId,
+    };
   }
   if (selected) {
-    return { assigneeId: selectedId, assigneeOrchestratorId: null };
+    return {
+      assigneeId: selectedId,
+      assigneeOrchestratorId: null,
+      assigneeUserId: null,
+    };
   }
 
   if (knownOrchestratorId && selectedId === knownOrchestratorId) {
-    return { assigneeId: null, assigneeOrchestratorId: selectedId };
+    return {
+      assigneeId: null,
+      assigneeOrchestratorId: selectedId,
+      assigneeUserId: null,
+    };
   }
 
-  return { assigneeId: selectedId, assigneeOrchestratorId: null };
+  return {
+    assigneeId: selectedId,
+    assigneeOrchestratorId: null,
+    assigneeUserId: null,
+  };
 }
 
 export function taskFormAssigneeId(task: {
   assigneeId?: string | null;
   assigneeOrchestratorId?: string | null;
+  assigneeUserId?: string | null;
 }): string {
-  return task.assigneeOrchestratorId ?? task.assigneeId ?? "";
+  return (
+    task.assigneeOrchestratorId ?? task.assigneeId ?? task.assigneeUserId ?? ""
+  );
 }

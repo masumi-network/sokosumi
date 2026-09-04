@@ -364,6 +364,7 @@ export {
 } from "./task-schedule.js";
 export {
   canUserTransitionTaskStatus,
+  type TaskAssigneeKind,
   type UserTransitionTaskStatus,
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";

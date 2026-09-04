@@ -194,6 +194,14 @@ const taskAssigneeCoworkerSchema = z
   })
   .openapi("TaskAssigneeCoworker");
 
+const taskAssigneeUserSchema = z
+  .object({
+    type: z.literal("user"),
+    id: z.string().openapi({ example: "user_123" }),
+    user: userSummarySchema,
+  })
+  .openapi("TaskAssigneeUser");
+
 const taskAssigneeOrchestratorSchema = z
   .object({
     type: z.literal("orchestrator"),
@@ -207,6 +215,7 @@ const taskAssigneeOrchestratorSchema = z
 export const taskAssigneeSchema = z
   .discriminatedUnion("type", [
     taskAssigneeCoworkerSchema,
+    taskAssigneeUserSchema,
     taskAssigneeOrchestratorSchema,
   ])
   .openapi("TaskAssignee");
@@ -239,16 +248,21 @@ const taskBaseSchema = z.object({
   assigneeId: z.string().nullable().openapi({
     example: "cow_123",
     description:
-      "Marketplace coworker assignee. Null when the assignee is an orchestrator.",
+      "Marketplace coworker assignee. Null when assigned to a user, an orchestrator, or unset. Prefer `assignee`.",
   }),
   assigneeOrchestratorId: z.string().uuid().nullable().openapi({
     example: "01960001-0001-7001-8001-000000000099",
     description:
-      "Personal-assistant orchestrator assignee. Null when the assignee is a coworker.",
+      "Personal-assistant orchestrator assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.",
+  }),
+  assigneeUserId: z.string().nullable().openapi({
+    example: "user_123",
+    description:
+      "Workspace-member assignee id. Null when assigned to a coworker, an orchestrator, or unset. Prefer `assignee`.",
   }),
   assignee: z.union([taskAssigneeSchema, z.null()]).openapi({
     description:
-      "Discriminated assignee: coworker, orchestrator, or unassigned.",
+      "Discriminated assignee: coworker, workspace member, orchestrator, or unassigned.",
     example: null,
   }),
   /** @deprecated Marketplace-only. Use `assigneeId` or `assignee`. */
