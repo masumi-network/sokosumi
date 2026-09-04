@@ -2,7 +2,7 @@
 
 import {
   Ban,
-  List,
+  CircleCheck,
   type LucideIcon,
   SlidersHorizontal,
   Star,
@@ -63,9 +63,13 @@ const STOP_OFF = "text-muted-foreground hover:text-foreground";
  * None of them may be a channel's icon. A bell here would read as the In app
  * column rather than as how much arrives, and the two questions are exactly
  * what this row spent a redesign separating.
+ *
+ * Everything and Nothing are the same circle, ticked and struck through, so
+ * the two ends of the rail read as opposites at a glance. A list of lines
+ * stood for Everything before and read as a menu rather than as an amount.
  */
 const ANSWER_ICON: Record<ScopeState, LucideIcon> = {
-  ALL: List,
+  ALL: CircleCheck,
   IMPORTANT: Star,
   NONE: Ban,
   CUSTOM: SlidersHorizontal,
