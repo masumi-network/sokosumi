@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 import {
   type ScenarioCheck,
@@ -415,4 +416,20 @@ export async function recordFailedJudgeUsage(
   if (!(error instanceof SokoBotJudgeFailure)) return;
   if (error.usage.costUsd === 0 && error.usage.inputTokens === 0) return;
   await addTurnOverheadUsage(turnId, error.usage).catch(() => undefined);
+}
+
+/** Background quality scoring: page Sentry, then keep the spend. */
+export async function reportFailedTurnJudge(
+  turnId: string,
+  error: unknown,
+): Promise<void> {
+  console.error("Soko Bot turn judge failed", {
+    turnId,
+    error: error instanceof Error ? error.message : "unknown",
+  });
+  Sentry.captureException(error, {
+    tags: { error_type: "soko_bot_turn_judge_failed" },
+    extra: { turnId },
+  });
+  await recordFailedJudgeUsage(turnId, error);
 }

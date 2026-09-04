@@ -1490,16 +1490,10 @@ export class SokoBotControlPlane {
           void (
             judgeAllowed ? judgeTurnQuality(input.turnId) : Promise.resolve()
           ).catch(async (error) => {
-            console.error("Soko Bot turn judge failed", {
-              turnId: input.turnId,
-              error: error instanceof Error ? error.message : "unknown",
-            });
-            // A judge that produced nothing usable still spent the tokens it
-            // spent, and it fails most often on the turns that cost the most.
-            const { recordFailedJudgeUsage } = await import(
+            const { reportFailedTurnJudge } = await import(
               "@/services/soko-bot-lab-judge.service"
             );
-            await recordFailedJudgeUsage(input.turnId, error);
+            await reportFailedTurnJudge(input.turnId, error);
           });
         }
         return settled;
