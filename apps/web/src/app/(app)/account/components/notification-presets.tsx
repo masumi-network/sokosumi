@@ -27,6 +27,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { TIP_DELAY_MS, TIP_OFFSET_PX } from "./notification-cells";
 import {
   groupScopes,
   type KindSpec,
@@ -52,10 +53,27 @@ import {
 const RAIL = "border-input bg-background shrink-0 rounded-lg border p-0.5";
 
 const STOP =
-  "focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px]";
+  "focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,scale] outline-none focus-visible:ring-[3px] motion-safe:active:scale-95";
 
 const STOP_ON = "bg-primary/10 text-primary";
 const STOP_OFF = "text-muted-foreground hover:text-foreground";
+
+/**
+ * The panel an answer opens under the pointer.
+ *
+ * Wider and slower than the one-line tooltips over the cells, because it
+ * carries a sentence and two lists rather than a phrase: a panel this size
+ * popping in at full speed reads as something going wrong. Slower only for a
+ * reader who takes motion: the tooltip these sit on animates whatever the
+ * setting says, and lengthening that for someone who asked for less is the
+ * one thing this must not do.
+ *
+ * `animation-duration-200` rather than `duration-200`, which sets a transition
+ * duration on an element whose transition property is still `all` and puts
+ * every later change on a 200ms ease it never asked for.
+ */
+const PANEL =
+  "max-w-72 px-3 py-2 text-left text-xs motion-safe:animation-duration-200 ease-out";
 
 /**
  * The face of each answer.
@@ -187,7 +205,7 @@ function Stop({
 
   return (
     <>
-      <Tooltip>
+      <Tooltip delayDuration={TIP_DELAY_MS}>
         <TooltipTrigger asChild>
           <button
             type="button"
@@ -211,7 +229,7 @@ function Stop({
             {label}
           </button>
         </TooltipTrigger>
-        <TooltipContent className="max-w-72 px-3 py-2 text-left text-xs">
+        <TooltipContent sideOffset={TIP_OFFSET_PX} className={PANEL}>
           <AnswerBody
             icon={Icon}
             label={label}
@@ -413,7 +431,7 @@ export function GroupAnswer({
           />
         ))}
       </div>
-      <Tooltip>
+      <Tooltip delayDuration={TIP_DELAY_MS}>
         <TooltipTrigger asChild>
           <CollapsibleTrigger
             id={chipId}
@@ -437,7 +455,7 @@ export function GroupAnswer({
             {t(PRESET_SCOPE_LABEL_KEY.CUSTOM)}
           </CollapsibleTrigger>
         </TooltipTrigger>
-        <TooltipContent className="max-w-72 px-3 py-2 text-left text-xs">
+        <TooltipContent sideOffset={TIP_OFFSET_PX} className={PANEL}>
           {/* No lists: it keeps and stops nothing on its own. What it does is
               open the group, and the kinds answer for themselves in there. */}
           <AnswerBody
