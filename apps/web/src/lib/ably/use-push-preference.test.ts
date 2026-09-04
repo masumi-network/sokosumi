@@ -734,6 +734,37 @@ describe("usePushPreference", () => {
   });
 
   /**
+   * The row starting off is why the caller needs the second answer. A view
+   * that reads "this browser holds nothing" from `isDeviceEnabled` alone would
+   * say so on every load, on the browsers that hold a subscription too, for as
+   * long as the read is out.
+   */
+  it("says the browser has not answered until its read lands", async () => {
+    setAccountOptIn(true);
+    getSubscriptionMock.mockReturnValue(new Promise(() => {}));
+
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.canToggleAccount).toBe(true));
+    expect(result.current.isDeviceKnown).toBe(false);
+    expect(result.current.isDeviceEnabled).toBe(false);
+  });
+
+  it("says the browser has answered once its read lands", async () => {
+    setAccountOptIn(true);
+    setDeviceSubscribed(false);
+
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isDeviceKnown).toBe(true));
+    expect(result.current.isDeviceEnabled).toBe(false);
+  });
+
+  /**
    * The device row paints its own click before the work runs, so a disable
    * that removed nothing has to be taken back. Left alone, the row would say
    * this browser is out while it still holds a subscription and still shows

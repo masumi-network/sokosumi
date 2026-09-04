@@ -4091,6 +4091,7 @@
         "marketingEmailsDisabledSuccess": "Marketing-E-Mails deaktiviert",
         "pushUnsupported": "Dieser Browser unterstützt keine Push-Benachrichtigungen.",
         "pushBlockedHint": "Benachrichtigungen für Sokosumi sind in diesem Browser blockiert. Erlaube sie in den Browser-Einstellungen für diese Website.",
+        "pushUnsubscribedHint": "Dieser Browser ist noch nicht für Push eingerichtet. Schalte Push für eine Benachrichtigung aus und wieder ein, um ihn hinzuzufügen.",
         "pushOtherDevicesHint": "Deine anderen Geräte richten sich weiterhin nach dieser Einstellung.",
         "pushEnabledSuccess": "Push-Benachrichtigungen aktiviert",
         "pushEnabledOtherDevicesSuccess": "Push-Benachrichtigungen auf deinen anderen Geräten aktiviert",
