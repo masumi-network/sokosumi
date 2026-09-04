@@ -442,7 +442,9 @@ export const adminSokoBotTurnSchema = sokoBotTurnSchema
   .extend({
     eveSessionId: z.string().nullable(),
     eveTurnId: z.string().nullable(),
-    contextSnapshot: sokoBotContextSnapshotSchema.nullable(),
+    // Union-with-null, not `.nullable()`: same codegen poison as runtimeHealth
+    // (unguarded `generatedAt` / `createdAt` conversion).
+    contextSnapshot: z.union([sokoBotContextSnapshotSchema, z.null()]),
     toolCalls: z.array(sokoBotToolCallSchema),
   })
   .openapi("AdminSokoBotTurn");
@@ -515,7 +517,12 @@ export const adminSokoBotDetailSchema = sokoBotSchema
     pendingDecisions: z.array(sokoBotPendingDecisionSchema),
     schedules: z.array(adminSokoBotScheduleSchema),
     adminActions: z.array(sokoBotAdminActionSchema),
-    runtimeHealth: sokoBotRuntimeHealthSchema.nullable(),
+    // Union-with-null instead of `.nullable()`: `.nullable()` on a named
+    // `.openapi(...)` schema drops `| null` from the generated client and
+    // makes the transformer convert `checkedAt` unconditionally (crash when
+    // Core returns null health for a bot with no Eve session or turns).
+    // Mirrors `sokoBotTurnSchema.qualityVerdict` and `taskSchema.share`.
+    runtimeHealth: z.union([sokoBotRuntimeHealthSchema, z.null()]),
     usage: sokoBotUsageSchema,
   })
   .openapi("AdminSokoBotDetail");
