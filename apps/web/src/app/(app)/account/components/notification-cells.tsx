@@ -89,6 +89,28 @@ export function ColumnHeads() {
 }
 
 /**
+ * The columns, named once for the whole card.
+ *
+ * Every row right-aligns its cells into the same column, so one line of names
+ * covers all of them. Repeated over each group they read as a stray line of
+ * small text, and each copy pushed the block under it down by its own height.
+ *
+ * The names sit on their line's floor: a channel whose name wraps in one
+ * language would otherwise lift its own column, and the heads would read on
+ * two lines of sight.
+ */
+export function ColumnHeadRow() {
+  return (
+    <div
+      aria-hidden="true"
+      className="hidden items-end justify-end gap-2 px-4 pt-3 pb-2 sm:flex"
+    >
+      <ColumnHeads />
+    </div>
+  );
+}
+
+/**
  * A cell with nothing to press, and a reason a reader can reach.
  *
  * Kept in the row rather than dropped, so the column has no hole in it and the
@@ -451,24 +473,20 @@ export function ChannelGrid({
 
   return (
     <div>
-      {/* Ended at the same edge as the cells rather than spaced off a name
-          that is not always there, so a group of one lines up with the rest.
-          With names, the rows stack on a narrow screen and each row carries
-          its own heads instead: one set at the top would sit a whole name
-          block away from the cells it labels.
-
-          The names sit on the row's floor: a channel whose name wraps in one
-          language would otherwise lift its own column, and the heads would
-          read on two lines of sight. */}
-      <div
-        aria-hidden="true"
-        className={cn(
-          "items-end justify-end gap-2 pb-1",
-          showNames ? "hidden sm:flex" : "flex",
-        )}
-      >
-        <ColumnHeads />
-      </div>
+      {/* Only where the row breaks in two. The card names its columns once
+          at the top and every row right-aligns its cells under those names,
+          so a second set here would be the same words a few lines lower.
+          Below `sm` the name and the cells sit on separate lines and the
+          card's own heads are a whole block away, so the cells bring their
+          heads with them. */}
+      {showNames ? null : (
+        <div
+          aria-hidden="true"
+          className="flex items-end justify-end gap-2 pb-1 sm:hidden"
+        >
+          <ColumnHeads />
+        </div>
+      )}
       <div className={cn(showNames && "divide-y")}>
         {kinds.map((kind) => (
           // Stacked on a narrow screen, where three cells and a name that
