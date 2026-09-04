@@ -6,6 +6,7 @@ import {
   getAgentJobsBasePath,
   getOrganizationSettingsPath,
   getTaskDetailBasePath,
+  switchOrganizationWorkspace,
   useWorkspaceSwitcher,
 } from "@/app/components/user-avatar/workspace-switcher";
 import { updatePreferredOrganization } from "@/lib/actions/organization";
@@ -468,5 +469,91 @@ describe("workspace switcher", () => {
     );
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it("completes a personal switch when Better Auth rejects a stale organization", async () => {
+    pathnameMock = "/organization";
+    vi.mocked(authClient.organization.setActive)
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "User is not a member of the organization" },
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: null,
+      });
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        organizationId: null,
+      },
+    });
+
+    function MembershipMissSwitcherTestComponent() {
+      const { handleSelectWorkspace } = useWorkspaceSwitcher();
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            void handleSelectWorkspace("org-1", {
+              successMessage: "Switched to Org One account",
+            });
+          }}
+        >
+          Switch workspace
+        </button>
+      );
+    }
+
+    const unhandledReasons: unknown[] = [];
+    function handleUnhandledRejection(event: PromiseRejectionEvent) {
+      unhandledReasons.push(event.reason);
+      event.preventDefault();
+    }
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const user = userEvent.setup();
+    render(<MembershipMissSwitcherTestComponent />);
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+
+    await waitFor(() => {
+      expect(authClient.organization.setActive).toHaveBeenNthCalledWith(1, {
+        organizationId: "org-1",
+      });
+      expect(authClient.organization.setActive).toHaveBeenNthCalledWith(2, {
+        organizationId: null,
+      });
+      expect(updatePreferredOrganization).toHaveBeenCalledWith({
+        organizationId: null,
+      });
+      expect(replaceMock).toHaveBeenCalledWith("/");
+      expect(refreshMock).toHaveBeenCalled();
+    });
+
+    expect(unhandledReasons).toEqual([]);
+    expect(toast.success).not.toHaveBeenCalled();
+
+    window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("still rejects setActive errors that are not a membership miss", async () => {
+    pathnameMock = "/organization";
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: { message: "ORGANIZATION_NOT_FOUND" },
+    });
+
+    await expect(switchOrganizationWorkspace("org-1")).rejects.toThrow(
+      "ORGANIZATION_NOT_FOUND",
+    );
+
+    expect(authClient.organization.setActive).toHaveBeenCalledTimes(1);
+    expect(updatePreferredOrganization).not.toHaveBeenCalled();
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 });
