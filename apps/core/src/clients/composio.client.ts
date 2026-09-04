@@ -72,6 +72,8 @@ interface ComposioConnectedAccountResponse {
   user_id?: string;
 }
 
+const CONNECT_LINK_HOST = "connect.composio.dev";
+
 function getProjectComposioConfig(): { apiKey: string; baseUrl: string } {
   const env = getEnv();
   if (!env.COMPOSIO_API_KEY) {
@@ -92,12 +94,23 @@ async function projectComposioFetch(
   const headers = new Headers(initHeaders);
   headers.set("x-api-key", apiKey);
   if (jsonBody !== undefined) headers.set("Content-Type", "application/json");
-  return fetch(new URL(path, baseUrl), {
-    ...requestInit,
-    body: jsonBody === undefined ? undefined : JSON.stringify(jsonBody),
-    cache: "no-store",
-    headers,
-  });
+  try {
+    return await fetch(new URL(path, baseUrl), {
+      ...requestInit,
+      body: jsonBody === undefined ? undefined : JSON.stringify(jsonBody),
+      cache: "no-store",
+      headers,
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      (error.name === "AbortError" || error.name === "TimeoutError")
+    ) {
+      throw new ComposioApiError(503, undefined, "Composio API timed out");
+    }
+    throw error;
+  }
 }
 
 async function projectComposioResponse<T>(
@@ -158,6 +171,30 @@ function projectResponseError(response: Response, context: string): never {
   );
 }
 
+function validateConnectLinkRedirectUrl(redirectUrl: string): string {
+  const { baseUrl } = getProjectComposioConfig();
+  let url: URL;
+  try {
+    url = new URL(redirectUrl);
+  } catch {
+    throw new ComposioApiError(
+      503,
+      undefined,
+      "initiate Project X connection returned an unsafe redirect URL",
+    );
+  }
+
+  const allowedHosts = new Set([new URL(baseUrl).hostname, CONNECT_LINK_HOST]);
+  if (url.protocol !== "https:" || !allowedHosts.has(url.hostname)) {
+    throw new ComposioApiError(
+      503,
+      undefined,
+      "initiate Project X connection returned an unsafe redirect URL",
+    );
+  }
+  return url.toString();
+}
+
 export async function initiateProjectXConnection(input: {
   authConfigId: string;
   callbackUrl: string;
@@ -191,7 +228,10 @@ export async function initiateProjectXConnection(input: {
   const redirectUrl = body.redirect_url ?? body.redirectUrl;
   if (!connectionId || !redirectUrl)
     projectResponseError(response, "initiate Project X connection");
-  return { connectionId, redirectUrl };
+  return {
+    connectionId,
+    redirectUrl: validateConnectLinkRedirectUrl(redirectUrl),
+  };
 }
 
 export async function completeComposioAuth(input: {
