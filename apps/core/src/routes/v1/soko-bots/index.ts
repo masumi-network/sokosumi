@@ -154,6 +154,10 @@ app.use("*", async (c, next) => {
     throw serviceUnavailable(
       availability.disabledReason ??
         "Soko Bot is temporarily disabled by an administrator",
+      {
+        kind: "soko-bot-disabled",
+        reportToSentry: false,
+      },
     );
   }
   // Beta gate, matching the web route's 404 and the calendar routes' rule.
