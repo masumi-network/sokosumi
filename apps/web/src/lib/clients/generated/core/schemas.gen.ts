@@ -17374,15 +17374,12 @@ export const InstallSokoBotSkillResponseSchema = {
     type: 'object',
     properties: {
         skill: {
-            allOf: [
+            anyOf: [
                 {
                     $ref: '#/components/schemas/SokoBotInstalledSkill'
                 },
                 {
-                    type: [
-                        'object',
-                        'null'
-                    ]
+                    type: 'null'
                 }
             ]
         },

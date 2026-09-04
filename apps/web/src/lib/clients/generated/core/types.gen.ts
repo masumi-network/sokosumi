@@ -5061,9 +5061,7 @@ export type SokoBotInstalledSkill = {
 };
 
 export type InstallSokoBotSkillResponse = {
-    skill: SokoBotInstalledSkill & ({
-        [key: string]: unknown;
-    } | null);
+    skill: SokoBotInstalledSkill | null;
     candidates: Array<{
         name: string;
         description: string;
