@@ -5,6 +5,7 @@ import { updatePreferredOrganization } from "@/lib/actions/organization";
 import {
   activateOrganizationWorkspace,
   activateOrganizationWorkspaceWithRetry,
+  isUserNotMemberOfOrganizationError,
 } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 
@@ -92,6 +93,21 @@ describe("activateOrganizationWorkspace", () => {
     expect(updatePreferredOrganization).not.toHaveBeenCalled();
   });
 
+  it("throws the Better Auth membership miss so the switcher can recover", async () => {
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: "User is not a member of the organization",
+      },
+    });
+
+    await expect(activateOrganizationWorkspace("org-7")).rejects.toThrow(
+      "User is not a member of the organization",
+    );
+    expect(clearMembershipVisibleRoomsSnapshot).not.toHaveBeenCalled();
+    expect(updatePreferredOrganization).not.toHaveBeenCalled();
+  });
+
   it("still resolves when persisting the preferred organization fails", async () => {
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
@@ -166,5 +182,26 @@ describe("activateOrganizationWorkspace", () => {
 
     expect(authClient.organization.setActive).toHaveBeenCalledTimes(2);
     consoleErrorSpy.mockRestore();
+  });
+});
+
+describe("isUserNotMemberOfOrganizationError", () => {
+  it("matches the Better Auth membership miss", () => {
+    expect(
+      isUserNotMemberOfOrganizationError(
+        new Error("User is not a member of the organization"),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not match other setActive failures", () => {
+    expect(
+      isUserNotMemberOfOrganizationError(new Error("ORGANIZATION_NOT_FOUND")),
+    ).toBe(false);
+    expect(
+      isUserNotMemberOfOrganizationError(
+        "User is not a member of the organization",
+      ),
+    ).toBe(false);
   });
 });

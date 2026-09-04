@@ -335,15 +335,19 @@ export async function finalizeJobSyncResult(
 
   if (transactionResult.extractionContext) {
     const { eventId, result, userId } = transactionResult.extractionContext;
-    sourceImportService.enqueueFromMarkdown(eventId, result).catch((error) => {
-      console.error("Failed to enqueue source import:", error);
-      Sentry.captureException(error, {
-        extra: {
-          eventId,
-          userId,
-        },
+    // waitUntil covers this path. Detaching it left nested link upserts
+    // idle-in-transaction after the continuation deadline.
+    await sourceImportService
+      .enqueueFromMarkdown(eventId, result)
+      .catch((error) => {
+        console.error("Failed to enqueue source import:", error);
+        Sentry.captureException(error, {
+          extra: {
+            eventId,
+            userId,
+          },
+        });
       });
-    });
   }
 
   const newJobStatus = transactionResult.jobStatus;

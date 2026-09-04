@@ -267,7 +267,9 @@ const sokoBotContextSnapshotSchemaResponseTransformer = (data: any) => {
 
 const adminSokoBotTurnSchemaResponseTransformer = (data: any) => {
     data = sokoBotTurnSchemaResponseTransformer(data);
-    data.contextSnapshot = sokoBotContextSnapshotSchemaResponseTransformer(data.contextSnapshot);
+    if (data.contextSnapshot) {
+        data.contextSnapshot = sokoBotContextSnapshotSchemaResponseTransformer(data.contextSnapshot);
+    }
     return data;
 };
 
@@ -293,7 +295,9 @@ const adminSokoBotDetailSchemaResponseTransformer = (data: any) => {
     data.turns = data.turns.map((item: any) => adminSokoBotTurnSchemaResponseTransformer(item));
     data.memoryRevisions = data.memoryRevisions.map((item: any) => sokoBotMemorySchemaResponseTransformer(item));
     data.adminActions = data.adminActions.map((item: any) => sokoBotAdminActionSchemaResponseTransformer(item));
-    data.runtimeHealth = sokoBotRuntimeHealthSchemaResponseTransformer(data.runtimeHealth);
+    if (data.runtimeHealth) {
+        data.runtimeHealth = sokoBotRuntimeHealthSchemaResponseTransformer(data.runtimeHealth);
+    }
     return data;
 };
 
@@ -2477,7 +2481,9 @@ export const listMySokoBotSkillsResponseTransformer = async (data: any): Promise
 };
 
 const installSokoBotSkillResponseSchemaResponseTransformer = (data: any) => {
-    data.skill = sokoBotInstalledSkillSchemaResponseTransformer(data.skill);
+    if (data.skill) {
+        data.skill = sokoBotInstalledSkillSchemaResponseTransformer(data.skill);
+    }
     return data;
 };
 
