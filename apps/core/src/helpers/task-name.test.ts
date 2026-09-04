@@ -206,4 +206,43 @@ describe("resolveTaskName", () => {
       }),
     ).toBe("Write the launch email");
   });
+
+  it("omits tilde fence markers when the description starts with a tilde fence", async () => {
+    generateTaskNameMock.mockResolvedValue(null);
+    expect(
+      await resolveTaskName({
+        description: "~~~markdown\n# Notes\n~~~\nWrite the launch email",
+      }),
+    ).toBe("Write the launch email");
+  });
+
+  it("keeps a hash that is part of ordinary generated text", async () => {
+    generateTaskNameMock.mockResolvedValue("Upgrade C# API");
+    expect(await resolveTaskName({ description: "Upgrade the C# API" })).toBe(
+      "Upgrade C# API",
+    );
+  });
+
+  it("uses a markdown link label as the generated name", async () => {
+    generateTaskNameMock.mockResolvedValue(
+      "[Launch plan](https://example.com)",
+    );
+    expect(await resolveTaskName({ description: "Launch plan" })).toBe(
+      "Launch plan",
+    );
+  });
+
+  it("unwraps wrapping emphasis instead of leaving markdown markers", async () => {
+    generateTaskNameMock.mockResolvedValue("_Launch plan_");
+    expect(await resolveTaskName({ description: "Launch plan" })).toBe(
+      "Launch plan",
+    );
+  });
+
+  it("does not split a trailing emoji when capping at 60 characters", async () => {
+    generateTaskNameMock.mockResolvedValue(`${"A".repeat(59)}🚀`);
+    expect(await resolveTaskName({ description: "x" })).toBe(
+      `${"A".repeat(59)}🚀`,
+    );
+  });
 });
