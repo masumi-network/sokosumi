@@ -6,6 +6,7 @@ import { waitUntil } from "@vercel/functions";
 
 import { getEnv } from "@/config/env";
 import {
+  badGateway,
   badRequest,
   conflict,
   forbidden,
@@ -49,6 +50,7 @@ import {
   listSokoBotLabRunsQuerySchema,
   resolveSokoBotDecisionRequestSchema,
   simulateSokoBotTaskEventRequestSchema,
+  sokoBotActivitySchema,
   sokoBotAvatarSchema,
   sokoBotDailyStatsSchema,
   sokoBotDeletionResultSchema,
@@ -113,7 +115,7 @@ import {
 } from "@/services/soko-bot-lab.service";
 import {
   judgeSokoBotLabTurn,
-  SokoBotLabJudgeError,
+  sokoBotLabJudgeErrorKind,
 } from "@/services/soko-bot-lab-judge.service";
 import { retimeSystemSchedules } from "@/services/soko-bot-proactive.service";
 import {
@@ -152,6 +154,10 @@ app.use("*", async (c, next) => {
     throw serviceUnavailable(
       availability.disabledReason ??
         "Soko Bot is temporarily disabled by an administrator",
+      {
+        kind: "soko-bot-disabled",
+        reportToSentry: false,
+      },
     );
   }
   // Beta gate, matching the web route's 404 and the calendar routes' rule.
@@ -262,6 +268,36 @@ app.openapi(getMeRoute, async (c) => {
     throw notFound("Soko Bot not found");
   }
   return ok(c, sokoBotStateSchema.parse({ sokoBot: mapBot(bot) }));
+});
+
+// Polled every couple of seconds by the console, which watches turns started
+// elsewhere. One indexed read, so it can be asked often enough to catch a turn
+// that only runs for a few seconds.
+const getMyActivityRoute = createRoute({
+  method: "get",
+  path: "/me/activity",
+  operationId: "getMySokoBotActivity",
+  tags: ["Soko Bots"],
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotActivitySchema,
+      "Whether the assistant is working right now",
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
+
+app.openapi(getMyActivityRoute, async (c) => {
+  const auth = requireUserAuthContext(c.var.authContext);
+  const workspace = requireWorkspaceContext(c.var.workspaceContext);
+  const activity = await sokoBotControlPlane.getActivityForUser(
+    auth.userId,
+    workspace.workspaceId,
+  );
+  if (!activity) throw notFound("Soko Bot not found");
+  return ok(c, sokoBotActivitySchema.parse(activity));
 });
 
 const getMyUsageRoute = createRoute({
@@ -1680,6 +1716,7 @@ const judgeLabTurnRoute = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
+    502: jsonErrorResponse("Bad Gateway"),
   },
 });
 
@@ -1692,7 +1729,15 @@ app.openapi(judgeLabTurnRoute, async (c) => {
     });
     return ok(c, sokoBotLabVerdictSchema.parse({ model, ...verdict }));
   } catch (error) {
-    if (error instanceof SokoBotLabJudgeError) throw notFound(error.message);
+    const kind = sokoBotLabJudgeErrorKind(error);
+    if (kind === "miss") {
+      throw badGateway(
+        error instanceof Error ? error.message : "Judge produced no verdict",
+      );
+    }
+    if (kind === "not_found") {
+      throw notFound(error instanceof Error ? error.message : "Not Found");
+    }
     throw error;
   }
 });

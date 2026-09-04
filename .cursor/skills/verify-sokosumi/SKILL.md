@@ -190,8 +190,9 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 - Copying `.env.example` without replacing `<…>` placeholders → Core/Web fail Zod at boot (“missing env”)
 - Optional URL env vars (`AGENT_HIRED_WEBHOOK`, Sentry DSN) set to non-URL dummies → Web crashes after Ready (`z.url()`); omit or use a real URL
 - `COMPOSIO_API_KEY` set without an `ak_` prefix → Core refuses to start (optional key; omit or use `ak_…`)
-- `/agents` is the coworker gallery (SOK-805) — not a marketplace “Browse all agents” list. Empty coworker data blanks the gallery section.
-- Authenticated default landing is Welcome `/` (`DEFAULT_AUTHENTICATED_LANDING_PATH`), not `/chat`. Desktop `/chat` may redirect to `/`.
+- `/agents` stacks the Coworker gallery above an Agent catalog (`Browse all agents` when catalog data is present). Empty coworker data blanks the gallery section; the catalog stays independent. App Hire stays off. Cookie **Accept all** covers lower catalog cards until dismissed.
+- Authenticated default landing is Welcome `/` (`DEFAULT_AUTHENTICATED_LANDING_PATH`), not `/chat`. Desktop (`md+`) `/chat` redirects to `/`; mobile may keep `/chat`.
+- Desktop main nav includes **Files** (`/drive`) after Tasks (and Schedules when that beta item is on). Mobile keeps Files on the You page, not the sidebar.
 - Ably placeholders break realtime chat UI
 - Fixtures exist only on agent Neon branches, not production/`main`. `fixture_auth=fail` on a coworker/shared Neon → vault or signup; never seed Alice onto that DB
 - After login, prove the session on `/agents` (or `/setup` for brand-new users without a workspace). `wait --load networkidle` on Welcome `/` or `/chat` can hang (Ably)

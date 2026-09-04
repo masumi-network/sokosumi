@@ -304,6 +304,20 @@ export const sokoBotSchema = z
   })
   .openapi("SokoBot");
 
+/**
+ * The cheap "is anything happening" probe. Deliberately not the chat state:
+ * the console polls this often, and the full state loads twenty turns with
+ * their events and decisions.
+ */
+export const sokoBotActivitySchema = z
+  .object({
+    status: sokoBotStatusSchema,
+    /** The turn to watch, when one is running. */
+    activeTurnId: z.string().uuid().nullable(),
+    lastTurnAt: dateTimeSchema.nullable(),
+  })
+  .openapi("SokoBotActivity");
+
 export const sokoBotStateSchema = z
   .object({ sokoBot: z.union([sokoBotSchema, z.null()]) })
   .openapi("SokoBotState");

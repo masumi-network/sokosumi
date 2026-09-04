@@ -16366,6 +16366,35 @@ export const SokoBotStateSchema = {
     ]
 } as const;
 
+export const SokoBotActivitySchema = {
+    type: 'object',
+    properties: {
+        status: {
+            $ref: '#/components/schemas/SokoBotStatus'
+        },
+        activeTurnId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        lastTurnAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'status',
+        'activeTurnId',
+        'lastTurnAt'
+    ]
+} as const;
+
 export const CreateSokoBotRequestSchema = {
     type: 'object',
     properties: {

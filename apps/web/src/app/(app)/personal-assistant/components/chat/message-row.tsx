@@ -344,12 +344,10 @@ export function TurnRows({
               createdAt={turn.completedAt ?? turn.createdAt}
               durationMs={turn.durationMs}
             />
-            {turn.optimistic ? null : (
-              <TurnExplain
-                turnId={turn.id}
-                stepCount={completedStepsForTurn(turn).length}
-              />
-            )}
+            <TurnExplain
+              turnId={turn.id}
+              stepCount={completedStepsForTurn(turn).length}
+            />
           </div>
         </div>
       )}

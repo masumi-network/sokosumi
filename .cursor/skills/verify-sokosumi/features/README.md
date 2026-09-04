@@ -51,5 +51,6 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Chat landing](./chat-landing.md) — authenticated default Welcome at `/` (not Ably messaging; `/chat` is adjacent).
 - [Tasks board](./tasks-board.md) — `/tasks` task manager shell (kanban / tabs).
 - [Projects](./projects.md) — `/projects` list or empty state.
+- [Files](./files.md) — `/drive` Recents / My Files (desktop main nav **Files**).
 - [Jobs history](./jobs-history.md) — `/history` unified History (tasks + jobs) for the signed-in user.
 - [Sign up](./sign-up.md) — disposable account creation when fixtures are absent.

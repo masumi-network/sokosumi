@@ -192,6 +192,7 @@ import {
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getMySokoBot as coreGetMySokoBot,
+  getMySokoBotActivity as coreGetMySokoBotActivity,
   getMySokoBotStats as coreGetMySokoBotStats,
   getMySokoBotTurn as coreGetMySokoBotTurn,
   getMySokoBotUsage as coreGetMySokoBotUsage,
@@ -3895,6 +3896,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getMySokoBotActivity() {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreGetMySokoBotActivity({ client, cache: "no-store" }),
+      "Failed to fetch Soko Bot activity",
+    );
+  }
+
   async function createMySokoBot(body: CreateSokoBotRequest) {
     return executeCoreOperation(
       getClient,
@@ -5042,6 +5051,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
     getMySokoBot,
+    getMySokoBotActivity,
     createMySokoBot,
     archiveMySokoBot,
     deleteAdminSokoBot,

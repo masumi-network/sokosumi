@@ -14,14 +14,9 @@ import { HeaderTrailing } from "./header/header-trailing.client";
 interface HeaderProps {
   className?: string | undefined;
   session: Session;
-  adminMenuEnabled: boolean;
 }
 
-export default function Header({
-  className,
-  session,
-  adminMenuEnabled,
-}: HeaderProps) {
+export default function Header({ className, session }: HeaderProps) {
   return (
     <HeaderChrome className={className}>
       <div className="flex size-8 shrink-0 items-center justify-center md:hidden">
@@ -35,10 +30,7 @@ export default function Header({
       </HeaderCenter>
 
       <HeaderTrailing>
-        <HeaderProfileSection
-          session={session}
-          adminMenuEnabled={adminMenuEnabled}
-        />
+        <HeaderProfileSection session={session} />
       </HeaderTrailing>
     </HeaderChrome>
   );

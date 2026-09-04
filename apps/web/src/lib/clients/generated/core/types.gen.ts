@@ -4833,6 +4833,12 @@ export type SokoBotState = {
     sokoBot: SokoBot | null;
 };
 
+export type SokoBotActivity = {
+    status: SokoBotStatus;
+    activeTurnId: string | null;
+    lastTurnAt: Date | null;
+};
+
 export type CreateSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
@@ -31859,6 +31865,76 @@ export type CreateMySokoBotResponses = {
 
 export type CreateMySokoBotResponse = CreateMySokoBotResponses[keyof CreateMySokoBotResponses];
 
+export type GetMySokoBotActivityData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/activity';
+};
+
+export type GetMySokoBotActivityErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetMySokoBotActivityError = GetMySokoBotActivityErrors[keyof GetMySokoBotActivityErrors];
+
+export type GetMySokoBotActivityResponses = {
+    /**
+     * Whether the assistant is working right now
+     */
+    200: {
+        data: SokoBotActivity;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetMySokoBotActivityResponse = GetMySokoBotActivityResponses[keyof GetMySokoBotActivityResponses];
+
 export type GetMySokoBotUsageData = {
     body?: never;
     path?: never;
@@ -34216,6 +34292,20 @@ export type JudgeMySokoBotLabTurnErrors = {
      * Unprocessable Entity
      */
     422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
         error: string;
         message: string;
         kind?: string;

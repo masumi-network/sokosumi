@@ -1430,6 +1430,9 @@
         "placeholder": "Search history...",
         "clear": "Clear search"
       },
+      "ResultsCount": {
+        "resultsCount": "{count, plural, =0 {No results found} =1 {1 result found} other {# results found}}"
+      },
       "Filters": {
         "title": "Filters",
         "searchPlaceholder": "Filter...",
@@ -3094,6 +3097,11 @@
       },
       "Plan": {
         "getMoreCredits": "Get more credits"
+      },
+      "Search": {
+        "open": "Search",
+        "inputLabel": "Search history",
+        "searchPlaceholder": "Search..."
       }
     },
     "EmailVerificationNotice": {
@@ -5779,7 +5787,7 @@
         "chats": "Chats",
         "projects": "Projects",
         "chatsUnread": "Unread chats",
-        "search": "Search",
+        "you": "You",
         "ariaLabel": "Main navigation",
         "backToChats": "Back to chats",
         "back": "Back",
@@ -6811,6 +6819,12 @@
         "title": "Unable to load the calendar",
         "description": "Please try again in a moment.",
         "retry": "Try again"
+      }
+    },
+    "You": {
+      "Metadata": {
+        "title": "You",
+        "description": "Your account, workspace, credits, and settings"
       }
     }
   },

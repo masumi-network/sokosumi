@@ -384,6 +384,7 @@ export {
   getFallbackUserName,
   getFirstName,
   getStoredUserName,
+  resolveAccountDisplayName,
 } from "./user-name.js";
 export {
   isUserUploadAllowedContentType,
