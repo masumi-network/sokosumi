@@ -24,16 +24,23 @@ describe("mobile tab destinations Instant Nav contract", () => {
     "(welcome)/page.tsx",
     "chat/page.tsx",
     "you/page.tsx",
+    "you/developer/page.tsx",
+    "you/help/page.tsx",
+    "you/legal/page.tsx",
   ] as const;
 
   const loadingShells = [
     "(welcome)/loading.tsx",
     "chat/loading.tsx",
     "you/loading.tsx",
+    "you/developer/loading.tsx",
+    "you/help/loading.tsx",
+    "you/legal/loading.tsx",
     "chat/components/chat-home-loading-view.tsx",
     "chat/components/chat-chats-loading-view.tsx",
     "chat/components/chat-chats-page-skeleton-host.tsx",
     "you/components/you-loading-view.tsx",
+    "components/mobile-stacked-menu/mobile-stacked-menu-skeleton.tsx",
   ] as const;
 
   for (const rel of pages) {
@@ -74,5 +81,18 @@ describe("mobile tab destinations Instant Nav contract", () => {
   it("you/page.tsx Suspense fallback paints YouPageSkeleton", () => {
     const code = stripComments(readApp("you/page.tsx"));
     expect(code).toMatch(/fallback=\{\s*<\s*YouPageSkeleton\s*\/>\s*\}/);
+  });
+
+  it("You submenu loadings return MobileStackedMenuSkeleton", () => {
+    for (const rel of [
+      "you/developer/loading.tsx",
+      "you/help/loading.tsx",
+      "you/legal/loading.tsx",
+    ] as const) {
+      const code = stripComments(readApp(rel));
+      expect(code).toMatch(
+        /export\s+default\s+function[\s\S]*?return\s+<\s*MobileStackedMenuSkeleton\s*\/>/,
+      );
+    }
   });
 });
