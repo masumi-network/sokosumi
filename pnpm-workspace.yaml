@@ -2,6 +2,13 @@ packages:
   - apps/*
   - packages/*
 
+# pnpm 12 defaults this to `install`. After a filtered Vercel install
+# (`--filter web...`), turbo's `pnpm run build` treats node_modules as
+# stale and re-installs the whole workspace, racing concurrent
+# `prisma generate` in @sokosumi/database prepare.
+# Use `warn`, not `false`: nested `pnpm run` (prepare: pnpm build) stringifies
+# false to "false", which pnpm treats as truthy (pnpm#12019).
+verifyDepsBeforeRun: warn
 minimumReleaseAge: 0
 fetchTimeout: 300000
 fetchRetries: 5
@@ -57,3 +64,9 @@ publicHoistPattern:
   - pg
   - pg-pool
   - "@biomejs/biome"
+
+# Workaround: TypeScript 7 drops Assertion.not from Vitest 5's mapped Chai types.
+# Re-check when bumping vitest or typescript; drop the patch if tsc is clean without it.
+# Upstream: https://github.com/vitest-dev/vitest/issues/11144
+patchedDependencies:
+  vitest@5.0.0: patches/vitest@5.0.0.patch
