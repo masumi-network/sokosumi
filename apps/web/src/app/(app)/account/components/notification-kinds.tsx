@@ -18,7 +18,8 @@ import {
 } from "./notification-cells";
 import {
   type PushBlock,
-  presetChanges,
+  placeChanges,
+  scopeChanges,
   withChannel,
 } from "./notification-delivery";
 import { PresetStops } from "./notification-presets";
@@ -73,10 +74,14 @@ function GroupRows({
         <PresetStops
           group={t(group.spec.labelKey)}
           kinds={kinds}
-          preset={group.preset}
+          scope={group.scope}
+          place={group.place}
           saving={group.saving}
-          onPick={(preset) => {
-            void choices.setDeliveries(presetChanges(preset, kinds));
+          onScope={(scope) => {
+            void choices.setDeliveries(scopeChanges(scope, kinds, group.place));
+          }}
+          onPlace={(place) => {
+            void choices.setDeliveries(placeChanges(place, group.kinds));
           }}
         />
       </div>
