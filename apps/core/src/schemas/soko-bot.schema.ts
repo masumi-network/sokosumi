@@ -857,7 +857,9 @@ export const installSokoBotSkillRequestSchema = z
 
 export const installSokoBotSkillResponseSchema = z
   .object({
-    skill: sokoBotInstalledSkillSchema.nullable(),
+    // Named schemas must be unioned with null, not `.nullable()`, or the
+    // generated client's transformer breaks.
+    skill: z.union([sokoBotInstalledSkillSchema, z.null()]),
     /** Set when the source offers several skills and none was named. */
     candidates: z.array(
       z.object({ name: z.string(), description: z.string(), path: z.string() }),

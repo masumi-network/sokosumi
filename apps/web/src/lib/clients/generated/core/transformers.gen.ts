@@ -2477,7 +2477,9 @@ export const listMySokoBotSkillsResponseTransformer = async (data: any): Promise
 };
 
 const installSokoBotSkillResponseSchemaResponseTransformer = (data: any) => {
-    data.skill = sokoBotInstalledSkillSchemaResponseTransformer(data.skill);
+    if (data.skill) {
+        data.skill = sokoBotInstalledSkillSchemaResponseTransformer(data.skill);
+    }
     return data;
 };
 
