@@ -49,27 +49,33 @@ export const NOTIFICATION_CHANNELS = ["IN_APP", "OS_BANNER"] as const;
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
 /**
- * What a missing row means.
+ * What a missing row means: in Sokosumi yes, on the device no.
  *
- * Both on, so a reader who never opens the matrix keeps exactly what they get
- * today. That is safe for the OS banner column too: the account-wide push
- * opt-in still gates every banner, and it is off until the reader turns it on.
- * A default of off there would instead silence a reader who did opt in and
- * never touched the matrix.
+ * Nothing is lost by the second half. Everything Sokosumi showed before this
+ * matrix existed still arrives, in Sokosumi, and the settings page opens on
+ * one word for every group rather than telling a reader who has touched
+ * nothing that they set their notifications by hand.
+ *
+ * The banner is the part a reader asks for, one group at a time. On by
+ * default, the account-wide push opt-in was the only thing between a new
+ * account and a banner for every row it has, including the rows nobody reads.
+ * Granting that consent is one press, and it was never a press about which
+ * rows may interrupt.
  */
 const NOTIFICATION_CHANNEL_DEFAULT: Record<NotificationChannel, boolean> = {
   IN_APP: true,
-  OS_BANNER: true,
+  OS_BANNER: false,
 };
 
 /**
  * The categories that stay off until the reader turns them on.
  *
- * The rest default to on, because they were already arriving before this
- * matrix existed and a default of off would silence them. Every message in a
- * room is the opposite case: nobody receives it today, and switching it on for
- * everyone would turn a busy room into a stream of notifications the reader
- * never asked for. So it is off, and an absent row means no rather than yes.
+ * The rest default to on in Sokosumi, because they were already arriving
+ * before this matrix existed and a default of off would silence them. Every
+ * message in a room is the opposite case: nobody receives it today, and
+ * switching it on for everyone would write a notification for every member of
+ * a room on every message. So it is off, and an absent row means no rather
+ * than yes.
  */
 const NOTIFICATION_CATEGORY_OFF_BY_DEFAULT: readonly NotificationCategory[] = [
   "CHAT_ROOM_MESSAGE",
@@ -80,10 +86,14 @@ export function notificationDefault(
   category: NotificationCategory | null,
   channel: NotificationChannel,
 ): boolean {
-  if (
-    category !== null &&
-    NOTIFICATION_CATEGORY_OFF_BY_DEFAULT.includes(category)
-  ) {
+  // A notification the matrix holds no row for cannot be turned on from the
+  // settings page, so it keeps what it had: both channels, with the
+  // account-wide opt-in still gating the banner.
+  if (category === null) {
+    return true;
+  }
+
+  if (NOTIFICATION_CATEGORY_OFF_BY_DEFAULT.includes(category)) {
     return false;
   }
 
