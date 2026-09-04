@@ -23,11 +23,20 @@ import {
   type ScopeState,
 } from "./notification-delivery";
 
+/**
+ * The rail a row of stops sits in.
+ *
+ * Square-cornered like everything it sits with: the cells are `rounded-md`
+ * and the box around the whole group is `rounded-lg`, and a pill here would
+ * be the one round thing in the row. The rail keeps the outer radius and its
+ * stops the inner one, which differ by exactly the padding between them, so
+ * the corners stay concentric instead of leaving a crescent at each end.
+ */
 const RAIL =
-  "border-input bg-background inline-flex shrink-0 rounded-full border p-0.5";
+  "border-input bg-background inline-flex shrink-0 rounded-lg border p-0.5";
 
 const STOP =
-  "focus-visible:ring-ring/50 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px]";
+  "focus-visible:ring-ring/50 rounded-md px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px]";
 
 const STOP_ON = "bg-primary/10 text-primary";
 const STOP_OFF = "text-muted-foreground hover:text-foreground";
