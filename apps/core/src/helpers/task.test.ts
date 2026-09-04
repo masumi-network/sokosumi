@@ -706,6 +706,26 @@ describe("validateStatusTransition", () => {
         validateStatusTransition(userContext, from, to, "human"),
       ).toThrow(/Invalid status transition/);
     });
+
+    it.each([
+      [TaskStatus.COMPLETED, TaskStatus.READY],
+      [TaskStatus.CANCELED, TaskStatus.READY],
+    ])("reopens %s → %s for agents gated onto human tasks", (from, to) => {
+      expect(() =>
+        validateStatusTransition(coworkerContext, from, to, "human"),
+      ).not.toThrow();
+    });
+
+    it.each([
+      [TaskStatus.COMPLETED, TaskStatus.RUNNING],
+      [TaskStatus.CANCELED, TaskStatus.RUNNING],
+      [TaskStatus.READY, TaskStatus.INPUT_REQUIRED],
+      [TaskStatus.RUNNING, TaskStatus.FAILED],
+    ])("rejects agent-only %s → %s on human tasks", (from, to) => {
+      expect(() =>
+        validateStatusTransition(coworkerContext, from, to, "human"),
+      ).toThrow(/Invalid status transition/);
+    });
   });
 
   describe("delegated coworker acts as the user", () => {

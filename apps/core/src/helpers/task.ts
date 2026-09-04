@@ -169,6 +169,41 @@ function getAllowedTransitions(
   authContext: AuthenticationContext,
   assigneeKind: TaskAssigneeKind = "coworker",
 ): Record<TaskStatus, TaskStatus[]> {
+  // Human and unset tasks always use the human table, regardless of actor:
+  // agents gated onto such tasks must not reach agent-only statuses.
+  if (assigneeKind === "human" || assigneeKind === "unset") {
+    return {
+      [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
+      [TaskStatus.QUEUED]: [],
+      [TaskStatus.READY]: [
+        TaskStatus.DRAFT,
+        TaskStatus.CANCELED,
+        TaskStatus.RUNNING,
+      ],
+      [TaskStatus.GRANT_PENDING]: [],
+      [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCELED],
+      [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCELED],
+      [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCELED],
+      [TaskStatus.OUT_OF_CREDITS]: [TaskStatus.CANCELED],
+      [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCELED],
+      [TaskStatus.RUNNING]: [
+        TaskStatus.READY,
+        TaskStatus.AWAITING_EXTERNAL,
+        TaskStatus.COMPLETED,
+        TaskStatus.CANCELED,
+      ],
+      [TaskStatus.AWAITING_EXTERNAL]: [
+        TaskStatus.RUNNING,
+        TaskStatus.READY,
+        TaskStatus.COMPLETED,
+        TaskStatus.CANCELED,
+      ],
+      [TaskStatus.COMPLETED]: [TaskStatus.READY],
+      [TaskStatus.FAILED]: [],
+      [TaskStatus.CANCELED]: [TaskStatus.READY],
+    };
+  }
+
   // A coworker acting as itself (the agent) uses the agent transition table.
   // A delegated coworker acts as the user, so it falls through to the user table.
   if (isAgentAuthContext(authContext)) {
@@ -258,39 +293,6 @@ function getAllowedTransitions(
       [TaskStatus.FAILED]: [],
       // Agents may reopen CANCELED → RUNNING (SOK-581).
       [TaskStatus.CANCELED]: [TaskStatus.RUNNING],
-    };
-  }
-
-  if (assigneeKind === "human" || assigneeKind === "unset") {
-    return {
-      [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
-      [TaskStatus.QUEUED]: [],
-      [TaskStatus.READY]: [
-        TaskStatus.DRAFT,
-        TaskStatus.CANCELED,
-        TaskStatus.RUNNING,
-      ],
-      [TaskStatus.GRANT_PENDING]: [],
-      [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCELED],
-      [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCELED],
-      [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCELED],
-      [TaskStatus.OUT_OF_CREDITS]: [TaskStatus.CANCELED],
-      [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCELED],
-      [TaskStatus.RUNNING]: [
-        TaskStatus.READY,
-        TaskStatus.AWAITING_EXTERNAL,
-        TaskStatus.COMPLETED,
-        TaskStatus.CANCELED,
-      ],
-      [TaskStatus.AWAITING_EXTERNAL]: [
-        TaskStatus.RUNNING,
-        TaskStatus.READY,
-        TaskStatus.COMPLETED,
-        TaskStatus.CANCELED,
-      ],
-      [TaskStatus.COMPLETED]: [TaskStatus.READY],
-      [TaskStatus.FAILED]: [],
-      [TaskStatus.CANCELED]: [TaskStatus.READY],
     };
   }
 

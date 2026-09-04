@@ -248,6 +248,16 @@ describe("owner orchestrator option", () => {
     });
   });
 
+  it("keeps a known user id when it is absent from options", () => {
+    expect(
+      resolveTaskAssigneeFields("user_1", [{ id: "cow_1" }], null, "user_1"),
+    ).toEqual({
+      assigneeId: null,
+      assigneeOrchestratorId: null,
+      assigneeUserId: "user_1",
+    });
+  });
+
   it("builds sorted user options from members", () => {
     expect(
       getUserOptions([

@@ -671,6 +671,86 @@ describe("TaskForm", () => {
     );
   });
 
+  it("clears a staged schedule when switching to a human assignee (SOK-868)", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={[
+          ...coworkerOptions,
+          mockCoworkerOption({
+            id: "user-1",
+            slug: "bob",
+            name: "Bob",
+            kind: "user",
+          }),
+        ]}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+    expect(
+      screen.getByRole("button", { name: /Schedule Task/ }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Bob/ }));
+    expect(
+      screen.getByRole("button", { name: "Create Task" }),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeUserId: "user-1",
+        schedule: expect.objectContaining({ mode: "none" }),
+      }),
+    );
+  });
+
+  it("clears a staged schedule when switching to Unassigned (SOK-868)", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+    expect(
+      screen.getByRole("button", { name: /Schedule Task/ }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Unassigned" }));
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeId: null,
+        assigneeUserId: null,
+        schedule: expect.objectContaining({ mode: "none" }),
+      }),
+    );
+  });
+
   it("shows a success state with a go-to-task action after creating in the modal", async () => {
     const user = userEvent.setup();
     const onCreated = vi.fn();

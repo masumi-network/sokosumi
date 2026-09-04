@@ -973,12 +973,17 @@ export function TaskDetailActions({
             agentNameById={agentNameById}
             initialDesignMdAttachment={initialDesignMdAttachment}
             initialValues={
-              defaultAssigneeId ? { assigneeId: defaultAssigneeId } : undefined
+              defaultAssigneeId
+                ? assigneeKind === "human"
+                  ? { assigneeUserId: defaultAssigneeId }
+                  : { assigneeId: defaultAssigneeId }
+                : undefined
             }
             onCreateTask={async ({
               description,
               assigneeId,
               assigneeOrchestratorId,
+              assigneeUserId,
               projectId,
               status,
               schedule,
@@ -989,6 +994,7 @@ export function TaskDetailActions({
                 description,
                 assigneeId,
                 assigneeOrchestratorId,
+                assigneeUserId: assigneeUserId ?? null,
                 projectId,
                 status,
                 schedule,

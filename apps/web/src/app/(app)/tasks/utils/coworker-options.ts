@@ -143,6 +143,7 @@ export function resolveTaskAssigneeFields(
   selectedId: string | null | undefined,
   options: ReadonlyArray<Pick<CoworkerOption, "id" | "kind">>,
   knownOrchestratorId?: string | null,
+  knownUserId?: string | null,
 ): TaskAssigneeFields {
   if (!selectedId) {
     return clearedAssigneeFields();
@@ -161,6 +162,10 @@ export function resolveTaskAssigneeFields(
 
   if (knownOrchestratorId && selectedId === knownOrchestratorId) {
     return clearedAssigneeFields({ assigneeOrchestratorId: selectedId });
+  }
+
+  if (knownUserId && selectedId === knownUserId) {
+    return clearedAssigneeFields({ assigneeUserId: selectedId });
   }
 
   return clearedAssigneeFields({ assigneeId: selectedId });

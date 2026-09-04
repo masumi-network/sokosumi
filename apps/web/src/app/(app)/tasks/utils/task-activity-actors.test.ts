@@ -317,6 +317,6 @@ describe("buildTaskActivityActors", () => {
     expect(result.userById).toMatchObject({
       "user-2": { name: "Bob", image: null },
     });
-    expect(result.coworkerById?.["cow-1"]).toBeUndefined();
+    expect(result.coworkerById).toBeUndefined();
   });
 });

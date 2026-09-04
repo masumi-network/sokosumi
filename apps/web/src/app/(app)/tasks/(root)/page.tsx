@@ -198,6 +198,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       filters.assigneeOrchestratorId === ownerOrchestratorId
         ? filters.assigneeOrchestratorId
         : null,
+    assigneeUserId:
+      filters.assigneeUserId &&
+      memberOptions.some((member) => member.id === filters.assigneeUserId)
+        ? filters.assigneeUserId
+        : null,
     projectId:
       filters.projectId && validProjectIds.has(filters.projectId)
         ? filters.projectId
@@ -221,6 +226,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     scope: activeFilters.scope,
     assigneeId: activeFilters.assigneeId,
     assigneeOrchestratorId: activeFilters.assigneeOrchestratorId,
+    assigneeUserId: activeFilters.assigneeUserId,
     status: activeFilters.status,
     projectId: activeFilters.projectId,
     coworkersById,

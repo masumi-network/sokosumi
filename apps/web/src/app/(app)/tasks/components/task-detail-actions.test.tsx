@@ -384,7 +384,10 @@ vi.mock("@/app/tasks/components/task-form", () => ({
     onCreateTask,
     onSuccess,
   }: {
-    initialValues?: { assigneeId?: string | null };
+    initialValues?: {
+      assigneeId?: string | null;
+      assigneeUserId?: string | null;
+    };
     initialDesignMdAttachment?: {
       label: string;
       url: string;
@@ -394,6 +397,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
       description: string;
       assigneeId: string | null;
       assigneeOrchestratorId: string | null;
+      assigneeUserId?: string | null;
       status: TaskStatus;
       context: {
         brand: {
@@ -409,6 +413,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
   }) => (
     <div>
       <span>{initialValues?.assigneeId ?? "no-coworker"}</span>
+      <span>{initialValues?.assigneeUserId ?? "no-user"}</span>
       {initialDesignMdAttachment ? (
         <span data-testid="design-md-picker">
           {initialDesignMdAttachment.label}
@@ -422,6 +427,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
             description: "Created related task",
             assigneeId: initialValues?.assigneeId ?? null,
             assigneeOrchestratorId: null,
+            assigneeUserId: initialValues?.assigneeUserId ?? null,
             status: TaskStatus.READY,
             context: {
               brand: { enabled: true, source: "default", custom: null },
@@ -1467,6 +1473,7 @@ describe("TaskDetailActions", () => {
         description: "Created related task",
         assigneeId: "coworker-1",
         assigneeOrchestratorId: null,
+        assigneeUserId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {
@@ -1520,6 +1527,7 @@ describe("TaskDetailActions", () => {
         description: "Created related task",
         assigneeId: "coworker-1",
         assigneeOrchestratorId: null,
+        assigneeUserId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {
@@ -1528,6 +1536,46 @@ describe("TaskDetailActions", () => {
           contextMdEnabled: true,
         },
       });
+    });
+  });
+
+  it("preserves human assignment in create-related (SOK-868)", async () => {
+    const user = userEvent.setup();
+    const createTaskAndLinkMock = vi.mocked(createTaskAndLink);
+    createTaskAndLinkMock.mockResolvedValue(
+      createTaskAndLinkSuccess({
+        taskId: "task-1",
+        createdTaskId: "task-created",
+        linkId: "link-created",
+        name: "Created related task",
+      }),
+    );
+
+    renderActions({
+      status: TaskStatus.READY,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Create related" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Add sub-task" }),
+    );
+
+    expect(screen.getByText("user-1")).toBeInTheDocument();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Submit related task" }),
+    );
+
+    await waitFor(() => {
+      expect(createTaskAndLinkMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assigneeId: null,
+          assigneeUserId: "user-1",
+        }),
+      );
     });
   });
 
@@ -1818,6 +1866,7 @@ describe("TaskDetailActions", () => {
         description: "Created related task",
         assigneeId: "coworker-1",
         assigneeOrchestratorId: null,
+        assigneeUserId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {

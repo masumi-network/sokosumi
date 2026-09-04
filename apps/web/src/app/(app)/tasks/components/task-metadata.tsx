@@ -145,7 +145,7 @@ function resolveTaskAssigneeDisplay(
 
   if (assignee.type === "user") {
     return {
-      name: assignee.user.name,
+      name: assignee.user.name.trim() || "Member",
       image: assignee.user.image
         ? resolveIpfsOrHttpUrl(assignee.user.image)
         : null,

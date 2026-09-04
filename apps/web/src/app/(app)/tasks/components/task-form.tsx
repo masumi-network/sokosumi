@@ -335,10 +335,31 @@ export function TaskForm({
     onCreatedChange?.(createdTask !== null);
   }, [createdTask, onCreatedChange]);
 
-  const handleCoworkerSelect = useCallback((id: string) => {
-    coworkerTouchedRef.current = true;
-    setAssigneeId(id);
-  }, []);
+  const handleCoworkerSelect = useCallback(
+    (id: string) => {
+      coworkerTouchedRef.current = true;
+      setAssigneeId(id);
+      // Schedules stay agent-only: drop a staged schedule when the new
+      // assignee is a human or Unassigned so the save cannot submit both.
+      const fields = resolveTaskAssigneeFields(
+        id,
+        coworkerOptions,
+        knownOrchestratorId,
+        initialValues?.assigneeUserId,
+      );
+      if (
+        fields.assigneeId === null &&
+        fields.assigneeOrchestratorId === null
+      ) {
+        setScheduleSelection((current) =>
+          current.mode === "none"
+            ? current
+            : { mode: "none", timezone: current.timezone },
+        );
+      }
+    },
+    [coworkerOptions, knownOrchestratorId, initialValues?.assigneeUserId],
+  );
 
   const handleCreateProject = useCallback((searchQuery: string) => {
     setCreateProjectQuery(searchQuery);
@@ -573,6 +594,7 @@ export function TaskForm({
             assigneeId,
             coworkerOptions,
             knownOrchestratorId,
+            initialValues?.assigneeUserId,
           ),
           ...(shouldShowProjectSelect ? { projectId } : {}),
           currentStatus: originalStatus,
@@ -609,6 +631,7 @@ export function TaskForm({
       assigneeId,
       coworkerOptions,
       knownOrchestratorId,
+      initialValues?.assigneeUserId,
       projectId,
       shouldShowProjectSelect,
       originalStatus,
@@ -709,8 +732,14 @@ export function TaskForm({
         assigneeId,
         coworkerOptions,
         knownOrchestratorId,
+        initialValues?.assigneeUserId,
       ),
-    [assigneeId, coworkerOptions, knownOrchestratorId],
+    [
+      assigneeId,
+      coworkerOptions,
+      knownOrchestratorId,
+      initialValues?.assigneeUserId,
+    ],
   );
   const isAgentAssignee =
     selectedAssigneeFields.assigneeId !== null ||

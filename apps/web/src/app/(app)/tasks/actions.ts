@@ -23,7 +23,7 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
-
+import { listTaskAssigneeMemberOptions } from "./utils/task-assignee-members";
 import { getTasksColumnPage } from "./utils/tasks-column-page";
 import { getTasksListPage } from "./utils/tasks-list-page";
 
@@ -33,6 +33,7 @@ interface LoadMoreTasksColumnParams {
   scope: TasksScope | null;
   assigneeId: string | null;
   assigneeOrchestratorId: string | null;
+  assigneeUserId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
 }
@@ -42,8 +43,21 @@ interface LoadMoreTasksListParams {
   scope: TasksScope | null;
   assigneeId: string | null;
   assigneeOrchestratorId: string | null;
+  assigneeUserId: string | null;
   status: Task["status"] | null;
   projectId: string | null;
+}
+
+async function sanitizeAssigneeUserId(
+  assigneeUserId: string | null,
+  activeOrganizationId: string | null,
+): Promise<string | null> {
+  if (!assigneeUserId) return null;
+  const memberOptions =
+    await listTaskAssigneeMemberOptions(activeOrganizationId);
+  return memberOptions.some((member) => member.id === assigneeUserId)
+    ? assigneeUserId
+    : null;
 }
 
 export async function loadMoreTasksColumn({
@@ -52,6 +66,7 @@ export async function loadMoreTasksColumn({
   scope,
   assigneeId,
   assigneeOrchestratorId,
+  assigneeUserId,
   status,
   projectId,
 }: LoadMoreTasksColumnParams) {
@@ -81,6 +96,10 @@ export async function loadMoreTasksColumn({
     assigneeOrchestratorId === ownerOrchestratorId
       ? assigneeOrchestratorId
       : null;
+  const sanitizedAssigneeUserId = await sanitizeAssigneeUserId(
+    assigneeUserId,
+    activeOrganizationId,
+  );
   const sanitizedStatus = sanitizeTasksStatusInput(status);
   const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
   const page = await getTasksColumnPage({
@@ -90,6 +109,7 @@ export async function loadMoreTasksColumn({
     scope: sanitizedScope,
     assigneeId: sanitizedAssigneeId,
     assigneeOrchestratorId: sanitizedAssigneeOrchestratorId,
+    assigneeUserId: sanitizedAssigneeUserId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,
@@ -107,6 +127,7 @@ export async function loadMoreTasksList({
   scope,
   assigneeId,
   assigneeOrchestratorId,
+  assigneeUserId,
   status,
   projectId,
 }: LoadMoreTasksListParams) {
@@ -136,6 +157,10 @@ export async function loadMoreTasksList({
     assigneeOrchestratorId === ownerOrchestratorId
       ? assigneeOrchestratorId
       : null;
+  const sanitizedAssigneeUserId = await sanitizeAssigneeUserId(
+    assigneeUserId,
+    activeOrganizationId,
+  );
   const sanitizedStatus = sanitizeTasksStatusInput(status);
   const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
   const page = await getTasksListPage({
@@ -144,6 +169,7 @@ export async function loadMoreTasksList({
     scope: sanitizedScope,
     assigneeId: sanitizedAssigneeId,
     assigneeOrchestratorId: sanitizedAssigneeOrchestratorId,
+    assigneeUserId: sanitizedAssigneeUserId,
     status: sanitizedStatus,
     projectId: sanitizedProjectId,
     coworkersById,
