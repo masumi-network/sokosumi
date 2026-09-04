@@ -14,12 +14,12 @@ import {
 } from "./notification-delivery";
 
 /**
- * A group's own answers: everything, only what waits on you, that quietly, or
+ * A group's own answers: everything, only what matters, that quietly, or
  * nothing.
  *
- * The stops read the group they belong to, so a group of two rows that both
- * wait on the reader shows fewer of them rather than two stops that write the
- * same cells. Custom is not one of the answers: it appears only when the
+ * The stops read the group they belong to, so a group of two rows that
+ * Important keeps both of shows fewer of them rather than two stops that write
+ * the same cells. Custom is not one of the answers: it appears only when the
  * reader has set the kinds one by one, and it opens the fold rather than
  * picking for them. So it is the fold's own trigger, not a fifth stop that
  * claims to be pressed.
