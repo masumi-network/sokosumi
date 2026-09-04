@@ -11,6 +11,7 @@ import { preferencesBrowserClient } from "@/lib/clients/core.preferences.browser
 import type {
   GetUsersByIdPreferencesResponse,
   NotificationPreference,
+  PatchUsersByIdPreferencesResponse,
 } from "@/lib/clients/generated/core";
 import {
   getMyPreferencesQueryKey,
@@ -201,6 +202,47 @@ export function useNotificationDelivery(): NotificationDelivery {
     }
   }
 
+  /**
+   * Takes the account-wide consent back once no kind is left on the banner.
+   *
+   * Consent and the cells are two separate answers, and Core's publish gate
+   * reads both, so clearing every banner cell already stops every push. What
+   * stays behind is the consent, which nothing else on this page writes: a
+   * reader who silenced push row by row would keep an account that still says
+   * push is welcome, until they sign out. It is released here so the two
+   * answers say the same thing.
+   *
+   * Read from the stored matrix rather than this write, because the answer is
+   * about every kind and a write covers one group at a time.
+   *
+   * A failure is logged and no more than that. The reader's own write landed,
+   * no push arrives either way, and a toast would report a failure against
+   * something they did not ask for.
+   */
+  async function releasePushIfSilent(
+    stored: PatchUsersByIdPreferencesResponse,
+  ) {
+    const silent = stored.data.notificationPreferences.every(
+      (cell) => cell.channel !== "OS_BANNER" || !cell.enabled,
+    );
+
+    // Same one-write-at-a-time rule the activation keeps, and the same reason.
+    if (
+      !silent ||
+      !push.isAccountEnabled ||
+      !push.canToggleAccount ||
+      push.isSaving
+    ) {
+      return;
+    }
+
+    try {
+      await push.setAccountEnabled(false);
+    } catch (error) {
+      console.error("Failed to release the push consent", error);
+    }
+  }
+
   async function setDeliveries(changes: readonly DeliveryChange[]) {
     const categories = changes.map((change) => change.category);
     const written = cellsFor(cells, changes);
@@ -257,6 +299,8 @@ export function useNotificationDelivery(): NotificationDelivery {
         queryKey: getMyPreferencesQueryKey(userId),
       });
       queryClient.setQueryData(getMyPreferencesQueryKey(userId), stored);
+
+      await releasePushIfSilent(stored);
     } catch (error) {
       console.error("Failed to update the notification preference", error);
       paint(previous);
