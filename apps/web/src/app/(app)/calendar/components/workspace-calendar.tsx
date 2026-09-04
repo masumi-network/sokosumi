@@ -341,6 +341,12 @@ function CalendarView({
             onEventClick(item);
           }
         }}
+        eventDidMount={(eventInfo) => {
+          const item = items.find(({ id }) => id === eventInfo.event.id);
+          if (item) {
+            eventInfo.el.setAttribute("aria-label", item.taskName);
+          }
+        }}
         dateClick={(dateInfo) => onDateClick(dateInfo.date)}
       />
     </div>
@@ -941,13 +947,8 @@ export function WorkspaceCalendar({
             selectedSourceId !== null
           }
         />
-        {view === "agenda" && canCreate ? (
-          <Button
-            className="md:hidden"
-            size="sm"
-            variant="primary"
-            onClick={handleAgendaCreate}
-          >
+        {canCreate ? (
+          <Button size="sm" variant="primary" onClick={handleAgendaCreate}>
             {t("create.title")}
           </Button>
         ) : null}
