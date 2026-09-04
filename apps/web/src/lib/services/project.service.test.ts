@@ -397,6 +397,7 @@ describe("project.service", () => {
       status: "disconnected" as const,
       connectedAt: new Date("2026-09-03T10:00:00.000Z"),
       disconnectedAt: new Date("2026-09-03T10:05:00.000Z"),
+      providerRevocation: "succeeded" as const,
     };
     coreClientMock.deleteProjectsByIdSocialConnectionsByConnectionId.mockResolvedValue(
       { data: connection },

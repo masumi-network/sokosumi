@@ -60,7 +60,6 @@ const FORBIDDEN_CONTRACT_FIELDS = [
   "externalAccountId",
   "connectorUserId",
   "authConfigId",
-  "providerRevocation",
   "rawProvider",
   "rawProviderResponse",
 ];

@@ -2072,8 +2072,13 @@ export const postProjectsByIdSocialConnectionsFinalizeResponseTransformer = asyn
     return data;
 };
 
+const disconnectProjectSocialConnectionResponseSchemaResponseTransformer = (data: any) => {
+    data = projectSocialConnectionSchemaResponseTransformer(data);
+    return data;
+};
+
 export const deleteProjectsByIdSocialConnectionsByConnectionIdResponseTransformer = async (data: any): Promise<DeleteProjectsByIdSocialConnectionsByConnectionIdResponse> => {
-    data.data = projectSocialConnectionSchemaResponseTransformer(data.data);
+    data.data = disconnectProjectSocialConnectionResponseSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

@@ -2269,6 +2269,9 @@
           "connected": "Cuenta de X conectada.",
           "disconnected": "Cuenta de X desconectada."
         },
+        "warning": {
+          "providerRevocationFailed": "Esta cuenta está desconectada de este proyecto, pero es posible que X siga autorizando esta aplicación. Revoca la aplicación en la configuración de X."
+        },
         "errors": {
           "inFlight": "Ya hay otra acción de cuenta de X en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización de X. Permite las ventanas emergentes e inténtalo de nuevo.",

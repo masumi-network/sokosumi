@@ -2269,6 +2269,9 @@
           "connected": "X-Konto verbunden.",
           "disconnected": "X-Konto getrennt."
         },
+        "warning": {
+          "providerRevocationFailed": "Dieses Konto ist von diesem Projekt getrennt, aber X könnte diese App weiterhin autorisieren. Widerrufe die App in deinen X-Einstellungen."
+        },
         "errors": {
           "inFlight": "Eine andere X-Konto-Aktion wird bereits ausgeführt.",
           "popupBlocked": "Dein Browser hat das X-Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",

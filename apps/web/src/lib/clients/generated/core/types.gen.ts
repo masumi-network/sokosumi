@@ -4507,6 +4507,10 @@ export type FinalizeProjectSocialConnectionRequest = {
     connectionId: string;
 };
 
+export type DisconnectProjectSocialConnectionResponse = ProjectSocialConnection & {
+    providerRevocation: 'succeeded' | 'failed' | 'skipped';
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -30210,7 +30214,7 @@ export type DeleteProjectsByIdSocialConnectionsByConnectionIdResponses = {
      * Project social connection disconnected
      */
     200: {
-        data: ProjectSocialConnection;
+        data: DisconnectProjectSocialConnectionResponse;
         meta: {
             timestamp: Date;
             requestId: string;

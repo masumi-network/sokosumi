@@ -15124,6 +15124,30 @@ export const FinalizeProjectSocialConnectionRequestSchema = {
     ]
 } as const;
 
+export const DisconnectProjectSocialConnectionResponseSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ProjectSocialConnection'
+        },
+        {
+            type: 'object',
+            properties: {
+                providerRevocation: {
+                    type: 'string',
+                    enum: [
+                        'succeeded',
+                        'failed',
+                        'skipped'
+                    ]
+                }
+            },
+            required: [
+                'providerRevocation'
+            ]
+        }
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {

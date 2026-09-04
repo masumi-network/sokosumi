@@ -561,7 +561,7 @@ export async function disconnectProjectSocialConnection(
   input: DisconnectProjectSocialConnectionInput,
 ): Promise<{
   connection: ProjectSocialConnectionSummary;
-  providerRevocation: "revoked" | "skipped_shared" | "failed" | "not_required";
+  providerRevocation: "succeeded" | "failed" | "skipped";
 }> {
   await requireScopedProject(input);
   const existing = await requireTargetConnection({
@@ -571,7 +571,7 @@ export async function disconnectProjectSocialConnection(
   if (existing.status === "disconnected") {
     return {
       connection: mapProjectSocialConnection(existing),
-      providerRevocation: "not_required",
+      providerRevocation: "skipped",
     };
   }
 
@@ -605,6 +605,11 @@ export async function disconnectProjectSocialConnection(
   });
   return {
     connection: mapProjectSocialConnection(connection),
-    providerRevocation,
+    providerRevocation:
+      providerRevocation === "revoked"
+        ? "succeeded"
+        : providerRevocation === "failed"
+          ? "failed"
+          : "skipped",
   };
 }

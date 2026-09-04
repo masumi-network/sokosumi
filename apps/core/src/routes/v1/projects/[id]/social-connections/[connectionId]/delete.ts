@@ -9,8 +9,8 @@ import {
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
+  disconnectProjectSocialConnectionResponseSchema,
   projectSocialConnectionParamsSchema,
-  projectSocialConnectionSchema,
 } from "@/schemas/project-social-connection.schema";
 import { disconnectProjectSocialConnection } from "@/services/project-social-connections.service";
 
@@ -26,7 +26,7 @@ const route = withGlobalHeaderParameters(
     request: { params: projectSocialConnectionParamsSchema },
     responses: {
       200: jsonSuccessResponse(
-        projectSocialConnectionSchema,
+        disconnectProjectSocialConnectionResponseSchema,
         "Project social connection disconnected",
       ),
       401: jsonErrorResponse("Unauthorized"),
@@ -48,13 +48,19 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       c.req.valid("param");
 
     try {
-      const { connection } = await disconnectProjectSocialConnection({
+      const result = await disconnectProjectSocialConnection({
         projectId,
         workspaceId: workspaceContext.workspaceId,
         userId: userContext.userId,
         socialConnectionId,
       });
-      return ok(c, projectSocialConnectionSchema.parse(connection));
+      return ok(
+        c,
+        disconnectProjectSocialConnectionResponseSchema.parse({
+          ...result.connection,
+          providerRevocation: result.providerRevocation,
+        }),
+      );
     } catch (error) {
       return mapProjectSocialConnectionServiceError(error);
     }

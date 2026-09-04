@@ -18,6 +18,7 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import type {
+  DisconnectProjectSocialConnectionResponse,
   InitiateProjectSocialConnectionRequest,
   InitiateProjectSocialConnectionResponse,
   Project,
@@ -451,7 +452,7 @@ export const finalizeProjectSocialConnection = withSession<
 
 export const disconnectProjectSocialConnection = withSession<
   DisconnectProjectSocialConnectionParameters,
-  ActionResultDto<ProjectSocialConnection, ActionError>
+  ActionResultDto<DisconnectProjectSocialConnectionResponse, ActionError>
 >(async ({ projectId, socialConnectionId }) => {
   const normalizedProjectId = projectId.trim();
   const normalizedSocialConnectionId = socialConnectionId.trim();

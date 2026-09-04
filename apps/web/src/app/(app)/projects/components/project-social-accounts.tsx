@@ -40,7 +40,7 @@ interface PendingConfirmation {
 }
 
 interface Feedback {
-  kind: "error" | "success";
+  kind: "error" | "success" | "warning";
   message: string;
 }
 
@@ -248,6 +248,12 @@ export function ProjectSocialAccounts({
       }
 
       showFeedback({ kind: "success", message: t("success.disconnected") });
+      if (result.value.providerRevocation === "failed") {
+        showFeedback({
+          kind: "warning",
+          message: t("warning.providerRevocationFailed"),
+        });
+      }
       router.refresh();
     } catch {
       showFeedback({ kind: "error", message: t("errors.disconnect") });
@@ -286,7 +292,9 @@ export function ProjectSocialAccounts({
           className={
             feedback.kind === "error"
               ? "text-destructive text-sm"
-              : "text-semantic-success text-sm"
+              : feedback.kind === "warning"
+                ? "text-semantic-warning text-sm"
+                : "text-semantic-success text-sm"
           }
           role={feedback.kind === "error" ? "alert" : "status"}
         >

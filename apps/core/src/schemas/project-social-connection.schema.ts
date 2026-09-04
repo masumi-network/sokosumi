@@ -38,6 +38,13 @@ export const projectSocialConnectionSchema = z
   })
   .openapi("ProjectSocialConnection");
 
+export const disconnectProjectSocialConnectionResponseSchema =
+  projectSocialConnectionSchema
+    .extend({
+      providerRevocation: z.enum(["succeeded", "failed", "skipped"]),
+    })
+    .openapi("DisconnectProjectSocialConnectionResponse");
+
 export const initiateProjectSocialConnectionRequestSchema = z
   .discriminatedUnion("action", [
     z.object({

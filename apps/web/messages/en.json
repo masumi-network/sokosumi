@@ -2269,6 +2269,9 @@
           "connected": "X account connected.",
           "disconnected": "X account disconnected."
         },
+        "warning": {
+          "providerRevocationFailed": "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings."
+        },
         "errors": {
           "inFlight": "Another X account action is already in progress.",
           "popupBlocked": "Your browser blocked the X authorization window. Allow popups and try again.",

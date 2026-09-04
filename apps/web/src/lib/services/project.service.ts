@@ -3,6 +3,7 @@ import "server-only";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  DisconnectProjectSocialConnectionResponse,
   GetProjectsByIdCalendarData,
   InitiateProjectSocialConnectionRequest,
   InitiateProjectSocialConnectionResponse,
@@ -188,7 +189,7 @@ export const projectService = (() => {
   async function disconnectSocialConnection(
     projectId: string,
     socialConnectionId: string,
-  ): Promise<ProjectSocialConnection> {
+  ): Promise<DisconnectProjectSocialConnectionResponse> {
     const result =
       await coreClient.deleteProjectsByIdSocialConnectionsByConnectionId({
         id: projectId,

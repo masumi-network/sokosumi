@@ -298,6 +298,7 @@ describe("Project social connection routes", () => {
         id: SOCIAL_CONNECTION_ID,
         provider: "x",
         status: "disconnected",
+        providerRevocation: "failed",
       },
     });
     const serializedBody = JSON.stringify(body);
@@ -306,7 +307,6 @@ describe("Project social connection routes", () => {
     expect(serializedBody).not.toContain("ca_internal");
     expect(serializedBody).not.toContain("connector_internal");
     expect(serializedBody).not.toContain("external_internal");
-    expect(serializedBody).not.toContain("providerRevocation");
     expect(serializedBody).not.toContain("session-secret");
     expect(disconnectProjectSocialConnectionMock).toHaveBeenCalledWith({
       projectId: PROJECT_ID,

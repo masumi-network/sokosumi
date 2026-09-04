@@ -16,7 +16,10 @@ import {
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
 } from "@/lib/actions/project/action";
-import type { ProjectSocialConnection } from "@/lib/clients/generated/core/types.gen";
+import type {
+  DisconnectProjectSocialConnectionResponse,
+  ProjectSocialConnection,
+} from "@/lib/clients/generated/core/types.gen";
 
 const { refreshMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
   refreshMock: vi.fn(),
@@ -51,6 +54,8 @@ const MESSAGES: Record<string, string> = {
   cancel: "Cancel",
   "success.connected": "X account connected.",
   "success.disconnected": "X account disconnected.",
+  "warning.providerRevocationFailed":
+    "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings.",
   "errors.inFlight": "Another X account action is already in progress.",
   "errors.popupBlocked":
     "Your browser blocked the X authorization window. Allow popups and try again.",
@@ -130,6 +135,16 @@ function buildConnection(
   };
 }
 
+function buildDisconnectResult(
+  overrides: Partial<DisconnectProjectSocialConnectionResponse> = {},
+): DisconnectProjectSocialConnectionResponse {
+  return {
+    ...buildConnection({ status: "disconnected" }),
+    providerRevocation: "succeeded",
+    ...overrides,
+  };
+}
+
 describe("ProjectSocialAccounts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -161,8 +176,7 @@ describe("ProjectSocialAccounts", () => {
     });
     vi.mocked(disconnectProjectSocialConnection).mockResolvedValue({
       ok: true,
-      value: buildConnection({
-        status: "disconnected",
+      value: buildDisconnectResult({
         disconnectedAt: new Date("2026-09-03T10:05:00.000Z"),
       }),
     });
@@ -624,6 +638,35 @@ describe("ProjectSocialAccounts", () => {
         "We could not disconnect this X account. Try again.",
       );
     });
+  });
+
+  it("warns when X provider revocation was not confirmed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(disconnectProjectSocialConnection).mockResolvedValueOnce({
+      ok: true,
+      value: buildDisconnectResult({
+        providerRevocation: "failed",
+      }),
+    });
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Disconnect" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Disconnect account",
+      }),
+    );
+
+    expect(
+      await screen.findByText(
+        "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings.",
+      ),
+    ).toBeVisible();
   });
 
   it("requires explicit confirmation before replacing or disconnecting an account", async () => {
