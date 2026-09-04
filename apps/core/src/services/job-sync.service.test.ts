@@ -2672,6 +2672,68 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
+  it("awaits the in-app notification so sync waitUntil covers it", async () => {
+    const notificationGate = Promise.withResolvers<void>();
+    const notificationStarted = Promise.withResolvers<void>();
+
+    const completedJob = createJob({
+      status: SokosumiJobStatus.COMPLETED,
+      jobStatusSettled: true,
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.COMPLETED,
+          result: "done",
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    mockInitialJobQueries({ unfinished: [createJob()] });
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    createNotificationMock.mockImplementation(async () => {
+      notificationStarted.resolve();
+      await notificationGate.promise;
+      return { notification: { id: "notification_1" }, created: true };
+    });
+
+    const syncPromise = jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+    let syncSettled = false;
+    // Both handlers: a rejection is still a settle, and a bare `.then` here
+    // would float the very kind of promise this test exists to forbid.
+    void syncPromise.then(
+      () => {
+        syncSettled = true;
+      },
+      () => {
+        syncSettled = true;
+      },
+    );
+
+    await notificationStarted.promise;
+    // A detached notification lets the rest of the run settle while the write
+    // is still in flight. Flush that work before asserting coverage.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(syncSettled).toBe(false);
+
+    notificationGate.resolve();
+    await expect(syncPromise).resolves.toEqual(
+      expect.objectContaining({ processed: 1 }),
+    );
+    expect(syncSettled).toBe(true);
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+  });
+
   it("flushes pending status emails in one sendEmails batch call", async () => {
     const completedById = new Map([
       [
