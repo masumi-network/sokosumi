@@ -8,32 +8,74 @@ import {
 import prisma from "@/lib/db/prisma";
 
 /**
- * What one readiness attempt gets, and how many attempts a failing cycle may
- * spend.
+ * What one readiness attempt gets, how many attempts a failing check may
+ * spend, and how long it may wait between them.
  *
  * The attempt timeout is what a healthy payment node has to answer within.
- * The retry count is what a cycle may spend on a far side that fails FAST: a
- * refused connection, a DNS failure, a proxy 502. Those return in
- * milliseconds, so three retries cost almost nothing and turn a blip into a
- * non-event.
+ * The retries are for a far side that fails FAST: a refused connection, a DNS
+ * failure, a proxy 502. Those return in milliseconds, so WITHOUT the backoff
+ * all four attempts land inside the same millisecond and survive no blip at
+ * all. The wait is what makes a retry a retry.
  *
  * A repeated TIMEOUT is the opposite. It costs the full attempt timeout every
- * time, so the caller's own deadline ends the loop long before the count
- * does. That is deliberate. The registry sync shares this cycle's budget and
- * must not be starved to keep retrying a node that is not answering.
+ * time, so the total ceiling below ends the loop long before the count does.
+ * That is deliberate. The registry sync shares this cron's budget and must not
+ * be starved to keep retrying a node that is not answering.
+ *
+ * Deterministic failures are retried too, including a 401 or a 404 that cannot
+ * succeed on a repeat. That is a deliberate difference from
+ * registerJobPurchase, which sorts permanent from ambiguous first: that path
+ * spends money, so a wrong repeat has a cost, while this one is a read whose
+ * only status signal is a substring of an error message. Three wasted reads on
+ * a misconfigured node is cheaper than parsing our own error text and cheaper
+ * than the coupling that parse would create.
  */
-const READINESS_ATTEMPT_TIMEOUT_MS = 20_000;
+export const READINESS_ATTEMPT_TIMEOUT_MS = 20_000;
 const READINESS_MAX_ATTEMPTS = 4;
+/** Wait after the attempt that just failed, holding at the last step. */
+export const READINESS_BACKOFF_MS = [250, 1_000, 2_000];
 
 /**
- * Each attempt needs its OWN deadline. Reusing the caller's signal would hand
- * attempt two a timeout that already fired, so every retry would return
- * instantly and the count would be spent without a single extra request. The
- * caller's signal still rides along as the ceiling on the whole loop.
+ * Ceiling on the whole check, retries and backoff included.
+ *
+ * Owned here rather than by the caller so the function is bounded on its own:
+ * the attempt count alone allows four 20s attempts, and a caller that passes
+ * no signal would hang for 80s. The caller's signal still composes with this
+ * one, so a cron deadline can still cut the check short.
+ *
+ * 25s is the number that makes the two failure shapes behave as documented. A
+ * fast-failing node fits all four attempts and the 3.25s of backoff inside it.
+ * A hanging node gets two attempts and then this stops it.
  */
-function attemptSignal(outer: AbortSignal | undefined): AbortSignal {
-  const attempt = AbortSignal.timeout(READINESS_ATTEMPT_TIMEOUT_MS);
-  return outer ? AbortSignal.any([outer, attempt]) : attempt;
+export const READINESS_TOTAL_TIMEOUT_MS = 25_000;
+
+/**
+ * Local rather than shared with job-purchase-registration's identical
+ * three-liner: exporting a sleep across a helper/service boundary buys nothing
+ * a `setTimeout` does not already give, and the two have different backoff
+ * arrays and different retry policies, so the part worth sharing is the part
+ * that differs.
+ */
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Each attempt needs its OWN deadline. Reusing one signal for every attempt
+ * would hand attempt two a timeout that already fired, so every retry would
+ * return instantly and the count would be spent without a single extra
+ * request. The outer signal rides along, so the total ceiling and the caller's
+ * deadline both still cut an attempt short.
+ */
+function withTimeout(outer: AbortSignal | undefined, ms: number): AbortSignal {
+  const timeout = AbortSignal.timeout(ms);
+  return outer ? AbortSignal.any([outer, timeout]) : timeout;
+}
+
+export interface SyncCardanoV2RailReadinessOptions {
+  signal?: AbortSignal;
+  /** Injected by tests so the backoff does not cost real seconds. */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 /**
@@ -52,25 +94,34 @@ function attemptSignal(outer: AbortSignal | undefined): AbortSignal {
  * syncRegistryAgents, that replay is what first writes the V2 rows.
  */
 export async function syncCardanoV2RailReadiness(
-  options: { signal?: AbortSignal } = {},
+  options: SyncCardanoV2RailReadinessOptions = {},
 ): Promise<boolean> {
+  const sleep = options.sleep ?? sleepMs;
+  const deadline = withTimeout(options.signal, READINESS_TOTAL_TIMEOUT_MS);
   const node = paymentClient();
   let readinessResult = await node.getCardanoV2RailReadiness({
-    signal: attemptSignal(options.signal),
+    signal: withTimeout(deadline, READINESS_ATTEMPT_TIMEOUT_MS),
   });
   for (
     let attempt = 2;
     attempt <= READINESS_MAX_ATTEMPTS &&
     readinessResult.isErr() &&
-    !options.signal?.aborted;
+    !deadline.aborted;
     attempt += 1
   ) {
     console.warn(
       `[sync/agents] Cardano V2 rail readiness attempt ${attempt - 1} failed; retrying:`,
       readinessResult.error,
     );
+    await sleep(
+      READINESS_BACKOFF_MS[attempt - 2] ?? READINESS_BACKOFF_MS.at(-1) ?? 0,
+    );
+    // The wait is where a short budget usually runs out.
+    if (deadline.aborted) {
+      break;
+    }
     readinessResult = await node.getCardanoV2RailReadiness({
-      signal: attemptSignal(options.signal),
+      signal: withTimeout(deadline, READINESS_ATTEMPT_TIMEOUT_MS),
     });
   }
 

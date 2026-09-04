@@ -3113,6 +3113,10 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       smartContractAddress: "addr_test1_v2_contract",
     },
   ];
+  // The retry backoff is real seconds. Every test here drives the failure
+  // path, so without this the suite spends 3.25s per failing cycle and a
+  // timed-out test leaks its unfinished attempts into the next one.
+  const noSleep = async () => undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -3126,9 +3130,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
 
-    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
-      true,
-    );
+    await expect(
+      agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep }),
+    ).resolves.toBe(true);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
@@ -3156,9 +3160,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     });
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
 
-    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
-      false,
-    );
+    await expect(
+      agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep }),
+    ).resolves.toBe(false);
   });
 
   it("reports no change when a long-unrefreshed row returns the same source set", async () => {
@@ -3173,9 +3177,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     });
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
 
-    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
-      false,
-    );
+    await expect(
+      agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep }),
+    ).resolves.toBe(false);
   });
 
   it("caches an empty list when no source is purchase-ready", async () => {
@@ -3185,7 +3189,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     const agentSyncService = await getAgentSyncService();
     getCardanoV2RailReadinessMock.mockResolvedValue(ok([]));
 
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -3206,7 +3210,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       err("payment node unavailable"),
     );
 
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
 
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
     expect(syncMetadataCreateManyMock).toHaveBeenCalledWith({
@@ -3233,9 +3237,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     );
     syncMetadataCreateManyMock.mockRejectedValue(new Error("database down"));
 
-    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
-      false,
-    );
+    await expect(
+      agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep }),
+    ).resolves.toBe(false);
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
     expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -3253,9 +3257,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
     syncMetadataFindUniqueMock.mockRejectedValue(new Error("database down"));
 
-    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
-      false,
-    );
+    await expect(
+      agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep }),
+    ).resolves.toBe(false);
 
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
     expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -3273,9 +3277,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
     syncMetadataUpsertMock.mockRejectedValue(new Error("database down"));
 
-    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
-      false,
-    );
+    await expect(
+      agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep }),
+    ).resolves.toBe(false);
 
     expect(syncMetadataDeleteManyMock).not.toHaveBeenCalled();
     expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -3293,9 +3297,9 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
     syncMetadataDeleteManyMock.mockRejectedValue(new Error("database down"));
 
-    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
-      true,
-    );
+    await expect(
+      agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep }),
+    ).resolves.toBe(true);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
     expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -3312,6 +3316,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
 
     await agentSyncService.syncCardanoV2RailReadiness({
       signal: controller.signal,
+      sleep: noSleep,
     });
 
     // Each attempt carries its OWN deadline, so the signal the client sees is
@@ -3335,7 +3340,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       .mockResolvedValueOnce(err("rail-readiness unknown: ECONNREFUSED"))
       .mockResolvedValueOnce(ok(readySources));
 
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
 
     expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(3);
     // A cycle that recovered is not a failed cycle: it caches, and it must
@@ -3356,7 +3361,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       err("rail-readiness unknown: ECONNREFUSED"),
     );
 
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
 
     expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(4);
     // Retries are not extra alerts. The whole cycle is still one failure.
@@ -3365,24 +3370,89 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it("does not retry once the caller's deadline has passed", async () => {
+  it("stops retrying the moment the caller aborts", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
     const agentSyncService = await getAgentSyncService();
-    const controller = new AbortController();
-    controller.abort();
+
+    // Establish the contrast first, or this test cannot fail: the same
+    // failure without an abort spends the full four attempts.
     getCardanoV2RailReadinessMock.mockResolvedValue(
-      err("rail-readiness unknown: AbortError: This operation was aborted"),
+      err("rail-readiness unknown: ECONNREFUSED"),
     );
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
+    expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(4);
+
+    // With an abort raised during the first attempt, the loop stops there.
+    // The cron budget is shared with the registry sync, and spending it on
+    // retries past the deadline is what the guard exists to stop.
+    getCardanoV2RailReadinessMock.mockReset();
+    const controller = new AbortController();
+    getCardanoV2RailReadinessMock.mockImplementation(async () => {
+      controller.abort();
+      return err("rail-readiness unknown: AbortError");
+    });
 
     await agentSyncService.syncCardanoV2RailReadiness({
       signal: controller.signal,
+      sleep: noSleep,
     });
 
-    // The cycle budget is shared with the registry sync below. Spending it on
-    // retries after the deadline is exactly what the ceiling exists to stop.
     expect(getCardanoV2RailReadinessMock).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("waits between retries so a blip has time to clear", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    const waits: number[] = [];
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("rail-readiness unknown: ECONNREFUSED"),
+    );
+
+    await agentSyncService.syncCardanoV2RailReadiness({
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+    });
+
+    // Without a wait, four attempts against a node that fails in
+    // milliseconds all land inside the same millisecond and survive no blip
+    // at all. The wait is the whole point of the retry.
+    expect(waits).toEqual([250, 1_000, 2_000]);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("gives every attempt its own deadline", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+    const seen: (AbortSignal | undefined)[] = [];
+    getCardanoV2RailReadinessMock.mockImplementation(
+      async ({ signal }: { signal?: AbortSignal }) => {
+        seen.push(signal);
+        return err("rail-readiness unknown: ECONNREFUSED");
+      },
+    );
+
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
+
+    // Reusing one signal across attempts would hand attempt two a timeout
+    // that already fired, so every retry would return instantly without
+    // reaching the node. Distinct signals, none of them already spent, is
+    // what proves each attempt got its own clock.
+    expect(seen).toHaveLength(4);
+    expect(new Set(seen).size).toBe(4);
+    for (const signal of seen) {
+      expect(signal).toBeInstanceOf(AbortSignal);
+      expect(signal?.aborted).toBe(false);
+    }
 
     consoleWarnSpy.mockRestore();
   });
@@ -3403,7 +3473,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("payment node unavailable"),
     );
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -3415,7 +3485,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
 
     // A different process loses the atomic insert race and also dedupes.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
 
     consoleWarnSpy.mockRestore();
@@ -3438,7 +3508,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       err("payment node unavailable"),
     );
 
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     expect(captureExceptionMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -3452,7 +3522,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     // The latch is now held by the earlier insert, so a warm failure would go
     // quiet here. Never-recorded must page anyway.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
 
     consoleWarnSpy.mockRestore();
@@ -3467,11 +3537,11 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("payment node unavailable"),
     );
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
 
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
       where: { key: "cardano-v2-rail-readiness-failure" },
     });
@@ -3480,7 +3550,7 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("payment node unavailable"),
     );
-    await agentSyncService.syncCardanoV2RailReadiness();
+    await agentSyncService.syncCardanoV2RailReadiness({ sleep: noSleep });
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
 
     consoleWarnSpy.mockRestore();

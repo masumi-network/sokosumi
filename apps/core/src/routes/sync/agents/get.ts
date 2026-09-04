@@ -14,39 +14,38 @@ export const AGENTS_SYNC_LOCK_KEY = "agents-sync";
 // whenever already-synced registry rows require a full replay.
 export const AGENTS_SYNC_METADATA_KEY =
   "agents-sync-metadata:dynamic-pricing-v1";
-// The two readiness syncs no longer get the same number, because they no
-// longer do the same thing: the Cardano sync retries a fast failure inside
-// its own budget and the x402 sync makes one pass. Both are named here so the
-// difference is a decision on the page rather than a drift nobody notices.
+// The two readiness syncs no longer get the same treatment, because they no
+// longer do the same thing: the Cardano sync retries a fast failure and owns
+// its own ceiling (READINESS_TOTAL_TIMEOUT_MS in agent-sync.readiness.ts,
+// 25s), while the x402 sync makes one pass and is bounded from here.
 //
-// Cardano: one ATTEMPT is 20s (READINESS_ATTEMPT_TIMEOUT_MS in
-// agent-sync.readiness.ts) and a cycle may spend four of them. This ceiling
-// is what stops repeated TIMEOUTS from spending all four: a node that fails
-// fast retries freely, a node that hangs gets two attempts and no more.
-const CARDANO_READINESS_SYNC_TIMEOUT_MS = 25_000;
 // x402: a single pass, so this IS its attempt timeout.
 const X402_READINESS_SYNC_TIMEOUT_MS = 20_000;
 //
-// Both come out of the cycle budget (LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER, 95s
-// on the defaults) and the registry sync below gets what is left. 45s of
-// readiness in the worst case leaves it 50s, and only when the payment node
-// is already down. The registry sync is cursor-based and resumable, so a
-// short window slows a catch-up rather than failing one.
+// Both come out of the cycle budget, which is
+// `max(LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER, 1000)` in handleSyncRequest, and
+// the registry sync below gets what is left. That budget is NOT one number:
+// the Zod defaults in config/env.ts give 275s, apps/core/.env.example gives
+// 95s, and the deployed value decides. Worst-case readiness is 45s, so the
+// registry sync keeps 230s or 50s respectively.
+//
+// The schema minimum is the case worth naming: LOCK_TIMEOUT at 60_000 leaves
+// a 35s budget, which 45s of readiness would consume whole. The registry sync
+// is cursor-based and resumable, so it loses a tick rather than failing, and
+// only while the payment node is down. Raising readiness further, or lowering
+// LOCK_TIMEOUT toward its minimum, needs that traded off deliberately.
 
 export default function mount(app: Hono) {
   app.get("/agents", async (c) => {
     const replayRequested = c.req.query("replay") === "true";
     return await handleSyncRequest(c, AGENTS_SYNC_LOCK_KEY, async (context) => {
       // Readiness first: it is cheap, independent of registry data, and must
-      // not be starved by a long registry replay eating the time budget. The
-      // hard ceiling above keeps a hung payment node from pinning the lock,
-      // retries included.
+      // not be starved by a long registry replay eating the time budget. It
+      // needs no ceiling from here: the sync owns one that already covers its
+      // retries, so a hung payment node cannot pin the lock either way.
       const readinessChanged =
         await agentSyncService.syncCardanoV2RailReadiness({
-          signal: AbortSignal.any([
-            context.abortSignal,
-            AbortSignal.timeout(CARDANO_READINESS_SYNC_TIMEOUT_MS),
-          ]),
+          signal: context.abortSignal,
         });
       // x402 buy-side readiness rides the same cron under its own ceiling
       // above. Its change signal deliberately does NOT reset the registry
