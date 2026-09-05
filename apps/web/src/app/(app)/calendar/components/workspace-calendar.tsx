@@ -8,6 +8,7 @@ import timeGridPlugin from "@fullcalendar/react/timegrid";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
+import { isValidTimezone } from "@sokosumi/utils";
 import {
   addDays,
   addMonths,
@@ -52,7 +53,6 @@ import {
 import {
   getDefaultTimezone,
   getTimezoneOptions,
-  isValidTimezone,
 } from "@/lib/schedules/timezones";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;

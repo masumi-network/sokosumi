@@ -1,6 +1,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import {
   hasReachedTaskScheduleReleaseTarget,
+  isValidTimezone,
   type TaskScheduleMetadata,
   type TaskScheduleMetadataV1,
 } from "@sokosumi/utils";
@@ -219,15 +220,6 @@ function resolveRecurringAnchorAt(
   }
 
   return metadata.version === 1 ? new Date(metadata.scheduledAt) : null;
-}
-
-export function isValidTimezone(timezone: string): boolean {
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: timezone });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export function buildTaskScheduleMetadata(

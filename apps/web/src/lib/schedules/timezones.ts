@@ -28,21 +28,6 @@ export function getTimezoneOptions(preferred?: string | null): string[] {
   return [...unique].sort((left, right) => left.localeCompare(right));
 }
 
-export function isValidTimezone(
-  value: string | null | undefined,
-): value is string {
-  if (!value) {
-    return false;
-  }
-
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function getDefaultTimezone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
