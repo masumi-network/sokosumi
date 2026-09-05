@@ -25,18 +25,23 @@ const {
   requireTaskCollaborationMock,
   serializableTransactionMock,
   taskUpdateMock,
-} = vi.hoisted(() => ({
-  lockCalendarScopeMock: vi.fn(),
-  lockTaskRowsMock: vi.fn(),
-  prismaMock: {},
-  quarantineFindUniqueMock: vi.fn(),
-  releasedOccurrenceCountMock: vi.fn(),
-  replaceTaskSchedulePlannedOccurrencesMock: vi.fn(),
-  requireAssignedOrganizationSeatMock: vi.fn(),
-  requireTaskCollaborationMock: vi.fn(),
-  serializableTransactionMock: vi.fn(),
-  taskUpdateMock: vi.fn(),
-}));
+  userFindUniqueMock,
+} = vi.hoisted(() => {
+  const userFindUniqueMock = vi.fn();
+  return {
+    lockCalendarScopeMock: vi.fn(),
+    lockTaskRowsMock: vi.fn(),
+    prismaMock: { user: { findUnique: userFindUniqueMock } },
+    quarantineFindUniqueMock: vi.fn(),
+    releasedOccurrenceCountMock: vi.fn(),
+    replaceTaskSchedulePlannedOccurrencesMock: vi.fn(),
+    requireAssignedOrganizationSeatMock: vi.fn(),
+    requireTaskCollaborationMock: vi.fn(),
+    serializableTransactionMock: vi.fn(),
+    taskUpdateMock: vi.fn(),
+    userFindUniqueMock,
+  };
+});
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
@@ -151,6 +156,7 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     taskUpdateMock.mockImplementation(async ({ data }) =>
       createTaskResult(data.metadata, data.nextRunAt ?? NEXT_RUN_AT),
     );
+    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
   });
 
   it("atomically converts a finite v1 rule before applying the Calendar edit", async () => {
@@ -281,5 +287,48 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
       JSON.parse(taskUpdateMock.mock.calls[0][0].data.metadata).epochId,
     ).toBe(epochId);
     expect(releasedOccurrenceCountMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-NMKR user before updating a Calendar schedule", async () => {
+    userFindUniqueMock.mockResolvedValue({ email: "ada@example.com" });
+    requireTaskCollaborationMock.mockResolvedValue({
+      id: TASK_ID,
+      status: TaskStatus.QUEUED,
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      projectId: null,
+      metadata: JSON.stringify({
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174004",
+        mode: "recurring",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "never",
+        epochReleaseCount: 0,
+        anchorAt: "2026-06-01T09:00:00.000Z",
+      }),
+      nextRunAt: NEXT_RUN_AT,
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/calendar-schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "recurring",
+          timezone: "UTC",
+          expr: "0 9 * * *",
+          endsMode: "never",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
   });
 });
