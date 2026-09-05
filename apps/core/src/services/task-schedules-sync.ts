@@ -517,7 +517,7 @@ async function processDueTask(
           template,
           metadata,
           nextRunAt,
-          calendarBetaEnabled,
+          metadata.version === 2 || calendarBetaEnabled,
         );
         clonedTaskIds.push(cloneId);
         clonesCreated += 1;

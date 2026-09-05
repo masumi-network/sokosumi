@@ -337,6 +337,155 @@ describe("taskSchedulesSyncService", () => {
     expect(mockTaskScheduleQuarantineUpsert).not.toHaveBeenCalled();
   });
 
+  it("records a released occurrence and increments a non-NMKR v2 schedule", async () => {
+    isNmkrEmailMock.mockReturnValue(false);
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+    const metadata = JSON.stringify({
+      version: 2,
+      epochId: "123e4567-e89b-42d3-a456-426614174002",
+      mode: "recurring",
+      createdAt: "2026-06-01T08:00:00.000Z",
+      ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+      timezone: "UTC",
+      expr: "0 9 * * *",
+      endsMode: "never",
+      epochReleaseCount: 0,
+      anchorAt: "2026-06-01T09:00:00.000Z",
+    });
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-v2-external" }])
+      .mockResolvedValueOnce([]);
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+          updateMany: mockTaskUpdateMany,
+        },
+        taskLink: { create: mockTaskLinkCreate },
+        taskEvent: { create: mockTaskEventCreate },
+        taskScheduleOccurrence: {
+          create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
+        },
+        taskScheduleQuarantine: {
+          upsert: mockTaskScheduleQuarantineUpsert,
+        },
+      }),
+    );
+    mockFindFirst.mockResolvedValue({
+      id: "template-v2-external",
+      ownerId: "user-external",
+      owner: { email: "external@example.com" },
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: null,
+      assigneeId: null,
+      name: "Template",
+      description: "Run me",
+      metadata,
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+    });
+    mockTaskCreate.mockResolvedValue({ id: "clone-v2-external" });
+    mockTaskUpdateMany.mockResolvedValue({ count: 1 });
+
+    await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(mockTaskScheduleOccurrenceCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        seriesTaskId: "template-v2-external",
+        releasedTaskId: "clone-v2-external",
+        scheduleVersion: 2,
+        state: "RELEASED",
+      }),
+    });
+    const update = mockTaskUpdateMany.mock.calls.at(-1)?.[0];
+    expect(JSON.parse(update.data.metadata)).toMatchObject({
+      epochReleaseCount: 1,
+    });
+  });
+
+  it("ends a non-NMKR v2 after-N schedule at its release target", async () => {
+    isNmkrEmailMock.mockReturnValue(false);
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-v2-after" }])
+      .mockResolvedValueOnce([]);
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+          updateMany: mockTaskUpdateMany,
+        },
+        taskLink: { create: mockTaskLinkCreate },
+        taskEvent: { create: mockTaskEventCreate },
+        taskScheduleOccurrence: {
+          create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
+        },
+        taskScheduleQuarantine: {
+          upsert: mockTaskScheduleQuarantineUpsert,
+        },
+      }),
+    );
+    mockFindFirst.mockResolvedValue({
+      id: "template-v2-after",
+      ownerId: "user-external",
+      owner: { email: "external@example.com" },
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: null,
+      assigneeId: null,
+      name: "Template",
+      description: "Run me",
+      metadata: JSON.stringify({
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174003",
+        mode: "recurring",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "after",
+        targetReleaseCount: 1,
+        epochReleaseCount: 0,
+        anchorAt: "2026-06-01T09:00:00.000Z",
+      }),
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+    });
+    mockTaskCreate.mockResolvedValue({ id: "clone-v2-after" });
+    mockTaskUpdateMany.mockResolvedValue({ count: 1 });
+
+    await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(mockTaskUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          metadata: null,
+          nextRunAt: null,
+          status: "DRAFT",
+        },
+      }),
+    );
+  });
+
   it("processes version 2 recurring metadata without downgrading it", async () => {
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"
