@@ -15,7 +15,8 @@ vi.mock("next-intl", () => ({
     dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
       new Intl.DateTimeFormat("en-US", options).format(value),
   }),
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    key === "event.accessibleName" ? `${values?.task}, ${values?.source}` : key,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -87,7 +88,7 @@ describe("WorkspaceCalendar accessibility", () => {
       { key: "Space", view },
     ]),
   )(
-    "renders one keyboard-operable event in $view view for $key",
+    "opens the event menu from its one accessible trigger in $view view with $key",
     async ({ key, view }) => {
       const user = userEvent.setup();
       getTaskByIdMock.mockResolvedValue({
@@ -97,19 +98,60 @@ describe("WorkspaceCalendar accessibility", () => {
       const calendar = container.querySelector(
         `[data-testid="calendar-${view}"]`,
       );
-      const event = calendar?.querySelector('[role="button"]');
+      const event = calendar?.querySelector("button");
 
       expect(event).not.toBeNull();
-      expect(event).toHaveAttribute("aria-label", ITEM.taskName);
-      expect(event).toHaveAttribute("tabindex", "0");
-      expect(event?.querySelectorAll('[role="button"]')).toHaveLength(0);
+      expect(event).toHaveAttribute(
+        "aria-label",
+        "Prepare release notes, Ada's workspace",
+      );
+      expect(event).toHaveAttribute("aria-haspopup", "menu");
 
       (event as HTMLElement).focus();
       await user.keyboard(key === "Enter" ? "{Enter}" : " ");
 
+      expect(await screen.findByRole("menu")).toBeInTheDocument();
+      expect(
+        screen.getByRole("menuitem", { name: "event.editSchedule" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("menuitem", { name: "event.openTask" }),
+      ).toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole("menuitem", { name: "event.editSchedule" }),
+      );
       expect(await screen.findByRole("dialog")).toHaveTextContent("edit.title");
     },
   );
+
+  it("offers only Open task for released calendar events", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC&view=month">
+        <WorkspaceCalendar
+          initialDate="2030-01-02"
+          items={[{ ...ITEM, canEditSchedule: false, state: "RELEASED" }]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    const event = container.querySelector(
+      '[data-testid="calendar-month"] button',
+    );
+    expect(event).toHaveAttribute(
+      "aria-label",
+      "Prepare release notes, Ada's workspace",
+    );
+    await user.click(event as HTMLButtonElement);
+
+    expect(
+      screen.queryByRole("menuitem", { name: "event.editSchedule" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "event.openTask" }));
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
+  });
 
   it("opens task creation from the visible create control", async () => {
     const user = userEvent.setup();

@@ -6113,6 +6113,11 @@
         "PROJECT": "Proyecto",
         "LEGACY_UNKNOWN": "Origen heredado"
       },
+      "event": {
+        "accessibleName": "{task}, {source}",
+        "editSchedule": "Editar programación",
+        "openTask": "Abrir tarea"
+      },
       "create": {
         "title": "Programar una tarea",
         "description": "Crea una tarea y elige cuándo debe ejecutarse.",

@@ -6113,6 +6113,11 @@
         "PROJECT": "Project",
         "LEGACY_UNKNOWN": "Legacy source"
       },
+      "event": {
+        "accessibleName": "{task}, {source}",
+        "editSchedule": "Edit schedule",
+        "openTask": "Open task"
+      },
       "create": {
         "title": "Schedule a task",
         "description": "Create a task and choose when it should run.",

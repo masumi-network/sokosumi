@@ -51,6 +51,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -267,10 +273,14 @@ function SourceIdentity({ source }: { source: WorkspaceCalendarSource }) {
 
 function CalendarEvent({
   item,
+  onEditSchedule,
+  onOpenTask,
   showDetails,
   source,
 }: {
   item: WorkspaceCalendarItem;
+  onEditSchedule: (taskId: string) => void;
+  onOpenTask: (taskId: string) => void;
   showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
 }) {
@@ -278,29 +288,52 @@ function CalendarEvent({
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
 
   return (
-    <span className="bg-primary/10 text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-xs font-medium">
-      <SourceMarker source={source} sourceName={sourceName} />
-      {item.sourceAccuracy !== "EXACT" ? (
-        <span
-          aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-          className="text-muted-foreground shrink-0"
-          role="img"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          aria-label={t("event.accessibleName", {
+            source: sourceName,
+            task: item.taskName,
+          })}
+          className="bg-primary/10 text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium"
+          type="button"
         >
-          ~
-        </span>
-      ) : null}
-      <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
-      {showDetails ? (
-        <>
-          <span className="text-muted-foreground shrink-0">{sourceName}</span>
+          <SourceMarker decorative source={source} sourceName={sourceName} />
           {item.sourceAccuracy !== "EXACT" ? (
-            <span className="text-muted-foreground shrink-0">
-              {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+            <span
+              aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+              className="text-muted-foreground shrink-0"
+              role="img"
+            >
+              ~
             </span>
           ) : null}
-        </>
-      ) : null}
-    </span>
+          <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
+          {showDetails ? (
+            <>
+              <span className="text-muted-foreground shrink-0">
+                {sourceName}
+              </span>
+              {item.sourceAccuracy !== "EXACT" ? (
+                <span className="text-muted-foreground shrink-0">
+                  {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+                </span>
+              ) : null}
+            </>
+          ) : null}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {item.canEditSchedule ? (
+          <DropdownMenuItem onSelect={() => onEditSchedule(item.taskId)}>
+            {t("event.editSchedule")}
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem onSelect={() => onOpenTask(item.taskId)}>
+          {t("event.openTask")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -308,7 +341,8 @@ function CalendarView({
   date,
   items,
   onDateClick,
-  onEventClick,
+  onEventEdit,
+  onOpenTask,
   sources,
   timeZone,
   view,
@@ -316,7 +350,8 @@ function CalendarView({
   date: Date;
   items: WorkspaceCalendarItem[];
   onDateClick: (date: Date) => void;
-  onEventClick: (item: WorkspaceCalendarItem) => void;
+  onEventEdit: (taskId: string) => void;
+  onOpenTask: (taskId: string) => void;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: (typeof CALENDAR_VIEWS)[number];
@@ -360,6 +395,8 @@ function CalendarView({
           return item ? (
             <CalendarEvent
               item={item}
+              onEditSchedule={onEventEdit}
+              onOpenTask={onOpenTask}
               showDetails={view === "agenda"}
               source={sources.find(
                 ({ sourceId }) => sourceId === item.sourceId,
@@ -368,18 +405,6 @@ function CalendarView({
           ) : (
             eventInfo.event.title
           );
-        }}
-        eventClick={(eventInfo) => {
-          const item = items.find(({ id }) => id === eventInfo.event.id);
-          if (item) {
-            onEventClick(item);
-          }
-        }}
-        eventDidMount={(eventInfo) => {
-          const item = items.find(({ id }) => id === eventInfo.event.id);
-          if (item) {
-            eventInfo.el.setAttribute("aria-label", item.taskName);
-          }
         }}
         dateClick={(dateInfo) => onDateClick(dateInfo.date)}
       />
@@ -800,13 +825,8 @@ export function WorkspaceCalendar({
     }
   }
 
-  function handleEventClick(item: WorkspaceCalendarItem) {
-    if (!item.canEditSchedule) {
-      router.push(`/tasks/${item.taskId}`);
-      return;
-    }
-
-    void handleEventEdit(item.taskId);
+  function handleOpenTask(taskId: string) {
+    router.push(`/tasks/${taskId}`);
   }
 
   async function handleLoadMore() {
@@ -1019,7 +1039,8 @@ export function WorkspaceCalendar({
           date={date}
           items={visibleItems}
           onDateClick={handleDateClick}
-          onEventClick={handleEventClick}
+          onEventEdit={(taskId) => void handleEventEdit(taskId)}
+          onOpenTask={handleOpenTask}
           sources={sources}
           timeZone={timeZone}
           view={view}
@@ -1030,7 +1051,8 @@ export function WorkspaceCalendar({
           date={date}
           items={visibleItems}
           onDateClick={handleDateClick}
-          onEventClick={handleEventClick}
+          onEventEdit={(taskId) => void handleEventEdit(taskId)}
+          onOpenTask={handleOpenTask}
           sources={sources}
           timeZone={timeZone}
           view={view}
