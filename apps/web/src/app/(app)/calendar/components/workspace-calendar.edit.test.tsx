@@ -445,6 +445,22 @@ describe("WorkspaceCalendar editing", () => {
     });
   });
 
+  it("requires an explicit source before creating from the workspace Calendar", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await user.click(
+      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
+    );
+    await user.type(screen.getByLabelText("create.name"), "New release");
+    await user.click(screen.getByRole("button", { name: "save schedule" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "create.validationError",
+    );
+    expect(createScheduledTaskMock).not.toHaveBeenCalled();
+  });
+
   it("hides mobile Agenda scheduling when no source can accept a task", () => {
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&view=agenda">
@@ -519,6 +535,8 @@ describe("WorkspaceCalendar editing", () => {
     await user.click(
       screen.getAllByRole("button", { name: "empty calendar slot" })[0],
     );
+    await user.click(screen.getByLabelText("create.source"));
+    await user.click(screen.getByRole("option", { name: "Ada's workspace" }));
 
     expect(
       screen
