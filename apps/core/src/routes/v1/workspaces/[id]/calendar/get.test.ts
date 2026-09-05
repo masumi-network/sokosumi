@@ -2,8 +2,8 @@ import {
   CalendarSourceType,
   TaskScheduleOccurrenceState,
   TaskStatus,
+  VendorGrantStatus,
 } from "@sokosumi/database";
-import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -12,19 +12,23 @@ import type { AuthenticationContext } from "@/middleware/auth";
 const {
   coworkerFindFirstMock,
   taskFindManyMock,
+  taskFindFirstMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
   userFindUniqueMock,
   vendorGrantFindUniqueMock,
+  resolveWorkspaceForContextMock,
   workspaceFindUniqueMock,
   resolveMemberOrganizationByIdMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
 }));
@@ -33,18 +37,28 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
   authMiddleware: (await import("@/test-fixtures/auth-middleware"))
     .stubAuthMiddleware,
-  requireUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, { message: "User authentication required" });
-    }
-    return { source: "session" as const, ...authContext };
+}));
+
+vi.mock(
+  "@/helpers/coworker-user-context-binding",
+  async () =>
+    await vi.importActual<
+      typeof import("@/helpers/coworker-user-context-binding")
+    >("@/helpers/coworker-user-context-binding"),
+);
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/database/repositories")>()),
+  workspaceRepository: {
+    resolveWorkspaceForContext: (...args: unknown[]) =>
+      resolveWorkspaceForContextMock(...args),
   },
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworker: { findFirst: coworkerFindFirstMock },
-    task: { findMany: taskFindManyMock },
+    task: { findFirst: taskFindFirstMock, findMany: taskFindManyMock },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
@@ -58,18 +72,6 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: (...args: unknown[]) =>
     resolveMemberOrganizationByIdMock(...args),
-}));
-
-vi.mock("@/helpers/coworker-user-context-binding", () => ({
-  requireAuthorizedUserContext: async (authContext: AuthenticationContext) => {
-    if (authContext.actor === "user") {
-      return { source: "session" as const, ...authContext };
-    }
-    if (authContext.actor === "coworker" && authContext.context) {
-      return { source: "context" as const, ...authContext.context };
-    }
-    throw new HTTPException(403, { message: "User authentication required" });
-  },
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -162,6 +164,8 @@ describe("GET /workspaces/{id}/calendar", () => {
     taskScheduleOccurrenceFindManyMock.mockReset();
     userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
     vendorGrantFindUniqueMock.mockResolvedValue(null);
+    resolveWorkspaceForContextMock.mockResolvedValue({ id: WORKSPACE_ID });
+    taskFindFirstMock.mockResolvedValue(null);
     taskFindManyMock.mockResolvedValue([]);
     taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
@@ -368,6 +372,12 @@ describe("GET /workspaces/{id}/calendar", () => {
   });
 
   it("limits a delegated coworker to Tasks it can read", async () => {
+    vendorGrantFindUniqueMock.mockResolvedValue({
+      id: "grant_123",
+      status: VendorGrantStatus.GRANTED,
+      permission: "workspace",
+    });
+
     const response = await requestCalendar(
       createApp(COWORKER_AUTH_CONTEXT, WORKSPACE_ID),
     );

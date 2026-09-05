@@ -1,5 +1,8 @@
-import { TaskScheduleOccurrenceState, TaskStatus } from "@sokosumi/database";
-import { HTTPException } from "hono/http-exception";
+import {
+  TaskScheduleOccurrenceState,
+  TaskStatus,
+  VendorGrantStatus,
+} from "@sokosumi/database";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -9,17 +12,29 @@ import type { AuthenticationContext } from "@/middleware/auth";
 const {
   coworkerFindFirstMock,
   projectFindFirstMock,
+  taskFindFirstMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
   userFindUniqueMock,
   vendorGrantFindUniqueMock,
+  resolveWorkspaceForContextMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
+}));
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/database/repositories")>()),
+  workspaceRepository: {
+    resolveWorkspaceForContext: (...args: unknown[]) =>
+      resolveWorkspaceForContextMock(...args),
+  },
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
@@ -28,22 +43,19 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
     .stubAuthMiddleware,
 }));
 
-vi.mock("@/helpers/coworker-user-context-binding", () => ({
-  requireAuthorizedUserContext: async (authContext: AuthenticationContext) => {
-    if (authContext.actor === "user") {
-      return { source: "session" as const, ...authContext };
-    }
-    if (authContext.actor === "coworker" && authContext.context) {
-      return { source: "context" as const, ...authContext.context };
-    }
-    throw new HTTPException(403, { message: "User authentication required" });
-  },
-}));
+vi.mock(
+  "@/helpers/coworker-user-context-binding",
+  async () =>
+    await vi.importActual<
+      typeof import("@/helpers/coworker-user-context-binding")
+    >("@/helpers/coworker-user-context-binding"),
+);
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworker: { findFirst: coworkerFindFirstMock },
     project: { findFirst: projectFindFirstMock },
+    task: { findFirst: taskFindFirstMock },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
@@ -132,6 +144,8 @@ describe("GET /projects/{id}/calendar", () => {
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([createOccurrence()]);
     coworkerFindFirstMock.mockResolvedValue({ id: "coworker_123" });
     vendorGrantFindUniqueMock.mockResolvedValue(null);
+    resolveWorkspaceForContextMock.mockResolvedValue({ id: WORKSPACE_ID });
+    taskFindFirstMock.mockResolvedValue(null);
   });
 
   it("returns only occurrences attributed to the route Project", async () => {
@@ -309,6 +323,12 @@ describe("GET /projects/{id}/calendar", () => {
   });
 
   it("limits a delegated coworker to Tasks it can read", async () => {
+    vendorGrantFindUniqueMock.mockResolvedValue({
+      id: "grant_123",
+      status: VendorGrantStatus.GRANTED,
+      permission: "workspace",
+    });
+
     const response = await createApp(COWORKER_AUTH_CONTEXT).request(
       `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
     );

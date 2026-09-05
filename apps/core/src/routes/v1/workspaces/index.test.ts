@@ -1,3 +1,4 @@
+import { TaskStatus, VendorGrantStatus } from "@sokosumi/database";
 import { Hono } from "hono";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,17 +8,29 @@ import type { AuthenticationContext } from "@/middleware/auth";
 const {
   coworkerFindFirstMock,
   taskFindManyMock,
+  taskFindFirstMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
   userFindUniqueMock,
   vendorGrantFindUniqueMock,
+  resolveWorkspaceForContextMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
+}));
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/database/repositories")>()),
+  workspaceRepository: {
+    resolveWorkspaceForContext: (...args: unknown[]) =>
+      resolveWorkspaceForContextMock(...args),
+  },
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
@@ -33,17 +46,13 @@ vi.mock("@/middleware/coworker-context", () => ({
   ) => await next(),
 }));
 
-vi.mock("@/helpers/coworker-user-context-binding", () => ({
-  requireAuthorizedUserContext: async (authContext: AuthenticationContext) => {
-    if (authContext.actor === "user") {
-      return { source: "session" as const, ...authContext };
-    }
-    if (authContext.actor === "coworker" && authContext.context) {
-      return { source: "context" as const, ...authContext.context };
-    }
-    throw new Error("User authentication required");
-  },
-}));
+vi.mock(
+  "@/helpers/coworker-user-context-binding",
+  async () =>
+    await vi.importActual<
+      typeof import("@/helpers/coworker-user-context-binding")
+    >("@/helpers/coworker-user-context-binding"),
+);
 
 vi.mock("@/middleware/organization", () => ({
   organizationHeaderMiddleware: async (
@@ -106,7 +115,7 @@ vi.mock("@/middleware/workspace", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworker: { findFirst: coworkerFindFirstMock },
-    task: { findMany: taskFindManyMock },
+    task: { findFirst: taskFindFirstMock, findMany: taskFindManyMock },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
@@ -144,6 +153,10 @@ describe("GET /workspaces/calendar", () => {
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
     userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
     vendorGrantFindUniqueMock.mockResolvedValue(null);
+    resolveWorkspaceForContextMock.mockResolvedValue({
+      id: "11111111-1111-7111-8111-111111111111",
+    });
+    taskFindFirstMock.mockResolvedValue(null);
   });
 
   it("reads the calendar for the active organization workspace", async () => {
@@ -186,7 +199,13 @@ describe("GET /workspaces/calendar", () => {
     );
   });
 
-  it("limits a delegated coworker to Tasks it can read", async () => {
+  it("allows a delegated coworker with a GRANTED workspace grant", async () => {
+    vendorGrantFindUniqueMock.mockResolvedValue({
+      id: "grant_123",
+      status: VendorGrantStatus.GRANTED,
+      permission: "workspace",
+    });
+
     const response = await createApp({
       actor: "coworker",
       coworkerId: "coworker_123",
@@ -219,5 +238,60 @@ describe("GET /workspaces/calendar", () => {
         }),
       }),
     );
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a delegated coworker with a non-DRAFT baseline task", async () => {
+    taskFindFirstMock.mockResolvedValue({ id: "task_123" });
+
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "coworker_123",
+      vendorId: "vendor_123",
+      context: { userId: "user_123", organizationId: null },
+    }).request(
+      "http://localhost/calendar?from=2026-06-01T00:00:00.000Z&to=2026-06-08T00:00:00.000Z",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { not: TaskStatus.DRAFT } }),
+      }),
+    );
+  });
+
+  it("rejects a delegated coworker without a grant or baseline task", async () => {
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "coworker_123",
+      vendorId: "vendor_123",
+      context: { userId: "user_123", organizationId: null },
+    }).request(
+      "http://localhost/calendar?from=2026-06-01T00:00:00.000Z&to=2026-06-08T00:00:00.000Z",
+    );
+
+    expect(response.status).toBe(403);
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a delegated coworker with a PENDING grant and no baseline task", async () => {
+    vendorGrantFindUniqueMock.mockResolvedValue({
+      id: "grant_123",
+      status: VendorGrantStatus.PENDING,
+      permission: "workspace",
+    });
+
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "coworker_123",
+      vendorId: "vendor_123",
+      context: { userId: "user_123", organizationId: null },
+    }).request(
+      "http://localhost/calendar?from=2026-06-01T00:00:00.000Z&to=2026-06-08T00:00:00.000Z",
+    );
+
+    expect(response.status).toBe(403);
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 });
