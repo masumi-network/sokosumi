@@ -579,7 +579,7 @@ describe("WorkspaceCalendar editing", () => {
     expect(createScheduledTaskMock).not.toHaveBeenCalled();
   });
 
-  it("opens an existing event editor and saves or clears its schedule", async () => {
+  it("opens an existing event editor, saves its schedule, and confirms its removal", async () => {
     const user = userEvent.setup();
     renderCalendar();
 
@@ -615,6 +615,14 @@ describe("WorkspaceCalendar editing", () => {
     );
     await screen.findByRole("dialog");
     await user.click(screen.getByRole("button", { name: "clear schedule" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(
+      "edit.clearTitle",
+    );
+    await user.click(screen.getByRole("button", { name: "edit.clearCancel" }));
+    expect(clearTaskScheduleMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "clear schedule" }));
+    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
     await waitFor(() =>
       expect(clearTaskScheduleMock).toHaveBeenCalledWith({ taskId: "task-1" }),
     );
