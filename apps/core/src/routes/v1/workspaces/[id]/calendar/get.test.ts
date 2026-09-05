@@ -255,6 +255,29 @@ describe("GET /workspaces/{id}/calendar", () => {
     ]);
   });
 
+  it("marks an owner planned occurrence as editable", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createLedgerOccurrence({ state: TaskScheduleOccurrenceState.PLANNED }),
+    ]);
+
+    const { items } = await readWorkspaceCalendar(WORKSPACE_ID, "user_123", {
+      from: new Date(FROM),
+      scope: "workspace",
+      to: new Date(TO),
+      cursor: null,
+      requestedCursor: null,
+      limit: 20,
+    });
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        taskId: "tsk_history",
+        canEditSchedule: true,
+        state: "PLANNED",
+      }),
+    ]);
+  });
+
   it("rejects non-NMKR users before reading calendar data", async () => {
     userFindUniqueMock.mockResolvedValue({ email: "ada@example.com" });
 
