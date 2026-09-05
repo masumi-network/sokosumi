@@ -518,6 +518,8 @@
 
 .workspace-calendar-theme {
   --fc-classic-border: var(--border);
+  --fc-classic-foreground: var(--foreground);
+  --fc-classic-faint-foreground: var(--muted-foreground);
   --fc-classic-muted: var(--accent);
   --fc-classic-faint: var(--muted);
   --fc-classic-muted-foreground: var(--muted-foreground);
