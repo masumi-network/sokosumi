@@ -30,7 +30,8 @@ vi.mock("next-intl", () => ({
     dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
       new Intl.DateTimeFormat("en-US", options).format(value),
   }),
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    key === "event.accessibleName" ? `${values?.task}, ${values?.source}` : key,
 }));
 
 vi.mock("next/navigation", () => ({

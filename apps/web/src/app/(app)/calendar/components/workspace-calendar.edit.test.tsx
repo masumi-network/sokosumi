@@ -1,7 +1,7 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceCalendarItem,
@@ -12,7 +12,7 @@ import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 interface FullCalendarProps {
   dateClick?: (info: { date: Date }) => void;
   editable?: boolean;
-  eventClick?: (info: { event: { id: string } }) => void;
+  eventContent?: (info: { event: { id: string; title: string } }) => ReactNode;
   events?: Array<{ id: string; title: string }>;
   plugins?: unknown[];
 }
@@ -61,13 +61,9 @@ vi.mock("@fullcalendar/react", () => ({
           empty calendar slot
         </button>
         {props.events?.map((event) => (
-          <button
-            key={event.id}
-            type="button"
-            onClick={() => props.eventClick?.({ event: { id: event.id } })}
-          >
-            {event.title}
-          </button>
+          <div key={event.id}>
+            {props.eventContent?.({ event }) ?? event.title}
+          </div>
         ))}
       </div>
     );
@@ -87,7 +83,8 @@ vi.mock("next-intl", () => ({
     dateTime: (value: Date, options: Intl.DateTimeFormatOptions) =>
       new Intl.DateTimeFormat("en-US", options).format(value),
   }),
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    key === "event.accessibleName" ? `${values?.task}, ${values?.source}` : key,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -99,6 +96,16 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
     filterDropdownMenuMock(props);
     return <div data-testid="calendar-filters" />;
   },
+}));
+
+vi.mock("@/components/ui/avatar", () => ({
+  Avatar: ({ children, ...props }: ComponentProps<"span">) => (
+    <span {...props}>{children}</span>
+  ),
+  AvatarFallback: ({ children, ...props }: ComponentProps<"span">) => (
+    <span {...props}>{children}</span>
+  ),
+  AvatarImage: (props: ComponentProps<"img">) => <img {...props} />,
 }));
 
 vi.mock("@/components/task-schedule-section", () => ({
@@ -497,6 +504,44 @@ describe("WorkspaceCalendar editing", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows assignee images and source logos or palette markers when creating a task", async () => {
+    const user = userEvent.setup();
+    renderCalendar({
+      coworkers: [
+        { id: "coworker-1", image: "https://example.com/ada.png", name: "Ada" },
+      ],
+      sources: [
+        { ...SOURCES[0], logoUrl: "https://example.com/workspace.png" },
+        SOURCES[1],
+      ],
+    });
+
+    await user.click(
+      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
+    );
+
+    expect(
+      screen
+        .getByLabelText("create.source")
+        .querySelector('img[src="https://example.com/workspace.png"]'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("create.assignee"));
+    expect(
+      screen
+        .getByRole("option", { name: "Ada" })
+        .querySelector('img[src="https://example.com/ada.png"]'),
+    ).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByLabelText("create.source"));
+    expect(
+      within(
+        screen.getByRole("option", { name: "Release planning" }),
+      ).getByTestId("calendar-source-marker"),
+    ).toHaveClass("bg-chart-2");
+  });
+
   it("does not open locked Project creation when its source is unschedulable", async () => {
     const user = userEvent.setup();
     renderCalendar({
@@ -520,7 +565,14 @@ describe("WorkspaceCalendar editing", () => {
     const user = userEvent.setup();
     renderCalendar();
 
-    await user.click(screen.getAllByRole("button", { name: ITEM.taskName })[0]);
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Prepare release notes, Release planning",
+      })[0],
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: "event.editSchedule" }),
+    );
     expect(await screen.findByRole("dialog")).toHaveTextContent("edit.title");
     expect(getTaskByIdMock).toHaveBeenCalledWith("task-1");
     expect(metadataToSelectionMock).toHaveBeenCalledWith(
@@ -535,7 +587,14 @@ describe("WorkspaceCalendar editing", () => {
       ),
     );
 
-    await user.click(screen.getAllByRole("button", { name: ITEM.taskName })[0]);
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Prepare release notes, Release planning",
+      })[0],
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: "event.editSchedule" }),
+    );
     await screen.findByRole("dialog");
     await user.click(screen.getByRole("button", { name: "clear schedule" }));
     await waitFor(() =>
@@ -548,8 +607,11 @@ describe("WorkspaceCalendar editing", () => {
     renderCalendar({ items: [RELEASED_ITEM] });
 
     await user.click(
-      screen.getAllByRole("button", { name: RELEASED_ITEM.taskName })[0],
+      screen.getAllByRole("button", {
+        name: "Prepare release notes, Release planning",
+      })[0],
     );
+    await user.click(screen.getByRole("menuitem", { name: "event.openTask" }));
 
     expect(pushMock).toHaveBeenCalledWith(`/tasks/${RELEASED_ITEM.taskId}`);
     expect(getTaskByIdMock).not.toHaveBeenCalled();
@@ -569,9 +631,21 @@ describe("WorkspaceCalendar editing", () => {
     );
     renderCalendar({ items: [ITEM, SECOND_ITEM] });
 
-    await user.click(screen.getAllByRole("button", { name: ITEM.taskName })[0]);
     await user.click(
-      screen.getAllByRole("button", { name: SECOND_ITEM.taskName })[0],
+      screen.getAllByRole("button", {
+        name: "Prepare release notes, Release planning",
+      })[0],
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: "event.editSchedule" }),
+    );
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Publish release notes, Release planning",
+      })[0],
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: "event.editSchedule" }),
     );
 
     await act(async () => {
