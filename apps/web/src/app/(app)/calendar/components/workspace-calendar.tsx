@@ -97,6 +97,7 @@ const SOURCE_PALETTE_CLASSES = {
 
 interface CalendarCoworker {
   id: string;
+  image?: string;
   name: string;
 }
 
@@ -198,21 +199,23 @@ function getRangeLabel(
 
 function SourceMarker({
   decorative = false,
+  size = "size-4",
   source,
   sourceName,
 }: {
   decorative?: boolean;
+  size?: string;
   source: WorkspaceCalendarSource | undefined;
   sourceName: string;
 }) {
   if (source?.logoUrl) {
     return (
       <Avatar
-        className="size-4 shrink-0 rounded-sm"
+        className={`${size} shrink-0 rounded-sm`}
         data-testid="calendar-source-marker"
       >
         <AvatarImage alt={decorative ? "" : sourceName} src={source.logoUrl} />
-        <AvatarFallback className="rounded-sm text-xs">
+        <AvatarFallback aria-hidden={decorative} className="rounded-sm text-xs">
           {sourceName.slice(0, 1).toUpperCase()}
         </AvatarFallback>
       </Avatar>
@@ -223,11 +226,42 @@ function SourceMarker({
     <span
       aria-hidden={decorative}
       aria-label={decorative ? undefined : sourceName}
-      className={`size-1.5 shrink-0 rounded-full ${
+      className={`${size} shrink-0 rounded-full ${
         source ? SOURCE_PALETTE_CLASSES[source.paletteToken] : "bg-primary"
       }`}
       data-testid="calendar-source-marker"
     />
+  );
+}
+
+function CoworkerIdentity({ coworker }: { coworker: CalendarCoworker }) {
+  return (
+    <>
+      <Avatar className="size-5 shrink-0">
+        <AvatarImage alt="" src={coworker.image} />
+        <AvatarFallback
+          aria-hidden
+          className="bg-primary text-primary-foreground text-xs"
+        >
+          {coworker.name.slice(0, 1).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <span className="truncate">{coworker.name}</span>
+    </>
+  );
+}
+
+function SourceIdentity({ source }: { source: WorkspaceCalendarSource }) {
+  return (
+    <>
+      <SourceMarker
+        decorative
+        size="size-5"
+        source={source}
+        sourceName={source.displayName}
+      />
+      <span className="truncate">{source.displayName}</span>
+    </>
   );
 }
 
@@ -386,6 +420,12 @@ function CalendarCreateDialog({
       "",
   );
   const [error, setError] = useState<string | null>(null);
+  const selectedCoworker = coworkers.find(
+    (coworker) => coworker.id === assigneeId,
+  );
+  const selectedSource = creatableSources.find(
+    (source) => source.sourceId === sourceId,
+  );
 
   const source = lockedProjectId
     ? getCreateSource(
@@ -458,12 +498,18 @@ function CalendarCreateDialog({
                 id="calendar-create-assignee"
                 className="w-full"
               >
-                <SelectValue placeholder={t("create.assignee")} />
+                {selectedCoworker ? (
+                  <CoworkerIdentity coworker={selectedCoworker} />
+                ) : (
+                  <SelectValue placeholder={t("create.assignee")} />
+                )}
               </SelectTrigger>
               <SelectContent>
                 {coworkers.map((coworker) => (
                   <SelectItem key={coworker.id} value={coworker.id}>
-                    {coworker.name}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <CoworkerIdentity coworker={coworker} />
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -480,7 +526,11 @@ function CalendarCreateDialog({
                   id="calendar-create-source"
                   className="w-full"
                 >
-                  <SelectValue placeholder={t("create.source")} />
+                  {selectedSource ? (
+                    <SourceIdentity source={selectedSource} />
+                  ) : (
+                    <SelectValue placeholder={t("create.source")} />
+                  )}
                 </SelectTrigger>
                 <SelectContent>
                   {creatableSources.map((sourceOption) => (
@@ -488,7 +538,9 @@ function CalendarCreateDialog({
                       key={sourceOption.sourceId}
                       value={sourceOption.sourceId}
                     >
-                      {sourceOption.displayName}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <SourceIdentity source={sourceOption} />
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>

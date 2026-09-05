@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { getLocale, getTranslations } from "next-intl/server";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
+import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { getSession } from "@/lib/auth/auth.server";
 import { isBetaAccessEmail } from "@/lib/beta-access";
 import { TaskStatus } from "@/lib/clients/generated/core";
@@ -100,8 +101,9 @@ export default async function ProjectCalendarPage({
           lockedProjectId={project.id}
           range={range}
           sources={projectSource ? [projectSource] : []}
-          coworkers={coworkers.map((coworker) => ({
+          coworkers={getCoworkerOptions(coworkers).map((coworker) => ({
             id: coworker.id,
+            image: coworker.image,
             name: coworker.name,
           }))}
         />

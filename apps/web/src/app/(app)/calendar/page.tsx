@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
+import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { getSession } from "@/lib/auth/auth.server";
 import { isBetaAccessEmail } from "@/lib/beta-access";
 import { TaskStatus } from "@/lib/clients/generated/core";
@@ -78,8 +79,9 @@ export default async function CalendarPage({
         sources={sources}
         pagination={pagination}
         range={range}
-        coworkers={coworkers.map((coworker) => ({
+        coworkers={getCoworkerOptions(coworkers).map((coworker) => ({
           id: coworker.id,
+          image: coworker.image,
           name: coworker.name,
         }))}
       />
