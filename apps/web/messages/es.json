@@ -6133,7 +6133,11 @@
         "description": "Cambia la programación de {name}.",
         "loadError": "No se pudo cargar esta tarea. Inténtalo de nuevo.",
         "saveError": "No se pudo guardar esta programación. Inténtalo de nuevo.",
-        "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo."
+        "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo.",
+        "clearTitle": "¿Eliminar programación?",
+        "clearDescription": "Esta tarea dejará de ejecutarse según una programación.",
+        "clearCancel": "Cancelar",
+        "clearConfirm": "Eliminar programación"
       },
       "accuracy": {
         "inferred": "Origen inferido",

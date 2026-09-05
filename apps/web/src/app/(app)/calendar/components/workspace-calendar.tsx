@@ -42,6 +42,16 @@ import {
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
 import { TaskScheduleSection } from "@/components/task-schedule-section";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -598,6 +608,7 @@ function CalendarEditDialog({
 }: CalendarEditDialogProps) {
   const t = useTranslations("App.Calendar");
   const router = useRouter();
+  const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave(schedule: TaskScheduleSelection) {
@@ -653,11 +664,30 @@ function CalendarEditDialog({
           key={`${task.id}-${initialSelection.mode}-${initialSelection.timezone}-${initialSelection.oneTimeLocalIso ?? ""}-${initialSelection.cron ?? ""}-${initialSelection.customCronExpr ?? ""}`}
           initialSelection={initialSelection}
           onCancel={onClose}
-          onClearSchedule={handleClearSchedule}
+          onClearSchedule={() => setClearConfirmationOpen(true)}
           onSave={handleSave}
           canClearSchedule={initialSelection.mode !== "none"}
           hideHeader
         />
+        <AlertDialog
+          open={clearConfirmationOpen}
+          onOpenChange={setClearConfirmationOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("edit.clearTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("edit.clearDescription")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("edit.clearCancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={handleClearSchedule}>
+                {t("edit.clearConfirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
