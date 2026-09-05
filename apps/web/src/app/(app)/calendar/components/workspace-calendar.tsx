@@ -438,12 +438,7 @@ function CalendarCreateDialog({
   );
   const [name, setName] = useState("");
   const [assigneeId, setAssigneeId] = useState(coworkers[0]?.id ?? "");
-  const [sourceId, setSourceId] = useState(
-    creatableSources.find((source) => source.sourceType === "WORKSPACE")
-      ?.sourceId ??
-      creatableSources[0]?.sourceId ??
-      "",
-  );
+  const [sourceId, setSourceId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const selectedCoworker = coworkers.find(
     (coworker) => coworker.id === assigneeId,
@@ -466,7 +461,7 @@ function CalendarCreateDialog({
       );
 
   async function handleSave(schedule: TaskScheduleSelection) {
-    if (!name.trim() || !assigneeId) {
+    if (!name.trim() || !assigneeId || (!lockedProjectId && !sourceId)) {
       setError(t("create.validationError"));
       return;
     }
