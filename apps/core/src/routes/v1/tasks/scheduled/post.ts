@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { isNmkrEmail } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import { badRequest } from "@/helpers/error";
+import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { created } from "@/helpers/response";
@@ -13,6 +14,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskScheduleInputSchema } from "@/schemas/task-schedule.schema";
@@ -72,6 +74,14 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
+    const userContext = requireUserContext(c.var.authContext);
+    const user = await prisma.user.findUnique({
+      where: { id: userContext.userId },
+      select: { email: true },
+    });
+    if (!isNmkrEmail(user?.email)) {
+      throw forbidden("Calendar is only available to NMKR users");
+    }
     const body = c.req.valid("json");
     const taskId = await serializableTransaction(async (tx) => {
       const creator = await requireScheduledTaskCreator(

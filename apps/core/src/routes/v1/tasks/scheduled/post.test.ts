@@ -1,5 +1,5 @@
 import { TaskStatus } from "@sokosumi/database";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskScheduleOccurrenceLimitError } from "@/helpers/task-schedule-occurrence-index";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -23,6 +23,7 @@ const {
   requireAssignedOrganizationSeatMock,
   requireScheduledTaskCreatorMock,
   taskFindUniqueOrThrowMock,
+  userFindUniqueMock,
 } = vi.hoisted(() => ({
   createScheduledTaskInTransactionMock: vi.fn(),
   mapTaskMock: vi.fn(),
@@ -30,6 +31,7 @@ const {
   requireAssignedOrganizationSeatMock: vi.fn(),
   requireScheduledTaskCreatorMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -44,6 +46,7 @@ vi.mock("@/helpers/task", async (importOriginal) => {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     task: { findUniqueOrThrow: taskFindUniqueOrThrowMock },
+    user: { findUnique: userFindUniqueMock },
   },
 }));
 
@@ -162,6 +165,10 @@ describe("createScheduledTaskRequestSchema", () => {
 });
 
 describe("POST /tasks/scheduled", () => {
+  beforeEach(() => {
+    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
+  });
+
   function createApp() {
     const app = new OpenAPIHonoWithAuth();
     app.use("*", async (c, next) => {
@@ -230,6 +237,45 @@ describe("POST /tasks/scheduled", () => {
     expect(await response.json()).toMatchObject({
       data: { id: "task_123", status: TaskStatus.QUEUED },
     });
+  });
+
+  it("rejects a non-NMKR user before creating a scheduled task", async () => {
+    userFindUniqueMock.mockResolvedValue({ email: "ada@example.com" });
+    const transaction = {};
+    prismaTransactionMock.mockImplementation(async (callback) =>
+      callback(transaction),
+    );
+    requireScheduledTaskCreatorMock.mockResolvedValue({
+      userContext: {
+        source: "session",
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+        role: "user",
+      },
+      actor: { kind: "user", userId: "user_123" },
+    });
+    createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
+    taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
+    mapTaskMock.mockReturnValue(buildMappedTask());
+
+    const response = await createApp().request("http://localhost/scheduled", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        source: { type: "workspace" },
+        name: "Prepare release notes",
+        assigneeId: "coworker_123",
+        schedule: {
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(createScheduledTaskInTransactionMock).not.toHaveBeenCalled();
   });
 
   it("returns a bad request when the schedule exceeds the Calendar occurrence limit", async () => {
