@@ -32,6 +32,7 @@ import type {
   GetHistoryData,
   GetJobsData,
   GetNotificationsData,
+  GetProjectsByIdCalendarData,
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
@@ -216,6 +217,7 @@ import {
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
+  getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
@@ -2734,6 +2736,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdCalendar(
+    id: string,
+    query: GetProjectsByIdCalendarData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdCalendar({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch project calendar",
+    );
+  }
+
   async function getProjectsByIdContextMd(id: string) {
     return executeCoreOperation(
       getClient,
@@ -5025,6 +5044,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getPendingNotices,
     getProjects,
     getProjectsById,
+    getProjectsByIdCalendar,
     getProjectsByIdContextMd,
     getProjectsStats,
     getSharedResourceByToken,

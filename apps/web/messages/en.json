@@ -2308,6 +2308,10 @@
         "modules": {
           "title": "Workspace",
           "comingSoon": "Coming soon",
+          "calendar": {
+            "title": "Calendar",
+            "description": "See upcoming project work"
+          },
           "seo": {
             "title": "SEO",
             "description": "Keywords, rankings, audits"
@@ -6806,6 +6810,9 @@
       "coworker": {
         "label": "Coworker",
         "all": "All coworkers"
+      },
+      "timezone": {
+        "label": "Time zone"
       },
       "empty": {
         "title": "No scheduled releases match these filters."
