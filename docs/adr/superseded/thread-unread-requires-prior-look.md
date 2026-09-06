@@ -1,6 +1,7 @@
 # Thread unread requires a prior look
 
-- Status: Superseded by [ADR-0013](./0013-thread-unread-is-participant-gated.md)
+- Status: Superseded by [ADR-0013](../0013-thread-unread-is-participant-gated.md)
+- Archived: live number 0005 is [optional personal workspace](../0005-optional-personal-workspace.md)
 
 A **Thread** is an **unread thread** (`unreadReplyCount`) only if the user has already **looked** it and there is at least one non-self reply after that look. A never-looked Thread has `unreadReplyCount` 0 and sorts by last reply among non-attention rows.
 
