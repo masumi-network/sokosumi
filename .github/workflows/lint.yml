@@ -38,22 +38,3 @@ jobs:
 
       - name: Run TypeScript typecheck
         run: pnpm typecheck
-
-  biome-annotations:
-    name: Biome PR annotations
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Run Biome with reviewdog
-        uses: mongolyy/reviewdog-action-biome@v2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review
-          filter_mode: added
-          fail_level: none
-          biome_flags: .

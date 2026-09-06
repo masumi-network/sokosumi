@@ -33,7 +33,7 @@ Keep it short. Architectural ideas welcome; file-level plans are not required he
 
 ## Bad example (too detailed for this stage)
 
-Contract tables, file change lists, and `pnpm web:check` — those belong in a later design/spec step if someone builds the issue.
+Contract tables, file change lists, and `pnpm --filter web check` — those belong in a later design/spec step if someone builds the issue.
 
 ## After publish
 
