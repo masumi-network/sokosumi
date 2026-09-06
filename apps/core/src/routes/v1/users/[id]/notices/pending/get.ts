@@ -60,37 +60,35 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const now = new Date();
-    const pendingNotices = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: resolvedUserId },
-        select: { id: true, createdAt: true },
-      });
-      if (!user) {
-        throw internalServerError("Failed to retrieve user");
-      }
+    const user = await prisma.user.findUnique({
+      where: { id: resolvedUserId },
+      select: { id: true, createdAt: true },
+    });
+    if (!user) {
+      throw internalServerError("Failed to retrieve user");
+    }
 
-      return await tx.notice.findMany({
-        where: {
-          isActive: true,
-          effectiveAt: {
-            lte: now,
-            gt: user.createdAt,
-          },
-          acknowledgments: {
-            none: {
-              userId: user.id,
-            },
+    const pendingNotices = await prisma.notice.findMany({
+      where: {
+        isActive: true,
+        effectiveAt: {
+          lte: now,
+          gt: user.createdAt,
+        },
+        acknowledgments: {
+          none: {
+            userId: user.id,
           },
         },
-        orderBy: [
-          {
-            effectiveAt: "asc",
-          },
-          {
-            createdAt: "asc",
-          },
-        ],
-      });
+      },
+      orderBy: [
+        {
+          effectiveAt: "asc",
+        },
+        {
+          createdAt: "asc",
+        },
+      ],
     });
 
     return ok(

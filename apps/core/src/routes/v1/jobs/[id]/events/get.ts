@@ -78,35 +78,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
-    const events = await prisma.$transaction(async (tx) => {
-      await requireJobReadForRouteVars(c.var, id, tx);
-      const job = await tx.job.findFirst({
-        where: {
-          id,
-          workspaceId: workspaceContext.workspaceId,
-        },
-        include: {
-          ...jobWithEvents,
-        },
-      });
-      if (!job) {
-        throw notFound("Job not found");
-      }
-
-      const events = job.events.map((event) => ({
-        ...event,
-        files: event.blobs.map((blob) => ({
-          ...blob,
-          jobId: id,
-          size: blob.size ? Number(blob.size) : null,
-        })),
-        links: event.links.map((link) => ({
-          ...link,
-          jobId: id,
-        })),
-      }));
-      return events;
+    await requireJobReadForRouteVars(c.var, id, prisma);
+    const job = await prisma.job.findFirst({
+      where: {
+        id,
+        workspaceId: workspaceContext.workspaceId,
+      },
+      include: {
+        ...jobWithEvents,
+      },
     });
+    if (!job) {
+      throw notFound("Job not found");
+    }
+
+    const events = job.events.map((event) => ({
+      ...event,
+      files: event.blobs.map((blob) => ({
+        ...blob,
+        jobId: id,
+        size: blob.size ? Number(blob.size) : null,
+      })),
+      links: event.links.map((link) => ({
+        ...link,
+        jobId: id,
+      })),
+    }));
 
     return ok(c, jobEventsSchema.parse(events));
   });

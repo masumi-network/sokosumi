@@ -325,7 +325,7 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 
 ## Agent skills
 
-First-party skills are authored in `skills/<name>/` and installed with `npx skills add . --skill <name>` into `.agents/skills/<name>/`. Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`.
+First-party skills are authored in `skills/<name>/`. `.agents/skills/<name>` is a symlink to that tree (`.claude/skills` already symlinks to `.agents`). Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`.
 
 ### Evlog (Core only)
 

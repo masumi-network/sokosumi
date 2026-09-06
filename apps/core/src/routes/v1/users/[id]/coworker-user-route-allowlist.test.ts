@@ -49,6 +49,9 @@ vi.mock("@/lib/db/prisma", () => ({
     user: {
       findUnique: userFindUniqueMock,
     },
+    member: {
+      findMany: memberFindManyMock,
+    },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -168,7 +171,7 @@ describe("coworker user route allowlist", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     assertCoworkerUserContextBindingMock.mockResolvedValue(undefined);
-    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+    userFindUniqueMock.mockResolvedValue(USER_RECORD);
     buildCreditsPayloadMock.mockResolvedValue(CREDITS_PAYLOAD);
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: { id: "org_1" },

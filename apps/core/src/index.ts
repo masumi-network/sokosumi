@@ -20,7 +20,6 @@ import { initSentry } from "@/lib/sentry";
 import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
 import authRouter from "@/routes/auth/index";
-import debugRouter from "@/routes/debug/index";
 import syncRouter from "@/routes/sync/index";
 import apiV1 from "@/routes/v1/index";
 import wellKnownRouter from "@/routes/well-known/index";
@@ -55,7 +54,6 @@ app.notFound(() => {
 app.route("/", wellKnownRouter);
 app.route("/auth", authRouter);
 app.route("/v1", apiV1);
-app.route("/debug", debugRouter);
 app.route("/sync", syncRouter);
 
 app.get(

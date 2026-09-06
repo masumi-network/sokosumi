@@ -1,5 +1,3 @@
-import { convertCreditsToCents } from "@sokosumi/utils";
-
 import type {
   Agent,
   AgentDetail,
@@ -83,8 +81,4 @@ export function getAgentRatingStats(agent: CoreAgentDto): AgentRatingStats {
 
 export function getAgentCredits(agent: CoreAgentDto): number {
   return agent.credits;
-}
-
-export function getAgentCreditsCents(agent: CoreAgentDto): bigint {
-  return convertCreditsToCents(agent.credits);
 }

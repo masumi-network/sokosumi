@@ -13,7 +13,7 @@ import {
   requireUserRouteContext,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
-import { type User, userSchema } from "@/schemas/user.schema";
+import { userSchema } from "@/schemas/user.schema";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -57,17 +57,13 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const user: User = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: resolvedUserId },
-      });
-      if (!user) {
-        throw notFound("User not found");
-      }
-
-      return userSchema.parse(user);
+    const user = await prisma.user.findUnique({
+      where: { id: resolvedUserId },
     });
+    if (!user) {
+      throw notFound("User not found");
+    }
 
-    return ok(c, user);
+    return ok(c, userSchema.parse(user));
   });
 }

@@ -78,10 +78,6 @@ function isTaskParked(task: Pick<Task, "status">): boolean {
   return task.status === TaskStatus.GRANT_PENDING;
 }
 
-export function isGrantPendingTask(task: Pick<Task, "status">): boolean {
-  return isTaskParked(task);
-}
-
 export function parseGrantResumeStatus(status: TaskStatus): GrantResumeStatus {
   if (status === TaskStatus.DRAFT) {
     return GrantResumeStatus.DRAFT;

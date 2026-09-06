@@ -15,9 +15,7 @@ interface SokoBotLayoutProps {
 }
 
 export default async function SokoBotLayout({ children }: SokoBotLayoutProps) {
-  // Beta gate, inherited from Hermes: outside the whitelisted email domains
-  // the whole route does not exist — the same 404 a made-up path would get, so
-  // nothing about the feature leaks before it is opened up.
+  // 404 outside the beta whitelist so the feature does not leak.
   const session = await getSession();
   if (!hasSokoBotBetaAccess(session?.user ?? null)) {
     notFound();

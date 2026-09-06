@@ -50,6 +50,9 @@ vi.mock("@/helpers/access-control", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    task: {
+      findUnique: taskFindUniqueMock,
+    },
   },
 }));
 

@@ -29,9 +29,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireAdminAuthContext(c.var.authContext);
 
-    const items = await prisma.$transaction(async (tx) =>
-      tx.creditCost.findMany(),
-    );
+    const items = await prisma.creditCost.findMany();
 
     const mapped = items.map(mapCreditCostForApi);
     return ok(c, z.array(creditCostSchema).parse(mapped));

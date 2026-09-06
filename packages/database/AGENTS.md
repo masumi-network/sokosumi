@@ -52,10 +52,7 @@ const prisma = createPrismaClient(process.env.DATABASE_URL);
 - **Use in**: Legacy Core services and other package consumers that still use the repository pattern. New Core routes prefer direct Prisma.
 
 ```typescript
-import {
-  userRepository,
-  agentRepository,
-} from "@sokosumi/database/repositories";
+import { userRepository } from "@sokosumi/database/repositories";
 
 const user = await userRepository.getUserById("user-id", prisma);
 ```
