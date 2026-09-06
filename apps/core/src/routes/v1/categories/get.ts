@@ -27,20 +27,18 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
-    const categories = await prisma.$transaction(async (tx) => {
-      const creditCosts = await getCreditCostsOrThrow(tx);
-      const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
-      const agentWhere = buildAvailableAgentWhereClause(
-        creditCosts,
-        cardanoV2ReadySources,
-      );
+    const creditCosts = await getCreditCostsOrThrow(prisma);
+    const cardanoV2ReadySources = await getCardanoV2ReadySources(prisma);
+    const agentWhere = buildAvailableAgentWhereClause(
+      creditCosts,
+      cardanoV2ReadySources,
+    );
 
-      return tx.category.findMany({
-        where: {
-          agents: { some: agentWhere },
-        },
-        orderBy: [{ priority: "asc" }, { name: "asc" }],
-      });
+    const categories = await prisma.category.findMany({
+      where: {
+        agents: { some: agentWhere },
+      },
+      orderBy: [{ priority: "asc" }, { name: "asc" }],
     });
 
     return ok(

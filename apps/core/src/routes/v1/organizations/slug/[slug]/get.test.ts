@@ -4,8 +4,9 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
-const { prismaTransactionMock } = vi.hoisted(() => ({
-  prismaTransactionMock: vi.fn(),
+const { organizationFindUniqueMock, memberFindUniqueMock } = vi.hoisted(() => ({
+  organizationFindUniqueMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
@@ -43,7 +44,12 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
+    organization: {
+      findUnique: organizationFindUniqueMock,
+    },
+    member: {
+      findUnique: memberFindUniqueMock,
+    },
   },
 }));
 
@@ -59,15 +65,6 @@ const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   coworkerId: "cow_123",
   vendorId: TEST_VENDOR_ID,
 };
-
-interface TransactionMock {
-  organization: {
-    findUnique: ReturnType<typeof vi.fn>;
-  };
-  member: {
-    findUnique: ReturnType<typeof vi.fn>;
-  };
-}
 
 let mountGetOrganizationBySlug: (app: OpenAPIHonoWithAuth) => void;
 let mountGetOrganization: (app: OpenAPIHonoWithAuth) => void;
@@ -113,10 +110,9 @@ function createApp(
   return app;
 }
 
-function mockTransaction(tx: TransactionMock) {
-  prismaTransactionMock.mockImplementation(async (callback) => {
-    return await callback(tx);
-  });
+function mockOrgLookup(args: { organization: unknown; member?: unknown }) {
+  organizationFindUniqueMock.mockResolvedValue(args.organization);
+  memberFindUniqueMock.mockResolvedValue(args.member ?? null);
 }
 
 beforeAll(async () => {
@@ -143,19 +139,13 @@ describe("GET /organizations/slug/{slug}", () => {
     const response = await app.request("http://localhost/slug/acme");
 
     expect(response.status).toBe(403);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the user is not a member of the organization", async () => {
-    const tx: TransactionMock = {
-      organization: {
-        findUnique: vi.fn().mockResolvedValue(createOrganization()),
-      },
-      member: {
-        findUnique: vi.fn().mockResolvedValue(null),
-      },
-    };
-    mockTransaction(tx);
+    mockOrgLookup({
+      organization: createOrganization(),
+      member: null,
+    });
 
     const app = createApp();
     const response = await app.request("http://localhost/slug/acme");
@@ -164,40 +154,23 @@ describe("GET /organizations/slug/{slug}", () => {
   });
 
   it("returns 404 when no organization matches the slug", async () => {
-    const tx: TransactionMock = {
-      organization: {
-        findUnique: vi.fn().mockResolvedValue(null),
-      },
-      member: {
-        findUnique: vi.fn(),
-      },
-    };
-    mockTransaction(tx);
+    mockOrgLookup({ organization: null });
 
     const app = createApp();
     const response = await app.request("http://localhost/slug/missing-org");
 
     expect(response.status).toBe(404);
-    expect(tx.member.findUnique).not.toHaveBeenCalled();
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns the raw organization record when resolved by slug", async () => {
-    const tx: TransactionMock = {
-      organization: {
-        findUnique: vi.fn().mockResolvedValue(
-          createOrganization({
-            metadata: '{"url":"https://example.com"}',
-            stripeCustomerId: "cus_123",
-          }),
-        ),
-      },
-      member: {
-        findUnique: vi.fn().mockResolvedValue({
-          role: "member",
-        }),
-      },
-    };
-    mockTransaction(tx);
+    mockOrgLookup({
+      organization: createOrganization({
+        metadata: '{"url":"https://example.com"}',
+        stripeCustomerId: "cus_123",
+      }),
+      member: { role: "member" },
+    });
 
     const app = createApp();
     const response = await app.request("http://localhost/slug/acme");
@@ -213,29 +186,22 @@ describe("GET /organizations/slug/{slug}", () => {
       stripeCustomerId: "cus_123",
     });
     expect(body.data).not.toHaveProperty("role");
-    expect(tx.organization.findUnique).toHaveBeenCalledWith({
+    expect(organizationFindUniqueMock).toHaveBeenCalledWith({
       where: { slug: "acme" },
     });
   });
 
   it("is not shadowed by the `/{id}` route", async () => {
-    const tx: TransactionMock = {
-      organization: {
-        findUnique: vi.fn().mockResolvedValue(createOrganization()),
-      },
-      member: {
-        findUnique: vi.fn().mockResolvedValue({
-          role: "member",
-        }),
-      },
-    };
-    mockTransaction(tx);
+    mockOrgLookup({
+      organization: createOrganization(),
+      member: { role: "member" },
+    });
 
     const app = createApp();
     const response = await app.request("http://localhost/slug/acme");
 
     expect(response.status).toBe(200);
-    expect(tx.organization.findUnique).toHaveBeenCalledWith({
+    expect(organizationFindUniqueMock).toHaveBeenCalledWith({
       where: { slug: "acme" },
     });
   });

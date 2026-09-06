@@ -69,9 +69,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id: roomId } = c.req.valid("param");
 
-    await prisma.$transaction(async (tx) => {
-      await requireChatRoomUserMembership(roomId, userContext.userId, tx);
-    });
+    await requireChatRoomUserMembership(roomId, userContext.userId, prisma);
 
     if (!isUiStreamResumptionConfigured()) {
       return new Response(null, { status: 204 });

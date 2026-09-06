@@ -99,19 +99,15 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       c.var.userRouteContext,
     );
 
-    const payload = await prisma.$transaction(async (tx) => {
-      const organizationId =
-        userContext.userId === resolvedUserId
-          ? userContext.organizationId
-          : null;
-      const referenceId = organizationId ?? resolvedUserId;
+    const organizationId =
+      userContext.userId === resolvedUserId ? userContext.organizationId : null;
+    const referenceId = organizationId ?? resolvedUserId;
 
-      return await buildCreditsPayload({
-        userId: resolvedUserId,
-        organizationId,
-        referenceId,
-        tx,
-      });
+    const payload = await buildCreditsPayload({
+      userId: resolvedUserId,
+      organizationId,
+      referenceId,
+      tx: prisma,
     });
 
     return ok(c, creditsResponseSchema.parse(payload));

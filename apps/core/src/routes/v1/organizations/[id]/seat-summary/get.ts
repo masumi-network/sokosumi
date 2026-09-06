@@ -63,38 +63,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const summary = await prisma.$transaction(async (tx) => {
-      const { organization } = await resolveMemberOrganizationById({
-        id,
-        userId: userContext.userId,
-        tx,
-      });
-
-      const [assignedCount, memberCount, billingPlan] = await Promise.all([
-        memberRepository.getAssignedMemberCount(organization.id, tx),
-        tx.member.count({
-          where: {
-            organizationId: organization.id,
-          },
-        }),
-        resolveOrganizationBillingPlan(organization.id, tx),
-      ]);
-
-      const paidPlan = billingPlan.plan === "free" ? null : billingPlan.plan;
-      const purchasedSeats = billingPlan.purchasedSeats;
-      const hasSeatEntitlements = paidPlan != null;
-
-      return {
-        assignedCount: hasSeatEntitlements ? assignedCount : 0,
-        memberCount,
-        isEnterpriseContract: billingPlan.mode === "enterprise_contract",
-        paidPlan,
-        purchasedSeats,
-        unusedSeats: hasSeatEntitlements
-          ? getUnusedSeatCount(purchasedSeats, assignedCount)
-          : 0,
-      };
+    const { organization } = await resolveMemberOrganizationById({
+      id,
+      userId: userContext.userId,
+      tx: prisma,
     });
+
+    const [assignedCount, memberCount, billingPlan] = await Promise.all([
+      memberRepository.getAssignedMemberCount(organization.id, prisma),
+      prisma.member.count({
+        where: {
+          organizationId: organization.id,
+        },
+      }),
+      resolveOrganizationBillingPlan(organization.id, prisma),
+    ]);
+
+    const paidPlan = billingPlan.plan === "free" ? null : billingPlan.plan;
+    const purchasedSeats = billingPlan.purchasedSeats;
+    const hasSeatEntitlements = paidPlan != null;
+
+    const summary = {
+      assignedCount: hasSeatEntitlements ? assignedCount : 0,
+      memberCount,
+      isEnterpriseContract: billingPlan.mode === "enterprise_contract",
+      paidPlan,
+      purchasedSeats,
+      unusedSeats: hasSeatEntitlements
+        ? getUnusedSeatCount(purchasedSeats, assignedCount)
+        : 0,
+    };
 
     return ok(c, organizationSeatSummarySchema.parse(summary));
   });
