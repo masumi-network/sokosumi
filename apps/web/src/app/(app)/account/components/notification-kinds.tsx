@@ -90,7 +90,11 @@ function FoldRow({
           the box around them is still growing. A reader who asked for less
           motion gets the old jump, which is the honest thing to give them. */}
       <CollapsibleContent className="motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down overflow-hidden">
-        <div className="bg-muted/20 border-t px-4 pt-1 pb-1">{children}</div>
+        {/* No padding above the children. What comes first is the line of
+            column names, and it carries its own, so the names sit under the
+            border the way a table head sits under its rule rather than
+            floating in a band of their own. */}
+        <div className="bg-muted/20 border-t px-4 pb-1">{children}</div>
       </CollapsibleContent>
     </Collapsible>
   );
@@ -200,7 +204,7 @@ function NewsRow({ news }: { news: EmailChoice }) {
       onOpenChange={setOpen}
     >
       <ChannelLegend pushBlock={null} />
-      <div className="flex items-center justify-end gap-2 pb-2">
+      <div className="flex items-center justify-end gap-2 border-t py-2">
         <div
           role="group"
           // Its own sentence rather than the one every kind row uses, which
