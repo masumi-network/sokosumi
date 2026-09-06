@@ -612,7 +612,6 @@ function CalendarEditDialog({
   const [clearError, setClearError] = useState<string | null>(null);
   const [isClearingSchedule, setIsClearingSchedule] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const clearRequestId = useRef(0);
   const clearRequestPending = useRef(false);
 
   async function handleSave(schedule: TaskScheduleSelection) {
@@ -641,16 +640,11 @@ function CalendarEditDialog({
     }
 
     clearRequestPending.current = true;
-    const requestId = clearRequestId.current + 1;
-    clearRequestId.current = requestId;
     setIsClearingSchedule(true);
     setClearError(null);
     setError(null);
     try {
       const result = await clearTaskSchedule({ taskId: task.id });
-      if (requestId !== clearRequestId.current) {
-        return;
-      }
       if (!result.ok) {
         setClearError(t("edit.clearError"));
         return;
@@ -659,14 +653,10 @@ function CalendarEditDialog({
       onClose();
       router.refresh();
     } catch {
-      if (requestId === clearRequestId.current) {
-        setClearError(t("edit.clearError"));
-      }
+      setClearError(t("edit.clearError"));
     } finally {
-      if (requestId === clearRequestId.current) {
-        clearRequestPending.current = false;
-        setIsClearingSchedule(false);
-      }
+      clearRequestPending.current = false;
+      setIsClearingSchedule(false);
     }
   }
 
@@ -729,6 +719,9 @@ function CalendarEditDialog({
                 {clearError}
               </p>
             ) : null}
+            <p className="sr-only" role="status">
+              {isClearingSchedule ? t("edit.clearPending") : null}
+            </p>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={isClearingSchedule}>
                 {t("edit.clearCancel")}
