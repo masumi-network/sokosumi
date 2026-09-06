@@ -63,7 +63,7 @@ export default async function ProjectCalendarPage({
         scope: scope === "owned" ? "owned" : "workspace",
         status: calendarStatus,
       }),
-      taskService.getWorkspaceCalendarSources(),
+      taskService.getWorkspaceCalendarSources().catch(() => []),
       coworkerService.listCoworkers().catch(() => []),
       getTranslations("App.Projects.Detail"),
       getLocale(),

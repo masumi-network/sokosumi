@@ -222,6 +222,30 @@ describe("ProjectCalendarPage", () => {
     expect(calendarProps.sources[0]?.isSchedulable).toBe(false);
   });
 
+  it("still renders the Project Calendar when Calendar sources fail to load", async () => {
+    getWorkspaceCalendarSourcesMock.mockRejectedValue(
+      new Error("Calendar sources unavailable"),
+    );
+    getProjectCalendarMock.mockResolvedValue({
+      items: [{ id: "occurrence-1" }],
+      pagination: null,
+    });
+
+    render(
+      await ProjectCalendarPage({
+        params: Promise.resolve({ projectId: PROJECT.id }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
+      items: Array<{ id: string }>;
+      sources: unknown[];
+    };
+    expect(calendarProps.items).toEqual([{ id: "occurrence-1" }]);
+    expect(calendarProps.sources).toEqual([]);
+  });
+
   it("does not offer creation for an open Project without an assigned Seat", async () => {
     getWorkspaceCalendarSourcesMock.mockResolvedValue([
       {

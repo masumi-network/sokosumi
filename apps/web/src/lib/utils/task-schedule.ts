@@ -1,4 +1,4 @@
-import { parseTaskScheduleMetadata } from "@sokosumi/utils";
+import { isValidTimezone, parseTaskScheduleMetadata } from "@sokosumi/utils";
 import { CronExpressionParser as cronParser } from "cron-parser";
 import type { TaskScheduleInput } from "@/lib/clients/generated/core/types.gen";
 import { DOW, type Dow, parseCron } from "@/lib/schedules/cron";
@@ -276,7 +276,7 @@ export function selectionToApiBody(
   selection: TaskScheduleSelection,
 ): TaskScheduleInput | null {
   const timezone = selection.timezone.trim();
-  if (!timezone) return null;
+  if (!isValidTimezone(timezone)) return null;
   const now = new Date();
 
   if (selection.mode === "once") {
