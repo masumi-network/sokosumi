@@ -166,7 +166,11 @@ describe("createScheduledTaskRequestSchema", () => {
 
 describe("POST /tasks/scheduled", () => {
   beforeEach(() => {
-    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
+    vi.clearAllMocks();
+    userFindUniqueMock.mockResolvedValue({
+      email: "ada@nmkr.io",
+      emailVerified: true,
+    });
   });
 
   function createApp() {
@@ -258,6 +262,31 @@ describe("POST /tasks/scheduled", () => {
     createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
     taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
     mapTaskMock.mockReturnValue(buildMappedTask());
+
+    const response = await createApp().request("http://localhost/scheduled", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        source: { type: "workspace" },
+        name: "Prepare release notes",
+        assigneeId: "coworker_123",
+        schedule: {
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(createScheduledTaskInTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unverified NMKR user before creating a scheduled task", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      email: "ada@nmkr.io",
+      emailVerified: false,
+    });
 
     const response = await createApp().request("http://localhost/scheduled", {
       method: "POST",
