@@ -35,7 +35,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { useRef, useState } from "react";
+import { type MouseEvent, useRef, useState } from "react";
 import { Temporal } from "temporal-polyfill";
 import {
   FilterDropdownMenu,
@@ -609,7 +609,11 @@ function CalendarEditDialog({
   const t = useTranslations("App.Calendar");
   const router = useRouter();
   const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [isClearingSchedule, setIsClearingSchedule] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const clearRequestId = useRef(0);
+  const clearRequestPending = useRef(false);
 
   async function handleSave(schedule: TaskScheduleSelection) {
     setError(null);
@@ -630,19 +634,50 @@ function CalendarEditDialog({
     }
   }
 
-  async function handleClearSchedule() {
+  async function handleClearSchedule(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    if (clearRequestPending.current) {
+      return;
+    }
+
+    clearRequestPending.current = true;
+    const requestId = clearRequestId.current + 1;
+    clearRequestId.current = requestId;
+    setIsClearingSchedule(true);
+    setClearError(null);
     setError(null);
     try {
       const result = await clearTaskSchedule({ taskId: task.id });
+      if (requestId !== clearRequestId.current) {
+        return;
+      }
       if (!result.ok) {
-        setError(t("edit.clearError"));
+        setClearError(t("edit.clearError"));
         return;
       }
 
       onClose();
       router.refresh();
     } catch {
-      setError(t("edit.clearError"));
+      if (requestId === clearRequestId.current) {
+        setClearError(t("edit.clearError"));
+      }
+    } finally {
+      if (requestId === clearRequestId.current) {
+        clearRequestPending.current = false;
+        setIsClearingSchedule(false);
+      }
+    }
+  }
+
+  function handleClearConfirmationOpenChange(open: boolean) {
+    if (!open && clearRequestPending.current) {
+      return;
+    }
+
+    setClearConfirmationOpen(open);
+    if (!open) {
+      setClearError(null);
     }
   }
 
@@ -664,25 +699,44 @@ function CalendarEditDialog({
           key={`${task.id}-${initialSelection.mode}-${initialSelection.timezone}-${initialSelection.oneTimeLocalIso ?? ""}-${initialSelection.cron ?? ""}-${initialSelection.customCronExpr ?? ""}`}
           initialSelection={initialSelection}
           onCancel={onClose}
-          onClearSchedule={() => setClearConfirmationOpen(true)}
+          onClearSchedule={() => {
+            setClearError(null);
+            setClearConfirmationOpen(true);
+          }}
           onSave={handleSave}
           canClearSchedule={initialSelection.mode !== "none"}
           hideHeader
         />
         <AlertDialog
           open={clearConfirmationOpen}
-          onOpenChange={setClearConfirmationOpen}
+          onOpenChange={handleClearConfirmationOpenChange}
         >
-          <AlertDialogContent>
+          <AlertDialogContent
+            onEscapeKeyDown={(event) => {
+              if (clearRequestPending.current) {
+                event.preventDefault();
+              }
+            }}
+          >
             <AlertDialogHeader>
               <AlertDialogTitle>{t("edit.clearTitle")}</AlertDialogTitle>
               <AlertDialogDescription>
                 {t("edit.clearDescription")}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {clearError ? (
+              <p className="text-destructive text-sm" role="alert">
+                {clearError}
+              </p>
+            ) : null}
             <AlertDialogFooter>
-              <AlertDialogCancel>{t("edit.clearCancel")}</AlertDialogCancel>
-              <AlertDialogAction onClick={handleClearSchedule}>
+              <AlertDialogCancel disabled={isClearingSchedule}>
+                {t("edit.clearCancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isClearingSchedule}
+                onClick={handleClearSchedule}
+              >
                 {t("edit.clearConfirm")}
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -700,6 +754,7 @@ interface CalendarCreateState {
 
 interface CalendarEditState {
   initialSelection: TaskScheduleSelection;
+  requestId: number;
   task: Task;
 }
 
@@ -841,6 +896,7 @@ export function WorkspaceCalendar({
           result.data.metadata,
           getDefaultTimezone(),
         ),
+        requestId,
         task: result.data,
       });
     } catch {
@@ -1116,8 +1172,15 @@ export function WorkspaceCalendar({
       ) : null}
       {editState ? (
         <CalendarEditDialog
+          key={editState.requestId}
           initialSelection={editState.initialSelection}
-          onClose={() => setEditState(null)}
+          onClose={() =>
+            setEditState((currentState) =>
+              currentState?.requestId === editState.requestId
+                ? null
+                : currentState,
+            )
+          }
           task={editState.task}
         />
       ) : null}
