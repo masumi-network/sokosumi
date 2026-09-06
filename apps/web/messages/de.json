@@ -8,11 +8,6 @@
     "UnknownError": "Ein unbekannter Fehler ist aufgetreten. Bitte kontaktiere unseren Support"
   },
   "Components": {
-    "AppLayoutRestrictor": {
-      "title": "Mobile nicht unterstützt",
-      "description": "Diese Seite ist nur auf Desktop-Geräten verfügbar. Bitte wechsle zu einem größeren Bildschirm.",
-      "reload": "Neu laden"
-    },
     "EmergencyDialog": {
       "title": "Notfallwartung",
       "description": "Wir haben derzeit Probleme mit der Ausführung von Jobs, die durch technische Störungen bei einem unserer Drittanbieter verursacht werden. Keine Sorge – alles wird in Kürze wieder normal funktionieren.",
@@ -493,19 +488,8 @@
           "files": "Dateien",
           "links": "Links"
         },
-        "BlobStatusBadge": {
-          "pending": "Ausstehend",
-          "failed": "Fehlgeschlagen"
-        },
         "CollapsedEvents": {
           "seeMore": "Mehr anzeigen ({count})"
-        }
-      },
-      "JobsTable": {
-        "Header": {
-          "started": "Gestartet",
-          "status": "Status",
-          "name": "Name"
         }
       },
       "JobsSearch": {
@@ -6747,14 +6731,8 @@
       "assistantOf": "Persönlicher Assistent von {name}",
       "openChat": "Chat öffnen",
       "messageAssistant": "Anschreiben",
-      "moreComing": "Wir arbeiten an neuen Arten von Kollegen, die du hier bauen kannst.",
       "chatError": "Der Chat konnte nicht geöffnet werden.",
-      "yoursTitle": "Deine Soko Bots",
-      "yourAssistantBlurb": "Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden.",
       "manage": "Öffnen",
-      "createAssistantBlurb": "Ein KI-Projektmanager, der in Sokosumi für dich arbeitet.",
-      "createNow": "Jetzt einrichten",
-      "moreTitle": "Weitere Arten von Soko Bots",
       "teamTitle": "Team",
       "teamDescription": "Alle in diesem Workspace und ihre Soko Bots.",
       "teamDescriptionPersonal": "Das ist dein persönlicher Workspace. Tritt einer Organisation bei oder erstelle eine, um Teammitglieder zu sehen.",

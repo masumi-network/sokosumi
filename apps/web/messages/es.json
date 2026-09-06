@@ -8,11 +8,6 @@
     "UnknownError": "Ocurrió un error desconocido. Por favor, contacta con nuestro soporte"
   },
   "Components": {
-    "AppLayoutRestrictor": {
-      "title": "Móvil no compatible",
-      "description": "Esta página solo está disponible en dispositivos de escritorio. Por favor, cambia a una pantalla más grande.",
-      "reload": "Recargar"
-    },
     "EmergencyDialog": {
       "title": "Mantenimiento de emergencia",
       "description": "Actualmente experimentamos problemas con la ejecución de jobs debido a fallos técnicos de uno de nuestros proveedores externos. No te preocupes, todo volverá a la normalidad pronto.",
@@ -493,19 +488,8 @@
           "files": "Archivos",
           "links": "Enlaces"
         },
-        "BlobStatusBadge": {
-          "pending": "Pendiente",
-          "failed": "Fallido"
-        },
         "CollapsedEvents": {
           "seeMore": "Ver más ({count})"
-        }
-      },
-      "JobsTable": {
-        "Header": {
-          "started": "Iniciado",
-          "status": "Estado",
-          "name": "Nombre"
         }
       },
       "JobsSearch": {
@@ -6747,14 +6731,8 @@
       "assistantOf": "Asistente personal de {name}",
       "openChat": "Abrir chat",
       "messageAssistant": "Escribirle",
-      "moreComing": "Estamos trabajando en nuevos tipos de compañeros que podrás crear aquí.",
       "chatError": "No se pudo abrir el chat.",
-      "yoursTitle": "Tus Soko Bots",
-      "yourAssistantBlurb": "Delega trabajo, hace seguimiento y te mantiene al día.",
       "manage": "Abrir",
-      "createAssistantBlurb": "Un gestor de proyectos de IA que trabaja para ti en Sokosumi.",
-      "createNow": "Configúralo ahora",
-      "moreTitle": "Más tipos de Soko Bots",
       "teamTitle": "Equipo",
       "teamDescription": "Todas las personas de este espacio y los Soko Bots que crearon.",
       "teamDescriptionPersonal": "Este es tu espacio personal. Únete a una organización o crea una para ver compañeros aquí.",

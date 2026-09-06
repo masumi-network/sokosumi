@@ -1,7 +1,6 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import type { AgentExampleOutput } from "@/lib/clients/generated/core";
-import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { categoryStylesSchema } from "@/lib/schemas/category";
 import type { AgentLegal } from "@/lib/types/agent";
 import type { CategoryStyles } from "@/lib/types/category";
@@ -67,16 +66,6 @@ export function getAgentResolvedIcon(agent: {
 
 export function getAgentTags(agent: CoreAgentDto): string[] {
   return isCoreAgentDetail(agent) ? agent.tags : [];
-}
-
-export function getAgentCategorySlugs(agent: CoreAgentDto): string[] {
-  return agent.categories.map((category) => category.slug);
-}
-
-export function isAgentNew(agent: CoreAgentDto): boolean {
-  return getAgentCategorySlugs(agent).includes(
-    SPECIAL_AGENT_CATEGORY_SLUGS.NEW,
-  );
 }
 
 export function getAgentLegal(
@@ -174,28 +163,10 @@ export function getAgentAuthorResolvedImage(
   return image ? resolveIpfsOrHttpUrl(image) : null;
 }
 
-export function getAgentAuthorEmail(agent: CoreAgentDto): string | null {
-  return agent.author.email ?? null;
-}
-
-export function getAgentAuthorOther(agent: CoreAgentDto): string | null {
-  return agent.author.other ?? null;
-}
-
-export function getAgentCredits(agent: CoreAgentDto): number {
-  return agent.credits;
-}
-
 export function getAgentExampleOutputs(
   agent: CoreAgentDto,
 ): AgentExampleOutput[] {
   return isCoreAgentDetail(agent) ? agent.exampleOutputs : [];
-}
-
-export function getAgentResolvedExampleOutputUrl(
-  exampleOutput: AgentExampleOutput,
-): string {
-  return resolveIpfsOrHttpUrl(exampleOutput.url);
 }
 
 const DEFAULT_CATEGORY_STYLES: CategoryStyles = {
