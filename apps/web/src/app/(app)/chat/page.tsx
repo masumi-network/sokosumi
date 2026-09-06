@@ -106,7 +106,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const chatRoomsPage = await getPrivateCachedMembershipVisibleRooms(cacheArgs);
 
-  const hermesMenuEnabled = isBetaAccessEmail(session?.user.email);
+  const sokoBotMenuEnabled = isBetaAccessEmail(session?.user.email);
   const listKey = activeOrganizationId ?? "personal";
 
   return (
@@ -119,8 +119,8 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           the last row in main's scroll (no nested overflow height-lock).
         */}
         <div className={CHAT_CHATS_MOBILE_LIST_SHELL_CLASS}>
-          <PersonalAssistantNav enabled={hermesMenuEnabled} />
-          {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+          <PersonalAssistantNav enabled={sokoBotMenuEnabled} />
+          {sokoBotMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
           <Suspense
             fallback={
               <OrganizationChatList
