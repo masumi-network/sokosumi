@@ -1075,6 +1075,77 @@ describe("taskSchedulesSyncService", () => {
     expect(mockTaskScheduleQuarantineUpsert).not.toHaveBeenCalled();
   });
 
+  it("skips a non-NMKR v2 release when its Calendar source moves", async () => {
+    isNmkrEmailMock.mockReturnValue(false);
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+    const candidate = {
+      id: "template-v2-external",
+      ownerId: "user-external",
+      owner: { email: "external@example.com" },
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: "project-1",
+      assigneeId: null,
+      name: "Template",
+      description: "Run me",
+      metadata: JSON.stringify({
+        version: 2,
+        epochId: "123e4567-e89b-42d3-a456-426614174005",
+        mode: "recurring",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        ruleEffectiveFrom: "2026-06-01T08:00:00.000Z",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "never",
+        epochReleaseCount: 0,
+        anchorAt: "2026-06-01T09:00:00.000Z",
+      }),
+      nextRunAt: new Date("2026-06-10T09:00:00.000Z"),
+    };
+    mockFindMany
+      .mockResolvedValueOnce([{ id: candidate.id }])
+      .mockResolvedValueOnce([]);
+    mockFindFirst
+      .mockResolvedValueOnce(candidate)
+      .mockResolvedValueOnce({ ...candidate, projectId: "project-2" });
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+          updateMany: mockTaskUpdateMany,
+        },
+        taskLink: { create: mockTaskLinkCreate },
+        taskEvent: { create: mockTaskEventCreate },
+        taskScheduleOccurrence: {
+          create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
+        },
+        taskScheduleQuarantine: {
+          upsert: mockTaskScheduleQuarantineUpsert,
+        },
+      }),
+    );
+
+    const result = await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(result).toMatchObject({ cloned: 0, promoted: 0 });
+    expect(lockCalendarScopeMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "workspace-1",
+      ["project-1"],
+    );
+    expect(mockTaskCreate).not.toHaveBeenCalled();
+    expect(mockTaskScheduleOccurrenceCreate).not.toHaveBeenCalled();
+  });
+
   it("rolls back recurring clones when re-arm fails after cancel", async () => {
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"

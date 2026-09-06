@@ -156,7 +156,10 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     taskUpdateMock.mockImplementation(async ({ data }) =>
       createTaskResult(data.metadata, data.nextRunAt ?? NEXT_RUN_AT),
     );
-    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
+    userFindUniqueMock.mockResolvedValue({
+      email: "ada@nmkr.io",
+      emailVerified: true,
+    });
   });
 
   it("atomically converts a finite v1 rule before applying the Calendar edit", async () => {
@@ -312,6 +315,30 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
         anchorAt: "2026-06-01T09:00:00.000Z",
       }),
       nextRunAt: NEXT_RUN_AT,
+    });
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/calendar-schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "recurring",
+          timezone: "UTC",
+          expr: "0 9 * * *",
+          endsMode: "never",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unverified NMKR user before updating a Calendar schedule", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      email: "ada@nmkr.io",
+      emailVerified: false,
     });
 
     const response = await createApp().request(

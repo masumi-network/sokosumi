@@ -78,9 +78,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(authContext);
     const user = await prisma.user.findUnique({
       where: { id: userContext.userId },
-      select: { email: true },
+      select: { email: true, emailVerified: true },
     });
-    if (!isNmkrEmail(user?.email)) {
+    if (!user?.emailVerified || !isNmkrEmail(user.email)) {
       throw forbidden("Calendar is only available to NMKR users");
     }
     const { id } = c.req.valid("param");
