@@ -52,7 +52,7 @@ the old prefix.
 
 1. Dry-run, then copy:
 
-   ```
+   ```sh
    pnpm --filter @sokosumi/core soko-bot:copy-avatars
    pnpm --filter @sokosumi/core soko-bot:copy-avatars -- --copy
    ```
@@ -65,7 +65,7 @@ the old prefix.
    `soko_bot_avatar.imageUrl` and `soko_bot.avatarImageUrl` contain no
    `/soko-bot-avatars/` strings. Then delete the old prefix:
 
-   ```
+   ```sh
    pnpm --filter @sokosumi/core soko-bot:copy-avatars -- --delete-legacy --confirm-delete-legacy
    ```
 
