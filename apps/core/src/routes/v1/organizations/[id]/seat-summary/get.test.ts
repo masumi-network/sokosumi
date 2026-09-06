@@ -11,14 +11,12 @@ const {
   memberCountMock,
   getAssignedMemberCountMock,
   resolveOrganizationBillingPlanMock,
-  transactionMock,
 } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   memberCountMock: vi.fn(),
   getAssignedMemberCountMock: vi.fn(),
   resolveOrganizationBillingPlanMock: vi.fn(),
-  transactionMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -47,7 +45,13 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: (...args: unknown[]) => transactionMock(...args),
+    organization: {
+      findUnique: organizationFindUniqueMock,
+    },
+    member: {
+      findUnique: memberFindUniqueMock,
+      count: memberCountMock,
+    },
   },
 }));
 
@@ -119,16 +123,6 @@ beforeAll(async () => {
 describe("GET /organizations/{id}/seat-summary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    transactionMock.mockImplementation(
-      async (callback: (tx: unknown) => unknown) =>
-        callback({
-          organization: { findUnique: organizationFindUniqueMock },
-          member: {
-            findUnique: memberFindUniqueMock,
-            count: memberCountMock,
-          },
-        }),
-    );
   });
 
   it("returns 404 when the organization does not exist", async () => {
@@ -148,7 +142,6 @@ describe("GET /organizations/{id}/seat-summary", () => {
       "http://localhost/org_123/seat-summary",
     );
     expect(response.status).toBe(403);
-    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("returns zeroed seat entitlements for free organizations", async () => {

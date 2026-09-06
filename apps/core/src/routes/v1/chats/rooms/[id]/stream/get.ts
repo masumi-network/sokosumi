@@ -97,37 +97,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       const takePlusOne = take + 1;
 
-      const { items, count } = await prisma.$transaction(async (tx) => {
-        await requireChatRoomUserMembership(roomId, userContext.userId, tx);
+      await requireChatRoomUserMembership(roomId, userContext.userId, prisma);
 
-        const where = {
-          roomId,
-          parentMessageId: null,
-        };
+      const where = {
+        roomId,
+        parentMessageId: null,
+      };
 
-        const [items, count] = await Promise.all([
-          tx.chatRoomMessage.findMany({
-            where,
-            // Newest-first page (same as GET /messages): open hydrate is the
-            // most recent window, not the first 200 messages ever written.
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            take: takePlusOne,
-            skip,
-            cursor: cursor ? { id: cursor } : undefined,
-            select: {
-              id: true,
-              content: true,
-              senderUserId: true,
-              senderCoworkerId: true,
-              metadata: true,
-              createdAt: true,
-            },
-          }),
-          tx.chatRoomMessage.count({ where }),
-        ]);
-
-        return { items, count };
-      });
+      const [items, count] = await Promise.all([
+        prisma.chatRoomMessage.findMany({
+          where,
+          // Newest-first page (same as GET /messages): open hydrate is the
+          // most recent window, not the first 200 messages ever written.
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: takePlusOne,
+          skip,
+          cursor: cursor ? { id: cursor } : undefined,
+          select: {
+            id: true,
+            content: true,
+            senderUserId: true,
+            senderCoworkerId: true,
+            metadata: true,
+            createdAt: true,
+          },
+        }),
+        prisma.chatRoomMessage.count({ where }),
+      ]);
 
       const hasMore = items.length === takePlusOne;
       const pagedItems = items.slice(0, take);

@@ -28,8 +28,14 @@ export const workspaceCalendarQuerySchema = z
       example: "workspace",
     }),
     assigneeId: z.uuid().optional().openapi({
-      description: "Only occurrences whose series task has this coworker",
+      description:
+        "Only occurrences whose planned-series or released-snapshot task has this coworker",
       example: "22222222-2222-7222-8222-222222222222",
+    }),
+    status: z.enum(TaskStatus).optional().openapi({
+      description:
+        "Only occurrences whose planned-series or released-snapshot task has this status",
+      example: TaskStatus.READY,
     }),
     cursor: z
       .string()

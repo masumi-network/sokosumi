@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -6,6 +7,7 @@ import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
+import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import CalendarError from "../error";
 import CalendarLoading from "../loading";
 import {
@@ -13,8 +15,13 @@ import {
   WorkspaceCalendar,
 } from "./workspace-calendar";
 
-const { filterDropdownMenuMock, getWorkspaceCalendarMock } = vi.hoisted(() => ({
+const {
+  filterDropdownMenuMock,
+  getProjectCalendarMock,
+  getWorkspaceCalendarMock,
+} = vi.hoisted(() => ({
   filterDropdownMenuMock: vi.fn(),
+  getProjectCalendarMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
 }));
 
@@ -32,6 +39,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
+    getProjectsByIdCalendar: getProjectCalendarMock,
     getWorkspaceCalendar: getWorkspaceCalendarMock,
   },
 }));
@@ -125,6 +133,17 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
+  it("sets transparent classic events for the week theme", () => {
+    const styles = readFileSync(
+      new URL("../../../globals.css", import.meta.url).pathname.slice(1),
+      "utf8",
+    );
+
+    expect(styles).toMatch(
+      /\.workspace-calendar-theme\[data-view="week"\]\s*\{[^}]*--fc-classic-event:\s*transparent;/,
+    );
+  });
+
   it("disables forward navigation beyond the supplied calendar horizon", () => {
     render(
       <NuqsTestingAdapter>
@@ -143,6 +162,12 @@ describe("WorkspaceCalendar", () => {
     expect(getCalendarItemDateKey(new Date("2026-08-18T00:30:00.000Z"))).toBe(
       "2026-08-18",
     );
+    expect(
+      getCalendarItemDateKey(
+        new Date("2026-08-18T00:30:00.000Z"),
+        "America/New_York",
+      ),
+    ).toBe("2026-08-17");
   });
 
   it("renders agenda source details without the approximate-time label", () => {
@@ -166,11 +191,27 @@ describe("WorkspaceCalendar", () => {
     ).toBeInTheDocument();
   });
 
+  it.each(["month", "week", "agenda"] as const)(
+    "marks inferred items in the %s view",
+    (view) => {
+      render(
+        <NuqsTestingAdapter searchParams={`?view=${view}&date=2026-08-18`}>
+          <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+        </NuqsTestingAdapter>,
+      );
+
+      expect(screen.getAllByLabelText("accuracy.inferred")).toHaveLength(2);
+    },
+  );
+
   it("uses the task-style scope filter", async () => {
     const onUrlUpdate = vi.fn();
 
     render(
-      <NuqsTestingAdapter onUrlUpdate={onUrlUpdate}>
+      <NuqsTestingAdapter
+        onUrlUpdate={onUrlUpdate}
+        searchParams="?timezone=UTC"
+      >
         <WorkspaceCalendar
           activeOrganizationId="org-1"
           coworkers={[{ id: "coworker-1", name: "Ada" }]}
@@ -189,6 +230,8 @@ describe("WorkspaceCalendar", () => {
     expect(props.sections.map((section) => section.id)).toEqual([
       "scope",
       "coworker",
+      "status",
+      "timezone",
     ]);
 
     props.sections.find((section) => section.id === "scope")?.onChange("owned");
@@ -197,14 +240,17 @@ describe("WorkspaceCalendar", () => {
     const updates = onUrlUpdate.mock.calls.map(([event]) =>
       event.searchParams.toString(),
     );
-    expect(updates).toContain("scope=owned");
+    expect(new URLSearchParams(updates.at(-1)).get("scope")).toBe("owned");
   });
 
   it("preserves the selected scope when filtering by coworker", async () => {
     const onUrlUpdate = vi.fn();
 
     render(
-      <NuqsTestingAdapter searchParams="?scope=owned" onUrlUpdate={onUrlUpdate}>
+      <NuqsTestingAdapter
+        searchParams="?timezone=UTC&scope=owned"
+        onUrlUpdate={onUrlUpdate}
+      >
         <WorkspaceCalendar
           activeOrganizationId="org-1"
           coworkers={[{ id: "coworker-1", name: "Ada" }]}
@@ -228,7 +274,38 @@ describe("WorkspaceCalendar", () => {
     const updates = onUrlUpdate.mock.calls.map(([event]) =>
       event.searchParams.toString(),
     );
-    expect(updates).toContain("scope=owned&assigneeId=coworker-1");
+    const updatedSearchParams = new URLSearchParams(updates.at(-1));
+    expect(updatedSearchParams.get("scope")).toBe("owned");
+    expect(updatedSearchParams.get("assigneeId")).toBe("coworker-1");
+  });
+
+  it("persists the selected status in the Calendar URL", async () => {
+    const onUrlUpdate = vi.fn();
+
+    render(
+      <NuqsTestingAdapter
+        onUrlUpdate={onUrlUpdate}
+        searchParams="?timezone=UTC"
+      >
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+      </NuqsTestingAdapter>,
+    );
+
+    const props = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
+      sections: Array<{
+        id: string;
+        onChange: (value: string | null) => void;
+      }>;
+    };
+    props.sections
+      .find((section) => section.id === "status")
+      ?.onChange("READY");
+
+    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
+    const updates = onUrlUpdate.mock.calls.map(([event]) =>
+      event.searchParams.toString(),
+    );
+    expect(updates).toContain("timezone=UTC&status=READY");
   });
 
   it("persists view and date in the URL", async () => {
@@ -256,15 +333,95 @@ describe("WorkspaceCalendar", () => {
     expect(updatedQuery).toContain("date=2026-");
   });
 
-  it("falls back to the month view when a week is requested on mobile", () => {
+  it("uses the timezone from the URL", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=America%2FNew_York">
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+      </NuqsTestingAdapter>,
+    );
+
+    const props = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
+      sections: Array<{ id: string; value: string | null }>;
+    };
+    expect(
+      props.sections.find((section) => section.id === "timezone")?.value,
+    ).toBe("America/New_York");
+  });
+
+  it("persists the detected timezone when the URL has none", async () => {
+    const onUrlUpdate = vi.fn();
+
+    render(
+      <NuqsTestingAdapter onUrlUpdate={onUrlUpdate}>
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
+    expect(onUrlUpdate.mock.calls[0]?.[0].searchParams.get("timezone")).toBe(
+      getDefaultTimezone(),
+    );
+  });
+
+  it("replaces an invalid timezone with the detected timezone", async () => {
+    const onUrlUpdate = vi.fn();
+
+    render(
+      <NuqsTestingAdapter
+        onUrlUpdate={onUrlUpdate}
+        searchParams="?timezone=Invalid%2FTimezone"
+      >
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+      </NuqsTestingAdapter>,
+    );
+
+    await waitFor(() => expect(onUrlUpdate).toHaveBeenCalledTimes(1));
+    expect(onUrlUpdate.mock.calls[0]?.[0].searchParams.get("timezone")).toBe(
+      getDefaultTimezone(),
+    );
+  });
+
+  it("defaults the mobile Calendar to agenda when the URL has no view", async () => {
+    const mediaQuery: MediaQueryList = {
+      matches: true,
+      media: "(max-width: 767px)",
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    };
+    vi.stubGlobal("innerWidth", 767);
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => mediaQuery),
+    );
+
+    try {
+      render(
+        <NuqsTestingAdapter searchParams="?timezone=UTC">
+          <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+        </NuqsTestingAdapter>,
+      );
+
+      await waitFor(() =>
+        expect(screen.getAllByTestId("calendar-agenda")).toHaveLength(2),
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("honors an explicit week view on mobile", () => {
     render(
       <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18">
         <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getAllByTestId("calendar-week")).toHaveLength(1);
-    expect(screen.getAllByTestId("calendar-month")).toHaveLength(1);
+    expect(screen.getAllByTestId("calendar-week")).toHaveLength(2);
+    expect(screen.queryByTestId("calendar-month")).not.toBeInTheDocument();
     expect(screen.getByTestId("mobile-calendar-views")).not.toHaveTextContent(
       "view.week",
     );
@@ -277,12 +434,12 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(container.querySelector(".fc-timegrid-event")).toHaveClass(
-      "!bg-transparent",
-      "!border-transparent",
+    expect(screen.getAllByTestId("calendar-week")[0]).toHaveAttribute(
+      "data-view",
+      "week",
     );
     expect(
-      container.querySelector(".fc-timegrid-event [role='link']"),
+      container.querySelector("[role='button'] [role='link']"),
     ).toHaveClass("bg-primary/10");
     expect(screen.queryByText("all-day")).not.toBeInTheDocument();
   });
@@ -309,7 +466,7 @@ describe("WorkspaceCalendar", () => {
     });
 
     render(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18">
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&status=QUEUED">
         <WorkspaceCalendar
           items={ITEMS}
           initialDate="2026-08-18"
@@ -332,6 +489,40 @@ describe("WorkspaceCalendar", () => {
       limit: 100,
       scope: "workspace",
       assigneeId: undefined,
+      status: "QUEUED",
+    });
+  });
+
+  it("loads more Project Calendar items through the Project endpoint", async () => {
+    const user = userEvent.setup();
+    getProjectCalendarMock.mockResolvedValue({
+      data: [],
+      meta: { pagination: { nextCursor: null } },
+    });
+
+    render(
+      <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=owned&status=QUEUED">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={ITEMS}
+          projectId="project-1"
+          {...CALENDAR_PAGE}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "pagination.loadMore" }),
+    );
+
+    expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
+      from: new Date("2026-08-01T00:00:00.000Z"),
+      to: new Date("2026-09-01T00:00:00.000Z"),
+      cursor: "cursor-2",
+      limit: 100,
+      scope: "owned",
+      assigneeId: "coworker-1",
+      status: "QUEUED",
     });
   });
 

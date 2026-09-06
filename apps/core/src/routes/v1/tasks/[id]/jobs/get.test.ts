@@ -13,13 +13,8 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const {
-  jobFindManyMock,
-  prismaTransactionMock,
-  requireTaskReadForRouteVarsMock,
-} = vi.hoisted(() => ({
+const { jobFindManyMock, requireTaskReadForRouteVarsMock } = vi.hoisted(() => ({
   jobFindManyMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
   requireTaskReadForRouteVarsMock: vi.fn(),
 }));
 
@@ -29,7 +24,9 @@ vi.mock("@/helpers/access-control", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
+    job: {
+      findMany: jobFindManyMock,
+    },
   },
 }));
 
@@ -64,13 +61,6 @@ describe("GET /tasks/{id}/jobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireTaskReadForRouteVarsMock.mockResolvedValue(undefined);
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        job: {
-          findMany: jobFindManyMock,
-        },
-      });
-    });
     jobFindManyMock.mockResolvedValue([]);
   });
 

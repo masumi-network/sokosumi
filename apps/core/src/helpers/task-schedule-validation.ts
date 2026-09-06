@@ -1,13 +1,11 @@
 import { TaskScheduleQuarantineReason, TaskStatus } from "@sokosumi/database";
 import {
+  isValidTimezone,
   parseTaskScheduleMetadata,
   type TaskScheduleMetadata,
 } from "@sokosumi/utils";
 
-import {
-  computeScheduleNextRun,
-  isValidTimezone,
-} from "@/helpers/task-schedule";
+import { computeScheduleNextRun } from "@/helpers/task-schedule";
 
 export type PersistedTaskScheduleValidation =
   | { valid: true; metadata: TaskScheduleMetadata }

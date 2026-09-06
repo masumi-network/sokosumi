@@ -8,6 +8,7 @@ const coreClientMock = {
   deleteProjectsByIdTasksByTaskId: vi.fn(),
   getProjects: vi.fn(),
   getProjectsById: vi.fn(),
+  getProjectsByIdCalendar: vi.fn(),
   getProjectsByIdContextMd: vi.fn(),
   getProjectsStats: vi.fn(),
   patchProjectsById: vi.fn(),
@@ -142,6 +143,42 @@ describe("project.service", () => {
       "project-missing",
     );
     expect(result).toBeNull();
+  });
+
+  it("loads Project Calendar items through Core", async () => {
+    coreClientMock.getProjectsByIdCalendar.mockResolvedValue({
+      data: [],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 100,
+          total: 0,
+          nextCursor: null,
+        },
+      },
+    });
+
+    const { projectService } = await import("./project.service");
+    const query = {
+      from: new Date("2026-06-01T00:00:00.000Z"),
+      to: new Date("2026-06-08T00:00:00.000Z"),
+      limit: 100,
+    };
+    const result = await projectService.getProjectCalendar("project-1", query);
+
+    expect(coreClientMock.getProjectsByIdCalendar).toHaveBeenCalledWith(
+      "project-1",
+      query,
+    );
+    expect(result).toEqual({
+      items: [],
+      pagination: {
+        cursor: null,
+        limit: 100,
+        total: 0,
+        nextCursor: null,
+      },
+    });
   });
 
   it("rethrows when a project lookup fails for non-404 errors", async () => {

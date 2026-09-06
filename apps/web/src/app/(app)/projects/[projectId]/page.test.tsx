@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { projectServiceMock, notFoundMock } = vi.hoisted(() => ({
+const { getSessionMock, projectServiceMock, notFoundMock } = vi.hoisted(() => ({
+  getSessionMock: vi.fn(),
   projectServiceMock: {
     getProjectById: vi.fn(),
     getProjectsStats: vi.fn(),
@@ -21,6 +22,10 @@ vi.mock("next-intl/server", () => ({
   getLocale: async () => "en",
   getTranslations: async (namespace: string) => (key: string) =>
     `${namespace}.${key}`,
+}));
+
+vi.mock("@/lib/auth/auth.server", () => ({
+  getSession: () => getSessionMock(),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -76,6 +81,7 @@ function buildProject() {
 describe("ProjectDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
   });
 
   it("calls notFound without loading jobs or tasks when the project is missing", async () => {
@@ -142,6 +148,11 @@ describe("ProjectDetailPage", () => {
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: "App.Projects.Detail.modules.calendar.title",
+      }),
+    ).toHaveAttribute("href", "/projects/project-1/calendar");
     expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
       "href",
       "https://example.com/about",
@@ -169,5 +180,32 @@ describe("ProjectDetailPage", () => {
       "href",
       `/drive?view=tasks&projectId=${project.id}`,
     );
+  });
+
+  it("hides the Calendar card for non-beta sessions", async () => {
+    const project = buildProject();
+    getSessionMock.mockResolvedValue({ user: { email: "member@example.com" } });
+    projectServiceMock.getProjectById.mockResolvedValue(project);
+    projectServiceMock.listProjectJobs.mockResolvedValue({
+      jobs: [],
+      pagination: null,
+    });
+    projectServiceMock.listProjectTasks.mockResolvedValue({
+      tasks: [],
+      pagination: null,
+    });
+
+    const { default: ProjectDetailPage } = await import("./page");
+    const html = await ProjectDetailPage({
+      params: Promise.resolve({ projectId: "project-1" }),
+    });
+
+    render(html);
+
+    expect(
+      screen.queryByRole("link", {
+        name: "App.Projects.Detail.modules.calendar.title",
+      }),
+    ).not.toBeInTheDocument();
   });
 });

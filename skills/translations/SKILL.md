@@ -15,8 +15,6 @@ When code that uses translations is deleted or modified, check for and remove un
 
 Parity: `pnpm --filter web messages:parity` (write: `messages:parity:write`). Wired into web `test`.
 
-`apps/web/messages/hermes-translations/` is a `de`/`es` overlay pack for `scripts/apply-hermes-i18n.mjs`, not a locale catalog. Do not add keys there instead of `en`/`de`/`es`.
-
 ## Client message bags
 
 Layouts nest `ClientMessageBoundary` so clients get a picked subset (`pickMessages` + `message-namespaces.ts`), not the full catalog. Server `getTranslations` still uses the full request catalog.

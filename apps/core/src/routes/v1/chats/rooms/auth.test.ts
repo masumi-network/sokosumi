@@ -501,6 +501,8 @@ const membershipScopedCases: AuthRequestCase[] = [
 const membershipCasesWithoutInteractiveTx = new Set([
   "GET /{id}",
   "GET /{id}/messages",
+  "GET /{id}/stream/messages",
+  "GET /{id}/stream/active",
 ]);
 
 describe("chat room membership isolation", () => {
@@ -508,7 +510,7 @@ describe("chat room membership isolation", () => {
     "$label returns 404 when caller is not a room member",
     async ({ label, request }) => {
       // Read GETs no longer open interactive txs — membership miss is on the
-      // default client. Write / stream paths still go through $transaction.
+      // default client. Write paths still go through $transaction.
       roomFindFirstMock.mockResolvedValue(null);
       prismaTransactionMock.mockImplementation(
         async (callback: (tx: unknown) => Promise<unknown>) =>

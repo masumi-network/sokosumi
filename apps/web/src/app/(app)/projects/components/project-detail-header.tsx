@@ -10,20 +10,24 @@ interface ProjectDetailHeaderMetadataItem {
 }
 
 interface ProjectDetailHeaderProps {
+  backHref?: string;
   projectName: string;
   projectLogo?: string | null;
   websiteUrl?: string | null;
   backLabel: string;
   metadata: ProjectDetailHeaderMetadataItem[];
+  showBackOnMobile?: boolean;
   actions?: React.ReactNode;
 }
 
 export function ProjectDetailHeader({
+  backHref = "/projects",
   projectName,
   projectLogo,
   websiteUrl,
   backLabel,
   metadata,
+  showBackOnMobile = false,
   actions,
 }: ProjectDetailHeaderProps) {
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
@@ -31,8 +35,10 @@ export function ProjectDetailHeader({
   return (
     <div className="space-y-4 px-4 md:px-0">
       <Link
-        href="/projects"
-        className="text-muted-foreground hover:text-foreground hidden items-center gap-1.5 text-sm transition-colors md:inline-flex"
+        href={backHref}
+        className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${
+          showBackOnMobile ? "inline-flex" : "hidden md:inline-flex"
+        }`}
       >
         <ArrowLeft className="size-4" aria-hidden />
         <span>{backLabel}</span>

@@ -1,12 +1,4 @@
-import {
-  addDays,
-  endOfMonth,
-  endOfWeek,
-  format,
-  startOfMonth,
-  startOfWeek,
-  subMonths,
-} from "date-fns";
+import { format } from "date-fns";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -14,6 +6,12 @@ import { getTranslations } from "next-intl/server";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import { getSession } from "@/lib/auth/auth.server";
 import { isBetaAccessEmail } from "@/lib/beta-access";
+import { TaskStatus } from "@/lib/clients/generated/core";
+import {
+  getCalendarRange,
+  getLatestCalendarDate,
+  resolveCalendarDate,
+} from "@/lib/schedules/calendar-range";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 
@@ -22,6 +20,7 @@ interface CalendarPageProps {
     assigneeId?: string;
     date?: string;
     scope?: string;
+    status?: string;
   }>;
 }
 
@@ -34,33 +33,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function getCalendarRange(dateParam: string) {
-  const date = new Date(`${dateParam}T12:00:00`);
-  // Pad the rendered month grid by a day on each side for client timezones.
-  const from = addDays(startOfWeek(startOfMonth(date)), -1);
-  const to = addDays(endOfWeek(endOfMonth(date)), 2);
-
-  return { from, to };
-}
-
-function getLatestCalendarDate(now: Date): Date {
-  const horizon = addDays(now, 90);
-  const candidate = startOfMonth(horizon);
-  const candidateRange = getCalendarRange(format(candidate, "yyyy-MM-dd"));
-
-  return candidateRange.to <= horizon ? candidate : subMonths(candidate, 1);
-}
-
-function resolveCalendarDate(dateParam: string | undefined, now: Date): string {
-  const parsedDate = dateParam ? new Date(`${dateParam}T12:00:00`) : now;
-  const date = Number.isNaN(parsedDate.getTime()) ? now : parsedDate;
-  const latestCalendarDate = getLatestCalendarDate(now);
-  return format(
-    date > latestCalendarDate ? latestCalendarDate : date,
-    "yyyy-MM-dd",
-  );
-}
-
 export default async function CalendarPage({
   searchParams,
 }: CalendarPageProps) {
@@ -70,7 +42,10 @@ export default async function CalendarPage({
     notFound();
   }
 
-  const { assigneeId, date, scope } = await searchParams;
+  const { assigneeId, date, scope, status } = await searchParams;
+  const calendarStatus = Object.values(TaskStatus).find(
+    (taskStatus) => taskStatus === status,
+  );
   const now = new Date();
   const latestCalendarDate = getLatestCalendarDate(now);
   const initialDate = resolveCalendarDate(date, now);
@@ -81,6 +56,7 @@ export default async function CalendarPage({
       assigneeId,
       limit: 100,
       scope: scope === "owned" ? "owned" : "workspace",
+      status: calendarStatus,
     }),
     taskService.getWorkspaceCalendarSources(),
     coworkerService.listCoworkers().catch(() => []),
@@ -90,7 +66,7 @@ export default async function CalendarPage({
     <div className="w-full px-2">
       <WorkspaceCalendar
         activeOrganizationId={session?.session?.activeOrganizationId ?? null}
-        key={`${initialDate}-${scope ?? "workspace"}-${assigneeId ?? "all"}`}
+        key={`${initialDate}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}`}
         initialDate={initialDate}
         items={items}
         latestDate={format(latestCalendarDate, "yyyy-MM-dd")}

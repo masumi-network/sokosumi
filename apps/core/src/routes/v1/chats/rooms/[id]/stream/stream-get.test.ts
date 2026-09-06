@@ -16,7 +16,6 @@ const {
   roomFindFirstMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
-  prismaTransactionMock,
   isUiStreamResumptionConfiguredMock,
   getResumableUiStreamContextMock,
   resumeExistingStreamMock,
@@ -26,7 +25,6 @@ const {
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
   isUiStreamResumptionConfiguredMock: vi.fn(),
   getResumableUiStreamContextMock: vi.fn(),
   resumeExistingStreamMock: vi.fn(),
@@ -36,7 +34,15 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
+    chatRoom: {
+      findFirst: roomFindFirstMock,
+    },
+    organization: {
+      findUnique: organizationFindUniqueMock,
+    },
+    member: {
+      findUnique: memberFindUniqueMock,
+    },
   },
 }));
 
@@ -77,19 +83,6 @@ function createApp(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prismaTransactionMock.mockImplementation(async (callback) =>
-    callback({
-      chatRoom: {
-        findFirst: roomFindFirstMock,
-      },
-      organization: {
-        findUnique: organizationFindUniqueMock,
-      },
-      member: {
-        findUnique: memberFindUniqueMock,
-      },
-    }),
-  );
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   clearActiveUiStreamIdForRoomMock.mockResolvedValue(undefined);
