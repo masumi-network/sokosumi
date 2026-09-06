@@ -192,15 +192,15 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 | `pnpm check`           | Run full Biome checks across the repo (`biome check .`) |
 | `pnpm format`          | Format entire repo with Biome (`biome format --write .`) |
 | `pnpm format:check`    | Check formatting for entire repo (`biome format .`) |
-| `pnpm web:lint`        | Run Biome lint rules for the web app |
-| `pnpm web:check`       | Run full Biome checks for the web app |
+| `pnpm --filter web lint` | Run Biome lint rules for the web app |
+| `pnpm --filter web check` | Run full Biome checks for the web app |
 | `pnpm test`            | Run tests locally             |
 | `pnpm core:test`       | Run core API tests            |
 | `pnpm web:test`        | Run web app tests             |
 | `pnpm masumi:test`     | Run masumi package tests      |
 | `pnpm web:test:ci`     | CI test execution             |
-| `pnpm web:format`      | Format web app code with Biome |
-| `pnpm database:format` | Format database package code  |
+| `pnpm --filter web format` | Format web app code with Biome |
+| `pnpm --filter @sokosumi/database format` | Format database package code  |
 
 ## Testing Guidelines
 
