@@ -425,7 +425,9 @@ describe("createNotification push gating", () => {
       createNotificationRecord({ inApp: false }),
     );
     mockReader({
-      preferences: [{ category: "JOB", channel: "IN_APP", enabled: false }],
+      preferences: [
+        { category: "JOB_UPDATE", channel: "IN_APP", enabled: false },
+      ],
     });
 
     await createNotification(
@@ -452,7 +454,9 @@ describe("createNotification push gating", () => {
       createNotificationRecord(),
     );
     mockReader({
-      preferences: [{ category: "JOB", channel: "OS_BANNER", enabled: false }],
+      preferences: [
+        { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
+      ],
     });
 
     await createNotification(
@@ -505,8 +509,8 @@ describe("createNotification push gating", () => {
     );
     mockReader({
       preferences: [
-        { category: "JOB", channel: "IN_APP", enabled: false },
-        { category: "JOB", channel: "OS_BANNER", enabled: false },
+        { category: "JOB_UPDATE", channel: "IN_APP", enabled: false },
+        { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
       ],
     });
 

@@ -6,12 +6,19 @@
  * than a schema migration. Core validates an incoming value against these
  * lists.
  *
+ * Jobs and tasks are two rows each. Something that waits on you and something
+ * that merely happened are the same kind to the producer and different things
+ * to the reader, and one row for both meant silencing the ones that need you to
+ * be rid of the ones that do not.
+ *
  * Web reads the same vocabulary from the generated Core client, not from here:
  * the Core DTO boundary keeps domain values out of web's direct imports.
  */
 export const NOTIFICATION_CATEGORIES = [
-  "JOB",
-  "TASK",
+  "JOB_ATTENTION",
+  "JOB_UPDATE",
+  "TASK_ATTENTION",
+  "TASK_UPDATE",
   "CHAT_MENTION",
   "CHAT_DIRECT_MESSAGE",
   "SYSTEM",
