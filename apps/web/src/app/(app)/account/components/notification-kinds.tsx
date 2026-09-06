@@ -199,7 +199,8 @@ function NewsRow({ news }: { news: EmailChoice }) {
       open={open}
       onOpenChange={setOpen}
     >
-      <div className="flex items-center justify-end gap-2 py-2">
+      <ChannelLegend pushBlock={null} />
+      <div className="flex items-center justify-end gap-2 pb-2">
         <div
           role="group"
           // Its own sentence rather than the one every kind row uses, which

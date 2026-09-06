@@ -955,6 +955,35 @@ describe("NotificationKinds", () => {
     }
   });
 
+  /**
+   * The head and the cells under it are two right-aligned lines, so they line
+   * up only while both hold the same width. Left to their own widths, the
+   * words sat wherever they ended and named no column at all.
+   *
+   * The width itself is not the invariant. That the head and its column agree
+   * on one is.
+   */
+  it("gives a column name the width of the cells it names", async () => {
+    renderKinds();
+    await openGroup("groupJob");
+
+    const width = (element: Element | null | undefined) =>
+      [...(element?.classList ?? [])].find((name) => name.startsWith("w-"));
+
+    for (const [channel, kind] of [
+      ["channelInApp", "kindJobAttention"],
+      ["channelPush", "kindJobAttention"],
+    ]) {
+      const head = within(fold("groupJob")).getByRole("button", {
+        name: channel,
+      });
+      const track = cellFor(kind, channel).parentElement;
+
+      expect(width(head)).toBeDefined();
+      expect(width(track)).toBe(width(head));
+    }
+  });
+
   it("puts the channel legend inside each expanded section", async () => {
     renderKinds();
 

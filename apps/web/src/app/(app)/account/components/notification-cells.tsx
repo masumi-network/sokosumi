@@ -51,6 +51,15 @@ const CELL_OFF =
  * make the one cell that cannot be pressed the most drawn of the row.
  */
 const CELL_DEAD = "text-muted-foreground/45 cursor-default border-transparent";
+/**
+ * The column a cell stands in, wide enough for the widest column name.
+ *
+ * A cell is square and a name is as long as its word, so the two cannot share
+ * an edge unless something holds a width for both. This is that width: every
+ * cell centres in it and every head fills it, and the columns line up in every
+ * language. Sized for the longest of them, which is the German "In der App".
+ */
+export const CELL_TRACK = "flex w-18 shrink-0 justify-center";
 
 /**
  * The face of each channel in the grid.
@@ -98,15 +107,17 @@ export function DeadCell({
       {/* Stays in the tab order. A reader who never uses a mouse would
           otherwise pass the row and never learn that this channel is one of
           the places a notification can reach them. */}
-      <button
-        type="button"
-        aria-disabled="true"
-        aria-label={label}
-        aria-describedby={hintId}
-        className={cn(CELL, CELL_DEAD)}
-      >
-        <Icon className="size-4" aria-hidden="true" />
-      </button>
+      <span className={CELL_TRACK}>
+        <button
+          type="button"
+          aria-disabled="true"
+          aria-label={label}
+          aria-describedby={hintId}
+          className={cn(CELL, CELL_DEAD)}
+        >
+          <Icon className="size-4" aria-hidden="true" />
+        </button>
+      </span>
       {/* Hidden from the tree and still read: a description is computed from
           the element it points at, whether or not that element is in the tree.
           The column heads carry the same words for a reader who can see them,
@@ -179,31 +190,33 @@ export function EmailCell({
   email: EmailChoice;
 }) {
   return (
-    <button
-      type="button"
-      aria-pressed={email.enabled}
-      aria-disabled={email.saving || undefined}
-      // The name has to differ per row, or two cells on one value answer
-      // to one name. What that shared value reaches is said in the
-      // description instead.
-      aria-label={name}
-      aria-describedby={describedById}
-      onClick={() => {
-        if (email.saving) {
-          return;
-        }
+    <span className={CELL_TRACK}>
+      <button
+        type="button"
+        aria-pressed={email.enabled}
+        aria-disabled={email.saving || undefined}
+        // The name has to differ per row, or two cells on one value answer
+        // to one name. What that shared value reaches is said in the
+        // description instead.
+        aria-label={name}
+        aria-describedby={describedById}
+        onClick={() => {
+          if (email.saving) {
+            return;
+          }
 
-        email.onChange(!email.enabled);
-      }}
-      className={cn(
-        CELL,
-        CELL_PRESS,
-        email.saving && "opacity-50",
-        email.enabled ? CELL_ON : CELL_OFF,
-      )}
-    >
-      <Mail className="size-4" aria-hidden="true" />
-    </button>
+          email.onChange(!email.enabled);
+        }}
+        className={cn(
+          CELL,
+          CELL_PRESS,
+          email.saving && "opacity-50",
+          email.enabled ? CELL_ON : CELL_OFF,
+        )}
+      >
+        <Mail className="size-4" aria-hidden="true" />
+      </button>
+    </span>
   );
 }
 
@@ -313,36 +326,37 @@ function KindCells({
         const blocked = spec.id === "OS_BANNER" && pushHint !== null;
 
         return (
-          <button
-            key={spec.id}
-            type="button"
-            aria-pressed={pressed}
-            aria-disabled={saving || undefined}
-            aria-label={t("channelCellLabel", {
-              channel: t(spec.labelKey),
-              kind: label,
-            })}
-            // Only the cell nothing can arrive on carries a reason. What the
-            // column is for is said once, by the head over it, rather than
-            // thirty times over the cells under it.
-            aria-describedby={blocked ? pushHintId : undefined}
-            onClick={() => {
-              if (saving) {
-                return;
-              }
+          <span key={spec.id} className={CELL_TRACK}>
+            <button
+              type="button"
+              aria-pressed={pressed}
+              aria-disabled={saving || undefined}
+              aria-label={t("channelCellLabel", {
+                channel: t(spec.labelKey),
+                kind: label,
+              })}
+              // Only the cell nothing can arrive on carries a reason. What the
+              // column is for is said once, by the head over it, rather than
+              // thirty times over the cells under it.
+              aria-describedby={blocked ? pushHintId : undefined}
+              onClick={() => {
+                if (saving) {
+                  return;
+                }
 
-              setAwaiting(true);
-              onToggle(spec.id, !pressed);
-            }}
-            className={cn(
-              CELL,
-              CELL_PRESS,
-              saving && "opacity-50",
-              pressed ? CELL_ON : CELL_OFF,
-            )}
-          >
-            <Icon className="size-4" aria-hidden="true" />
-          </button>
+                setAwaiting(true);
+                onToggle(spec.id, !pressed);
+              }}
+              className={cn(
+                CELL,
+                CELL_PRESS,
+                saving && "opacity-50",
+                pressed ? CELL_ON : CELL_OFF,
+              )}
+            >
+              <Icon className="size-4" aria-hidden="true" />
+            </button>
+          </span>
         );
       })}
       {/* Hidden from the tree and still read, the way a dead cell carries its
@@ -397,7 +411,7 @@ export function ChannelGrid({
   email: EmailChoice;
   pushBlock: PushBlock | null;
   showNames: boolean;
-  /** The column names, drawn once over the first row's cells. */
+  /** The column names, drawn once above the rows. */
   heads?: ReactNode;
   onToggle: (kind: KindChoice, channel: StoredChannel, on: boolean) => void;
 }) {
@@ -405,7 +419,8 @@ export function ChannelGrid({
 
   return (
     <div className={cn(showNames && "divide-y")}>
-      {kinds.map((kind, index) => (
+      {heads}
+      {kinds.map((kind) => (
         // Stacked on a narrow screen, where three cells and a name that
         // wraps would leave the name about 70px wide. The cells keep the
         // right edge either way.
@@ -421,22 +436,14 @@ export function ChannelGrid({
               </p>
             </div>
           ) : null}
-          {/* The heads ride on the first row's cells rather than on a line of
-              their own: a line that holds nothing but three names at its
-              right-hand end reads as a gap between the group and its first
-              kind. Every cell under it carries its channel's icon, so one
-              naming serves the whole group. */}
-          <div className="flex flex-col items-end gap-1.5">
-            {index === 0 ? heads : null}
-            <KindCells
-              kind={kind}
-              email={email}
-              pushBlock={pushBlock}
-              onToggle={(channel, on) => {
-                onToggle(kind, channel, on);
-              }}
-            />
-          </div>
+          <KindCells
+            kind={kind}
+            email={email}
+            pushBlock={pushBlock}
+            onToggle={(channel, on) => {
+              onToggle(kind, channel, on);
+            }}
+          />
         </div>
       ))}
     </div>
