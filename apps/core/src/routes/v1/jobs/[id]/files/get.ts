@@ -60,27 +60,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const blobs = await prisma.$transaction(async (tx) => {
-      await requireJobReadForRouteVars(c.var, id, tx);
-      const blobs = await tx.blob.findMany({
-        where: {
-          event: { jobId: id },
-        },
-        include: {
-          event: {
-            select: {
-              jobId: true,
-            },
+    await requireJobReadForRouteVars(c.var, id, prisma);
+    const blobs = await prisma.blob.findMany({
+      where: {
+        event: { jobId: id },
+      },
+      include: {
+        event: {
+          select: {
+            jobId: true,
           },
         },
-      });
-      return blobs.map((blob) => ({
-        ...blob,
-        jobId: blob.event.jobId,
-        size: blob.size ? Number(blob.size) : null,
-      }));
+      },
     });
+    const files = blobs.map((blob) => ({
+      ...blob,
+      jobId: blob.event.jobId,
+      size: blob.size ? Number(blob.size) : null,
+    }));
 
-    return ok(c, filesSchema.parse(blobs));
+    return ok(c, filesSchema.parse(files));
   });
 }

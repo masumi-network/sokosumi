@@ -1,26 +1,34 @@
-import { TaskScheduleOccurrenceState, TaskStatus } from "@sokosumi/database";
-import { HTTPException } from "hono/http-exception";
+import {
+  CalendarSourceType,
+  TaskScheduleOccurrenceState,
+  TaskStatus,
+  VendorGrantStatus,
+} from "@sokosumi/database";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 const {
-  requireCoworkerCapabilityMock,
+  coworkerFindFirstMock,
   taskFindManyMock,
+  taskFindFirstMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
   userFindUniqueMock,
   vendorGrantFindUniqueMock,
+  resolveWorkspaceForContextMock,
   workspaceFindUniqueMock,
   resolveMemberOrganizationByIdMock,
 } = vi.hoisted(() => ({
-  requireCoworkerCapabilityMock: vi.fn(),
+  coworkerFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
+  resolveWorkspaceForContextMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
 }));
@@ -29,21 +37,28 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
   authMiddleware: (await import("@/test-fixtures/auth-middleware"))
     .stubAuthMiddleware,
-  requireUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, { message: "User authentication required" });
-    }
-    return { source: "session" as const, ...authContext };
-  },
 }));
 
-vi.mock("@/helpers/access-control", () => ({
-  requireCoworkerCapability: requireCoworkerCapabilityMock,
+vi.mock(
+  "@/helpers/coworker-user-context-binding",
+  async () =>
+    await vi.importActual<
+      typeof import("@/helpers/coworker-user-context-binding")
+    >("@/helpers/coworker-user-context-binding"),
+);
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/database/repositories")>()),
+  workspaceRepository: {
+    resolveWorkspaceForContext: (...args: unknown[]) =>
+      resolveWorkspaceForContextMock(...args),
+  },
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    task: { findMany: taskFindManyMock },
+    coworker: { findFirst: coworkerFindFirstMock },
+    task: { findFirst: taskFindFirstMock, findMany: taskFindManyMock },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
@@ -59,18 +74,6 @@ vi.mock("@/helpers/organization", () => ({
     resolveMemberOrganizationByIdMock(...args),
 }));
 
-vi.mock("@/helpers/coworker-user-context-binding", () => ({
-  requireAuthorizedUserContext: async (authContext: AuthenticationContext) => {
-    if (authContext.actor === "user") {
-      return { source: "session" as const, ...authContext };
-    }
-    if (authContext.actor === "coworker" && authContext.context) {
-      return { source: "context" as const, ...authContext.context };
-    }
-    throw new HTTPException(403, { message: "User authentication required" });
-  },
-}));
-
 const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
@@ -81,31 +84,19 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "coworker_123",
-  vendorId: "01960001-0001-7001-8001-000000000001",
+  vendorId: "vendor_123",
   context: {
     userId: "user_123",
     organizationId: null,
   },
 };
 
-const COWORKER_SIBLING_LIST_FILTER = {
-  status: { not: TaskStatus.DRAFT },
-  OR: [
-    { assigneeId: "coworker_123" },
-    {
-      assigneeId: { not: "coworker_123" },
-      assignee: {
-        vendorId: "01960001-0001-7001-8001-000000000001",
-      },
-    },
-  ],
-} as const;
-
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const FROM = "2026-06-01T00:00:00.000Z";
 const TO = "2026-06-08T00:00:00.000Z";
 
 let mountGetWorkspaceCalendar: (app: OpenAPIHonoWithAuth) => void;
+let readWorkspaceCalendar: typeof import("./get").readWorkspaceCalendar;
 
 function createApp(
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
@@ -162,16 +153,19 @@ describe("GET /workspaces/{id}/calendar", () => {
   beforeAll(async () => {
     const module = await import("./get");
     mountGetWorkspaceCalendar = module.default;
+    readWorkspaceCalendar = module.readWorkspaceCalendar;
   });
 
   beforeEach(() => {
     vi.clearAllMocks();
+    coworkerFindFirstMock.mockResolvedValue({ id: "coworker_123" });
     taskFindManyMock.mockReset();
     taskScheduleOccurrenceCountMock.mockReset();
     taskScheduleOccurrenceFindManyMock.mockReset();
-    requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
     vendorGrantFindUniqueMock.mockResolvedValue(null);
+    resolveWorkspaceForContextMock.mockResolvedValue({ id: WORKSPACE_ID });
+    taskFindFirstMock.mockResolvedValue(null);
     taskFindManyMock.mockResolvedValue([]);
     taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
@@ -261,30 +255,78 @@ describe("GET /workspaces/{id}/calendar", () => {
     });
   });
 
-  it("filters occurrences by owner and coworker", async () => {
-    const assigneeId = "22222222-2222-7222-8222-222222222222";
-    const response = await requestCalendar(
-      createApp(),
-      `from=${FROM}&to=${TO}&scope=owned&assigneeId=${assigneeId}`,
+  it("queries only the selected Project calendar source", async () => {
+    await readWorkspaceCalendar(
+      WORKSPACE_ID,
+      "user_123",
+      {
+        from: new Date(FROM),
+        scope: "workspace",
+        to: new Date(TO),
+        cursor: null,
+        requestedCursor: null,
+        limit: 20,
+      },
+      { projectId: "22222222-2222-7222-8222-222222222222" },
     );
 
-    expect(response.status).toBe(200);
     expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          seriesTask: {
-            ownerId: "user_123",
-            assigneeId,
-          },
+          sourceProjectId: "22222222-2222-7222-8222-222222222222",
+          sourceType: CalendarSourceType.PROJECT,
         }),
       }),
     );
     expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith({
       where: expect.objectContaining({
-        seriesTask: {
-          ownerId: "user_123",
-          assigneeId,
+        sourceProjectId: "22222222-2222-7222-8222-222222222222",
+        sourceType: CalendarSourceType.PROJECT,
+      }),
+    });
+  });
+
+  it("filters planned and released occurrences by owner, coworker, and status", async () => {
+    const assigneeId = "22222222-2222-7222-8222-222222222222";
+    const response = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&scope=owned&assigneeId=${assigneeId}&status=READY`,
+    );
+
+    expect(response.status).toBe(200);
+    const taskFilter = {
+      ownerId: "user_123",
+      assigneeId,
+      status: TaskStatus.READY,
+    };
+    const occurrenceTaskFilter = {
+      OR: [
+        {
+          state: TaskScheduleOccurrenceState.PLANNED,
+          seriesTask: { is: taskFilter },
         },
+        {
+          state: TaskScheduleOccurrenceState.RELEASED,
+          releasedTask: { is: taskFilter },
+        },
+        {
+          state: TaskScheduleOccurrenceState.RELEASED,
+          releasedTaskId: null,
+          seriesTask: { is: taskFilter },
+        },
+      ],
+    };
+
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([occurrenceTaskFilter]),
+        }),
+      }),
+    );
+    expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        AND: expect.arrayContaining([occurrenceTaskFilter]),
       }),
     });
   });
@@ -319,68 +361,6 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("scopes calendar occurrences to coworker task access inside the active workspace", async () => {
-    const response = await requestCalendar(
-      createApp(COWORKER_AUTH_CONTEXT, WORKSPACE_ID),
-    );
-
-    expect(response.status).toBe(200);
-    expect(requireCoworkerCapabilityMock).toHaveBeenCalledWith(
-      "coworker_123",
-      "tasks",
-    );
-    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          seriesTask: {
-            AND: [COWORKER_SIBLING_LIST_FILTER],
-          },
-        }),
-      }),
-    );
-    expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith({
-      where: expect.objectContaining({
-        seriesTask: {
-          AND: [COWORKER_SIBLING_LIST_FILTER],
-        },
-      }),
-    });
-  });
-
-  it("lets a granted coworker read non-draft workspace occurrences", async () => {
-    vendorGrantFindUniqueMock.mockResolvedValue({ status: "GRANTED" });
-
-    const response = await requestCalendar(
-      createApp(COWORKER_AUTH_CONTEXT, WORKSPACE_ID),
-    );
-
-    expect(response.status).toBe(200);
-    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          seriesTask: {
-            AND: [{ status: { not: TaskStatus.DRAFT } }],
-          },
-        }),
-      }),
-    );
-  });
-
-  it("rejects a coworker without the tasks capability before reading calendar data", async () => {
-    requireCoworkerCapabilityMock.mockRejectedValue(
-      new HTTPException(403, {
-        message: "Coworker is not allowed to use tasks",
-      }),
-    );
-
-    const response = await requestCalendar(
-      createApp(COWORKER_AUTH_CONTEXT, WORKSPACE_ID),
-    );
-
-    expect(response.status).toBe(403);
-    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
-  });
-
   it("rejects a delegated coworker reading outside its active workspace", async () => {
     const response = await requestCalendar(
       createApp(COWORKER_AUTH_CONTEXT, "22222222-2222-7222-8222-222222222222"),
@@ -389,6 +369,39 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(response.status).toBe(403);
     expect(taskFindManyMock).not.toHaveBeenCalled();
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("limits a delegated coworker to Tasks it can read", async () => {
+    vendorGrantFindUniqueMock.mockResolvedValue({
+      id: "grant_123",
+      status: VendorGrantStatus.GRANTED,
+      permission: "workspace",
+    });
+
+    const response = await requestCalendar(
+      createApp(COWORKER_AUTH_CONTEXT, WORKSPACE_ID),
+    );
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "coworker_123",
+        archivedAt: null,
+        capabilities: { has: "tasks" },
+      },
+      select: {
+        id: true,
+        slug: true,
+        baseURL: true,
+      },
+    });
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.any(Array),
+        }),
+      }),
+    );
   });
 
   it("pages persisted occurrences in the requested range", async () => {
@@ -411,6 +424,38 @@ describe("GET /workspaces/{id}/calendar", () => {
     );
   });
 
+  it("uses the released Task as the Calendar navigation target", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createLedgerOccurrence({
+        releasedTask: {
+          id: "tsk_release",
+          name: "Released task run",
+          status: TaskStatus.COMPLETED,
+          assigneeId: "coworker_123",
+        },
+      }),
+    ]);
+    taskScheduleOccurrenceCountMock.mockResolvedValue(1);
+
+    const { items } = await readWorkspaceCalendar(WORKSPACE_ID, "user_123", {
+      from: new Date(FROM),
+      scope: "workspace",
+      to: new Date(TO),
+      cursor: null,
+      requestedCursor: null,
+      limit: 20,
+    });
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        taskId: "tsk_release",
+        taskName: "Released task run",
+        taskStatus: TaskStatus.COMPLETED,
+        taskAssigneeId: "coworker_123",
+      }),
+    ]);
+  });
+
   it("does not use a projected item ID in the persisted occurrence cursor", async () => {
     const cursor = Buffer.from(
       JSON.stringify({
@@ -429,13 +474,17 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          OR: [
-            {
-              effectiveScheduledAt: {
-                gt: new Date("2026-06-02T09:00:00.000Z"),
-              },
-            },
-          ],
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              OR: [
+                {
+                  effectiveScheduledAt: {
+                    gt: new Date("2026-06-02T09:00:00.000Z"),
+                  },
+                },
+              ],
+            }),
+          ]),
         }),
       }),
     );
@@ -633,17 +682,21 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(taskScheduleOccurrenceFindManyMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          OR: [
-            {
-              effectiveScheduledAt: {
-                gt: new Date("2026-06-02T09:00:00.000Z"),
-              },
-            },
-            {
-              effectiveScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
-              id: { gt: "00000000-0000-7000-8000-000000000002" },
-            },
-          ],
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              OR: [
+                {
+                  effectiveScheduledAt: {
+                    gt: new Date("2026-06-02T09:00:00.000Z"),
+                  },
+                },
+                {
+                  effectiveScheduledAt: new Date("2026-06-02T09:00:00.000Z"),
+                  id: { gt: "00000000-0000-7000-8000-000000000002" },
+                },
+              ],
+            }),
+          ]),
         }),
       }),
     );

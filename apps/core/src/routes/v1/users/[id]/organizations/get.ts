@@ -63,22 +63,19 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const organizations = await prisma.$transaction(async (tx) => {
-      const members = await tx.member.findMany({
-        where: { userId: resolvedUserId },
-        include: { organization: true },
-      });
-
-      if (members.length === 0) {
-        return [];
-      }
-
-      return members.map((member) => ({
-        ...member.organization,
-        metadata: parseOrganizationMetadata(member.organization.metadata),
-        role: member.role,
-      }));
+    const members = await prisma.member.findMany({
+      where: { userId: resolvedUserId },
+      include: { organization: true },
     });
+
+    const organizations =
+      members.length === 0
+        ? []
+        : members.map((member) => ({
+            ...member.organization,
+            metadata: parseOrganizationMetadata(member.organization.metadata),
+            role: member.role,
+          }));
     return ok(c, organizationsSchema.parse(organizations));
   });
 }

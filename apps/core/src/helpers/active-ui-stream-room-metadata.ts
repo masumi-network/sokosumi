@@ -23,26 +23,24 @@ export async function clearActiveUiStreamIdForRoom(params: {
   userId: string;
 }): Promise<void> {
   const { roomId, userId } = params;
-  await prisma.$transaction(async (tx) => {
-    const room = await tx.chatRoom.findFirst({
-      where: {
-        id: roomId,
-        archivedAt: null,
-        userMembers: {
-          some: { userId },
-        },
+  const room = await prisma.chatRoom.findFirst({
+    where: {
+      id: roomId,
+      archivedAt: null,
+      userMembers: {
+        some: { userId },
       },
-      select: { id: true },
-    });
-    if (!room) {
-      return;
-    }
-    const redis = getRedisClient();
-    if (!redis) {
-      return;
-    }
-    await redis.del(roomActiveStreamRedisKey(roomId));
+    },
+    select: { id: true },
   });
+  if (!room) {
+    return;
+  }
+  const redis = getRedisClient();
+  if (!redis) {
+    return;
+  }
+  await redis.del(roomActiveStreamRedisKey(roomId));
 }
 
 export async function setActiveUiStreamIdForRoom(params: {
@@ -51,24 +49,22 @@ export async function setActiveUiStreamIdForRoom(params: {
   streamId: string;
 }): Promise<void> {
   const { roomId, userId, streamId } = params;
-  await prisma.$transaction(async (tx) => {
-    const room = await tx.chatRoom.findFirst({
-      where: {
-        id: roomId,
-        archivedAt: null,
-        userMembers: {
-          some: { userId },
-        },
+  const room = await prisma.chatRoom.findFirst({
+    where: {
+      id: roomId,
+      archivedAt: null,
+      userMembers: {
+        some: { userId },
       },
-      select: { id: true },
-    });
-    if (!room) {
-      throw new Error("Room not found");
-    }
-    const redis = getRedisClient();
-    if (!redis) {
-      throw new Error("Redis is required for resumable room UI streams");
-    }
-    await redis.set(roomActiveStreamRedisKey(roomId), streamId);
+    },
+    select: { id: true },
   });
+  if (!room) {
+    throw new Error("Room not found");
+  }
+  const redis = getRedisClient();
+  if (!redis) {
+    throw new Error("Redis is required for resumable room UI streams");
+  }
+  await redis.set(roomActiveStreamRedisKey(roomId), streamId);
 }

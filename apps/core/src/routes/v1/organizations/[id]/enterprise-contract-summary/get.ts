@@ -67,20 +67,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const now = new Date();
 
-    const summary = await prisma.$transaction(async (tx) => {
-      await resolveMemberOrganizationById({
-        id,
-        userId: userContext.userId,
-        tx,
-      });
-
-      const billingPlan = await resolveOrganizationBillingPlan(id, tx, now);
-      if (billingPlan.mode !== "enterprise_contract") {
-        return null;
-      }
-
-      return getEnterpriseContractBillingSummary(billingPlan, id, tx, now);
+    await resolveMemberOrganizationById({
+      id,
+      userId: userContext.userId,
+      tx: prisma,
     });
+
+    const billingPlan = await resolveOrganizationBillingPlan(id, prisma, now);
+    const summary =
+      billingPlan.mode === "enterprise_contract"
+        ? await getEnterpriseContractBillingSummary(
+            billingPlan,
+            id,
+            prisma,
+            now,
+          )
+        : null;
 
     if (!summary) {
       throw notFound("Organization is not on an enterprise contract");

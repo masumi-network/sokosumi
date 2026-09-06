@@ -4444,6 +4444,41 @@ export type ProjectDesignMdWrite = {
     extractionId?: string | null;
 };
 
+export type WorkspaceCalendarItem = {
+    /**
+     * Stable Calendar item identity. Version 1 projections are display-only.
+     */
+    id: string;
+    taskId: string;
+    taskName: string;
+    taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+    taskAssigneeId: string | null;
+    /**
+     * Effective time at which the item appears in the Calendar
+     */
+    scheduledAt: Date;
+    /**
+     * Original scheduled time captured by the occurrence ledger, when known
+     */
+    originalScheduledAt: Date | null;
+    state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
+    /**
+     * Canonical Calendar source identity
+     */
+    sourceId: string;
+    /**
+     * Workspace captured as the Calendar source
+     */
+    sourceWorkspaceId: string;
+    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
+    /**
+     * Project captured as the Calendar source, when applicable
+     */
+    sourceProjectId: string | null;
+    sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
+    timeAccuracy: 'EXACT' | 'APPROXIMATE';
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -5821,41 +5856,6 @@ export type DesignMdOwnerInfo = {
     logo: string | null;
 } | {
     type: 'user';
-};
-
-export type WorkspaceCalendarItem = {
-    /**
-     * Stable Calendar item identity. Version 1 projections are display-only.
-     */
-    id: string;
-    taskId: string;
-    taskName: string;
-    taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
-    taskAssigneeId: string | null;
-    /**
-     * Effective time at which the item appears in the Calendar
-     */
-    scheduledAt: Date;
-    /**
-     * Original scheduled time captured by the occurrence ledger, when known
-     */
-    originalScheduledAt: Date | null;
-    state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
-    /**
-     * Canonical Calendar source identity
-     */
-    sourceId: string;
-    /**
-     * Workspace captured as the Calendar source
-     */
-    sourceWorkspaceId: string;
-    sourceType: 'WORKSPACE' | 'PROJECT' | 'LEGACY_UNKNOWN';
-    /**
-     * Project captured as the Calendar source, when applicable
-     */
-    sourceProjectId: string | null;
-    sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
-    timeAccuracy: 'EXACT' | 'APPROXIMATE';
 };
 
 export type WorkspaceCalendarSource = {
@@ -29371,6 +29371,149 @@ export type PutProjectsByIdDesignMdResponses = {
 
 export type PutProjectsByIdDesignMdResponse = PutProjectsByIdDesignMdResponses[keyof PutProjectsByIdDesignMdResponses];
 
+export type GetProjectsByIdCalendarData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Inclusive start of the calendar range
+         */
+        from: Date;
+        /**
+         * Exclusive end of the calendar range, at most 90 days after from
+         */
+        to: Date;
+        /**
+         * Whether to show only the caller's tasks or the workspace
+         */
+        scope?: 'owned' | 'workspace';
+        /**
+         * Only occurrences whose planned-series or released-snapshot task has this coworker
+         */
+        assigneeId?: string;
+        /**
+         * Only occurrences whose planned-series or released-snapshot task has this status
+         */
+        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+        /**
+         * Opaque cursor for the next merged calendar page
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/projects/{id}/calendar';
+};
+
+export type GetProjectsByIdCalendarErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdCalendarError = GetProjectsByIdCalendarErrors[keyof GetProjectsByIdCalendarErrors];
+
+export type GetProjectsByIdCalendarResponses = {
+    /**
+     * Project Calendar items
+     */
+    200: {
+        data: Array<WorkspaceCalendarItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdCalendarResponse = GetProjectsByIdCalendarResponses[keyof GetProjectsByIdCalendarResponses];
+
 export type DeleteProjectsByIdData = {
     body?: never;
     headers?: {
@@ -35929,7 +36072,7 @@ export type GetTasksData = {
          */
         coworkerId?: string;
         /**
-         * Filter tasks by personal-assistant sokoBot assignee
+         * Filter tasks by Soko Bot assignee
          */
         assigneeSokoBotId?: string;
         /**
@@ -40760,9 +40903,13 @@ export type GetWorkspacesCalendarData = {
          */
         scope?: 'owned' | 'workspace';
         /**
-         * Only occurrences whose series task has this coworker
+         * Only occurrences whose planned-series or released-snapshot task has this coworker
          */
         assigneeId?: string;
+        /**
+         * Only occurrences whose planned-series or released-snapshot task has this status
+         */
+        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
         /**
          * Opaque cursor for the next merged calendar page
          */
@@ -40955,9 +41102,13 @@ export type GetWorkspacesByIdCalendarData = {
          */
         scope?: 'owned' | 'workspace';
         /**
-         * Only occurrences whose series task has this coworker
+         * Only occurrences whose planned-series or released-snapshot task has this coworker
          */
         assigneeId?: string;
+        /**
+         * Only occurrences whose planned-series or released-snapshot task has this status
+         */
+        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
         /**
          * Opaque cursor for the next merged calendar page
          */

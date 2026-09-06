@@ -18,7 +18,6 @@ const {
   chatRoomMessageCountMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
-  prismaTransactionMock,
   validateUIMessagesMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -26,7 +25,6 @@ const {
   chatRoomMessageCountMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
   validateUIMessagesMock: vi.fn(),
 }));
 
@@ -36,7 +34,19 @@ vi.mock("ai", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
+    chatRoom: {
+      findFirst: roomFindFirstMock,
+    },
+    chatRoomMessage: {
+      findMany: chatRoomMessageFindManyMock,
+      count: chatRoomMessageCountMock,
+    },
+    organization: {
+      findUnique: organizationFindUniqueMock,
+    },
+    member: {
+      findUnique: memberFindUniqueMock,
+    },
   },
 }));
 
@@ -67,23 +77,6 @@ function createApp(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prismaTransactionMock.mockImplementation(async (callback) =>
-    callback({
-      chatRoom: {
-        findFirst: roomFindFirstMock,
-      },
-      chatRoomMessage: {
-        findMany: chatRoomMessageFindManyMock,
-        count: chatRoomMessageCountMock,
-      },
-      organization: {
-        findUnique: organizationFindUniqueMock,
-      },
-      member: {
-        findUnique: memberFindUniqueMock,
-      },
-    }),
-  );
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   chatRoomMessageCountMock.mockResolvedValue(0);

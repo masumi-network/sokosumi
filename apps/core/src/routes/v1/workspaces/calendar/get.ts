@@ -17,6 +17,7 @@ import {
 } from "@/schemas/workspace-calendar.schema";
 
 import {
+  getCalendarTaskWhere,
   parseWorkspaceCalendarQuery,
   readWorkspaceCalendar,
 } from "../[id]/calendar/get.js";
@@ -50,11 +51,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const query = c.req.valid("query");
     const calendarQuery = parseWorkspaceCalendarQuery(query);
+    const taskWhere = await getCalendarTaskWhere(
+      c.var.authContext,
+      workspaceContext.workspaceId,
+    );
     const { items, pagination } = await readWorkspaceCalendar(
       workspaceContext.workspaceId,
       userContext.userId,
       calendarQuery,
-      c.var.authContext,
+      { taskWhere },
     );
 
     return ok(c, items, pagination);

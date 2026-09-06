@@ -368,6 +368,7 @@ export {
   type UserTransitionTaskStatus,
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";
+export { isValidTimezone } from "./timezone.js";
 export {
   extractBareHttpUrls,
   selectUnfurlCandidateUrls,

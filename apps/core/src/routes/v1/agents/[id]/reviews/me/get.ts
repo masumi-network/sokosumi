@@ -51,26 +51,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const review = await prisma.$transaction(async (tx) => {
-      const creditCosts = await getCreditCostsOrThrow(tx);
-      const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
+    const creditCosts = await getCreditCostsOrThrow(prisma);
+    const cardanoV2ReadySources = await getCardanoV2ReadySources(prisma);
 
-      const agent = await tx.agent.findFirst({
-        where: {
-          id,
-          ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!agent) {
-        throw notFound("Agent not found");
-      }
-
-      return await getUserAgentReview(id, userContext.userId, tx);
+    const agent = await prisma.agent.findFirst({
+      where: {
+        id,
+        ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
+      },
+      select: {
+        id: true,
+      },
     });
+
+    if (!agent) {
+      throw notFound("Agent not found");
+    }
+
+    const review = await getUserAgentReview(id, userContext.userId, prisma);
 
     return ok(c, agentMyReviewResponseSchema.parse(review));
   });

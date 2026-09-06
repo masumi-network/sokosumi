@@ -249,11 +249,6 @@ export type FreeJobWithStatus = Override<BaseJobWithStatus, BaseFreeJob>;
 
 export type PaidJobWithStatus = Override<BaseJobWithStatus, BasePaidJob>;
 
-export enum JobErrorNoteKeys {
-  StatusMismatch = "Job.StatusMismatch",
-  Unknown = "Job.UnknownState",
-}
-
 export const finalizedOnChainJobStatuses: OnChainJobStatus[] = [
   OnChainJobStatus.DISPUTED_WITHDRAWN,
   OnChainJobStatus.FUNDS_WITHDRAWN,

@@ -26,7 +26,6 @@ const {
   transactionCreateMock,
   taskFindManyMock,
   transactionMock,
-  getSubscriptionSeatCreditsMock,
 } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -41,12 +40,6 @@ const {
   transactionCreateMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   transactionMock: vi.fn(),
-  getSubscriptionSeatCreditsMock: vi.fn(),
-}));
-
-vi.mock("@/services/subscription-seat-credits.service", () => ({
-  getSubscriptionSeatCredits: (...args: unknown[]) =>
-    getSubscriptionSeatCreditsMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -173,11 +166,6 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
     });
     countOrganizationSubscriptionPeriodSeatGrantsMock.mockResolvedValue(0);
     hasOrganizationMemberSubscriptionPeriodGrantMock.mockResolvedValue(false);
-    getSubscriptionSeatCreditsMock.mockResolvedValue({
-      pro: 10000,
-      standard: 4000,
-      starter: 1000,
-    });
     creditBucketFindUniqueMock.mockResolvedValue(null);
     transactionCreateMock.mockResolvedValue({});
     taskFindManyMock.mockResolvedValue([]);
@@ -226,18 +214,6 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
       3,
       expect.anything(),
     );
-    expect(transactionCreateMock).not.toHaveBeenCalled();
-  });
-
-  it("assigns a seat even when the Stripe catalog cannot be resolved", async () => {
-    setMembership("owner");
-    getSubscriptionSeatCreditsMock.mockRejectedValue(
-      new Error("Missing credits metadata for starter plan"),
-    );
-
-    const response = await assignSeat("org_123", "member_456");
-
-    expect(response.status).toBe(200);
     expect(transactionCreateMock).not.toHaveBeenCalled();
   });
 
