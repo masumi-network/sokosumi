@@ -42,7 +42,6 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist && rm tsconfig.tsbuildinfo",
-    "prepare": "pnpm exec prisma generate --no-hints && pnpm build",
     "prisma:generate": "pnpm exec prisma generate --no-hints",
     "prisma:migrate:dev": "pnpm exec prisma migrate dev",
     "prisma:migrate:deploy": "pnpm exec prisma migrate deploy",

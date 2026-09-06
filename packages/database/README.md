@@ -373,17 +373,13 @@ This is automatically handled by the `clean` script.
 
 ### Prisma Client Not Found
 
-The package uses a `prepare` script to auto-generate the Prisma client:
-
-```bash
-pnpm install  # Runs prepare script automatically
-```
-
-Or manually:
+Generate the Prisma client with turbo (`build` / `typecheck` / `test` depend on `prisma:generate`) or:
 
 ```bash
 pnpm run prisma:generate
 ```
+
+Core Vercel runs the same `prisma:generate` script from `vercel-build` before `tsc` and `tsup`.
 
 ### Type Errors
 

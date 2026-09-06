@@ -5,11 +5,11 @@
 
 pnpm stays the package manager. Turborepo runs `build`, `typecheck`, and `test` so the task graph is declared once (`dependsOn: ["^build"]` plus uncached `prisma:generate`) instead of in `database:build &&` and Core/web fan-out scripts.
 
-Vercel filtered installs still emit package `dist` via per-package `prepare`. App-level `prebuild` / `build:workspace-deps` are removed so turbo is the only orchestrator on the root `build`/`typecheck`/`test` path.
+Vercel filtered installs still emit package `dist` via per-package `prepare`, except `@sokosumi/database`. That package has no `prepare`. Local and CI generate through turbo `prisma:generate`. Core Vercel `vercel-build` runs `prisma:generate`, database `tsc`, tsup, then migrate. App-level `prebuild` / `build:workspace-deps` stay removed so turbo is the only orchestrator on the root `build`/`typecheck`/`test` path.
 
 CI uses Vercel Remote Cache via GitHub OIDC (`vercel/setup-turborepo-remote-cache-action`). `turbo.json` lists hashed `globalEnv` and unhashed `globalPassThroughEnv`; default strict `envMode` (do not set `envMode: "loose"`). Do not add GitHub `actions/cache` on `.turbo`. The OIDC step continues on error so CI stays green until the Vercel Turborepo CLI OIDC policy exists. `dev`, Biome, Husky, and `pnpm --filter` aliases stay.
 
-Web Vercel deploys run `turbo run build --filter=web` (`apps/web/scripts/vercel-build.mjs`) so the platform Remote Cache is enabled. Production (`VERCEL_ENV=production`) always passes `--force` and never restores. Preview may restore when hashes match. Unique deploy env (`VERCEL_URL`, related-project URLs) and Next Skew Protection often miss every preview; that is acceptable. Core `vercel-build` stays tsup plus migrate.
+Web Vercel deploys run `turbo run build --filter=web` (`apps/web/scripts/vercel-build.mjs`) so the platform Remote Cache is enabled. Production (`VERCEL_ENV=production`) always passes `--force` and never restores. Preview may restore when hashes match. Unique deploy env (`VERCEL_URL`, related-project URLs) and Next Skew Protection often miss every preview; that is acceptable. Core `vercel-build` stays tsup plus migrate, with `prisma:generate` and database `tsc` in front so the filtered Core install still gets a client without a generate lock.
 
 ## Considered Options
 

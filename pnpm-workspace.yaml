@@ -4,10 +4,9 @@ packages:
 
 # pnpm 12 defaults this to `install`. After a filtered Vercel install
 # (`--filter web...`), turbo's `pnpm run build` treats node_modules as
-# stale and re-installs the whole workspace, racing concurrent
-# `prisma generate` in @sokosumi/database prepare.
-# Use `warn`, not `false`: nested `pnpm run` (prepare: pnpm build) stringifies
-# false to "false", which pnpm treats as truthy (pnpm#12019).
+# stale and re-installs the whole workspace. Nested `pnpm run` in package
+# prepare scripts (`pnpm build`) stringifies `false` to "false", which pnpm
+# treats as truthy (pnpm#12019). Use `warn`, not `false`.
 verifyDepsBeforeRun: warn
 minimumReleaseAge: 0
 fetchTimeout: 300000
@@ -32,7 +31,6 @@ allowBuilds:
   # These packages compile to dist/ on install; without them, Next/Turbopack cannot resolve exports.
   "@sokosumi/ai-provider": true
   "@sokosumi/chat": true
-  "@sokosumi/database": true
   "@sokosumi/email": true
   "@sokosumi/masumi": true
   "@sokosumi/soko-bot": true
