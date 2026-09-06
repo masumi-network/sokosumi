@@ -199,8 +199,7 @@ UI; **sidebar-** set; and `card/popover/border/input/ring/ring-semantic`. Use se
 
 ## Typography
 
-**Inter** is the entire system. ⚠️ **Open gap:** the web app currently renders the platform sans;
-wiring `next/font` Inter into the root layout + theme is the one unfinished brand item.
+**Inter** is the entire system.
 
 - **Inter Light (300)** — headlines & hero (airy, sophisticated). Section headings
   `text-xl md:text-2xl font-light`; hero `text-2xl md:text-3xl font-light`.

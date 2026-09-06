@@ -16,8 +16,6 @@ see [Vendor workspace grants](./vendor-workspace-grants-api.md).
   `apps/core/src/schemas/coworker-workspace-access.schema.ts`
   (includes `coworkerName` / `coworkerSlug` on every access DTO — same pattern as
   vendor grants)
-- **Design:**
-  [`docs/superpowers/specs/2026-08-05-coworker-workspace-access-design.md`](../superpowers/specs/2026-08-05-coworker-workspace-access-design.md)
 
 ---
 
@@ -274,5 +272,4 @@ Do **not** overload `VendorGrant` for human catalog availability. Global
 ## Related docs
 
 - [Vendor workspace grants](./vendor-workspace-grants-api.md) — task-side vendor access
-- [Design spec](../superpowers/specs/2026-08-05-coworker-workspace-access-design.md)
 - [Core AGENTS.md](../../apps/core/AGENTS.md) — route patterns and auth
