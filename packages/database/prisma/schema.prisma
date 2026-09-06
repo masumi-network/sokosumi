@@ -58,6 +58,8 @@ model User {
   notificationsOptIn Boolean @default(true) // Whether the user wants to receive notifications
   pushOptIn          Boolean @default(false) // Whether the user wants OS banners while Sokosumi is closed
 
+  notificationPreferences NotificationPreference[]
+
   // UTM Attribution
   utmAttribution UTMAttribution?
 
@@ -443,12 +445,44 @@ model Notification {
   readAt        DateTime?
   createdAt     DateTime         @default(now())
 
+  /// Whether this notification is shown in the app at all: the Notification
+  /// Center for a feed kind, the in-app toast for a browser-only one. Decided
+  /// once, when the notification is created, from the reader's preference
+  /// matrix. A reader who turns a category back on does not get back the
+  /// notifications they silenced while it was off.
+  inApp Boolean @default(true)
+
   @@unique([userId, kind, referenceId, eventId, messageKey])
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, isRead])
   @@index([eventId])
   @@index([kind, eventId])
   @@map("notification")
+}
+
+/// One user's choice for one Notification category on one delivery channel.
+///
+/// A missing row means the default rather than "off", so a new user needs no
+/// rows written and a new category needs no backfill. A row is written the
+/// first time the reader touches a cell, whether or not the value they land on
+/// matches the default.
+///
+/// `category` and `channel` are strings, not enums, so adding a category or a
+/// delivery channel is data plus UI rather than a schema migration. The Core
+/// schemas validate them against the known set on the way in.
+model NotificationPreference {
+  id        String   @id @default(uuid(7))
+  userId    String
+  category  String
+  channel   String
+  enabled   Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category, channel])
+  @@map("notification_preference")
 }
 
 model Project {
