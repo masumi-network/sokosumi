@@ -39,10 +39,13 @@ import {
  * less noise never has to meet a channel at all.
  *
  * The trigger holds no control of its own: a button inside a button is not a
- * thing a browser can do. An answer that belongs to the whole row sits under
- * the name instead, indented to the words rather than to the chevron, because
- * the chevron's column belongs to the fold. A `size-4` mark and a `gap-2` make
- * the 24px that indent is.
+ * thing a browser can do. An answer that belongs to the whole row sits beside
+ * the name instead, at the end of the row, where it is one line rather than a
+ * second one and where it lands over the columns the fold opens on. A phone
+ * has no room for both on one line, so there it drops under the name, indented
+ * to the words rather than to the chevron, because the chevron's column
+ * belongs to the fold. A `size-4` mark and a `gap-2` make the 24px that indent
+ * is.
  *
  * Whether it stands open is the caller's to hold. The answer under the name
  * can ask for the rows, and only the caller that draws that answer can say
@@ -69,8 +72,8 @@ function FoldRow({
 }) {
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
-      <div className="px-4 py-3">
-        <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px]">
+      <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
+        <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px] sm:flex-1">
           <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
           <span className="min-w-0">
             <span className="block text-sm leading-5">{name}</span>
@@ -82,7 +85,7 @@ function FoldRow({
             </span>
           </span>
         </CollapsibleTrigger>
-        {answer ? <div className="mt-2 pl-6">{answer}</div> : null}
+        {answer ? <div className="shrink-0 pl-6 sm:pl-0">{answer}</div> : null}
       </div>
       {/* The fold measures itself, so the cells slide out of the row rather
           than replacing it between two frames. `overflow-hidden` is what makes

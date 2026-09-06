@@ -249,26 +249,6 @@ function presetButton(group: string) {
   });
 }
 
-/**
- * The rail, which is the same situations as buttons rather than as a list.
- *
- * Both are drawn here: they take turns by width, and a media query decides
- * nothing in this environment. So each is asked about directly.
- */
-function rail(group: string) {
-  return screen.getByRole("toolbar", { name: `presetAriaLabel ${group}` });
-}
-
-/** Every stop is named for the group it sets, so four words are not twelve. */
-function railStop(group: string, name: string) {
-  return within(rail(group)).getByRole("button", { name: `${name} ${group}` });
-}
-
-/** Beside the rail rather than in it: it writes nothing and opens the rows. */
-function customChip(group: string) {
-  return screen.getByRole("button", { name: `presetCustom ${group}` });
-}
-
 /** The situations that group offers, once its menu is open. */
 async function openPresets(group: string) {
   const user = userEvent.setup();
@@ -498,106 +478,14 @@ describe("NotificationKinds", () => {
     expect(presetButton("groupChat")).toHaveTextContent("presetAppOnly");
   });
 
-  it("draws the situations as a rail, with the group's own one pressed", () => {
-    renderKinds();
-
-    // The same words as the menu, in the same order, loudest first.
-    expect(
-      within(rail("groupChat"))
-        .getAllByRole("button")
-        .map((stop) => [stop.textContent, stop.getAttribute("aria-pressed")]),
-    ).toEqual([
-      ["presetMost", "false"],
-      ["presetEssential", "true"],
-      ["presetAppOnly", "false"],
-      ["presetOff", "false"],
-    ]);
-  });
-
-  /**
-   * Four stops in three groups, each with a chip beside it, is fifteen presses
-   * of Tab to cross a card that holds four decisions. The rail takes one, and
-   * the arrows walk it.
-   */
-  it("gives the rail one tab stop and walks it with the arrows", async () => {
-    const user = userEvent.setup();
-    renderKinds();
-
-    // The group is on Essential, so that is where Tab lands.
-    expect(railStop("groupChat", "presetMost")).toHaveAttribute(
-      "tabindex",
-      "-1",
-    );
-    expect(railStop("groupChat", "presetEssential")).toHaveAttribute(
-      "tabindex",
-      "0",
-    );
-
-    railStop("groupChat", "presetEssential").focus();
-    await user.keyboard("{ArrowRight}");
-    expect(railStop("groupChat", "presetAppOnly")).toHaveFocus();
-
-    // Short rail, ends two words apart: the arrows wrap rather than stop.
-    await user.keyboard("{ArrowRight}{ArrowRight}");
-    expect(railStop("groupChat", "presetMost")).toHaveFocus();
-
-    await user.keyboard("{End}");
-    expect(railStop("groupChat", "presetOff")).toHaveFocus();
-
-    // Moving is not choosing: each of these would be a write.
-    expect(patchMyPreferences).not.toHaveBeenCalled();
-  });
-
-  /** Off every situation, the rail is offers rather than state. */
-  it("starts the rail at its first stop for a group set by hand", () => {
-    renderKinds();
-
-    expect(railStop("groupJob", "presetMost")).toHaveAttribute("tabindex", "0");
-  });
-
-  /**
-   * One word cannot say what it writes, and the panel that says it exists only
-   * while a pointer is on it. A reader who hears the rail has neither, so the
-   * sentence and the kinds are the stop's own description.
-   */
-  it("describes a stop with its sentence and the kinds it names", () => {
-    renderKinds();
-
-    expect(
-      railStop("groupChat", "presetEssential"),
-    ).toHaveAccessibleDescription(
-      "presetChatEssentialHint channelPush: kindChatMention, kindChatDirectMessage. presetStopsLabel: kindChatRoomMessage.",
-    );
-  });
-
-  it("writes the whole group from one stop of the rail", async () => {
-    const user = userEvent.setup();
-    renderKinds();
-
-    await user.click(railStop("groupChat", "presetOff"));
-
-    await waitFor(() => {
-      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
-    });
-    expect(lastWrite()).toHaveLength(6);
-    expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
-    expect(railStop("groupChat", "presetOff")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-  });
-
   /**
    * Every situation is written as the whole group. Missing a kind, its
    * sentence names a row that is not on screen, and two of them can come to
-   * write the same cells, so the rail would light a word nobody pressed.
+   * write the same cells, so the answer would show a word nobody picked.
    */
   it("offers no situation for a group Core answered in part", () => {
     renderKinds(MATRIX.filter((cell) => cell.category !== "CHAT_ROOM_MESSAGE"));
 
-    expect(
-      screen.queryByRole("toolbar", { name: "presetAriaLabel groupChat" }),
-    ).toBeNull();
     expect(
       screen.queryByRole("button", {
         description: "presetAriaLabel groupChat",
@@ -610,77 +498,58 @@ describe("NotificationKinds", () => {
     );
   });
 
+  /** One press of one situation writes every kind of the group. */
+  it("writes the whole group from one situation", async () => {
+    renderKinds();
+
+    await pickPreset("groupChat", "presetOff");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
+    });
+    expect(lastWrite()).toHaveLength(6);
+    expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
+    expect(presetButton("groupChat")).toHaveTextContent("presetOff");
+  });
+
   /**
    * A control the browser disables drops out of the tab order under the
-   * reader's finger. The rail stays reachable, says it is busy, and refuses
+   * reader's finger. The answer stays reachable, says it is busy, and refuses
    * the second press until the first write lands.
    */
-  it("keeps the rail reachable while a write is in flight", async () => {
+  it("keeps the answer reachable while a write is in flight", async () => {
     const user = userEvent.setup();
     patchMyPreferences.mockReturnValue(new Promise(() => {}));
     renderKinds();
 
-    await user.click(railStop("groupChat", "presetOff"));
+    await pickPreset("groupChat", "presetOff");
 
-    const stop = railStop("groupChat", "presetMost");
+    const answer = presetButton("groupChat");
     await waitFor(() => {
-      expect(stop).toHaveAttribute("aria-disabled", "true");
+      expect(answer).toHaveAttribute("aria-disabled", "true");
     });
-    expect(stop).toBeEnabled();
+    expect(answer).toBeEnabled();
 
-    await user.click(stop);
+    await user.click(answer);
+    await user.click(presetItem("presetMost"));
     expect(patchMyPreferences).toHaveBeenCalledTimes(1);
   });
 
   /**
-   * One word cannot say what it writes, so the panel under the pointer says
-   * it. What it holds is the same sentence and the same two lists the stop
-   * carries as its description.
+   * Custom is not one of the situations, so it sits under them. It writes
+   * nothing: it opens the rows, which is where that state is set.
    */
-  it("opens what a stop does under the pointer", async () => {
-    const user = userEvent.setup();
-    renderKinds();
-
-    await user.hover(railStop("groupChat", "presetEssential"));
-
-    const panel = await screen.findByRole("tooltip");
-    expect(panel).toHaveTextContent("presetChatEssentialHint");
-    // The lists are a description list, so each label and its names are two
-    // elements rather than one line with a colon between them.
-    expect(panel).toHaveTextContent(
-      /channelPush\s*kindChatMention, kindChatDirectMessage/,
-    );
-    expect(panel).toHaveTextContent(/presetStopsLabel\s*kindChatRoomMessage/);
-  });
-
-  /**
-   * Custom is not one of the situations, so it stands beside the rail. It
-   * writes nothing: it opens the rows, which is where that state is set.
-   */
-  it("opens the group from the Custom chip, and writes nothing", async () => {
+  it("opens the group from Custom, and writes nothing", async () => {
     const user = userEvent.setup();
     renderKinds();
 
     expect(groupTrigger("groupChat")).toHaveAttribute("aria-expanded", "false");
 
-    await user.click(customChip("groupChat"));
+    await openPresets("groupChat");
+    await user.click(customItem());
 
     expect(groupTrigger("groupChat")).toHaveAttribute("aria-expanded", "true");
     expect(patchMyPreferences).not.toHaveBeenCalled();
-  });
-
-  /** The tint that says the group is off every situation is no use unseen. */
-  it("says the Custom chip is the state the group is in", async () => {
-    renderKinds();
-
-    expect(customChip("groupJob")).toHaveAttribute("aria-pressed", "true");
-    expect(customChip("groupChat")).toHaveAttribute("aria-pressed", "false");
-
-    await toggle("kindChatMention", "channelPush");
-
-    await waitFor(() => {
-      expect(customChip("groupChat")).toHaveAttribute("aria-pressed", "true");
-    });
   });
 
   /**
