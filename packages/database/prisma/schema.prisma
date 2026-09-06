@@ -486,8 +486,70 @@ model Project {
   events                ProjectEvent[]
   calendarInvalidations CalendarInvalidationOutbox[]
 
+  socialConnections       ProjectSocialConnection[]
+  socialConnectionIntents ProjectSocialConnectionIntent[]
+
   @@index([workspaceId])
   @@map("project")
+}
+
+model ProjectSocialConnection {
+  id                        String   @id @default(uuid(7)) @db.Uuid
+  projectId                 String   @db.Uuid
+  provider                  String
+  externalAccountId         String
+  externalHandle            String?
+  composioConnectedAccountId String
+  status                    String
+  activeExternalAccountKey  String?
+  connectorUserId           String
+  connectedAt               DateTime?
+  disconnectedAt            DateTime?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  audits  ProjectSocialConnectionAudit[]
+  intents ProjectSocialConnectionIntent[]
+
+  @@unique([projectId, activeExternalAccountKey])
+  @@map("project_social_connection")
+}
+
+model ProjectSocialConnectionIntent {
+  /// Composio's connection_id, returned when the OAuth flow begins.
+  connectionId String @id
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  initiatingUserId String
+  provider         String
+  action           String
+  socialConnectionId String?                  @db.Uuid
+  socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
+  authConfigId       String
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("project_social_connection_intent")
+}
+
+model ProjectSocialConnectionAudit {
+  id                        String   @id @default(uuid(7)) @db.Uuid
+  projectSocialConnectionId String   @db.Uuid
+  action                    String
+  actorId                   String
+  externalAccountId         String
+  externalHandle            String?
+  providerOutcome           String?
+  createdAt                 DateTime @default(now())
+
+  projectSocialConnection ProjectSocialConnection @relation(fields: [projectSocialConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([projectSocialConnectionId, createdAt])
+  @@map("project_social_connection_audit")
 }
 
 model Member {

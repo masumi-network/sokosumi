@@ -2221,6 +2221,56 @@
         "save": "Save",
         "cancel": "Cancel"
       },
+      "ProjectSocialAccounts": {
+        "title": "Social accounts",
+        "description": "Connect X accounts that this project can use for future publishing.",
+        "account": "X account",
+        "connect": "Connect X account",
+        "reconnect": "Reconnect",
+        "replace": "Replace",
+        "disconnect": "Disconnect",
+        "connecting": "Connecting…",
+        "disconnecting": "Disconnecting…",
+        "unknownHandle": "Unknown X account",
+        "status": {
+          "active": "Connected",
+          "pending": "Connection pending",
+          "reauthorization_required": "Reconnection required",
+          "disconnected": "Disconnected"
+        },
+        "replaceDialog": {
+          "title": "Replace this X account?",
+          "description": "The current account will be disconnected before you connect a replacement.",
+          "confirm": "Replace account"
+        },
+        "disconnectDialog": {
+          "title": "Disconnect this X account?",
+          "description": "This project will no longer be authorized to use this account.",
+          "confirm": "Disconnect account"
+        },
+        "cancel": "Cancel",
+        "success": {
+          "connected": "X account connected.",
+          "disconnected": "X account disconnected."
+        },
+        "warning": {
+          "providerRevocationFailed": "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings."
+        },
+        "errors": {
+          "inFlight": "Another X account action is already in progress.",
+          "popupBlocked": "Your browser blocked the X authorization window. Allow popups and try again.",
+          "popupClosed": "The X authorization window was closed before setup finished. Try again.",
+          "timeout": "X authorization took too long. Try again.",
+          "providerCallback": "X authorization did not complete. Return to Project settings and try again.",
+          "legacyCallback": "This OAuth callback cannot verify your X account. Update the Composio callback setup and try again.",
+          "verifier": "We could not verify your X account. Start the connection again.",
+          "intent": "This connection request expired or is no longer valid. Start again.",
+          "duplicate": "That X account is already connected to this project. Choose a different account.",
+          "reconnectMismatch": "Reconnect the same X account that is already linked to this project.",
+          "finalize": "We could not finish connecting this X account. Try again.",
+          "disconnect": "We could not disconnect this X account. Try again."
+        }
+      },
       "Detail": {
         "back": "Back to projects",
         "header": {

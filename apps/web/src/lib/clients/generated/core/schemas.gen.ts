@@ -10272,6 +10272,39 @@ export const CheckoutSessionAnalyticsSchema = {
     ]
 } as const;
 
+export const CompleteComposioCallbackResponseSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
+export const CompleteComposioCallbackRequestSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string',
+            minLength: 1
+        },
+        sessionUri: {
+            type: 'string',
+            format: 'uri'
+        }
+    },
+    required: [
+        'connectionId',
+        'sessionUri'
+    ]
+} as const;
+
 export const CouponDetailsSchema = {
     type: 'object',
     properties: {
@@ -14932,6 +14965,186 @@ export const WorkspaceCalendarItemSchema = {
         'sourceProjectId',
         'sourceAccuracy',
         'timeAccuracy'
+    ]
+} as const;
+
+export const ProjectSocialConnectionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+        },
+        provider: {
+            type: 'string',
+            enum: [
+                'x'
+            ]
+        },
+        externalHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'sokosumi'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'pending',
+                'active',
+                'reauthorization_required',
+                'disconnected'
+            ],
+            example: 'active'
+        },
+        connectedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        disconnectedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'externalHandle',
+        'status',
+        'connectedAt',
+        'disconnectedAt'
+    ]
+} as const;
+
+export const InitiateProjectSocialConnectionResponseSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string',
+            minLength: 1,
+            example: 'ca_123'
+        },
+        redirectUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://connect.composio.dev/link-token'
+        }
+    },
+    required: [
+        'connectionId',
+        'redirectUrl'
+    ]
+} as const;
+
+export const InitiateProjectSocialConnectionRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: [
+                        'connect'
+                    ]
+                },
+                provider: {
+                    type: 'string',
+                    enum: [
+                        'x'
+                    ]
+                }
+            },
+            required: [
+                'action',
+                'provider'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: [
+                        'reconnect'
+                    ]
+                },
+                socialConnectionId: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'action',
+                'socialConnectionId'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: [
+                        'replace'
+                    ]
+                },
+                socialConnectionId: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'action',
+                'socialConnectionId'
+            ]
+        }
+    ]
+} as const;
+
+export const FinalizeProjectSocialConnectionRequestSchema = {
+    type: 'object',
+    properties: {
+        connectionId: {
+            type: 'string',
+            minLength: 1,
+            example: 'ca_123'
+        }
+    },
+    required: [
+        'connectionId'
+    ]
+} as const;
+
+export const DisconnectProjectSocialConnectionResponseSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/ProjectSocialConnection'
+        },
+        {
+            type: 'object',
+            properties: {
+                providerRevocation: {
+                    type: 'string',
+                    enum: [
+                        'succeeded',
+                        'failed',
+                        'skipped'
+                    ]
+                }
+            },
+            required: [
+                'providerRevocation'
+            ]
+        }
     ]
 } as const;
 

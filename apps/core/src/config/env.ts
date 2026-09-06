@@ -136,6 +136,7 @@ const baseEnvSchema = z.object({
   /** Composio brokers OAuth for Soko Bot integrations (Gmail, Outlook, …). */
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
+  COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
   SOKO_BOT_RUNTIME_ADAPTER: z
     .enum(["in-memory", "in-process"])
     .default("in-process"),

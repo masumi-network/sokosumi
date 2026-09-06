@@ -18,7 +18,10 @@ const projectServiceMock = {
   addTask: vi.fn(),
   createProject: vi.fn(),
   deleteProject: vi.fn(),
+  disconnectSocialConnection: vi.fn(),
+  finalizeSocialConnection: vi.fn(),
   getProjectContextMd: vi.fn(),
+  initiateSocialConnection: vi.fn(),
   patchProject: vi.fn(),
   removeJob: vi.fn(),
   removeProjectDesignMd: vi.fn(),
@@ -329,5 +332,114 @@ describe("project actions", () => {
     ).rejects.toThrow("Project name is already in use");
 
     expect(toCoreApiActionErrorMock).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it("initiates a social connection with a Flight-safe redirect handoff", async () => {
+    projectServiceMock.initiateSocialConnection.mockResolvedValue({
+      connectionId: "ca_123",
+      redirectUrl: "https://connect.composio.dev/link-token",
+    });
+
+    const { initiateProjectSocialConnection } = await import("./action");
+    const result = await initiateProjectSocialConnection({
+      projectId: " project-1 ",
+      action: "connect",
+    });
+
+    expect(projectServiceMock.initiateSocialConnection).toHaveBeenCalledWith(
+      "project-1",
+      { action: "connect", provider: "x" },
+    );
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        connectionId: "ca_123",
+        redirectUrl: "https://connect.composio.dev/link-token",
+      },
+    });
+    expect(JSON.parse(JSON.stringify(result))).toEqual(result);
+  });
+
+  it("finalizes a social connection and revalidates Project pages", async () => {
+    const connection = {
+      id: "connection-1",
+      provider: "x" as const,
+      externalHandle: "sokosumi",
+      status: "active" as const,
+      connectedAt: new Date("2026-09-03T10:00:00.000Z"),
+      disconnectedAt: null,
+    };
+    projectServiceMock.finalizeSocialConnection.mockResolvedValue(connection);
+
+    const { finalizeProjectSocialConnection } = await import("./action");
+    const { revalidatePath } = await import("next/cache");
+    const result = await finalizeProjectSocialConnection({
+      projectId: "project-1",
+      connectionId: "ca_123",
+    });
+
+    expect(projectServiceMock.finalizeSocialConnection).toHaveBeenCalledWith(
+      "project-1",
+      "ca_123",
+    );
+    expect(result).toEqual({ ok: true, value: connection });
+    expect(revalidatePath).toHaveBeenCalledWith("/projects");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/edit");
+  });
+
+  it("disconnects a social connection and revalidates Project pages", async () => {
+    const connection = {
+      id: "connection-1",
+      provider: "x" as const,
+      externalHandle: "sokosumi",
+      status: "disconnected" as const,
+      connectedAt: new Date("2026-09-03T10:00:00.000Z"),
+      disconnectedAt: new Date("2026-09-03T10:05:00.000Z"),
+      providerRevocation: "succeeded" as const,
+    };
+    projectServiceMock.disconnectSocialConnection.mockResolvedValue(connection);
+
+    const { disconnectProjectSocialConnection } = await import("./action");
+    const { revalidatePath } = await import("next/cache");
+    const result = await disconnectProjectSocialConnection({
+      projectId: "project-1",
+      socialConnectionId: "connection-1",
+    });
+
+    expect(projectServiceMock.disconnectSocialConnection).toHaveBeenCalledWith(
+      "project-1",
+      "connection-1",
+    );
+    expect(result).toEqual({ ok: true, value: connection });
+    expect(revalidatePath).toHaveBeenCalledWith("/projects");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/edit");
+  });
+
+  it("converts social-connection Core errors to a plain action error DTO", async () => {
+    projectServiceMock.finalizeSocialConnection.mockRejectedValue(
+      new Error("Unknown or expired connection"),
+    );
+    toCoreApiActionErrorMock.mockReturnValue({
+      code: "NOT_FOUND",
+      message: "Unknown or expired connection",
+    });
+
+    const { finalizeProjectSocialConnection } = await import("./action");
+    const { revalidatePath } = await import("next/cache");
+    const result = await finalizeProjectSocialConnection({
+      projectId: "project-1",
+      connectionId: "ca_123",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "NOT_FOUND",
+        message: "Unknown or expired connection",
+      },
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
