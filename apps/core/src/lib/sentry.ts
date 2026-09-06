@@ -8,7 +8,6 @@ export function initSentry() {
   const env = getEnv();
 
   if (!env.SENTRY_DSN) {
-    console.log("[Sentry] DSN not provided, skipping initialization");
     return;
   }
 
@@ -27,6 +26,4 @@ export function initSentry() {
     // exception values, and breadcrumbs are all covered by the walk.
     beforeSend: (event) => redactDeep(event, getEnvSecrets()),
   });
-
-  console.log(`[Sentry] Initialized`);
 }

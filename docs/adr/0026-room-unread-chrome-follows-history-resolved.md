@@ -1,4 +1,4 @@
-# ADR 0019: Room unread chrome follows history resolved
+# ADR 0026: Room unread chrome follows history resolved
 
 - Status: Accepted
 - Date: 2026-08-27

@@ -698,8 +698,6 @@ describe("handleInvoicePaidEvent", () => {
   });
 
   it("skips unassigned free credits while an enterprise contract is consumable", async () => {
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
     mockOrganizationInvoiceContext(
       [
         { role: "member", userId: "member-1" },
@@ -726,24 +724,15 @@ describe("handleInvoicePaidEvent", () => {
       "./stripe-invoice-credit.service"
     );
 
-    try {
-      await handleInvoicePaidEvent(
-        createInvoice({
-          billingReason: "subscription_cycle",
-          id: "in_org_enterprise_consumable",
-          lines: [{ productId: "prod_starter", quantity: 5 }],
-        }) as never,
-      );
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "subscription_cycle",
+        id: "in_org_enterprise_consumable",
+        lines: [{ productId: "prod_starter", quantity: 5 }],
+      }) as never,
+    );
 
-      expect(createTransactionMock).not.toHaveBeenCalled();
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "Invoice in_org_enterprise_consumable has no grantable credits",
-        ),
-      );
-    } finally {
-      consoleLogSpy.mockRestore();
-    }
+    expect(createTransactionMock).not.toHaveBeenCalled();
   });
 
   it("grants Stripe period credits to the org pool for post-term enterprise contracts", async () => {

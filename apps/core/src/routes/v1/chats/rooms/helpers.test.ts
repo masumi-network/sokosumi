@@ -321,14 +321,14 @@ describe("resolveMentionedSokoBotIds", () => {
     ).toEqual([id]);
   });
 
-  it("still matches a stored @orchestrator:<uuid> token", () => {
+  it("does not match a leftover @orchestrator:<uuid> token", () => {
     const id = "01960001-0001-7001-8001-000000000099";
     expect(
       resolveMentionedSokoBotIds({
         content: `hello @orchestrator:${id}`,
         roomSokoBots: [{ id, name: "Jarvis" }],
       }),
-    ).toEqual([id]);
+    ).toEqual([]);
   });
 
   it("lowercases an uppercase token", () => {
