@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { renderChatRoomInvitationEmail } from "@sokosumi/email";
 import { getEmailLocale } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 
 import { sendEmail } from "@/clients/email.client";
 import { getWebAppBaseUrl } from "@/config/env";
@@ -178,26 +179,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationName: invitation.organizationName,
     });
 
-    void sendEmail({
-      to: invitation.email,
-      tag: "chat-room-invitation-email",
-      subject: renderedEmail.subject,
-      html: renderedEmail.html,
-    }).catch((error) => {
-      captureExternalServiceError(error, {
-        label: "chat_room_invitation_email",
-        sentry: {
-          tags: {
-            context: "chat_room_invitation_email",
+    waitUntil(
+      sendEmail({
+        to: invitation.email,
+        tag: "chat-room-invitation-email",
+        subject: renderedEmail.subject,
+        html: renderedEmail.html,
+      }).catch((error) => {
+        captureExternalServiceError(error, {
+          label: "chat_room_invitation_email",
+          sentry: {
+            tags: {
+              context: "chat_room_invitation_email",
+            },
           },
-        },
-        extra: {
-          invitationId: invitation.id,
-          roomId: invitation.roomId,
-          organizationId: invitation.organizationId,
-        },
-      });
-    });
+          extra: {
+            invitationId: invitation.id,
+            roomId: invitation.roomId,
+            organizationId: invitation.organizationId,
+          },
+        });
+      }),
+    );
 
     return created(c, invitation);
   });
