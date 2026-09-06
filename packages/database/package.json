@@ -19,11 +19,6 @@
       "import": "./dist/client.js",
       "default": "./dist/client.js"
     },
-    "./transaction": {
-      "types": "./dist/transaction.d.ts",
-      "import": "./dist/transaction.js",
-      "default": "./dist/transaction.js"
-    },
     "./repositories": {
       "types": "./dist/repositories/index.d.ts",
       "import": "./dist/repositories/index.js",
@@ -47,7 +42,6 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist && rm tsconfig.tsbuildinfo",
-    "prepare": "pnpm exec prisma generate --no-hints && pnpm build",
     "prisma:generate": "pnpm exec prisma generate --no-hints",
     "prisma:migrate:dev": "pnpm exec prisma migrate dev",
     "prisma:migrate:deploy": "pnpm exec prisma migrate deploy",

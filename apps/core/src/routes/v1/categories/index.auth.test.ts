@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   authContextState,
-  prismaTransactionMock,
   creditCostFindManyMock,
   categoryFindManyMock,
+  syncMetadataFindUniqueMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: null as {
@@ -14,9 +14,9 @@ const {
       role: string;
     } | null,
   },
-  prismaTransactionMock: vi.fn(),
   creditCostFindManyMock: vi.fn(),
   categoryFindManyMock: vi.fn(),
+  syncMetadataFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -42,12 +42,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
     creditCost: {
       findMany: creditCostFindManyMock,
     },
     category: {
       findMany: categoryFindManyMock,
+    },
+    syncMetadata: {
+      findUnique: syncMetadataFindUniqueMock,
     },
   },
 }));
@@ -60,14 +62,7 @@ describe("categories routes auth gate", () => {
     authContextState.current = null;
     creditCostFindManyMock.mockResolvedValue([{ unit: "default" }]);
     categoryFindManyMock.mockResolvedValue([]);
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      const tx = {
-        creditCost: { findMany: creditCostFindManyMock },
-        syncMetadata: { findUnique: vi.fn().mockResolvedValue(null) },
-        category: { findMany: categoryFindManyMock },
-      };
-      return await callback(tx);
-    });
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
   });
 
   it("allows anonymous GET /categories", async () => {

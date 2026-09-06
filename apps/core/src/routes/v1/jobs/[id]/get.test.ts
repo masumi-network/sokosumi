@@ -6,32 +6,37 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor";
 
 import mountGetJobById from "./get";
 
-const { authContextState, prismaTransactionMock, jobFindFirstMock } =
-  vi.hoisted(() => ({
-    authContextState: {
-      current: {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      } as
-        | {
-            actor: "user";
-            userId: string;
-            organizationId: string | null;
-            role: string;
-          }
-        | {
-            actor: "coworker";
-            coworkerId: string;
-            vendorId?: string;
-            context?: { userId: string; organizationId: string | null };
-          }
-        | null,
-    },
-    prismaTransactionMock: vi.fn(),
-    jobFindFirstMock: vi.fn(),
-  }));
+const {
+  authContextState,
+  jobFindFirstMock,
+  coworkerFindFirstMock,
+  taskFindFirstMock,
+} = vi.hoisted(() => ({
+  authContextState: {
+    current: {
+      actor: "user",
+      userId: "user_123",
+      organizationId: "org_123",
+      role: "user",
+    } as
+      | {
+          actor: "user";
+          userId: string;
+          organizationId: string | null;
+          role: string;
+        }
+      | {
+          actor: "coworker";
+          coworkerId: string;
+          vendorId?: string;
+          context?: { userId: string; organizationId: string | null };
+        }
+      | null,
+  },
+  jobFindFirstMock: vi.fn(),
+  coworkerFindFirstMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
+}));
 
 vi.mock("@/middleware/auth", () => ({
   authMiddleware: async (
@@ -117,7 +122,15 @@ vi.mock("@/middleware/workspace", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    job: {
+      findFirst: jobFindFirstMock,
+    },
+    coworker: {
+      findFirst: coworkerFindFirstMock,
+    },
+    task: {
+      findFirst: taskFindFirstMock,
+    },
   },
 }));
 
@@ -256,15 +269,9 @@ describe("GET /jobs/{id}", () => {
       organizationId: "org_123",
       role: "user",
     };
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback({
-          job: {
-            findFirst: jobFindFirstMock,
-          },
-        }),
-    );
     jobFindFirstMock.mockResolvedValue(createJob());
+    coworkerFindFirstMock.mockReset();
+    taskFindFirstMock.mockReset();
   });
 
   it("returns a rich job details payload", async () => {
@@ -369,26 +376,18 @@ describe("GET /jobs/{id}", () => {
       vendorId: TEST_VENDOR_ID,
       context: { userId: "user_123", organizationId: "org_123" },
     };
-    const coworkerFindFirstMock = vi.fn().mockResolvedValue({
+    coworkerFindFirstMock.mockResolvedValue({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
     });
-    const taskFindFirstMock = vi.fn().mockResolvedValue({
+    taskFindFirstMock.mockResolvedValue({
       id: "tsk_123",
       coworkerId: "cow_123",
       status: TaskStatus.READY,
       coworker: { vendorId: TEST_VENDOR_ID },
     });
     jobFindFirstMock.mockResolvedValue({ ...createJob(), taskId: "tsk_123" });
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback({
-          coworker: { findFirst: coworkerFindFirstMock },
-          job: { findFirst: jobFindFirstMock },
-          task: { findFirst: taskFindFirstMock },
-        }),
-    );
 
     const app = createApp();
     const response = await app.request("http://localhost/job_123");
@@ -411,26 +410,18 @@ describe("GET /jobs/{id}", () => {
       vendorId: TEST_VENDOR_ID,
       context: { userId: "user_123", organizationId: "org_123" },
     };
-    const coworkerFindFirstMock = vi.fn().mockResolvedValue({
+    coworkerFindFirstMock.mockResolvedValue({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
     });
-    const taskFindFirstMock = vi.fn().mockResolvedValue({
+    taskFindFirstMock.mockResolvedValue({
       id: "tsk_123",
       coworkerId: "cow_other",
       status: TaskStatus.READY,
       coworker: { vendorId: TEST_VENDOR_ID },
     });
     jobFindFirstMock.mockResolvedValue({ ...createJob(), taskId: "tsk_123" });
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback({
-          coworker: { findFirst: coworkerFindFirstMock },
-          job: { findFirst: jobFindFirstMock },
-          task: { findFirst: taskFindFirstMock },
-        }),
-    );
 
     const app = createApp();
     const response = await app.request("http://localhost/job_123");
@@ -445,21 +436,13 @@ describe("GET /jobs/{id}", () => {
       vendorId: TEST_VENDOR_ID,
       context: { userId: "user_123", organizationId: "org_123" },
     };
-    const coworkerFindFirstMock = vi.fn().mockResolvedValue({
+    coworkerFindFirstMock.mockResolvedValue({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
     });
-    const taskFindFirstMock = vi.fn().mockResolvedValue(null);
+    taskFindFirstMock.mockResolvedValue(null);
     jobFindFirstMock.mockResolvedValue({ ...createJob(), taskId: "tsk_123" });
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback({
-          coworker: { findFirst: coworkerFindFirstMock },
-          job: { findFirst: jobFindFirstMock },
-          task: { findFirst: taskFindFirstMock },
-        }),
-    );
 
     const app = createApp();
     const response = await app.request("http://localhost/job_123");

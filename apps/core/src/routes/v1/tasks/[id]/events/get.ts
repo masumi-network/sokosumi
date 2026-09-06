@@ -34,14 +34,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const events = await prisma.$transaction(async (tx) => {
-      await requireTaskReadForRouteVars(c.var, id, tx);
+    await requireTaskReadForRouteVars(c.var, id, prisma);
 
-      return tx.taskEvent.findMany({
-        where: { taskId: id },
-        orderBy: { createdAt: "asc" },
-        include: taskEventApiInclude,
-      });
+    const events = await prisma.taskEvent.findMany({
+      where: { taskId: id },
+      orderBy: { createdAt: "asc" },
+      include: taskEventApiInclude,
     });
 
     return ok(

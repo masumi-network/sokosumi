@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 import { ProjectModuleTiles } from "@/app/projects/components/project-module-tiles";
 
 const LABELS = {
+  calendar: {
+    title: "Calendar",
+    description: "See upcoming project work",
+  },
   comingSoon: "Coming soon",
   seo: { title: "SEO", description: "Keywords, rankings, audits" },
   socialMedia: {
@@ -28,13 +32,18 @@ const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 describe("ProjectModuleTiles", () => {
   it("renders File Browser first as an active link and keeps others Coming soon", () => {
     const { container } = render(
-      <ProjectModuleTiles labels={LABELS} projectId={PROJECT_ID} />,
+      <ProjectModuleTiles
+        calendarHref="/projects/project-1/calendar"
+        labels={LABELS}
+        projectId={PROJECT_ID}
+      />,
     );
 
     const headings = [...container.querySelectorAll("h3")].map(
       (heading) => heading.textContent,
     );
     expect(headings).toEqual([
+      "Calendar",
       "File Browser",
       "SEO",
       "Social Media",
@@ -45,6 +54,9 @@ describe("ProjectModuleTiles", () => {
     ]);
 
     const fileBrowserLink = screen.getByRole("link", { name: /File Browser/i });
+    const calendar = screen.getByRole("link", { name: "Calendar" });
+    expect(calendar).toHaveAttribute("href", "/projects/project-1/calendar");
+    expect(calendar).not.toHaveAttribute("aria-disabled");
     expect(fileBrowserLink).toHaveAttribute(
       "href",
       `/drive?view=tasks&projectId=${PROJECT_ID}`,
@@ -81,7 +93,8 @@ describe("ProjectModuleTiles", () => {
     ).toBe(true);
 
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(1);
-    expect(links[0]).toBe(fileBrowserLink);
+    expect(links).toHaveLength(2);
+    expect(links).toContain(fileBrowserLink);
+    expect(links).toContain(calendar);
   });
 });

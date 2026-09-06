@@ -4,24 +4,22 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetJobEventsById from "./get";
 
-const { authContextState, jobFindFirstMock, prismaTransactionMock } =
-  vi.hoisted(() => ({
-    authContextState: {
-      current: {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      } as {
-        actor: "user";
-        userId: string;
-        organizationId: string | null;
-        role: string;
-      } | null,
-    },
-    jobFindFirstMock: vi.fn(),
-    prismaTransactionMock: vi.fn(),
-  }));
+const { authContextState, jobFindFirstMock } = vi.hoisted(() => ({
+  authContextState: {
+    current: {
+      actor: "user",
+      userId: "user_123",
+      organizationId: "org_123",
+      role: "user",
+    } as {
+      actor: "user";
+      userId: string;
+      organizationId: string | null;
+      role: string;
+    } | null,
+  },
+  jobFindFirstMock: vi.fn(),
+}));
 
 vi.mock("@/middleware/auth", () => ({
   authMiddleware: async (
@@ -99,7 +97,9 @@ vi.mock("@/middleware/workspace", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    job: {
+      findFirst: jobFindFirstMock,
+    },
   },
 }));
 
@@ -158,18 +158,10 @@ describe("GET /jobs/{id}/events", () => {
       organizationId: "org_123",
       role: "user",
     };
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback({
-          job: {
-            findFirst: jobFindFirstMock,
-          },
-        }),
-    );
     jobFindFirstMock.mockResolvedValue(createJobWithEvents());
   });
 
-  it("loads job events with the transaction client and workspace scope", async () => {
+  it("loads job events with workspace scope", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123/events");

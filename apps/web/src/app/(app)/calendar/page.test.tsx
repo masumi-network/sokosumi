@@ -74,4 +74,16 @@ describe("CalendarPage", () => {
     expect(getWorkspaceCalendarMock).toHaveBeenCalledOnce();
     expect(getWorkspaceCalendarSourcesMock).toHaveBeenCalledOnce();
   });
+
+  it("passes the Calendar status filter to the initial read", async () => {
+    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
+
+    await CalendarPage({
+      searchParams: Promise.resolve({ status: "READY" }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "READY" }),
+    );
+  });
 });

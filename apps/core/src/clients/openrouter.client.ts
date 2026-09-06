@@ -95,20 +95,25 @@ export const openrouterClient = (() => {
         return null;
       }
 
+      const trimmed = description.trim().slice(0, 1000);
+      if (!trimmed) {
+        return null;
+      }
+
       const instructions = `Generate a concise task name following these rules:
         - Length: 30-60 characters (including spaces and punctuation)
         - Language: Match the input
-        - Format: Single sentence
-        - Output: Name only, no other text
-        - Do NOT: include end of sentence punctuation
+        - Format: Short plain-language label, not a snippet of the document
+        - Output: Name only, no quotes, no other text
+        - Do NOT: use markdown, copy headings or the description, include refusal text, include end of sentence punctuation
       `;
-      const userPrompt = `Task Description: ${description}`;
+      const userPrompt = `Task Description: ${trimmed}`;
 
       return generateOpenRouterText(defaultOpenrouter, {
         abortSignal: AbortSignal.timeout(NAME_GENERATION_TIMEOUT_MS),
         instructions,
         prompt: userPrompt,
-        temperature: 0.9,
+        temperature: 0.5,
         maxOutputTokens: 40,
         failureLogLabel: "task name generation",
       });

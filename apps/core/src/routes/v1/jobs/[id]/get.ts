@@ -111,23 +111,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
-    const job = await prisma.$transaction(async (tx) => {
-      // Authorize the read (workspace scope for users; assigned-task scope for
-      // delegated coworkers) before loading full details.
-      await requireJobReadForRouteVars(c.var, id, tx);
-      const job = await tx.job.findFirst({
-        where: {
-          id,
-          workspaceId: workspaceContext.workspaceId,
-        },
-        include: jobInclude,
-      });
-      if (!job) {
-        throw notFound("Job not found");
-      }
-      return serializeJobDetails(mapJobWithStatus(job));
+    await requireJobReadForRouteVars(c.var, id, prisma);
+    const job = await prisma.job.findFirst({
+      where: {
+        id,
+        workspaceId: workspaceContext.workspaceId,
+      },
+      include: jobInclude,
     });
+    if (!job) {
+      throw notFound("Job not found");
+    }
+    const payload = serializeJobDetails(mapJobWithStatus(job));
 
-    return ok(c, jobSchema.parse(job));
+    return ok(c, jobSchema.parse(payload));
   });
 }

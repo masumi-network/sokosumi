@@ -35,17 +35,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const jobs = await prisma.$transaction(async (tx) => {
-      await requireTaskReadForRouteVars(c.var, id, tx);
+    await requireTaskReadForRouteVars(c.var, id, prisma);
 
-      const jobsList = await tx.job.findMany({
-        where: { taskId: id },
-        include: jobListSummaryInclude,
-        orderBy: { createdAt: "asc" },
-      });
-
-      return jobsList.map((job) => flattenJob(job));
+    const jobsList = await prisma.job.findMany({
+      where: { taskId: id },
+      include: jobListSummaryInclude,
+      orderBy: { createdAt: "asc" },
     });
+
+    const jobs = jobsList.map((job) => flattenJob(job));
 
     return ok(c, jobSummariesSchema.parse(jobs));
   });

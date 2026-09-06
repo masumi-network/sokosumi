@@ -30,10 +30,8 @@ This package is part of the Sokosumi monorepo and uses pnpm workspaces:
 packages/database/
 ├── src/
 │   ├── client.ts              # Prisma client singleton
-│   ├── transaction.ts         # Transaction utilities
 │   ├── index.ts               # Main exports (types & models)
 │   ├── repositories/          # Repository layer
-│   │   ├── agent.repository.ts
 │   │   ├── user.repository.ts
 │   │   └── ...
 │   ├── types/                 # Shared type definitions
@@ -88,17 +86,11 @@ import prisma from "@/lib/db/prisma";
 ### Using Repositories
 
 ```typescript
-import {
-  userRepository,
-  agentRepository,
-} from "@sokosumi/database/repositories";
+import { userRepository } from "@sokosumi/database/repositories";
 
 // Get a user (prisma client is required)
 import prisma from "@/lib/db/prisma";
 const user = await userRepository.getUserById("user-id", prisma);
-
-// Get agents with status filtering
-const agents = await agentRepository.getShownAgentsByStatus("ONLINE", prisma);
 ```
 
 ### Using Transactions
@@ -169,13 +161,6 @@ The package provides multiple entry points for different use cases:
 - **Includes**: `createPrismaClient(databaseUrl: string)` function
 - **Use in**: Server-side code only (protected by `server-only`)
 - **Note**: Each app creates its own client instance using the factory
-
-### Transaction Export (`@sokosumi/database/transaction`)
-
-- **Purpose**: Transaction utility factory
-- **Includes**: `createTransaction(client)` factory function, `TransactionClient` type
-- **Use in**: Server-side code for atomic operations
-- **Note**: Each app creates its own transaction utility from its Prisma client
 
 ### Repositories Export (`@sokosumi/database/repositories`)
 
@@ -290,7 +275,6 @@ The database package now uses a factory pattern for creating Prisma clients. Thi
 
 ```typescript
 import prisma from "@sokosumi/database/client";
-import { transaction } from "@sokosumi/database/transaction";
 import { userRepository } from "@sokosumi/database/repositories";
 
 // Prisma client was a singleton
@@ -324,20 +308,6 @@ await userRepository.getUserById(id); // default prisma used
 ```typescript
 import prisma from "@/lib/db/prisma";
 await userRepository.getUserById(id, prisma);
-```
-
-### Transaction Usage
-
-**Before:**
-
-```typescript
-import { transaction } from "@sokosumi/database/transaction";
-```
-
-**After:**
-
-```typescript
-import { transaction } from "@/lib/db/transaction"; // app-level
 ```
 
 ### From Direct Prisma to Repository Pattern
@@ -403,17 +373,13 @@ This is automatically handled by the `clean` script.
 
 ### Prisma Client Not Found
 
-The package uses a `prepare` script to auto-generate the Prisma client:
-
-```bash
-pnpm install  # Runs prepare script automatically
-```
-
-Or manually:
+Generate the Prisma client with turbo (`build` / `typecheck` / `test` depend on `prisma:generate`) or:
 
 ```bash
 pnpm run prisma:generate
 ```
+
+Core Vercel runs the same `prisma:generate` script from `vercel-build` before `tsc` and `tsup`.
 
 ### Type Errors
 

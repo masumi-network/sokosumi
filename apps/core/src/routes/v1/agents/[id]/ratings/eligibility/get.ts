@@ -46,15 +46,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const eligible = await prisma.$transaction(async (tx) => {
-      await requireAvailableAgentOrThrow(id, tx);
+    await requireAvailableAgentOrThrow(id, prisma);
 
-      return await jobRepository.doesUserHaveFinishedJobWithAgent(
-        userContext.userId,
-        id,
-        tx,
-      );
-    });
+    const eligible = await jobRepository.doesUserHaveFinishedJobWithAgent(
+      userContext.userId,
+      id,
+      prisma,
+    );
 
     return ok(c, agentRatingEligibilitySchema.parse({ eligible }));
   });

@@ -78,34 +78,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { limit, offset } = c.req.valid("query");
 
-    const reviews = await prisma.$transaction(async (tx) => {
-      const creditCosts = await getCreditCostsOrThrow(tx);
-      const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
+    const creditCosts = await getCreditCostsOrThrow(prisma);
+    const cardanoV2ReadySources = await getCardanoV2ReadySources(prisma);
 
-      const agent = await tx.agent.findFirst({
-        where: {
-          id,
-          ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!agent) {
-        throw notFound("Agent not found");
-      }
-
-      const [distribution, ratingsWithComments] = await Promise.all([
-        getAgentRatingDistribution(id, tx),
-        getRecentAgentReviews(id, limit, tx, offset),
-      ]);
-
-      return {
-        distribution,
-        ratingsWithComments,
-      };
+    const agent = await prisma.agent.findFirst({
+      where: {
+        id,
+        ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
+      },
+      select: {
+        id: true,
+      },
     });
+
+    if (!agent) {
+      throw notFound("Agent not found");
+    }
+
+    const [distribution, ratingsWithComments] = await Promise.all([
+      getAgentRatingDistribution(id, prisma),
+      getRecentAgentReviews(id, limit, prisma, offset),
+    ]);
+
+    const reviews = {
+      distribution,
+      ratingsWithComments,
+    };
 
     return ok(c, agentReviewsSchema.parse(reviews));
   });

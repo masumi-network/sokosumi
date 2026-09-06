@@ -1,10 +1,14 @@
 "use client";
 
-import dayGridPlugin from "@fullcalendar/daygrid";
-import listPlugin from "@fullcalendar/list";
 import FullCalendar from "@fullcalendar/react";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import { Temporal } from "@js-temporal/polyfill";
+import dayGridPlugin from "@fullcalendar/react/daygrid";
+import listPlugin from "@fullcalendar/react/list";
+import classicTheme from "@fullcalendar/react/themes/classic";
+import timeGridPlugin from "@fullcalendar/react/timegrid";
+import "@fullcalendar/react/skeleton.css";
+import "@fullcalendar/react/themes/classic/theme.css";
+import "@fullcalendar/react/themes/classic/palette.css";
+import { isValidTimezone } from "@sokosumi/utils";
 import {
   addDays,
   addMonths,
@@ -13,25 +17,50 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { Building2, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import {
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  CircleDashed,
+  Clock3,
+  Sparkles,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import {
+  parseAsString,
+  parseAsStringEnum,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs";
 import { useState } from "react";
+import { Temporal } from "temporal-polyfill";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useIsMobileMedia } from "@/hooks/use-mobile";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { coreClient } from "@/lib/clients/core.browser.client";
-import type {
-  WorkspaceCalendarItem,
-  WorkspaceCalendarSource,
+import {
+  TaskStatus,
+  type TaskStatus as TaskStatusValue,
+  type WorkspaceCalendarItem,
+  type WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
+import {
+  getDefaultTimezone,
+  getTimezoneOptions,
+} from "@/lib/schedules/timezones";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
-const CALENDAR_TIME_ZONE = "UTC";
+const CALENDAR_STATUSES = Object.values(TaskStatus);
+
+function isCalendarStatus(value: string | null): value is TaskStatusValue {
+  return value !== null && CALENDAR_STATUSES.some((status) => status === value);
+}
 const SOURCE_PALETTE_CLASSES = {
   blue: "bg-chart-1",
   violet: "bg-chart-2",
@@ -58,13 +87,16 @@ interface WorkspaceCalendarProps {
     to: Date;
   };
   coworkers?: CalendarCoworker[];
+  projectId?: string;
 }
 
 const calendarParsers = {
   assigneeId: parseAsString,
   date: parseAsString,
   scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
-  view: parseAsStringLiteral(CALENDAR_VIEWS).withDefault("month"),
+  status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
+  timezone: parseAsString,
+  view: parseAsStringLiteral(CALENDAR_VIEWS),
 };
 
 function parseCalendarDate(value: string, fallback: string): Date {
@@ -79,9 +111,9 @@ function getCalendarDayKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
 
-export function getCalendarItemDateKey(date: Date): string {
+export function getCalendarItemDateKey(date: Date, timeZone = "UTC"): string {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: CALENDAR_TIME_ZONE,
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -175,6 +207,15 @@ function CalendarEvent({
       }}
     >
       <SourceMarker source={source} sourceName={sourceName} />
+      {item.sourceAccuracy !== "EXACT" ? (
+        <span
+          aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+          className="text-muted-foreground shrink-0"
+          role="img"
+        >
+          ~
+        </span>
+      ) : null}
       <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
       {showDetails ? (
         <>
@@ -195,12 +236,14 @@ function CalendarView({
   items,
   onNavigate,
   sources,
+  timeZone,
   view,
 }: {
   date: Date;
   items: WorkspaceCalendarItem[];
   onNavigate: (taskId: string) => void;
   sources: WorkspaceCalendarSource[];
+  timeZone: string;
   view: (typeof CALENDAR_VIEWS)[number];
 }) {
   const pluginView = {
@@ -212,21 +255,20 @@ function CalendarView({
   return (
     <div
       className="workspace-calendar-theme overflow-x-auto"
+      data-view={view}
       data-testid={`calendar-${view}`}
     >
       <FullCalendar
-        key={`${getCalendarDayKey(date)}-${view}`}
-        plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
+        key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
+        plugins={[dayGridPlugin, timeGridPlugin, listPlugin, classicTheme]}
         initialDate={getCalendarDayKey(date)}
         initialView={pluginView}
         events={items.map((item) => ({
           id: item.id,
           title: item.taskName,
           start: item.scheduledAt.toISOString(),
-          classNames:
-            view === "week" ? ["!bg-transparent", "!border-transparent"] : [],
         }))}
-        timeZone={CALENDAR_TIME_ZONE}
+        timeZone={timeZone}
         allDaySlot={false}
         slotEventOverlap={false}
         headerToolbar={false}
@@ -266,31 +308,46 @@ export function WorkspaceCalendar({
   pagination = null,
   range,
   coworkers = [],
+  projectId,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const [state, setState] = useQueryStates(calendarParsers);
+  const isMobile = useIsMobileMedia();
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
   const date = parseCalendarDate(state.date ?? initialDate, initialDate);
+  const timeZone = isValidTimezone(state.timezone)
+    ? state.timezone
+    : getDefaultTimezone();
+  const view = state.view ?? (isMobile ? "agenda" : "month");
+
+  useMountEffect(() => {
+    if (!isValidTimezone(state.timezone)) {
+      void setState({ timezone: timeZone }, { shallow: false });
+    }
+  });
+
   const latestCalendarDate = latestDate
     ? parseCalendarDate(latestDate, initialDate)
     : null;
   const visibleItems = loadedItems
     .filter(
       (item) =>
-        state.assigneeId === null || item.taskAssigneeId === state.assigneeId,
+        (state.assigneeId === null ||
+          item.taskAssigneeId === state.assigneeId) &&
+        (state.status === null || item.taskStatus === state.status),
     )
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
     );
 
   function getNavigatedDate(direction: -1 | 1): Date {
-    return state.view === "week"
+    return view === "week"
       ? addDays(date, direction * 7)
       : addMonths(date, direction);
   }
@@ -321,14 +378,18 @@ export function WorkspaceCalendar({
     setIsLoadingMore(true);
     setLoadMoreError(false);
     try {
-      const result = await coreClient.getWorkspaceCalendar({
+      const query = {
         from: range.from,
         to: range.to,
         cursor: nextCursor,
         limit: pagination?.limit ?? 100,
         scope: state.scope,
         assigneeId: state.assigneeId ?? undefined,
-      });
+        status: state.status ?? undefined,
+      };
+      const result = projectId
+        ? await coreClient.getProjectsByIdCalendar(projectId, query)
+        : await coreClient.getWorkspaceCalendar(query);
       setLoadedItems((currentItems) => [
         ...currentItems,
         ...result.data.filter(
@@ -376,6 +437,39 @@ export function WorkspaceCalendar({
       onChange: (assigneeId: string | null) =>
         void setState({ assigneeId }, { shallow: false }),
     },
+    {
+      id: "status",
+      label: tFilters("statusLabel"),
+      icon: CircleDashed,
+      value: state.status,
+      allLabel: tFilters("all"),
+      options: CALENDAR_STATUSES.map((status) => ({
+        value: status,
+        label: tFilters(`statusOptions.${status}`),
+      })),
+      onChange: (status: string | null) =>
+        void setState(
+          {
+            status: isCalendarStatus(status) ? status : null,
+          },
+          { shallow: false },
+        ),
+    },
+    {
+      id: "timezone",
+      label: t("timezone.label"),
+      icon: Clock3,
+      value: timeZone,
+      options: getTimezoneOptions(timeZone).map((timezone) => ({
+        value: timezone,
+        label: timezone,
+      })),
+      onChange: (timezone: string | null) =>
+        void setState(
+          { timezone: isValidTimezone(timezone) ? timezone : null },
+          { shallow: false },
+        ),
+    },
   ];
 
   return (
@@ -390,7 +484,7 @@ export function WorkspaceCalendar({
           <ChevronLeft aria-hidden />
         </Button>
         <span className="min-w-40 text-center text-sm font-medium">
-          {getRangeLabel(formatDate, date, state.view)}
+          {getRangeLabel(formatDate, date, view)}
         </span>
         <Button
           aria-label={t("next")}
@@ -408,14 +502,14 @@ export function WorkspaceCalendar({
           className="hidden gap-1 md:flex"
           data-testid="desktop-calendar-views"
         >
-          {CALENDAR_VIEWS.map((view) => (
+          {CALENDAR_VIEWS.map((calendarView) => (
             <Button
-              key={view}
+              key={calendarView}
               size="sm"
-              variant={state.view === view ? "primary" : "outline"}
-              onClick={() => handleViewChange(view)}
+              variant={view === calendarView ? "primary" : "outline"}
+              onClick={() => handleViewChange(calendarView)}
             >
-              {t(`view.${view}`)}
+              {t(`view.${calendarView}`)}
             </Button>
           ))}
         </div>
@@ -423,16 +517,18 @@ export function WorkspaceCalendar({
           className="flex gap-1 md:hidden"
           data-testid="mobile-calendar-views"
         >
-          {CALENDAR_VIEWS.filter((view) => view !== "week").map((view) => (
-            <Button
-              key={view}
-              size="sm"
-              variant={state.view === view ? "primary" : "outline"}
-              onClick={() => handleViewChange(view)}
-            >
-              {t(`view.${view}`)}
-            </Button>
-          ))}
+          {CALENDAR_VIEWS.filter((calendarView) => calendarView !== "week").map(
+            (calendarView) => (
+              <Button
+                key={calendarView}
+                size="sm"
+                variant={view === calendarView ? "primary" : "outline"}
+                onClick={() => handleViewChange(calendarView)}
+              >
+                {t(`view.${calendarView}`)}
+              </Button>
+            ),
+          )}
         </div>
         <FilterDropdownMenu
           buttonLabel={tFilters("title")}
@@ -440,7 +536,9 @@ export function WorkspaceCalendar({
           searchPlaceholder={tFilters("searchPlaceholder")}
           sections={filterSections}
           showActiveIndicator={
-            state.scope === "owned" || state.assigneeId !== null
+            state.scope === "owned" ||
+            state.assigneeId !== null ||
+            state.status !== null
           }
         />
       </div>
@@ -457,7 +555,8 @@ export function WorkspaceCalendar({
               items={visibleItems}
               onNavigate={(taskId) => router.push(`/tasks/${taskId}`)}
               sources={sources}
-              view={state.view}
+              timeZone={timeZone}
+              view={view}
             />
           </div>
           <div className="md:hidden">
@@ -466,7 +565,8 @@ export function WorkspaceCalendar({
               items={visibleItems}
               onNavigate={(taskId) => router.push(`/tasks/${taskId}`)}
               sources={sources}
-              view={state.view === "week" ? "month" : state.view}
+              timeZone={timeZone}
+              view={view}
             />
           </div>
         </>

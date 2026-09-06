@@ -5,7 +5,7 @@
 ## Tech Stack & Architecture
 
 **Core Stack**: Next.js 16 (App Router), React 19.2, TypeScript, pnpm workspace, Node.js 24.x  
-**Task runner**: Turborepo (`turbo.json`) orchestrates `build` / `typecheck` / `test`. pnpm remains the package manager. Do not restore app-level `prebuild` or Core `build:workspace-deps` — the graph is `dependsOn` in `turbo.json`. Per-package `prepare` still emits `dist` for Vercel filtered installs. `dev` and Biome stay outside turbo. See [ADR 0008](./docs/adr/0008-turbo-task-runner-on-pnpm.md).
+**Task runner**: Turborepo (`turbo.json`) orchestrates `build` / `typecheck` / `test`. pnpm remains the package manager. Do not restore app-level `prebuild` or Core `build:workspace-deps` — the graph is `dependsOn` in `turbo.json`. Per-package `prepare` still emits `dist` for Vercel filtered installs, except `@sokosumi/database` (turbo `prisma:generate` on local machines and in CI, Core `vercel-build` on Vercel). `dev` and Biome stay outside turbo. See [ADR 0008](./docs/adr/0008-turbo-task-runner-on-pnpm.md).
 **Web Architecture**: Three-layer pattern with services (`src/lib/services/`) coordinating domain flows and actions (`src/lib/actions/`) exposing typed server mutations. Web reaches data **only through the Core API** — it never touches Prisma/Postgres directly (see [Database Access](#database-access)).
 **API Architecture**: Hono with OpenAPI validation and standardized response helpers. Core owns all database access via Prisma (`@sokosumi/database`). New Core routes use direct Prisma; repositories remain for some legacy Core services. Web never touches the DB.
 **Styling**: Tailwind CSS + shadcn/ui + Radix UI primitives
@@ -325,7 +325,7 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 
 ## Agent skills
 
-First-party skills are authored in `skills/<name>/` and installed with `npx skills add . --skill <name>` into `.agents/skills/<name>/`. Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`.
+First-party skills are authored in `skills/<name>/`. `.agents/skills/<name>` is a symlink to that tree (`.claude/skills` already symlinks to `.agents`). Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`.
 
 ### Evlog (Core only)
 

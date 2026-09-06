@@ -89,7 +89,10 @@ function patchRequest(path: string, body: unknown) {
 describe("user preferences routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+    userFindUniqueMock.mockResolvedValue({
+      id: "user_123",
+      ...PREFERENCES,
+    });
     txUserFindUniqueMock.mockResolvedValue(PREFERENCES);
     prismaTransactionMock.mockImplementation(
       async (
@@ -117,7 +120,7 @@ describe("user preferences routes", () => {
     // asserting against that constant is self-referential and cannot see a
     // field leave it. The mock ignores `select`, so this literal is the only
     // guard that a narrowed projection would 500 on the response schema parse.
-    expect(txUserFindUniqueMock).toHaveBeenCalledWith({
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
       where: { id: "user_123" },
       select: {
         marketingOptIn: true,
@@ -125,6 +128,7 @@ describe("user preferences routes", () => {
         pushOptIn: true,
       },
     });
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("writes pushOptIn on PATCH and returns the stored value", async () => {

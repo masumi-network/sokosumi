@@ -17,6 +17,8 @@ import {
   PROJECTS_DETAIL_TOP_CLASS,
   PROJECTS_DETAIL_WORKSPACE_CLASS,
 } from "@/app/projects/constants";
+import { getSession } from "@/lib/auth/auth.server";
+import { isBetaAccessEmail } from "@/lib/beta-access";
 import { projectService } from "@/lib/services/project.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
@@ -27,7 +29,7 @@ export default async function ProjectDetailPage({
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const { projectId } = await params;
+  const [session, { projectId }] = await Promise.all([getSession(), params]);
   const project = await projectService.getProjectById(projectId);
 
   if (!project) {
@@ -179,8 +181,17 @@ export default async function ProjectDetailPage({
           {t("modules.title")}
         </h2>
         <ProjectModuleTiles
+          calendarHref={
+            isBetaAccessEmail(session?.user.email)
+              ? `/projects/${project.id}/calendar`
+              : undefined
+          }
           projectId={project.id}
           labels={{
+            calendar: {
+              title: t("modules.calendar.title"),
+              description: t("modules.calendar.description"),
+            },
             comingSoon: t("modules.comingSoon"),
             seo: {
               title: t("modules.seo.title"),

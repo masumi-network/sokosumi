@@ -11,8 +11,6 @@
  * import {
  *   computeJobStatus,
  *   mapJobWithStatus,
- *   isPaidJob,
- *   isFreeJob
  * } from '@sokosumi/database/helpers'
  * ```
  *
@@ -20,18 +18,9 @@
  * ```typescript
  * const status = computeJobStatus(job);
  * ```
- *
- * ### Job Type Guards:
- * ```typescript
- * if (isPaidJob(job)) {
- *   // job is typed as PaidJobWithStatus
- * }
- * ```
  */
 
-export * from "./better-auth-1-7-account-identity.js";
 export * from "./credit.js";
-export * from "./credit-bucket-owner-xor.js";
 export * from "./credit-bucket-scope.js";
 export * from "./enterprise-contract.js";
 export * from "./enterprise-contract-exclusivity.js";
@@ -41,8 +30,6 @@ export * from "./enterprise-contract-scheduler.js";
 export * from "./free-credits.js";
 export * from "./job.js";
 export * from "./job-sync.js";
-export * from "./org-only-personal-workspace-backfill.js";
-export * from "./org-period-idempotency-sentinels.js";
 export * from "./organization-billing-plan.js";
 export * from "./organization-member-period-pool-transfer.js";
 export * from "./organization-owner.js";

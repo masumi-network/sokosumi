@@ -8,6 +8,7 @@ import { BlobNotFoundError, head, list, rename } from "@vercel/blob";
 import pLimit from "p-limit";
 
 import { getEnv } from "@/config/env";
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { assertDriveFolderPathNotReserved } from "@/helpers/drive-folder-reserved-names";
 import {
@@ -20,7 +21,6 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { renameDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
 
 const route = createRoute({
@@ -66,7 +66,7 @@ const MAX_FOLDER_DESCENDANTS = 500;
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireUserContext(authContext);
+    const userContext = await requireAuthorizedUserContext(authContext);
     const body = c.req.valid("json");
 
     const env = getEnv();

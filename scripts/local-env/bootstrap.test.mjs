@@ -82,15 +82,10 @@ describe("sanitizeEnvContents", () => {
   it("fills required placeholders with dummies that pass Zod", () => {
     const out = sanitizeEnvContents(
       [
-        'HERMES_ORCH_BASE_URL="<hermes-orchestrator-base-url>"',
         'RESEND_API_KEY="<your-resend-api-key>"',
         'ABLY_PUBLISH_ONLY_KEY="<your-ably-publish-only-key>"',
         "",
       ].join("\n"),
-    );
-    assert.match(
-      out,
-      /^HERMES_ORCH_BASE_URL="https:\/\/local\.dev\.invalid"$/m,
     );
     assert.match(out, /^RESEND_API_KEY="dummy-resend-api-key"$/m);
     assert.match(out, /^ABLY_PUBLISH_ONLY_KEY="dummy-ably-publish-only-key"$/m);
@@ -118,7 +113,6 @@ describe("bootstrapLocalEnv", () => {
         'BETTER_AUTH_SECRET="core-secret"',
         'BETTER_AUTH_COOKIE_DOMAIN="sokosumi.com"',
         'COMPOSIO_API_KEY="<composio-api-key>"',
-        'HERMES_ORCH_BASE_URL="<hermes-orchestrator-base-url>"',
         'DATABASE_URL="postgresql://sokosumi:sokosumi@sokosumi:5432/core?schema=public"',
         "",
       ].join("\n"),
@@ -143,10 +137,6 @@ describe("bootstrapLocalEnv", () => {
     assert.match(core, /^# BETTER_AUTH_COOKIE_DOMAIN=/m);
     assert.match(core, /^# COMPOSIO_API_KEY=/m);
     assert.match(core, /@localhost:5432/);
-    assert.match(
-      core,
-      /^HERMES_ORCH_BASE_URL="https:\/\/local\.dev\.invalid"$/m,
-    );
     assert.match(web, /^APP_SIGNING_SECRET="core-secret"$/m);
     assert.match(web, /^# NEXT_PUBLIC_SENTRY_DSN=/m);
     assert.match(web, /^CORE_APP_BASE_URL="http:\/\/localhost:8787"$/m);
