@@ -1,10 +1,10 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
   NOTIFICATION_CATEGORIES,
-  NOTIFICATION_CHANNEL_DEFAULT,
   NOTIFICATION_CHANNELS,
   type NotificationCategory,
   type NotificationChannel,
+  notificationDefault,
 } from "@sokosumi/utils";
 
 /** The message key an @mention carries. Read by the category mapping below. */
@@ -13,6 +13,7 @@ export const CHAT_MENTION_MESSAGE_KEY = "Notifications.Chat.mentioned";
 /** The message key a direct message carries. */
 export const CHAT_DIRECT_MESSAGE_MESSAGE_KEY =
   "Notifications.Chat.directMessage";
+export const CHAT_ROOM_MESSAGE_MESSAGE_KEY = "Notifications.Chat.roomMessage";
 
 /**
  * The task keys that wait on the reader.
@@ -96,6 +97,9 @@ export function toNotificationCategory(
       if (messageKey === CHAT_DIRECT_MESSAGE_MESSAGE_KEY) {
         return "CHAT_DIRECT_MESSAGE";
       }
+      if (messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) {
+        return "CHAT_ROOM_MESSAGE";
+      }
       return null;
     default:
       return null;
@@ -112,7 +116,7 @@ function isEnabled(
       preference.category === category && preference.channel === channel,
   );
 
-  return stored?.enabled ?? NOTIFICATION_CHANNEL_DEFAULT[channel];
+  return stored?.enabled ?? notificationDefault(category, channel);
 }
 
 /**

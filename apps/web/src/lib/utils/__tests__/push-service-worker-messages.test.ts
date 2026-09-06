@@ -15,7 +15,7 @@ import esMessages from "@/messages/es.json";
 
 /**
  * The service worker cannot reach next-intl, so it carries its own copy of the
- * two chat strings. `messages:parity` compares key paths only, so it cannot see
+ * notification strings. `messages:parity` compares key paths only, so it cannot see
  * a changed value. This test does: edit a catalog string without editing the
  * worker and it fails. SOK-876 removes the copy and this guard with it.
  */

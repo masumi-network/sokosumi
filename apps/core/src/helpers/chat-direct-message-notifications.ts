@@ -1,9 +1,6 @@
-import * as Sentry from "@sentry/node";
-import { NotificationKind } from "@sokosumi/database";
-
 import { CHAT_DIRECT_MESSAGE_MESSAGE_KEY } from "@/helpers/notification-delivery";
-import { createNotification } from "@/helpers/notifications";
-import prisma from "@/lib/db/prisma";
+
+import { fanOutChatNotifications } from "./chat-notification-fanout";
 
 export const MAX_HUMAN_MEMBERS_FOR_DIRECT_MESSAGE_NOTIFICATIONS = 2;
 
@@ -37,73 +34,9 @@ export interface EmitChatDirectMessageNotificationsParams {
 export async function emitChatDirectMessageNotifications(
   params: EmitChatDirectMessageNotificationsParams,
 ): Promise<void> {
-  const recipientUserIds = [
-    ...new Set(
-      params.recipientUserIds.filter(
-        (userId) =>
-          params.authorUserId === null || userId !== params.authorUserId,
-      ),
-    ),
-  ];
-
-  if (recipientUserIds.length === 0) {
-    return;
-  }
-
-  const mutedMemberships = await prisma.chatRoomUserMember.findMany({
-    where: {
-      roomId: params.roomId,
-      userId: { in: recipientUserIds },
-      mutedAt: { not: null },
-    },
-    select: { userId: true },
+  await fanOutChatNotifications({
+    ...params,
+    messageKey: CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+    notificationType: "chat-direct-message-notification",
   });
-  const mutedUserIds = new Set(
-    mutedMemberships.map((membership) => membership.userId),
-  );
-  const notifyUserIds = recipientUserIds.filter(
-    (userId) => !mutedUserIds.has(userId),
-  );
-
-  if (notifyUserIds.length === 0) {
-    return;
-  }
-
-  let workspaceId: string | null = null;
-  if (params.organizationId) {
-    const workspace = await prisma.workspace.findUnique({
-      where: { organizationId: params.organizationId },
-      select: { id: true },
-    });
-    workspaceId = workspace?.id ?? null;
-  }
-
-  for (const userId of notifyUserIds) {
-    try {
-      await createNotification({
-        userId,
-        kind: NotificationKind.CHAT,
-        referenceId: params.roomId,
-        eventId: params.messageId,
-        messageKey: CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
-        messageParams: {
-          authorName: params.authorName,
-          roomName: params.roomName,
-        },
-        metadata: {
-          messageId: params.messageId,
-          workspaceId,
-        },
-      });
-    } catch (error) {
-      Sentry.captureException(error, {
-        extra: {
-          roomId: params.roomId,
-          messageId: params.messageId,
-          userId,
-          notificationType: "chat-direct-message-notification",
-        },
-      });
-    }
-  }
 }
