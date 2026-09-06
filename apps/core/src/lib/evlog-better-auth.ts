@@ -10,7 +10,7 @@ import { auth } from "@/lib/auth";
  * Auth lives at `/auth`, not `/api/auth`. Ids only — no avatar, session, or UA.
  */
 const identify = createAuthMiddleware(auth, {
-  exclude: ["/auth/**", "/sync/**", "/debug/**"],
+  exclude: ["/auth/**", "/sync/**"],
   maskEmail: true,
   session: false,
   fields: ["id", "email"],

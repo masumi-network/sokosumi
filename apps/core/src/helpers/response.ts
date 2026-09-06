@@ -77,19 +77,6 @@ export const empty = (c: Context) => {
   return c.body(null, 204);
 };
 
-export const conflictWithData = <T>(c: Context, data: T) => {
-  return c.json<SuccessResponse<T>, 409>(
-    {
-      data,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: c.var.requestId,
-      },
-    },
-    409,
-  );
-};
-
 /**
  * 422 with committed side-effect payload (e.g. OUT_OF_CREDITS pause event).
  * Does not throw — callers use this after the DB transaction has committed.

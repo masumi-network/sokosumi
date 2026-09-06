@@ -36,11 +36,6 @@ const USER_UPLOAD_ADD_RANDOM_SUFFIX = true as const;
 const IMAGE_DATA_URI_REGEX =
   /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/i;
 
-/** True when `value` is a supported generated-chat image data URI (case-insensitive scheme and subtype). */
-export function isGeneratedChatImageDataUri(value: string): boolean {
-  return IMAGE_DATA_URI_REGEX.test(value.trimStart());
-}
-
 function toBlobFile(data: {
   url: string;
   pathname: string;
