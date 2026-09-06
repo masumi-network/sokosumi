@@ -293,7 +293,10 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
   });
 
   it("rejects a non-NMKR user before updating a Calendar schedule", async () => {
-    userFindUniqueMock.mockResolvedValue({ email: "ada@example.com" });
+    userFindUniqueMock.mockResolvedValue({
+      email: "ada@example.com",
+      emailVerified: true,
+    });
     requireTaskCollaborationMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,

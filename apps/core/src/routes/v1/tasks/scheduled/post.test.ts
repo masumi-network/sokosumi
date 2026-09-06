@@ -244,7 +244,10 @@ describe("POST /tasks/scheduled", () => {
   });
 
   it("rejects a non-NMKR user before creating a scheduled task", async () => {
-    userFindUniqueMock.mockResolvedValue({ email: "ada@example.com" });
+    userFindUniqueMock.mockResolvedValue({
+      email: "ada@example.com",
+      emailVerified: true,
+    });
     const transaction = {};
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback(transaction),
