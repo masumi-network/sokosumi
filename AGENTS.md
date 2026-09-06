@@ -172,35 +172,20 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 
 ## Commands
 
-| Command                | Purpose                       |
+Full list is in root `package.json`. Agents typically need:
+
+| Command | Purpose |
 | ---------------------- | ----------------------------- |
-| `pnpm install`         | Install dependencies          |
-| `pnpm env:bootstrap`   | Create/sanitize local `.env` files |
-| `pnpm portless:proxy`  | Start portless HTTPS proxy on 443 |
-| `pnpm portless:dev`    | Web + Core via portless (worktree-safe named URLs) |
-| `pnpm portless:web`    | Web only via portless (still injects both named URLs) |
-| `pnpm portless:core`   | Core only via portless (still injects both named URLs) |
+| `pnpm portless:dev` | Web + Core via portless (worktree-safe named URLs) |
+| `pnpm portless:web` / `core` | One app via portless (still injects both named URLs) |
+| `pnpm portless:proxy` | Start portless HTTPS proxy on 443 |
 | `pnpm portless:url web` / `core` | Print this checkout's named HTTPS URL |
-| `pnpm dev`             | Watch all workspace packages (classic `:3000` / `:8787`) |
-| `pnpm web:dev`         | Web on `:3000` |
-| `pnpm core:dev`        | Core on `:8787` |
-| `pnpm build`           | Build for production          |
-| `pnpm web:build`       | Build web app for production  |
-| `pnpm core:build`      | Build core API for production |
-| `pnpm web:start`       | Smoke test production build   |
-| `pnpm lint`            | Run Biome lint across the repo (`biome lint .`) |
-| `pnpm check`           | Run full Biome checks across the repo (`biome check .`) |
-| `pnpm format`          | Format entire repo with Biome (`biome format --write .`) |
-| `pnpm format:check`    | Check formatting for entire repo (`biome format .`) |
-| `pnpm --filter web lint` | Run Biome lint rules for the web app |
-| `pnpm --filter web check` | Run full Biome checks for the web app |
-| `pnpm test`            | Run tests locally             |
-| `pnpm core:test`       | Run core API tests            |
-| `pnpm web:test`        | Run web app tests             |
-| `pnpm masumi:test`     | Run masumi package tests      |
-| `pnpm web:test:ci`     | CI test execution             |
-| `pnpm --filter web format` | Format web app code with Biome |
-| `pnpm --filter @sokosumi/database format` | Format database package code  |
+| `pnpm check` | Repo-wide Biome (`biome check .`) |
+| `pnpm typecheck` | Turbo typecheck |
+| `pnpm test` | Turbo tests |
+| `pnpm prisma:generate` | Generate Prisma clients |
+| `pnpm prisma:migrate:dev` | Dev migrations |
+| `pnpm prisma:migrate:deploy` | Apply migrations |
 
 ## Testing Guidelines
 
@@ -345,52 +330,7 @@ When the caveman skill is present, follow it for all replies. Off: "stop caveman
 
 ### Ponytail
 
-Always-on for coding work. Default **full**. Off: "stop ponytail" / "normal mode". Switch: `/ponytail lite|full|ultra`. Caveman owns prose; ponytail owns what gets built. See [`.agents/skills/ponytail/`](.agents/skills/ponytail/). On-demand: `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`.
-
-You are a lazy senior developer. Lazy means efficient, not careless. The best code is the code never written.
-
-Before writing any code, stop at the first rung that holds:
-
-1. Does this need to be built at all? (YAGNI)
-2. Does it already exist in this codebase? Reuse the helper, util, or pattern that's already here, don't re-write it.
-3. Does the standard library already do this? Use it.
-4. Does a native platform feature cover it? Use it.
-5. Does an already-installed dependency solve it? Use it.
-6. Can this be one line? Make it one line.
-7. Only then: write the minimum code that works.
-
-The ladder runs after you understand the problem, not instead of it: read the task and the code it touches, trace the real flow end to end, then climb.
-
-Climb inside this file's layering, generated-files, database-access, and testing rules. Right layer beats fewest files; repo test layout beats the skill's Python self-check.
-
-Bug fix = root cause, not symptom: a report names a symptom. Grep every caller of the function you touch and fix the shared function once — one guard there is a smaller diff than one per caller, and patching only the path the ticket names leaves a sibling caller still broken.
-
-Rules:
-
-- No abstractions that weren't explicitly requested.
-- No new dependency if it can be avoided.
-- No boilerplate nobody asked for.
-- Deletion over addition. Boring over clever. Fewest files possible.
-- Shortest working diff wins, but only once you understand the problem. The smallest change in the wrong place isn't lazy, it's a second bug.
-- Question complex requests: "Do you actually need X, or does Y cover it?"
-- Pick the edge-case-correct option when two stdlib approaches are the same size, lazy means less code, not the flimsier algorithm.
-- Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) with a `ponytail:` comment naming the ceiling and upgrade path.
-
-Not lazy about: understanding the problem (read it fully and trace the real flow before picking a rung), input validation at trust boundaries, error handling that prevents data loss, security, accessibility, anything explicitly requested. Lazy code without its check is unfinished: non-trivial logic leaves one focused test next to the source. Trivial one-liners need no test.
-
-Optional Claude Code / Codex plugin (hook injection and `/ponytail` levels). This file is the always-on path; skip unless you want those extras:
-
-```
-# Claude Code — two separate prompts
-/plugin marketplace add DietrichGebert/ponytail
-/plugin install ponytail@ponytail
-
-# Codex
-codex plugin marketplace add DietrichGebert/ponytail
-codex plugin add ponytail@ponytail
-```
-
-In Codex, open `/hooks` and trust the two lifecycle hooks.
+Always-on for coding work. Default **full**. Off: "stop ponytail" / "normal mode". Switch: `/ponytail lite|full|ultra`. Caveman owns prose; ponytail owns what gets built. Load [`.agents/skills/ponytail/`](.agents/skills/ponytail/). On-demand: `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help`.
 
 ### Linear issue implementation
 

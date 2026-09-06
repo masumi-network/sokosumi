@@ -146,11 +146,7 @@ describe("authMiddleware", () => {
     expect(oauthAccessTokenFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    "coworker_legacytoken",
-    "orchestrator_currenttoken",
-    "sokoBot_currenttoken",
-  ])(
+  it.each(["coworker_legacytoken", "sokoBot_currenttoken"])(
     "authenticates %s for a remapped Soko Bot key as the soko bot",
     async (token) => {
       coworkerApiKeyFindUniqueMock.mockResolvedValue({
@@ -184,6 +180,19 @@ describe("authMiddleware", () => {
       expect(verifyApiKeyMock).not.toHaveBeenCalled();
     },
   );
+
+  it("does not treat an orchestrator_ token as a Soko Bot API key", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer orchestrator_currenttoken",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(coworkerApiKeyFindUniqueMock).not.toHaveBeenCalled();
+    expect(verifyApiKeyMock).toHaveBeenCalled();
+  });
 
   it("rejects the removed orchestrator service token", async () => {
     verifyApiKeyMock.mockResolvedValue({ valid: false, key: null });
