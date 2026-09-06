@@ -427,7 +427,7 @@ describe("NotificationKinds", () => {
     // Read before any cell: the groups answer while every row is still folded,
     // and the cell accessors open the rows to reach a cell.
     expect(groupTrigger("groupChat")).toHaveAttribute("aria-expanded", "false");
-    expect(presetButton("groupTask")).toHaveTextContent("presetResults");
+    expect(presetButton("groupTask")).toHaveTextContent("presetMost");
     expect(presetButton("groupChat")).toHaveTextContent("presetEssential");
     // The jobs waiting on the reader push, the finished ones stay in the app,
     // and what a job merely reports is off. No situation writes that, so the
@@ -468,7 +468,7 @@ describe("NotificationKinds", () => {
     // The same elements in the same order, loudest first: the list reads down
     // from the device to Sokosumi to nothing.
     expect(within(menu).getAllByRole("menuitemradio")).toEqual([
-      presetItem("presetResults"),
+      presetItem("presetMost"),
       presetItem("presetEssential"),
       presetItem("presetAppOnly"),
       presetItem("presetOff"),
@@ -507,7 +507,7 @@ describe("NotificationKinds", () => {
         .getAllByRole("button")
         .map((stop) => [stop.textContent, stop.getAttribute("aria-pressed")]),
     ).toEqual([
-      ["presetEverything", "false"],
+      ["presetMost", "false"],
       ["presetEssential", "true"],
       ["presetAppOnly", "false"],
       ["presetOff", "false"],
@@ -524,7 +524,7 @@ describe("NotificationKinds", () => {
     renderKinds();
 
     // The group is on Essential, so that is where Tab lands.
-    expect(railStop("groupChat", "presetEverything")).toHaveAttribute(
+    expect(railStop("groupChat", "presetMost")).toHaveAttribute(
       "tabindex",
       "-1",
     );
@@ -539,7 +539,7 @@ describe("NotificationKinds", () => {
 
     // Short rail, ends two words apart: the arrows wrap rather than stop.
     await user.keyboard("{ArrowRight}{ArrowRight}");
-    expect(railStop("groupChat", "presetEverything")).toHaveFocus();
+    expect(railStop("groupChat", "presetMost")).toHaveFocus();
 
     await user.keyboard("{End}");
     expect(railStop("groupChat", "presetOff")).toHaveFocus();
@@ -552,10 +552,7 @@ describe("NotificationKinds", () => {
   it("starts the rail at its first stop for a group set by hand", () => {
     renderKinds();
 
-    expect(railStop("groupJob", "presetResults")).toHaveAttribute(
-      "tabindex",
-      "0",
-    );
+    expect(railStop("groupJob", "presetMost")).toHaveAttribute("tabindex", "0");
   });
 
   /**
@@ -625,7 +622,7 @@ describe("NotificationKinds", () => {
 
     await user.click(railStop("groupChat", "presetOff"));
 
-    const stop = railStop("groupChat", "presetEverything");
+    const stop = railStop("groupChat", "presetMost");
     await waitFor(() => {
       expect(stop).toHaveAttribute("aria-disabled", "true");
     });
@@ -697,18 +694,14 @@ describe("NotificationKinds", () => {
 
     await openPresets("groupJob");
 
-    expect(presetItem("presetResults")).toHaveTextContent(
-      "presetJobResultsHint",
-    );
+    expect(presetItem("presetMost")).toHaveTextContent("presetJobMostHint");
     // Which kinds this group sends to the device, named here rather than left
     // to a sentence every group shares.
-    expect(presetItem("presetResults")).toHaveTextContent(
+    expect(presetItem("presetMost")).toHaveTextContent(
       "channelPush: kindJobAttention, kindJobCompleted",
     );
     // It stops none of them, so it names none.
-    expect(presetItem("presetResults")).not.toHaveTextContent(
-      "presetStopsLabel",
-    );
+    expect(presetItem("presetMost")).not.toHaveTextContent("presetStopsLabel");
     expect(presetItem("presetEssential")).toHaveTextContent(
       "presetJobEssentialHint",
     );
@@ -1471,7 +1464,7 @@ describe("NotificationKinds", () => {
   it("turns on a kind that was arriving nowhere, where the situation says", async () => {
     renderKinds();
 
-    await pickPreset("groupChat", "presetEverything");
+    await pickPreset("groupChat", "presetMost");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
@@ -1513,7 +1506,7 @@ describe("NotificationKinds", () => {
       expect(presetButton("groupChat")).toHaveTextContent("presetOff");
     });
 
-    await pickPreset("groupChat", "presetEverything");
+    await pickPreset("groupChat", "presetMost");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(2);
@@ -2018,7 +2011,7 @@ describe("NotificationKinds", () => {
     setAccountEnabled.mockReturnValue(new Promise(() => {}));
     renderKinds();
 
-    await pickPreset("groupChat", "presetEverything");
+    await pickPreset("groupChat", "presetMost");
 
     await waitFor(() => {
       expect(presetButton("groupChat")).toHaveAttribute(
@@ -2041,7 +2034,7 @@ describe("NotificationKinds", () => {
     patchMyPreferences.mockReturnValue(new Promise(() => {}));
     renderKinds();
 
-    await pickPreset("groupChat", "presetEverything");
+    await pickPreset("groupChat", "presetMost");
 
     const answer = presetButton("groupChat");
     await waitFor(() => {

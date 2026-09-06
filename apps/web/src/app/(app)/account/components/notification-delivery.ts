@@ -122,28 +122,23 @@ export interface PresetSpec {
 /**
  * The situations, by name.
  *
- * Three of them mean the same thing in every group, and the rail reads across
- * the card because of it: Essential is what is addressed to you, In app is all
- * of it with a quiet phone, and Off is none of it. The first stop is the one
- * that differs, because what a reader opts into differs.
+ * All four mean the same thing in every group, and the answer reads the same
+ * across the card because of it: Most is as much as the group offers, Essential
+ * is what is addressed to you, In app is all of it with a quiet phone, and Off
+ * is none of it. What Most reaches differs by group, because what a reader opts
+ * into differs; the word does not, because the amount it means does not.
  *
  * None of them touches email, which is one switch for the account rather than
  * a cell per kind. So the loudest of these is loud in Sokosumi and on the
  * device, and a reader who picks it is not signing up for a mailbox as well.
  */
-export type Preset =
-  | "RESULTS"
-  | "EVERYTHING"
-  | "ESSENTIAL"
-  | "APP_ONLY"
-  | "OFF";
+export type Preset = "MOST" | "ESSENTIAL" | "APP_ONLY" | "OFF";
 
 /** A group whose kinds are set one by one. Reported on the group, never written. */
 export type PresetState = Preset | "CUSTOM";
 
 export const PRESET_LABEL_KEY: Record<PresetState, string> = {
-  RESULTS: "presetResults",
-  EVERYTHING: "presetEverything",
+  MOST: "presetMost",
   ESSENTIAL: "presetEssential",
   APP_ONLY: "presetAppOnly",
   OFF: "presetOff",
@@ -199,8 +194,8 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
     // there asks nothing of them, and no stop here pushes it.
     presets: [
       {
-        id: "RESULTS",
-        hintKey: "presetJobResultsHint",
+        id: "MOST",
+        hintKey: "presetJobMostHint",
         reach: {
           JOB_ATTENTION: "PUSH",
           JOB_COMPLETED: "PUSH",
@@ -265,8 +260,8 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
     // should not have to read a different set of words to answer it again.
     presets: [
       {
-        id: "RESULTS",
-        hintKey: "presetTaskResultsHint",
+        id: "MOST",
+        hintKey: "presetTaskMostHint",
         reach: {
           TASK_ATTENTION: "PUSH",
           TASK_COMPLETED: "PUSH",
@@ -333,8 +328,8 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
     // the device, which is the one thing a busy room would be.
     presets: [
       {
-        id: "EVERYTHING",
-        hintKey: "presetChatEverythingHint",
+        id: "MOST",
+        hintKey: "presetChatMostHint",
         reach: {
           CHAT_ROOM_MESSAGE: "IN_APP",
           CHAT_MENTION: "PUSH",

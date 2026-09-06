@@ -261,7 +261,7 @@ describe("groupPreset", () => {
         group("JOB").presets,
         group("JOB").kinds,
       ),
-    ).toBe("RESULTS");
+    ).toBe("MOST");
   });
 
   /** One cell apart, and the two situations are different words. */
@@ -363,7 +363,7 @@ describe("groupPreset", () => {
           (kind) => kind.category !== "CHAT_ROOM_MESSAGE",
         ),
       ),
-    ).toBe("EVERYTHING");
+    ).toBe("MOST");
   });
 });
 
@@ -373,13 +373,11 @@ describe("presetChanges", () => {
    * that is what lets the rail name the situation the group is in.
    */
   it("writes the situation on every kind of the group", () => {
-    expect(presetChanges(preset("JOB", "RESULTS"), group("JOB").kinds)).toEqual(
-      [
-        { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
-        { category: "JOB_COMPLETED", channels: ["IN_APP", "OS_BANNER"] },
-        { category: "JOB_UPDATE", channels: ["IN_APP"] },
-      ],
-    );
+    expect(presetChanges(preset("JOB", "MOST"), group("JOB").kinds)).toEqual([
+      { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
+      { category: "JOB_COMPLETED", channels: ["IN_APP", "OS_BANNER"] },
+      { category: "JOB_UPDATE", channels: ["IN_APP"] },
+    ]);
   });
 
   it("silences the group", () => {
@@ -403,7 +401,7 @@ describe("presetChanges", () => {
 describe("presetPushes", () => {
   it("names the kinds a situation sends to the device", () => {
     expect(
-      categories(presetPushes(preset("JOB", "RESULTS"), group("JOB").kinds)),
+      categories(presetPushes(preset("JOB", "MOST"), group("JOB").kinds)),
     ).toEqual(["JOB_ATTENTION", "JOB_COMPLETED"]);
   });
 
@@ -434,9 +432,7 @@ describe("presetStops", () => {
   });
 
   it("names none where the situation keeps them all", () => {
-    expect(presetStops(preset("JOB", "RESULTS"), group("JOB").kinds)).toEqual(
-      [],
-    );
+    expect(presetStops(preset("JOB", "MOST"), group("JOB").kinds)).toEqual([]);
   });
 
   /** Off stops every kind, and the word Off already says that. */

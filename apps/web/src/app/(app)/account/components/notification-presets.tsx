@@ -3,7 +3,6 @@
 import {
   Bell,
   BellOff,
-  CircleCheck,
   Inbox,
   type LucideIcon,
   SlidersHorizontal,
@@ -72,8 +71,7 @@ const STOP_OFF = "text-muted-foreground hover:text-foreground";
  * and the column a reader just read about are the same thing.
  */
 const PRESET_ICON: Record<PresetState, LucideIcon> = {
-  EVERYTHING: Inbox,
-  RESULTS: CircleCheck,
+  MOST: Inbox,
   ESSENTIAL: Star,
   APP_ONLY: Bell,
   OFF: BellOff,
