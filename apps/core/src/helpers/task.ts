@@ -1,5 +1,12 @@
 import { Channel, Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
-import { canArchiveTaskStatus, convertCentsToCredits } from "@sokosumi/utils";
+import {
+  canArchiveTaskStatus,
+  convertCentsToCredits,
+  countSetAssignees,
+  hasAssigneeValue,
+  isAgentOnlyTaskStatus,
+  type TaskAssigneeKind,
+} from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import { isAgentAuthContext } from "@/middleware/auth";
@@ -127,12 +134,66 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
 interface ValidateTaskAssigneeAssignmentParams {
   status: TaskStatus;
   assigneeId: string | null | undefined;
-  assigneeSokoBotId?: string | null;
+  assigneeSokoBotId?: string | null | undefined;
+  assigneeUserId?: string | null | undefined;
+}
+
+export function taskAssigneeKind(task: {
+  assigneeId: string | null | undefined;
+  assigneeSokoBotId?: string | null | undefined;
+  assigneeUserId?: string | null | undefined;
+}): TaskAssigneeKind {
+  if (hasAssigneeValue(task.assigneeId)) {
+    return "coworker";
+  }
+  if (hasAssigneeValue(task.assigneeSokoBotId)) {
+    return "sokoBot";
+  }
+  if (hasAssigneeValue(task.assigneeUserId)) {
+    return "human";
+  }
+  return "unset";
 }
 
 function getAllowedTransitions(
   authContext: AuthenticationContext,
+  assigneeKind: TaskAssigneeKind = "coworker",
 ): Record<TaskStatus, TaskStatus[]> {
+  // Human and unset tasks always use the human table, regardless of actor:
+  // agents gated onto such tasks must not reach agent-only statuses.
+  if (assigneeKind === "human" || assigneeKind === "unset") {
+    return {
+      [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
+      [TaskStatus.QUEUED]: [],
+      [TaskStatus.READY]: [
+        TaskStatus.DRAFT,
+        TaskStatus.CANCELED,
+        TaskStatus.RUNNING,
+      ],
+      [TaskStatus.GRANT_PENDING]: [],
+      [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCELED],
+      [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCELED],
+      [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCELED],
+      [TaskStatus.OUT_OF_CREDITS]: [TaskStatus.CANCELED],
+      [TaskStatus.CREDITS_TOPPED_UP]: [TaskStatus.CANCELED],
+      [TaskStatus.RUNNING]: [
+        TaskStatus.READY,
+        TaskStatus.AWAITING_EXTERNAL,
+        TaskStatus.COMPLETED,
+        TaskStatus.CANCELED,
+      ],
+      [TaskStatus.AWAITING_EXTERNAL]: [
+        TaskStatus.RUNNING,
+        TaskStatus.READY,
+        TaskStatus.COMPLETED,
+        TaskStatus.CANCELED,
+      ],
+      [TaskStatus.COMPLETED]: [TaskStatus.READY],
+      [TaskStatus.FAILED]: [],
+      [TaskStatus.CANCELED]: [TaskStatus.READY],
+    };
+  }
+
   // A coworker acting as itself (the agent) uses the agent transition table.
   // A delegated coworker acts as the user, so it falls through to the user table.
   if (isAgentAuthContext(authContext)) {
@@ -430,12 +491,13 @@ export function validateStatusTransition(
   authContext: AuthenticationContext,
   from: TaskStatus,
   to: TaskStatus,
+  assigneeKind: TaskAssigneeKind = "coworker",
 ): void {
   if (from === to) {
     throw unprocessableEntity("Invalid status transition: same status");
   }
 
-  const allowedTransitions = getAllowedTransitions(authContext);
+  const allowedTransitions = getAllowedTransitions(authContext, assigneeKind);
   if (!allowedTransitions[from].includes(to)) {
     throw unprocessableEntity(
       `Invalid status transition from ${from} to ${to}`,
@@ -447,15 +509,21 @@ export function validateTaskAssigneeAssignment({
   status,
   assigneeId,
   assigneeSokoBotId,
+  assigneeUserId,
 }: ValidateTaskAssigneeAssignmentParams): void {
-  const hasCoworker = assigneeId != null && assigneeId !== "";
-  const hasSokoBot = assigneeSokoBotId != null && assigneeSokoBotId !== "";
-  const allowsMissingAssignee =
-    status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
-
-  if (!allowsMissingAssignee && !hasCoworker && !hasSokoBot) {
+  if (countSetAssignees(assigneeId, assigneeSokoBotId, assigneeUserId) > 1) {
     throw unprocessableEntity(
-      "assigneeId or assigneeSokoBotId is required for statuses other than draft or canceled",
+      "Task cannot be assigned to more than one assignee",
+    );
+  }
+
+  if (
+    isAgentOnlyTaskStatus(status) &&
+    !hasAssigneeValue(assigneeId) &&
+    !hasAssigneeValue(assigneeSokoBotId)
+  ) {
+    throw unprocessableEntity(
+      "An agent (Coworker or Soko Bot) assignee is required for this status",
     );
   }
 }
@@ -624,6 +692,25 @@ function mapTaskCreator(task: TaskListItemWithIncludes | TaskWithIncludes) {
 }
 
 function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
+  if (task.assigneeId != null) {
+    const coworker = coworkerSummaryFromLoadedRelation(
+      `Task ${task.id}`,
+      task.assigneeId,
+      task.assignee ?? null,
+    );
+    if (coworker == null) {
+      throw new Error(
+        `Task ${task.id}: assignee coworker summary missing for API mapping`,
+      );
+    }
+
+    return {
+      type: "coworker" as const,
+      id: task.assigneeId,
+      coworker,
+    };
+  }
+
   if (task.assigneeSokoBotId != null) {
     const sokoBot = sokoBotSummaryFromLoadedRelation(
       `Task ${task.id}`,
@@ -643,22 +730,15 @@ function mapTaskAssignee(task: TaskListItemWithIncludes | TaskWithIncludes) {
     };
   }
 
-  if (task.assigneeId != null) {
-    const coworker = coworkerSummaryFromLoadedRelation(
-      `Task ${task.id}`,
-      task.assigneeId,
-      task.assignee ?? null,
-    );
-    if (coworker == null) {
-      throw new Error(
-        `Task ${task.id}: assignee coworker summary missing for API mapping`,
-      );
-    }
-
+  if (task.assigneeUserId != null) {
     return {
-      type: "coworker" as const,
-      id: task.assigneeId,
-      coworker,
+      type: "user" as const,
+      id: task.assigneeUserId,
+      user: userSummaryFromLoadedRelation(
+        `Task ${task.id} assignee`,
+        task.assigneeUserId,
+        task.assigneeUser ?? null,
+      ),
     };
   }
 
@@ -695,6 +775,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     organization: taskOrganizationSummary,
     assigneeId: task.assigneeId,
     assigneeSokoBotId: task.assigneeSokoBotId ?? null,
+    assigneeUserId: task.assigneeUserId ?? null,
     assignee,
     coworkerId: task.assigneeId,
     coworker: assignee?.type === "coworker" ? assignee.coworker : null,

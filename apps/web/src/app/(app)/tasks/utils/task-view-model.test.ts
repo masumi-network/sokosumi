@@ -23,6 +23,7 @@ function buildTask(
     organization: null,
     assigneeId: null,
     assigneeSokoBotId: null,
+    assigneeUserId: null,
     assignee: null,
     coworkerId: null,
     coworker: null,
@@ -228,5 +229,28 @@ describe("mapTaskToTaskWithCoworker", () => {
     });
 
     expect(map(task).assignee?.name).toBe(PERSONAL_ASSISTANT);
+  });
+
+  it("maps a user assignee without looking it up in coworkers (SOK-868)", () => {
+    const task = buildTask(TaskStatus.RUNNING, {
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: "user-2",
+      assignee: {
+        type: "user",
+        id: "user-2",
+        user: { id: "user-2", name: "Bob", image: null },
+      },
+    });
+
+    const mapped = map(task);
+
+    expect(mapped.assignee).toEqual({
+      id: "user-2",
+      name: "Bob",
+      image: null,
+      kind: "user",
+    });
+    expect(mapped.columnId).toBe("in-progress");
   });
 });

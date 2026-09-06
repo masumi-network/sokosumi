@@ -142,6 +142,7 @@ const QUARANTINE_OPERATION_SELECT = {
       name: true,
       assigneeId: true,
       assigneeSokoBotId: true,
+      assigneeUserId: true,
       status: true,
       metadata: true,
       nextRunAt: true,
@@ -313,6 +314,7 @@ export async function repairTaskScheduleQuarantine(
         status: TaskStatus.QUEUED,
         assigneeId: lockedQuarantine.task.assigneeId,
         assigneeSokoBotId: lockedQuarantine.task.assigneeSokoBotId,
+        assigneeUserId: lockedQuarantine.task.assigneeUserId,
       });
       const metadata = buildTaskScheduleMetadata(input.schedule, new Date());
       const nextRunAt = computeScheduleNextRun(metadata);

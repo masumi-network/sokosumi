@@ -1874,7 +1874,13 @@
             "scheduleRun": "Geplanter Lauf",
             "scheduleSeries": "Zeitplan"
           },
-          "personalWorkspace": "Persönlich"
+          "personalWorkspace": "Persönlich",
+          "startWorking": "Arbeit beginnen",
+          "pauseToReady": "Pausieren",
+          "waitExternal": "Auf Externes warten",
+          "resumeRunning": "Fortsetzen",
+          "resumeReady": "Zurück zu Bereit",
+          "markComplete": "Als erledigt markieren"
         },
         "ShareModal": {
           "title": "Share task",
@@ -1927,7 +1933,8 @@
           "description": "Diese Aufgabe ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt.",
           "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt. Sie ist blockiert, bis ein Workspace-Inhaber oder Admin den Vendor-Zugriff genehmigt."
         },
-        "files": "Dateien"
+        "files": "Dateien",
+        "assignee": "Zuständig"
       },
       "NewTask": {
         "ContextAttachments": {
@@ -2001,7 +2008,9 @@
         "taskCreatedHint": "Alles ist eingerichtet und bereit.",
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
-        "close": "Schließen"
+        "close": "Schließen",
+        "unassigned": "Nicht zugewiesen",
+        "unassignedDescription": "Bereite Arbeit für alle zur Übernahme offen lassen"
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -2031,7 +2040,9 @@
         "save": "Speichern",
         "openSchedule": "Zeitplan festlegen",
         "cancel": "Abbrechen",
-        "ctrl": "Strg"
+        "ctrl": "Strg",
+        "unassigned": "Nicht zugewiesen",
+        "unassignedDescription": "Bereite Arbeit für alle zur Übernahme offen lassen"
       },
       "Schedule": {
         "title": "Zeitplan",
@@ -6380,7 +6391,8 @@
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
         "canceled": "{taskName} wurde abgebrochen",
         "scheduleRepaired": "Der Zeitplan für {taskName} wurde repariert",
-        "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt"
+        "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
+        "assigned": "Dir wurde {taskName} zugewiesen"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",

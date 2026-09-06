@@ -3,6 +3,7 @@
 import {
   isTaskArchivableStatus,
   isTaskEditableStatus,
+  type TaskAssigneeKind,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
@@ -110,6 +111,12 @@ interface TaskDetailActionsLabels {
   revertToDraft: string;
   cancel: string;
   share: string;
+  startWorking: string;
+  pauseToReady: string;
+  waitExternal: string;
+  resumeRunning: string;
+  resumeReady: string;
+  markComplete: string;
 }
 
 interface TaskStatusAction {
@@ -127,6 +134,7 @@ interface TaskDetailActionsProps {
   coworkerOptions: CoworkerOption[];
   agentNameById: Map<string, string>;
   defaultAssigneeId?: string | null;
+  assigneeKind?: TaskAssigneeKind;
   /** Resolved DESIGN.md for create-related flow (same picker as new task). */
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
@@ -152,6 +160,7 @@ export function TaskDetailActions({
   coworkerOptions,
   agentNameById,
   defaultAssigneeId,
+  assigneeKind,
   initialDesignMdAttachment = null,
   actionsMenuLabel,
   labels,
@@ -209,7 +218,7 @@ export function TaskDetailActions({
 
   const canMutateTask = !isReadOnly;
   const availableStatusActions = getTaskStatusActions(status, labels, {
-    hasCoworker: Boolean(defaultAssigneeId),
+    assigneeKind: assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
   });
   const statusActions = canMutateTask
     ? availableStatusActions
@@ -964,12 +973,17 @@ export function TaskDetailActions({
             agentNameById={agentNameById}
             initialDesignMdAttachment={initialDesignMdAttachment}
             initialValues={
-              defaultAssigneeId ? { assigneeId: defaultAssigneeId } : undefined
+              defaultAssigneeId
+                ? assigneeKind === "human"
+                  ? { assigneeUserId: defaultAssigneeId }
+                  : { assigneeId: defaultAssigneeId }
+                : undefined
             }
             onCreateTask={async ({
               description,
               assigneeId,
               assigneeSokoBotId,
+              assigneeUserId,
               projectId,
               status,
               schedule,
@@ -980,6 +994,7 @@ export function TaskDetailActions({
                 description,
                 assigneeId,
                 assigneeSokoBotId,
+                assigneeUserId: assigneeUserId ?? null,
                 projectId,
                 status,
                 schedule,
@@ -1037,14 +1052,43 @@ function getStatusActionMenuIcon(target: TaskStatus): LucideIcon {
 function getTaskStatusActions(
   status: TaskStatus,
   labels: TaskDetailActionsLabels,
-  options: { hasCoworker: boolean },
+  options: {
+    assigneeKind?: TaskAssigneeKind;
+  },
 ): TaskStatusAction[] {
+  const isHuman =
+    options.assigneeKind === "human" || options.assigneeKind === "unset";
+
   if (status === TaskStatus.DRAFT) {
     return [{ label: labels.markAsReady, target: TaskStatus.READY }];
   }
 
   if (status === TaskStatus.READY) {
+    if (isHuman) {
+      return [
+        { label: labels.startWorking, target: TaskStatus.RUNNING },
+        { label: labels.revertToDraft, target: TaskStatus.DRAFT },
+      ];
+    }
     return [{ label: labels.revertToDraft, target: TaskStatus.DRAFT }];
+  }
+
+  if (status === TaskStatus.RUNNING && isHuman) {
+    return [
+      { label: labels.markComplete, target: TaskStatus.COMPLETED },
+      { label: labels.waitExternal, target: TaskStatus.AWAITING_EXTERNAL },
+      { label: labels.pauseToReady, target: TaskStatus.READY },
+      { label: labels.cancel, target: TaskStatus.CANCELED },
+    ];
+  }
+
+  if (status === TaskStatus.AWAITING_EXTERNAL && isHuman) {
+    return [
+      { label: labels.resumeRunning, target: TaskStatus.RUNNING },
+      { label: labels.markComplete, target: TaskStatus.COMPLETED },
+      { label: labels.resumeReady, target: TaskStatus.READY },
+      { label: labels.cancel, target: TaskStatus.CANCELED },
+    ];
   }
 
   if (
@@ -1065,12 +1109,9 @@ function getTaskStatusActions(
     ];
   }
 
-  // READY still requires a coworker assignment in Core; terminal tasks without
-  // a coworker cannot be patched while canceled/completed, so hide reopen.
-  if (
-    (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED) &&
-    options.hasCoworker
-  ) {
+  // Unset Ready is valid (SOK-868); terminal tasks reopen to Ready with a
+  // comment whether an agent, a human, or nobody is assigned.
+  if (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED) {
     return [
       {
         label: labels.reopenToReady,

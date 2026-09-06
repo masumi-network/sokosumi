@@ -1,7 +1,10 @@
+import { countSetAssignees } from "@sokosumi/utils";
+
 interface AssigneeIdAliasInput {
   assigneeId?: string | null;
   coworkerId?: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
 }
 
 interface AssigneeIdAliasIssueContext {
@@ -44,48 +47,74 @@ export function refineAssigneeIdAliasConflict(
   }
 }
 
-function hasAssigneeValue(value: string | null | undefined): boolean {
-  return value != null && value.trim() !== "";
-}
-
-/** Coworker and sokoBot assignee FKs are XOR. */
+/** Coworker, sokoBot, and user assignee FKs are at most one. */
 export function refineAssigneeXorConflict(
   data: AssigneeIdAliasInput,
   ctx: AssigneeIdAliasIssueContext,
 ): void {
   refineAssigneeIdAliasConflict(data, ctx);
   if (
-    hasAssigneeValue(resolveAssigneeIdFromRequest(data)) &&
-    hasAssigneeValue(data.assigneeSokoBotId)
+    countSetAssignees(
+      resolveAssigneeIdFromRequest(data),
+      data.assigneeSokoBotId,
+      data.assigneeUserId,
+    ) > 1
   ) {
     ctx.addIssue({
       code: "custom",
-      message: "assigneeId and assigneeSokoBotId cannot both be set",
-      path: ["assigneeSokoBotId"],
+      message: "Task cannot be assigned to more than one assignee",
+      path: ["assigneeUserId"],
     });
   }
 }
 
 /**
- * A provided assignee field replaces the whole assignee: coworker, sokoBot,
- * or neither. Omitted fields leave the current assignee untouched.
+ * A provided assignee field replaces the whole assignee: coworker,
+ * sokoBot, user, or neither. Omitted fields leave the current assignee
+ * untouched.
  */
 export function nextAssigneeWrite(input: {
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
 }):
-  | { assigneeId: string | null; assigneeSokoBotId: string | null }
+  | {
+      assigneeId: string | null;
+      assigneeSokoBotId: string | null;
+      assigneeUserId: string | null;
+    }
   | undefined {
   const hasCoworker = input.assigneeId !== undefined;
   const hasSokoBot = input.assigneeSokoBotId !== undefined;
-  if (!hasCoworker && !hasSokoBot) return undefined;
+  const hasUser = input.assigneeUserId !== undefined;
+  if (!hasCoworker && !hasSokoBot && !hasUser) return undefined;
   const coworkerId = input.assigneeId?.trim() || null;
   const sokoBotId = input.assigneeSokoBotId?.trim() || null;
+  const userId = input.assigneeUserId?.trim() || null;
   if (hasCoworker && coworkerId) {
-    return { assigneeId: coworkerId, assigneeSokoBotId: null };
+    return {
+      assigneeId: coworkerId,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+    };
   }
   if (hasSokoBot && sokoBotId) {
-    return { assigneeId: null, assigneeSokoBotId: sokoBotId };
+    return {
+      assigneeId: null,
+      assigneeSokoBotId: sokoBotId,
+      assigneeUserId: null,
+    };
   }
-  return { assigneeId: null, assigneeSokoBotId: null };
+  if (hasUser && userId) {
+    return {
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: userId,
+    };
+  }
+  return {
+    assigneeId: null,
+    assigneeSokoBotId: null,
+    assigneeUserId: null,
+  };
 }

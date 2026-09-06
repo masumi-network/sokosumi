@@ -18,6 +18,7 @@ import {
   parseJobsListFilters,
   sanitizeJobAgentIdForPersistedFilter,
 } from "@/app/tasks/utils/jobs-filters";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
   firstQueryString,
@@ -121,6 +122,8 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     "normal";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const [taskCoworkers, projectsPage, ownerBot] = await loadTasksPageData();
+  const memberOptions =
+    await listTaskAssigneeMemberOptions(activeOrganizationId);
   const filters = parseTasksFilters(
     {
       scope,
@@ -195,6 +198,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       filters.assigneeSokoBotId === ownerSokoBotId
         ? filters.assigneeSokoBotId
         : null,
+    assigneeUserId:
+      filters.assigneeUserId &&
+      memberOptions.some((member) => member.id === filters.assigneeUserId)
+        ? filters.assigneeUserId
+        : null,
     projectId:
       filters.projectId && validProjectIds.has(filters.projectId)
         ? filters.projectId
@@ -218,6 +226,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     scope: activeFilters.scope,
     assigneeId: activeFilters.assigneeId,
     assigneeSokoBotId: activeFilters.assigneeSokoBotId,
+    assigneeUserId: activeFilters.assigneeUserId,
     status: activeFilters.status,
     projectId: activeFilters.projectId,
     coworkersById,
@@ -272,7 +281,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         ) as Record<KanbanColumnId, string | null>);
 
   const coworkerOptions: CoworkerOption[] = withOwnerSokoBotOption(
-    getCoworkerOptions(taskCoworkers),
+    [...memberOptions, ...getCoworkerOptions(taskCoworkers)],
     ownerBot,
     { fallbackName: t("sokoBot"), vendorName: t("sokoBots") },
   );

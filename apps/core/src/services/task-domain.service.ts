@@ -6,11 +6,17 @@ import {
   TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
-import { isTaskEditableStatus } from "@sokosumi/utils";
+import {
+  countSetAssignees,
+  hasAssigneeValue,
+  isAgentOnlyTaskStatus,
+  isTaskEditableStatus,
+} from "@sokosumi/utils";
 
 import {
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
+  requireTaskAssignableUser,
   type TaskAssigner,
 } from "@/helpers/access-control";
 import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
@@ -44,6 +50,7 @@ export interface CreateTaskDomainInput {
   resolveDescription?: (tx: Prisma.TransactionClient) => Promise<string | null>;
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
   status: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
   channel?: Channel;
 }
@@ -60,6 +67,7 @@ export interface UpdateTaskDomainInput {
   projectId?: string | null;
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
   status?: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
   channel?: Channel;
 }
@@ -72,10 +80,11 @@ interface PendingGrantState {
 function requireAssigneeXor(
   assigneeId: string | null | undefined,
   assigneeSokoBotId: string | null | undefined,
+  assigneeUserId?: string | null | undefined,
 ): void {
-  if (assigneeId != null && assigneeId !== "" && assigneeSokoBotId) {
+  if (countSetAssignees(assigneeId, assigneeSokoBotId, assigneeUserId) > 1) {
     throw unprocessableEntity(
-      "assigneeId and assigneeSokoBotId cannot both be set",
+      "Task cannot be assigned to more than one assignee",
     );
   }
 }
@@ -84,13 +93,16 @@ function requireAssigneeForExecutableStatus(
   status: TaskStatus,
   assigneeId: string | null | undefined,
   assigneeSokoBotId?: string | null,
+  assigneeUserId?: string | null | undefined,
 ): void {
-  const allowsMissingAssignee =
-    status === TaskStatus.DRAFT || status === TaskStatus.CANCELED;
-  const hasAssignee = assigneeId != null || assigneeSokoBotId != null;
-  if (!allowsMissingAssignee && !hasAssignee) {
+  requireAssigneeXor(assigneeId, assigneeSokoBotId, assigneeUserId);
+  if (
+    isAgentOnlyTaskStatus(status) &&
+    !hasAssigneeValue(assigneeId) &&
+    !hasAssigneeValue(assigneeSokoBotId)
+  ) {
     throw unprocessableEntity(
-      "assigneeId or assigneeSokoBotId is required for statuses other than draft or canceled",
+      "An agent (Coworker or Soko Bot) assignee is required for this status",
     );
   }
 }
@@ -129,6 +141,7 @@ async function requireTaskReferences(
     projectId?: string | null;
     assigneeId?: string | null;
     assigneeSokoBotId?: string | null;
+    assigneeUserId?: string | null;
     workspaceId: string;
     actor: TaskDomainActor;
   },
@@ -152,6 +165,13 @@ async function requireTaskReferences(
       input.workspaceId,
       tx,
       taskAssigner(input.actor),
+    );
+  }
+  if (input.assigneeUserId !== null && input.assigneeUserId !== undefined) {
+    await requireTaskAssignableUser(
+      input.assigneeUserId,
+      input.workspaceId,
+      tx,
     );
   }
 }
@@ -238,15 +258,33 @@ export async function createTaskForActor(
   input: CreateTaskDomainInput,
   tx: Prisma.TransactionClient,
 ): Promise<Task> {
-  requireAssigneeXor(input.assigneeId, input.assigneeSokoBotId);
-  requireAssigneeForExecutableStatus(
-    input.status,
+  requireAssigneeXor(
     input.assigneeId,
     input.assigneeSokoBotId,
+    input.assigneeUserId,
   );
   await requireTaskReferences(input, tx);
   const pendingGrant = await resolvePendingGrant(input, tx);
   const status = pendingGrant ? TaskStatus.GRANT_PENDING : input.status;
+  // GRANT_PENDING is agent-only. A delegated create that parks for a vendor
+  // grant and omitted assigneeId still belongs to the acting coworker.
+  const hasUserAssignee = hasAssigneeValue(input.assigneeUserId);
+  const hasAgentAssignee =
+    hasAssigneeValue(input.assigneeId) ||
+    hasAssigneeValue(input.assigneeSokoBotId);
+  const assigneeId =
+    pendingGrant &&
+    input.actor.kind === "coworker" &&
+    !hasAgentAssignee &&
+    !hasUserAssignee
+      ? input.actor.coworkerId
+      : input.assigneeId;
+  requireAssigneeForExecutableStatus(
+    status,
+    assigneeId,
+    input.assigneeSokoBotId,
+    input.assigneeUserId,
+  );
   const description =
     pendingGrant || !input.resolveDescription
       ? (input.description ?? null)
@@ -260,8 +298,9 @@ export async function createTaskForActor(
       projectId: input.projectId ?? null,
       name: input.name,
       description,
-      assigneeId: input.assigneeId ?? null,
+      assigneeId: assigneeId ?? null,
       assigneeSokoBotId: input.assigneeSokoBotId ?? null,
+      assigneeUserId: input.assigneeUserId ?? null,
       ...creatorFields(input.actor),
       status,
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
@@ -347,10 +386,15 @@ export async function updateTaskForActor(
     );
   }
 
-  requireAssigneeXor(input.assigneeId, input.assigneeSokoBotId);
+  requireAssigneeXor(
+    input.assigneeId,
+    input.assigneeSokoBotId,
+    input.assigneeUserId,
+  );
   const assigneeWrite = nextAssigneeWrite({
     assigneeId: input.assigneeId,
     assigneeSokoBotId: input.assigneeSokoBotId,
+    assigneeUserId: input.assigneeUserId,
   });
   const nextAssigneeId = assigneeWrite
     ? assigneeWrite.assigneeId
@@ -358,11 +402,15 @@ export async function updateTaskForActor(
   const nextAssigneeSokoBotId = assigneeWrite
     ? assigneeWrite.assigneeSokoBotId
     : task.assigneeSokoBotId;
+  const nextAssigneeUserId = assigneeWrite
+    ? assigneeWrite.assigneeUserId
+    : task.assigneeUserId;
   const nextStatus = input.status ?? task.status;
   requireAssigneeForExecutableStatus(
     nextStatus,
     nextAssigneeId,
     nextAssigneeSokoBotId,
+    nextAssigneeUserId,
   );
 
   await requireTaskReferences(
@@ -373,6 +421,7 @@ export async function updateTaskForActor(
       assigneeSokoBotId: assigneeWrite
         ? assigneeWrite.assigneeSokoBotId
         : undefined,
+      assigneeUserId: assigneeWrite ? assigneeWrite.assigneeUserId : undefined,
       actor: input.actor,
     },
     tx,

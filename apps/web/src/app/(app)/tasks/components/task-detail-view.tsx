@@ -2,6 +2,7 @@ import {
   hasActiveTaskSchedule,
   resolveIpfsOrHttpUrl,
   type SubscriptionPlanName,
+  type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -306,7 +307,17 @@ function taskAssigneeDisplayName(
   if (assignee.type === "sokoBot") {
     return assignee.sokoBot.name?.trim() || personalAssistantFallback;
   }
+  if (assignee.type === "user") {
+    return assignee.user.name ?? null;
+  }
   return assignee.coworker.name ?? null;
+}
+
+function taskAssigneeKindFromTask(
+  assignee: Task["assignee"],
+): TaskAssigneeKind {
+  if (!assignee) return "unset";
+  return assignee.type === "user" ? "human" : assignee.type;
 }
 
 async function TaskVendorGrantApprovalBannerSlot({
@@ -446,7 +457,7 @@ async function TaskOverviewSection({
           organization: t("organization"),
           personalWorkspace: t("personalWorkspace"),
           project: t("project"),
-          coworker: t("coworker"),
+          coworker: t("assignee"),
           credits: t("credits"),
           created: t("created"),
           updated: t("updated"),
@@ -559,6 +570,7 @@ async function TaskDetailActionsSlot({
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
       defaultAssigneeId={taskFormAssigneeId(task) || undefined}
+      assigneeKind={taskAssigneeKindFromTask(task.assignee)}
       initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
@@ -590,6 +602,12 @@ async function TaskDetailActionsSlot({
         revertToDraft: t("actions.revertToDraft"),
         cancel: t("actions.cancel"),
         share: t("actions.share"),
+        startWorking: t("actions.startWorking"),
+        pauseToReady: t("actions.pauseToReady"),
+        waitExternal: t("actions.waitExternal"),
+        resumeRunning: t("actions.resumeRunning"),
+        resumeReady: t("actions.resumeReady"),
+        markComplete: t("actions.markComplete"),
       }}
     />
   );

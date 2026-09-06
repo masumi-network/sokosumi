@@ -33,6 +33,7 @@ const {
   publishTaskEventDataMock,
   requireTaskCommentAccessMock,
   requireTaskCollaborationMock,
+  requireTaskStatusWriteAccessMock,
   requireTaskCancelAccessMock,
   removeTaskSchedulePlannedOccurrencesMock,
   waitUntilCapturedPromises,
@@ -61,6 +62,7 @@ const {
   publishTaskEventDataMock: vi.fn(),
   requireTaskCommentAccessMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
+  requireTaskStatusWriteAccessMock: vi.fn(),
   requireTaskCancelAccessMock: vi.fn(),
   removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
@@ -68,6 +70,7 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
+  requireTaskStatusWriteAccess: requireTaskStatusWriteAccessMock,
   requireTaskCommentAccess: requireTaskCommentAccessMock,
   requireTaskCancelAccess: requireTaskCancelAccessMock,
 }));
@@ -227,6 +230,8 @@ function createTask(
   overrides: Partial<{
     organizationId: string | null;
     assigneeId: string | null;
+    assigneeSokoBotId: string | null;
+    assigneeUserId: string | null;
     status: TaskStatus;
     ownerId: string;
     projectId: string | null;
@@ -236,6 +241,8 @@ function createTask(
     id: TASK_ID,
     status: TaskStatus.RUNNING,
     assigneeId: COWORKER_ID,
+    assigneeSokoBotId: null,
+    assigneeUserId: null,
     ownerId: USER_ID,
     organizationId: null,
     projectId: null,
@@ -381,6 +388,10 @@ describe("POST /{id}/events", () => {
       owner: { notificationsOptIn: true },
     });
     requireTaskCollaborationMock.mockResolvedValue(createTask());
+    requireTaskStatusWriteAccessMock.mockImplementation(
+      (vars: unknown, taskId: string, tx?: unknown) =>
+        requireTaskCollaborationMock(vars, taskId, tx),
+    );
     requireTaskCommentAccessMock.mockResolvedValue(createTask());
     requireTaskCancelAccessMock.mockResolvedValue(createTask());
   });
@@ -1196,13 +1207,20 @@ describe("POST /{id}/events", () => {
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
-  it("rejects user CANCELED → READY when the task has no coworker", async () => {
+  it("allows user CANCELED → READY with a comment when unset (SOK-868)", async () => {
     const tx: TransactionMock = {
       taskEvent: {
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.READY,
+            comment: "Please continue",
+            userId: USER_ID,
+            coworkerId: null,
+          }),
+        ),
       },
       task: {
-        updateMany: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
 
@@ -1227,8 +1245,8 @@ describe("POST /{id}/events", () => {
       }),
     });
 
-    expect(response.status).toBe(422);
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(tx.taskEvent.create).toHaveBeenCalled();
   });
 
   it("rejects user CANCELED → READY with whitespace-only comment", async () => {
@@ -2974,13 +2992,13 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskStatusWriteAccessMock).toHaveBeenCalled();
     expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
-  it("keeps non-cancel status writes on collaboration for org peers", async () => {
-    requireTaskCollaborationMock.mockRejectedValue(
+  it("keeps non-cancel status writes on status-write access for org peers", async () => {
+    requireTaskStatusWriteAccessMock.mockRejectedValue(
       new HTTPException(404, { message: "Task not found" }),
     );
 
@@ -3012,7 +3030,7 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskStatusWriteAccessMock).toHaveBeenCalled();
     expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
   });
 
@@ -3049,7 +3067,7 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskStatusWriteAccessMock).toHaveBeenCalled();
     expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();

@@ -28,6 +28,7 @@ import {
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
+import { taskAssigneeKind } from "./task";
 import {
   getWorkspaceGrant,
   requestWorkspaceGrantCommitted,
@@ -424,6 +425,45 @@ export async function requireTaskAssignableCoworker(
 }
 
 /**
+ * Human task assign: the user must belong to the target workspace.
+ * Personal workspace: the workspace owner. Org workspace: any member.
+ */
+export async function requireTaskAssignableUser(
+  userId: string,
+  workspaceId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const workspace = await tx.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { userId: true, organizationId: true },
+  });
+
+  if (!workspace) {
+    throw notFound("User is not a member of this workspace");
+  }
+
+  if (workspace.userId === userId) {
+    return;
+  }
+
+  if (!workspace.organizationId) {
+    throw notFound("User is not a member of this workspace");
+  }
+
+  const membership = await tx.member.findFirst({
+    where: {
+      organizationId: workspace.organizationId,
+      userId,
+    },
+    select: { id: true },
+  });
+
+  if (!membership) {
+    throw notFound("User is not a member of this workspace");
+  }
+}
+
+/**
  * Owner (or the PA itself) may assign a Task onto a live Soko Bot in this
  * workspace. Marketplace coworkers cannot dump work onto another user's PA.
  */
@@ -802,6 +842,35 @@ export async function requireTaskCancelAccess(
   }
 
   if (isSokoBotAuthContext(authContext)) {
+    return await requireTaskCollaboration(authContext, taskId, tx);
+  }
+
+  return await requireTaskCollaboration(authContext, taskId, tx);
+}
+
+/**
+ * Status-event writes: agent-assigned Tasks stay on
+ * {@link requireTaskCollaboration} (owner or assigned agent). Human or
+ * unset Tasks use the same actor set as cancel — owner always, org-workspace
+ * members for a task in that workspace — so assignment is routing, not a lock.
+ */
+export async function requireTaskStatusWriteAccess(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const { authContext, workspaceContext } = vars;
+
+  if (isUserAuthContext(authContext)) {
+    const workspace = requireWorkspaceContext(workspaceContext);
+    const task = await requireTaskReadForWorkspace(workspace, taskId, tx);
+    requireTaskNotParked(task);
+
+    const assigneeKind = taskAssigneeKind(task);
+    if (assigneeKind === "human" || assigneeKind === "unset") {
+      return await requireTaskCancelAccess(vars, taskId, tx);
+    }
+
     return await requireTaskCollaboration(authContext, taskId, tx);
   }
 

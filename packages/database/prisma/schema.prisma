@@ -69,6 +69,7 @@ model User {
 
   ownedTasks              Task[]                   @relation("TaskOwner")
   createdTasks            Task[]                   @relation("TaskCreatorUser")
+  assignedTasks           Task[]                   @relation("TaskAssigneeUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
   coworkerUsages          CoworkerUsage[]
@@ -2393,6 +2394,10 @@ model Task {
   assigneeSokoBotId String?  @db.Uuid
   assigneeSokoBot   SokoBot? @relation("TaskAssigneeSokoBot", fields: [assigneeSokoBotId], references: [id], onDelete: SetNull)
 
+  /// Workspace-member assignee. At most one assignee FK is set (DB check).
+  assigneeUserId String?
+  assigneeUser   User?   @relation("TaskAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+
   /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
   /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
   creatorUserId String?
@@ -2444,6 +2449,7 @@ model Task {
   @@index([ownerId, organizationId])
   @@index([assigneeId])
   @@index([assigneeSokoBotId])
+  @@index([assigneeUserId])
   @@index([projectId])
   @@index([status, nextRunAt])
   @@index([pendingVendorGrantId])

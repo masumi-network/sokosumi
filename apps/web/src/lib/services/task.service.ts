@@ -22,6 +22,7 @@ interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
   assigneeId?: string;
   assigneeSokoBotId?: string;
+  assigneeUserId?: string;
   projectId?: string;
   q?: string;
   scope?: "workspace" | "owned";
@@ -44,6 +45,7 @@ interface CreateTaskInput {
   description: string | null;
   assigneeId: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -54,6 +56,7 @@ interface PatchTaskInput {
   description?: string | null;
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
   projectId?: string | null;
 }
 
@@ -71,25 +74,43 @@ interface CreateTaskLinkInput {
 function assigneeWriteFields(
   assigneeId?: string | null,
   assigneeSokoBotId?: string | null,
+  assigneeUserId?: string | null,
 ): {
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
 } {
   if (
     typeof assigneeId === "undefined" &&
-    typeof assigneeSokoBotId === "undefined"
+    typeof assigneeSokoBotId === "undefined" &&
+    typeof assigneeUserId === "undefined"
   ) {
     return {};
   }
 
   const sokoBotId = assigneeSokoBotId?.trim() || null;
   if (sokoBotId) {
-    return { assigneeId: null, assigneeSokoBotId: sokoBotId };
+    return {
+      assigneeId: null,
+      assigneeSokoBotId: sokoBotId,
+      assigneeUserId: null,
+    };
+  }
+
+  const userId =
+    typeof assigneeUserId === "string" ? assigneeUserId.trim() || null : null;
+  if (userId) {
+    return {
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: userId,
+    };
   }
 
   return {
     assigneeId: assigneeId?.trim() ? assigneeId : null,
     assigneeSokoBotId: null,
+    assigneeUserId: null,
   };
 }
 
@@ -113,7 +134,9 @@ export const taskService = (() => {
           : undefined,
       ...(params.assigneeSokoBotId
         ? { assigneeSokoBotId: params.assigneeSokoBotId }
-        : { assigneeId: params.assigneeId }),
+        : params.assigneeUserId
+          ? { assigneeUserId: params.assigneeUserId }
+          : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
       q: params.q,
       scope: params.scope,
@@ -193,7 +216,11 @@ export const taskService = (() => {
   async function createTask(input: CreateTaskInput): Promise<Task> {
     const result = await coreClient.createTask({
       ...input,
-      ...assigneeWriteFields(input.assigneeId, input.assigneeSokoBotId),
+      ...assigneeWriteFields(
+        input.assigneeId,
+        input.assigneeSokoBotId,
+        input.assigneeUserId,
+      ),
     });
 
     if (!result.data) {
@@ -222,7 +249,11 @@ export const taskService = (() => {
   ): Promise<Task> {
     const result = await coreClient.patchTask(taskId, {
       ...input,
-      ...assigneeWriteFields(input.assigneeId, input.assigneeSokoBotId),
+      ...assigneeWriteFields(
+        input.assigneeId,
+        input.assigneeSokoBotId,
+        input.assigneeUserId,
+      ),
     });
 
     if (!result.data) {

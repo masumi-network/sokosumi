@@ -3,6 +3,14 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
 
+/** Vendor bucket for workspace-member assignee options (SOK-868). */
+const WORKSPACE_MEMBERS_VENDOR = {
+  id: "workspace-members",
+  name: "Members",
+  slug: "workspace-members",
+  logos: { light: null, dark: null },
+} as const;
+
 export interface OwnerSokoBotCopy {
   fallbackName: string;
   vendorName: string;
@@ -112,33 +120,87 @@ export function withOwnerSokoBotOption(
   return [option, ...options];
 }
 
+export function getUserOptions(
+  members: ReadonlyArray<{
+    user?: {
+      id: string;
+      email?: string | null;
+      name?: string | null;
+      image?: string | null;
+    } | null;
+  }>,
+): CoworkerOption[] {
+  const seen = new Set<string>();
+  const options: CoworkerOption[] = [];
+  for (const member of members) {
+    const user = member.user;
+    if (!user || seen.has(user.id)) continue;
+    seen.add(user.id);
+    options.push({
+      id: user.id,
+      slug: user.email?.toLowerCase() ?? user.id,
+      name: user.name?.trim() || user.email || "Member",
+      kind: "user" as const,
+      image: user.image ?? "",
+      vendor: { ...WORKSPACE_MEMBERS_VENDOR },
+    });
+  }
+  return options.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function resolveTaskAssigneeFields(
   selectedId: string | null | undefined,
   options: ReadonlyArray<Pick<CoworkerOption, "id" | "kind">>,
   knownSokoBotId?: string | null,
-): { assigneeId: string | null; assigneeSokoBotId: string | null } {
+  knownUserId?: string | null,
+): TaskAssigneeFields {
   if (!selectedId) {
-    return { assigneeId: null, assigneeSokoBotId: null };
+    return clearedAssigneeFields();
   }
 
   const selected = options.find((option) => option.id === selectedId);
   if (selected?.kind === "sokoBot") {
-    return { assigneeId: null, assigneeSokoBotId: selectedId };
+    return clearedAssigneeFields({ assigneeSokoBotId: selectedId });
+  }
+  if (selected?.kind === "user") {
+    return clearedAssigneeFields({ assigneeUserId: selectedId });
   }
   if (selected) {
-    return { assigneeId: selectedId, assigneeSokoBotId: null };
+    return clearedAssigneeFields({ assigneeId: selectedId });
   }
 
   if (knownSokoBotId && selectedId === knownSokoBotId) {
-    return { assigneeId: null, assigneeSokoBotId: selectedId };
+    return clearedAssigneeFields({ assigneeSokoBotId: selectedId });
   }
 
-  return { assigneeId: selectedId, assigneeSokoBotId: null };
+  if (knownUserId && selectedId === knownUserId) {
+    return clearedAssigneeFields({ assigneeUserId: selectedId });
+  }
+
+  return clearedAssigneeFields({ assigneeId: selectedId });
+}
+
+export interface TaskAssigneeFields {
+  assigneeId: string | null;
+  assigneeSokoBotId: string | null;
+  assigneeUserId: string | null;
+}
+
+function clearedAssigneeFields(
+  overrides?: Partial<TaskAssigneeFields>,
+): TaskAssigneeFields {
+  return {
+    assigneeId: null,
+    assigneeSokoBotId: null,
+    assigneeUserId: null,
+    ...overrides,
+  };
 }
 
 export function taskFormAssigneeId(task: {
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
+  assigneeUserId?: string | null;
 }): string {
-  return task.assigneeSokoBotId ?? task.assigneeId ?? "";
+  return task.assigneeSokoBotId ?? task.assigneeId ?? task.assigneeUserId ?? "";
 }

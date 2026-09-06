@@ -14,6 +14,7 @@ import {
   mapTaskEvent,
   mapTaskEventActor,
   mapTaskFile,
+  taskAssigneeKind,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "./task";
@@ -669,6 +670,64 @@ describe("validateStatusTransition", () => {
     });
   });
 
+  describe("human assignee path (SOK-868)", () => {
+    it.each([
+      [TaskStatus.READY, TaskStatus.RUNNING],
+      [TaskStatus.RUNNING, TaskStatus.READY],
+      [TaskStatus.RUNNING, TaskStatus.AWAITING_EXTERNAL],
+      [TaskStatus.RUNNING, TaskStatus.COMPLETED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.RUNNING],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.READY],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.COMPLETED],
+    ])("accepts %s → %s for human", (from, to) => {
+      expect(() =>
+        validateStatusTransition(userContext, from, to, "human"),
+      ).not.toThrow();
+    });
+
+    it.each([
+      [TaskStatus.READY, TaskStatus.RUNNING],
+      [TaskStatus.RUNNING, TaskStatus.COMPLETED],
+    ])("accepts %s → %s for unset", (from, to) => {
+      expect(() =>
+        validateStatusTransition(userContext, from, to, "unset"),
+      ).not.toThrow();
+    });
+
+    it.each([
+      [TaskStatus.READY, TaskStatus.COMPLETED],
+      [TaskStatus.READY, TaskStatus.QUEUED],
+      [TaskStatus.DRAFT, TaskStatus.QUEUED],
+      [TaskStatus.RUNNING, TaskStatus.FAILED],
+      [TaskStatus.RUNNING, TaskStatus.INPUT_REQUIRED],
+      [TaskStatus.AWAITING_EXTERNAL, TaskStatus.FAILED],
+    ])("rejects %s → %s for human", (from, to) => {
+      expect(() =>
+        validateStatusTransition(userContext, from, to, "human"),
+      ).toThrow(/Invalid status transition/);
+    });
+
+    it.each([
+      [TaskStatus.COMPLETED, TaskStatus.READY],
+      [TaskStatus.CANCELED, TaskStatus.READY],
+    ])("reopens %s → %s for agents gated onto human tasks", (from, to) => {
+      expect(() =>
+        validateStatusTransition(coworkerContext, from, to, "human"),
+      ).not.toThrow();
+    });
+
+    it.each([
+      [TaskStatus.COMPLETED, TaskStatus.RUNNING],
+      [TaskStatus.CANCELED, TaskStatus.RUNNING],
+      [TaskStatus.READY, TaskStatus.INPUT_REQUIRED],
+      [TaskStatus.RUNNING, TaskStatus.FAILED],
+    ])("rejects agent-only %s → %s on human tasks", (from, to) => {
+      expect(() =>
+        validateStatusTransition(coworkerContext, from, to, "human"),
+      ).toThrow(/Invalid status transition/);
+    });
+  });
+
   describe("delegated coworker acts as the user", () => {
     const delegatedCoworkerContext: AuthenticationContext = {
       actor: "coworker",
@@ -980,6 +1039,16 @@ describe("cascadeArchiveScheduleParentChildren", () => {
 });
 
 describe("validateTaskAssigneeAssignment", () => {
+  it("resolves coworker, human, and unset kinds", () => {
+    expect(taskAssigneeKind({ assigneeId: "cow_1" })).toBe("coworker");
+    expect(
+      taskAssigneeKind({ assigneeId: null, assigneeUserId: "user_1" }),
+    ).toBe("human");
+    expect(taskAssigneeKind({ assigneeId: null, assigneeUserId: null })).toBe(
+      "unset",
+    );
+  });
+
   it("allows DRAFT tasks without a coworker", () => {
     expect(() =>
       validateTaskAssigneeAssignment({
@@ -1016,20 +1085,41 @@ describe("validateTaskAssigneeAssignment", () => {
     ).not.toThrow();
   });
 
-  it("rejects non-DRAFT tasks without a coworker", () => {
+  it("allows READY tasks unset (SOK-868)", () => {
     expect(() =>
       validateTaskAssigneeAssignment({
         status: TaskStatus.READY,
+        assigneeId: null,
+        assigneeUserId: null,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects QUEUED tasks without an agent assignee", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.QUEUED,
         assigneeId: null,
       }),
     ).toThrow();
   });
 
-  it("rejects QUEUED tasks without a coworker", () => {
+  it("rejects QUEUED tasks with only a human assignee", () => {
     expect(() =>
       validateTaskAssigneeAssignment({
         status: TaskStatus.QUEUED,
         assigneeId: null,
+        assigneeUserId: "user_123",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects more than one assignee", () => {
+    expect(() =>
+      validateTaskAssigneeAssignment({
+        status: TaskStatus.READY,
+        assigneeId: "cow_123",
+        assigneeUserId: "user_123",
       }),
     ).toThrow();
   });

@@ -61,6 +61,7 @@ const {
           : null),
       assigneeSokoBotId:
         (t.assigneeSokoBotId as string | null | undefined) ?? null,
+      assigneeUserId: (t.assigneeUserId as string | null | undefined) ?? null,
       assignee:
         t.assignee ??
         (t.assigneeSokoBotId
