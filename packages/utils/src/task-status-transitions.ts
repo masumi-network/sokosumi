@@ -30,6 +30,29 @@ export type UserTransitionTaskStatus =
 /** Who the Task is handed to. Agent-assigned work keeps today's user table. */
 export type TaskAssigneeKind = "coworker" | "sokoBot" | "human" | "unset";
 
+/**
+ * Statuses that require a coworker or sokoBot assignee (queue, grants, HITL,
+ * credits, failed). Human/unset tasks cannot enter these.
+ */
+export const AGENT_ONLY_TASK_STATUSES = [
+  "QUEUED",
+  "GRANT_PENDING",
+  "INPUT_REQUIRED",
+  "APPROVAL_REQUIRED",
+  "AUTHENTICATION_REQUIRED",
+  "OUT_OF_CREDITS",
+  "CREDITS_TOPPED_UP",
+  "FAILED",
+] as const satisfies readonly UserTransitionTaskStatus[];
+
+const AGENT_ONLY_TASK_STATUS_SET: ReadonlySet<string> = new Set(
+  AGENT_ONLY_TASK_STATUSES,
+);
+
+export function isAgentOnlyTaskStatus(status: string): boolean {
+  return AGENT_ONLY_TASK_STATUS_SET.has(status);
+}
+
 const USER_TASK_STATUS_TRANSITIONS: Record<
   UserTransitionTaskStatus,
   readonly UserTransitionTaskStatus[]

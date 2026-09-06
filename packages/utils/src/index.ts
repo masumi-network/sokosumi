@@ -317,6 +317,10 @@ export {
   type TaskArchivableStatus,
 } from "./task-archive.js";
 export {
+  countSetAssignees,
+  hasAssigneeValue,
+} from "./task-assignee.js";
+export {
   descriptionIncludesTaskAttachmentLink,
   formatTaskAttachmentMarkdown,
 } from "./task-attachments.js";
@@ -354,7 +358,9 @@ export {
   taskScheduleRecurringMetadataV2Schema,
 } from "./task-schedule.js";
 export {
+  AGENT_ONLY_TASK_STATUSES,
   canUserTransitionTaskStatus,
+  isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
   type UserTransitionTaskStatus,
   userTaskStatusTransitionRequiresComment,

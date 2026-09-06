@@ -744,6 +744,12 @@ export function TaskForm({
   // Queued work must stay agent-assigned: Core rejects reassignment away
   // from an agent while QUEUED, so the edit picker locks non-agent options.
   const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
+  const memberAssigneeOptions = coworkerOptions.filter(
+    (option) => option.kind === "user",
+  );
+  const agentAssigneeOptions = coworkerOptions.filter(
+    (option) => option.kind !== "user",
+  );
   const showModalCoworkerHeader =
     selectedOption !== undefined &&
     (useComposeLayout || (isModal && mode === "edit"));
@@ -1006,39 +1012,29 @@ export function TaskForm({
                       >
                         {labels.unassigned ?? "Unassigned"}
                       </SelectItem>
-                      {coworkerOptions.some(
-                        (option) => option.kind === "user",
-                      ) ? (
+                      {memberAssigneeOptions.length > 0 ? (
                         <SelectGroup>
                           <SelectLabel>
-                            {
-                              coworkerOptions.find(
-                                (option) => option.kind === "user",
-                              )?.vendor.name
-                            }
+                            {memberAssigneeOptions[0]?.vendor.name}
                           </SelectLabel>
-                          {coworkerOptions
-                            .filter((option) => option.kind === "user")
-                            .map((option) => (
-                              <SelectItem
-                                key={option.id}
-                                value={option.id}
-                                disabled={isAssigneeLockedToAgent}
-                              >
-                                {option.name}
-                              </SelectItem>
-                            ))}
+                          {memberAssigneeOptions.map((option) => (
+                            <SelectItem
+                              key={option.id}
+                              value={option.id}
+                              disabled={isAssigneeLockedToAgent}
+                            >
+                              {option.name}
+                            </SelectItem>
+                          ))}
                         </SelectGroup>
                       ) : null}
                       <SelectGroup>
                         <SelectLabel>{labels.coworker}</SelectLabel>
-                        {coworkerOptions
-                          .filter((option) => option.kind !== "user")
-                          .map((option) => (
-                            <SelectItem key={option.id} value={option.id}>
-                              {option.name}
-                            </SelectItem>
-                          ))}
+                        {agentAssigneeOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.name}
+                          </SelectItem>
+                        ))}
                       </SelectGroup>
                     </SelectContent>
                   </Select>

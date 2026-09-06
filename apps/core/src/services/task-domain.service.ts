@@ -6,7 +6,12 @@ import {
   TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
-import { isTaskEditableStatus } from "@sokosumi/utils";
+import {
+  countSetAssignees,
+  hasAssigneeValue,
+  isAgentOnlyTaskStatus,
+  isTaskEditableStatus,
+} from "@sokosumi/utils";
 
 import {
   requireTaskAssignableCoworker,
@@ -72,35 +77,12 @@ interface PendingGrantState {
   grantResumeStatus: GrantResumeStatus;
 }
 
-function hasAssigneeValue(value: string | null | undefined): boolean {
-  return value != null && value !== "";
-}
-
-// Agent-only statuses (queue, grants, HITL, credits, failed) require a
-// coworker or sokoBot assignee. Kept local so this domain seam does not
-// import `@/helpers/task`, which pulls HTTP middleware at module load.
-// Mirrors `AGENT_ONLY_TASK_STATUSES` in `@/helpers/task`.
-const AGENT_ONLY_STATUSES: ReadonlySet<TaskStatus> = new Set([
-  TaskStatus.QUEUED,
-  TaskStatus.GRANT_PENDING,
-  TaskStatus.INPUT_REQUIRED,
-  TaskStatus.APPROVAL_REQUIRED,
-  TaskStatus.AUTHENTICATION_REQUIRED,
-  TaskStatus.OUT_OF_CREDITS,
-  TaskStatus.CREDITS_TOPPED_UP,
-  TaskStatus.FAILED,
-]);
-
 function requireAssigneeXor(
   assigneeId: string | null | undefined,
   assigneeSokoBotId: string | null | undefined,
   assigneeUserId?: string | null | undefined,
 ): void {
-  const setCount =
-    (hasAssigneeValue(assigneeId) ? 1 : 0) +
-    (hasAssigneeValue(assigneeSokoBotId) ? 1 : 0) +
-    (hasAssigneeValue(assigneeUserId) ? 1 : 0);
-  if (setCount > 1) {
+  if (countSetAssignees(assigneeId, assigneeSokoBotId, assigneeUserId) > 1) {
     throw unprocessableEntity(
       "Task cannot be assigned to more than one assignee",
     );
@@ -115,7 +97,7 @@ function requireAssigneeForExecutableStatus(
 ): void {
   requireAssigneeXor(assigneeId, assigneeSokoBotId, assigneeUserId);
   if (
-    AGENT_ONLY_STATUSES.has(status) &&
+    isAgentOnlyTaskStatus(status) &&
     !hasAssigneeValue(assigneeId) &&
     !hasAssigneeValue(assigneeSokoBotId)
   ) {
@@ -286,11 +268,10 @@ export async function createTaskForActor(
   const status = pendingGrant ? TaskStatus.GRANT_PENDING : input.status;
   // GRANT_PENDING is agent-only. A delegated create that parks for a vendor
   // grant and omitted assigneeId still belongs to the acting coworker.
-  const hasUserAssignee =
-    input.assigneeUserId != null && input.assigneeUserId !== "";
+  const hasUserAssignee = hasAssigneeValue(input.assigneeUserId);
   const hasAgentAssignee =
-    (input.assigneeId != null && input.assigneeId !== "") ||
-    (input.assigneeSokoBotId != null && input.assigneeSokoBotId !== "");
+    hasAssigneeValue(input.assigneeId) ||
+    hasAssigneeValue(input.assigneeSokoBotId);
   const assigneeId =
     pendingGrant &&
     input.actor.kind === "coworker" &&

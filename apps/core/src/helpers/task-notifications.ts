@@ -5,6 +5,38 @@ import prisma from "@/lib/db/prisma";
 
 import { createNotification } from "./notifications.js";
 
+function taskNotificationPayload(task: {
+  name: string | null;
+  projectId: string | null;
+  workspaceId: string | null;
+  project?: { name: string } | null;
+  extraMessageParams?: Record<string, unknown>;
+}): {
+  messageParams: Record<string, unknown>;
+  metadata: Record<string, unknown> | null;
+} {
+  const messageParams: Record<string, unknown> = {
+    taskName: task.name ?? "Untitled task",
+    ...task.extraMessageParams,
+  };
+  if (task.project?.name) {
+    messageParams.projectName = task.project.name;
+  }
+
+  const metadata: Record<string, unknown> = {};
+  if (task.projectId) {
+    metadata.projectId = task.projectId;
+  }
+  if (task.workspaceId) {
+    metadata.workspaceId = task.workspaceId;
+  }
+
+  return {
+    messageParams,
+    metadata: Object.keys(metadata).length > 0 ? metadata : null,
+  };
+}
+
 /**
  * Task-status notification dispatch, extracted from the task-events route so
  * the x402 pay endpoint's OUT_OF_CREDITS pause notifies the owner through the
@@ -58,27 +90,15 @@ export async function dispatchTaskNotification(
         return;
     }
 
-    const taskName = task.name ?? "Untitled task";
-    const coworkerName =
-      task.assigneeSokoBot?.name?.trim() || task.assignee?.name || "Assistant";
-    const projectName = task.project?.name;
-
-    const messageParams: Record<string, unknown> = {
-      coworkerName,
-      taskName,
-    };
-
-    if (projectName) {
-      messageParams.projectName = projectName;
-    }
-
-    const metadata: Record<string, unknown> = {};
-    if (task.projectId) {
-      metadata.projectId = task.projectId;
-    }
-    if (task.workspaceId) {
-      metadata.workspaceId = task.workspaceId;
-    }
+    const { messageParams, metadata } = taskNotificationPayload({
+      ...task,
+      extraMessageParams: {
+        coworkerName:
+          task.assigneeSokoBot?.name?.trim() ||
+          task.assignee?.name ||
+          "Assistant",
+      },
+    });
 
     await createNotification({
       userId: task.ownerId,
@@ -87,7 +107,7 @@ export async function dispatchTaskNotification(
       eventId,
       messageKey,
       messageParams,
-      metadata: Object.keys(metadata).length > 0 ? metadata : null,
+      metadata,
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -194,19 +214,7 @@ export async function notifyTaskHumanAssignee(
       return;
     }
 
-    const taskName = task.name ?? "Untitled task";
-    const messageParams: Record<string, unknown> = { taskName };
-    if (task.project?.name) {
-      messageParams.projectName = task.project.name;
-    }
-
-    const metadata: Record<string, unknown> = {};
-    if (task.projectId) {
-      metadata.projectId = task.projectId;
-    }
-    if (task.workspaceId) {
-      metadata.workspaceId = task.workspaceId;
-    }
+    const { messageParams, metadata } = taskNotificationPayload(task);
 
     await createNotification({
       userId: assigneeUserId,
@@ -215,7 +223,7 @@ export async function notifyTaskHumanAssignee(
       eventId: crypto.randomUUID(),
       messageKey: TASK_ASSIGNED_MESSAGE_KEY,
       messageParams,
-      metadata: Object.keys(metadata).length > 0 ? metadata : null,
+      metadata,
     });
   } catch (error) {
     Sentry.captureException(error, {

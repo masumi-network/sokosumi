@@ -4,23 +4,7 @@ import { getSession } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services/user.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
-import { getUserOptions, WORKSPACE_MEMBERS_VENDOR } from "./coworker-options";
-
-function personalMemberOption(user: {
-  id: string;
-  email?: string | null;
-  name?: string | null;
-  image?: string | null;
-}): CoworkerOption {
-  return {
-    id: user.id,
-    slug: (user.email ?? user.id).toLowerCase(),
-    name: user.name?.trim() || user.email || "Me",
-    kind: "user" as const,
-    image: user.image ?? "",
-    vendor: { ...WORKSPACE_MEMBERS_VENDOR },
-  };
-}
+import { getUserOptions } from "./coworker-options";
 
 /**
  * Workspace members as task-assignee options (SOK-868). Organization
@@ -48,5 +32,5 @@ export async function listTaskAssigneeMemberOptions(
   }
 
   const session = await getSession();
-  return session?.user ? [personalMemberOption(session.user)] : [];
+  return session?.user ? getUserOptions([{ user: session.user }]) : [];
 }

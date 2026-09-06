@@ -3,6 +3,7 @@
 import {
   isTaskArchivableStatus,
   isTaskEditableStatus,
+  type TaskAssigneeKind,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
@@ -133,7 +134,7 @@ interface TaskDetailActionsProps {
   coworkerOptions: CoworkerOption[];
   agentNameById: Map<string, string>;
   defaultAssigneeId?: string | null;
-  assigneeKind?: "coworker" | "sokoBot" | "human" | "unset";
+  assigneeKind?: TaskAssigneeKind;
   /** Resolved DESIGN.md for create-related flow (same picker as new task). */
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
@@ -217,7 +218,6 @@ export function TaskDetailActions({
 
   const canMutateTask = !isReadOnly;
   const availableStatusActions = getTaskStatusActions(status, labels, {
-    hasCoworker: Boolean(defaultAssigneeId),
     assigneeKind: assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
   });
   const statusActions = canMutateTask
@@ -1053,8 +1053,7 @@ function getTaskStatusActions(
   status: TaskStatus,
   labels: TaskDetailActionsLabels,
   options: {
-    hasCoworker: boolean;
-    assigneeKind?: "coworker" | "sokoBot" | "human" | "unset";
+    assigneeKind?: TaskAssigneeKind;
   },
 ): TaskStatusAction[] {
   const isHuman =

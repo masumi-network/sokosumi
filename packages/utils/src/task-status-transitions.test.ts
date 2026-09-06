@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canUserTransitionTaskStatus,
+  isAgentOnlyTaskStatus,
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";
 
@@ -90,4 +91,20 @@ describe("userTaskStatusTransitionRequiresComment", () => {
   ] as const)("does not require comment for %s → %s", (from, to) => {
     expect(userTaskStatusTransitionRequiresComment(from, to)).toBe(false);
   });
+});
+
+describe("isAgentOnlyTaskStatus", () => {
+  it.each(["QUEUED", "GRANT_PENDING", "FAILED"] as const)(
+    "marks %s agent-only",
+    (status) => {
+      expect(isAgentOnlyTaskStatus(status)).toBe(true);
+    },
+  );
+
+  it.each(["DRAFT", "READY", "RUNNING", "CANCELED"] as const)(
+    "allows %s without an agent assignee",
+    (status) => {
+      expect(isAgentOnlyTaskStatus(status)).toBe(false);
+    },
+  );
 });

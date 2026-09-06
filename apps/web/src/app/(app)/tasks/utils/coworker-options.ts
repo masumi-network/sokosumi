@@ -1,4 +1,4 @@
-import type { Coworker, Member, SokoBot } from "@/lib/clients/generated/core";
+import type { Coworker, SokoBot } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
@@ -120,7 +120,16 @@ export function withOwnerSokoBotOption(
   return [option, ...options];
 }
 
-export function getUserOptions(members: Member[]): CoworkerOption[] {
+export function getUserOptions(
+  members: ReadonlyArray<{
+    user?: {
+      id: string;
+      email?: string | null;
+      name?: string | null;
+      image?: string | null;
+    } | null;
+  }>,
+): CoworkerOption[] {
   const seen = new Set<string>();
   const options: CoworkerOption[] = [];
   for (const member of members) {

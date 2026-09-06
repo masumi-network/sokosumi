@@ -1,5 +1,12 @@
 import { Channel, Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
-import { canArchiveTaskStatus, convertCentsToCredits } from "@sokosumi/utils";
+import {
+  canArchiveTaskStatus,
+  convertCentsToCredits,
+  countSetAssignees,
+  hasAssigneeValue,
+  isAgentOnlyTaskStatus,
+  type TaskAssigneeKind,
+} from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import { isAgentAuthContext } from "@/middleware/auth";
@@ -20,6 +27,8 @@ import {
 } from "./loaded-relation-summaries";
 import { mapTaskLinksForTask } from "./task-link";
 import { mapWorkspaceSummary } from "./workspace";
+
+export type { TaskAssigneeKind };
 
 type TaskFileForMapping = TaskWithIncludes["files"][number];
 
@@ -129,23 +138,6 @@ interface ValidateTaskAssigneeAssignmentParams {
   assigneeId: string | null | undefined;
   assigneeSokoBotId?: string | null | undefined;
   assigneeUserId?: string | null | undefined;
-}
-
-export type TaskAssigneeKind = "coworker" | "sokoBot" | "human" | "unset";
-
-const AGENT_ONLY_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
-  TaskStatus.QUEUED,
-  TaskStatus.GRANT_PENDING,
-  TaskStatus.INPUT_REQUIRED,
-  TaskStatus.APPROVAL_REQUIRED,
-  TaskStatus.AUTHENTICATION_REQUIRED,
-  TaskStatus.OUT_OF_CREDITS,
-  TaskStatus.CREDITS_TOPPED_UP,
-  TaskStatus.FAILED,
-]);
-
-function hasAssigneeValue(value: string | null | undefined): boolean {
-  return value != null && value !== "";
 }
 
 export function taskAssigneeKind(task: {
@@ -521,19 +513,17 @@ export function validateTaskAssigneeAssignment({
   assigneeSokoBotId,
   assigneeUserId,
 }: ValidateTaskAssigneeAssignmentParams): void {
-  const hasCoworker = hasAssigneeValue(assigneeId);
-  const hasSokoBot = hasAssigneeValue(assigneeSokoBotId);
-  const hasUser = hasAssigneeValue(assigneeUserId);
-
-  const setCount =
-    (hasCoworker ? 1 : 0) + (hasSokoBot ? 1 : 0) + (hasUser ? 1 : 0);
-  if (setCount > 1) {
+  if (countSetAssignees(assigneeId, assigneeSokoBotId, assigneeUserId) > 1) {
     throw unprocessableEntity(
       "Task cannot be assigned to more than one assignee",
     );
   }
 
-  if (AGENT_ONLY_TASK_STATUSES.has(status) && !hasCoworker && !hasSokoBot) {
+  if (
+    isAgentOnlyTaskStatus(status) &&
+    !hasAssigneeValue(assigneeId) &&
+    !hasAssigneeValue(assigneeSokoBotId)
+  ) {
     throw unprocessableEntity(
       "An agent (Coworker or Soko Bot) assignee is required for this status",
     );

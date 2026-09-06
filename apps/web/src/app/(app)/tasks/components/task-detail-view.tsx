@@ -2,6 +2,7 @@ import {
   hasActiveTaskSchedule,
   resolveIpfsOrHttpUrl,
   type SubscriptionPlanName,
+  type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -312,6 +313,18 @@ function taskAssigneeDisplayName(
   return assignee.coworker.name ?? null;
 }
 
+const TASK_ASSIGNEE_KIND_BY_TYPE = {
+  coworker: "coworker",
+  sokoBot: "sokoBot",
+  user: "human",
+} as const satisfies Record<"coworker" | "sokoBot" | "user", TaskAssigneeKind>;
+
+function taskAssigneeKindFromTask(
+  assignee: Task["assignee"],
+): TaskAssigneeKind {
+  return assignee ? TASK_ASSIGNEE_KIND_BY_TYPE[assignee.type] : "unset";
+}
+
 async function TaskVendorGrantApprovalBannerSlot({
   task,
   forceReadOnly,
@@ -562,15 +575,7 @@ async function TaskDetailActionsSlot({
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
       defaultAssigneeId={taskFormAssigneeId(task) || undefined}
-      assigneeKind={
-        task.assignee?.type === "coworker"
-          ? "coworker"
-          : task.assignee?.type === "sokoBot"
-            ? "sokoBot"
-            : task.assignee?.type === "user"
-              ? "human"
-              : "unset"
-      }
+      assigneeKind={taskAssigneeKindFromTask(task.assignee)}
       initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}

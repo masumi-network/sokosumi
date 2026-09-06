@@ -1,3 +1,5 @@
+import { countSetAssignees } from "@sokosumi/utils";
+
 interface AssigneeIdAliasInput {
   assigneeId?: string | null;
   coworkerId?: string | null;
@@ -45,21 +47,19 @@ export function refineAssigneeIdAliasConflict(
   }
 }
 
-function hasAssigneeValue(value: string | null | undefined): boolean {
-  return value != null && value.trim() !== "";
-}
-
 /** Coworker, sokoBot, and user assignee FKs are at most one. */
 export function refineAssigneeXorConflict(
   data: AssigneeIdAliasInput,
   ctx: AssigneeIdAliasIssueContext,
 ): void {
   refineAssigneeIdAliasConflict(data, ctx);
-  const setCount =
-    (hasAssigneeValue(resolveAssigneeIdFromRequest(data)) ? 1 : 0) +
-    (hasAssigneeValue(data.assigneeSokoBotId) ? 1 : 0) +
-    (hasAssigneeValue(data.assigneeUserId) ? 1 : 0);
-  if (setCount > 1) {
+  if (
+    countSetAssignees(
+      resolveAssigneeIdFromRequest(data),
+      data.assigneeSokoBotId,
+      data.assigneeUserId,
+    ) > 1
+  ) {
     ctx.addIssue({
       code: "custom",
       message: "Task cannot be assigned to more than one assignee",
