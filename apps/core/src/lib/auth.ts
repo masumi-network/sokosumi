@@ -324,19 +324,21 @@ export const auth = betterAuth({
             });
           }
 
-          void webhookService
-            .callAccountCreated(account.userId, account.providerId)
-            .catch((error) => {
-              Sentry.captureException(error, {
-                tags: {
-                  context: "account_created_webhook",
-                },
-                extra: {
-                  userId: account.userId,
-                  providerId: account.providerId,
-                },
-              });
-            });
+          waitUntil(
+            webhookService
+              .callAccountCreated(account.userId, account.providerId)
+              .catch((error) => {
+                Sentry.captureException(error, {
+                  tags: {
+                    context: "account_created_webhook",
+                  },
+                  extra: {
+                    userId: account.userId,
+                    providerId: account.providerId,
+                  },
+                });
+              }),
+          );
         },
       },
     },
@@ -424,16 +426,18 @@ export const auth = betterAuth({
           return { data: guarded };
         },
         after: async (user, _ctx) => {
-          void webhookService.callUserUpdated(user).catch((error) => {
-            Sentry.captureException(error, {
-              tags: {
-                context: "user_updated_webhook",
-              },
-              extra: {
-                userId: user.id,
-              },
-            });
-          });
+          waitUntil(
+            webhookService.callUserUpdated(user).catch((error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "user_updated_webhook",
+                },
+                extra: {
+                  userId: user.id,
+                },
+              });
+            }),
+          );
           void handleUserUpdateStripeEmailSync(user);
         },
       },
@@ -500,24 +504,26 @@ export const auth = betterAuth({
         resetLink: url,
       });
 
-      void sendEmail({
-        to: user.email,
-        tag: "reset-password",
-        subject: email.subject,
-        html: email.html,
-      }).catch((error) => {
-        captureExternalServiceError(error, {
-          label: "reset_password_email",
-          sentry: {
-            tags: {
-              context: "reset_password_email",
+      waitUntil(
+        sendEmail({
+          to: user.email,
+          tag: "reset-password",
+          subject: email.subject,
+          html: email.html,
+        }).catch((error) => {
+          captureExternalServiceError(error, {
+            label: "reset_password_email",
+            sentry: {
+              tags: {
+                context: "reset_password_email",
+              },
             },
-          },
-          extra: {
-            userId: user.id,
-          },
-        });
-      });
+            extra: {
+              userId: user.id,
+            },
+          });
+        }),
+      );
     },
   },
   emailVerification: {
@@ -528,24 +534,26 @@ export const auth = betterAuth({
         verificationLink: url,
       });
 
-      void sendEmail({
-        to: user.email,
-        tag: "verification-email",
-        subject: email.subject,
-        html: email.html,
-      }).catch((error) => {
-        captureExternalServiceError(error, {
-          label: "verification_email",
-          sentry: {
-            tags: {
-              context: "verification_email",
+      waitUntil(
+        sendEmail({
+          to: user.email,
+          tag: "verification-email",
+          subject: email.subject,
+          html: email.html,
+        }).catch((error) => {
+          captureExternalServiceError(error, {
+            label: "verification_email",
+            sentry: {
+              tags: {
+                context: "verification_email",
+              },
             },
-          },
-          extra: {
-            userId: user.id,
-          },
-        });
-      });
+            extra: {
+              userId: user.id,
+            },
+          });
+        }),
+      );
     },
     sendOnSignUp: true,
     sendOnSignIn: true,
@@ -603,24 +611,26 @@ export const auth = betterAuth({
           name,
         });
 
-        void sendEmail({
-          to: email,
-          tag: "magic-link",
-          subject: renderedEmail.subject,
-          html: renderedEmail.html,
-        }).catch((error) => {
-          captureExternalServiceError(error, {
-            label: "magic_link_email",
-            sentry: {
-              tags: {
-                context: "magic_link_email",
+        waitUntil(
+          sendEmail({
+            to: email,
+            tag: "magic-link",
+            subject: renderedEmail.subject,
+            html: renderedEmail.html,
+          }).catch((error) => {
+            captureExternalServiceError(error, {
+              label: "magic_link_email",
+              sentry: {
+                tags: {
+                  context: "magic_link_email",
+                },
               },
-            },
-            extra: {
-              email,
-            },
-          });
-        });
+              extra: {
+                email,
+              },
+            });
+          }),
+        );
       },
     }),
     i18n({
@@ -762,25 +772,27 @@ export const auth = betterAuth({
           organizationName: data.organization.name,
         });
 
-        void sendEmail({
-          to: data.email,
-          tag: "invitation-email",
-          subject: email.subject,
-          html: email.html,
-        }).catch((error) => {
-          captureExternalServiceError(error, {
-            label: "organization_invitation_email",
-            sentry: {
-              tags: {
-                context: "organization_invitation_email",
+        waitUntil(
+          sendEmail({
+            to: data.email,
+            tag: "invitation-email",
+            subject: email.subject,
+            html: email.html,
+          }).catch((error) => {
+            captureExternalServiceError(error, {
+              label: "organization_invitation_email",
+              sentry: {
+                tags: {
+                  context: "organization_invitation_email",
+                },
               },
-            },
-            extra: {
-              invitationId: data.id,
-              organizationId: data.organization.id,
-            },
-          });
-        });
+              extra: {
+                invitationId: data.id,
+                organizationId: data.organization.id,
+              },
+            });
+          }),
+        );
       },
       invitationLimit: LIMITS.ORGANIZATION_INVITATION_LIMIT,
       cancelPendingInvitationsOnReInvite: true,
