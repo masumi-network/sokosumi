@@ -313,16 +313,11 @@ function taskAssigneeDisplayName(
   return assignee.coworker.name ?? null;
 }
 
-const TASK_ASSIGNEE_KIND_BY_TYPE = {
-  coworker: "coworker",
-  sokoBot: "sokoBot",
-  user: "human",
-} as const satisfies Record<"coworker" | "sokoBot" | "user", TaskAssigneeKind>;
-
 function taskAssigneeKindFromTask(
   assignee: Task["assignee"],
 ): TaskAssigneeKind {
-  return assignee ? TASK_ASSIGNEE_KIND_BY_TYPE[assignee.type] : "unset";
+  if (!assignee) return "unset";
+  return assignee.type === "user" ? "human" : assignee.type;
 }
 
 async function TaskVendorGrantApprovalBannerSlot({

@@ -45,12 +45,8 @@ export const AGENT_ONLY_TASK_STATUSES = [
   "FAILED",
 ] as const satisfies readonly UserTransitionTaskStatus[];
 
-const AGENT_ONLY_TASK_STATUS_SET: ReadonlySet<string> = new Set(
-  AGENT_ONLY_TASK_STATUSES,
-);
-
 export function isAgentOnlyTaskStatus(status: string): boolean {
-  return AGENT_ONLY_TASK_STATUS_SET.has(status);
+  return (AGENT_ONLY_TASK_STATUSES as readonly string[]).includes(status);
 }
 
 const USER_TASK_STATUS_TRANSITIONS: Record<

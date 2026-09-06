@@ -14,9 +14,7 @@ import { getUserOptions } from "./coworker-options";
 export async function listTaskAssigneeMemberOptions(
   organizationId: string | null,
 ): Promise<CoworkerOption[]> {
-  let orgMembers: Awaited<
-    ReturnType<typeof userService.getOrganizationMembers>
-  > = [];
+  let orgMembers: Parameters<typeof getUserOptions>[0] = [];
   if (organizationId) {
     try {
       orgMembers = await userService.getOrganizationMembers(organizationId);

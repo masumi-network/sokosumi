@@ -28,8 +28,6 @@ import {
 import { mapTaskLinksForTask } from "./task-link";
 import { mapWorkspaceSummary } from "./workspace";
 
-export type { TaskAssigneeKind };
-
 type TaskFileForMapping = TaskWithIncludes["files"][number];
 
 export function mapTaskFile(file: TaskFileForMapping) {

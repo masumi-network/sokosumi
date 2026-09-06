@@ -4,7 +4,7 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
 
 /** Vendor bucket for workspace-member assignee options (SOK-868). */
-export const WORKSPACE_MEMBERS_VENDOR = {
+const WORKSPACE_MEMBERS_VENDOR = {
   id: "workspace-members",
   name: "Members",
   slug: "workspace-members",

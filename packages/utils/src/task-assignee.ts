@@ -7,11 +7,5 @@ export function hasAssigneeValue(value: string | null | undefined): boolean {
 export function countSetAssignees(
   ...ids: Array<string | null | undefined>
 ): number {
-  let count = 0;
-  for (const id of ids) {
-    if (hasAssigneeValue(id)) {
-      count += 1;
-    }
-  }
-  return count;
+  return ids.filter(hasAssigneeValue).length;
 }
