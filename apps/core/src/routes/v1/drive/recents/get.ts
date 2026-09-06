@@ -7,6 +7,7 @@ import {
 
 import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { fetchDriveRecentsPage } from "@/helpers/drive-recents";
 import {
@@ -26,11 +27,7 @@ import {
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  isCoworkerAuthContext,
-  isSokoBotAuthContext,
-  requireUserContext,
-} from "@/middleware/auth";
+import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import {
   driveRecentsListSchema,
   driveRecentsQuerySchema,
@@ -65,7 +62,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const query = c.req.valid("query");
-    const userContext = requireUserContext(authContext);
+    const userContext = await requireAuthorizedUserContext(authContext);
 
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");

@@ -9,6 +9,7 @@ import {
 import { BlobError, BlobNotFoundError, head, list, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
   requireOrganizationDriveFileUploadAccess,
   requireUserDriveFileUploadAccess,
@@ -23,7 +24,6 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { createDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
 
 const route = createRoute({
@@ -63,7 +63,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireUserContext(authContext);
+    const userContext = await requireAuthorizedUserContext(authContext);
     const body = c.req.valid("json");
 
     const env = getEnv();

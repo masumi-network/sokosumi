@@ -129,6 +129,12 @@ vi.mock("@/helpers/drive-file-access", async (importOriginal) => {
 vi.mock("@/helpers/vendor-grants", () => ({
   hasGrantedWorkspaceAccess: vi.fn().mockResolvedValue(false),
   buildCoworkerTaskListAccessFilter: vi.fn().mockReturnValue({}),
+  getWorkspaceGrant: vi.fn().mockResolvedValue({
+    id: "grant_123",
+    status: "GRANTED",
+    permission: "WORKSPACE",
+  }),
+  isGrantDeniedOrRevoked: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock("@sokosumi/net", () => ({
