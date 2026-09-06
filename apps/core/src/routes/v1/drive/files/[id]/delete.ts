@@ -2,12 +2,12 @@ import { createRoute } from "@hono/zod-openapi";
 import { BlobNotFoundError, del, head } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { notFound, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { deleteDriveFileRequestSchema } from "@/schemas/drive-file.schema";
 
 const route = createRoute({
@@ -45,7 +45,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireUserContext(authContext);
+    const userContext = await requireAuthorizedUserContext(authContext);
     const body = c.req.valid("json");
 
     const env = getEnv();
