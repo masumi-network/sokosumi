@@ -123,6 +123,68 @@ const SOURCES: WorkspaceCalendarSource[] = [
 ];
 
 describe("WorkspaceCalendar", () => {
+  it("renders Calendar items received after the initial client render", async () => {
+    const { rerender } = render(
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+        <WorkspaceCalendar
+          items={[]}
+          initialDate="2026-08-18"
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /Prepare release notes/ }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+        <WorkspaceCalendar
+          items={ITEMS}
+          initialDate="2026-08-18"
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      await screen.findAllByRole("button", { name: /Prepare release notes/ }),
+    ).toHaveLength(2);
+  });
+
+  it("places the schedule action at the right edge of the toolbar", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC">
+        <WorkspaceCalendar
+          items={ITEMS}
+          initialDate="2026-08-18"
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(screen.getByRole("button", { name: "create.title" })).toHaveClass(
+      "ml-auto",
+    );
+  });
+
+  it("shows a plus icon before the schedule action label", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC">
+        <WorkspaceCalendar
+          items={ITEMS}
+          initialDate="2026-08-18"
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "create.title" }).firstElementChild,
+    ).toHaveClass("lucide-plus");
+  });
+
   it("does not render a page heading", () => {
     render(
       <NuqsTestingAdapter>
