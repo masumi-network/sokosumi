@@ -11,7 +11,7 @@ import {
   subscriptionRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import { getEnv } from "@/config/env";
@@ -399,18 +399,15 @@ export async function handleInvoicePaidEvent(
 ): Promise<void> {
   // Validate invoice has required data
   if (!invoice.id) {
-    console.log(`Invoice has no ID`);
     return;
   }
   const invoiceId = invoice.id;
 
   if (!invoice.customer) {
-    console.log(`Invoice ${invoiceId} has no customer`);
     return;
   }
 
   if (invoice.amount_paid === null) {
-    console.log(`Invoice ${invoiceId} has no amount paid`);
     return;
   }
 
@@ -481,7 +478,6 @@ export async function handleInvoicePaidEvent(
   // Ensure invoice has line items
   const lineItems = invoice.lines?.data;
   if (!lineItems || lineItems.length === 0) {
-    console.log(`Invoice ${invoiceId} has no line items to process`);
     return;
   }
 
@@ -522,15 +518,6 @@ export async function handleInvoicePaidEvent(
     }
   }
 
-  if (
-    billingReason &&
-    !SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS.has(billingReason) &&
-    billingReason !== SUBSCRIPTION_UPDATE_BILLING_REASON
-  ) {
-    console.log(
-      `Skipping subscription credits for invoice ${invoiceId} due to billing reason ${billingReason}`,
-    );
-  }
   const isSubscriptionUpdate =
     billingReason === SUBSCRIPTION_UPDATE_BILLING_REASON;
   const subscriptionCreditTotals = await calculateSubscriptionCreditTotals({
@@ -582,9 +569,6 @@ export async function handleInvoicePaidEvent(
       });
 
     if (existingOrganizationInvoiceSubscriptionBucket) {
-      console.log(
-        `✅ Organization invoice ${invoiceId} subscription grants already exist; skipping replay split`,
-      );
       skipOrganizationSubscriptionSplit = true;
     }
   }
@@ -602,9 +586,6 @@ export async function handleInvoicePaidEvent(
   });
 
   if (creditGrants.length === 0) {
-    console.log(
-      `Invoice ${invoiceId} has no grantable credits (billing reason: ${invoice.billing_reason})`,
-    );
     return;
   }
 
@@ -623,9 +604,6 @@ export async function handleInvoicePaidEvent(
       });
 
       if (existingBucket) {
-        console.log(
-          `✅ Bucket already exists for invoice reference ${grant.referenceId}, skipping creation`,
-        );
         continue;
       }
 
@@ -673,10 +651,6 @@ export async function handleInvoicePaidEvent(
       }
 
       creditsGranted = true;
-
-      console.log(
-        `✅ Processed invoice ${invoiceId}: Created transaction and bucket with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${grant.userId}`}${grant.expiresAt ? ` (expires ${grant.expiresAt.toISOString()})` : ""}`,
-      );
     }
 
     if (creditsGranted) {
