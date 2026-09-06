@@ -141,16 +141,36 @@ function ChannelExplainer({
  * Each name holds the width of the column it sits over, so the word and the
  * cells under it share both edges. Under the line is the rule the rows are
  * divided by, which is what makes it read as a head rather than as a gap.
+ *
+ * The left column is named too, over the kinds rather than over cells. Three
+ * words crowded against the right edge of an otherwise empty band read as
+ * something that fell off the row above; named on both sides, the band is a
+ * head. A phone has no width to spare for the word, and the names of the
+ * columns need what there is, so there it is left out.
  */
-export function ChannelLegend({ pushBlock }: { pushBlock: PushBlock | null }) {
+export function ChannelLegend({
+  pushBlock,
+  named = false,
+}: {
+  pushBlock: PushBlock | null;
+  /** The rows under this head carry their kind's name. */
+  named?: boolean;
+}) {
   const t = useTranslations("App.Account.Notifications");
 
   return (
     <div
       role="group"
       aria-label={t("channelsLegendLabel")}
-      className="text-muted-foreground flex items-end justify-end gap-2 pt-1.5 pb-1 text-xs"
+      className="text-muted-foreground flex items-end justify-end gap-2 pt-2.5 pb-1.5 text-xs"
     >
+      {named ? (
+        // Lined up with the kind names below it, which is the whole of what it
+        // is doing here.
+        <span className="hidden min-w-0 flex-1 pr-3 pl-6 sm:block sm:pl-10">
+          {t("channelsKindLabel")}
+        </span>
+      ) : null}
       {CHANNEL_SPECS.map((spec) => (
         <ChannelExplainer
           key={spec.id}

@@ -4192,6 +4192,7 @@
         "channelPushHint": "On your device, even when Sokosumi is closed.",
         "channelEmail": "Email",
         "channelEmailHint": "One switch behind every job email: an email when a job completes, resolves, or waits on your input.",
+        "channelsKindLabel": "Notification",
         "channelsLegendLabel": "What the columns mean",
         "channelEmailFallbackHint": "An email when a job completes, resolves, or waits on your input.",
         "channelsAnnounce": "{kind}: {channels}",
