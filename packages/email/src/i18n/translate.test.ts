@@ -22,20 +22,20 @@ function flattenKeys(
 
 describe("email translator", () => {
   it("uses exact locale matches when available", () => {
-    const { locale, t } = createEmailTranslator("pt-BR");
+    const { locale, t } = createEmailTranslator("es");
 
-    expect(locale).toBe("pt-BR");
+    expect(locale).toBe("es");
     expect(t("auth.resetPassword.subject")).toBe(
-      "Sokosumi - Redefinir sua senha",
+      "Sokosumi - Restablecer contraseña",
     );
   });
 
   it("falls back to the base locale when only the language matches", () => {
-    const { locale, t } = createEmailTranslator("pt-PT");
+    const { locale, t } = createEmailTranslator("de-AT");
 
-    expect(locale).toBe("pt");
+    expect(locale).toBe("de");
     expect(t("auth.resetPassword.subject")).toBe(
-      "Sokosumi - Repor a sua palavra-passe",
+      "Sokosumi - Passwort zurücksetzen",
     );
   });
 
@@ -49,20 +49,10 @@ describe("email translator", () => {
   });
 
   it("normalizes locale tags before checking locale support", () => {
-    const { locale } = createEmailTranslator("pt_br");
+    const { locale } = createEmailTranslator("es_MX");
 
-    expect(locale).toBe("pt-BR");
+    expect(locale).toBe("es");
   });
-
-  it.each(["zh-CN", "zh-SG", "zh-Hans-CN"])(
-    "maps common Simplified Chinese tags to zh-Hans (%s)",
-    (value) => {
-      const { locale, t } = createEmailTranslator(value);
-
-      expect(locale).toBe("zh-Hans");
-      expect(t("auth.magicLink.subject")).toBe("Sokosumi - 登录您的账户");
-    },
-  );
 
   it("keeps every raw locale catalog aligned with the English key shape", () => {
     const englishKeys = flattenKeys(

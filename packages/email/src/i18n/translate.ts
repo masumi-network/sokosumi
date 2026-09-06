@@ -12,7 +12,6 @@ import {
 
 const DEFAULT_EMAIL_LOCALE: EmailLocale = "en";
 const EMAIL_LOCALE_SET = new Set<string>(EMAIL_LOCALES);
-const SIMPLIFIED_CHINESE_REGIONS = new Set(["CN", "MY", "SG"]);
 
 function normalizeLocaleTag(
   rawLocale: null | string | undefined,
@@ -47,25 +46,6 @@ function resolveSupportedEmailLocale(
 
   if (EMAIL_LOCALE_SET.has(normalizedLocale)) {
     return normalizedLocale as EmailLocale;
-  }
-
-  try {
-    const parsedLocale = new Intl.Locale(normalizedLocale);
-
-    if (parsedLocale.language === "zh") {
-      if (parsedLocale.script === "Hans") {
-        return "zh-Hans";
-      }
-
-      if (
-        parsedLocale.region &&
-        SIMPLIFIED_CHINESE_REGIONS.has(parsedLocale.region)
-      ) {
-        return "zh-Hans";
-      }
-    }
-  } catch {
-    // Fall through to generic locale matching.
   }
 
   const baseLanguage = normalizedLocale.split("-").at(0);

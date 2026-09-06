@@ -107,12 +107,12 @@ describe("email renderers", () => {
       agentName: "Planner",
       jobLink: "https://example.com/job",
       jobStatus: "completed",
-      locale: "fr",
+      locale: "es",
       recipientName: "Andreas",
     });
 
-    expect(rendered.subject).toBe("Sokosumi - job termin\u00e9 de Planner");
-    expect(rendered.html).toContain("Votre job");
+    expect(rendered.subject).toBe("Sokosumi - Job completado de Planner");
+    expect(rendered.html).toContain("Tu job");
     expect(rendered.html).toContain("Planner");
   });
 
