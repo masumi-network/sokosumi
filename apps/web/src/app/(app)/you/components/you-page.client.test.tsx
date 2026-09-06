@@ -59,7 +59,6 @@ function renderYouPage(
       calendarMenuEnabled={false}
       planName="Pro"
       totalCredits={15_750}
-      extraCredits={750}
       creditUsage={null}
       subscriptionPeriodEndMs={null}
       currentTimestampMs={1_700_000_000_000}
@@ -101,7 +100,8 @@ describe("YouPageClient", () => {
         .getByText("patrick@example.com")
         .compareDocumentPosition(statusPlan) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByText(/balanceCreditsLabel 15750/)).toBeInTheDocument();
+    expect(screen.queryByText(/balanceCreditsLabel/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("credits-cycle-overview")).toBeNull();
   });
 
   it("shows a large avatar with initials", () => {
@@ -239,5 +239,21 @@ describe("YouPageClient", () => {
       id: "user_1",
       email: "patrick@example.com",
     });
+  });
+
+  it("shows plan-cycle remaining on You and never extra-credit copy", () => {
+    renderYouPage({
+      creditUsage: {
+        percentageUsed: 25,
+        remaining: 750,
+        total: 1_000,
+        used: 250,
+      },
+    });
+
+    expect(screen.getByTestId("credits-cycle-overview")).toBeInTheDocument();
+    expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
+    expect(screen.queryByText("extraCredits")).not.toBeInTheDocument();
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
   });
 });
