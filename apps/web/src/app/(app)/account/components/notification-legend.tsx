@@ -149,7 +149,7 @@ export function ChannelLegend({ pushBlock }: { pushBlock: PushBlock | null }) {
     <div
       role="group"
       aria-label={t("channelsLegendLabel")}
-      className="text-muted-foreground flex items-end justify-end gap-2 pt-1 pb-1.5 text-xs"
+      className="text-muted-foreground flex items-end justify-end gap-2 pt-1.5 pb-1 text-xs"
     >
       {CHANNEL_SPECS.map((spec) => (
         <ChannelExplainer
