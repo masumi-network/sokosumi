@@ -5,7 +5,6 @@ import type { CreditUsage } from "@/lib/types/credit";
 export interface AccountSummaryCreditProps {
   planName: string | null;
   totalCredits: number | null;
-  extraCredits: number | null;
   creditUsage: CreditUsage | null;
   subscriptionPeriodEndMs: number | null;
   currentTimestampMs: number;

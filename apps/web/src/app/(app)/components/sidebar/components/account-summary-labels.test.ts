@@ -4,6 +4,7 @@ import {
   isLowCreditsBalance,
   resolveAccountCreditsLabel,
   resolveAccountSummaryLabel,
+  resolveCreditRenewalKind,
 } from "@/app/components/sidebar/components/account-summary-labels";
 
 describe("resolveAccountCreditsLabel", () => {
@@ -73,5 +74,25 @@ describe("isLowCreditsBalance", () => {
 
   it("is true when a positive balance sits under the threshold", () => {
     expect(isLowCreditsBalance(42, 100)).toBe(true);
+  });
+});
+
+describe("resolveCreditRenewalKind", () => {
+  const now = 1_700_000_000_000;
+
+  it("returns null without a period end or response timestamp", () => {
+    expect(resolveCreditRenewalKind(null, now)).toBeNull();
+    expect(resolveCreditRenewalKind(now + 86_400_000, 0)).toBeNull();
+  });
+
+  it("classifies expired, today, and remaining-day resets", () => {
+    expect(resolveCreditRenewalKind(now - 1, now)).toEqual({ kind: "expired" });
+    expect(resolveCreditRenewalKind(now + 3_600_000, now)).toEqual({
+      kind: "today",
+    });
+    expect(resolveCreditRenewalKind(now + 3 * 86_400_000, now)).toEqual({
+      kind: "inDays",
+      days: 3,
+    });
   });
 });

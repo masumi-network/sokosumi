@@ -51,7 +51,6 @@ export async function YouPageContent() {
       calendarMenuEnabled={calendarMenuEnabled}
       planName={planName}
       totalCredits={credits.totalCredits}
-      extraCredits={credits.extraCredits}
       creditUsage={credits.creditUsage}
       subscriptionPeriodEndMs={credits.subscriptionPeriodEndMs}
       currentTimestampMs={credits.currentTimestampMs}

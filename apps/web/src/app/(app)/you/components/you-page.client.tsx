@@ -19,14 +19,11 @@ import {
   MobileStackedMenuLink,
 } from "@/app/components/mobile-stacked-menu/mobile-stacked-menu";
 import { getAccountNavItems } from "@/app/components/sidebar/components/account-menu-config";
-import {
-  isLowCreditsBalance,
-  resolveAccountCreditsLabel,
-} from "@/app/components/sidebar/components/account-summary-labels";
 import type {
   AccountAdminSettingsChrome,
   AccountSummaryCreditProps,
 } from "@/app/components/sidebar/components/account-summary-types";
+import { CreditsCycleOverview } from "@/app/components/sidebar/components/credits-cycle-overview.client";
 import {
   YOU_DEVELOPER_PATH,
   YOU_HELP_PATH,
@@ -36,13 +33,9 @@ import { PresenceDot } from "@/components/chat/presence-dot";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { useSelfPresence } from "@/hooks/use-self-presence";
-import { cn } from "@/lib/utils";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getInitials } from "@/lib/utils/text";
 
-const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const ADMIN_HREF = "/admin";
 const DRIVE_HREF = "/drive";
 const CALENDAR_HREF = "/calendar";
@@ -57,19 +50,15 @@ export function YouPageClient({
   sessionUser,
   calendarMenuEnabled,
   planName,
-  totalCredits,
-  extraCredits,
   creditUsage,
   subscriptionPeriodEndMs,
   currentTimestampMs,
-  lowCreditsThreshold,
   buyCreditsLabel,
   buyCreditsPath,
   adminSettingsChrome,
 }: YouPageClientProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tCredit = useTranslations("Components.UserAvatar");
-  const tBilling = useTranslations("App.Billing");
   const tPresence = useTranslations("App.Channels.Presence");
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
   const tYou = useTranslations("App.You.Metadata");
@@ -82,41 +71,11 @@ export function YouPageClient({
     sessionUser.email,
   );
   const presenceLabel = tPresence(presence);
-  const usage = creditUsage;
-  const creditsLabel = resolveAccountCreditsLabel(totalCredits, (credits) =>
-    tBilling("balanceCreditsLabel", { credits }),
-  );
-  const isLowCredits = isLowCreditsBalance(totalCredits, lowCreditsThreshold);
-
-  const displayExtraCredits =
-    extraCredits === null ? null : formatCreditsForDisplay(extraCredits);
-  const showExtraCredits =
-    usage !== null && displayExtraCredits !== null && displayExtraCredits > 0;
 
   const accountNavItems = getAccountNavItems({
     activeOrganizationId: adminSettingsChrome.activeOrganizationId,
     members: adminSettingsChrome.members,
   });
-
-  function resolveRenewalLabel(): string | null {
-    if (subscriptionPeriodEndMs === null || currentTimestampMs <= 0) {
-      return null;
-    }
-
-    const remainingMs = subscriptionPeriodEndMs - currentTimestampMs;
-    if (remainingMs < 0) {
-      return tCredit("creditsExpired");
-    }
-    if (remainingMs < MILLISECONDS_PER_DAY) {
-      return tCredit("creditsExpiresToday");
-    }
-
-    return tCredit("creditsExpiresInDays", {
-      days: Math.ceil(remainingMs / MILLISECONDS_PER_DAY),
-    });
-  }
-
-  const renewalLabel = resolveRenewalLabel();
 
   function handleLogout() {
     showLogoutModal({ id: sessionUser.id, email: sessionUser.email });
@@ -167,58 +126,18 @@ export function YouPageClient({
           </div>
         </header>
 
-        <section className="space-y-4" aria-labelledby="you-credits-heading">
-          <div className="space-y-1">
-            <p
-              id="you-credits-heading"
-              className="text-lg leading-none font-semibold tracking-tight tabular-nums"
-            >
-              {creditsLabel ?? t("detailsUnavailable")}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {tCredit("totalBalanceLabel")}
-            </p>
-          </div>
-          {usage ? (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium">{t("monthlyCredits")}</p>
-              <Progress
-                className={cn(
-                  "h-1.5",
-                  isLowCredits ? "bg-semantic-warning/20" : "bg-primary/20",
-                )}
-                value={usage.percentageUsed}
-                aria-label={tCredit("creditsConsumedProgressAria")}
-                indicatorClassName={
-                  isLowCredits ? "bg-semantic-warning" : "bg-primary"
-                }
-              />
-              <p className="text-muted-foreground text-xs">
-                {tCredit("creditsUsedOfTotal", {
-                  used: formatCreditsForDisplay(usage.used),
-                  total: formatCreditsForDisplay(usage.total),
-                })}
-              </p>
-              {renewalLabel !== null ? (
-                <p className="text-muted-foreground text-xs">{renewalLabel}</p>
-              ) : null}
-            </div>
-          ) : null}
-          {showExtraCredits ? (
-            <div className="space-y-1">
-              <p className="text-muted-foreground text-xs">
-                {tCredit("extraCredits")}
-              </p>
-              <p className="text-sm leading-none font-medium tabular-nums">
-                {tBilling("balanceCreditsLabel", {
-                  credits: displayExtraCredits,
-                })}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {tCredit("extraCreditsDescription")}
-              </p>
-            </div>
-          ) : null}
+        <section
+          className="space-y-4"
+          aria-labelledby={
+            creditUsage !== null ? "you-credits-heading" : undefined
+          }
+        >
+          <CreditsCycleOverview
+            creditUsage={creditUsage}
+            subscriptionPeriodEndMs={subscriptionPeriodEndMs}
+            currentTimestampMs={currentTimestampMs}
+            headingId="you-credits-heading"
+          />
           <Button
             type="button"
             size="sm"

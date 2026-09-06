@@ -11,25 +11,18 @@ import { PresenceDot } from "@/components/chat/presence-dot";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { useSelfPresence } from "@/hooks/use-self-presence";
-import { cn } from "@/lib/utils";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getInitials } from "@/lib/utils/text";
 
 import { AccountPopoverDrill } from "./account-popover-drill.client";
-import {
-  isLowCreditsBalance,
-  resolveAccountCreditsLabel,
-} from "./account-summary-labels";
 import type {
   AccountAdminSettingsChrome,
   AccountPopoverPanel,
   AccountSummaryCreditProps,
   AccountSummaryIdentityProps,
 } from "./account-summary-types";
+import { CreditsCycleOverview } from "./credits-cycle-overview.client";
 
-const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const GRAVATAR_SIZE = 80;
 const ADMIN_HREF = "/admin";
 
@@ -43,12 +36,9 @@ export interface AccountSummaryMenuProps
 export function AccountSummaryMenu({
   sessionUser,
   planName,
-  totalCredits,
-  extraCredits,
   creditUsage,
   subscriptionPeriodEndMs,
   currentTimestampMs,
-  lowCreditsThreshold,
   buyCreditsLabel,
   buyCreditsPath,
   onRequestClose,
@@ -56,7 +46,6 @@ export function AccountSummaryMenu({
 }: AccountSummaryMenuProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tCredit = useTranslations("Components.UserAvatar");
-  const tBilling = useTranslations("App.Billing");
   const tPresence = useTranslations("App.Channels.Presence");
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
   const { showLogoutModal } = useGlobalModalsContext();
@@ -70,34 +59,6 @@ export function AccountSummaryMenu({
     sessionUser.email,
   );
   const presenceLabel = tPresence(presence);
-  const usage = creditUsage;
-  const creditsLabel = resolveAccountCreditsLabel(totalCredits, (credits) =>
-    tBilling("balanceCreditsLabel", { credits }),
-  );
-  const isLowCredits = isLowCreditsBalance(totalCredits, lowCreditsThreshold);
-
-  const displayExtraCredits =
-    extraCredits === null ? null : formatCreditsForDisplay(extraCredits);
-  const showExtraCredits =
-    usage !== null && displayExtraCredits !== null && displayExtraCredits > 0;
-
-  function resolveRenewalLabel(): string | null {
-    if (subscriptionPeriodEndMs === null || currentTimestampMs <= 0) {
-      return null;
-    }
-
-    const remainingMs = subscriptionPeriodEndMs - currentTimestampMs;
-    if (remainingMs < 0) {
-      return tCredit("creditsExpired");
-    }
-    if (remainingMs < MILLISECONDS_PER_DAY) {
-      return tCredit("creditsExpiresToday");
-    }
-
-    return tCredit("creditsExpiresInDays", {
-      days: Math.ceil(remainingMs / MILLISECONDS_PER_DAY),
-    });
-  }
 
   function handleBuyCredits() {
     onRequestClose();
@@ -144,8 +105,6 @@ export function AccountSummaryMenu({
       scrollContainer.scrollTop = 0;
     }
   }
-
-  const renewalLabel = resolveRenewalLabel();
 
   return (
     <div ref={menuRootRef}>
@@ -196,58 +155,12 @@ export function AccountSummaryMenu({
             ) : null}
           </div>
           <div className="bg-border h-px" />
-          <div className="space-y-1">
-            <p className="text-lg leading-none font-semibold tracking-tight tabular-nums">
-              {creditsLabel ?? t("detailsUnavailable")}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {tCredit("totalBalanceLabel")}
-            </p>
-          </div>
-          {usage ? (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium">{t("monthlyCredits")}</p>
-              <Progress
-                className={cn(
-                  "h-1.5",
-                  isLowCredits ? "bg-semantic-warning/20" : "bg-primary/20",
-                )}
-                value={usage.percentageUsed}
-                aria-label={tCredit("creditsConsumedProgressAria")}
-                indicatorClassName={
-                  isLowCredits ? "bg-semantic-warning" : "bg-primary"
-                }
-              />
-              <p className="text-muted-foreground text-xs">
-                {tCredit("creditsUsedOfTotal", {
-                  used: formatCreditsForDisplay(usage.used),
-                  total: formatCreditsForDisplay(usage.total),
-                })}
-              </p>
-              {renewalLabel !== null ? (
-                <p className="text-muted-foreground text-xs">{renewalLabel}</p>
-              ) : null}
-            </div>
-          ) : null}
-          {showExtraCredits ? (
-            <>
-              <div className="bg-border h-px" />
-              <div className="space-y-1">
-                <p className="text-muted-foreground text-xs">
-                  {tCredit("extraCredits")}
-                </p>
-                <p className="text-sm leading-none font-medium tabular-nums">
-                  {tBilling("balanceCreditsLabel", {
-                    credits: displayExtraCredits,
-                  })}
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  {tCredit("extraCreditsDescription")}
-                </p>
-              </div>
-            </>
-          ) : null}
-          <div className="bg-border h-px" />
+          <CreditsCycleOverview
+            creditUsage={creditUsage}
+            subscriptionPeriodEndMs={subscriptionPeriodEndMs}
+            currentTimestampMs={currentTimestampMs}
+          />
+          {creditUsage !== null ? <div className="bg-border h-px" /> : null}
           <div className="space-y-2">
             <Button
               type="button"

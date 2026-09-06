@@ -61,7 +61,6 @@ describe("mapAccountCreditsChrome", () => {
       currentTimestampMs: 0,
       subscriptionPeriodEndMs: null,
       totalCredits: null,
-      extraCredits: null,
       creditUsage: null,
     });
   });
@@ -102,7 +101,6 @@ describe("mapAccountCreditsChrome", () => {
       currentTimestampMs: timestamp.getTime(),
       subscriptionPeriodEndMs: periodEnd.getTime(),
       totalCredits: 100,
-      extraCredits: 10,
       creditUsage: {
         percentageUsed: 25,
         remaining: 75,
