@@ -88,3 +88,18 @@ describe("stored orchestrator: prefixes", () => {
     );
   });
 });
+
+describe("stored soko-bot avatar blob prefixes", () => {
+  it("rewrites imageUrl and avatarImageUrl from /soko-bot-avatars/ to /soko-bots/avatars/", () => {
+    const sql = migrationSql();
+    expect(sql).toMatch(
+      /replace\("imageUrl", '\/soko-bot-avatars\/', '\/soko-bots\/avatars\/'\)/,
+    );
+    expect(sql).toMatch(
+      /replace\("avatarImageUrl", '\/soko-bot-avatars\/', '\/soko-bots\/avatars\/'\)/,
+    );
+    expect(sql).toMatch(/WHERE "imageUrl" LIKE '%\/soko-bot-avatars\/%'/);
+    expect(sql).toMatch(/WHERE "avatarImageUrl" LIKE '%\/soko-bot-avatars\/%'/);
+    expect(sql).not.toMatch(/replace\("sourceUrl"/);
+  });
+});

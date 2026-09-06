@@ -32,6 +32,7 @@
     "write-openapi-snapshot-for-web": "tsx scripts/write-openapi-for-web.mts",
     "bench:coworker-chat": "tsx --env-file=.env scripts/bench-coworker-chat.mts",
     "soko-bot:import-cutover": "tsx --env-file=.env scripts/import-soko-bot-cutover.mts",
+    "soko-bot:copy-avatars": "tsx --env-file=.env scripts/copy-soko-bot-avatars.mts",
     "soko-bot:lab": "tsx --env-file=.env scripts/soko-bot-lab.mts",
     "soko-bot:tool-smoke": "tsx --env-file=.env scripts/soko-bot-tool-smoke.mts",
     "soko-bot:trace": "tsx --env-file=.env scripts/soko-bot-trace.mts"
