@@ -169,7 +169,7 @@ function GroupRows({
         email={email}
         pushBlock={pushBlock}
         showNames={!alone}
-        heads={<ChannelLegend pushBlock={pushBlock} />}
+        heads={<ChannelLegend pushBlock={pushBlock} named={!alone} />}
         onToggle={(kind, channel, on) => {
           void choices.setDeliveries([
             {
