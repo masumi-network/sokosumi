@@ -7,6 +7,12 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { created } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import {
+  findTaskProjectInWorkspace,
+  healProjectBriefingUrl,
+  resolveTaskDescriptionWithContext,
+} from "@/helpers/task-create-context";
+import { resolveTaskName } from "@/helpers/task-name";
 import { TaskScheduleOccurrenceLimitError } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -16,10 +22,11 @@ import {
 } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { taskSchema } from "@/schemas/task.schema";
+import { createTaskContextSchema, taskSchema } from "@/schemas/task.schema";
 import { taskScheduleInputSchema } from "@/schemas/task-schedule.schema";
 import {
   createScheduledTaskInTransaction,
+  findScheduledTaskCreateOperation,
   requireScheduledTaskCreator,
 } from "@/services/task-schedule-create.service";
 import { taskInclude } from "@/types/task";
@@ -36,9 +43,10 @@ export const createScheduledTaskRequestSchema = z
   .object({
     operationId: z.string().uuid(),
     source: scheduledTaskSourceSchema,
-    name: z.string().trim().min(1).max(LIMITS.NAME_MAX_LENGTH),
+    name: z.string().trim().min(1).max(LIMITS.NAME_MAX_LENGTH).optional(),
     description: z.string().nullish(),
     assigneeId: z.string().min(1),
+    context: createTaskContextSchema.optional(),
     schedule: taskScheduleInputSchema,
   })
   .openapi("CreateScheduledTaskRequest");
@@ -83,34 +91,86 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("Calendar is only available to NMKR users");
     }
     const body = c.req.valid("json");
-    const taskId = await serializableTransaction(async (tx) => {
-      const creator = await requireScheduledTaskCreator(
-        c.var.authContext,
-        workspaceContext.workspaceId,
-        tx,
-      );
-      await requireAssignedOrganizationSeat(
-        creator.userContext.userId,
-        workspaceContext.organizationId,
-        tx,
-      );
-      return await createScheduledTaskInTransaction(
-        {
-          creator,
-          workspaceId: workspaceContext.workspaceId,
-          organizationId: workspaceContext.organizationId,
-          ...body,
-        },
-        tx,
-      );
-    }, "Scheduled task creation conflicted; retry with the same operationId").catch(
-      (error: unknown) => {
-        if (error instanceof TaskScheduleOccurrenceLimitError) {
-          throw badRequest(error.message);
-        }
-        throw error;
-      },
+    const preflightCreator = await requireScheduledTaskCreator(
+      c.var.authContext,
+      workspaceContext.workspaceId,
     );
+    await requireAssignedOrganizationSeat(
+      preflightCreator.userContext.userId,
+      workspaceContext.organizationId,
+    );
+    const scheduledTaskInput = {
+      creator: preflightCreator,
+      workspaceId: workspaceContext.workspaceId,
+      organizationId: workspaceContext.organizationId,
+      ...body,
+      name: body.name ?? "",
+      requestFingerprintPayload: {
+        name: body.name ?? null,
+        description: body.description ?? null,
+        context: body.context ?? null,
+      },
+    };
+    let taskId = await findScheduledTaskCreateOperation(
+      scheduledTaskInput,
+      prisma,
+    );
+    if (!taskId) {
+      const resolvedName = await resolveTaskName({
+        name: body.name,
+        description: body.description,
+      });
+      const projectId =
+        body.source.type === "project" ? body.source.projectId : null;
+      const project = await findTaskProjectInWorkspace(
+        projectId,
+        workspaceContext.workspaceId,
+      );
+      if (body.context?.briefing !== false) {
+        await healProjectBriefingUrl(project, workspaceContext.workspaceId);
+      }
+      taskId = await serializableTransaction(async (tx) => {
+        const creator = await requireScheduledTaskCreator(
+          c.var.authContext,
+          workspaceContext.workspaceId,
+          tx,
+        );
+        await requireAssignedOrganizationSeat(
+          creator.userContext.userId,
+          workspaceContext.organizationId,
+          tx,
+        );
+        const project = await findTaskProjectInWorkspace(
+          projectId,
+          workspaceContext.workspaceId,
+          tx,
+        );
+        const description = await resolveTaskDescriptionWithContext({
+          context: body.context,
+          description: body.description,
+          organizationId: workspaceContext.organizationId,
+          ownerId: creator.userContext.userId,
+          project,
+          tx,
+        });
+        return await createScheduledTaskInTransaction(
+          {
+            ...scheduledTaskInput,
+            creator,
+            name: resolvedName,
+            description,
+          },
+          tx,
+        );
+      }, "Scheduled task creation conflicted; retry with the same operationId").catch(
+        (error: unknown) => {
+          if (error instanceof TaskScheduleOccurrenceLimitError) {
+            throw badRequest(error.message);
+          }
+          throw error;
+        },
+      );
+    }
     const task = await prisma.task.findUniqueOrThrow({
       where: { id: taskId },
       include: taskInclude,

@@ -18859,6 +18859,9 @@ export const CreateScheduledTaskRequestSchema = {
             type: 'string',
             minLength: 1
         },
+        context: {
+            $ref: '#/components/schemas/CreateTaskContext'
+        },
         schedule: {
             $ref: '#/components/schemas/TaskScheduleInput'
         }
@@ -18866,7 +18869,6 @@ export const CreateScheduledTaskRequestSchema = {
     required: [
         'operationId',
         'source',
-        'name',
         'assigneeId',
         'schedule'
     ]

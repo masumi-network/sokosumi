@@ -28,7 +28,6 @@ const {
   alertDialogActionMock,
   alertDialogMock,
   clearTaskScheduleMock,
-  createScheduledTaskMock,
   filterDropdownMenuMock,
   fullCalendarMock,
   getProjectCalendarMock,
@@ -36,6 +35,7 @@ const {
   getWorkspaceCalendarMock,
   interactionPluginMock,
   metadataToSelectionMock,
+  openCreateTaskModalMock,
   pushMock,
   refreshMock,
   saveCalendarTaskScheduleMock,
@@ -44,7 +44,6 @@ const {
   alertDialogActionMock: vi.fn(),
   alertDialogMock: vi.fn(),
   clearTaskScheduleMock: vi.fn(),
-  createScheduledTaskMock: vi.fn(),
   filterDropdownMenuMock: vi.fn(),
   fullCalendarMock: vi.fn(),
   getProjectCalendarMock: vi.fn(),
@@ -52,6 +51,7 @@ const {
   getWorkspaceCalendarMock: vi.fn(),
   interactionPluginMock: {},
   metadataToSelectionMock: vi.fn(),
+  openCreateTaskModalMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   saveCalendarTaskScheduleMock: vi.fn(),
@@ -100,6 +100,12 @@ vi.mock("next-intl", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: refreshMock }),
+}));
+
+vi.mock("@/app/tasks/components/create-task-modal", () => ({
+  useCreateTaskModal: () => ({
+    handleOpenWithDefaults: openCreateTaskModalMock,
+  }),
 }));
 
 vi.mock("@/components/ui/alert-dialog", async (importOriginal) => {
@@ -182,7 +188,6 @@ vi.mock("@/components/task-schedule-section", () => ({
 
 vi.mock("@/lib/actions/task/action", () => ({
   clearTaskSchedule: clearTaskScheduleMock,
-  createScheduledTask: createScheduledTaskMock,
   saveCalendarTaskSchedule: saveCalendarTaskScheduleMock,
 }));
 
@@ -333,10 +338,6 @@ async function openClearConfirmation(user: ReturnType<typeof userEvent.setup>) {
 describe("WorkspaceCalendar editing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createScheduledTaskMock.mockResolvedValue({
-      ok: true,
-      value: { name: "Prepare release notes", taskId: "task-1" },
-    });
     saveCalendarTaskScheduleMock.mockResolvedValue({
       ok: true,
       value: { taskId: "task-1" },
@@ -441,48 +442,22 @@ describe("WorkspaceCalendar editing", () => {
     );
   });
 
-  it("creates a locked Project task with a stable operation ID after a date click retry", async () => {
+  it("opens the shared task modal with a locked Project and clicked schedule", async () => {
     const user = userEvent.setup();
-    createScheduledTaskMock
-      .mockRejectedValueOnce(new Error("Create failed"))
-      .mockResolvedValueOnce({
-        ok: true,
-        value: { name: "Prepare release notes", taskId: "task-1" },
-      });
     renderCalendar({ lockedProjectId: "project-1" });
 
     await user.click(
       screen.getAllByRole("button", { name: "empty calendar slot" })[0],
     );
-    expect(screen.getByRole("dialog")).toHaveTextContent("create.title");
-    expect(screen.queryByLabelText("create.source")).not.toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("create.name"), "New release");
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("create.error");
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
-    await waitFor(() =>
-      expect(createScheduledTaskMock).toHaveBeenCalledTimes(2),
-    );
-
-    expect(createScheduledTaskMock).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        assigneeId: "coworker-1",
-        name: "New release",
-        source: { projectId: "project-1", type: "project" },
-      }),
-    );
-    expect(createScheduledTaskMock.mock.calls[0]?.[0].operationId).toBe(
-      createScheduledTaskMock.mock.calls[1]?.[0].operationId,
-    );
-    expect(createScheduledTaskMock.mock.calls[0]?.[0].operationId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-    );
-    expect(refreshMock).toHaveBeenCalledOnce();
+    expect(openCreateTaskModalMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      schedule: {
+        mode: "once",
+        oneTimeLocalIso: "2030-01-02T09:00",
+        timezone: "UTC",
+      },
+    });
   });
 
   it("opens calendar scheduling for the visible calendar date", async () => {
@@ -504,9 +479,9 @@ describe("WorkspaceCalendar editing", () => {
 
     await user.click(createButton);
 
-    expect(screen.getByRole("dialog")).toHaveTextContent("create.title");
-    expect(taskScheduleSectionMock.mock.calls.at(-1)?.[0]).toMatchObject({
-      initialSelection: {
+    expect(openCreateTaskModalMock).toHaveBeenCalledWith({
+      projectId: null,
+      schedule: {
         mode: "once",
         oneTimeLocalIso: "2030-01-02T12:00",
         timezone: "Pacific/Kiritimati",
@@ -514,20 +489,26 @@ describe("WorkspaceCalendar editing", () => {
     });
   });
 
-  it("requires an explicit source before creating from the workspace Calendar", async () => {
+  it("prefills the active Project source on the workspace Calendar", async () => {
     const user = userEvent.setup();
-    renderCalendar();
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-1">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2030-01-02"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
 
     await user.click(
       screen.getAllByRole("button", { name: "empty calendar slot" })[0],
     );
-    await user.type(screen.getByLabelText("create.name"), "New release");
-    await user.click(screen.getByRole("button", { name: "save schedule" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "create.validationError",
+    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "project-1" }),
     );
-    expect(createScheduledTaskMock).not.toHaveBeenCalled();
   });
 
   it("hides mobile Agenda scheduling when no source can accept a task", () => {
@@ -563,70 +544,7 @@ describe("WorkspaceCalendar editing", () => {
       screen.getAllByRole("button", { name: "empty calendar slot" })[0],
     );
 
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  it("does not offer unschedulable sources when creating a task", async () => {
-    const user = userEvent.setup();
-    renderCalendar({
-      sources: SOURCES.map((source) =>
-        source.sourceId === "project:project-1"
-          ? { ...source, isSchedulable: false }
-          : source,
-      ),
-    });
-
-    await user.click(
-      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
-    );
-    await user.click(screen.getByLabelText("create.source"));
-
-    expect(
-      screen.queryByRole("option", { name: "Release planning" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("option", { name: "Ada's workspace" }),
-    ).toBeInTheDocument();
-  });
-
-  it("shows assignee images and source logos or palette markers when creating a task", async () => {
-    const user = userEvent.setup();
-    renderCalendar({
-      coworkers: [
-        { id: "coworker-1", image: "https://example.com/ada.png", name: "Ada" },
-      ],
-      sources: [
-        { ...SOURCES[0], logoUrl: "https://example.com/workspace.png" },
-        SOURCES[1],
-      ],
-    });
-
-    await user.click(
-      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
-    );
-    await user.click(screen.getByLabelText("create.source"));
-    await user.click(screen.getByRole("option", { name: "Ada's workspace" }));
-
-    expect(
-      screen
-        .getByLabelText("create.source")
-        .querySelector('img[src="https://example.com/workspace.png"]'),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByLabelText("create.assignee"));
-    expect(
-      screen
-        .getByRole("option", { name: "Ada" })
-        .querySelector('img[src="https://example.com/ada.png"]'),
-    ).toBeInTheDocument();
-
-    await user.keyboard("{Escape}");
-    await user.click(screen.getByLabelText("create.source"));
-    expect(
-      within(
-        screen.getByRole("option", { name: "Release planning" }),
-      ).getByTestId("calendar-source-marker"),
-    ).toHaveClass("bg-chart-2");
+    expect(openCreateTaskModalMock).not.toHaveBeenCalled();
   });
 
   it("does not open locked Project creation when its source is unschedulable", async () => {
@@ -644,8 +562,7 @@ describe("WorkspaceCalendar editing", () => {
       screen.getAllByRole("button", { name: "empty calendar slot" })[0],
     );
 
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(createScheduledTaskMock).not.toHaveBeenCalled();
+    expect(openCreateTaskModalMock).not.toHaveBeenCalled();
   });
 
   it("opens an existing event editor and saves its schedule", async () => {

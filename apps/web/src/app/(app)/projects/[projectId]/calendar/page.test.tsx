@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
@@ -7,6 +8,8 @@ const getProjectCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
 const listCoworkersMock = vi.fn();
 const workspaceCalendarMock = vi.fn();
+const calendarCreateTaskModalMock = vi.fn();
+const createTaskModalProviderMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -27,6 +30,23 @@ vi.mock("@/app/calendar/components/workspace-calendar", () => ({
   WorkspaceCalendar: (props: unknown) => {
     workspaceCalendarMock(props);
     return null;
+  },
+}));
+
+vi.mock("@/app/calendar/components/calendar-create-task-modal", () => ({
+  CalendarCreateTaskModal: (props: unknown) => {
+    calendarCreateTaskModalMock(props);
+    return null;
+  },
+}));
+
+vi.mock("@/app/tasks/components/create-task-modal", () => ({
+  CreateTaskModalProvider: (props: {
+    children: ReactNode;
+    initialProjectId?: string;
+  }) => {
+    createTaskModalProviderMock(props);
+    return props.children;
   },
 }));
 
@@ -162,6 +182,15 @@ describe("ProjectCalendarPage", () => {
         sourceType: "PROJECT",
       }),
     ]);
+    expect(createTaskModalProviderMock).toHaveBeenCalledWith(
+      expect.objectContaining({ initialProjectId: PROJECT.id }),
+    );
+    expect(calendarCreateTaskModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lockProjectSelection: true,
+        projectOptions: [expect.objectContaining({ id: PROJECT.id })],
+      }),
+    );
   });
 
   it("passes a closed Project as an unschedulable source", async () => {

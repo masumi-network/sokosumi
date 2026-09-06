@@ -1,6 +1,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { TaskScheduleOccurrenceLimitError } from "@/helpers/task-schedule-occurrence-index";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
@@ -18,16 +19,26 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   createScheduledTaskInTransactionMock,
+  findScheduledTaskCreateOperationMock,
   mapTaskMock,
   prismaTransactionMock,
+  findTaskProjectInWorkspaceMock,
+  healProjectBriefingUrlMock,
+  resolveTaskDescriptionWithContextMock,
+  resolveTaskNameMock,
   requireAssignedOrganizationSeatMock,
   requireScheduledTaskCreatorMock,
   taskFindUniqueOrThrowMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
   createScheduledTaskInTransactionMock: vi.fn(),
+  findScheduledTaskCreateOperationMock: vi.fn(),
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  findTaskProjectInWorkspaceMock: vi.fn(),
+  healProjectBriefingUrlMock: vi.fn(),
+  resolveTaskDescriptionWithContextMock: vi.fn(),
+  resolveTaskNameMock: vi.fn(),
   requireAssignedOrganizationSeatMock: vi.fn(),
   requireScheduledTaskCreatorMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
@@ -50,12 +61,23 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("@/helpers/task-create-context", () => ({
+  findTaskProjectInWorkspace: findTaskProjectInWorkspaceMock,
+  healProjectBriefingUrl: healProjectBriefingUrlMock,
+  resolveTaskDescriptionWithContext: resolveTaskDescriptionWithContextMock,
+}));
+
+vi.mock("@/helpers/task-name", () => ({
+  resolveTaskName: resolveTaskNameMock,
+}));
+
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: prismaTransactionMock,
 }));
 
 vi.mock("@/services/task-schedule-create.service", () => ({
   createScheduledTaskInTransaction: createScheduledTaskInTransactionMock,
+  findScheduledTaskCreateOperation: findScheduledTaskCreateOperationMock,
   requireScheduledTaskCreator: requireScheduledTaskCreatorMock,
 }));
 
@@ -121,15 +143,20 @@ function buildMappedTask() {
 }
 
 describe("createScheduledTaskRequestSchema", () => {
-  it("accepts a project Calendar source with an idempotent v2 schedule request", () => {
+  it("accepts New Task modal fields with an idempotent v2 schedule request", () => {
     const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 
     expect(
       createScheduledTaskRequestSchema.parse({
         operationId: "123e4567-e89b-42d3-a456-426614174000",
         source: { type: "project", projectId },
-        name: "Prepare release notes",
         description: "Draft the public notes",
+        context: {
+          brand: true,
+          brandSource: "project",
+          briefing: true,
+          memory: false,
+        },
         assigneeId: "coworker_123",
         schedule: {
           mode: "once",
@@ -139,7 +166,13 @@ describe("createScheduledTaskRequestSchema", () => {
     ).toMatchObject({
       operationId: "123e4567-e89b-42d3-a456-426614174000",
       source: { type: "project", projectId },
-      name: "Prepare release notes",
+      description: "Draft the public notes",
+      context: {
+        brand: true,
+        brandSource: "project",
+        briefing: true,
+        memory: false,
+      },
       assigneeId: "coworker_123",
       schedule: {
         mode: "once",
@@ -153,7 +186,6 @@ describe("createScheduledTaskRequestSchema", () => {
       createScheduledTaskRequestSchema.safeParse({
         operationId: "123e4567-e89b-42d3-a456-426614174000",
         source: { type: "project" },
-        name: "Prepare release notes",
         assigneeId: "coworker_123",
         schedule: {
           mode: "once",
@@ -167,6 +199,13 @@ describe("createScheduledTaskRequestSchema", () => {
 describe("POST /tasks/scheduled", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    findScheduledTaskCreateOperationMock.mockResolvedValue(null);
+    resolveTaskNameMock.mockResolvedValue("Prepare release notes");
+    findTaskProjectInWorkspaceMock.mockResolvedValue(null);
+    healProjectBriefingUrlMock.mockImplementation(async (project) => project);
+    resolveTaskDescriptionWithContextMock.mockImplementation(
+      async ({ description }) => description ?? null,
+    );
     userFindUniqueMock.mockResolvedValue({
       email: "ada@nmkr.io",
       emailVerified: true,
@@ -219,8 +258,9 @@ describe("POST /tasks/scheduled", () => {
       body: JSON.stringify({
         operationId: "123e4567-e89b-42d3-a456-426614174000",
         source: { type: "workspace" },
-        name: "Prepare release notes",
+        description: "Draft the public notes",
         assigneeId: "coworker_123",
+        context: { brand: false, briefing: false, memory: false },
         schedule: {
           mode: "once",
           runAt: "2099-09-24T09:00:00.000Z",
@@ -235,12 +275,170 @@ describe("POST /tasks/scheduled", () => {
         organizationId: "org_123",
         source: { type: "workspace" },
         operationId: "123e4567-e89b-42d3-a456-426614174000",
+        name: "Prepare release notes",
+        requestFingerprintPayload: {
+          name: null,
+          description: "Draft the public notes",
+          context: { brand: false, briefing: false, memory: false },
+        },
       }),
       transaction,
+    );
+    expect(resolveTaskNameMock).toHaveBeenCalledWith({
+      name: undefined,
+      description: "Draft the public notes",
+    });
+    expect(resolveTaskDescriptionWithContextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: { brand: false, briefing: false, memory: false },
+        description: "Draft the public notes",
+      }),
     );
     expect(await response.json()).toMatchObject({
       data: { id: "task_123", status: TaskStatus.QUEUED },
     });
+  });
+
+  it("rejects an unauthorized creator before resolving an automatic name", async () => {
+    requireScheduledTaskCreatorMock.mockRejectedValue(
+      forbidden("Scheduled task creation is not allowed"),
+    );
+
+    const response = await createApp().request("http://localhost/scheduled", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        source: { type: "workspace" },
+        description: "Draft the public notes",
+        assigneeId: "coworker_123",
+        schedule: {
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(resolveTaskNameMock).not.toHaveBeenCalled();
+  });
+
+  it("returns an idempotent replay before resolving an automatic name", async () => {
+    requireScheduledTaskCreatorMock.mockResolvedValue({
+      userContext: {
+        source: "session",
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+        role: "user",
+      },
+      actor: { kind: "user", userId: "user_123" },
+    });
+    findScheduledTaskCreateOperationMock.mockResolvedValue("task_123");
+    taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
+    mapTaskMock.mockReturnValue(buildMappedTask());
+
+    const response = await createApp().request("http://localhost/scheduled", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        source: { type: "workspace" },
+        description: "Draft the public notes",
+        assigneeId: "coworker_123",
+        schedule: {
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(resolveTaskNameMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("heals a project briefing before the serializable transaction re-reads it", async () => {
+    const transaction = {};
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const project = {
+      id: projectId,
+      filesToken: null,
+      designMdUrl: null,
+      briefing: "Project briefing",
+      briefingUrl: null,
+      contextMdUrl: null,
+    };
+    const healedProject = {
+      ...project,
+      filesToken: "files-token",
+      briefingUrl: "https://blob.example/briefing.md",
+    };
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      await callback(transaction);
+      return await callback(transaction);
+    });
+    requireScheduledTaskCreatorMock.mockResolvedValue({
+      userContext: {
+        source: "session",
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+        role: "user",
+      },
+      actor: { kind: "user", userId: "user_123" },
+    });
+    findTaskProjectInWorkspaceMock.mockImplementation(
+      async (_projectId, _workspaceId, db) => (db ? healedProject : project),
+    );
+    healProjectBriefingUrlMock.mockResolvedValue(healedProject);
+    createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
+    taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
+    mapTaskMock.mockReturnValue(buildMappedTask());
+
+    const response = await createApp().request("http://localhost/scheduled", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        source: { type: "project", projectId },
+        description: "Draft the public notes",
+        assigneeId: "coworker_123",
+        context: { brand: false, briefing: true, memory: false },
+        schedule: {
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(healProjectBriefingUrlMock).toHaveBeenCalledWith(
+      project,
+      WORKSPACE_ID,
+    );
+    expect(healProjectBriefingUrlMock).toHaveBeenCalledTimes(1);
+    expect(healProjectBriefingUrlMock.mock.invocationCallOrder[0]).toBeLessThan(
+      prismaTransactionMock.mock.invocationCallOrder[0],
+    );
+    expect(findTaskProjectInWorkspaceMock).toHaveBeenNthCalledWith(
+      1,
+      projectId,
+      WORKSPACE_ID,
+    );
+    expect(findTaskProjectInWorkspaceMock).toHaveBeenNthCalledWith(
+      2,
+      projectId,
+      WORKSPACE_ID,
+      transaction,
+    );
+    expect(findTaskProjectInWorkspaceMock).toHaveBeenNthCalledWith(
+      3,
+      projectId,
+      WORKSPACE_ID,
+      transaction,
+    );
   });
 
   it("rejects a non-NMKR user before creating a scheduled task", async () => {

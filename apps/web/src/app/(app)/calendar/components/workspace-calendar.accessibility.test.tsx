@@ -10,6 +10,13 @@ import type {
 const getTaskByIdMock = vi.hoisted(() => vi.fn());
 const pushMock = vi.hoisted(() => vi.fn());
 const clearTaskScheduleMock = vi.hoisted(() => vi.fn());
+const openCreateTaskModalMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/app/tasks/components/create-task-modal", () => ({
+  useCreateTaskModal: () => ({
+    handleOpenWithDefaults: openCreateTaskModalMock,
+  }),
+}));
 
 vi.mock("next-intl", () => ({
   useFormatter: () => ({
@@ -194,7 +201,14 @@ describe("WorkspaceCalendar accessibility", () => {
 
     await user.click(screen.getByRole("button", { name: "create.title" }));
 
-    expect(screen.getByRole("dialog")).toHaveTextContent("create.title");
+    expect(openCreateTaskModalMock).toHaveBeenCalledWith({
+      projectId: null,
+      schedule: {
+        mode: "once",
+        oneTimeLocalIso: "2030-01-02T12:00",
+        timezone: "UTC",
+      },
+    });
   });
 
   it("announces schedule removal while it is pending", async () => {

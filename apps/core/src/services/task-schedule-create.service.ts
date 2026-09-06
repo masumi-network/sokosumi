@@ -24,6 +24,7 @@ import {
   requireUserContext,
   type UserContext,
 } from "@/middleware/auth";
+import type { CreateTaskContext } from "@/schemas/task.schema";
 import type { TaskScheduleInput } from "@/schemas/task-schedule.schema";
 
 import {
@@ -47,7 +48,17 @@ export interface CreateScheduledTaskInput {
   description?: string | null;
   assigneeId: string;
   schedule: TaskScheduleInput;
+  requestFingerprintPayload?: {
+    name: string | null;
+    description: string | null;
+    context: CreateTaskContext | null;
+  };
 }
+
+type TaskScheduleCreateOperationDatabase = Pick<
+  Prisma.TransactionClient,
+  "taskScheduleCreateOperation"
+>;
 
 function createScheduledTaskRequestFingerprint(
   input: CreateScheduledTaskInput,
@@ -77,12 +88,43 @@ function createScheduledTaskRequestFingerprint(
       projectId,
     },
     assigneeId: input.assigneeId,
-    name: input.name,
-    description: input.description ?? null,
+    request: input.requestFingerprintPayload ?? {
+      name: input.name,
+      description: input.description ?? null,
+    },
     schedule,
   });
 
   return createHash("sha256").update(canonicalPayload, "utf8").digest("hex");
+}
+
+/**
+ * Finds an idempotent scheduled-Task result, rejecting operationId reuse with
+ * a different raw request before the route performs external work.
+ */
+export async function findScheduledTaskCreateOperation(
+  input: CreateScheduledTaskInput,
+  db: TaskScheduleCreateOperationDatabase,
+): Promise<string | null> {
+  const requestFingerprint = createScheduledTaskRequestFingerprint(input);
+  const existingOperation = await db.taskScheduleCreateOperation.findUnique({
+    where: {
+      workspaceId_operationId: {
+        workspaceId: input.workspaceId,
+        operationId: input.operationId,
+      },
+    },
+    select: { taskId: true, requestFingerprint: true },
+  });
+  if (!existingOperation) {
+    return null;
+  }
+  if (existingOperation.requestFingerprint !== requestFingerprint) {
+    throw conflict(
+      "operationId was already used with a different scheduled Task request",
+    );
+  }
+  return existingOperation.taskId;
 }
 
 /**
@@ -134,24 +176,12 @@ export async function createScheduledTaskInTransaction(
   input: CreateScheduledTaskInput,
   tx: Prisma.TransactionClient,
 ): Promise<string> {
-  const requestFingerprint = createScheduledTaskRequestFingerprint(input);
-  const existingOperation = await tx.taskScheduleCreateOperation.findUnique({
-    where: {
-      workspaceId_operationId: {
-        workspaceId: input.workspaceId,
-        operationId: input.operationId,
-      },
-    },
-    select: { taskId: true, requestFingerprint: true },
-  });
-  if (existingOperation) {
-    if (existingOperation.requestFingerprint !== requestFingerprint) {
-      throw conflict(
-        "operationId was already used with a different scheduled Task request",
-      );
-    }
-    return existingOperation.taskId;
+  const existingTaskId = await findScheduledTaskCreateOperation(input, tx);
+  if (existingTaskId) {
+    return existingTaskId;
   }
+
+  const requestFingerprint = createScheduledTaskRequestFingerprint(input);
 
   validateScheduleInput(input.schedule);
   const projectId =
@@ -171,23 +201,12 @@ export async function createScheduledTaskInTransaction(
     );
   }
 
-  const operationAfterScopeLock =
-    await tx.taskScheduleCreateOperation.findUnique({
-      where: {
-        workspaceId_operationId: {
-          workspaceId: input.workspaceId,
-          operationId: input.operationId,
-        },
-      },
-      select: { taskId: true, requestFingerprint: true },
-    });
-  if (operationAfterScopeLock) {
-    if (operationAfterScopeLock.requestFingerprint !== requestFingerprint) {
-      throw conflict(
-        "operationId was already used with a different scheduled Task request",
-      );
-    }
-    return operationAfterScopeLock.taskId;
+  const taskIdAfterScopeLock = await findScheduledTaskCreateOperation(
+    input,
+    tx,
+  );
+  if (taskIdAfterScopeLock) {
+    return taskIdAfterScopeLock;
   }
 
   if (projectId) {
