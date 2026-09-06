@@ -117,7 +117,7 @@ After changes:
 2. `pnpm --filter web messages:parity`.
 3. Non-English locale values are translated (not English copies left as final state).
 4. No broken references in code.
-5. Run `pnpm web:format`.
+5. Run `pnpm --filter web format`.
 
 ## Tools
 

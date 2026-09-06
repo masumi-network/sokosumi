@@ -5,21 +5,21 @@ alwaysApply: true
 # pstack model configuration. One line per role. Delete a line to fall back to the skill default.
 # `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit Task `model`). Alias entries in a panel list still count toward its fan-out.
 # Checked into the repo so local and cloud agents share the same overrides (user home `~/.cursor/rules/pstack-models.mdc` may still exist from `/setup-pstack`).
-feature, refactoring: inherit-parent
-bug-fix: inherit-parent
-perf-issue: inherit-parent
-hillclimb: inherit-parent
-judgment and prose: inherit-parent
-hardest tasks: inherit-parent
-how explorer: inherit-parent
-how explainer: inherit-parent
-how critics: inherit-parent
-why investigators: inherit-parent
-why synthesizer: inherit-parent
-reflect tooling: inherit-parent
-reflect judgment, divergent, synthesizer: inherit-parent
-arena runners: inherit-parent
-arena cross-judge pool: inherit-parent
-swarm workers: inherit-parent
-architect runners: inherit-parent
-interrogate reviewers: inherit-parent
+feature, refactoring: composer-2.5
+bug-fix: grok-4.6
+perf-issue: grok-4.6
+hillclimb: grok-4.6
+judgment and prose: grok-4.6
+hardest tasks: grok-4.6
+how explorer: composer-2.5
+how explainer: grok-4.6
+how critics: composer-2.5, grok-4.6
+why investigators: composer-2.5
+why synthesizer: grok-4.6
+reflect tooling: composer-2.5
+reflect judgment, divergent, synthesizer: grok-4.6
+arena runners: composer-2.5, grok-4.6
+arena cross-judge pool: composer-2.5, grok-4.6
+swarm workers: composer-2.5
+architect runners: composer-2.5, grok-4.6
+interrogate reviewers: composer-2.5, grok-4.6

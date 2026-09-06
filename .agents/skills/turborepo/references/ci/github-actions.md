@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 2
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
 
@@ -41,7 +41,7 @@ jobs:
   with:
     version: 9
 
-- uses: actions/setup-node@v4
+- uses: actions/setup-node@v7
   with:
     node-version: 20
     cache: "pnpm"
@@ -52,7 +52,7 @@ jobs:
 ### Yarn
 
 ```yaml
-- uses: actions/setup-node@v4
+- uses: actions/setup-node@v7
   with:
     node-version: 20
     cache: "yarn"
@@ -156,7 +156,7 @@ jobs:
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: "pnpm"
