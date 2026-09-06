@@ -130,6 +130,27 @@ describe("selectionToApiBody", () => {
     ).toBeNull();
   });
 
+  it("rejects a once-mode schedule with an invalid timezone instead of throwing", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T00:00:00.000Z"));
+
+    expect(() =>
+      selectionToApiBody({
+        mode: "once",
+        timezone: "Not/AZone",
+        oneTimeLocalIso: "2026-06-24T15:30",
+      }),
+    ).not.toThrow();
+
+    expect(
+      selectionToApiBody({
+        mode: "once",
+        timezone: "Not/AZone",
+        oneTimeLocalIso: "2026-06-24T15:30",
+      }),
+    ).toBeNull();
+  });
+
   it("rejects one-time schedules in the past", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-24T12:00:00.000Z"));

@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { Activity, StrictMode } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceCalendarItem,
@@ -19,10 +22,14 @@ const {
   filterDropdownMenuMock,
   getProjectCalendarMock,
   getWorkspaceCalendarMock,
+  pushMock,
+  refreshMock,
 } = vi.hoisted(() => ({
   filterDropdownMenuMock: vi.fn(),
   getProjectCalendarMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
+  pushMock: vi.fn(),
+  refreshMock: vi.fn(),
 }));
 
 vi.mock("next-intl", () => ({
@@ -35,7 +42,7 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
@@ -151,6 +158,94 @@ describe("WorkspaceCalendar", () => {
     expect(
       await screen.findAllByRole("button", { name: /Prepare release notes/ }),
     ).toHaveLength(2);
+  });
+
+  it("never commits a stale/clickable item for a frame when a fresh server page arrives", () => {
+    // Bypasses RTL's act()-wrapped render/rerender on purpose: act() flushes
+    // passive effects synchronously, so a useEffect-based prop sync would
+    // always look correct through it, masking exactly the transient commit
+    // this test exists to catch. `flushSync` forces a synchronous commit
+    // without flushing passive effects (verified empirically against a
+    // minimal repro in this repo's test environment), so it can observe
+    // whatever DOM React actually paints before any effect runs.
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    function Tree({ items }: { items: WorkspaceCalendarItem[] }) {
+      return (
+        <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+          <WorkspaceCalendar
+            items={items}
+            initialDate="2026-08-18"
+            sources={SOURCES}
+          />
+        </NuqsTestingAdapter>
+      );
+    }
+
+    try {
+      flushSync(() => {
+        root.render(<Tree items={ITEMS} />);
+      });
+
+      expect(
+        within(container).getAllByRole("button", {
+          name: /Prepare release notes/,
+        }).length,
+      ).toBeGreaterThan(0);
+
+      // Simulate `router.refresh()` delivering a fresh server page where the
+      // task was cleared/rescheduled out of view — a brand-new `items` array.
+      flushSync(() => {
+        root.render(<Tree items={[]} />);
+      });
+
+      // Assert immediately after the synchronous commit, before any passive
+      // effect can run: the cleared item must already be gone, not still
+      // rendered (and clickable) for one commit.
+      expect(
+        within(container).queryAllByRole("button", {
+          name: /Prepare release notes/,
+        }),
+      ).toHaveLength(0);
+    } finally {
+      root.unmount();
+      container.remove();
+    }
+  });
+
+  it("refreshes only when reactivated from a cached Activity route, not on first mount (StrictMode)", async () => {
+    refreshMock.mockClear();
+
+    function ActivityHarness({ mode }: { mode: "hidden" | "visible" }) {
+      return (
+        <StrictMode>
+          <Activity mode={mode}>
+            <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+              <WorkspaceCalendar
+                items={ITEMS}
+                initialDate="2026-08-18"
+                sources={SOURCES}
+              />
+            </NuqsTestingAdapter>
+          </Activity>
+        </StrictMode>
+      );
+    }
+
+    const { rerender } = render(<ActivityHarness mode="visible" />);
+
+    // Let StrictMode's synchronous setup -> cleanup -> setup cycle settle
+    // (its dangling microtask, if any) before asserting on initial mount.
+    await Promise.resolve();
+
+    expect(refreshMock).not.toHaveBeenCalled();
+
+    rerender(<ActivityHarness mode="hidden" />);
+    rerender(<ActivityHarness mode="visible" />);
+
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
   });
 
   it("places the schedule action at the right edge of the toolbar", () => {
@@ -650,6 +745,41 @@ describe("WorkspaceCalendar", () => {
       "bg-primary/10",
     );
     expect(screen.queryByText("all-day")).not.toBeInTheDocument();
+  });
+
+  it("shows Load More when pagination.nextCursor changes on the same items reference", () => {
+    const { rerender } = render(
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+        <WorkspaceCalendar
+          items={ITEMS}
+          initialDate="2026-08-18"
+          sources={SOURCES}
+          pagination={{ limit: 100, nextCursor: null }}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "pagination.loadMore" }),
+    ).not.toBeInTheDocument();
+
+    // Same `items` reference, but a fresh `pagination` object reporting more
+    // pages are now available — the render-time guard must react to this
+    // even though `items` itself did not change.
+    rerender(
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+        <WorkspaceCalendar
+          items={ITEMS}
+          initialDate="2026-08-18"
+          sources={SOURCES}
+          pagination={{ limit: 100, nextCursor: "cursor-2" }}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "pagination.loadMore" }),
+    ).toBeInTheDocument();
   });
 
   it("loads and renders the next calendar page", async () => {

@@ -36,7 +36,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useEffect, useRef, useState } from "react";
+import { type MouseEvent, useRef, useState } from "react";
 import { Temporal } from "temporal-polyfill";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import {
@@ -542,11 +542,47 @@ export function WorkspaceCalendar({
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
   const [eventLoadError, setEventLoadError] = useState(false);
   const eventRequestId = useRef(0);
+  const hasActivatedRef = useRef(false);
 
-  useEffect(() => {
+  // Reset on a new server page during render, not in an effect, so a stale
+  // (possibly cleared/rescheduled) item never commits for a frame before
+  // correcting (react.dev: adjust state during render on prop change).
+  const [prevItems, setPrevItems] = useState(items);
+  const [prevServerNextCursor, setPrevServerNextCursor] = useState(
+    pagination?.nextCursor ?? null,
+  );
+  if (
+    items !== prevItems ||
+    (pagination?.nextCursor ?? null) !== prevServerNextCursor
+  ) {
+    setPrevItems(items);
+    setPrevServerNextCursor(pagination?.nextCursor ?? null);
     setLoadedItems(items);
     setNextCursor(pagination?.nextCursor ?? null);
-  }, [items, pagination?.nextCursor]);
+  }
+
+  useMountEffect(() => {
+    // Defer past React StrictMode's synchronous setup -> cleanup -> setup
+    // dev-mode cycle: only the microtask from the setup that survives (isn't
+    // cancelled by an immediate synthetic cleanup) marks activation or
+    // refreshes, so neither fires twice for one real mount/reactivation.
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+      if (hasActivatedRef.current) {
+        router.refresh();
+        return;
+      }
+      hasActivatedRef.current = true;
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  });
 
   const date = parseCalendarDate(state.date ?? initialDate, initialDate);
   const timeZone = isValidTimezone(state.timezone)

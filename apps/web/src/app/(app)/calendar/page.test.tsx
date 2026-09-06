@@ -8,6 +8,7 @@ const getWorkspaceCalendarSourcesMock = vi.fn();
 const listCoworkersMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const calendarCreateTaskModalMock = vi.fn();
+const workspaceCalendarMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -20,7 +21,10 @@ vi.mock("next/server", () => ({
 }));
 
 vi.mock("@/app/calendar/components/workspace-calendar", () => ({
-  WorkspaceCalendar: () => null,
+  WorkspaceCalendar: (props: unknown) => {
+    workspaceCalendarMock(props);
+    return null;
+  },
 }));
 
 vi.mock("@/app/calendar/components/calendar-create-task-modal", () => ({
@@ -146,6 +150,26 @@ describe("CalendarPage", () => {
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: "project-1" }),
+    );
+  });
+
+  it("still renders Calendar items when Calendar sources fail to load", async () => {
+    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
+    getWorkspaceCalendarMock.mockResolvedValue({
+      items: [{ id: "occurrence-1" }],
+      pagination: null,
+    });
+    getWorkspaceCalendarSourcesMock.mockRejectedValue(
+      new Error("Calendar sources unavailable"),
+    );
+
+    render(await CalendarPage({ searchParams: Promise.resolve({}) }));
+
+    expect(workspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [{ id: "occurrence-1" }],
+        sources: [],
+      }),
     );
   });
 
