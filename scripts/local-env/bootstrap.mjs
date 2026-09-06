@@ -15,7 +15,6 @@ import { fileURLToPath } from "node:url";
 
 export const DEFAULT_BETTER_AUTH_SECRET =
   "TFVfK91TGv2YVyVYFk0lu87Md5a13E4l7AjEaoZD8dQ=";
-const DUMMY_URL = "https://local.dev.invalid";
 const PLACEHOLDER_RE = /^<[^>]+>$/;
 
 /** Keys that must be omitted when the value is not a real URL (optional z.url()). */
@@ -29,11 +28,6 @@ const OPTIONAL_URL_KEYS = new Set([
   "JOB_FAILURE_WEBHOOK_URL",
   "VERCEL_BLOB_CALLBACK_URL",
 ]);
-
-/** Required URL keys that get a dummy URL when the example is a placeholder. */
-const REQUIRED_URL_DUMMIES = {
-  HERMES_ORCH_BASE_URL: DUMMY_URL,
-};
 
 const STRING_DUMMIES = {
   APP_SIGNING_SECRET: DEFAULT_BETTER_AUTH_SECRET,
@@ -135,10 +129,6 @@ export function sanitizeEnvContents(contents) {
     }
 
     if (isPlaceholderValue(unquoted)) {
-      if (key in REQUIRED_URL_DUMMIES) {
-        out.push(`${key}="${REQUIRED_URL_DUMMIES[key]}"`);
-        continue;
-      }
       if (key in STRING_DUMMIES) {
         out.push(`${key}="${STRING_DUMMIES[key]}"`);
         continue;
