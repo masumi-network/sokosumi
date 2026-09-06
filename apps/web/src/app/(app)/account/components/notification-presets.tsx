@@ -3,13 +3,14 @@
 import {
   Bell,
   BellOff,
+  ChevronDown,
   Inbox,
   type LucideIcon,
   SlidersHorizontal,
   Star,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type KeyboardEvent, useId, useRef } from "react";
+import { useId } from "react";
 
 import {
   DropdownMenu,
@@ -21,11 +22,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   type KindSpec,
@@ -36,39 +32,26 @@ import {
   presetStops,
 } from "./notification-delivery";
 
-/**
- * The rail the situations sit in.
- *
- * Square-cornered like everything it sits with: the cells are `rounded-md` and
- * the box around the whole group is `rounded-lg`, and a pill here would be the
- * one round thing in the row. The rail keeps the outer radius and its stops
- * the inner one, which differ by exactly the padding between them, so the
- * corners stay concentric instead of leaving a crescent at each end.
- *
- * It carries no display of its own. The rail and the menu below take turns by
- * width, and `hidden` loses to an `inline-flex` sitting in the same list.
- */
-const RAIL = "border-input bg-background shrink-0 rounded-lg border p-0.5";
-
 /** Custom is not one of the situations, so no table holds its sentence. */
 const CUSTOM_HINT_KEY = "presetCustomHint";
 
-const STOP =
-  "focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,scale] outline-none focus-visible:ring-[3px] motion-safe:active:scale-95";
-
-const STOP_ON = "bg-primary/10 text-primary";
-const STOP_OFF = "text-muted-foreground hover:text-foreground";
+/**
+ * What a group is set to, and what it opens.
+ *
+ * Square-cornered like the box it sits in and the cells below it, and no
+ * wider than the word it is showing. It carries the mark of the situation on
+ * the left and the mark of a menu on the right, so it reads as one control
+ * rather than as a word that happens to be tinted.
+ */
+const TRIGGER =
+  "focus-visible:ring-ring/50 inline-flex h-8 shrink-0 items-center gap-2 rounded-lg border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap outline-none focus-visible:ring-[3px]";
 
 /**
  * The mark each situation carries, beside its word.
  *
- * Read across the rail they are an amount: everything that lands, then the
- * results of the work, then the ones addressed to you, then a bell that stays
- * in Sokosumi, then a bell struck through. The last two are the same bell, so
- * the quiet end of the rail reads as one idea rather than two.
- *
- * In app borrows the bell the In app column carries in the legend, so the word
- * and the column a reader just read about are the same thing.
+ * Inbox for the loudest, because it is the one that lets everything through;
+ * a star for what is addressed to you; a bell for Sokosumi and a struck bell
+ * for silence, which are the same two marks the cells of those columns carry.
  */
 const PRESET_ICON: Record<PresetState, LucideIcon> = {
   MOST: Inbox,
@@ -79,122 +62,12 @@ const PRESET_ICON: Record<PresetState, LucideIcon> = {
 };
 
 /**
- * The arrows a toolbar answers, and how far each one moves.
+ * The kinds one situation reaches or stops, under its own sentence.
  *
- * Horizontal only. Up and down belong to a vertical toolbar, and a reader who
- * presses them here is scrolling the settings page.
- */
-const RAIL_STEP: Record<string, number> = {
-  ArrowRight: 1,
-  ArrowLeft: -1,
-};
-
-/**
- * The panel a stop opens under the pointer.
- *
- * Every stop is one word, which is the point: four of them read at a glance
- * where four sentences would have to be read one at a time. A word cannot say
- * what it writes, so the sentence waits under the pointer, with the kinds it
- * pushes and the kinds it stops named under that.
- *
- * `animation-duration-200` rather than `duration-200`, which sets a transition
- * duration on an element whose transition property is still `all` and puts
- * every later change on a 200ms ease it never asked for.
- */
-const PANEL =
-  "max-w-72 px-3 py-2 text-left text-xs motion-safe:animation-duration-200 ease-out";
-
-/**
- * The beat before a panel opens, and the gap it stands off at.
- *
- * The stops sit flush inside the rail, so a pointer on its way across it
- * crosses all four. Opening on contact, each would flash a paragraph and two
- * lists. A reader who means to read one holds still for longer.
- */
-const TIP_DELAY_MS = 200;
-const TIP_OFFSET_PX = 6;
-
-/**
- * What one situation does, in the words the reader needs to decide.
- *
- * The lists are the part the sentence cannot carry twice: it says what the
- * situation is, and these say which rows it means. The device list is headed
- * by that column's own name, so a reader who just read the legend meets the
- * same word here.
- *
- * Each list is left out where it would name every kind of the group or none of
- * them: a situation that pushes all of them and one that stops all of them
- * already say so in their own word.
- */
-function PresetBody({
-  label,
-  hint,
-  pushes,
-  stops,
-}: {
-  label: string;
-  hint: string;
-  /** The kinds this one sends to the device, by name. */
-  pushes: readonly string[];
-  /** The kinds this one stops, by name. */
-  stops: readonly string[];
-}) {
-  const t = useTranslations("App.Account.Notifications");
-  const lists = [
-    { key: "channelPush", names: pushes },
-    { key: "presetStopsLabel", names: stops },
-  ].filter((list) => list.names.length > 0);
-
-  return (
-    <div className="space-y-1.5">
-      <p className="font-medium">{label}</p>
-      <p className="text-primary-foreground/80 leading-relaxed">{hint}</p>
-      {lists.length > 0 ? (
-        <dl className="border-primary-foreground/20 space-y-1 border-t pt-1.5">
-          {lists.map((list) => (
-            <div key={list.key} className="flex gap-2">
-              <dt className="text-primary-foreground/60 min-w-11 shrink-0">
-                {t(list.key)}
-              </dt>
-              <dd className="min-w-0 flex-1">{list.names.join(", ")}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * The same words in one line, for the reader who hears the row.
- *
- * A tooltip exists only while it is open, so the panel is written into the row
- * as well, where `aria-describedby` can always reach it. The lists are read out
- * with their own labels rather than as a bare run of names.
- */
-function presetSentence(
-  hint: string,
-  pushes: readonly string[],
-  stops: readonly string[],
-  label: (key: string) => string,
-): string {
-  return [
-    hint,
-    pushes.length > 0 ? `${label("channelPush")}: ${pushes.join(", ")}.` : "",
-    stops.length > 0
-      ? `${label("presetStopsLabel")}: ${stops.join(", ")}.`
-      : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-/**
- * The kinds one situation reaches or stops, for a reader with no pointer.
- *
- * The rail says this under the pointer. A phone has none, so the menu carries
- * the same two lines in the open rather than leaving its reader with the
- * sentence alone.
+ * The sentence says what the situation is; these say which rows it means, and
+ * which rows it takes away. Each list is left out where it would name every
+ * kind of the group or none of them, because a situation that pushes all of
+ * them and one that stops all of them already say so in their own word.
  */
 function MenuLists({
   pushes,
@@ -221,141 +94,75 @@ function MenuLists({
   );
 }
 
-/** One stop of the rail, with what it does under the pointer and in the ear. */
-function Stop({
-  id,
-  label,
-  hint,
-  pushes,
-  stops,
-  nameId,
-  pressed,
-  reached,
-  saving,
-  onPick,
-}: {
-  id: PresetState;
-  label: string;
-  hint: string;
-  pushes: readonly string[];
-  stops: readonly string[];
-  /** The group's name, which every stop of the rail is named after. */
-  nameId: string;
-  pressed: boolean;
-  /** Where Tab lands on this rail: the pressed stop, or the first of them. */
-  reached: boolean;
-  /** A write is in flight. The stop stays reachable, and does nothing. */
-  saving: boolean;
-  onPick: () => void;
-}) {
-  const t = useTranslations("App.Account.Notifications");
-  const hintId = useId();
-  const stopId = useId();
-  const Icon = PRESET_ICON[id];
-
-  return (
-    <>
-      <Tooltip delayDuration={TIP_DELAY_MS}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            id={stopId}
-            // Named for its group, so the four words a reader meets three
-            // times over are three different sets of controls to a screen
-            // reader and to voice control. The rail's own name is announced
-            // on the way in and is in neither of their lists.
-            aria-labelledby={`${stopId} ${nameId}`}
-            aria-pressed={pressed}
-            // One tab stop for the whole rail, the way a toolbar is: four
-            // stops per group, three groups and a chip apiece is fifteen
-            // presses of Tab to cross a card that holds four decisions. The
-            // arrows walk the rail from here.
-            tabIndex={reached ? 0 : -1}
-            // Reachable while a write is in flight, and doing nothing: a
-            // control the browser disables drops out of the tab order under
-            // the reader's finger, and a screen reader loses the control it
-            // was on.
-            aria-disabled={saving || undefined}
-            aria-describedby={hintId}
-            onClick={() => {
-              if (saving) {
-                return;
-              }
-
-              onPick();
-            }}
-            className={cn(
-              STOP,
-              saving && "opacity-50",
-              pressed ? STOP_ON : STOP_OFF,
-            )}
-          >
-            <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-            {label}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent sideOffset={TIP_OFFSET_PX} className={PANEL}>
-          <PresetBody label={label} hint={hint} pushes={pushes} stops={stops} />
-        </TooltipContent>
-      </Tooltip>
-      <span aria-hidden="true" id={hintId} className="sr-only">
-        {presetSentence(hint, pushes, stops, t)}
-      </span>
-    </>
-  );
-}
-
 /**
- * The same situations where the rail does not fit.
+ * A group's answer: the situation it is set to.
  *
- * Four words and a rail want about 400px once the lead in front of them is
- * counted, and the row gets the card's width less its padding and the
- * chevron's gutter. So the two take turns at `md`. Below it, a phone cannot
- * open a tooltip at all, so the list carries each sentence in the open rather
- * than under a pointer that does not exist.
+ * One control rather than a row of them. The four situations are exclusive and
+ * the reader picks one at a time, which is what a menu is for; drawn as four
+ * buttons they take the width of the row and repeat three times down the card,
+ * and the group's own name has to move under them to fit. Closed, this says
+ * what the group is set to in one word, which is the thing a reader scanning
+ * the card came for.
+ *
+ * One press writes every cell of the group, so the word is true of the rows
+ * under it rather than nearly true. The rows are where the reader goes to
+ * disagree with it, one notification at a time, and the answer says Custom
+ * while they do.
+ *
+ * Custom is not one of the situations. It is under them rather than among
+ * them, because it writes nothing: it opens the fold, and the kinds answer for
+ * themselves in there.
  */
-function AnswerMenu({
-  label,
+export function GroupAnswer({
+  group,
+  kinds,
   presets,
   preset,
-  group,
   saving,
-  named,
   onPick,
   onCustom,
 }: {
-  label: string;
+  group: string;
+  kinds: readonly KindSpec[];
   presets: readonly PresetSpec[];
   preset: PresetState;
-  group: string;
+  /** A write is in flight. The answer stays reachable, and does nothing. */
   saving: boolean;
-  /** The kinds one situation pushes, and the ones it stops, by name. */
-  named: (preset: PresetSpec) => { pushes: string[]; stops: string[] };
   onPick: (preset: PresetSpec) => void;
+  /** Open the group, for the answer that is the rows rather than a situation. */
   onCustom: () => void;
 }) {
   const t = useTranslations("App.Account.Notifications");
+  const label = t("presetAriaLabel", { group });
   const hintId = useId();
   const Icon = PRESET_ICON[preset];
 
+  /** The kinds one situation sends to the device, and the ones it stops. */
+  const named = (one: PresetSpec) => ({
+    pushes: presetPushes(one, kinds).map((kind) => t(kind.labelKey)),
+    stops: presetStops(one, kinds).map((kind) => t(kind.labelKey)),
+  });
+
   return (
-    // No group of its own. The rail is four buttons and needs one; this is a
-    // single button, and a second group with the same name would be a name the
-    // reader meets twice. The sentence it would have carried is the button's
-    // description instead, so the visible word stays its name.
-    <div className="md:hidden">
+    <>
+      {/* The group's name, said once for the control rather than four times
+          over. Left visible it would be the group's name a second time, after
+          the row it names and out of nowhere. */}
       <span aria-hidden="true" id={hintId} className="sr-only">
         {label}
       </span>
       <DropdownMenu>
         <DropdownMenuTrigger
+          // Reachable while a write is in flight, and doing nothing: a control
+          // the browser disables drops out of the tab order under the reader's
+          // finger, and a screen reader loses the control it was on.
           aria-disabled={saving || undefined}
           aria-describedby={hintId}
           className={cn(
-            "focus-visible:ring-ring/50 inline-flex h-8 items-center gap-2 rounded-lg border pr-3 pl-2.5 text-xs font-medium outline-none focus-visible:ring-[3px]",
-            // The same mark the rail's chip carries at the widths it is drawn
-            // at: on a preset it is a plain control, and off every preset it
-            // says the group is on settings of its own.
+            TRIGGER,
+            // On a situation it is a plain control; off every one of them it
+            // says the group is on settings of its own, as loudly as a chosen
+            // word does.
             preset === "CUSTOM"
               ? "border-primary bg-primary/10 text-primary"
               : "border-input bg-background",
@@ -370,8 +177,14 @@ function AnswerMenu({
             aria-hidden="true"
           />
           {t(PRESET_LABEL_KEY[preset])}
+          <ChevronDown
+            className="text-muted-foreground size-3.5 shrink-0"
+            aria-hidden="true"
+          />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-72">
+        {/* Hung from the edge the control sits on, which is the right of the
+            row it answers for. */}
+        <DropdownMenuContent align="end" className="w-72">
           {/* Custom is not one of the situations, so the radio group holds none
               of them and nothing is ticked. The heading says why rather than
               leaving the reader to wonder what they are looking at. */}
@@ -415,8 +228,6 @@ function AnswerMenu({
             ))}
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator />
-          {/* Not one of the situations, so it sits under them rather than in
-              the radio group: it writes nothing and opens the group instead. */}
           <DropdownMenuItem className="items-start py-2" onSelect={onCustom}>
             <SlidersHorizontal
               className="text-muted-foreground mt-0.5 size-3.5"
@@ -433,181 +244,6 @@ function AnswerMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
-  );
-}
-
-/**
- * A group's answer: the situation it is set to.
- *
- * One press writes every cell of the group, so the word on the rail is true of
- * the rows under it rather than nearly true. The rows are where the reader
- * goes to disagree with it, one notification at a time, and the rail says
- * Custom while they do.
- *
- * Custom is not one of the situations. It appears only when the cells are on
- * none of them, and it opens the fold rather than picking for the reader, so
- * it stands beside the rail rather than as a fifth stop that claims to be
- * pressed.
- */
-export function GroupAnswer({
-  group,
-  kinds,
-  presets,
-  preset,
-  saving,
-  onPick,
-  onCustom,
-}: {
-  group: string;
-  kinds: readonly KindSpec[];
-  presets: readonly PresetSpec[];
-  preset: PresetState;
-  /** A write is in flight. The rail stays reachable, and does nothing. */
-  saving: boolean;
-  onPick: (preset: PresetSpec) => void;
-  /** Open the group, for the answer that is the rows rather than a situation. */
-  onCustom: () => void;
-}) {
-  const t = useTranslations("App.Account.Notifications");
-  const label = t("presetAriaLabel", { group });
-
-  /** The kinds one situation sends to the device, and the ones it stops. */
-  const named = (one: PresetSpec) => ({
-    pushes: presetPushes(one, kinds).map((kind) => t(kind.labelKey)),
-    stops: presetStops(one, kinds).map((kind) => t(kind.labelKey)),
-  });
-
-  const customId = useId();
-  const chipId = useId();
-  const nameId = useId();
-  const railRef = useRef<HTMLDivElement>(null);
-
-  /** Left and right walk the rail; Home and End jump to its ends. */
-  function walkRail(event: KeyboardEvent<HTMLDivElement>) {
-    const step = RAIL_STEP[event.key];
-    const jump = event.key === "Home" || event.key === "End";
-
-    if (!(step || jump) || !railRef.current) {
-      return;
-    }
-
-    const stops = [...railRef.current.querySelectorAll("button")];
-    const from = stops.indexOf(document.activeElement as HTMLButtonElement);
-
-    if (from < 0) {
-      return;
-    }
-
-    // Wrapping, because the rail is short and its ends are two words apart.
-    const to = jump
-      ? event.key === "Home"
-        ? 0
-        : stops.length - 1
-      : (from + step + stops.length) % stops.length;
-
-    event.preventDefault();
-    stops[to]?.focus();
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div
-        // A toolbar rather than a radio group, though the stops are exclusive:
-        // an arrow in a radio group selects as it moves, and each selection
-        // here is a write. The reader walks the rail and presses the one they
-        // meant.
-        role="toolbar"
-        ref={railRef}
-        aria-label={label}
-        onKeyDown={walkRail}
-        className={cn(RAIL, "hidden md:inline-flex")}
-      >
-        {presets.map((one, index) => (
-          <Stop
-            key={one.id}
-            id={one.id}
-            label={t(PRESET_LABEL_KEY[one.id])}
-            hint={t(one.hintKey)}
-            {...named(one)}
-            nameId={nameId}
-            pressed={preset === one.id}
-            // Off every situation, the rail is a set of offers rather than a
-            // state, so Tab lands at the start of it.
-            reached={preset === "CUSTOM" ? index === 0 : preset === one.id}
-            saving={saving}
-            onPick={() => {
-              onPick(one);
-            }}
-          />
-        ))}
-      </div>
-      <Tooltip delayDuration={TIP_DELAY_MS}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            id={chipId}
-            // Named for the group it opens, so three of them on a page are
-            // three different controls to a screen reader. Its own text comes
-            // first, so the word on the chip is still the word in its name.
-            aria-labelledby={`${chipId} ${nameId}`}
-            aria-describedby={customId}
-            // Pressed the way the stops beside it are: it is the state the
-            // group is in whenever the cells are on none of the situations,
-            // and the tint that says so is no use to a reader who hears it.
-            aria-pressed={preset === "CUSTOM"}
-            onClick={onCustom}
-            className={cn(
-              STOP,
-              "hidden rounded-lg border border-dashed md:inline-flex",
-              // Dashed while it is an offer, solid and filled once it is the
-              // state the group is in: the reader left the situations behind
-              // and set the rows one by one, and the row should say so as
-              // loudly as a pressed stop does.
-              preset === "CUSTOM"
-                ? "border-primary bg-primary/10 text-primary border-solid"
-                : "border-input text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <SlidersHorizontal
-              className="size-3.5 shrink-0"
-              aria-hidden="true"
-            />
-            {t(PRESET_LABEL_KEY.CUSTOM)}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent sideOffset={TIP_OFFSET_PX} className={PANEL}>
-          {/* No lists: it pushes and stops nothing on its own. What it does is
-              open the group, and the kinds answer for themselves in there. */}
-          <PresetBody
-            label={t(PRESET_LABEL_KEY.CUSTOM)}
-            hint={t(CUSTOM_HINT_KEY)}
-            pushes={[]}
-            stops={[]}
-          />
-        </TooltipContent>
-      </Tooltip>
-      {/* The stops beside it carry their sentence this way too: a tooltip
-          exists only while it is open, and this one says what pressing does. */}
-      <span aria-hidden="true" id={customId} className="sr-only">
-        {t(CUSTOM_HINT_KEY)}
-      </span>
-      {/* Referenced by every stop and by the chip, so it is read as part of
-          their names. Left visible to the reading order, it would be the
-          group's name a second time, after the rail and out of nowhere. */}
-      <span aria-hidden="true" id={nameId} className="sr-only">
-        {group}
-      </span>
-      <AnswerMenu
-        label={label}
-        presets={presets}
-        preset={preset}
-        group={group}
-        saving={saving}
-        named={named}
-        onPick={onPick}
-        onCustom={onCustom}
-      />
-    </div>
+    </>
   );
 }
