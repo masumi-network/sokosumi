@@ -2,21 +2,27 @@
 
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
 import {
-  DELIVERIES,
-  DELIVERY_HINT_KEY,
-  DELIVERY_LABEL_KEY,
-  type Delivery,
-  type GroupDelivery,
+  ChannelGrid,
+  EmailCell,
+  type EmailChoice,
+  UnusedChannelCells,
+} from "./notification-cells";
+import {
+  type PushBlock,
+  presetChanges,
+  withChannel,
 } from "./notification-delivery";
+import { ChannelLegend } from "./notification-legend";
+import { GroupAnswer } from "./notification-presets";
+import { PushBanner } from "./notification-push-banner";
 import {
   type GroupChoice,
   type NotificationDelivery,
@@ -24,171 +30,86 @@ import {
 } from "./use-notification-delivery";
 
 /**
- * Where one kind arrives: off, in Sokosumi, or a banner as well.
+ * A row that folds: what it is on the outside, where it arrives inside.
  *
- * Three stops on the row rather than a menu, because the answer is worth
- * reading without opening anything and the choices are worth comparing. The
- * labels are short for the same reason: three of them share a line with the
- * name they belong to, in every language this ships in.
- */
-function DeliveryStops({
-  kind,
-  delivery,
-  disabled,
-  onPick,
-  onMixed,
-}: {
-  kind: string;
-  delivery: GroupDelivery;
-  disabled: boolean;
-  onPick: (delivery: Delivery) => void;
-  /** Opens the group, for the reader who wants to see what the mixture is. */
-  onMixed?: () => void;
-}) {
-  const t = useTranslations("App.Account.Notifications");
-
-  return (
-    <div
-      role="group"
-      aria-label={t("deliveryAriaLabel", { kind })}
-      className="border-input bg-background inline-flex shrink-0 rounded-full border p-0.5"
-    >
-      {DELIVERIES.map((candidate) => (
-        <button
-          key={candidate}
-          type="button"
-          aria-pressed={delivery === candidate}
-          disabled={disabled}
-          title={t(DELIVERY_HINT_KEY[candidate])}
-          onClick={() => {
-            onPick(candidate);
-          }}
-          className={cn(
-            "focus-visible:ring-ring/50 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px] disabled:opacity-50",
-            delivery === candidate
-              ? "bg-primary/10 text-primary"
-              : "text-muted-foreground enabled:hover:text-foreground",
-          )}
-        >
-          {t(DELIVERY_LABEL_KEY[candidate])}
-        </button>
-      ))}
-      {delivery === "MIXED" && onMixed ? (
-        <button
-          type="button"
-          aria-pressed
-          title={t("deliveryMixedHint")}
-          onClick={onMixed}
-          className="text-primary bg-primary/5 focus-visible:ring-ring/50 rounded-full border border-dashed px-3 py-1 text-xs font-medium whitespace-nowrap outline-none focus-visible:ring-[3px]"
-        >
-          {t("deliveryMixed")}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-/** One kind of notification, what it is, and where it arrives. */
-function KindRow({
-  label,
-  hint,
-  delivery,
-  disabled,
-  indent = false,
-  onPick,
-}: {
-  label: string;
-  hint: string;
-  delivery: GroupDelivery;
-  disabled: boolean;
-  indent?: boolean;
-  onPick: (delivery: Delivery) => void;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3",
-        indent && "sm:pl-10",
-      )}
-    >
-      <div className="min-w-0">
-        <p className="text-sm leading-5">{label}</p>
-        <p className="text-muted-foreground text-sm leading-5">{hint}</p>
-      </div>
-      <DeliveryStops
-        kind={label}
-        delivery={delivery}
-        disabled={disabled}
-        onPick={onPick}
-      />
-    </div>
-  );
-}
-
-/**
- * A group that folds, with its kinds under it.
+ * Every row of the card is one of these, so the list a reader lands on is a
+ * list of things Sokosumi sends rather than a wall of icons. The cells are the
+ * second question and they wait for it to be asked: a reader who wants the app
+ * and not the phone opens the row and says so, and a reader who only wants
+ * less noise never has to meet a channel at all.
  *
- * The group control sets every kind in it at once, and the kinds under it stay
- * separately selectable. Chat is the case this exists for: mentions and direct
- * messages are usually one decision and sometimes two. Set apart, the group
- * says so and the dashed stop opens the fold rather than picking for you.
+ * The trigger holds no control of its own: a button inside a button is not a
+ * thing a browser can do. An answer that belongs to the whole row sits beside
+ * the name instead, at the end of the row, where it is one line rather than a
+ * second one and where it lands over the columns the fold opens on. A phone
+ * has no room for both on one line, so there it drops under the name, indented
+ * to the words rather than to the chevron, because the chevron's column
+ * belongs to the fold. A `size-4` mark and a `gap-2` make the 24px that indent
+ * is.
+ *
+ * Whether it stands open is the caller's to hold. The answer under the name
+ * can ask for the rows, and only the caller that draws that answer can say
+ * open rather than toggle.
  */
-function GroupRows({
-  group,
-  choices,
+function FoldRow({
+  name,
+  description,
+  descriptionId,
+  answer,
+  open,
+  onOpenChange,
+  children,
 }: {
-  group: GroupChoice;
-  choices: NotificationDelivery;
+  name: string;
+  description: string;
+  /** For a control inside the fold that is described by the row's own line. */
+  descriptionId?: string;
+  /** What the whole row answers at once, for a row that has such an answer. */
+  answer?: ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
 }) {
-  const t = useTranslations("App.Account.Notifications");
-  const [open, setOpen] = useState(false);
-  const categories = group.kinds.map((kind) => kind.spec.category);
-
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        {/* The trigger holds no control of its own: a button inside a button is
-            not a thing a browser can do. */}
-        <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex min-w-0 flex-1 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px]">
-          <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
+    <Collapsible open={open} onOpenChange={onOpenChange}>
+      <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
+        <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px] sm:flex-1">
+          {/* Turned on the same 200ms ease-out the fold opens on, so the
+              mark and the box it belongs to stop together. Under reduced
+              motion it has no transition at all and simply points the other
+              way, which is what the fold does too. */}
+          <ChevronRight className="text-muted-foreground size-4 shrink-0 duration-200 ease-out group-data-[state=open]:rotate-90 motion-safe:transition-transform" />
           <span className="min-w-0">
-            <span className="block text-sm leading-5">
-              {t(group.spec.labelKey)}
+            <span className="block text-sm leading-5">{name}</span>
+            <span
+              id={descriptionId}
+              className="text-muted-foreground block text-sm leading-5"
+            >
+              {description}
             </span>
-            {group.spec.descriptionKey ? (
-              <span className="text-muted-foreground block truncate text-sm leading-5">
-                {t(group.spec.descriptionKey)}
-              </span>
-            ) : null}
           </span>
         </CollapsibleTrigger>
-        <DeliveryStops
-          kind={t(group.spec.labelKey)}
-          delivery={group.delivery}
-          disabled={group.saving}
-          onMixed={() => {
-            setOpen(true);
-          }}
-          onPick={(delivery) => {
-            void choices.setDelivery(categories, delivery);
-          }}
-        />
+        {answer ? <div className="shrink-0 pl-6 sm:pl-0">{answer}</div> : null}
       </div>
-      <CollapsibleContent>
-        <div className="bg-muted/20 divide-y border-t">
-          {group.kinds.map((kind) => (
-            <KindRow
-              key={kind.spec.category}
-              label={t(kind.spec.labelKey)}
-              hint={t(kind.spec.hintKey)}
-              delivery={kind.delivery}
-              disabled={kind.saving}
-              indent
-              onPick={(delivery) => {
-                void choices.setDelivery([kind.spec.category], delivery);
-              }}
-            />
-          ))}
+      {/* The fold measures itself, so the cells slide out of the row rather
+          than replacing it between two frames. `overflow-hidden` is what makes
+          the height mean anything: without it they stand at full height while
+          the box around them is still growing. A reader who asked for less
+          motion gets the old jump, which is the honest thing to give them. */}
+      <CollapsibleContent className="group/fold motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down overflow-hidden">
+        {/* No padding above the children. What comes first is the line of
+            column names, and it carries its own, so the names sit under the
+            border the way a table head sits under its rule rather than
+            floating in a band of their own.
+
+            The rows fade over the same 200ms the box takes. Drawn at full
+            strength from the first frame, a grid of thirty cells is already
+            all there and the box is a shutter being pulled off it; faded in,
+            it is the grid that arrives. `animation-duration-200` rather than
+            `duration-200`, which would also set a transition duration this
+            element never asked for. */}
+        <div className="bg-muted/20 motion-safe:group-data-[state=closed]/fold:animate-out motion-safe:group-data-[state=closed]/fold:fade-out motion-safe:group-data-[state=open]/fold:animate-in motion-safe:group-data-[state=open]/fold:fade-in animation-duration-200 border-t px-4 pb-1 ease-out">
+          {children}
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -196,53 +117,273 @@ function GroupRows({
 }
 
 /**
+ * A group that folds, with its kinds under it.
+ *
+ * The group control offers the answers that mean something for this group, and
+ * the kinds under it stay separately selectable. Chat is the case this exists
+ * for: mentions, direct messages and every message in a room are usually one
+ * decision and sometimes three. Set one by one, the group says Custom and that
+ * stop opens the fold rather than picking for you.
+ */
+function GroupRows({
+  group,
+  email,
+  pushBlock,
+  choices,
+}: {
+  group: GroupChoice;
+  email: EmailChoice;
+  pushBlock: PushBlock | null;
+  choices: NotificationDelivery;
+}) {
+  const t = useTranslations("App.Account.Notifications");
+  const [open, setOpen] = useState(false);
+  const kinds = group.kinds.map((kind) => kind.spec);
+  const [only] = group.kinds;
+  const alone = group.kinds.length === 1 && only;
+
+  return (
+    <FoldRow
+      open={open}
+      onOpenChange={setOpen}
+      name={t(group.spec.labelKey)}
+      // A group of one is its kind, so the line under the name is what that
+      // kind is rather than what the group holds. Nothing else would be there:
+      // the grid inside draws no name for a group with one row in it.
+      description={
+        alone
+          ? t(only.spec.hintKey)
+          : group.spec.descriptionKey
+            ? t(group.spec.descriptionKey)
+            : ""
+      }
+      answer={
+        // A group of one is its own situation, and a group Core answered only
+        // part of is one no word covers. Both leave the rows to answer.
+        alone || group.presets.length === 0 ? null : (
+          <GroupAnswer
+            group={t(group.spec.labelKey)}
+            kinds={kinds}
+            presets={group.presets}
+            preset={group.preset}
+            saving={group.saving}
+            onPick={(preset) => {
+              void choices.setDeliveries(presetChanges(preset, kinds));
+            }}
+            onCustom={() => {
+              setOpen(true);
+            }}
+          />
+        )
+      }
+    >
+      <ChannelGrid
+        kinds={group.kinds}
+        email={email}
+        pushBlock={pushBlock}
+        showNames={!alone}
+        heads={<ChannelLegend pushBlock={pushBlock} named={!alone} />}
+        onToggle={(kind, channel, on) => {
+          void choices.setDeliveries([
+            {
+              category: kind.spec.category,
+              channels: withChannel(kind.channels, channel, on),
+            },
+          ]);
+        }}
+      />
+    </FoldRow>
+  );
+}
+
+/**
+ * Sokosumi's own news, as a row of the same card.
+ *
+ * It is not a notification about the reader's work, and Core holds it as an
+ * account switch rather than a cell of the matrix. It is still a thing
+ * Sokosumi sends, so it folds open on the same columns instead of sitting
+ * under the card as a switch of its own. The two columns it does not use say
+ * so rather than leaving a hole where an answer should be.
+ */
+function NewsRow({ news }: { news: EmailChoice }) {
+  const t = useTranslations("App.Account.Notifications");
+  const [open, setOpen] = useState(false);
+  const label = t("marketingEmailsTitle");
+  const hintId = useId();
+
+  return (
+    <FoldRow
+      name={label}
+      description={t("marketingEmailsDescription")}
+      descriptionId={hintId}
+      open={open}
+      onOpenChange={setOpen}
+    >
+      <ChannelLegend pushBlock={null} />
+      <div className="flex items-center justify-end gap-2 border-t py-2">
+        <div
+          role="group"
+          // Its own sentence rather than the one every kind row uses, which
+          // reads "Where {kind} arrives" and is written for a row of the
+          // matrix. Marketing emails are not a kind the matrix carries.
+          aria-label={t("newsDeliveryAriaLabel")}
+          className="flex shrink-0 items-center justify-end gap-2"
+        >
+          <UnusedChannelCells kind={label} />
+          <EmailCell
+            // Its own name rather than "Email for Marketing emails", which is
+            // what composing gives on a row that is already about email.
+            // Described by the row's own line rather than by a sentence of its
+            // own: that line is already on screen and says the same.
+            name={label}
+            describedById={hintId}
+            email={news}
+          />
+        </div>
+      </div>
+    </FoldRow>
+  );
+}
+
+/** The account switch on a row of its own, for when no kind row carries it. */
+function EmailRow({ email }: { email: EmailChoice }) {
+  const t = useTranslations("App.Account.Notifications");
+  const [open, setOpen] = useState(false);
+  const hintId = useId();
+
+  return (
+    <FoldRow
+      name={t("channelEmailLabel")}
+      // No rows to be shared with here, so this one says what the emails are
+      // rather than which rows hold the same switch.
+      description={t("channelEmailFallbackHint")}
+      descriptionId={hintId}
+      open={open}
+      onOpenChange={setOpen}
+    >
+      <div className="flex items-center justify-end gap-2 py-2">
+        <EmailCell
+          // Named for the row, like the marketing row below it. Composed, it
+          // would read "Email for Job status emails".
+          name={t("channelEmailLabel")}
+          describedById={hintId}
+          email={email}
+        />
+      </div>
+    </FoldRow>
+  );
+}
+
+/** The groups the matrix carries, as rows of the box around them. */
+function KindGroups({
+  email,
+  pushBlock,
+  choices,
+}: {
+  email: EmailChoice;
+  pushBlock: PushBlock | null;
+  choices: NotificationDelivery;
+}) {
+  return (
+    <>
+      {choices.groups.map((group) => (
+        <GroupRows
+          key={group.spec.id}
+          group={group}
+          email={email}
+          pushBlock={pushBlock}
+          choices={choices}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
  * What you get notified about, and where each kind arrives.
  *
- * One row per kind, and one control on it. The switch matrix this replaces
- * asked the same question as two switches per row, which let a reader ask for a
- * banner and no entry in Sokosumi, and made the common answer two presses.
+ * One control per decision: a group that a reader settles at once carries the
+ * group's own answers, and the kinds under it stay separately selectable. Open
+ * a row and it becomes a grid, because a channel is a place rather than a
+ * volume: an entry in Sokosumi, a push on the device, and an email are three
+ * of them.
+ *
+ * Everything Sokosumi sends answers here, including the switches that used to
+ * sit under the card. Push is no longer a preference of its own: asking for
+ * one in a cell asks the browser, and a browser that cannot show one says so
+ * in a banner over the rows rather than in a row about the browser.
  */
-export function NotificationKinds() {
+export function NotificationKinds({
+  email,
+  news,
+}: {
+  email: EmailChoice;
+  news: EmailChoice;
+}) {
   const t = useTranslations("App.Account.Notifications");
   const choices = useNotificationDelivery();
 
-  if (choices.groups.length === 0) {
-    return null;
-  }
+  // Email is the one control here that the matrix does not carry, and Core
+  // keeps mailing whatever the matrix says. A read that failed leaves no rows
+  // at all, and a matrix that comes back without the job kinds leaves rows
+  // that all mail nothing. Either way the switch stands on a row of its own
+  // rather than disappearing with them.
+  const mailedByARow = choices.groups.some((group) =>
+    group.kinds.some((kind) => kind.spec.email),
+  );
+
+  // The two account switches are server props, and the matrix is a read that
+  // has to land. So the marketing row is drawn while the read is in flight,
+  // and the rows that come from the matrix are not: an empty card for the
+  // length of a round trip loses a control that never needed the answer.
+  // The job emails wait, because whether they need a row of their own is
+  // something only the matrix can say.
+  //
+  // Only a read with no answer yet holds the kinds back. A refetch over a
+  // warm cache reports success, so the rows it already has stay on screen
+  // rather than blanking and coming back.
+  const showKinds = !choices.loading && choices.groups.length > 0;
 
   return (
     <div className="space-y-3">
-      <div>
-        <p className="text-sm leading-5 font-medium">{t("kindsTitle")}</p>
-        <p className="text-muted-foreground text-sm leading-6">
-          {t("kindsDescription")}
-        </p>
-      </div>
+      {/* The heading describes the groups, so it comes with them. A read that
+          failed leaves the box holding the one row Sokosumi can still answer
+          for, and a title about setting groups would be pointing at nothing. */}
+      {showKinds ? (
+        <div>
+          <p className="text-sm leading-5 font-medium">{t("kindsTitle")}</p>
+          <p className="text-muted-foreground text-sm leading-6">
+            {t("kindsDescription")}
+          </p>
+        </div>
+      ) : null}
+      {/* One banner for the whole card, because the browser is one answer for
+          every row. It waits for a kind to be asking for a push: with every
+          banner cell off, nothing is going wrong here. */}
+      {choices.pushBlock && choices.pushWanted ? (
+        <PushBanner
+          block={choices.pushBlock}
+          saving={choices.pushSaving}
+          onEnable={() => {
+            void choices.activatePush();
+          }}
+        />
+      ) : null}
       <div className="divide-y rounded-lg border">
-        {choices.groups.map((group) => {
-          const [only] = group.kinds;
-
-          // A group of one is its kind: folding it away behind a chevron would
-          // hide the control without shortening the page.
-          return group.kinds.length === 1 && only ? (
-            <KindRow
-              key={group.spec.id}
-              label={t(group.spec.labelKey)}
-              hint={t(only.spec.hintKey)}
-              delivery={only.delivery}
-              disabled={only.saving}
-              onPick={(delivery) => {
-                void choices.setDelivery([only.spec.category], delivery);
-              }}
-            />
-          ) : (
-            <GroupRows key={group.spec.id} group={group} choices={choices} />
-          );
-        })}
+        {showKinds ? (
+          <KindGroups
+            email={email}
+            pushBlock={choices.pushBlock}
+            choices={choices}
+          />
+        ) : null}
+        {/* Last, because it is the one row that is not about the reader's own
+            work, and the only one Sokosumi sends rather than reports. It is
+            also the row that does not come from the matrix, so it stands
+            whether or not the read landed. */}
+        {choices.loading || mailedByARow ? null : <EmailRow email={email} />}
+        <NewsRow news={news} />
       </div>
-      <p className="text-muted-foreground text-sm leading-6">
-        {t("bannerHint")}
-      </p>
     </div>
   );
 }

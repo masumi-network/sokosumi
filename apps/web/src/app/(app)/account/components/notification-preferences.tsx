@@ -11,11 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
-import { NOTIFICATION_PREFERENCES_ANCHOR } from "../constants";
 import { NotificationKinds } from "./notification-kinds";
-import { PushNotificationSetting } from "./push-notification-setting";
 
 interface NotificationPreferencesProps {
   notificationsOptIn: boolean;
@@ -33,47 +30,55 @@ export function NotificationPreferences({
     initialNotificationsOptIn,
   );
   const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn);
-  const [isJobStatusSaving, setIsJobStatusSaving] = useState(false);
-  const [isMarketingSaving, setIsMarketingSaving] = useState(false);
+  // One flag for both fields: a write of either refuses the other, so there is
+  // no state where they differ and no control that reports only its own.
+  const [isSaving, setIsSaving] = useState(false);
 
   const createToggleHandler = (
     field: "notificationsOptIn" | "marketingOptIn",
     currentValue: boolean,
     setValue: (value: boolean) => void,
-    setLoading: (loading: boolean) => void,
     enabledSuccessKey: string,
     disabledSuccessKey: string,
   ) => {
     return (nextValue: boolean) => {
-      if (isJobStatusSaving || isMarketingSaving) {
+      if (isSaving) {
         return;
       }
 
       const previous = currentValue;
       setValue(nextValue);
-      setLoading(true);
+      setIsSaving(true);
 
-      const updatePromise = authClient
-        .updateUser({
-          [field]: nextValue,
-        })
+      // The value goes back on the chain rather than inside the toast, so it
+      // is put back whether or not the toast renders its error, and never
+      // after the flag that tells a row the write has settled. React coalesces
+      // the two updates today, so a row reads one settled pair either way;
+      // this does not lean on that. `useNotificationDelivery` orders the
+      // channel writes the same way.
+      // Called inside the chain, so a throw on the way out is a rejection the
+      // catch and the finally still see. Thrown before it, the flag would stay
+      // set for the life of the page and every control would refuse forever.
+      const updatePromise = Promise.resolve()
+        .then(() => authClient.updateUser({ [field]: nextValue }))
         .then((result: UpdateUserResult) => {
           if (result.error) {
             throw new Error(result.error.message ?? "update_failed");
           }
         })
+        .catch((error: unknown) => {
+          setValue(previous);
+          throw error;
+        })
         .finally(() => {
-          setLoading(false);
+          setIsSaving(false);
         });
 
       toast.promise(updatePromise, {
         loading: t("loading"),
         success: () =>
           nextValue ? t(enabledSuccessKey) : t(disabledSuccessKey),
-        error: () => {
-          setValue(previous);
-          return t("error");
-        },
+        error: () => t("error"),
       });
     };
   };
@@ -82,7 +87,6 @@ export function NotificationPreferences({
     "notificationsOptIn",
     notificationsOptIn,
     setNotificationsOptIn,
-    setIsJobStatusSaving,
     "jobStatusEmailsEnabledSuccess",
     "jobStatusEmailsDisabledSuccess",
   );
@@ -91,52 +95,37 @@ export function NotificationPreferences({
     "marketingOptIn",
     marketingOptIn,
     setMarketingOptIn,
-    setIsMarketingSaving,
     "marketingEmailsEnabledSuccess",
     "marketingEmailsDisabledSuccess",
   );
 
   return (
-    <Card className="flex h-full flex-col" id={NOTIFICATION_PREFERENCES_ANCHOR}>
+    <Card className="flex h-full flex-col">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm leading-5 font-medium">
-              {t("jobStatusEmailsTitle")}
-            </p>
-            <p className="text-muted-foreground text-sm leading-6">
-              {t("jobStatusEmailsDescription")}
-            </p>
-          </div>
-          <Switch
-            checked={notificationsOptIn}
-            onCheckedChange={handleNotificationsOptInToggle}
-            disabled={isJobStatusSaving}
-            aria-label={t("jobStatusEmailsAriaLabel")}
-          />
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm leading-5 font-medium">
-              {t("marketingEmailsTitle")}
-            </p>
-            <p className="text-muted-foreground text-sm leading-6">
-              {t("marketingEmailsDescription")}
-            </p>
-          </div>
-          <Switch
-            checked={marketingOptIn}
-            onCheckedChange={handleMarketingOptInToggle}
-            disabled={isMarketingSaving}
-            aria-label={t("marketingEmailsAriaLabel")}
-          />
-        </div>
-        <PushNotificationSetting />
-        <NotificationKinds />
+      <CardContent>
+        {/* Everything the card can answer is in the one grid: what Sokosumi
+            tells you about, and where each of those things reaches you. Both
+            account switches are rows of it, so a reader answers one question
+            in one place rather than meeting a second kind of control below.
+            Push has no row of its own at all: a cell asks the browser. */}
+        {/* Busy while either write is in flight, because the handler refuses
+            both then. A cell that took the press and did nothing would look
+            broken; dimmed and marked busy, it says why. */}
+        <NotificationKinds
+          email={{
+            enabled: notificationsOptIn,
+            saving: isSaving,
+            onChange: handleNotificationsOptInToggle,
+          }}
+          news={{
+            enabled: marketingOptIn,
+            saving: isSaving,
+            onChange: handleMarketingOptInToggle,
+          }}
+        />
       </CardContent>
     </Card>
   );

@@ -102,11 +102,9 @@ async function AccountPageContent() {
               />
             ) : undefined
           }
-          notificationsOptIn={session?.user.notificationsOptIn ?? true}
           userImage={session?.user.image}
           userLogo={session?.user.logo}
           userMetadata={session?.user.metadata}
-          marketingOptIn={session?.user.marketingOptIn ?? false}
           hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}
           hasOrganizationMembership={
             workspaceAccess?.hasOrganizationMembership ?? members.length > 0
