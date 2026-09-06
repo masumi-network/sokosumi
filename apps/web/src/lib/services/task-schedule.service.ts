@@ -7,6 +7,19 @@ import type {
 } from "@/lib/clients/generated/core/types.gen";
 
 export const taskScheduleService = (() => {
+  async function setCalendarSchedule(
+    taskId: string,
+    body: PutTaskScheduleRequest,
+  ): Promise<Task> {
+    const result = await coreClient.putTaskCalendarSchedule(taskId, body);
+
+    if (!result.data) {
+      throw new Error("Failed to save Calendar task schedule");
+    }
+
+    return result.data;
+  }
+
   async function setSchedule(
     taskId: string,
     body: PutTaskScheduleRequest,
@@ -31,6 +44,7 @@ export const taskScheduleService = (() => {
   }
 
   return {
+    setCalendarSchedule,
     setSchedule,
     clearSchedule,
   };

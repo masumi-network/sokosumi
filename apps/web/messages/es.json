@@ -6113,6 +6113,26 @@
         "PROJECT": "Proyecto",
         "LEGACY_UNKNOWN": "Origen heredado"
       },
+      "event": {
+        "accessibleName": "{task}, {source}",
+        "editSchedule": "Editar programación",
+        "openTask": "Abrir tarea"
+      },
+      "create": {
+        "title": "Programar una tarea"
+      },
+      "edit": {
+        "title": "Editar programación",
+        "description": "Cambia la programación de {name}.",
+        "loadError": "No se pudo cargar esta tarea. Inténtalo de nuevo.",
+        "saveError": "No se pudo guardar esta programación. Inténtalo de nuevo.",
+        "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo.",
+        "clearPending": "Eliminando programación…",
+        "clearTitle": "¿Eliminar programación?",
+        "clearDescription": "Esta tarea dejará de ejecutarse según una programación.",
+        "clearCancel": "Cancelar",
+        "clearConfirm": "Eliminar programación"
+      },
       "accuracy": {
         "inferred": "Origen inferido",
         "unknown": "Origen desconocido",

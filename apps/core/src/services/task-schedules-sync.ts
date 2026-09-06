@@ -394,10 +394,11 @@ async function processDueTask(
 
       const claimedNextRunAt = candidate.nextRunAt;
       const calendarBetaEnabled = isNmkrEmail(candidate.owner?.email);
+      const candidateMetadata = parseTaskScheduleMetadata(candidate.metadata);
       let template = candidate;
       let scheduleMetadata: TaskScheduleMetadata;
 
-      if (calendarBetaEnabled) {
+      if (candidateMetadata?.version === 2 || calendarBetaEnabled) {
         const scopeLocked = await lockCalendarScope(tx, candidate.workspaceId, [
           candidate.projectId,
         ]);
@@ -452,10 +453,7 @@ async function processDueTask(
         template = currentTemplate;
         scheduleMetadata = validation.metadata;
       } else {
-        const legacyScheduleMetadata = parseTaskScheduleMetadata(
-          template.metadata,
-        );
-        if (!legacyScheduleMetadata) {
+        if (!candidateMetadata) {
           const cleared = await clearTemplateSchedule(
             tx,
             template.id,
@@ -468,7 +466,7 @@ async function processDueTask(
               : [],
           };
         }
-        scheduleMetadata = legacyScheduleMetadata;
+        scheduleMetadata = candidateMetadata;
       }
 
       if (scheduleMetadata.mode === "once") {
@@ -517,7 +515,7 @@ async function processDueTask(
           template,
           metadata,
           nextRunAt,
-          calendarBetaEnabled,
+          metadata.version === 2 || calendarBetaEnabled,
         );
         clonedTaskIds.push(cloneId);
         clonesCreated += 1;

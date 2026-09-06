@@ -142,6 +142,26 @@ After **deny/revoke** on the create grant: parked task → **`CANCELED`**.
 
 ---
 
+## Atomic scheduled Task create (`POST /v1/tasks/scheduled`)
+
+Scheduled creation is a distinct v2 Calendar operation. It requires a UUID
+`operationId`, an explicit active-workspace source (`workspace` or `project`),
+an assignee, and a schedule. Core atomically creates the `QUEUED` Task, v2 rule
+epoch, planned occurrence index, and workspace-scoped idempotency result.
+
+Coworker callers must hold a **GRANTED** vendor workspace grant. Requests with
+no grant or a pending grant return **403** `grant_required`; unlike ordinary
+delegated Task create, this endpoint never creates `GRANT_PENDING` work. With a
+grant, a Coworker may target any usable task-capable Coworker in the active
+workspace, including one from a different vendor. Core records the caller as
+creator and the selected Coworker as assignee separately.
+
+Project sources are rechecked inside the transaction and reject Projects that
+are closing or closed. Retrying the same `operationId` in the same workspace
+returns the original Task without creating another occurrence ledger.
+
+---
+
 ## Endpoint reference (coworker-facing)
 
 | Method | Route | Behavior |
@@ -149,6 +169,7 @@ After **deny/revoke** on the create grant: parked task → **`CANCELED`**.
 | GET | `/v1/tasks` | With **GRANTED** grant, list all non-DRAFT tasks in workspace. `status=DRAFT` filter → **400**. |
 | GET | `/v1/tasks/{id}` | Baseline unchanged. Out-of-scope: upsert PENDING grant, **403** unless **GRANTED**. Same gate for task events, links, jobs list. |
 | POST | `/v1/tasks` | Delegated create flow above. |
+| POST | `/v1/tasks/scheduled` | Atomic v2 scheduled creation; requires GRANTED workspace access and never parks work. |
 | POST | `/v1/tasks/{id}/events` | **`GRANT_PENDING`** → **403** `task_parked`. |
 | POST | `/v1/tasks/{id}/jobs` | Parent **`GRANT_PENDING`** → **403** `task_parked`. |
 | PATCH | `/v1/tasks/{id}` (+ schedule, etc.) | Collaborators cannot mutate parked tasks. |

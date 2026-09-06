@@ -6113,6 +6113,26 @@
         "PROJECT": "Project",
         "LEGACY_UNKNOWN": "Legacy source"
       },
+      "event": {
+        "accessibleName": "{task}, {source}",
+        "editSchedule": "Edit schedule",
+        "openTask": "Open task"
+      },
+      "create": {
+        "title": "Schedule a task"
+      },
+      "edit": {
+        "title": "Edit schedule",
+        "description": "Change the schedule for {name}.",
+        "loadError": "Unable to load this task. Please try again.",
+        "saveError": "Unable to save this schedule. Please try again.",
+        "clearError": "Unable to remove this schedule. Please try again.",
+        "clearPending": "Removing schedule…",
+        "clearTitle": "Remove schedule?",
+        "clearDescription": "This task will no longer run on a schedule.",
+        "clearCancel": "Cancel",
+        "clearConfirm": "Remove schedule"
+      },
       "accuracy": {
         "inferred": "Inferred source",
         "unknown": "Unknown source",

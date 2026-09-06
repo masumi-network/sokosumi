@@ -2,6 +2,7 @@
 
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
+import interactionPlugin from "@fullcalendar/react/interaction";
 import listPlugin from "@fullcalendar/react/list";
 import classicTheme from "@fullcalendar/react/themes/classic";
 import timeGridPlugin from "@fullcalendar/react/timegrid";
@@ -23,6 +24,8 @@ import {
   ChevronRight,
   CircleDashed,
   Clock3,
+  FolderKanban,
+  Plus,
   Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -33,18 +36,47 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { useState } from "react";
+import { type MouseEvent, useRef, useState } from "react";
 import { Temporal } from "temporal-polyfill";
+import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { TaskScheduleSection } from "@/components/task-schedule-section";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useIsMobileMedia } from "@/hooks/use-mobile";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import {
+  clearTaskSchedule,
+  saveCalendarTaskSchedule,
+} from "@/lib/actions/task/action";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
+  type Task,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarItem,
@@ -54,6 +86,9 @@ import {
   getDefaultTimezone,
   getTimezoneOptions,
 } from "@/lib/schedules/timezones";
+import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
+import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
+import { metadataToSelection } from "@/lib/utils/task-schedule";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
@@ -69,6 +104,7 @@ const SOURCE_PALETTE_CLASSES = {
 
 interface CalendarCoworker {
   id: string;
+  image?: string;
   name: string;
 }
 
@@ -87,12 +123,14 @@ interface WorkspaceCalendarProps {
     to: Date;
   };
   coworkers?: CalendarCoworker[];
-  projectId?: string;
+  lockedProjectId?: string;
 }
 
 const calendarParsers = {
   assigneeId: parseAsString,
   date: parseAsString,
+  projectId: parseAsString,
+  sourceId: parseAsString,
   scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
   timezone: parseAsString,
@@ -109,6 +147,17 @@ function parseCalendarDate(value: string, fallback: string): Date {
 
 function getCalendarDayKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
+}
+
+function getProjectIdFromSource(
+  source: WorkspaceCalendarSource,
+): string | null {
+  if (source.sourceType !== "PROJECT") {
+    return null;
+  }
+
+  const projectId = source.sourceId.replace(/^project:/, "");
+  return projectId ? projectId : null;
 }
 
 export function getCalendarItemDateKey(date: Date, timeZone = "UTC"): string {
@@ -142,21 +191,23 @@ function getRangeLabel(
 
 function SourceMarker({
   decorative = false,
+  size = "size-4",
   source,
   sourceName,
 }: {
   decorative?: boolean;
+  size?: string;
   source: WorkspaceCalendarSource | undefined;
   sourceName: string;
 }) {
   if (source?.logoUrl) {
     return (
       <Avatar
-        className="size-4 shrink-0 rounded-sm"
+        className={`${size} shrink-0 rounded-sm`}
         data-testid="calendar-source-marker"
       >
         <AvatarImage alt={decorative ? "" : sourceName} src={source.logoUrl} />
-        <AvatarFallback className="rounded-sm text-xs">
+        <AvatarFallback aria-hidden={decorative} className="rounded-sm text-xs">
           {sourceName.slice(0, 1).toUpperCase()}
         </AvatarFallback>
       </Avatar>
@@ -167,7 +218,7 @@ function SourceMarker({
     <span
       aria-hidden={decorative}
       aria-label={decorative ? undefined : sourceName}
-      className={`size-1.5 shrink-0 rounded-full ${
+      className={`${size} shrink-0 rounded-full ${
         source ? SOURCE_PALETTE_CLASSES[source.paletteToken] : "bg-primary"
       }`}
       data-testid="calendar-source-marker"
@@ -177,12 +228,14 @@ function SourceMarker({
 
 function CalendarEvent({
   item,
-  onNavigate,
+  onEditSchedule,
+  onOpenTask,
   showDetails,
   source,
 }: {
   item: WorkspaceCalendarItem;
-  onNavigate: () => void;
+  onEditSchedule: (taskId: string) => void;
+  onOpenTask: (taskId: string) => void;
   showDetails: boolean;
   source: WorkspaceCalendarSource | undefined;
 }) {
@@ -190,58 +243,70 @@ function CalendarEvent({
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
 
   return (
-    <span
-      role="link"
-      tabIndex={0}
-      className="bg-primary/10 text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-xs font-medium"
-      onClick={(event) => {
-        event.stopPropagation();
-        onNavigate();
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          event.stopPropagation();
-          onNavigate();
-        }
-      }}
-    >
-      <SourceMarker source={source} sourceName={sourceName} />
-      {item.sourceAccuracy !== "EXACT" ? (
-        <span
-          aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-          className="text-muted-foreground shrink-0"
-          role="img"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          aria-label={t("event.accessibleName", {
+            source: sourceName,
+            task: item.taskName,
+          })}
+          className="bg-primary/10 text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium"
+          type="button"
         >
-          ~
-        </span>
-      ) : null}
-      <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
-      {showDetails ? (
-        <>
-          <span className="text-muted-foreground shrink-0">{sourceName}</span>
+          <SourceMarker decorative source={source} sourceName={sourceName} />
           {item.sourceAccuracy !== "EXACT" ? (
-            <span className="text-muted-foreground shrink-0">
-              {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+            <span
+              aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+              className="text-muted-foreground shrink-0"
+              role="img"
+            >
+              ~
             </span>
           ) : null}
-        </>
-      ) : null}
-    </span>
+          <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
+          {showDetails ? (
+            <>
+              <span className="text-muted-foreground shrink-0">
+                {sourceName}
+              </span>
+              {item.sourceAccuracy !== "EXACT" ? (
+                <span className="text-muted-foreground shrink-0">
+                  {t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
+                </span>
+              ) : null}
+            </>
+          ) : null}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {item.canEditSchedule ? (
+          <DropdownMenuItem onSelect={() => onEditSchedule(item.taskId)}>
+            {t("event.editSchedule")}
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem onSelect={() => onOpenTask(item.taskId)}>
+          {t("event.openTask")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
 function CalendarView({
   date,
   items,
-  onNavigate,
+  onDateClick,
+  onEventEdit,
+  onOpenTask,
   sources,
   timeZone,
   view,
 }: {
   date: Date;
   items: WorkspaceCalendarItem[];
-  onNavigate: (taskId: string) => void;
+  onDateClick: (date: Date) => void;
+  onEventEdit: (taskId: string) => void;
+  onOpenTask: (taskId: string) => void;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: (typeof CALENDAR_VIEWS)[number];
@@ -260,7 +325,13 @@ function CalendarView({
     >
       <FullCalendar
         key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
-        plugins={[dayGridPlugin, timeGridPlugin, listPlugin, classicTheme]}
+        plugins={[
+          classicTheme,
+          dayGridPlugin,
+          interactionPlugin,
+          timeGridPlugin,
+          listPlugin,
+        ]}
         initialDate={getCalendarDayKey(date)}
         initialView={pluginView}
         events={items.map((item) => ({
@@ -273,12 +344,14 @@ function CalendarView({
         slotEventOverlap={false}
         headerToolbar={false}
         height="auto"
+        editable={false}
         eventContent={(eventInfo) => {
           const item = items.find(({ id }) => id === eventInfo.event.id);
           return item ? (
             <CalendarEvent
               item={item}
-              onNavigate={() => onNavigate(item.taskId)}
+              onEditSchedule={onEventEdit}
+              onOpenTask={onOpenTask}
               showDetails={view === "agenda"}
               source={sources.find(
                 ({ sourceId }) => sourceId === item.sourceId,
@@ -288,15 +361,161 @@ function CalendarView({
             eventInfo.event.title
           );
         }}
-        eventClick={(eventInfo) => {
-          const item = items.find(({ id }) => id === eventInfo.event.id);
-          if (item) {
-            onNavigate(item.taskId);
-          }
-        }}
+        dateClick={(dateInfo) => onDateClick(dateInfo.date)}
       />
     </div>
   );
+}
+
+interface CalendarEditDialogProps {
+  initialSelection: TaskScheduleSelection;
+  onClose: () => void;
+  task: Task;
+}
+
+function CalendarEditDialog({
+  initialSelection,
+  onClose,
+  task,
+}: CalendarEditDialogProps) {
+  const t = useTranslations("App.Calendar");
+  const router = useRouter();
+  const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [isClearingSchedule, setIsClearingSchedule] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const clearRequestPending = useRef(false);
+
+  async function handleSave(schedule: TaskScheduleSelection) {
+    setError(null);
+    try {
+      const result = await saveCalendarTaskSchedule({
+        taskId: task.id,
+        schedule,
+      });
+      if (!result.ok) {
+        setError(t("edit.saveError"));
+        return;
+      }
+
+      onClose();
+      router.refresh();
+    } catch {
+      setError(t("edit.saveError"));
+    }
+  }
+
+  async function handleClearSchedule(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    if (clearRequestPending.current) {
+      return;
+    }
+
+    clearRequestPending.current = true;
+    setIsClearingSchedule(true);
+    setClearError(null);
+    setError(null);
+    try {
+      const result = await clearTaskSchedule({ taskId: task.id });
+      if (!result.ok) {
+        setClearError(t("edit.clearError"));
+        return;
+      }
+
+      onClose();
+      router.refresh();
+    } catch {
+      setClearError(t("edit.clearError"));
+    } finally {
+      clearRequestPending.current = false;
+      setIsClearingSchedule(false);
+    }
+  }
+
+  function handleClearConfirmationOpenChange(open: boolean) {
+    if (!open && clearRequestPending.current) {
+      return;
+    }
+
+    setClearConfirmationOpen(open);
+    if (!open) {
+      setClearError(null);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t("edit.title")}</DialogTitle>
+          <DialogDescription>
+            {t("edit.description", { name: task.name })}
+          </DialogDescription>
+        </DialogHeader>
+        {error ? (
+          <p className="text-destructive text-sm" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <TaskScheduleSection
+          key={`${task.id}-${initialSelection.mode}-${initialSelection.timezone}-${initialSelection.oneTimeLocalIso ?? ""}-${initialSelection.cron ?? ""}-${initialSelection.customCronExpr ?? ""}`}
+          initialSelection={initialSelection}
+          onCancel={onClose}
+          onClearSchedule={() => {
+            setClearError(null);
+            setClearConfirmationOpen(true);
+          }}
+          onSave={handleSave}
+          canClearSchedule={initialSelection.mode !== "none"}
+          hideHeader
+        />
+        <AlertDialog
+          open={clearConfirmationOpen}
+          onOpenChange={handleClearConfirmationOpenChange}
+        >
+          <AlertDialogContent
+            onEscapeKeyDown={(event) => {
+              if (clearRequestPending.current) {
+                event.preventDefault();
+              }
+            }}
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("edit.clearTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("edit.clearDescription")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {clearError ? (
+              <p className="text-destructive text-sm" role="alert">
+                {clearError}
+              </p>
+            ) : null}
+            <p className="sr-only" role="status">
+              {isClearingSchedule ? t("edit.clearPending") : null}
+            </p>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isClearingSchedule}>
+                {t("edit.clearCancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isClearingSchedule}
+                onClick={handleClearSchedule}
+              >
+                {t("edit.clearConfirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface CalendarEditState {
+  initialSelection: TaskScheduleSelection;
+  requestId: number;
+  task: Task;
 }
 
 export function WorkspaceCalendar({
@@ -308,23 +527,91 @@ export function WorkspaceCalendar({
   pagination = null,
   range,
   coworkers = [],
-  projectId,
+  lockedProjectId,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
+  const { handleOpenWithDefaults } = useCreateTaskModal();
   const [state, setState] = useQueryStates(calendarParsers);
-  const isMobile = useIsMobileMedia();
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
+  const [editState, setEditState] = useState<CalendarEditState | null>(null);
+  const [eventLoadError, setEventLoadError] = useState(false);
+  const eventRequestId = useRef(0);
+  const hasActivatedRef = useRef(false);
+
+  // Reset on a new server page during render, not in an effect, so a stale
+  // (possibly cleared/rescheduled) item never commits for a frame before
+  // correcting (react.dev: adjust state during render on prop change).
+  const [prevItems, setPrevItems] = useState(items);
+  const [prevServerNextCursor, setPrevServerNextCursor] = useState(
+    pagination?.nextCursor ?? null,
+  );
+  if (
+    items !== prevItems ||
+    (pagination?.nextCursor ?? null) !== prevServerNextCursor
+  ) {
+    setPrevItems(items);
+    setPrevServerNextCursor(pagination?.nextCursor ?? null);
+    setLoadedItems(items);
+    setNextCursor(pagination?.nextCursor ?? null);
+  }
+
+  useMountEffect(() => {
+    // Defer past React StrictMode's synchronous setup -> cleanup -> setup
+    // dev-mode cycle: only the microtask from the setup that survives (isn't
+    // cancelled by an immediate synthetic cleanup) marks activation or
+    // refreshes, so neither fires twice for one real mount/reactivation.
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+      if (hasActivatedRef.current) {
+        router.refresh();
+        return;
+      }
+      hasActivatedRef.current = true;
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  });
+
   const date = parseCalendarDate(state.date ?? initialDate, initialDate);
   const timeZone = isValidTimezone(state.timezone)
     ? state.timezone
     : getDefaultTimezone();
-  const view = state.view ?? (isMobile ? "agenda" : "month");
+  const view = state.view ?? "month";
+  const selectedProjectId = lockedProjectId ? null : state.projectId;
+  const selectedSourceId = lockedProjectId
+    ? null
+    : selectedProjectId
+      ? `project:${selectedProjectId}`
+      : state.sourceId;
+  const selectedCreateProjectId =
+    lockedProjectId ??
+    (selectedProjectId &&
+    sources.some(
+      (source) =>
+        source.sourceId === `project:${selectedProjectId}` &&
+        source.isSchedulable,
+    )
+      ? selectedProjectId
+      : null);
+  const canCreate = sources.some(
+    (source) =>
+      source.isSchedulable &&
+      (source.sourceType === "WORKSPACE" ||
+        getProjectIdFromSource(source) !== null) &&
+      (!lockedProjectId || source.sourceId === `project:${lockedProjectId}`),
+  );
 
   useMountEffect(() => {
     if (!isValidTimezone(state.timezone)) {
@@ -340,7 +627,8 @@ export function WorkspaceCalendar({
       (item) =>
         (state.assigneeId === null ||
           item.taskAssigneeId === state.assigneeId) &&
-        (state.status === null || item.taskStatus === state.status),
+        (state.status === null || item.taskStatus === state.status) &&
+        (selectedSourceId === null || item.sourceId === selectedSourceId),
     )
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
@@ -370,6 +658,69 @@ export function WorkspaceCalendar({
     void setState({ view }, { shallow: false });
   }
 
+  function handleSourceChange(sourceId: string | null) {
+    const source = sources.find((source) => source.sourceId === sourceId);
+    const projectId = source ? getProjectIdFromSource(source) : null;
+    if (projectId) {
+      void setState({ projectId, sourceId: null }, { shallow: false });
+      return;
+    }
+
+    void setState({ projectId: null, sourceId }, { shallow: false });
+  }
+
+  function openCreateDialog(oneTimeLocalIso: string) {
+    eventRequestId.current += 1;
+    setEventLoadError(false);
+    handleOpenWithDefaults({
+      projectId: selectedCreateProjectId,
+      schedule: {
+        mode: "once",
+        oneTimeLocalIso,
+        timezone: timeZone,
+      },
+    });
+  }
+
+  function handleDateClick(clickedAt: Date) {
+    if (!canCreate) {
+      return;
+    }
+    openCreateDialog(utcToDateTimeLocalInTimezone(clickedAt, timeZone));
+  }
+
+  function handleAgendaCreate() {
+    openCreateDialog(`${getCalendarDayKey(date)}T12:00`);
+  }
+
+  async function handleEventEdit(taskId: string) {
+    const requestId = eventRequestId.current + 1;
+    eventRequestId.current = requestId;
+    setEventLoadError(false);
+    try {
+      const result = await coreClient.getTaskById(taskId);
+      if (requestId !== eventRequestId.current) {
+        return;
+      }
+      setEditState({
+        initialSelection: metadataToSelection(
+          result.data.metadata,
+          getDefaultTimezone(),
+        ),
+        requestId,
+        task: result.data,
+      });
+    } catch {
+      if (requestId === eventRequestId.current) {
+        setEventLoadError(true);
+      }
+    }
+  }
+
+  function handleOpenTask(taskId: string) {
+    router.push(`/tasks/${taskId}`);
+  }
+
   async function handleLoadMore() {
     if (!nextCursor || !range) {
       return;
@@ -386,9 +737,14 @@ export function WorkspaceCalendar({
         scope: state.scope,
         assigneeId: state.assigneeId ?? undefined,
         status: state.status ?? undefined,
+        ...(selectedProjectId
+          ? { projectId: selectedProjectId }
+          : selectedSourceId
+            ? { sourceId: selectedSourceId }
+            : {}),
       };
-      const result = projectId
-        ? await coreClient.getProjectsByIdCalendar(projectId, query)
+      const result = lockedProjectId
+        ? await coreClient.getProjectsByIdCalendar(lockedProjectId, query)
         : await coreClient.getWorkspaceCalendar(query);
       setLoadedItems((currentItems) => [
         ...currentItems,
@@ -421,6 +777,22 @@ export function WorkspaceCalendar({
                 { scope: scope === "owned" ? "owned" : "workspace" },
                 { shallow: false },
               ),
+          },
+        ]
+      : []),
+    ...(!lockedProjectId
+      ? [
+          {
+            id: "source",
+            label: t("source.label"),
+            icon: FolderKanban,
+            value: selectedSourceId,
+            allLabel: t("source.all"),
+            options: sources.map((source) => ({
+              value: source.sourceId,
+              label: source.displayName,
+            })),
+            onChange: handleSourceChange,
           },
         ]
       : []),
@@ -538,39 +910,57 @@ export function WorkspaceCalendar({
           showActiveIndicator={
             state.scope === "owned" ||
             state.assigneeId !== null ||
-            state.status !== null
+            state.status !== null ||
+            selectedSourceId !== null
           }
         />
+        {canCreate ? (
+          <Button
+            className="ml-auto"
+            size="sm"
+            variant="primary"
+            onClick={handleAgendaCreate}
+          >
+            <Plus aria-hidden />
+            {t("create.title")}
+          </Button>
+        ) : null}
       </div>
 
       {visibleItems.length === 0 ? (
         <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
           {t("empty.title")}
         </div>
-      ) : (
-        <>
-          <div className="hidden md:block">
-            <CalendarView
-              date={date}
-              items={visibleItems}
-              onNavigate={(taskId) => router.push(`/tasks/${taskId}`)}
-              sources={sources}
-              timeZone={timeZone}
-              view={view}
-            />
-          </div>
-          <div className="md:hidden">
-            <CalendarView
-              date={date}
-              items={visibleItems}
-              onNavigate={(taskId) => router.push(`/tasks/${taskId}`)}
-              sources={sources}
-              timeZone={timeZone}
-              view={view}
-            />
-          </div>
-        </>
-      )}
+      ) : null}
+      <div className="hidden md:block">
+        <CalendarView
+          date={date}
+          items={visibleItems}
+          onDateClick={handleDateClick}
+          onEventEdit={(taskId) => void handleEventEdit(taskId)}
+          onOpenTask={handleOpenTask}
+          sources={sources}
+          timeZone={timeZone}
+          view={view}
+        />
+      </div>
+      <div className="md:hidden">
+        <CalendarView
+          date={date}
+          items={visibleItems}
+          onDateClick={handleDateClick}
+          onEventEdit={(taskId) => void handleEventEdit(taskId)}
+          onOpenTask={handleOpenTask}
+          sources={sources}
+          timeZone={timeZone}
+          view={view}
+        />
+      </div>
+      {eventLoadError ? (
+        <p className="text-destructive text-sm" role="alert">
+          {t("edit.loadError")}
+        </p>
+      ) : null}
       {nextCursor ? (
         <div className="flex flex-col items-center gap-2">
           <Button
@@ -586,6 +976,20 @@ export function WorkspaceCalendar({
             </p>
           ) : null}
         </div>
+      ) : null}
+      {editState ? (
+        <CalendarEditDialog
+          key={editState.requestId}
+          initialSelection={editState.initialSelection}
+          onClose={() =>
+            setEditState((currentState) =>
+              currentState?.requestId === editState.requestId
+                ? null
+                : currentState,
+            )
+          }
+          task={editState.task}
+        />
       ) : null}
     </div>
   );

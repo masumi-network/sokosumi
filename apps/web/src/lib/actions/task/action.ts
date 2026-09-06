@@ -18,6 +18,7 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import {
+  type CreateScheduledTaskRequest,
   type CreateTaskContext,
   type Task,
   type TaskLink,
@@ -34,6 +35,7 @@ import {
   selectionToApiBody,
 } from "@/lib/utils/task-schedule";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
+import { isUuidString } from "@/lib/utils/uuid";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -73,6 +75,24 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   originalSchedule?: TaskScheduleSelection;
 }
 
+interface CreateScheduledTaskParameters extends AuthenticatedRequest {
+  operationId: string;
+  source: CreateScheduledTaskRequest["source"];
+  description?: string | null;
+  assigneeId: string;
+  context?: TaskContextSelectionInput;
+  schedule: TaskScheduleSelection;
+}
+
+interface SaveTaskScheduleParameters extends AuthenticatedRequest {
+  taskId: string;
+  schedule: TaskScheduleSelection;
+}
+
+interface ClearTaskScheduleParameters extends AuthenticatedRequest {
+  taskId: string;
+}
+
 export interface CalendarClientUpgradeRequiredError {
   kind: typeof CORE_API_ERROR_KINDS.CALENDAR_CLIENT_UPGRADE_REQUIRED;
 }
@@ -88,6 +108,16 @@ export type CreateTaskResult = TaskMutationActionResult<{
 }>;
 export type UpdateTaskResult = TaskMutationActionResult<{ taskId: string }>;
 export type SetTaskStatusResult = TaskMutationActionResult<{ taskId: string }>;
+export type CreateScheduledTaskResult = TaskMutationActionResult<{
+  taskId: string;
+  name: string;
+}>;
+export type SaveTaskScheduleResult = TaskMutationActionResult<{
+  taskId: string;
+}>;
+export type ClearTaskScheduleResult = TaskMutationActionResult<{
+  taskId: string;
+}>;
 export type CreateTaskAndLinkResult = TaskMutationActionResult<{
   taskId: string;
   createdTaskId: string;
@@ -264,6 +294,29 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
   if (relatedTaskId) {
     revalidatePath(`/tasks/${relatedTaskId}`);
   }
+}
+
+function revalidateCalendarTaskMutationRoutes(task: Task) {
+  revalidatePath("/calendar");
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${task.id}`);
+
+  if (task.projectId) {
+    revalidatePath(`/projects/${task.projectId}/calendar`);
+  }
+}
+
+function getActiveScheduleBody(schedule: TaskScheduleSelection) {
+  if (schedule.mode === "none") {
+    throw new Error("Active schedule required");
+  }
+
+  const body = selectionToApiBody(schedule);
+  if (!body) {
+    throw new Error("Invalid schedule");
+  }
+
+  return body;
 }
 
 /**
@@ -536,6 +589,113 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     }
   },
 );
+
+export const createScheduledTask = withSession<
+  CreateScheduledTaskParameters,
+  CreateScheduledTaskResult
+>(
+  async ({
+    operationId,
+    source,
+    description,
+    assigneeId,
+    context,
+    schedule,
+    session,
+  }) => {
+    const trimmedAssigneeId = assigneeId.trim();
+    const trimmedDescription = description?.trim();
+    if (!isUuidString(operationId)) {
+      throw new Error("Operation ID must be a UUID");
+    }
+    if (!trimmedAssigneeId) {
+      throw new Error("Assignee required");
+    }
+
+    const scheduleBody = getActiveScheduleBody(schedule);
+
+    try {
+      const task = await taskService.createScheduledTask({
+        operationId,
+        source,
+        ...(typeof description !== "undefined"
+          ? { description: trimmedDescription || null }
+          : {}),
+        assigneeId: trimmedAssigneeId,
+        ...(context
+          ? { context: toCoreTaskContext(context, session.user.id) }
+          : {}),
+        schedule: scheduleBody,
+      });
+      revalidateCalendarTaskMutationRoutes(task);
+      return taskMutationSuccess({ taskId: task.id, name: task.name });
+    } catch (error) {
+      if (isCalendarClientUpgradeRequired(error)) {
+        return calendarClientUpgradeRequired();
+      }
+      rethrowTaskActionError(
+        error,
+        "Failed to create scheduled task",
+        "Failed to create scheduled task",
+      );
+    }
+  },
+);
+
+export const saveCalendarTaskSchedule = withSession<
+  SaveTaskScheduleParameters,
+  SaveTaskScheduleResult
+>(async ({ taskId, schedule }) => {
+  const normalizedTaskId = taskId.trim();
+  if (!normalizedTaskId) {
+    throw new Error("Task required");
+  }
+
+  const scheduleBody = getActiveScheduleBody(schedule);
+
+  try {
+    const task = await taskScheduleService.setCalendarSchedule(
+      normalizedTaskId,
+      scheduleBody,
+    );
+    revalidateCalendarTaskMutationRoutes(task);
+    return taskMutationSuccess({ taskId: task.id });
+  } catch (error) {
+    if (isCalendarClientUpgradeRequired(error)) {
+      return calendarClientUpgradeRequired();
+    }
+    rethrowTaskActionError(
+      error,
+      "Failed to save task schedule",
+      "Failed to save task schedule",
+    );
+  }
+});
+
+export const clearTaskSchedule = withSession<
+  ClearTaskScheduleParameters,
+  ClearTaskScheduleResult
+>(async ({ taskId }) => {
+  const normalizedTaskId = taskId.trim();
+  if (!normalizedTaskId) {
+    throw new Error("Task required");
+  }
+
+  try {
+    const task = await taskScheduleService.clearSchedule(normalizedTaskId);
+    revalidateCalendarTaskMutationRoutes(task);
+    return taskMutationSuccess({ taskId: task.id });
+  } catch (error) {
+    if (isCalendarClientUpgradeRequired(error)) {
+      return calendarClientUpgradeRequired();
+    }
+    rethrowTaskActionError(
+      error,
+      "Failed to clear task schedule",
+      "Failed to clear task schedule",
+    );
+  }
+});
 
 export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
   async ({

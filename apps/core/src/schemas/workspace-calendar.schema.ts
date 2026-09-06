@@ -10,54 +10,74 @@ import {
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 
-export const workspaceCalendarQuerySchema = z
-  .object({
-    from: z.iso.datetime().openapi({
-      param: { name: "from", in: "query" },
-      description: "Inclusive start of the calendar range",
-      example: "2026-06-01T00:00:00.000Z",
+const workspaceCalendarQueryObjectSchema = z.object({
+  from: z.iso.datetime().openapi({
+    param: { name: "from", in: "query" },
+    description: "Inclusive start of the calendar range",
+    example: "2026-06-01T00:00:00.000Z",
+  }),
+  to: z.iso.datetime().openapi({
+    param: { name: "to", in: "query" },
+    description:
+      "Exclusive end of the calendar range, at most 90 days after from",
+    example: "2026-07-01T00:00:00.000Z",
+  }),
+  scope: z.enum(["owned", "workspace"]).default("workspace").openapi({
+    description: "Whether to show only the caller's tasks or the workspace",
+    example: "workspace",
+  }),
+  assigneeId: z.uuid().optional().openapi({
+    description:
+      "Only occurrences whose planned-series or released-snapshot task has this coworker",
+    example: "22222222-2222-7222-8222-222222222222",
+  }),
+  projectId: z.uuid().optional().openapi({
+    description:
+      "Only occurrences captured with this Project as their Calendar source",
+    example: "22222222-2222-7222-8222-222222222222",
+  }),
+  sourceId: z.string().max(64).optional().openapi({
+    description:
+      "Only occurrences captured with this non-Project Calendar source in the current workspace",
+    example: "workspace:11111111-1111-7111-8111-111111111111",
+  }),
+  status: z.enum(TaskStatus).optional().openapi({
+    description:
+      "Only occurrences whose planned-series or released-snapshot task has this status",
+    example: TaskStatus.READY,
+  }),
+  cursor: z
+    .string()
+    .max(512)
+    .optional()
+    .openapi({
+      param: { name: "cursor", in: "query" },
+      description: "Opaque cursor for the next merged calendar page",
     }),
-    to: z.iso.datetime().openapi({
-      param: { name: "to", in: "query" },
-      description:
-        "Exclusive end of the calendar range, at most 90 days after from",
-      example: "2026-07-01T00:00:00.000Z",
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(LIMITS.MAX_PAGINATION_LIMIT)
+    .default(LIMITS.DEFAULT_PAGINATION_LIMIT)
+    .openapi({
+      param: { name: "limit", in: "query" },
+      description: `Number of items to return (max ${LIMITS.MAX_PAGINATION_LIMIT})`,
+      example: LIMITS.DEFAULT_PAGINATION_LIMIT,
     }),
-    scope: z.enum(["owned", "workspace"]).default("workspace").openapi({
-      description: "Whether to show only the caller's tasks or the workspace",
-      example: "workspace",
-    }),
-    assigneeId: z.uuid().optional().openapi({
-      description:
-        "Only occurrences whose planned-series or released-snapshot task has this coworker",
-      example: "22222222-2222-7222-8222-222222222222",
-    }),
-    status: z.enum(TaskStatus).optional().openapi({
-      description:
-        "Only occurrences whose planned-series or released-snapshot task has this status",
-      example: TaskStatus.READY,
-    }),
-    cursor: z
-      .string()
-      .max(512)
-      .optional()
-      .openapi({
-        param: { name: "cursor", in: "query" },
-        description: "Opaque cursor for the next merged calendar page",
-      }),
-    limit: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(LIMITS.MAX_PAGINATION_LIMIT)
-      .default(LIMITS.DEFAULT_PAGINATION_LIMIT)
-      .openapi({
-        param: { name: "limit", in: "query" },
-        description: `Number of items to return (max ${LIMITS.MAX_PAGINATION_LIMIT})`,
-        example: LIMITS.DEFAULT_PAGINATION_LIMIT,
-      }),
+});
+
+export const workspaceCalendarQuerySchema = workspaceCalendarQueryObjectSchema
+  .refine((query) => !(query.projectId && query.sourceId), {
+    message: "projectId and sourceId cannot be combined",
+    path: ["sourceId"],
   })
   .openapi("WorkspaceCalendarQuery");
+
+export const projectCalendarQuerySchema = workspaceCalendarQueryObjectSchema
+  .omit({ projectId: true, sourceId: true })
+  .strict()
+  .openapi("ProjectCalendarQuery");
 
 export const workspaceCalendarItemSchema = z
   .object({
@@ -67,6 +87,11 @@ export const workspaceCalendarItemSchema = z
       example: "v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
     }),
     taskId: z.string().openapi({ example: "tsk_123" }),
+    canEditSchedule: z.boolean().openapi({
+      description:
+        "Whether the caller owns this Task and may edit or remove its schedule",
+      example: true,
+    }),
     taskName: z.string().openapi({ example: "Prepare release notes" }),
     taskStatus: z.enum(TaskStatus).openapi({ example: "QUEUED" }),
     taskAssigneeId: z.string().nullable().openapi({ example: "coworker_123" }),
@@ -107,6 +132,11 @@ export const workspaceCalendarSourceSchema = z
     paletteToken: z.enum(["blue", "violet", "amber"]).openapi({
       description: "Bounded visual marker for Calendar source displays",
       example: "violet",
+    }),
+    isSchedulable: z.boolean().openapi({
+      description:
+        "Whether this source may be selected to create a Task through POST /v1/tasks/scheduled. Unschedulable sources remain available for Calendar event display and filtering.",
+      example: true,
     }),
   })
   .openapi("WorkspaceCalendarSource");

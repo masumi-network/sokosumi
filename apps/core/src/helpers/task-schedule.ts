@@ -4,6 +4,7 @@ import {
   isValidTimezone,
   type TaskScheduleMetadata,
   type TaskScheduleMetadataV1,
+  type TaskScheduleMetadataV2,
 } from "@sokosumi/utils";
 
 import { computeNextRun } from "@/helpers/cron";
@@ -249,6 +250,135 @@ export function buildTaskScheduleMetadata(
     ...(input.intervalDays != null ? { intervalDays: input.intervalDays } : {}),
     ...(input.anchorAt ? { anchorAt: input.anchorAt } : {}),
   };
+}
+
+export function buildTaskScheduleMetadataV2(
+  input: TaskScheduleInput,
+  createdAt: Date,
+  epochId: string,
+): TaskScheduleMetadataV2 {
+  const createdAtIso = createdAt.toISOString();
+
+  if (input.mode === "once") {
+    return {
+      version: 2,
+      epochId,
+      mode: "once",
+      createdAt: createdAtIso,
+      ruleEffectiveFrom: createdAtIso,
+      timezone: "UTC",
+      sourceRunAt: input.runAt,
+      effectiveRunAt: input.runAt,
+    };
+  }
+
+  return {
+    version: 2,
+    epochId,
+    mode: "recurring",
+    createdAt: createdAtIso,
+    ruleEffectiveFrom: createdAtIso,
+    timezone: input.timezone ?? "UTC",
+    expr: input.expr,
+    endsMode: input.endsMode ?? "never",
+    ...(input.endsOn ? { endsOn: input.endsOn } : {}),
+    ...(input.occurrences != null
+      ? { targetReleaseCount: input.occurrences }
+      : {}),
+    ...(input.intervalDays != null ? { intervalDays: input.intervalDays } : {}),
+    anchorAt: input.anchorAt ?? createdAtIso,
+    epochReleaseCount: 0,
+  };
+}
+
+export function convertTaskScheduleMetadataV1ToV2(
+  metadata: TaskScheduleMetadataV1,
+  convertedAt: Date,
+  epochId: string,
+  releasedOccurrenceCount: number,
+): TaskScheduleMetadataV2 {
+  const convertedAtIso = convertedAt.toISOString();
+
+  if (metadata.mode === "once") {
+    return {
+      version: 2,
+      epochId,
+      mode: "once",
+      createdAt: convertedAtIso,
+      ruleEffectiveFrom: convertedAtIso,
+      timezone: "UTC",
+      sourceRunAt: metadata.runAt,
+      effectiveRunAt: metadata.runAt,
+    };
+  }
+
+  const releaseCount = Math.max(0, releasedOccurrenceCount);
+  return {
+    version: 2,
+    epochId,
+    mode: "recurring",
+    createdAt: convertedAtIso,
+    ruleEffectiveFrom: convertedAtIso,
+    timezone: metadata.timezone,
+    expr: metadata.expr,
+    endsMode: metadata.endsMode,
+    ...(metadata.endsOn ? { endsOn: metadata.endsOn } : {}),
+    ...(metadata.endsMode === "after" && metadata.occurrences != null
+      ? { targetReleaseCount: metadata.occurrences + releaseCount }
+      : {}),
+    ...(metadata.intervalDays != null
+      ? { intervalDays: metadata.intervalDays }
+      : {}),
+    anchorAt: metadata.anchorAt ?? metadata.scheduledAt,
+    epochReleaseCount: releaseCount,
+    ...(metadata.lastRunAt
+      ? { lastProcessedSourceAt: metadata.lastRunAt }
+      : {}),
+  };
+}
+
+function taskScheduleRuleMatchesInput(
+  metadata: TaskScheduleMetadataV2,
+  input: TaskScheduleInput,
+): boolean {
+  if (metadata.mode !== input.mode) {
+    return false;
+  }
+
+  if (metadata.mode === "once" && input.mode === "once") {
+    return metadata.effectiveRunAt === input.runAt;
+  }
+  if (metadata.mode !== "recurring" || input.mode !== "recurring") {
+    return false;
+  }
+
+  const remainingOccurrences =
+    metadata.targetReleaseCount == null
+      ? undefined
+      : metadata.targetReleaseCount - metadata.epochReleaseCount;
+  const intervalDays = input.intervalDays ?? undefined;
+  return (
+    metadata.expr === input.expr &&
+    metadata.timezone === (input.timezone ?? "UTC") &&
+    metadata.endsMode === (input.endsMode ?? "never") &&
+    metadata.endsOn === input.endsOn &&
+    remainingOccurrences === input.occurrences &&
+    metadata.intervalDays === intervalDays &&
+    (intervalDays == null ||
+      intervalDays <= 1 ||
+      metadata.anchorAt === input.anchorAt)
+  );
+}
+
+export function buildUpdatedTaskScheduleMetadataV2(
+  input: TaskScheduleInput,
+  current: TaskScheduleMetadataV2,
+  changedAt: Date,
+  nextEpochId: string,
+): TaskScheduleMetadataV2 {
+  return taskScheduleRuleMatchesInput(current, input)
+    ? current
+    : buildTaskScheduleMetadataV2(input, changedAt, nextEpochId);
 }
 
 export function computeScheduleNextRun(

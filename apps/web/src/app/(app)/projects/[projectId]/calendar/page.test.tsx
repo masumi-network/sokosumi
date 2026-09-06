@@ -1,11 +1,15 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
+const getWorkspaceCalendarSourcesMock = vi.fn();
 const listCoworkersMock = vi.fn();
 const workspaceCalendarMock = vi.fn();
+const calendarCreateTaskModalMock = vi.fn();
+const createTaskModalProviderMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -29,6 +33,23 @@ vi.mock("@/app/calendar/components/workspace-calendar", () => ({
   },
 }));
 
+vi.mock("@/app/calendar/components/calendar-create-task-modal", () => ({
+  CalendarCreateTaskModal: (props: unknown) => {
+    calendarCreateTaskModalMock(props);
+    return null;
+  },
+}));
+
+vi.mock("@/app/tasks/components/create-task-modal", () => ({
+  CreateTaskModalProvider: (props: {
+    children: ReactNode;
+    initialProjectId?: string;
+  }) => {
+    createTaskModalProviderMock(props);
+    return props.children;
+  },
+}));
+
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
 }));
@@ -47,6 +68,12 @@ vi.mock("@/lib/services/project.service", () => ({
   },
 }));
 
+vi.mock("@/lib/services/task.service", () => ({
+  taskService: {
+    getWorkspaceCalendarSources: () => getWorkspaceCalendarSourcesMock(),
+  },
+}));
+
 import ProjectCalendarPage from "./page";
 
 const PROJECT = {
@@ -54,6 +81,8 @@ const PROJECT = {
   name: "Launch plan",
   logo: null,
   websiteUrl: null,
+  closingAt: null,
+  closedAt: null,
   createdAt: new Date("2026-06-01T00:00:00.000Z"),
   updatedAt: new Date("2026-06-02T00:00:00.000Z"),
 };
@@ -67,6 +96,16 @@ describe("ProjectCalendarPage", () => {
       items: [],
       pagination: null,
     });
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+        displayName: PROJECT.name,
+        logoUrl: PROJECT.logo,
+        paletteToken: "violet",
+        isSchedulable: true,
+      },
+    ]);
     listCoworkersMock.mockResolvedValue([]);
   });
 
@@ -91,6 +130,8 @@ describe("ProjectCalendarPage", () => {
         searchParams: Promise.resolve({
           assigneeId: "coworker-1",
           date: "2026-06-18",
+          projectId: "project-2",
+          sourceId: "workspace:workspace-1",
           scope: "owned",
           status: "READY",
         }),
@@ -109,6 +150,13 @@ describe("ProjectCalendarPage", () => {
         status: "READY",
       }),
     );
+    expect(getProjectCalendarMock).toHaveBeenCalledWith(
+      PROJECT.id,
+      expect.not.objectContaining({
+        projectId: expect.anything(),
+        sourceId: expect.anything(),
+      }),
+    );
     expect(screen.getByRole("link", { name: "backToProject" })).toHaveAttribute(
       "href",
       "/projects/project-1",
@@ -116,16 +164,111 @@ describe("ProjectCalendarPage", () => {
     expect(
       screen.getByRole("link", { name: "backToProject" }).className,
     ).not.toContain("hidden");
-    expect(workspaceCalendarMock).toHaveBeenCalledWith(
+    const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
+      lockedProjectId?: string;
+      projectId?: string;
+      sources: Array<{
+        isSchedulable: boolean;
+        sourceId: string;
+        sourceType: string;
+      }>;
+    };
+    expect(calendarProps.lockedProjectId).toBe(PROJECT.id);
+    expect(calendarProps).not.toHaveProperty("projectId");
+    expect(calendarProps.sources).toEqual([
       expect.objectContaining({
-        projectId: PROJECT.id,
-        sources: [
-          expect.objectContaining({
-            sourceId: "project:project-1",
-            sourceType: "PROJECT",
-          }),
-        ],
+        isSchedulable: true,
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+      }),
+    ]);
+    expect(createTaskModalProviderMock).toHaveBeenCalledWith(
+      expect.objectContaining({ initialProjectId: PROJECT.id }),
+    );
+    expect(calendarCreateTaskModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lockProjectSelection: true,
+        projectOptions: [expect.objectContaining({ id: PROJECT.id })],
       }),
     );
+  });
+
+  it("passes a closed Project as an unschedulable source", async () => {
+    getProjectByIdMock.mockResolvedValue({
+      ...PROJECT,
+      closedAt: new Date("2026-06-03T00:00:00.000Z"),
+    });
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+        displayName: PROJECT.name,
+        logoUrl: PROJECT.logo,
+        paletteToken: "violet",
+        isSchedulable: false,
+      },
+    ]);
+
+    render(
+      await ProjectCalendarPage({
+        params: Promise.resolve({ projectId: PROJECT.id }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
+      sources: Array<{ isSchedulable: boolean }>;
+    };
+    expect(calendarProps.sources[0]?.isSchedulable).toBe(false);
+  });
+
+  it("still renders the Project Calendar when Calendar sources fail to load", async () => {
+    getWorkspaceCalendarSourcesMock.mockRejectedValue(
+      new Error("Calendar sources unavailable"),
+    );
+    getProjectCalendarMock.mockResolvedValue({
+      items: [{ id: "occurrence-1" }],
+      pagination: null,
+    });
+
+    render(
+      await ProjectCalendarPage({
+        params: Promise.resolve({ projectId: PROJECT.id }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
+      items: Array<{ id: string }>;
+      sources: unknown[];
+    };
+    expect(calendarProps.items).toEqual([{ id: "occurrence-1" }]);
+    expect(calendarProps.sources).toEqual([]);
+  });
+
+  it("does not offer creation for an open Project without an assigned Seat", async () => {
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+        displayName: PROJECT.name,
+        logoUrl: PROJECT.logo,
+        paletteToken: "violet",
+        isSchedulable: false,
+      },
+    ]);
+
+    render(
+      await ProjectCalendarPage({
+        params: Promise.resolve({ projectId: PROJECT.id }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    const calendarProps = workspaceCalendarMock.mock.calls.at(-1)?.[0] as {
+      sources: Array<{ isSchedulable: boolean }>;
+    };
+    expect(getWorkspaceCalendarSourcesMock).toHaveBeenCalledOnce();
+    expect(calendarProps.sources[0]?.isSchedulable).toBe(false);
   });
 });
