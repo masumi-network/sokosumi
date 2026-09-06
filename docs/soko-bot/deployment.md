@@ -38,6 +38,37 @@ Optional, per network:
 Environment changes only apply to the *next* build, so redeploy after setting
 them.
 
+## Move the avatar pool prefix
+
+The mascot pool in Vercel Blob is `soko-bots/avatars/{key}-{hash12}.png`.
+Older objects used `soko-bot-avatars/`. Chat files stay under
+`soko-bots/{uuid}/chats/`.
+
+`GET /v1/soko-bots/avatars` is the picker HTTP API. It is not the Blob folder.
+The cron that tops up the pool stays at `/sync/soko-bot-avatars`.
+
+Copy the objects, deploy Core so new puts and the SQL rewrite land, then delete
+the old prefix.
+
+1. Dry-run, then copy:
+
+   ```sh
+   pnpm --filter @sokosumi/core soko-bot:copy-avatars
+   pnpm --filter @sokosumi/core soko-bot:copy-avatars -- --copy
+   ```
+
+2. Deploy Core. The deploy runs Prisma migrations, which rewrite
+   `soko_bot_avatar.imageUrl` and `soko_bot.avatarImageUrl`. `sourceUrl` is
+   unchanged.
+
+3. After every Core instance writes the new prefix, confirm that
+   `soko_bot_avatar.imageUrl` and `soko_bot.avatarImageUrl` contain no
+   `/soko-bot-avatars/` strings. Then delete the old prefix:
+
+   ```sh
+   pnpm --filter @sokosumi/core soko-bot:copy-avatars -- --delete-legacy --confirm-delete-legacy
+   ```
+
 ## Runtime shape
 
 - `SOKO_BOT_RUNTIME_ADAPTER` is `in-process` everywhere except tests, which use
