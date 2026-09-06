@@ -36,18 +36,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const row = await prisma.$transaction(async (tx) => {
-      await requireTaskReadForRouteVars(c.var, id, tx);
-      return tx.task.findUnique({
-        where: { id, archivedAt: null },
-        select: {
-          id: true,
-          ...buildVisibleTaskLinksInclude(
-            c.var.authContext,
-            c.var.workspaceContext?.workspaceId,
-          ),
-        },
-      });
+    await requireTaskReadForRouteVars(c.var, id, prisma);
+    const row = await prisma.task.findUnique({
+      where: { id, archivedAt: null },
+      select: {
+        id: true,
+        ...buildVisibleTaskLinksInclude(
+          c.var.authContext,
+          c.var.workspaceContext?.workspaceId,
+        ),
+      },
     });
 
     if (!row) {

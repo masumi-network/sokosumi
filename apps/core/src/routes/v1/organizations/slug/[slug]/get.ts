@@ -59,14 +59,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const { slug } = c.req.valid("param");
 
-    const organization = await prisma.$transaction(async (tx) => {
-      const { organization } = await resolveMemberOrganizationBySlug({
-        slug,
-        userId: userContext.userId,
-        tx,
-      });
-
-      return organization;
+    const { organization } = await resolveMemberOrganizationBySlug({
+      slug,
+      userId: userContext.userId,
+      tx: prisma,
     });
 
     return ok(c, organizationRecordSchema.parse(organization));

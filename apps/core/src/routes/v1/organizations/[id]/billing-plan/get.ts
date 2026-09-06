@@ -59,15 +59,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const billingPlan = await prisma.$transaction(async (tx) => {
-      const { organization } = await resolveMemberOrganizationById({
-        id,
-        userId: userContext.userId,
-        tx,
-      });
-
-      return await resolveOrganizationBillingPlan(organization.id, tx);
+    const { organization } = await resolveMemberOrganizationById({
+      id,
+      userId: userContext.userId,
+      tx: prisma,
     });
+
+    const billingPlan = await resolveOrganizationBillingPlan(
+      organization.id,
+      prisma,
+    );
 
     return ok(
       c,

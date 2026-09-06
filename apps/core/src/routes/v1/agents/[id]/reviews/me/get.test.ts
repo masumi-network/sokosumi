@@ -18,13 +18,11 @@ const {
   buildAvailableAgentWhereClauseMock,
   getCreditCostsOrThrowMock,
   getUserAgentReviewMock,
-  prismaTransactionMock,
 } = vi.hoisted(() => ({
   agentFindFirstMock: vi.fn(),
   buildAvailableAgentWhereClauseMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   getUserAgentReviewMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/agent", () => ({
@@ -39,7 +37,9 @@ vi.mock("@/helpers/agent-rating", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
+    agent: {
+      findFirst: agentFindFirstMock,
+    },
   },
 }));
 
@@ -73,13 +73,6 @@ describe("GET /agents/{id}/reviews/me", () => {
     });
     getCreditCostsOrThrowMock.mockResolvedValue([]);
     agentFindFirstMock.mockResolvedValue({ id: "agent_123" });
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        agent: {
-          findFirst: agentFindFirstMock,
-        },
-      });
-    });
   });
 
   it("returns the caller's own review for the agent", async () => {

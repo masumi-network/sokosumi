@@ -5,21 +5,26 @@ import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 
 import mountGetCategories from "./get";
 
-const { prismaTransactionMock, creditCostFindManyMock, categoryFindManyMock } =
-  vi.hoisted(() => ({
-    prismaTransactionMock: vi.fn(),
-    creditCostFindManyMock: vi.fn(),
-    categoryFindManyMock: vi.fn(),
-  }));
+const {
+  creditCostFindManyMock,
+  categoryFindManyMock,
+  syncMetadataFindUniqueMock,
+} = vi.hoisted(() => ({
+  creditCostFindManyMock: vi.fn(),
+  categoryFindManyMock: vi.fn(),
+  syncMetadataFindUniqueMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
     creditCost: {
       findMany: creditCostFindManyMock,
     },
     category: {
       findMany: categoryFindManyMock,
+    },
+    syncMetadata: {
+      findUnique: syncMetadataFindUniqueMock,
     },
   },
 }));
@@ -47,14 +52,7 @@ describe("GET /categories", () => {
     vi.clearAllMocks();
     creditCostFindManyMock.mockResolvedValue([{ unit: "default" }]);
     categoryFindManyMock.mockResolvedValue([]);
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      const tx = {
-        creditCost: { findMany: creditCostFindManyMock },
-        syncMetadata: { findUnique: vi.fn().mockResolvedValue(null) },
-        category: { findMany: categoryFindManyMock },
-      };
-      return await callback(tx);
-    });
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
   });
 
   it("returns 200 and list of categories with expected shape", async () => {

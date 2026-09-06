@@ -53,19 +53,15 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const preferences = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: resolvedUserId },
-        select: USER_PREFERENCES_SELECT,
-      });
-
-      if (!user) {
-        throw internalServerError("Failed to retrieve user");
-      }
-
-      return user;
+    const user = await prisma.user.findUnique({
+      where: { id: resolvedUserId },
+      select: USER_PREFERENCES_SELECT,
     });
 
-    return ok(c, userPreferencesResponseSchema.parse(preferences));
+    if (!user) {
+      throw internalServerError("Failed to retrieve user");
+    }
+
+    return ok(c, userPreferencesResponseSchema.parse(user));
   });
 }
