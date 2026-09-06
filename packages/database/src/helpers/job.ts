@@ -22,15 +22,6 @@ import {
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 
-export const ACTIVE_PURCHASE_NEXT_ACTIONS: NextJobAction[] = [
-  NextJobAction.FUNDS_LOCKING_INITIATED,
-  NextJobAction.FUNDS_LOCKING_REQUESTED,
-  NextJobAction.SET_REFUND_REQUESTED_INITIATED,
-  NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
-  NextJobAction.UNSET_REFUND_REQUESTED_INITIATED,
-  NextJobAction.UNSET_REFUND_REQUESTED_REQUESTED,
-];
-
 function hasPaymentWindowExpired(
   job: Pick<Job, "createdAt" | "payByTime">,
   now: Date,
@@ -418,12 +409,4 @@ export function mapJobWithStatus(
       throw new Error(`Unhandled job type: ${_exhaustive}`);
     }
   }
-}
-
-export function isFreeJob(job: Job): job is FreeJobWithStatus {
-  return job.jobType === JobType.FREE;
-}
-
-export function isPaidJob(job: Job): job is PaidJobWithStatus {
-  return job.jobType === JobType.PAID;
 }
