@@ -169,6 +169,37 @@ describe("Vercel web turbo build command", () => {
     assert.equal(core.buildCommand, "pnpm vercel-build");
   });
 
+  it("does not generate the Prisma client from database prepare", async () => {
+    const database = JSON.parse(
+      await readRepoFile("packages", "database", "package.json"),
+    );
+    assert.doesNotMatch(
+      database.scripts.prepare ?? "",
+      /prisma(?:\s+generate|:generate)/,
+    );
+    assert.match(database.scripts["prisma:generate"], /prisma generate/);
+  });
+
+  it("generates the Prisma client in Core vercel-build before tsup", async () => {
+    const core = JSON.parse(await readRepoFile("apps", "core", "package.json"));
+    const script = core.scripts["vercel-build"];
+    const generateAt = script.indexOf(
+      "pnpm --filter @sokosumi/database prisma:generate",
+    );
+    const databaseBuildAt = script.indexOf(
+      "pnpm --filter @sokosumi/database run build",
+    );
+    const tsupAt = script.lastIndexOf("pnpm run build");
+    const migrateAt = script.indexOf("prisma:migrate:deploy");
+    assert.ok(generateAt >= 0, "Core vercel-build must run prisma:generate");
+    assert.ok(
+      databaseBuildAt > generateAt,
+      "database tsc must follow prisma:generate",
+    );
+    assert.ok(tsupAt > databaseBuildAt, "Core tsup must follow database build");
+    assert.ok(migrateAt > tsupAt, "migrate deploy must follow Core tsup");
+  });
+
   it("runs turbo --filter=web and forces production only", async () => {
     const { turboBuildArgs } = await import(
       "../../../apps/web/scripts/vercel-build.mjs"

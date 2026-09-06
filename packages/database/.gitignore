@@ -2,5 +2,5 @@ dist
 node_modules
 *.tsbuildinfo
 
-# Generated Prisma client files (generated via prepare script)
+# Generated Prisma client files (prisma generate)
 src/generated/
