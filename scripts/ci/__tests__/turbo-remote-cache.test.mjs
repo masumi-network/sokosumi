@@ -173,7 +173,10 @@ describe("Vercel web turbo build command", () => {
     const database = JSON.parse(
       await readRepoFile("packages", "database", "package.json"),
     );
-    assert.doesNotMatch(database.scripts.prepare ?? "", /prisma generate/);
+    assert.doesNotMatch(
+      database.scripts.prepare ?? "",
+      /prisma(?:\s+generate|:generate)/,
+    );
     assert.match(database.scripts["prisma:generate"], /prisma generate/);
   });
 
