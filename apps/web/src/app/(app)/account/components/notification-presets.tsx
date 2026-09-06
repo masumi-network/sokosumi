@@ -42,9 +42,15 @@ const CUSTOM_HINT_KEY = "presetCustomHint";
  * wider than the word it is showing. It carries the mark of the situation on
  * the left and the mark of a menu on the right, so it reads as one control
  * rather than as a word that happens to be tinted.
+ *
+ * The properties it may animate are named, the way the cells name theirs: it
+ * takes the colours of Custom the moment a cell below it disagrees with the
+ * word, and it dims while a write is in flight, and both of those are worth a
+ * beat rather than a jump. The focus ring is left out on purpose, since a ring
+ * that fades in trails a reader who is tabbing.
  */
 const TRIGGER =
-  "focus-visible:ring-ring/50 inline-flex h-8 shrink-0 items-center gap-2 rounded-lg border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap outline-none focus-visible:ring-[3px]";
+  "focus-visible:ring-ring/50 inline-flex h-8 shrink-0 items-center gap-2 rounded-lg border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity] outline-none focus-visible:ring-[3px]";
 
 /**
  * The mark each situation carries, beside its word.
@@ -171,7 +177,10 @@ export function GroupAnswer({
         >
           <Icon
             className={cn(
-              "size-3.5 shrink-0",
+              // Its own colour, so its own transition: the trigger's names the
+              // properties it may animate, and a child that sets `color`
+              // itself is not one of them.
+              "size-3.5 shrink-0 transition-colors",
               preset === "CUSTOM" ? "text-primary" : "text-muted-foreground",
             )}
             aria-hidden="true"
