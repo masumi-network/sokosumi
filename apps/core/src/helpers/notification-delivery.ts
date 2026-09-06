@@ -20,9 +20,9 @@ export const CHAT_ROOM_MESSAGE_MESSAGE_KEY = "Notifications.Chat.roomMessage";
  *
  * A task that needs input, approval, authentication or credits stops until the
  * reader acts. Everything else a task emits is an outcome they can read later,
- * so the two are separate rows and the loud one can stay on while the quiet one
- * goes off. A key added later is an update until it is listed here, which is
- * the safe way round: an unknown key is never louder than the reader asked for.
+ * so each is a row of its own and the loud one can stay on while the quiet ones
+ * go off. A key added later is an update until it is listed here, which is the
+ * safe way round: an unknown key is never louder than the reader asked for.
  */
 export const TASK_ATTENTION_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.inputRequired",
@@ -32,11 +32,23 @@ export const TASK_ATTENTION_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.scheduleRemovedByOperator",
 ];
 
+/**
+ * The key a finished task carries.
+ *
+ * Its own row rather than an update, because finishing is what the reader
+ * started the task for. Grouped with the cancellations, it could only be kept
+ * by keeping them too.
+ */
+export const TASK_COMPLETED_MESSAGE_KEY = "Notifications.Task.completed";
+
 /** The job keys that wait on the reader. Same split as the task keys. */
 export const JOB_ATTENTION_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Job.inputRequired",
   "Notifications.Job.paymentFailed",
 ];
+
+/** The key a finished job carries. Its own row for the same reason. */
+export const JOB_COMPLETED_MESSAGE_KEY = "Notifications.Job.completed";
 
 /**
  * One stored choice, as the database holds it: strings rather than the unions,
@@ -67,9 +79,9 @@ export interface NotificationDelivery {
  * The matrix row a Notification belongs to, or null when it belongs to none.
  *
  * Every kind splits by message key, because a reader chooses between an
- * @mention and a direct message, or between a task that waits on them and a
- * task that finished, rather than between the kinds a producer happens to
- * emit.
+ * @mention and a direct message, or between a task that waits on them, a task
+ * that finished and a task that was canceled, rather than between the kinds a
+ * producer happens to emit. Jobs split the same three ways.
  *
  * Null means the defaults apply and nothing is stored against it: a chat key
  * added later that nobody mapped, and BILLING, which no producer emits yet. A
@@ -81,12 +93,18 @@ export function toNotificationCategory(
 ): NotificationCategory | null {
   switch (kind) {
     case "JOB":
-      return JOB_ATTENTION_MESSAGE_KEYS.includes(messageKey)
-        ? "JOB_ATTENTION"
+      if (JOB_ATTENTION_MESSAGE_KEYS.includes(messageKey)) {
+        return "JOB_ATTENTION";
+      }
+      return messageKey === JOB_COMPLETED_MESSAGE_KEY
+        ? "JOB_COMPLETED"
         : "JOB_UPDATE";
     case "TASK":
-      return TASK_ATTENTION_MESSAGE_KEYS.includes(messageKey)
-        ? "TASK_ATTENTION"
+      if (TASK_ATTENTION_MESSAGE_KEYS.includes(messageKey)) {
+        return "TASK_ATTENTION";
+      }
+      return messageKey === TASK_COMPLETED_MESSAGE_KEY
+        ? "TASK_COMPLETED"
         : "TASK_UPDATE";
     case "SYSTEM":
       return "SYSTEM";

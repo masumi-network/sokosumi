@@ -10,15 +10,17 @@ import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   JOB_ATTENTION_MESSAGE_KEYS,
+  JOB_COMPLETED_MESSAGE_KEY,
   resolveNotificationDelivery,
   resolveNotificationMatrix,
   type StoredNotificationPreference,
   TASK_ATTENTION_MESSAGE_KEYS,
+  TASK_COMPLETED_MESSAGE_KEY,
   toNotificationCategory,
 } from "./notification-delivery";
 
 describe("toNotificationCategory", () => {
-  it("splits jobs by whether the reader has to do something", () => {
+  it("splits jobs three ways", () => {
     expect(
       toNotificationCategory(
         NotificationKind.JOB,
@@ -30,7 +32,7 @@ describe("toNotificationCategory", () => {
     ).toBe("JOB_UPDATE");
   });
 
-  it("splits tasks the same way", () => {
+  it("splits tasks three ways", () => {
     expect(
       toNotificationCategory(
         NotificationKind.TASK,
@@ -40,9 +42,35 @@ describe("toNotificationCategory", () => {
     expect(
       toNotificationCategory(
         NotificationKind.TASK,
-        "Notifications.Task.completed",
+        "Notifications.Task.canceled",
       ),
     ).toBe("TASK_UPDATE");
+  });
+
+  /**
+   * The row the reader started the task for. It is written out rather than
+   * read from the constant on both sides, so renaming the constant cannot
+   * quietly move a finished task back in with the cancellations.
+   */
+  it("gives a finished task a row of its own", () => {
+    expect(TASK_COMPLETED_MESSAGE_KEY).toBe("Notifications.Task.completed");
+    expect(
+      toNotificationCategory(
+        NotificationKind.TASK,
+        "Notifications.Task.completed",
+      ),
+    ).toBe("TASK_COMPLETED");
+  });
+
+  /** Same row, same reason, for the kind the reader started themselves. */
+  it("gives a finished job a row of its own", () => {
+    expect(JOB_COMPLETED_MESSAGE_KEY).toBe("Notifications.Job.completed");
+    expect(
+      toNotificationCategory(
+        NotificationKind.JOB,
+        "Notifications.Job.completed",
+      ),
+    ).toBe("JOB_COMPLETED");
   });
 
   /**
