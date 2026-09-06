@@ -6134,6 +6134,7 @@
         "loadError": "No se pudo cargar esta tarea. Inténtalo de nuevo.",
         "saveError": "No se pudo guardar esta programación. Inténtalo de nuevo.",
         "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo.",
+        "clearPending": "Eliminando programación…",
         "clearTitle": "¿Eliminar programación?",
         "clearDescription": "Esta tarea dejará de ejecutarse según una programación.",
         "clearCancel": "Cancelar",

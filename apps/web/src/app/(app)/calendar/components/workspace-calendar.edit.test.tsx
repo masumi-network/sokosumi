@@ -25,6 +25,8 @@ interface FullCalendarProps {
 }
 
 const {
+  alertDialogActionMock,
+  alertDialogMock,
   clearTaskScheduleMock,
   createScheduledTaskMock,
   filterDropdownMenuMock,
@@ -39,6 +41,8 @@ const {
   saveCalendarTaskScheduleMock,
   taskScheduleSectionMock,
 } = vi.hoisted(() => ({
+  alertDialogActionMock: vi.fn(),
+  alertDialogMock: vi.fn(),
   clearTaskScheduleMock: vi.fn(),
   createScheduledTaskMock: vi.fn(),
   filterDropdownMenuMock: vi.fn(),
@@ -97,6 +101,25 @@ vi.mock("next-intl", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, refresh: refreshMock }),
 }));
+
+vi.mock("@/components/ui/alert-dialog", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/ui/alert-dialog")>();
+
+  return {
+    ...actual,
+    AlertDialog: (props: ComponentProps<typeof actual.AlertDialog>) => {
+      alertDialogMock(props);
+      return <actual.AlertDialog {...props} />;
+    },
+    AlertDialogAction: (
+      props: ComponentProps<typeof actual.AlertDialogAction>,
+    ) => {
+      alertDialogActionMock(props);
+      return <actual.AlertDialogAction {...props} />;
+    },
+  };
+});
 
 vi.mock("@/components/common/filter-dropdown-menu", () => ({
   FilterDropdownMenu: (props: unknown) => {
@@ -266,6 +289,25 @@ function createDeferred<T>() {
   });
 
   return { promise, resolve: resolvePromise };
+}
+
+function getClearConfirmationHandlers() {
+  const submit = (
+    alertDialogActionMock.mock.calls.at(-1)?.[0] as
+      | { onClick?: (event: { preventDefault: () => void }) => void }
+      | undefined
+  )?.onClick;
+  const dismiss = (
+    alertDialogMock.mock.calls.at(-1)?.[0] as
+      | { onOpenChange?: (open: boolean) => void }
+      | undefined
+  )?.onOpenChange;
+  if (!submit || !dismiss) {
+    throw new Error("Expected clear confirmation handlers");
+  }
+
+  const event = { preventDefault: vi.fn() };
+  return { dismiss, event, submit };
 }
 
 async function openEditor(
@@ -650,10 +692,11 @@ describe("WorkspaceCalendar editing", () => {
 
     await openEditor(user);
     await openClearConfirmation(user);
-    const confirm = screen.getByRole("button", { name: "edit.clearConfirm" });
-
-    fireEvent.click(confirm);
-    fireEvent.click(confirm);
+    const { event, submit } = getClearConfirmationHandlers();
+    act(() => {
+      submit(event);
+      submit(event);
+    });
 
     expect(clearTaskScheduleMock).toHaveBeenCalledOnce();
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
@@ -675,7 +718,11 @@ describe("WorkspaceCalendar editing", () => {
 
     await openEditor(user);
     await openClearConfirmation(user);
-    fireEvent.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
+    const { dismiss, event, submit } = getClearConfirmationHandlers();
+    act(() => {
+      submit(event);
+      dismiss(false);
+    });
 
     expect(
       screen.getByRole("button", { name: "edit.clearConfirm" }),
@@ -730,7 +777,9 @@ describe("WorkspaceCalendar editing", () => {
     ) {
       throw new Error("Expected the second calendar event to be editable");
     }
-    act(() => secondEvent.props.onEditSchedule(SECOND_ITEM.taskId));
+    await act(async () => {
+      secondEvent.props.onEditSchedule(SECOND_ITEM.taskId);
+    });
     await waitFor(() =>
       expect(metadataToSelectionMock).toHaveBeenCalledWith(
         '{"task":"second"}',
@@ -765,6 +814,46 @@ describe("WorkspaceCalendar editing", () => {
     const user = userEvent.setup();
     clearTaskScheduleMock
       .mockResolvedValueOnce({ ok: false, error: { kind: "unexpected" } })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { taskId: ITEM.taskId },
+      });
+    renderCalendar();
+
+    await openEditor(user);
+    await openClearConfirmation(user);
+    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
+
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(within(confirmation).getByRole("alert")).toHaveTextContent(
+      "edit.clearError",
+    );
+    expect(
+      within(confirmation).getByRole("button", {
+        name: "edit.clearConfirm",
+      }),
+    ).toBeEnabled();
+    expect(
+      within(confirmation).getByRole("button", { name: "edit.clearCancel" }),
+    ).toBeEnabled();
+
+    await user.click(
+      within(confirmation).getByRole("button", {
+        name: "edit.clearConfirm",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+
+    expect(clearTaskScheduleMock).toHaveBeenCalledTimes(2);
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a rejected removal in the confirmation and allows retry", async () => {
+    const user = userEvent.setup();
+    clearTaskScheduleMock
+      .mockRejectedValueOnce(new Error("network failure"))
       .mockResolvedValueOnce({
         ok: true,
         value: { taskId: ITEM.taskId },

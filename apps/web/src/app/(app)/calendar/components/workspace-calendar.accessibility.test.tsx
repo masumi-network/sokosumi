@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
@@ -9,6 +9,7 @@ import type {
 
 const getTaskByIdMock = vi.hoisted(() => vi.fn());
 const pushMock = vi.hoisted(() => vi.fn());
+const clearTaskScheduleMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next-intl", () => ({
   useFormatter: () => ({
@@ -28,7 +29,24 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
 }));
 
 vi.mock("@/components/task-schedule-section", () => ({
-  TaskScheduleSection: () => null,
+  TaskScheduleSection: ({
+    canClearSchedule,
+    onClearSchedule,
+  }: {
+    canClearSchedule?: boolean;
+    onClearSchedule?: () => void;
+  }) =>
+    canClearSchedule ? (
+      <button type="button" onClick={onClearSchedule}>
+        clear schedule
+      </button>
+    ) : null,
+}));
+
+vi.mock("@/lib/actions/task/action", () => ({
+  clearTaskSchedule: clearTaskScheduleMock,
+  createScheduledTask: vi.fn(),
+  saveCalendarTaskSchedule: vi.fn(),
 }));
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
@@ -36,6 +54,14 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
     getTaskById: getTaskByIdMock,
     getWorkspaceCalendar: vi.fn(),
   },
+}));
+
+vi.mock("@/lib/utils/task-schedule", () => ({
+  metadataToSelection: () => ({
+    mode: "recurring",
+    cron: "0 9 * * *",
+    timezone: "UTC",
+  }),
 }));
 
 import { WorkspaceCalendar } from "./workspace-calendar";
@@ -79,6 +105,15 @@ function renderCalendar(view: "month" | "week" | "agenda") {
       />
     </NuqsTestingAdapter>,
   );
+}
+
+function createDeferred<T>() {
+  let resolvePromise: (value: T) => void = () => {};
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+
+  return { promise, resolve: resolvePromise };
 }
 
 describe("WorkspaceCalendar accessibility", () => {
@@ -160,5 +195,36 @@ describe("WorkspaceCalendar accessibility", () => {
     await user.click(screen.getByRole("button", { name: "create.title" }));
 
     expect(screen.getByRole("dialog")).toHaveTextContent("create.title");
+  });
+
+  it("announces schedule removal while it is pending", async () => {
+    const user = userEvent.setup();
+    const request = createDeferred<{
+      ok: true;
+      value: { taskId: string };
+    }>();
+    clearTaskScheduleMock.mockReturnValue(request.promise);
+    getTaskByIdMock.mockResolvedValue({
+      data: { id: ITEM.taskId, metadata: "{}" },
+    });
+    const { container } = renderCalendar("month");
+    const event = container.querySelector(
+      '[data-testid="calendar-month"] button',
+    );
+
+    await user.click(event as HTMLButtonElement);
+    await user.click(
+      screen.getByRole("menuitem", { name: "event.editSchedule" }),
+    );
+    await screen.findByRole("dialog");
+    await user.click(screen.getByRole("button", { name: "clear schedule" }));
+    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("edit.clearPending");
+
+    await act(async () => {
+      request.resolve({ ok: true, value: { taskId: ITEM.taskId } });
+      await request.promise;
+    });
   });
 });

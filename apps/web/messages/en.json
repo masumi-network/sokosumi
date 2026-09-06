@@ -6134,6 +6134,7 @@
         "loadError": "Unable to load this task. Please try again.",
         "saveError": "Unable to save this schedule. Please try again.",
         "clearError": "Unable to remove this schedule. Please try again.",
+        "clearPending": "Removing schedule…",
         "clearTitle": "Remove schedule?",
         "clearDescription": "This task will no longer run on a schedule.",
         "clearCancel": "Cancel",
