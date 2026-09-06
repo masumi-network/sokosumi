@@ -30,6 +30,25 @@ function member(input: {
 }
 
 describe("getAccountNavItems", () => {
+  /**
+   * Notifications is the one settings page a reader comes back to, so it is
+   * reachable from the menu rather than from a link inside another page.
+   */
+  it("offers Notifications next to Account, whatever the workspace is", () => {
+    for (const activeOrganizationId of ["org_1", null]) {
+      const items = getAccountNavItems({
+        activeOrganizationId,
+        members: [member({ organizationId: "org_1" })],
+      });
+
+      expect(items.map((item) => item.key).slice(0, 2)).toEqual([
+        "account",
+        "notifications",
+      ]);
+      expect(items[1]).toMatchObject({ href: "/account/notifications" });
+    }
+  });
+
   it("links Organization to /organization when an org workspace is active", () => {
     const items = getAccountNavItems({
       activeOrganizationId: "org_1",

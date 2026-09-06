@@ -126,6 +126,7 @@
     },
     "UserAvatar": {
       "account": "Account",
+      "notifications": "Notifications",
       "billing": "Billing",
       "connections": "Connections",
       "developer": "Developer",
@@ -4113,7 +4114,6 @@
       "Notifications": {
         "title": "Notifications",
         "description": "Choose how we reach you about jobs and chats",
-        "manageLink": "Manage notifications",
         "jobStatusEmailsEnabledSuccess": "Job notification emails enabled",
         "jobStatusEmailsDisabledSuccess": "Job notification emails disabled",
         "marketingEmailsTitle": "Marketing emails",

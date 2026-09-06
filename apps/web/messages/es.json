@@ -126,6 +126,7 @@
     },
     "UserAvatar": {
       "account": "Cuenta",
+      "notifications": "Notificaciones",
       "billing": "Facturación",
       "connections": "Conexiones",
       "developer": "Desarrollador",
@@ -4082,7 +4083,6 @@
       "Notifications": {
         "title": "Notificaciones",
         "description": "Elige cómo te avisamos sobre jobs y chats",
-        "manageLink": "Gestionar notificaciones",
         "jobStatusEmailsEnabledSuccess": "Notificaciones de jobs por email activadas",
         "jobStatusEmailsDisabledSuccess": "Notificaciones de jobs por email desactivadas",
         "marketingEmailsTitle": "Emails de marketing",
