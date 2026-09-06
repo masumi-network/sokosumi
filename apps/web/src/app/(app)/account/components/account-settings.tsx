@@ -16,7 +16,6 @@ import { DeletePersonalWorkspaceForm } from "./delete-personal-workspace-form";
 import { EmailForm } from "./email-form";
 import { NameForm } from "./name-form";
 import { NewPasswordForm } from "./new-password-form";
-import { NotificationSettingsLink } from "./notification-settings-link";
 import { PasskeySettings } from "./passkey-settings";
 import { PasswordForm } from "./password-form";
 import { PreferencesSection } from "./preferences-section";
@@ -103,10 +102,6 @@ export function AccountSettings({
 
       <div className="border-t pt-8">
         <PreferencesSection />
-      </div>
-
-      <div className="border-t pt-8">
-        <NotificationSettingsLink />
       </div>
 
       <div className="border-t pt-8">
