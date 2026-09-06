@@ -61,10 +61,6 @@ vi.mock("@/routes/auth/index", () => {
   return { default: app };
 });
 
-vi.mock("@/routes/debug/index", () => {
-  return { default: new Hono() };
-});
-
 vi.mock("@/routes/sync/index", () => {
   return { default: new Hono() };
 });

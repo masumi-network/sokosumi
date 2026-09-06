@@ -12,9 +12,7 @@ import { getEnv } from "@/config/env";
 /**
  * Port of the web app's subscription catalog
  * (`apps/web/src/lib/stripe/subscription-catalog.ts`) for core's invoice
- * credit engine. Deliberately keeps its own cache, separate from
- * `subscription-seat-credits.service`, so a stricter catalog validation
- * failure (price/slug metadata) cannot break the seat-assignment grant flow.
+ * credit engine.
  */
 export interface SubscriptionCatalogPlan {
   credits: number;
