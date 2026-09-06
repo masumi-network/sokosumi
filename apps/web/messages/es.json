@@ -6119,14 +6119,7 @@
         "openTask": "Abrir tarea"
       },
       "create": {
-        "title": "Programar una tarea",
-        "description": "Crea una tarea y elige cuándo debe ejecutarse.",
-        "name": "Nombre de la tarea",
-        "assignee": "Persona asignada",
-        "source": "Origen",
-        "validationError": "Introduce un nombre de tarea, una persona asignada y un origen.",
-        "sourceUnavailable": "Este origen ya no está disponible para programar.",
-        "error": "No se pudo programar esta tarea. Inténtalo de nuevo."
+        "title": "Programar una tarea"
       },
       "edit": {
         "title": "Editar programación",

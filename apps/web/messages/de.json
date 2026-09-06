@@ -6119,14 +6119,7 @@
         "openTask": "Task öffnen"
       },
       "create": {
-        "title": "Task planen",
-        "description": "Erstelle einen Task und lege fest, wann er ausgefuehrt werden soll.",
-        "name": "Task-Name",
-        "assignee": "Zugewiesen an",
-        "source": "Quelle",
-        "validationError": "Gib einen Task-Namen, eine Zuweisung und eine Quelle ein.",
-        "sourceUnavailable": "Diese Quelle steht nicht mehr zum Planen zur Verfügung.",
-        "error": "Dieser Task konnte nicht geplant werden. Bitte versuche es erneut."
+        "title": "Task planen"
       },
       "edit": {
         "title": "Zeitplan bearbeiten",

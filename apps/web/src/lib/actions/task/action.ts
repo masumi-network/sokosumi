@@ -78,9 +78,9 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
 interface CreateScheduledTaskParameters extends AuthenticatedRequest {
   operationId: string;
   source: CreateScheduledTaskRequest["source"];
-  name: string;
   description?: string | null;
   assigneeId: string;
+  context?: TaskContextSelectionInput;
   schedule: TaskScheduleSelection;
 }
 
@@ -593,46 +593,54 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
 export const createScheduledTask = withSession<
   CreateScheduledTaskParameters,
   CreateScheduledTaskResult
->(async ({ operationId, source, name, description, assigneeId, schedule }) => {
-  const trimmedName = normalizeTaskNameForCoreApi(name);
-  const trimmedAssigneeId = assigneeId.trim();
-  const trimmedDescription = description?.trim();
-  if (!isUuidString(operationId)) {
-    throw new Error("Operation ID must be a UUID");
-  }
-  if (!trimmedName) {
-    throw new Error("Name required");
-  }
-  if (!trimmedAssigneeId) {
-    throw new Error("Assignee required");
-  }
-
-  const scheduleBody = getActiveScheduleBody(schedule);
-
-  try {
-    const task = await taskService.createScheduledTask({
-      operationId,
-      source,
-      name: trimmedName,
-      ...(typeof description !== "undefined"
-        ? { description: trimmedDescription || null }
-        : {}),
-      assigneeId: trimmedAssigneeId,
-      schedule: scheduleBody,
-    });
-    revalidateCalendarTaskMutationRoutes(task);
-    return taskMutationSuccess({ taskId: task.id, name: task.name });
-  } catch (error) {
-    if (isCalendarClientUpgradeRequired(error)) {
-      return calendarClientUpgradeRequired();
+>(
+  async ({
+    operationId,
+    source,
+    description,
+    assigneeId,
+    context,
+    schedule,
+    session,
+  }) => {
+    const trimmedAssigneeId = assigneeId.trim();
+    const trimmedDescription = description?.trim();
+    if (!isUuidString(operationId)) {
+      throw new Error("Operation ID must be a UUID");
     }
-    rethrowTaskActionError(
-      error,
-      "Failed to create scheduled task",
-      "Failed to create scheduled task",
-    );
-  }
-});
+    if (!trimmedAssigneeId) {
+      throw new Error("Assignee required");
+    }
+
+    const scheduleBody = getActiveScheduleBody(schedule);
+
+    try {
+      const task = await taskService.createScheduledTask({
+        operationId,
+        source,
+        ...(typeof description !== "undefined"
+          ? { description: trimmedDescription || null }
+          : {}),
+        assigneeId: trimmedAssigneeId,
+        ...(context
+          ? { context: toCoreTaskContext(context, session.user.id) }
+          : {}),
+        schedule: scheduleBody,
+      });
+      revalidateCalendarTaskMutationRoutes(task);
+      return taskMutationSuccess({ taskId: task.id, name: task.name });
+    } catch (error) {
+      if (isCalendarClientUpgradeRequired(error)) {
+        return calendarClientUpgradeRequired();
+      }
+      rethrowTaskActionError(
+        error,
+        "Failed to create scheduled task",
+        "Failed to create scheduled task",
+      );
+    }
+  },
+);
 
 export const saveCalendarTaskSchedule = withSession<
   SaveTaskScheduleParameters,

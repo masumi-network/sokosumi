@@ -1,9 +1,13 @@
+import { render } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
 const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
 const listCoworkersMock = vi.fn();
+const getProjectFilterOptionsMock = vi.fn();
+const calendarCreateTaskModalMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -17,6 +21,17 @@ vi.mock("next/server", () => ({
 
 vi.mock("@/app/calendar/components/workspace-calendar", () => ({
   WorkspaceCalendar: () => null,
+}));
+
+vi.mock("@/app/calendar/components/calendar-create-task-modal", () => ({
+  CalendarCreateTaskModal: (props: unknown) => {
+    calendarCreateTaskModalMock(props);
+    return null;
+  },
+}));
+
+vi.mock("@/app/tasks/components/create-task-modal", () => ({
+  CreateTaskModalProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
@@ -36,6 +51,11 @@ vi.mock("@/lib/services/task.service", () => ({
   },
 }));
 
+vi.mock("@/lib/helpers/project-filter-options", () => ({
+  getProjectFilterOptions: (projectId?: string) =>
+    getProjectFilterOptionsMock(projectId),
+}));
+
 import CalendarPage from "./page";
 
 describe("CalendarPage", () => {
@@ -53,6 +73,7 @@ describe("CalendarPage", () => {
     });
     getWorkspaceCalendarSourcesMock.mockResolvedValue([]);
     listCoworkersMock.mockResolvedValue([]);
+    getProjectFilterOptionsMock.mockResolvedValue([]);
   });
 
   it("does not load Calendar data for non-NMKR users", async () => {
@@ -73,6 +94,35 @@ describe("CalendarPage", () => {
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledOnce();
     expect(getWorkspaceCalendarSourcesMock).toHaveBeenCalledOnce();
+    expect(getProjectFilterOptionsMock).toHaveBeenCalledOnce();
+  });
+
+  it("offers only schedulable Projects in the shared task modal", async () => {
+    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+        isSchedulable: true,
+      },
+      {
+        sourceId: "project:project-2",
+        sourceType: "PROJECT",
+        isSchedulable: false,
+      },
+    ]);
+    getProjectFilterOptionsMock.mockResolvedValue([
+      { id: "project-1", name: "Open" },
+      { id: "project-2", name: "Closed" },
+    ]);
+
+    render(await CalendarPage({ searchParams: Promise.resolve({}) }));
+
+    expect(calendarCreateTaskModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectOptions: [{ id: "project-1", name: "Open" }],
+      }),
+    );
   });
 
   it("passes the Calendar status filter to the initial read", async () => {

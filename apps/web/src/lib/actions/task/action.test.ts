@@ -1091,9 +1091,13 @@ describe("Calendar schedule actions", () => {
         type: "project",
         projectId: "11111111-1111-4111-8111-111111111111",
       },
-      name: "  Schedule launch  ",
       description: "  Prepare the launch brief  ",
       assigneeId: "coworker-1",
+      context: {
+        brand: { enabled: true, source: "project", custom: null },
+        briefingEnabled: true,
+        contextMdEnabled: false,
+      },
       schedule: recurringSchedule,
     });
 
@@ -1103,8 +1107,13 @@ describe("Calendar schedule actions", () => {
         type: "project",
         projectId: "11111111-1111-4111-8111-111111111111",
       },
-      name: "Schedule launch",
       description: "Prepare the launch brief",
+      context: {
+        brand: true,
+        brandSource: "project",
+        briefing: true,
+        memory: false,
+      },
       assigneeId: "coworker-1",
       schedule: {
         mode: "recurring",
@@ -1181,7 +1190,7 @@ describe("Calendar schedule actions", () => {
       createScheduledTask({
         operationId,
         source: { type: "workspace" },
-        name: "Scheduled task",
+        description: "Scheduled task",
         assigneeId: "coworker-1",
         schedule: { mode: "none", timezone: "UTC" },
       }),

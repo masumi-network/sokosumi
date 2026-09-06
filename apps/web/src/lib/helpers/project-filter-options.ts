@@ -14,6 +14,10 @@ export async function getProjectFilterOptions(
   const projectOptions = projectsPage.projects.map((project) => ({
     id: project.id,
     name: project.name,
+    logo: project.logo,
+    designMd: project.designMd,
+    briefingUrl: project.briefingUrl,
+    contextMd: project.contextMd,
   }));
 
   if (
@@ -28,7 +32,14 @@ export async function getProjectFilterOptions(
   if (!selectedProject) return projectOptions;
 
   return [
-    { id: selectedProject.id, name: selectedProject.name },
+    {
+      id: selectedProject.id,
+      name: selectedProject.name,
+      logo: selectedProject.logo,
+      designMd: selectedProject.designMd,
+      briefingUrl: selectedProject.briefingUrl,
+      contextMd: selectedProject.contextMd,
+    },
     ...projectOptions,
   ];
 }

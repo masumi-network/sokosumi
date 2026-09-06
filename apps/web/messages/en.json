@@ -6119,14 +6119,7 @@
         "openTask": "Open task"
       },
       "create": {
-        "title": "Schedule a task",
-        "description": "Create a task and choose when it should run.",
-        "name": "Task name",
-        "assignee": "Assignee",
-        "source": "Source",
-        "validationError": "Enter a task name, assignee, and source.",
-        "sourceUnavailable": "This source is no longer available for scheduling.",
-        "error": "Unable to schedule this task. Please try again."
+        "title": "Schedule a task"
       },
       "edit": {
         "title": "Edit schedule",

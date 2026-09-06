@@ -145,9 +145,24 @@ interface TaskFormInitialValues {
   status?: TaskStatus;
   metadata?: string | null;
   nextRunAt?: string | null;
+  schedule?: TaskScheduleSelection;
 }
 
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
+
+export interface TaskFormCreateInput {
+  description: string;
+  assigneeId: string | null;
+  assigneeSokoBotId: string | null;
+  projectId?: string | null;
+  context: TaskContextSelectionInput;
+  status: Extract<TaskStatus, "DRAFT" | "READY">;
+  schedule?: TaskScheduleSelection;
+}
+
+export type TaskFormCreateHandler = (
+  input: TaskFormCreateInput,
+) => Promise<CreateTaskResult>;
 
 interface TaskFormProps {
   mode: "create" | "edit";
@@ -158,6 +173,7 @@ interface TaskFormProps {
   initialValues?: TaskFormInitialValues;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   projectOptions?: ProjectFilterOption[];
+  lockProjectSelection?: boolean;
   defaultProjectId?: string | null;
   variant?: "page" | "modal";
   onCancel?: () => void;
@@ -165,15 +181,7 @@ interface TaskFormProps {
   /** Runs right after a modal create succeeds (before the celebration step). */
   onCreated?: (taskId: string) => void;
   onCreateAnother?: () => void;
-  onCreateTask?: (input: {
-    description: string;
-    assigneeId: string | null;
-    assigneeSokoBotId: string | null;
-    projectId?: string | null;
-    context: TaskContextSelectionInput;
-    status: Extract<TaskStatus, "DRAFT" | "READY">;
-    schedule?: TaskScheduleSelection;
-  }) => Promise<CreateTaskResult>;
+  onCreateTask?: TaskFormCreateHandler;
   showCancel?: boolean;
   onSubmittingChange?: (isSubmitting: boolean) => void;
   onCreatedChange?: (created: boolean) => void;
@@ -188,6 +196,7 @@ export function TaskForm({
   initialValues,
   initialDesignMdAttachment,
   projectOptions,
+  lockProjectSelection = false,
   defaultProjectId = null,
   variant = "page",
   onCancel,
@@ -204,7 +213,8 @@ export function TaskForm({
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
   const isModal = variant === "modal";
-  const shouldShowProjectSelect = isModal && projectOptions !== undefined;
+  const hasProjectSelection = isModal && projectOptions !== undefined;
+  const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
   const initialDescription = initialValues?.description ?? "";
@@ -270,8 +280,10 @@ export function TaskForm({
 
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [scheduleSelection, setScheduleSelection] =
-    useState<TaskScheduleSelection>(() =>
-      metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
+    useState<TaskScheduleSelection>(
+      () =>
+        initialValues?.schedule ??
+        metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
     );
   const originalScheduleSelection = useRef(scheduleSelection);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -485,7 +497,7 @@ export function TaskForm({
               briefingEnabled: contextSelection.briefingEnabled,
               contextMdEnabled: contextSelection.contextMdEnabled,
             },
-            ...(shouldShowProjectSelect ? { projectId } : {}),
+            ...(hasProjectSelection ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
             schedule: scheduleSelection,
           });
@@ -545,7 +557,7 @@ export function TaskForm({
             coworkerOptions,
             knownSokoBotId,
           ),
-          ...(shouldShowProjectSelect ? { projectId } : {}),
+          ...(hasProjectSelection ? { projectId } : {}),
           currentStatus: originalStatus,
           desiredStatus,
           schedule: scheduleSelection,
@@ -581,7 +593,7 @@ export function TaskForm({
       coworkerOptions,
       knownSokoBotId,
       projectId,
-      shouldShowProjectSelect,
+      hasProjectSelection,
       originalStatus,
       router,
       status,

@@ -300,6 +300,54 @@ describe("createScheduledTaskInTransaction", () => {
     expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledTimes(1);
   });
 
+  it("replays the same request when automatic naming resolves differently", async () => {
+    const {
+      tx,
+      projectFindFirstMock,
+      taskScheduleCreateOperationCreateMock,
+      taskScheduleCreateOperationFindUniqueMock,
+    } = createTransaction();
+    let operation: { taskId: string; requestFingerprint: string } | null = null;
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      closingAt: null,
+      closedAt: null,
+    });
+    taskScheduleCreateOperationFindUniqueMock.mockImplementation(
+      async () => operation,
+    );
+    taskScheduleCreateOperationCreateMock.mockImplementation(
+      async ({
+        data,
+      }: {
+        data: { taskId: string; requestFingerprint: string };
+      }) => {
+        operation = {
+          taskId: data.taskId,
+          requestFingerprint: data.requestFingerprint,
+        };
+      },
+    );
+    const input = {
+      ...createInput(),
+      requestFingerprintPayload: {
+        name: null,
+        description: "Draft the public notes",
+        context: null,
+      },
+    };
+
+    await createScheduledTaskInTransaction(input, tx);
+    await expect(
+      createScheduledTaskInTransaction(
+        { ...input, name: "A different generated name" },
+        tx,
+      ),
+    ).resolves.toBe("task_123");
+
+    expect(createTaskForActorMock).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects an operation that changed while waiting for the Calendar scope lock", async () => {
     const {
       tx,
