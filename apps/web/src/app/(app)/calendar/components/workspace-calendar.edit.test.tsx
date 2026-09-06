@@ -1,7 +1,14 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, isValidElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceCalendarItem,
@@ -259,6 +266,26 @@ function createDeferred<T>() {
   });
 
   return { promise, resolve: resolvePromise };
+}
+
+async function openEditor(
+  user: ReturnType<typeof userEvent.setup>,
+  item: WorkspaceCalendarItem = ITEM,
+) {
+  await user.click(
+    screen.getAllByRole("button", {
+      name: `${item.taskName}, Release planning`,
+    })[0],
+  );
+  await user.click(
+    screen.getByRole("menuitem", { name: "event.editSchedule" }),
+  );
+  await screen.findByRole("dialog");
+}
+
+async function openClearConfirmation(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "clear schedule" }));
+  return screen.getByRole("alertdialog");
 }
 
 describe("WorkspaceCalendar editing", () => {
@@ -579,18 +606,11 @@ describe("WorkspaceCalendar editing", () => {
     expect(createScheduledTaskMock).not.toHaveBeenCalled();
   });
 
-  it("opens an existing event editor, saves its schedule, and confirms its removal", async () => {
+  it("opens an existing event editor and saves its schedule", async () => {
     const user = userEvent.setup();
     renderCalendar();
 
-    await user.click(
-      screen.getAllByRole("button", {
-        name: "Prepare release notes, Release planning",
-      })[0],
-    );
-    await user.click(
-      screen.getByRole("menuitem", { name: "event.editSchedule" }),
-    );
+    await openEditor(user);
     expect(await screen.findByRole("dialog")).toHaveTextContent("edit.title");
     expect(getTaskByIdMock).toHaveBeenCalledWith("task-1");
     expect(metadataToSelectionMock).toHaveBeenCalledWith(
@@ -604,28 +624,181 @@ describe("WorkspaceCalendar editing", () => {
         expect.objectContaining({ taskId: "task-1" }),
       ),
     );
+  });
 
-    await user.click(
-      screen.getAllByRole("button", {
-        name: "Prepare release notes, Release planning",
-      })[0],
-    );
-    await user.click(
-      screen.getByRole("menuitem", { name: "event.editSchedule" }),
-    );
-    await screen.findByRole("dialog");
-    await user.click(screen.getByRole("button", { name: "clear schedule" }));
-    expect(screen.getByRole("alertdialog")).toHaveTextContent(
-      "edit.clearTitle",
-    );
+  it("preserves the schedule when removal is canceled", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await openEditor(user);
+    await openClearConfirmation(user);
     await user.click(screen.getByRole("button", { name: "edit.clearCancel" }));
-    expect(clearTaskScheduleMock).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "clear schedule" }));
-    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
-    await waitFor(() =>
-      expect(clearTaskScheduleMock).toHaveBeenCalledWith({ taskId: "task-1" }),
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(clearTaskScheduleMock).not.toHaveBeenCalled();
+  });
+
+  it("submits a rapid duplicate removal only once", async () => {
+    const user = userEvent.setup();
+    const request = createDeferred<{
+      ok: true;
+      value: { taskId: string };
+    }>();
+    clearTaskScheduleMock.mockReturnValue(request.promise);
+    renderCalendar();
+
+    await openEditor(user);
+    await openClearConfirmation(user);
+    const confirm = screen.getByRole("button", { name: "edit.clearConfirm" });
+
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+
+    expect(clearTaskScheduleMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+
+    await act(async () => {
+      request.resolve({ ok: true, value: { taskId: ITEM.taskId } });
+      await request.promise;
+    });
+  });
+
+  it("rejects confirmation dismissal while removal is pending", async () => {
+    const user = userEvent.setup();
+    const request = createDeferred<{
+      ok: true;
+      value: { taskId: string };
+    }>();
+    clearTaskScheduleMock.mockReturnValue(request.promise);
+    renderCalendar();
+
+    await openEditor(user);
+    await openClearConfirmation(user);
+    fireEvent.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
+
+    expect(
+      screen.getByRole("button", { name: "edit.clearConfirm" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "edit.clearCancel" }),
+    ).toBeDisabled();
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+
+    await act(async () => {
+      request.resolve({ ok: true, value: { taskId: ITEM.taskId } });
+      await request.promise;
+    });
+  });
+
+  it("does not let a stale removal completion close a newer editor", async () => {
+    const user = userEvent.setup();
+    const request = createDeferred<{
+      ok: true;
+      value: { taskId: string };
+    }>();
+    clearTaskScheduleMock.mockReturnValue(request.promise);
+    getTaskByIdMock.mockImplementation((taskId: string) =>
+      Promise.resolve({
+        data: {
+          id: taskId,
+          metadata:
+            taskId === SECOND_ITEM.taskId
+              ? '{"task":"second"}'
+              : '{"task":"first"}',
+        },
+      }),
     );
+    renderCalendar({ items: [ITEM, SECOND_ITEM] });
+
+    await openEditor(user);
+    await openClearConfirmation(user);
+    fireEvent.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
+
+    const calendarProps = fullCalendarMock.mock.calls[0]?.[0] as
+      | FullCalendarProps
+      | undefined;
+    const secondEvent = calendarProps?.eventContent?.({
+      event: { id: SECOND_ITEM.id, title: SECOND_ITEM.taskName },
+    });
+    if (
+      !isValidElement<{
+        onEditSchedule: (taskId: string) => void;
+      }>(secondEvent)
+    ) {
+      throw new Error("Expected the second calendar event to be editable");
+    }
+    act(() => secondEvent.props.onEditSchedule(SECOND_ITEM.taskId));
+    await waitFor(() =>
+      expect(metadataToSelectionMock).toHaveBeenCalledWith(
+        '{"task":"second"}',
+        expect.any(String),
+      ),
+    );
+
+    await act(async () => {
+      request.resolve({ ok: true, value: { taskId: ITEM.taskId } });
+      await request.promise;
+    });
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("closes the editor after an immediate removal success", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    await openEditor(user);
+    await openClearConfirmation(user);
+    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(clearTaskScheduleMock).toHaveBeenCalledWith({ taskId: ITEM.taskId });
+    expect(refreshMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a removal failure in the confirmation and allows retry", async () => {
+    const user = userEvent.setup();
+    clearTaskScheduleMock
+      .mockResolvedValueOnce({ ok: false, error: { kind: "unexpected" } })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { taskId: ITEM.taskId },
+      });
+    renderCalendar();
+
+    await openEditor(user);
+    await openClearConfirmation(user);
+    await user.click(screen.getByRole("button", { name: "edit.clearConfirm" }));
+
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(within(confirmation).getByRole("alert")).toHaveTextContent(
+      "edit.clearError",
+    );
+    expect(
+      within(confirmation).getByRole("button", {
+        name: "edit.clearConfirm",
+      }),
+    ).toBeEnabled();
+    expect(
+      within(confirmation).getByRole("button", { name: "edit.clearCancel" }),
+    ).toBeEnabled();
+
+    await user.click(
+      within(confirmation).getByRole("button", {
+        name: "edit.clearConfirm",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+
+    expect(clearTaskScheduleMock).toHaveBeenCalledTimes(2);
+    expect(refreshMock).toHaveBeenCalledOnce();
   });
 
   it("opens a released event in its read-only task detail", async () => {
