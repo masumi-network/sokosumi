@@ -187,7 +187,6 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 - Routes under `(auth)/` are public
 - Routes under `(app)/` require authentication
-- Use `useWithAuthentication` hook for client-side auth checks
 
 ### Internationalization
 
