@@ -125,15 +125,4 @@ export {
   type SokoBotSkill,
   type SokoBotVersion,
 } from "./versions/index.js";
-export {
-  eveAcceptedResponseSchema,
-  type SokoBotRuntimeContext,
-  type SokoBotRuntimeToolResult,
-  sokoBotContextPacketSchema,
-  sokoBotRuntimeCommandResponseSchema,
-  sokoBotRuntimeContextSchema,
-  sokoBotRuntimeEventSchema,
-  sokoBotRuntimeSkillsSchema,
-  sokoBotRuntimeToolResultSchema,
-  sokoBotRuntimeVersionSchema,
-} from "./wire-contracts.js";
+export { sokoBotContextPacketSchema } from "./wire-contracts.js";

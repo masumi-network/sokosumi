@@ -8,13 +8,13 @@ const taskScheduleMetadataV1BaseSchema = z.object({
   lastRunAt: isoDateTimeSchema.optional(),
 });
 
-export const taskScheduleOnceMetadataV1Schema =
+const taskScheduleOnceMetadataV1Schema =
   taskScheduleMetadataV1BaseSchema.extend({
     mode: z.literal("once"),
     runAt: isoDateTimeSchema,
   });
 
-export const taskScheduleRecurringMetadataV1Schema =
+const taskScheduleRecurringMetadataV1Schema =
   taskScheduleMetadataV1BaseSchema.extend({
     mode: z.literal("recurring"),
     expr: z.string().min(1),
@@ -26,7 +26,7 @@ export const taskScheduleRecurringMetadataV1Schema =
     anchorAt: isoDateTimeSchema.optional(),
   });
 
-export const taskScheduleMetadataV1Schema = z
+const taskScheduleMetadataV1Schema = z
   .discriminatedUnion("mode", [
     taskScheduleOnceMetadataV1Schema,
     taskScheduleRecurringMetadataV1Schema,
