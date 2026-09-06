@@ -1427,15 +1427,6 @@ export function buildDirectSokoBotRoomKey(
   return `sokoBot:${userId}:${sokoBotId}`;
 }
 
-function directKeyLookup(directKey: string): string | { in: string[] } {
-  const alternate = directKey.includes("sokoBot:")
-    ? directKey.replaceAll("sokoBot:", "orchestrator:")
-    : directKey.includes("orchestrator:")
-      ? directKey.replaceAll("orchestrator:", "sokoBot:")
-      : null;
-  return alternate ? { in: [directKey, alternate] } : directKey;
-}
-
 export function buildDirectParticipantRoomKey(params: {
   currentUserId: string;
   memberUserIds: readonly string[];
@@ -2006,11 +1997,10 @@ export async function findLiveDirectByParticipantKey(
   directKey: string,
   organizationId: string | null,
 ) {
-  const key = directKeyLookup(directKey);
   const personal = await tx.chatRoom.findFirst({
     where: {
       organizationId: null,
-      directKey: key,
+      directKey,
       archivedAt: null,
     },
     include: chatRoomInclude,
@@ -2024,7 +2014,7 @@ export async function findLiveDirectByParticipantKey(
   return tx.chatRoom.findFirst({
     where: {
       organizationId,
-      directKey: key,
+      directKey,
       archivedAt: null,
     },
     include: chatRoomInclude,
@@ -2203,7 +2193,7 @@ export function resolveMentionedSokoBotIds(params: {
     ),
   );
 
-  const tokenRegex = /@(?:sokoBot|orchestrator):([0-9a-f-]{36})/gi;
+  const tokenRegex = /@sokoBot:([0-9a-f-]{36})/gi;
   for (const match of params.content.matchAll(tokenRegex)) {
     const id = match[1]?.toLowerCase();
     if (id && roomIds.has(id)) {
@@ -2333,7 +2323,7 @@ async function findOrRestoreDirectByKey(
   const existing = await tx.chatRoom.findFirst({
     where: {
       organizationId: params.organizationId,
-      directKey: directKeyLookup(params.directKey),
+      directKey: params.directKey,
     },
     include: chatRoomInclude,
   });

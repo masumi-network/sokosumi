@@ -5,16 +5,11 @@ import { createHash } from "@better-auth/utils/hash";
 
 /** Prefix for third-party vendor Coworker API keys. */
 export const COWORKER_API_KEY_PREFIX = "coworker_";
-/** Prefix for newly issued Soko Bot API keys. */
+/** Prefix for Soko Bot API keys. */
 export const SOKO_BOT_API_KEY_PREFIX = "sokoBot_";
-/** Prefix on keys issued before the sokoBot_ rename. Still accepted at auth. */
-export const LEGACY_SOKO_BOT_API_KEY_PREFIX = "orchestrator_";
 
 export function isSokoBotApiKeyToken(token: string): boolean {
-  return (
-    token.startsWith(SOKO_BOT_API_KEY_PREFIX) ||
-    token.startsWith(LEGACY_SOKO_BOT_API_KEY_PREFIX)
-  );
+  return token.startsWith(SOKO_BOT_API_KEY_PREFIX);
 }
 
 /** Length of the stored key start used for display. */
