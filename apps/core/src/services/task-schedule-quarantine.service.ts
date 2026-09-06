@@ -231,11 +231,9 @@ async function notifyQuarantineAction(
           ],
         },
       },
-      select: {
-        owner: { select: { notificationsOptIn: true } },
-      },
+      select: { id: true },
     });
-    if (!accessibleTask?.owner.notificationsOptIn) {
+    if (!accessibleTask) {
       return;
     }
 

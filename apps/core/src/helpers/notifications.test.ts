@@ -115,6 +115,7 @@ describe("createNotification", () => {
         messageKey: notificationInput.messageKey,
         messageParams: JSON.stringify(notificationInput.messageParams),
         metadata: JSON.stringify(notificationInput.metadata),
+        inApp: true,
       },
     });
     expect(publishNotificationEventMock).toHaveBeenCalledWith({
@@ -132,6 +133,8 @@ describe("createNotification", () => {
         isRead: notification.isRead,
         readAt: null,
         createdAt: notification.createdAt.toISOString(),
+        inApp: true,
+        osBanner: false,
       },
     });
     expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
@@ -205,6 +208,7 @@ describe("createNotification", () => {
         messageKey: "Notifications.Job.paymentFailed",
         messageParams: JSON.stringify(notificationInput.messageParams),
         metadata: JSON.stringify(notificationInput.metadata),
+        inApp: true,
       },
     });
     expect(publishNotificationEventMock).toHaveBeenCalled();
@@ -246,6 +250,24 @@ describe("createNotification push gating", () => {
     publishNotificationEventMock.mockResolvedValue(undefined);
   });
 
+  /** The reader's account row, as the delivery read selects it. */
+  function mockReader({
+    pushOptIn = true,
+    preferences = [],
+  }: {
+    pushOptIn?: boolean;
+    preferences?: {
+      category: string;
+      channel: string;
+      enabled: boolean;
+    }[];
+  } = {}) {
+    userFindUniqueMock.mockResolvedValue({
+      pushOptIn,
+      notificationPreferences: preferences,
+    });
+  }
+
   const chatInput: CreateNotificationInput = {
     ...notificationInput,
     kind: NotificationKind.CHAT,
@@ -270,23 +292,31 @@ describe("createNotification push gating", () => {
   it("pushes a chat notification when the user opted in", async () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(createChatRecord());
-    userFindUniqueMock.mockResolvedValue({ pushOptIn: true });
+    mockReader({ pushOptIn: true });
 
     await createNotification(chatInput, prismaMock as unknown as typeof prisma);
 
     expect(publishNotificationEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ push: true }),
+      expect.objectContaining({
+        push: true,
+        notification: expect.objectContaining({ osBanner: true }),
+      }),
     );
     expect(userFindUniqueMock).toHaveBeenCalledWith({
       where: { id: chatInput.userId },
-      select: { pushOptIn: true },
+      select: {
+        pushOptIn: true,
+        notificationPreferences: {
+          select: { category: true, channel: true, enabled: true },
+        },
+      },
     });
   });
 
   it("does not push a chat notification when the user did not opt in", async () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(createChatRecord());
-    userFindUniqueMock.mockResolvedValue({ pushOptIn: false });
+    mockReader({ pushOptIn: false });
 
     await createNotification(chatInput, prismaMock as unknown as typeof prisma);
 
@@ -311,7 +341,7 @@ describe("createNotification push gating", () => {
       prismaMock.notification.create.mockResolvedValue(
         createNotificationRecord({ kind }),
       );
-      userFindUniqueMock.mockResolvedValue({ pushOptIn: true });
+      mockReader({ pushOptIn: true });
 
       await createNotification(
         { ...notificationInput, kind },
@@ -328,7 +358,7 @@ describe("createNotification push gating", () => {
       prismaMock.notification.create.mockResolvedValue(
         createNotificationRecord({ kind }),
       );
-      userFindUniqueMock.mockResolvedValue({ pushOptIn: false });
+      mockReader({ pushOptIn: false });
 
       await createNotification(
         { ...notificationInput, kind },
@@ -363,7 +393,7 @@ describe("createNotification push gating", () => {
         findUnique: vi.fn(),
       },
     };
-    userFindUniqueMock.mockResolvedValue({ pushOptIn: true });
+    mockReader({ pushOptIn: true });
 
     const result = await createNotification(
       chatInput,
@@ -382,11 +412,112 @@ describe("createNotification push gating", () => {
     const notification = createChatRecord();
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(notification);
-    userFindUniqueMock.mockResolvedValue({ pushOptIn: true });
+    mockReader({ pushOptIn: true });
 
     await expect(
       createNotification(chatInput, prismaMock as unknown as typeof prisma),
     ).resolves.toEqual({ notification, created: true });
+  });
+
+  it("stores the notification unseen when the reader silenced the category in the app", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(
+      createNotificationRecord({ inApp: false }),
+    );
+    mockReader({
+      preferences: [{ category: "JOB", channel: "IN_APP", enabled: false }],
+    });
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+    );
+
+    // Still written, so a later duplicate emit stays a no-op and the row can
+    // still be deleted by reference. Hidden, not dropped.
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ inApp: false }),
+      }),
+    );
+    // The banner survives the in-app choice: they are separate columns.
+    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ push: true }),
+    );
+  });
+
+  it("keeps a notification in the app when the reader silenced only its banner", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(
+      createNotificationRecord(),
+    );
+    mockReader({
+      preferences: [{ category: "JOB", channel: "OS_BANNER", enabled: false }],
+    });
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ inApp: true }),
+      }),
+    );
+    // An open tab renders its own banner from this event, so the answer has to
+    // ride the payload and not only the push extras.
+    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        push: false,
+        notification: expect.objectContaining({ osBanner: false }),
+      }),
+    );
+  });
+
+  it("splits the two chat rows, so muting mentions leaves direct messages alone", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(createChatRecord());
+    mockReader({
+      preferences: [
+        { category: "CHAT_MENTION", channel: "IN_APP", enabled: false },
+        { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+      ],
+    });
+
+    await createNotification(
+      {
+        ...chatInput,
+        messageKey: "Notifications.Chat.directMessage",
+      },
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ push: true }),
+    );
+  });
+
+  it("does not publish a notification the reader silenced on both channels", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(
+      createNotificationRecord({ inApp: false }),
+    );
+    mockReader({
+      preferences: [
+        { category: "JOB", channel: "IN_APP", enabled: false },
+        { category: "JOB", channel: "OS_BANNER", enabled: false },
+      ],
+    });
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+    );
+
+    // Nothing to render and nothing to interrupt with, so the publish would be
+    // an Ably message no client acts on.
+    expect(publishNotificationEventMock).not.toHaveBeenCalled();
   });
 
   it("still publishes in-app, with push off, when the opt-in read fails", async () => {

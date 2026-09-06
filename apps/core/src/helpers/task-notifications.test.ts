@@ -27,7 +27,6 @@ describe("dispatchTaskNotification", () => {
         project: null,
         projectId: null,
         workspaceId: null,
-        owner: { notificationsOptIn: true },
       },
       "event_1",
       "COMPLETED",
