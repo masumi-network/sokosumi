@@ -25,6 +25,7 @@ import {
   CircleDashed,
   Clock3,
   FolderKanban,
+  Plus,
   Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -35,7 +36,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { Temporal } from "temporal-polyfill";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import {
@@ -541,6 +542,12 @@ export function WorkspaceCalendar({
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
   const [eventLoadError, setEventLoadError] = useState(false);
   const eventRequestId = useRef(0);
+
+  useEffect(() => {
+    setLoadedItems(items);
+    setNextCursor(pagination?.nextCursor ?? null);
+  }, [items, pagination?.nextCursor]);
+
   const date = parseCalendarDate(state.date ?? initialDate, initialDate);
   const timeZone = isValidTimezone(state.timezone)
     ? state.timezone
@@ -872,7 +879,13 @@ export function WorkspaceCalendar({
           }
         />
         {canCreate ? (
-          <Button size="sm" variant="primary" onClick={handleAgendaCreate}>
+          <Button
+            className="ml-auto"
+            size="sm"
+            variant="primary"
+            onClick={handleAgendaCreate}
+          >
+            <Plus aria-hidden />
             {t("create.title")}
           </Button>
         ) : null}
