@@ -1,5 +1,3 @@
-import type { PublicShare } from "./generated/prisma/browser.js";
-
 /**
  * @sokosumi/database
  *
@@ -23,7 +21,7 @@ import type { PublicShare } from "./generated/prisma/browser.js";
  *
  * ### Import repositories:
  * ```typescript
- * import { agentRepository, userRepository } from '@sokosumi/database/repositories'
+ * import { userRepository } from '@sokosumi/database/repositories'
  * ```
  *
  * ### Import helpers:
@@ -52,6 +50,3 @@ export * from "./types/organization.js";
 export * from "./types/public-share.js";
 export * from "./types/utm.js";
 export * from "./types/workspace.js";
-
-export type JobShare = PublicShare;
-export type TaskShare = PublicShare;
