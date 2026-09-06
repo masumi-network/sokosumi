@@ -13,11 +13,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    },
-    "./models": {
-      "types": "./dist/models/index.d.ts",
-      "import": "./dist/models/index.js",
-      "default": "./dist/models/index.js"
     }
   },
   "files": [
