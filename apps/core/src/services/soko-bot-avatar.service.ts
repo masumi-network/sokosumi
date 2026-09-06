@@ -6,6 +6,7 @@ import { put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import { notFound, unprocessableEntity } from "@/helpers/error";
+import { buildSokoBotAvatarBlobPathname } from "@/helpers/soko-bot-avatar-blob-path";
 import prisma from "@/lib/db/prisma";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 
@@ -243,17 +244,13 @@ export async function persistAvatarImage(
     throw new Error(`avatar download failed (${response.status})`);
   const buffer = Buffer.from(await response.arrayBuffer());
   const hash = crypto.createHash("sha256").update(buffer).digest("hex");
-  const blob = await put(
-    `soko-bot-avatars/${key}-${hash.slice(0, 12)}.png`,
-    buffer,
-    {
-      access: "public",
-      contentType: "image/png",
-      token: env.BLOB_READ_WRITE_TOKEN,
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    },
-  );
+  const blob = await put(buildSokoBotAvatarBlobPathname(key, hash), buffer, {
+    access: "public",
+    contentType: "image/png",
+    token: env.BLOB_READ_WRITE_TOKEN,
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
   return blob.url;
 }
 

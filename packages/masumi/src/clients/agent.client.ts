@@ -1,7 +1,7 @@
 import { ssrfSafeFetch } from "@sokosumi/net";
 import { err, ok, type Result } from "neverthrow";
 
-import { hashCanonicalJsonValue, hashInputSchema } from "../hash/index.js";
+import { hashCanonicalJsonValue, hashInputSchema } from "../hash/hash.js";
 import {
   type InputSchemaResponseSchemaType,
   type InputSchemaType,

@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { avatarCountMock, avatarFindManyMock, getEnvMock, putMock } = vi.hoisted(
   () => ({
@@ -32,6 +34,7 @@ import {
   AVATAR_POOL_FLOOR,
   generateAvatars,
   listAvailableAvatars,
+  persistAvatarImage,
   stockAvatarPool,
 } from "@/services/soko-bot-avatar.service";
 
@@ -40,6 +43,10 @@ describe("Soko Bot avatar pool", () => {
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({ FAL_KEY: "fal-test" });
     avatarFindManyMock.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("does nothing without an image key, so the pool just stays empty", async () => {
@@ -100,6 +107,31 @@ describe("Soko Bot avatar pool", () => {
     );
     expect(billed).toHaveLength(1);
     vi.unstubAllGlobals();
+  });
+
+  it("puts the PNG under soko-bots/avatars/{key}-{12hex}.png", async () => {
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    const hash12 = createHash("sha256")
+      .update(bytes)
+      .digest("hex")
+      .slice(0, 12);
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "token" });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () =>
+        bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength,
+        ),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    putMock.mockResolvedValue({ url: "https://blob.test/owl.png" });
+
+    await persistAvatarImage("https://fal.test/a.png", "owl-1");
+
+    const pathname = putMock.mock.calls[0]?.[0];
+    expect(pathname).toBe(`soko-bots/avatars/owl-1-${hash12}.png`);
+    expect(pathname).not.toContain("soko-bot-avatars/");
   });
 
   it("fills a short pool when the caller opts in", async () => {

@@ -8,6 +8,7 @@ import {
 import { list } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
   paginateSortedDriveBrowseItems,
   sortDriveBrowseItems,
@@ -25,7 +26,6 @@ import {
 import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import type { DriveItem } from "@/schemas/drive-file.schema";
 import {
   driveFileScopeSchema,
@@ -225,7 +225,7 @@ async function listAllFolderItems(input: {
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireUserContext(authContext);
+    const userContext = await requireAuthorizedUserContext(authContext);
     const query = c.req.valid("query");
 
     const env = getEnv();

@@ -5,6 +5,7 @@ import {
   requireCoworkerCapability,
   requireTaskReadForRouteVars,
 } from "@/helpers/access-control";
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
   driveFileTypeFamily,
   driveFileTypeFamilyRank,
@@ -27,11 +28,7 @@ import {
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  isCoworkerAuthContext,
-  isSokoBotAuthContext,
-  requireUserContext,
-} from "@/middleware/auth";
+import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   type DriveListSort,
@@ -218,7 +215,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    const userContext = requireUserContext(authContext);
+    const userContext = await requireAuthorizedUserContext(authContext);
     const workspaceContext = await resolveDriveTasksWorkspace({
       userContext,
       scope,

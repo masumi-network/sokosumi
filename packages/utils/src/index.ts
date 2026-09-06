@@ -57,20 +57,14 @@ export {
   parseUserIdFromAblyPresenceClientId,
   resolveUserChatPresence,
 } from "./chat-presence.js";
-export {
-  CHAT_PRESENCE_AFK_WINDOW_MS,
-  CHAT_PRESENCE_ONLINE_WINDOW_MS,
-} from "./chat-presence-windows.js";
+export { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "./chat-presence-windows.js";
 export {
   buildCoworkerChatRoomFilePathname,
   buildCoworkerChatRoomFilePrefix,
   buildSokoBotChatRoomFilePathname,
-  buildSokoBotChatRoomFilePrefix,
   buildUserChatRoomFilePathname,
   buildUserChatRoomFilePrefix,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
-  isOwnedCoworkerChatRoomFileUrl,
-  isOwnedUserChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
 export {
   CHAT_ROOM_MESSAGE_CONTENT_COUNT_VISIBLE_AT,
@@ -355,11 +349,8 @@ export {
   type TaskScheduleMetadataV1,
   type TaskScheduleMetadataV2,
   taskScheduleMetadataSchema,
-  taskScheduleMetadataV1Schema,
   taskScheduleMetadataV2Schema,
-  taskScheduleOnceMetadataV1Schema,
   taskScheduleOnceMetadataV2Schema,
-  taskScheduleRecurringMetadataV1Schema,
   taskScheduleRecurringMetadataV2Schema,
 } from "./task-schedule.js";
 export {
