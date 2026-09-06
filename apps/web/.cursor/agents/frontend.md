@@ -117,7 +117,7 @@ export function MyComponent() {
 4. Ensure all UI follows Shadcn/Tailwind conventions
 5. Verify internationalization for user-facing text
 6. **When deleting code**: Remove unused translation keys from `messages/en.json`
-7. Run `pnpm web:lint` to check for issues
+7. Run `pnpm --filter web lint` to check for issues
 8. Test changes work in both light and dark modes
 
 ## Key Files to Reference
