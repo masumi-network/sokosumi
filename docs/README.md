@@ -14,11 +14,7 @@ This directory contains documentation for the Sokosumi monorepo.
 - [`agents/triage-labels.md`](./agents/triage-labels.md)
 - [`agents/domain.md`](./agents/domain.md)
 
-## Future structure
+## Architecture decisions
 
-Planned documentation includes:
-
-- `architecture/` — Architecture decision records and diagrams
-- `api/` — Additional API documentation
-- `guides/` — Development guides and tutorials
+- [`adr/`](./adr/) — accepted architecture decision records
 
