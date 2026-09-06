@@ -74,7 +74,11 @@ function FoldRow({
     <Collapsible open={open} onOpenChange={onOpenChange}>
       <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
         <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px] sm:flex-1">
-          <ChevronRight className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
+          {/* Turned on the same 200ms ease-out the fold opens on, so the
+              mark and the box it belongs to stop together. Under reduced
+              motion it has no transition at all and simply points the other
+              way, which is what the fold does too. */}
+          <ChevronRight className="text-muted-foreground size-4 shrink-0 duration-200 ease-out group-data-[state=open]:rotate-90 motion-safe:transition-transform" />
           <span className="min-w-0">
             <span className="block text-sm leading-5">{name}</span>
             <span
@@ -92,12 +96,21 @@ function FoldRow({
           the height mean anything: without it they stand at full height while
           the box around them is still growing. A reader who asked for less
           motion gets the old jump, which is the honest thing to give them. */}
-      <CollapsibleContent className="motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down overflow-hidden">
+      <CollapsibleContent className="group/fold motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down overflow-hidden">
         {/* No padding above the children. What comes first is the line of
             column names, and it carries its own, so the names sit under the
             border the way a table head sits under its rule rather than
-            floating in a band of their own. */}
-        <div className="bg-muted/20 border-t px-4 pb-1">{children}</div>
+            floating in a band of their own.
+
+            The rows fade over the same 200ms the box takes. Drawn at full
+            strength from the first frame, a grid of thirty cells is already
+            all there and the box is a shutter being pulled off it; faded in,
+            it is the grid that arrives. `animation-duration-200` rather than
+            `duration-200`, which would also set a transition duration this
+            element never asked for. */}
+        <div className="bg-muted/20 motion-safe:group-data-[state=closed]/fold:animate-out motion-safe:group-data-[state=closed]/fold:fade-out motion-safe:group-data-[state=open]/fold:animate-in motion-safe:group-data-[state=open]/fold:fade-in animation-duration-200 border-t px-4 pb-1 ease-out">
+          {children}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );
