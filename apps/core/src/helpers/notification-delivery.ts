@@ -1,5 +1,8 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
+  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
   type NotificationCategory,
@@ -7,13 +10,24 @@ import {
   notificationDefault,
 } from "@sokosumi/utils";
 
-/** The message key an @mention carries. Read by the category mapping below. */
-export const CHAT_MENTION_MESSAGE_KEY = "Notifications.Chat.mentioned";
-
-/** The message key a direct message carries. */
-export const CHAT_DIRECT_MESSAGE_MESSAGE_KEY =
-  "Notifications.Chat.directMessage";
-export const CHAT_ROOM_MESSAGE_MESSAGE_KEY = "Notifications.Chat.roomMessage";
+/**
+ * The chat notifications a room's badge counts.
+ *
+ * The badge is the number beside a room in the sidebar, and it has always meant
+ * "something here was addressed to you": an @mention, or a message in a direct
+ * room, where every message is. It is listed here rather than inferred from the
+ * kind, because every chat notification is written as `NotificationKind.CHAT`
+ * with the room as its `referenceId`, so the kind cannot tell them apart.
+ *
+ * Every message in a room is deliberately absent. A reader who asks for those
+ * is asking to hear about them, not to be told each one was addressed to them,
+ * and counting them turned the badge into an unread-message count for anyone
+ * who switched the row on.
+ */
+export const CHAT_ROOM_BADGE_MESSAGE_KEYS: readonly string[] = [
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+];
 
 /**
  * The task keys that wait on the reader.

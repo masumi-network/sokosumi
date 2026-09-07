@@ -20,6 +20,7 @@ import type {
   UpdateOAuthClientRequest,
   UseOAuthClientsReturn,
 } from "../types";
+import { inferOAuthApplicationType } from "../utils";
 
 export function useOAuthClients(): UseOAuthClientsReturn {
   const t = useTranslations("App.Account.OAuthClients");
@@ -64,6 +65,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
       try {
         const includeCoreApi = data.includeCoreApi ?? false;
         const includeOfflineAccess = data.includeOfflineAccess ?? false;
+        const applicationType = inferOAuthApplicationType(data.redirectUris);
         const result = await authClient.oauth2.createClient({
           redirect_uris: data.redirectUris,
           client_name: data.name,
@@ -72,6 +74,9 @@ export function useOAuthClients(): UseOAuthClientsReturn {
             includeOfflineAccess,
           }),
           grant_types: buildOAuthClientGrantTypes(includeOfflineAccess),
+          ...(applicationType === "native"
+            ? { application_type: "native" as const }
+            : {}),
         });
 
         if (result.error) {
@@ -142,11 +147,15 @@ export function useOAuthClients(): UseOAuthClientsReturn {
               }
             : {};
 
+        const applicationType = inferOAuthApplicationType(data.redirectUris);
         const result = await authClient.oauth2.updateClient({
           client_id: data.clientId,
           update: {
             client_name: data.name,
             redirect_uris: data.redirectUris,
+            ...(applicationType === "native"
+              ? { application_type: "native" as const }
+              : {}),
             ...scopeUpdate,
           },
         });

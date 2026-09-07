@@ -1,6 +1,8 @@
 import { NotificationKind } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { notificationFeedWhere } from "@/helpers/notification-feed";
+
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -194,8 +196,7 @@ describe("PATCH /notifications/read-all", () => {
       where: {
         userId: "user_123",
         isRead: false,
-        kind: { notIn: [NotificationKind.CHAT] },
-        inApp: true,
+        ...notificationFeedWhere(),
       },
       data: {
         isRead: true,
@@ -226,8 +227,7 @@ describe("GET /notifications/unread-count", () => {
       where: {
         userId: "user_123",
         isRead: false,
-        kind: { notIn: [NotificationKind.CHAT] },
-        inApp: true,
+        ...notificationFeedWhere(),
       },
     });
 
@@ -252,8 +252,7 @@ describe("GET /notifications/unread-count", () => {
       where: {
         userId: "user_123",
         isRead: false,
-        kind: { notIn: [NotificationKind.CHAT] },
-        inApp: true,
+        ...notificationFeedWhere(),
         NOT: {
           AND: [
             { messageKey: "notifications.vendorGrant.pending" },
@@ -280,8 +279,7 @@ describe("GET /notifications/unread-count", () => {
       where: {
         userId: "user_123",
         isRead: false,
-        kind: { notIn: [NotificationKind.CHAT] },
-        inApp: true,
+        ...notificationFeedWhere(),
         NOT: {
           AND: [
             { messageKey: "notifications.coworkerAccess.pending" },

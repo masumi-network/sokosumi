@@ -4102,8 +4102,7 @@
         "pushBannerDeniedBody": "Sokosumi kann nicht erneut fragen. Erlaube Benachrichtigungen für diese Website in den Browser-Einstellungen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
         "pushBannerUnsupportedTitle": "Dieser Browser kann keine Push-Benachrichtigungen anzeigen",
         "pushBannerUnsupportedBody": "Push-Benachrichtigungen kommen hier nicht an, egal was die Zeilen unten sagen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
-        "deviceBannerTitle": "Push-Benachrichtigungen sind in diesem Browser aktiviert",
-        "deviceBannerBody": "Was auf Push eingestellt ist, kommt hier an. Deine anderen Geräte sind davon nicht betroffen.",
+        "deviceBannerTitle": "Push-Benachrichtigungen sind in diesem Browser aktiviert. Deine anderen Geräte sind davon nicht betroffen.",
         "deviceBannerAction": "Deaktivieren",
         "deviceDisabledSuccess": "Push-Benachrichtigungen in diesem Browser aus",
         "pushEnabledSuccess": "Push-Benachrichtigungen aktiviert",
@@ -4379,8 +4378,8 @@
           "nameLabel": "Name",
           "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
           "redirectUrisLabel": "Redirect-URIs",
-          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Eine Redirect-URI pro Zeile. HTTPS verwenden (HTTP nur für localhost/loopback), keine Fragmente. Benutzerdefinierte App-Schemata sind erlaubt.",
+          "redirectUrisPlaceholder": "https://example.com/callback\ncom.example.app:/oauth/callback",
+          "redirectUrisHelp": "Eine URI pro Zeile. HTTPS für Web-Apps. Native Apps: http://127.0.0.1, http://localhost, http://[::1] oder ein Reverse-Domain-Schema ohne Host (com.example.app:/callback). Keine Fragmente.",
           "cancelButton": "Abbrechen",
           "createButton": "OAuth-Client erstellen",
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
@@ -4421,8 +4420,8 @@
           "nameLabel": "Name",
           "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
           "redirectUrisLabel": "Redirect-URIs",
-          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Eine Redirect-URI pro Zeile. HTTPS verwenden (HTTP nur für localhost/loopback), keine Fragmente. Benutzerdefinierte App-Schemata sind erlaubt.",
+          "redirectUrisPlaceholder": "https://example.com/callback\ncom.example.app:/oauth/callback",
+          "redirectUrisHelp": "Eine URI pro Zeile. HTTPS für Web-Apps. Native Apps: http://127.0.0.1, http://localhost, http://[::1] oder ein Reverse-Domain-Schema ohne Host (com.example.app:/callback). Keine Fragmente.",
           "cancelButton": "Abbrechen",
           "saveButton": "Änderungen speichern",
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
@@ -4453,7 +4452,7 @@
           "nameRequired": "Name ist erforderlich",
           "nameMaxLength": "Name darf maximal 100 Zeichen lang sein",
           "redirectUrisRequired": "Mindestens eine Redirect-URI ist erforderlich",
-          "redirectUrisInvalid": "Jede Redirect-URI muss eine gültige HTTPS-URL sein (HTTP nur für localhost), ohne Fragment."
+          "redirectUrisInvalid": "Jede Redirect-URI muss HTTPS, HTTP auf Loopback (localhost / 127.0.0.1 / [::1]) oder ein Reverse-Domain-App-Schema wie com.example.app:/callback sein, ohne Fragment."
         },
         "RotateDialog": {
           "title": "Client-Secret rotieren",
@@ -6458,7 +6457,10 @@
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
         "directMessage": "{authorName} hat dir eine Nachricht gesendet",
-        "roomMessage": "{authorName} hat in {roomName} geschrieben"
+        "roomMessage": "{authorName} hat in {roomName} geschrieben",
+        "roomMessages": "{count} Nachrichten in {roomName}",
+        "roomMessageGroup": "{authorName} hat in der Gruppe {roomName} geschrieben",
+        "roomMessagesGroup": "{count} Nachrichten in der Gruppe {roomName}"
       }
     }
   },

@@ -135,6 +135,8 @@ describe("createNotification", () => {
         createdAt: notification.createdAt.toISOString(),
         inApp: true,
         osBanner: false,
+        // Written by this event, so a reader's tab counts it on the badge.
+        created: true,
       },
     });
     expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();

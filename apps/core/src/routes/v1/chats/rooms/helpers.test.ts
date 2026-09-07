@@ -1,4 +1,9 @@
 import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
+import {
+  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
@@ -542,6 +547,24 @@ describe("getChatRoomUnreadCounts", () => {
 });
 
 describe("getChatRoomUnreadMentionCounts", () => {
+  it("counts only the chat notifications addressed to the reader", async () => {
+    const groupBy = vi.fn().mockResolvedValue([]);
+
+    await getChatRoomUnreadMentionCounts(["room-a"], "user_1", {
+      notification: { groupBy },
+    } as never);
+
+    const where = groupBy.mock.calls[0]?.[0]?.where;
+
+    // Every message in a room is a CHAT notification on the same room, so the
+    // kind cannot keep it out. Named here, so a third chat notification cannot
+    // turn the badge into an unread-message count again.
+    expect(where.messageKey).toEqual({
+      in: [CHAT_MENTION_MESSAGE_KEY, CHAT_DIRECT_MESSAGE_MESSAGE_KEY],
+    });
+    expect(where.messageKey.in).not.toContain(CHAT_ROOM_MESSAGE_MESSAGE_KEY);
+  });
+
   it("groups unread CHAT notifications by room referenceId", async () => {
     const groupBy = vi.fn().mockResolvedValue([
       { referenceId: "room-a", _count: { _all: 2 } },
@@ -559,6 +582,9 @@ describe("getChatRoomUnreadMentionCounts", () => {
       where: {
         userId: "user_1",
         kind: NotificationKind.CHAT,
+        messageKey: {
+          in: [CHAT_MENTION_MESSAGE_KEY, CHAT_DIRECT_MESSAGE_MESSAGE_KEY],
+        },
         isRead: false,
         referenceId: { in: ["room-a", "room-b", "room-c"] },
       },
