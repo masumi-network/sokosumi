@@ -80,10 +80,15 @@ const ROOM_UNREAD_COUNT_CAP = 99;
 /**
  * The reader's opt-in Room unread count.
  *
- * Muted text rather than a pill, because it is not the mention badge and a
- * reader has to tell the two apart at a glance. It caps like the badge so a
- * very loud room cannot reflow the row, and it hides with the badge when the
- * sidebar collapses to icons.
+ * Text rather than a pill, because it is not the mention badge and a reader has
+ * to tell the two apart at a glance. It caps like the badge so a very loud room
+ * cannot reflow the row, and it hides with the badge when the sidebar collapses
+ * to icons.
+ *
+ * It carries the name's unread weight and colour, because it is part of the
+ * same statement: this room has something for you. `resolveRoomAttention` only
+ * ever reports a count above zero together with `bold`, so there is no unbolded
+ * state to render and no prop to thread. `room-attention.test.ts` pins that.
  */
 function RoomUnreadCount({ count }: { count: number }) {
   const t = useTranslations("App.Channels.RoomUnread");
@@ -98,7 +103,7 @@ function RoomUnreadCount({ count }: { count: number }) {
   // `aria-label` here can be dropped and the row announces a bare number beside
   // the badge's bare number. Real text carries it instead.
   return (
-    <span className="text-muted-foreground group-data-[collapsible=icon]:hidden shrink-0 text-xs leading-4 tabular-nums">
+    <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 text-xs leading-4 font-semibold tabular-nums">
       <span aria-hidden="true">
         {capped ? `${ROOM_UNREAD_COUNT_CAP}+` : count}
       </span>

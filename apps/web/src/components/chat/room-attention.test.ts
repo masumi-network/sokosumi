@@ -137,4 +137,30 @@ describe("resolveRoomAttention", () => {
       }),
     ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
   });
+
+  // The row draws the count at the name's unread weight with no unbolded
+  // variant, which is only safe while a visible count implies bold. Sweep the
+  // whole input space that can produce one rather than trusting the reading.
+  it("never reports a count to show without also reporting bold", () => {
+    for (const unreadCount of [0, 1, 2, 99, 100, 1234]) {
+      for (const markedUnread of [true, false]) {
+        for (const isMuted of [true, false]) {
+          for (const isActive of [true, false]) {
+            const attention = resolveRoomAttention({
+              unreadCount,
+              unreadMentionCount: 0,
+              markedUnread,
+              isMuted,
+              isActive,
+              showUnreadCount: true,
+            });
+
+            if (attention.unreadTextCount > 0) {
+              expect(attention.bold).toBe(true);
+            }
+          }
+        }
+      }
+    }
+  });
 });

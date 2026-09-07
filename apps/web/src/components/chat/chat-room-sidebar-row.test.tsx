@@ -501,6 +501,20 @@ describe("ChatRoomSidebarRow unread message count", () => {
     );
   });
 
+  // The count has no unbolded variant, so it has to match the name it sits
+  // beside rather than merely being bold on its own.
+  it("draws the count at the same unread weight as the room name", () => {
+    renderRow(makeRoom({ unreadCount: 4 }));
+
+    const count = screen.getByText("4 unread messages").parentElement;
+    const name = screen.getByText("general");
+
+    for (const className of [count?.className, name.className]) {
+      expect(className).toContain("font-semibold");
+      expect(className).toContain("text-foreground");
+    }
+  });
+
   it("shows no count on a room with nothing unread", () => {
     renderRow(makeRoom({ unreadCount: 0 }));
 
