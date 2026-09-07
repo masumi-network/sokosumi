@@ -201,7 +201,11 @@ export function CreateOAuthClientDialog({
                   hideLabel={t("CreatedSuccess.hideSecret")}
                   onCopy={handleCopy}
                 />
-              ) : null}
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  {t("CreatedSuccess.publicClientNote")}
+                </p>
+              )}
 
               <DialogFooter>
                 <Button onClick={handleCredentialsDone}>

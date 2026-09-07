@@ -75,7 +75,10 @@ export function useOAuthClients(): UseOAuthClientsReturn {
           }),
           grant_types: buildOAuthClientGrantTypes(includeOfflineAccess),
           ...(applicationType === "native"
-            ? { application_type: "native" as const }
+            ? {
+                application_type: "native" as const,
+                token_endpoint_auth_method: "none" as const,
+              }
             : {}),
         });
 

@@ -217,11 +217,10 @@ describe("useOAuthClients", () => {
     });
   });
 
-  it("registers native application_type for private-use redirect URIs", async () => {
+  it("registers native public PKCE clients for private-use redirect URIs", async () => {
     createClientMock.mockResolvedValue({
       data: {
         client_id: "client_native",
-        client_secret: "secret",
       },
       error: null,
     });
@@ -231,8 +230,9 @@ describe("useOAuthClients", () => {
       expect(result.current.isInitialLoading).toBe(false);
     });
 
+    let createResult: Awaited<ReturnType<typeof result.current.create>>;
     await act(async () => {
-      await result.current.create({
+      createResult = await result.current.create({
         name: "Mac App",
         redirectUris: ["com.sokosumi.app:/oauth/signin"],
         includeCoreApi: true,
@@ -246,14 +246,17 @@ describe("useOAuthClients", () => {
       scope: "openid sokosumi:api offline_access",
       grant_types: ["authorization_code", "refresh_token"],
       application_type: "native",
+      token_endpoint_auth_method: "none",
     });
+    expect(createResult!.success).toBe(true);
+    expect(createResult!.data?.clientId).toBe("client_native");
+    expect(createResult!.data?.clientSecret).toBeNull();
   });
 
-  it("registers native application_type for loopback HTTP redirect URIs", async () => {
+  it("registers native public PKCE clients for loopback HTTP redirect URIs", async () => {
     createClientMock.mockResolvedValue({
       data: {
         client_id: "client_loopback",
-        client_secret: "secret",
       },
       error: null,
     });
@@ -276,6 +279,7 @@ describe("useOAuthClients", () => {
       scope: "openid",
       grant_types: ["authorization_code"],
       application_type: "native",
+      token_endpoint_auth_method: "none",
     });
   });
 
