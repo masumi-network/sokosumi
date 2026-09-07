@@ -10,10 +10,23 @@ export default async function ProjectEditModalPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  const project = await projectService.getProjectById(projectId);
+  const [projectResult, socialConnectionsResult] = await Promise.allSettled([
+    projectService.getProjectById(projectId),
+    projectService.listSocialConnections(projectId),
+  ]);
+
+  if (projectResult.status === "rejected") {
+    throw projectResult.reason;
+  }
+
+  const project = projectResult.value;
 
   if (!project) {
     return notFound();
+  }
+
+  if (socialConnectionsResult.status === "rejected") {
+    throw socialConnectionsResult.reason;
   }
 
   const t = await getTranslations("App.Projects");
@@ -36,6 +49,7 @@ export default async function ProjectEditModalPage({
         briefing: project.briefing ?? "",
         websiteUrl: project.websiteUrl,
       }}
+      socialConnections={socialConnectionsResult.value}
     />
   );
 }
