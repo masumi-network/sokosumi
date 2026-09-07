@@ -454,6 +454,10 @@ Prefer session reuse so you only log in once per machine:
 export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 ```
 
+## Agent skills
+
+When writing or reviewing web UI, load Jakub's interface skills under [`.agents/skills/`](.agents/skills/) (`jakubkrehel/skills`: UI, typography, colors, accessibility, layout, product writing, interface-review). Canonical files live there with the other web-scoped skills; `.claude/skills` is the Claude Code symlink set. Do not copy skill bodies into rules.
+
 ## Additional Rules
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
