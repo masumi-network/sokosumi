@@ -113,16 +113,6 @@ export default async function ProjectDetailPage({
               />
             </div>
 
-            <div className="order-3 xl:order-4">
-              <ProjectMemoryRow
-                projectId={project.id}
-                contextMd={project.contextMd}
-                contextMdUpdating={project.contextMdUpdating}
-                memoryEnabled={project.memoryEnabled}
-                memoryModel={project.memoryModel}
-              />
-            </div>
-
             <div className="order-4 xl:order-3 xl:col-span-2">
               <ProjectNeedsAttentionSection
                 projectId={project.id}
@@ -145,6 +135,16 @@ export default async function ProjectDetailPage({
                   taskStatus: taskStatusLabels,
                   locale,
                 }}
+              />
+            </div>
+
+            <div className="order-3 xl:order-4">
+              <ProjectMemoryRow
+                projectId={project.id}
+                contextMd={project.contextMd}
+                contextMdUpdating={project.contextMdUpdating}
+                memoryEnabled={project.memoryEnabled}
+                memoryModel={project.memoryModel}
               />
             </div>
 
