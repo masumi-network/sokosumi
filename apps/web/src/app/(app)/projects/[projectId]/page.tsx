@@ -91,7 +91,7 @@ export default async function ProjectDetailPage({
           initialDesignMd={project.designMd}
           websiteUrl={project.websiteUrl}
         >
-          <div className="mt-6 grid grid-cols-1 gap-8 xl:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-8 px-2 md:px-0 xl:grid-cols-3">
             <div className="order-1 xl:order-1 xl:col-span-2">
               <ProjectBriefing
                 title={t("briefing")}
