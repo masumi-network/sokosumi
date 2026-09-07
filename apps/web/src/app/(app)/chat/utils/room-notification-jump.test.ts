@@ -71,12 +71,28 @@ describe("performRoomNotificationJump", () => {
     expect(d.jumpInRoom).not.toHaveBeenCalled();
   });
 
-  it("still opens the room when the message cannot be read", async () => {
+  it("leaves the reader in the room when the message cannot be read", async () => {
     const d = deps({ loadMessage: vi.fn(async () => null) });
 
     await performRoomNotificationJump("msg-1", d);
 
-    expect(d.jumpInRoom).toHaveBeenCalledExactlyOnceWith("msg-1");
+    // Asking the room to scroll to an id the server just refused fails again,
+    // and that second failure is the one the reader sees as an error toast.
+    expect(d.jumpInRoom).not.toHaveBeenCalled();
+    expect(d.jumpInThread).not.toHaveBeenCalled();
+  });
+
+  it("lets a failed lookup reach the caller", async () => {
+    const d = deps({
+      loadMessage: vi.fn(async () => {
+        throw new Error("offline");
+      }),
+    });
+
+    await expect(performRoomNotificationJump("msg-1", d)).rejects.toThrow(
+      "offline",
+    );
+    expect(d.jumpInRoom).not.toHaveBeenCalled();
     expect(d.jumpInThread).not.toHaveBeenCalled();
   });
 });

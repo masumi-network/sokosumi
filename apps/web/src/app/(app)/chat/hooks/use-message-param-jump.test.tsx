@@ -88,4 +88,34 @@ describe("useMessageParamJump", () => {
 
     expect(jump).not.toHaveBeenCalled();
   });
+  it("jumps again when the reader comes back to the same message", () => {
+    const jump = vi.fn();
+    const { rerender } = render(
+      <Harness roomId="room-1" messageId="msg-1" ready jump={jump} />,
+    );
+
+    // Away to another room, which drops the message from the URL.
+    rerender(<Harness roomId="room-2" messageId={null} ready jump={jump} />);
+    // Then the same notification is clicked a second time. The room client
+    // stays mounted across rooms, so this hook is the only thing that could
+    // swallow it.
+    rerender(<Harness roomId="room-1" messageId="msg-1" ready jump={jump} />);
+
+    expect(jump).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not jump again when the room reloads under the reader", () => {
+    const jump = vi.fn();
+    const { rerender } = render(
+      <Harness roomId="room-1" messageId="msg-1" ready jump={jump} />,
+    );
+
+    // The reader has not gone anywhere; the room is just fetching more.
+    rerender(
+      <Harness roomId="room-1" messageId="msg-1" ready={false} jump={jump} />,
+    );
+    rerender(<Harness roomId="room-1" messageId="msg-1" ready jump={jump} />);
+
+    expect(jump).toHaveBeenCalledTimes(1);
+  });
 });

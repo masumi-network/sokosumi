@@ -20,8 +20,12 @@ export interface RoomNotificationJumpDeps {
  * The read is skipped when the message is already on screen, which is the
  * common case for a room the reader is looking at.
  *
- * A message that cannot be read still opens its room. The reader asked to go
- * somewhere, and the room is the honest answer when the message is gone.
+ * A message that cannot be read leaves the reader in the room, which the
+ * notification's own link already opened. Asking the room to scroll to an id
+ * the server has just refused would only fail a second time, and loudly: the
+ * around-window call raises an error toast for a message that is not there.
+ * The reader gets the room they were sent to and no complaint about a message
+ * somebody deleted.
  */
 export async function performRoomNotificationJump(
   messageId: string,
@@ -33,7 +37,6 @@ export async function performRoomNotificationJump(
 
   const message = await deps.loadMessage(messageId);
   if (!message) {
-    await deps.jumpInRoom(messageId);
     return;
   }
 

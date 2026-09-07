@@ -16,13 +16,19 @@ interface MessageParamJumpParams {
 }
 
 /**
- * Jump to the message a notification named, once per message it names.
+ * Jump to the message a notification named, once per arrival at it.
  *
  * A notification click lands on the room with the message on its URL. The
  * reader may then scroll somewhere else, and the room re-renders for reasons
  * of its own: a new message arrives, the roster loads, the window resizes.
  * None of those are a second request to jump, so the message is jumped to once
  * and then left alone.
+ *
+ * Leaving the message behind forgets it. The room client stays mounted across
+ * rooms, so a reader who opens a notification, wanders off to another room and
+ * clicks the same notification again is arriving a second time and is owed the
+ * jump a second time. Remembering it for the life of the component would leave
+ * that click doing nothing at all.
  *
  * A second notification for the same room names a different message and is
  * jumped to, which is what makes clicking the second one worth doing.
@@ -34,14 +40,18 @@ export function useMessageParamJump({
   jump,
 }: MessageParamJumpParams): void {
   const jumpedRef = useRef<string | null>(null);
+  const target = roomId && messageId ? `${roomId}:${messageId}` : null;
 
   useEffect(() => {
-    if (!roomId || !messageId || !ready) {
+    // No message named: the reader has left the one they were sent to, so the
+    // next arrival at it counts as new. Deliberately not keyed on `ready`,
+    // which drops on any reload of the room the reader is still sitting in.
+    if (!target || !messageId) {
+      jumpedRef.current = null;
       return;
     }
 
-    const target = `${roomId}:${messageId}`;
-    if (jumpedRef.current === target) {
+    if (!ready || jumpedRef.current === target) {
       return;
     }
 
@@ -52,5 +62,5 @@ export function useMessageParamJump({
     // `jump` is redefined every render by the room client. A changed identity
     // re-runs this effect and stops at the guard above, so it costs nothing
     // and keeps the callback current for the jump that does happen.
-  }, [roomId, messageId, ready, jump]);
+  }, [target, messageId, ready, jump]);
 }

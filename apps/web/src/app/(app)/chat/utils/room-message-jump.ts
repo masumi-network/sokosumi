@@ -5,7 +5,13 @@ export interface RoomMessageJumpDeps {
   releaseHoldOffBottom: () => void;
   /** False when the window could not be loaded, or the room moved under it. */
   loadAround: (messageId: string) => Promise<boolean>;
-  afterRender: (messageId: string) => Promise<void>;
+  /**
+   * Settle after the window is merged, before the highlight scrolls to it.
+   * Takes no message id: the caller waits for the room to stop moving, not
+   * for one element to exist, because the highlight has to run while the
+   * hold below is still on.
+   */
+  afterRender: () => Promise<void>;
 }
 
 /**
@@ -36,7 +42,7 @@ export async function performRoomMessageJump(
     if (!(await deps.loadAround(messageId))) {
       return;
     }
-    await deps.afterRender(messageId);
+    await deps.afterRender();
     deps.highlight(messageId);
   } finally {
     deps.releaseHoldOffBottom();

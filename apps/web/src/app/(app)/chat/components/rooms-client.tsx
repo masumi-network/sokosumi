@@ -2193,7 +2193,12 @@ export function RoomsClient({
         setOlderNextCursor(result.value.nextCursor);
         return true;
       },
-      afterRender: waitForSearchJumpPaint,
+      // Called with no message id on purpose: this waits a fixed few frames
+      // for the merged window to settle, rather than returning the moment the
+      // target exists. The stick-to-bottom observer has to see the growth
+      // while the hold is still on, or it re-pins the view to the newest
+      // message and undoes the jump.
+      afterRender: () => waitForSearchJumpPaint(),
     });
   }
 
@@ -2211,10 +2216,19 @@ export function RoomsClient({
       highlight: highlightRoomMessageElement,
       loadMessage: async (id) => {
         const result = await getRoomMessageAction(roomId, id);
-        // No toast: the reader asked to go to a room, and the room jump this
-        // falls back to takes them there. A failed lookup is not their problem
-        // to act on.
-        return result.ok ? result.value : null;
+        if (!result.ok) {
+          // No toast. The reader is already in the room the notification sent
+          // them to, and a message that cannot be read is nothing they can act
+          // on.
+          return null;
+        }
+        // The reader can click a second notification while this one is still
+        // loading. Answering for a room they have left would open a thread
+        // from the old room over the new one.
+        if (!isStillSelectedRoom(roomId)) {
+          return null;
+        }
+        return result.value;
       },
       jumpInRoom: handleJumpToMessage,
       jumpInThread: handleSearchJump,
@@ -2228,7 +2242,9 @@ export function RoomsClient({
     // screen before a jump can find anything to highlight.
     ready: !messagesPending,
     jump: (messageId) => {
-      void handleJumpToNotificationMessage(messageId);
+      // Nothing awaits this, so a transport failure would otherwise surface as
+      // an unhandled rejection on room open rather than on a click.
+      handleJumpToNotificationMessage(messageId).catch(() => {});
     },
   });
 

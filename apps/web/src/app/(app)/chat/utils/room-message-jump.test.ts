@@ -33,7 +33,7 @@ describe("performRoomMessageJump", () => {
 
     expect(d.holdOffBottom).toHaveBeenCalledOnce();
     expect(d.loadAround).toHaveBeenCalledExactlyOnceWith("msg-1");
-    expect(d.afterRender).toHaveBeenCalledExactlyOnceWith("msg-1");
+    expect(d.afterRender).toHaveBeenCalledExactlyOnceWith();
     expect(d.highlight).toHaveBeenCalledTimes(2);
     expect(d.releaseHoldOffBottom).toHaveBeenCalledOnce();
   });
@@ -72,6 +72,20 @@ describe("performRoomMessageJump", () => {
     });
 
     await expect(performRoomMessageJump("msg-1", d)).rejects.toThrow("network");
+    expect(d.releaseHoldOffBottom).toHaveBeenCalledOnce();
+  });
+  it("releases the hold when settling throws", async () => {
+    const d = deps({
+      highlight: vi.fn(() => false),
+      afterRender: vi.fn(async () => {
+        throw new Error("raf blew up");
+      }),
+    });
+
+    await expect(performRoomMessageJump("msg-1", d)).rejects.toThrow(
+      "raf blew up",
+    );
+    // A room left holding off the bottom stops following new messages.
     expect(d.releaseHoldOffBottom).toHaveBeenCalledOnce();
   });
 });
