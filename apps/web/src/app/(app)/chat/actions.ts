@@ -807,6 +807,17 @@ export async function listThreadMessagesAction(
   }
 }
 
+export async function getRoomMessageAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomMessage | null>> {
+  try {
+    return roomOk(await chatRoomService.getMessage(roomId, messageId));
+  } catch (error) {
+    return roomCatch(error, "Could not load message.");
+  }
+}
+
 export async function getRoomThreadAction(
   roomId: string,
   parentMessageId: string,

@@ -386,6 +386,23 @@ export const chatRoomService = (() => {
     };
   });
 
+  const getMessage = cache(async function getMessage(
+    roomId: string,
+    messageId: string,
+  ): Promise<ChatRoomMessage | null> {
+    try {
+      const response = await coreClient.getChatRoomMessage(roomId, messageId);
+      return response.data;
+    } catch (error) {
+      // A message deleted from under a notification, or one in a room the
+      // reader has left. Null, so the caller can still open the room.
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  });
+
   const getThread = cache(async function getThread(
     roomId: string,
     parentMessageId: string,
@@ -534,6 +551,7 @@ export const chatRoomService = (() => {
     listThreads,
     countUnreadThreads,
     listThreadMessages,
+    getMessage,
     getThread,
     leaveRoom,
     removeMember,

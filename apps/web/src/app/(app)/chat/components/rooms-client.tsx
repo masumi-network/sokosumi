@@ -22,6 +22,7 @@ import {
   type ChatComposeSokoBot,
   deleteRoomMessageAction,
   editRoomMessageAction,
+  getRoomMessageAction,
   getRoomThreadAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
@@ -95,6 +96,7 @@ import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { performRoomMessageJump } from "@/app/chat/utils/room-message-jump";
+import { performRoomNotificationJump } from "@/app/chat/utils/room-notification-jump";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
 import {
   performRoomSearchJump,
@@ -2195,6 +2197,30 @@ export function RoomsClient({
     });
   }
 
+  /**
+   * Open the message a notification named. Unlike the pinned list, this
+   * arrives with an id alone and no idea whether it names a room message or a
+   * reply, so the message is read before the jump is chosen.
+   */
+  async function handleJumpToNotificationMessage(messageId: string) {
+    const roomId = selectedRoom?.id;
+    if (!roomId) {
+      return;
+    }
+    await performRoomNotificationJump(messageId, {
+      highlight: highlightRoomMessageElement,
+      loadMessage: async (id) => {
+        const result = await getRoomMessageAction(roomId, id);
+        // No toast: the reader asked to go to a room, and the room jump this
+        // falls back to takes them there. A failed lookup is not their problem
+        // to act on.
+        return result.ok ? result.value : null;
+      },
+      jumpInRoom: handleJumpToMessage,
+      jumpInThread: handleSearchJump,
+    });
+  }
+
   useMessageParamJump({
     roomId: selectedRoom?.id ?? null,
     messageId: searchParams.get(CHAT_MESSAGE_PARAM),
@@ -2202,7 +2228,7 @@ export function RoomsClient({
     // screen before a jump can find anything to highlight.
     ready: !messagesPending,
     jump: (messageId) => {
-      void handleJumpToMessage(messageId);
+      void handleJumpToNotificationMessage(messageId);
     },
   });
 
