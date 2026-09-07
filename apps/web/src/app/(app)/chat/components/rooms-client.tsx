@@ -47,6 +47,7 @@ import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
+import { useMessageParamJump } from "@/app/chat/hooks/use-message-param-jump";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import {
@@ -93,6 +94,7 @@ import {
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { performRoomMessageJump } from "@/app/chat/utils/room-message-jump";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
 import {
   performRoomSearchJump,
@@ -142,6 +144,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
+import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
 import { EditChannelDialog } from "./edit-channel-dialog";
 import { MembershipStatusRow } from "./membership-status-row";
@@ -2151,39 +2154,57 @@ export function RoomsClient({
     applyPinnedMutation(message.id, !alreadyPinned);
   }
 
-  async function handleJumpToPinnedMessage(messageId: string) {
+  /**
+   * Put a message on screen and highlight it, loading the window around it
+   * when it is not already there. Reached from the pinned list and from a
+   * notification that named the message on the room's URL.
+   */
+  async function handleJumpToMessage(messageId: string) {
     const roomId = selectedRoom?.id;
     if (!roomId) {
       return;
     }
-    if (highlightRoomMessageElement(messageId)) {
-      return;
-    }
-    suppressStickToBottom();
-    setSearchHoldOffBottom(true);
-    const result = await listRoomMessagesAction(roomId, {
-      around: messageId,
+    await performRoomMessageJump(messageId, {
+      highlight: highlightRoomMessageElement,
+      holdOffBottom: () => {
+        suppressStickToBottom();
+        setSearchHoldOffBottom(true);
+      },
+      releaseHoldOffBottom: () => {
+        releaseStickToBottomSuppress();
+        setSearchHoldOffBottom(false);
+      },
+      loadAround: async (aroundId) => {
+        const result = await listRoomMessagesAction(roomId, {
+          around: aroundId,
+        });
+        if (!result.ok) {
+          toast.error(result.error.message);
+          return false;
+        }
+        if (!isStillSelectedRoom(roomId)) {
+          return false;
+        }
+        setMessagesState((current) =>
+          mergeRoomMessages(current, result.value.messages),
+        );
+        setOlderNextCursor(result.value.nextCursor);
+        return true;
+      },
+      afterRender: waitForSearchJumpPaint,
     });
-    if (!result.ok) {
-      toast.error(result.error.message);
-      releaseStickToBottomSuppress();
-      setSearchHoldOffBottom(false);
-      return;
-    }
-    if (!isStillSelectedRoom(roomId)) {
-      releaseStickToBottomSuppress();
-      setSearchHoldOffBottom(false);
-      return;
-    }
-    setMessagesState((current) =>
-      mergeRoomMessages(current, result.value.messages),
-    );
-    setOlderNextCursor(result.value.nextCursor);
-    await waitForSearchJumpPaint();
-    highlightRoomMessageElement(messageId);
-    releaseStickToBottomSuppress();
-    setSearchHoldOffBottom(false);
   }
+
+  useMessageParamJump({
+    roomId: selectedRoom?.id ?? null,
+    messageId: searchParams.get(CHAT_MESSAGE_PARAM),
+    // Highlighting reads the DOM, so the first page of messages has to be on
+    // screen before a jump can find anything to highlight.
+    ready: !messagesPending,
+    jump: (messageId) => {
+      void handleJumpToMessage(messageId);
+    },
+  });
 
   async function loadThreadMessages(
     parentMessage: ChatRoomMessage,
@@ -3235,7 +3256,7 @@ export function RoomsClient({
                   setPinnedOpen(false);
                 }}
                 onJump={(messageId) => {
-                  void handleJumpToPinnedMessage(messageId);
+                  void handleJumpToMessage(messageId);
                 }}
                 onUnpin={async (messageId) => {
                   const result = await unpinRoomMessageAction(
