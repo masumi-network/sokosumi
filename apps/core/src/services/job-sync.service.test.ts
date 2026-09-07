@@ -1746,6 +1746,56 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
   });
 
+  it("still notifies an owner who turned the account-wide emails off", async () => {
+    const owner = {
+      id: "user_1",
+      email: "user@example.com",
+      name: "Ada",
+      notificationsOptIn: false,
+    };
+    const initialJob = createJob({ owner });
+    const completedJob = createJob({
+      owner,
+      status: SokosumiJobStatus.COMPLETED,
+      jobStatusSettled: true,
+      completedAt: new Date("2026-03-18T10:05:00.000Z"),
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.COMPLETED,
+          result: "done",
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    mockInitialJobQueries({ agent: [initialJob] });
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(completedJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    // The opt-in is the email gate now. The notification answers to the
+    // preference matrix, which `createNotification` reads for itself.
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_1",
+        kind: NotificationKind.JOB,
+        messageKey: "Notifications.Job.completed",
+      }),
+    );
+    expect(renderJobFinalStatusEmailMock).not.toHaveBeenCalled();
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
   it("emits failure notifications for terminal payment failures", async () => {
     const updatedFailedJob = createJob({
       status: SokosumiJobStatus.PAYMENT_FAILED,

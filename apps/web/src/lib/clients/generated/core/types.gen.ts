@@ -3739,6 +3739,21 @@ export type MemberRecord = {
     createdAt: Date;
 };
 
+export type NotificationPreference = {
+    /**
+     * What the notification is about
+     */
+    category: 'JOB_ATTENTION' | 'JOB_COMPLETED' | 'JOB_UPDATE' | 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM';
+    /**
+     * Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)
+     */
+    channel: 'IN_APP' | 'OS_BANNER';
+    /**
+     * Whether the reader wants this category on this channel
+     */
+    enabled: boolean;
+};
+
 export type PreferredOrganization = {
     /**
      * Organization id of the preferred workspace, or null for the personal workspace
@@ -4808,7 +4823,7 @@ export type PublicSharedTask = {
     coworker?: {
         id: string;
         name: string;
-        slug: string;
+        slug: string | null;
         image?: string | null;
     } | null;
     jobs: Array<PublicSharedTaskJob>;
@@ -4819,7 +4834,7 @@ export type PublicSharedTask = {
 export type PublicSharedTaskAssignee = {
     id: string;
     name: string;
-    slug: string;
+    slug: string | null;
     image?: string | null;
 } | null;
 
@@ -22664,6 +22679,10 @@ export type GetUsersByIdPreferencesResponses = {
              * Whether the user wants OS banners while Sokosumi is closed (push)
              */
             pushOptIn: boolean;
+            /**
+             * Every cell of the notification preference matrix, with defaults already applied
+             */
+            notificationPreferences: Array<NotificationPreference>;
         };
         meta: {
             timestamp: Date;
@@ -22689,6 +22708,10 @@ export type PatchUsersByIdPreferencesData = {
          * Whether the user wants OS banners while Sokosumi is closed (push)
          */
         pushOptIn?: boolean;
+        /**
+         * The matrix cells the reader changed. A cell left out keeps its current answer.
+         */
+        notificationPreferences?: Array<NotificationPreference>;
     };
     path: {
         /**
@@ -22779,6 +22802,10 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether the user wants OS banners while Sokosumi is closed (push)
              */
             pushOptIn: boolean;
+            /**
+             * Every cell of the notification preference matrix, with defaults already applied
+             */
+            notificationPreferences: Array<NotificationPreference>;
         };
         meta: {
             timestamp: Date;
