@@ -1,9 +1,4 @@
 import type { Prisma } from "../generated/prisma/client.js";
-import {
-  flattenLinkJobId,
-  type LinkWithJobId,
-  linkInclude,
-} from "../types/link.js";
 
 export const linkRepository = {
   /**
@@ -25,48 +20,5 @@ export const linkRepository = {
       data,
       skipDuplicates: true,
     });
-  },
-
-  async getLinksByEventId(
-    eventId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<LinkWithJobId[]> {
-    const links = await tx.link.findMany({
-      where: { eventId },
-      include: linkInclude,
-    });
-    return links.map(flattenLinkJobId);
-  },
-
-  /**
-   * Get all Link records for a user
-   * Queries through the relationship chain: Link -> JobEvent -> Job -> User
-   */
-  async getLinksByUserId(
-    userId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<LinkWithJobId[]> {
-    const links = await tx.link.findMany({
-      where: {
-        event: {
-          job: {
-            ownerId: userId,
-          },
-        },
-      },
-      include: linkInclude,
-    });
-    return links.map(flattenLinkJobId);
-  },
-
-  async getLinksByJobId(
-    jobId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<LinkWithJobId[]> {
-    const links = await tx.link.findMany({
-      where: { event: { jobId } },
-      include: linkInclude,
-    });
-    return links.map(flattenLinkJobId);
   },
 };

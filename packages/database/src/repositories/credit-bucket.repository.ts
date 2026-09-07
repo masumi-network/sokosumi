@@ -1,15 +1,10 @@
 import {
-  type CreditBucket,
   CreditBucketReferenceType,
   Prisma,
 } from "../generated/prisma/client.js";
-import {
-  creditBucketActivatesAtOrBefore,
-  creditBucketActivatesAtOrBeforeSql,
-} from "../helpers/credit.js";
+import { creditBucketActivatesAtOrBeforeSql } from "../helpers/credit.js";
 import {
   buildCreditBucketScopeSql,
-  buildCreditBucketScopeWhere,
   buildEnterprisePoolScopeSql,
   resolveCreditBucketScopeContext,
 } from "../helpers/credit-bucket-scope.js";
@@ -42,47 +37,6 @@ export interface CreditBucketBalanceRow {
  * Balances are calculated dynamically (bucket.amount - sum(consumptions)) rather than stored.
  */
 export const creditBucketRepository = {
-  /**
-   * Get all unexpired credit buckets for a user, ordered for spend/display:
-   * expiresAt ASC NULLS LAST, then smallest original allocation (`amount` ASC),
-   * then createdAt ASC, then id ASC.
-   *
-   * @param userId - The ID of the user.
-   * @param organizationId - Optional organization ID (null for personal credits).
-   * @param tx - The Prisma transaction client to use for database operations.
-   * @returns Array of credit buckets ordered by FIFO.
-   */
-  async getUnexpiredBuckets(
-    userId: string,
-    organizationId: string | null,
-    tx: Prisma.TransactionClient,
-  ): Promise<CreditBucket[]> {
-    const now = new Date();
-    const scopeContext = await resolveCreditBucketScopeContext(
-      userId,
-      organizationId,
-      tx,
-      now,
-    );
-    const scopeWhere = buildCreditBucketScopeWhere(scopeContext);
-
-    return await tx.creditBucket.findMany({
-      where: {
-        AND: [
-          scopeWhere,
-          creditBucketActivatesAtOrBefore(now),
-          { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-        ],
-      },
-      orderBy: [
-        { expiresAt: { sort: "asc", nulls: "last" } },
-        { amount: "asc" },
-        { createdAt: "asc" },
-        { id: "asc" },
-      ],
-    });
-  },
-
   /**
    * Calculate the total available balance for a user/organization.
    * Balance = sum(bucket.amount where unexpired) - sum(consumption.amount where bucket is unexpired).
