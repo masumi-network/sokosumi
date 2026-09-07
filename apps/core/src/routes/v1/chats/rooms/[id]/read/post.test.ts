@@ -24,6 +24,7 @@ const {
   notificationFindManyMock,
   notificationOutsideFindManyMock,
   publishNotificationRowMock,
+  captureExceptionMock,
   membershipFindUniqueMock,
   threadReadUpsertMock,
   threadReadUpdateManyMock,
@@ -39,6 +40,7 @@ const {
   notificationFindManyMock: vi.fn(),
   notificationOutsideFindManyMock: vi.fn(),
   publishNotificationRowMock: vi.fn(),
+  captureExceptionMock: vi.fn(),
   membershipFindUniqueMock: vi.fn(),
   threadReadUpsertMock: vi.fn(),
   threadReadUpdateManyMock: vi.fn(),
@@ -60,6 +62,10 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/helpers/notifications", () => ({
   publishNotificationRow: (...args: unknown[]) =>
     publishNotificationRowMock(...args),
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
 vi.mock("@vercel/functions", () => ({
@@ -252,6 +258,26 @@ describe("POST /chats/rooms/{id}/read", () => {
       inApp: false,
       osBanner: false,
     });
+  });
+
+  /**
+   * This runs after the reader has been answered, so a read that fails must
+   * not leave a rejected promise behind it. The rows come back on the next
+   * fetch; the cost is a bell that lags until then.
+   */
+  it("swallows a failed publish rather than rejecting behind the response", async () => {
+    notificationFindManyMock.mockResolvedValue([{ id: "notification_1" }]);
+    notificationUpdateManyMock.mockResolvedValue({ count: 1 });
+    notificationOutsideFindManyMock.mockRejectedValue(new Error("db down"));
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publishNotificationRowMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
   it("says nothing when the room had no unread rows", async () => {

@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
 
@@ -60,17 +61,27 @@ const route = withGlobalHeaderParameters(
  * each one belongs to.
  */
 async function publishClearedNotifications(ids: string[]): Promise<void> {
-  const cleared = await prisma.notification.findMany({
-    where: { id: { in: ids } },
-  });
+  // Guarded here rather than at the call, because the reader has already been
+  // answered: this runs after the response, and a read that fails must not
+  // leave a rejected promise behind it. The rows come back on the next fetch,
+  // so the cost of losing this is a bell that lags until then.
+  try {
+    const cleared = await prisma.notification.findMany({
+      where: { id: { in: ids } },
+    });
 
-  for (const notification of cleared) {
-    // No banner: nothing arrived. This says one stopped waiting.
-    await publishNotificationRow(
-      notification,
-      { inApp: notification.inApp, osBanner: false },
-      false,
-    );
+    for (const notification of cleared) {
+      // No banner: nothing arrived. This says one stopped waiting.
+      await publishNotificationRow(
+        notification,
+        { inApp: notification.inApp, osBanner: false },
+        false,
+      );
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: { notificationIds: ids, errorType: "publish-cleared-chat-rows" },
+    });
   }
 }
 
