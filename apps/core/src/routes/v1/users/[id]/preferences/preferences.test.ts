@@ -189,10 +189,11 @@ describe("user preferences routes", () => {
   });
 
   it("returns every matrix cell on GET, with the reader's choices applied", async () => {
-    txUserFindUniqueMock.mockResolvedValue({
+    userFindUniqueMock.mockResolvedValue({
       ...PREFERENCES,
       notificationPreferences: [
         { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+        { category: "CHAT_MENTION", channel: "IN_APP", enabled: false },
       ],
     });
     const app = createPreferencesApp(SESSION_USER);
@@ -201,7 +202,7 @@ describe("user preferences routes", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    // Ten cells, not the one stored row: the client renders the matrix it is
+    // Ten cells, not just the stored rows: the client renders the matrix it is
     // given rather than filling in the defaults itself.
     expect(body.data.notificationPreferences).toHaveLength(10);
     expect(body.data.notificationPreferences).toContainEqual({
@@ -212,7 +213,7 @@ describe("user preferences routes", () => {
     expect(body.data.notificationPreferences).toContainEqual({
       category: "CHAT_MENTION",
       channel: "IN_APP",
-      enabled: true,
+      enabled: false,
     });
   });
 
