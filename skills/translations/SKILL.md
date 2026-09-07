@@ -19,7 +19,7 @@ Parity: `pnpm --filter web messages:parity` (write: `messages:parity:write`). Wi
 
 Layouts nest `ClientMessageBoundary` so clients get a picked subset (`pickMessages` + `message-namespaces.ts`), not the full catalog. Server `getTranslations` still uses the full request catalog.
 
-Bags: `GLOBAL`, `AUTH`, `APP` (no Hermes/Admin), nested `HERMES`/`ADMIN` (`APP_SHELL` + feature), `SHARE`. Add new client namespaces to the owning bag when needed.
+Bags: `GLOBAL`, `AUTH`, `APP` (no SokoBot/Admin), nested `SOKO_BOT`/`ADMIN` (`APP_SHELL` + feature), `SHARE`. Add new client namespaces to the owning bag when needed.
 
 ## Translation Usage Patterns
 
