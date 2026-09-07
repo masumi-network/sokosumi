@@ -71,7 +71,7 @@ describe("mapAccountCreditsChrome", () => {
     const timestamp = new Date("2026-08-13T12:00:00.000Z");
     const creditsData = {
       ...buildCreditsData(),
-      buffer: 10,
+      buffer: 99,
       subscription: {
         ...buildCreditsData().subscription!,
         periodEnd,
