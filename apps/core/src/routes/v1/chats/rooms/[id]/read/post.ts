@@ -1,6 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { NotificationKind } from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
 
+import { publishNotificationRow } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -48,11 +50,36 @@ const route = withGlobalHeaderParameters(
   }),
 );
 
+/**
+ * Tell the reader's open tabs that these rows are read.
+ *
+ * The row is published rather than a bare id, because a tab holding it
+ * replaces what it holds and a tab that never loaded it can tell a row it
+ * already counted from a new one. Rows the app never shows are published too
+ * and dropped by the reader, which is cheaper than asking here which surface
+ * each one belongs to.
+ */
+async function publishClearedNotifications(ids: string[]): Promise<void> {
+  const cleared = await prisma.notification.findMany({
+    where: { id: { in: ids } },
+  });
+
+  for (const notification of cleared) {
+    // No banner: nothing arrived. This says one stopped waiting.
+    await publishNotificationRow(
+      notification,
+      { inApp: notification.inApp, osBanner: false },
+      false,
+    );
+  }
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const readAt = new Date();
+    let clearedIds: string[] = [];
 
     const { room, starredAt, mutedAt } = await prisma.$transaction(
       async (tx) => {
@@ -78,13 +105,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
 
+        // Read before the write, because after it there is nothing left to
+        // name. The reader's open tabs are told about each one below: a room
+        // message stands in the notification center now, and a badge that
+        // only ever heard about rows being written would keep counting rows
+        // this room no longer has.
+        clearedIds = (
+          await tx.notification.findMany({
+            where: {
+              userId: userContext.userId,
+              kind: NotificationKind.CHAT,
+              referenceId: room.id,
+              isRead: false,
+            },
+            select: { id: true },
+          })
+        ).map((notification) => notification.id);
+
         await tx.notification.updateMany({
-          where: {
-            userId: userContext.userId,
-            kind: NotificationKind.CHAT,
-            referenceId: room.id,
-            isRead: false,
-          },
+          where: { id: { in: clearedIds } },
           data: {
             isRead: true,
             readAt,
@@ -108,6 +147,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         };
       },
     );
+
+    if (clearedIds.length > 0) {
+      waitUntil(publishClearedNotifications(clearedIds));
+    }
 
     // Top-level unreads are cleared by lastReadAt; thread replies still use
     // look baseline. Return the real dual-baseline count so the sidebar does

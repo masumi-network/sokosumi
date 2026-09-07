@@ -109,7 +109,7 @@ type NotificationAction =
       fetched: NotificationItem[];
       serverUnreadCount: number;
     }
-  | { type: "realtime"; notification: NotificationItem }
+  | { type: "realtime"; notification: NotificationItem; created: boolean }
   | {
       type: "mark_read_success";
       id: string;
@@ -176,14 +176,20 @@ export function notificationReducer(
         };
       }
 
+      // A row this list does not hold is either new, or one the list never
+      // reached: the reader has more unread rows than the window keeps, and a
+      // room's later messages arrive as changes to a row written earlier.
+      // Counting the second kind would put the badge one ahead of the server
+      // for the rest of the session.
       return {
         notifications: [convertedNotification, ...state.notifications].slice(
           0,
           NOTIFICATION_LIST_LIMIT,
         ),
-        unreadCount: convertedNotification.isRead
-          ? state.unreadCount
-          : state.unreadCount + 1,
+        unreadCount:
+          convertedNotification.isRead || !action.created
+            ? state.unreadCount
+            : state.unreadCount + 1,
       };
     }
     case "mark_read_optimistic": {
@@ -444,6 +450,7 @@ export function NotificationProvider({
 
       dispatch({
         type: "realtime",
+        created: notification.created,
         notification: {
           ...notification,
           kind: notification.kind as NotificationItem["kind"],

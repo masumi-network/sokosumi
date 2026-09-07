@@ -21,6 +21,9 @@ const {
   memberFindUniqueMock,
   readStateUpsertMock,
   notificationUpdateManyMock,
+  notificationFindManyMock,
+  notificationOutsideFindManyMock,
+  publishNotificationRowMock,
   membershipFindUniqueMock,
   threadReadUpsertMock,
   threadReadUpdateManyMock,
@@ -33,6 +36,9 @@ const {
   memberFindUniqueMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
+  notificationFindManyMock: vi.fn(),
+  notificationOutsideFindManyMock: vi.fn(),
+  publishNotificationRowMock: vi.fn(),
   membershipFindUniqueMock: vi.fn(),
   threadReadUpsertMock: vi.fn(),
   threadReadUpdateManyMock: vi.fn(),
@@ -46,7 +52,18 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
     $queryRawUnsafe: queryRawUnsafeMock,
     chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
+    // Read after the transaction, to tell the reader's tabs what it cleared.
+    notification: { findMany: notificationOutsideFindManyMock },
   },
+}));
+
+vi.mock("@/helpers/notifications", () => ({
+  publishNotificationRow: (...args: unknown[]) =>
+    publishNotificationRowMock(...args),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => promise,
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -58,7 +75,10 @@ const tx = {
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   chatRoomReadState: { upsert: readStateUpsertMock },
-  notification: { updateMany: notificationUpdateManyMock },
+  notification: {
+    findMany: notificationFindManyMock,
+    updateMany: notificationUpdateManyMock,
+  },
   chatRoomUserMember: { findUnique: membershipFindUniqueMock },
   chatRoomThreadReadState: {
     upsert: threadReadUpsertMock,
@@ -125,7 +145,9 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   readStateUpsertMock.mockResolvedValue({});
-  notificationUpdateManyMock.mockResolvedValue({ count: 2 });
+  notificationFindManyMock.mockResolvedValue([]);
+  notificationUpdateManyMock.mockResolvedValue({ count: 0 });
+  notificationOutsideFindManyMock.mockResolvedValue([]);
   membershipFindUniqueMock.mockResolvedValue({
     starredAt: null,
     mutedAt: null,
@@ -157,13 +179,17 @@ describe("POST /chats/rooms/{id}/read", () => {
         }),
       }),
     );
-    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+    expect(notificationFindManyMock).toHaveBeenCalledWith({
       where: {
         userId: USER_ID,
         kind: NotificationKind.CHAT,
         referenceId: ROOM_ID,
         isRead: false,
       },
+      select: { id: true },
+    });
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: [] } },
       data: expect.objectContaining({
         isRead: true,
         readAt: expect.any(Date),
@@ -184,6 +210,59 @@ describe("POST /chats/rooms/{id}/read", () => {
     expect(threadReadUpsertMock).not.toHaveBeenCalled();
     expect(threadReadUpdateManyMock).not.toHaveBeenCalled();
     expect(threadReadDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A room message stands in the notification center now, so clearing the
+   * room's rows has to reach the bell. Nothing else publishes on this channel,
+   * and the bell does not refetch when it is opened: without this the badge
+   * keeps counting rows the server has already cleared, for the whole session.
+   */
+  it("tells the reader's tabs about the rows it cleared", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { id: "notification_1" },
+      { id: "notification_2" },
+    ]);
+    notificationUpdateManyMock.mockResolvedValue({ count: 2 });
+    notificationOutsideFindManyMock.mockResolvedValue([
+      { id: "notification_1", inApp: true },
+      { id: "notification_2", inApp: false },
+    ]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["notification_1", "notification_2"] } },
+      data: expect.objectContaining({ isRead: true, readAt: expect.any(Date) }),
+    });
+    expect(publishNotificationRowMock).toHaveBeenCalledTimes(2);
+    // Each row carries its own answer, and none of them raises a banner:
+    // nothing arrived, one stopped waiting. `false` says the row is a change
+    // rather than a new one, so no tab counts it towards the badge.
+    expect(publishNotificationRowMock.mock.calls[0]).toEqual([
+      { id: "notification_1", inApp: true },
+      { inApp: true, osBanner: false },
+      false,
+    ]);
+    expect(publishNotificationRowMock.mock.calls[1]?.[1]).toEqual({
+      inApp: false,
+      osBanner: false,
+    });
+  });
+
+  it("says nothing when the room had no unread rows", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(notificationOutsideFindManyMock).not.toHaveBeenCalled();
+    expect(publishNotificationRowMock).not.toHaveBeenCalled();
   });
 
   it("returns remaining thread unreadCount after room mark-read", async () => {
