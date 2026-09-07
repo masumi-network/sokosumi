@@ -24,6 +24,7 @@ export const CHAT_DIRECT_MESSAGE_MESSAGE_KEY =
  * the safe way round: an unknown key is never louder than the reader asked for.
  */
 export const TASK_ATTENTION_MESSAGE_KEYS: readonly string[] = [
+  "Notifications.Task.assigned",
   "Notifications.Task.inputRequired",
   "Notifications.Task.approvalRequired",
   "Notifications.Task.authenticationRequired",

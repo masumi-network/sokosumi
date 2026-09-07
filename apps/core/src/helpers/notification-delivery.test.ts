@@ -56,6 +56,7 @@ describe("toNotificationCategory", () => {
       "Notifications.Job.paymentFailed",
     ]);
     expect(TASK_ATTENTION_MESSAGE_KEYS).toEqual([
+      "Notifications.Task.assigned",
       "Notifications.Task.inputRequired",
       "Notifications.Task.approvalRequired",
       "Notifications.Task.authenticationRequired",
