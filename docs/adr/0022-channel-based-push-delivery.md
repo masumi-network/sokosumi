@@ -17,6 +17,7 @@ For the record, an earlier draft of this ADR feared that the per-tab `clientId` 
 - Push filtering (opt-out, per-kind muting) happens at publish time in Core: skip or shape `extras.push` per user preference. It is user-level, not per-delivery.
 - Preview realtime events and new preview device subscriptions stay on their network and Git branch. A preview without `VERCEL_GIT_COMMIT_REF` fails instead of joining the production channel.
 - Preview device activation requires a fresh browser confirmation. The app stores no confirmation choice.
+- Notification clicks use the stable Vercel branch URL on previews and the project production URL on production. Local development keeps the current origin.
 - Existing preview devices can remain subscribed to the production channel. They keep receiving production pushes until the user disables push or clears the site's data. This compatibility limit was accepted for the migration. New preview activations use only the preview channel.
 - The browser token capability set and the `ABLY_SUBSCRIBE_ONLY_KEY` dashboard key must gain `push-subscribe`; the `notifications` namespace needs a push channel rule (dashboard state).
 - Future device-level or per-kind granularity stays inside this architecture: devices self-manage their own registrations/subscriptions (`push-subscribe` scope), and Core can manage any device's channel subscriptions server-side via `push-admin` ("can manage device registrations and push subscriptions for all devices in an app"). Splitting channels per kind remains open as a later evolution.

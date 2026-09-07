@@ -21,7 +21,7 @@ vi.mock("./ably-client-instance-id", () => ({
   getOrCreateAblyClientInstanceId: () => "inst_test01",
 }));
 
-import { NOTIFICATION_SERVICE_WORKER_URL } from "@/lib/utils/notification-service-worker";
+import { getNotificationServiceWorkerUrl } from "@/lib/utils/notification-service-worker";
 
 import { getAblyRealtimeClient } from "./realtime-singleton.client";
 
@@ -60,7 +60,7 @@ describe("getAblyRealtimeClient", () => {
     expect(RealtimeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         plugins: { Push: PushMock },
-        pushServiceWorkerUrl: NOTIFICATION_SERVICE_WORKER_URL,
+        pushServiceWorkerUrl: getNotificationServiceWorkerUrl(),
       }),
     );
   });
