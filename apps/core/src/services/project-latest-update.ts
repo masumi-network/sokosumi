@@ -22,7 +22,7 @@ Date window: YYYY-MM-DD to YYYY-MM-DD
 
 The next heading must be exactly "## TL;DR". Put the most important summary there: what shipped, what slipped, and what matters next. TL;DR is mandatory.
 
-After TL;DR, add a few "##" sections whose headings come from this project's purpose (briefing and memory). Do not invent a generic product-engineering taxonomy. Do not copy sample categories such as "Product & UX", "Core API & Access", or "Platform & Refactors".
+After TL;DR, add a few "##" sections. Build the section taxonomy from this project's purpose in <briefing> and <context_md>.
 
 Do not invent facts. Do not add or infer PII beyond the source material. If little completed this window, say so in TL;DR rather than padding.
 

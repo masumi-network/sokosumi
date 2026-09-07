@@ -5,6 +5,7 @@ import {
   capLatestUpdateMd,
   hasLeadingTldrHeading,
   latestUpdateWindowFor,
+  PROJECT_LATEST_UPDATE_SYSTEM_PROMPT,
   validateLatestUpdateMd,
 } from "./project-latest-update";
 
@@ -71,5 +72,23 @@ Too late.`),
     );
     const capped = capLatestUpdateMd(lines.join("\n"));
     expect(capped?.split("\n")).toHaveLength(120);
+  });
+
+  it("builds section taxonomy from project purpose in briefing and context_md", () => {
+    expect(PROJECT_LATEST_UPDATE_SYSTEM_PROMPT).toContain(
+      "Build the section taxonomy from this project's purpose",
+    );
+    expect(PROJECT_LATEST_UPDATE_SYSTEM_PROMPT).toContain("<briefing>");
+    expect(PROJECT_LATEST_UPDATE_SYSTEM_PROMPT).toContain("<context_md>");
+    expect(PROJECT_LATEST_UPDATE_SYSTEM_PROMPT).not.toContain("Product & UX");
+    expect(PROJECT_LATEST_UPDATE_SYSTEM_PROMPT).not.toContain(
+      "Core API & Access",
+    );
+    expect(PROJECT_LATEST_UPDATE_SYSTEM_PROMPT).not.toContain(
+      "Platform & Refactors",
+    );
+    expect(PROJECT_LATEST_UPDATE_SYSTEM_PROMPT).not.toContain(
+      "generic product-engineering taxonomy",
+    );
   });
 });
