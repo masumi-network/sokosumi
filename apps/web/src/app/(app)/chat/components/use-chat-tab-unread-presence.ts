@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { getActiveRoomIdFromPathname } from "@/components/chat/active-room-id";
 import { countChatRoomsWithUnreadAttention } from "@/components/chat/chat-unread-document-title";
 import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import {
@@ -16,17 +17,6 @@ import {
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
 const CHAT_TAB_UNREAD_POLL_MS = 15_000;
-
-export function getActiveRoomIdFromPathname(
-  pathname: string | null,
-): string | null {
-  if (!pathname?.startsWith("/chat/rooms/")) {
-    return null;
-  }
-
-  const roomId = pathname.split("/")[3];
-  return roomId || null;
-}
 
 function getInitialRoomsFromSessionSnapshot(): ChatRoom[] {
   const snapshot = getLatestMembershipVisibleRoomsSnapshot();
