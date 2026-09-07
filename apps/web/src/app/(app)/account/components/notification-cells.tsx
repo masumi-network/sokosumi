@@ -31,9 +31,13 @@ import type { KindChoice } from "./use-notification-delivery";
  * `scale` rather than `transform`, which is the property Tailwind wrote a
  * squeeze to before it had one of its own. Left at `transform` the list is a
  * name nothing here sets, and the squeeze below snaps in and out.
+ *
+ * `ease-out` because every one of these answers a press. The default curve
+ * eases in as well, so the cell holds still for the first frames of a squeeze
+ * the finger has already made, which is the one part of it a reader feels.
  */
 const CELL =
-  "focus-visible:ring-ring/50 flex size-9 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] outline-none focus-visible:ring-[3px]";
+  "focus-visible:ring-ring/50 flex size-9 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] ease-out outline-none focus-visible:ring-[3px]";
 /**
  * The squeeze a cell gives back while it is held.
  *
@@ -425,7 +429,11 @@ export function ChannelGrid({
   const t = useTranslations("App.Account.Notifications");
 
   return (
-    <div className={cn(showNames && "divide-y")}>
+    // The rule under the column names is what makes them a head rather than a
+    // band of loose words, and a group of one kind has the same head as a
+    // group of five. Between rows it only ever falls where there is a second
+    // row to divide from.
+    <div className="divide-y">
       {heads}
       {kinds.map((kind) => (
         // Stacked on a narrow screen, where three cells and a name that

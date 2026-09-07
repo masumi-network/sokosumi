@@ -707,6 +707,24 @@ describe("NotificationKinds", () => {
     expect(stops("kindSystem")).toBeInTheDocument();
   });
 
+  /**
+   * The rule under the column names is what makes them a head. A group of one
+   * kind gets the same head as a group of five, so it gets the same rule: a
+   * line of loose words over the cells reads as something that fell off the
+   * row above.
+   */
+  it("rules off the column names in a group of one kind", async () => {
+    renderKinds();
+
+    await openGroup("kindSystem");
+
+    const names = within(fold("kindSystem")).getByRole("group", {
+      name: "channelsLegendLabel",
+    });
+
+    expect(names.parentElement).toHaveClass("divide-y");
+  });
+
   it("writes both channels of the kind the reader changed", async () => {
     renderKinds();
 
