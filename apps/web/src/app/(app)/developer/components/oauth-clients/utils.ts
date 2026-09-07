@@ -36,7 +36,10 @@ const REVERSE_DOMAIN_PRIVATE_USE_SCHEME =
   /^[a-z](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;
 
 function isLoopbackIpHostname(hostname: string): boolean {
-  const normalized = hostname.trim().toLowerCase();
+  let normalized = hostname.trim().toLowerCase();
+  if (normalized.startsWith("[") && normalized.endsWith("]")) {
+    normalized = normalized.slice(1, -1);
+  }
   if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") {
     return true;
   }

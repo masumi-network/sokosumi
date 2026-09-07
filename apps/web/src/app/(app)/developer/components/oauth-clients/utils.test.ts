@@ -51,6 +51,13 @@ describe("isSafeRedirectUri", () => {
 
   it("rejects https loopback", () => {
     expect(isSafeRedirectUri("https://localhost/callback")).toBe(false);
+    expect(isSafeRedirectUri("https://127.0.0.1/callback")).toBe(false);
+    expect(isSafeRedirectUri("https://[::1]/callback")).toBe(false);
+  });
+
+  it("rejects native HTTP outside exact localhost / 127.0.0.1 / [::1]", () => {
+    expect(isSafeRedirectUri("http://127.0.0.2/callback")).toBe(false);
+    expect(isSafeRedirectUri("http://app.localhost/callback")).toBe(false);
   });
 
   it("rejects credentials in the URI", () => {
