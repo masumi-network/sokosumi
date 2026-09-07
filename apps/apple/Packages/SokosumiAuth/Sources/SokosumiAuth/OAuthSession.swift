@@ -111,12 +111,12 @@ public actor OAuthSession {
       }
       store.save(next)
       return next.accessToken
-    } catch {
+    } catch let failure as OAuthError where failure.isInvalidGrant {
+      // Definitive rejection: the grant is dead, so drop the session and
+      // send the user back to sign-in. Anything else (network, 5xx) keeps
+      // the stored tokens so the caller can retry later.
       store.clear()
-      if let oauthError = error as? OAuthError {
-        throw oauthError
-      }
-      throw OAuthError.refreshFailed
+      throw OAuthError.needsSignIn
     }
   }
 

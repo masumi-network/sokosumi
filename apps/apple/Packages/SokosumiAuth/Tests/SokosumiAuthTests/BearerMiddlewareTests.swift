@@ -45,6 +45,42 @@ struct BearerMiddlewareTests {
     #expect(inner.lastRequest?.headerFields[.authorization] == "Bearer access-1")
   }
 
+  @Test func propagatesTokenErrorsWithoutCallingCore() async throws {
+    let clock = TestClock()
+    let transport = StubTokenTransport(response: .failure(UnreachableError()))
+    let session = OAuthSession(
+      configuration: configuration(),
+      store: InMemoryTokenStore(),
+      transport: transport,
+      now: { clock.now }
+    )
+    transport.response = .success(
+      status: 200,
+      json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":100,\"refresh_token\":\"refresh-1\"}"
+    )
+    try await session.signIn(
+      callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+      expectedState: "s",
+      codeVerifier: "v"
+    )
+    clock.now = clock.now.addingTimeInterval(1_000)
+    transport.response = .failure(UnreachableError())
+    let inner = RecordingCoreTransport(status: 200, body: "{}")
+    let middleware = BearerAuthMiddleware(session: session)
+
+    await #expect(throws: UnreachableError.self) {
+      try await middleware.intercept(
+        HTTPRequest(method: .get, scheme: nil, authority: nil, path: "/users/me"),
+        body: nil,
+        baseURL: URL(string: "https://core.example/v1")!,
+        operationID: "get/users/{id}",
+        next: inner.send
+      )
+    }
+    // No misleading anonymous call: the caller sees the real failure.
+    #expect(inner.lastRequest == nil)
+  }
+
   @Test func omitsBearerAfterSignOut() async throws {
     let store = InMemoryTokenStore()
     let session = try await signedInSession(store: store)

@@ -13,7 +13,10 @@ public struct BearerAuthMiddleware: ClientMiddleware {
     self.tokenProvider = {
       do {
         return try await session.validAccessToken()
-      } catch {
+      } catch OAuthError.needsSignIn {
+        // No (usable) session: go out unauthenticated so Core answers 401
+        // visibly. Any other failure (network, 5xx) propagates to the
+        // caller instead of masquerading as an anonymous request.
         return nil
       }
     }

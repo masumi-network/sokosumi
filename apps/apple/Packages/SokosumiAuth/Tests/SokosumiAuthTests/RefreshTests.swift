@@ -82,6 +82,28 @@ struct RefreshTests {
     #expect(fields["code_verifier"] == nil)
   }
 
+  @Test func networkFailureDuringRefreshKeepsSession() async throws {
+    let transport = StubTokenTransport(response: .failure(UnreachableError()))
+    let clock = TestClock()
+    let store = InMemoryTokenStore()
+    let session = OAuthSession(
+      configuration: configuration(),
+      store: store,
+      transport: transport,
+      now: { clock.now }
+    )
+    try await signIn(session: session, transport: transport)
+    clock.now = clock.now.addingTimeInterval(8_000)
+    transport.response = .failure(UnreachableError())
+
+    await #expect(throws: UnreachableError.self) {
+      try await session.validAccessToken()
+    }
+    // A blip is not a revocation: tokens stay, caller retries later.
+    #expect(await session.isSignedIn)
+    #expect(await store.saved?.refreshToken == "refresh-1")
+  }
+
   @Test func revokedRefreshReturnsToSignIn() async throws {
     let transport = StubTokenTransport(response: .success(
       status: 200,
@@ -102,7 +124,7 @@ struct RefreshTests {
       json: "{\"error\":\"invalid_grant\",\"error_description\":\"Refresh revoked\"}"
     )
 
-    await #expect(throws: OAuthError.self) {
+    await #expect(throws: OAuthError.needsSignIn) {
       try await session.validAccessToken()
     }
     #expect(await !session.isSignedIn)

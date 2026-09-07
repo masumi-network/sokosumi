@@ -72,6 +72,15 @@ public enum OAuthError: Error, Equatable {
   case invalidCallbackURL
   case stateMismatch
   case tokenExchangeFailed(status: Int, message: String)
-  case refreshFailed
   case needsSignIn
+
+  /// The authorization server definitively rejected the grant
+  /// (`invalid_grant`: revoked, rotated, or malformed). Only this clears
+  /// the stored session; transport failures and 5xx never do.
+  var isInvalidGrant: Bool {
+    if case .tokenExchangeFailed(let status, _) = self {
+      return status == 400 || status == 401
+    }
+    return false
+  }
 }
