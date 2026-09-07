@@ -42,6 +42,12 @@ export const notificationEventDataSchema = z.object({
    */
   inApp: z.boolean().default(true),
   osBanner: z.boolean().default(true),
+  /**
+   * Whether this event wrote the row or changed one that was already there.
+   * A room's messages are counted onto one row, so a row can arrive twice.
+   * True for an event published by a Core that only ever wrote rows.
+   */
+  created: z.boolean().default(true),
 });
 
 export type NotificationEventData = z.infer<typeof notificationEventDataSchema>;

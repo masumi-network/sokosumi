@@ -1,12 +1,12 @@
 import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
-import { HTTPException } from "hono/http-exception";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-} from "@/helpers/notification-delivery";
+} from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 
 import {
   assertChatRoomPatchAuth,

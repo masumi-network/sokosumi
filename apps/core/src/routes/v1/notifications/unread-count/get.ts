@@ -23,7 +23,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/unread-count",
     description:
-      "Get the count of unread in-app notification-center items for the interactive session user. CHAT kind is excluded.",
+      "Get the count of unread in-app notification-center items for the interactive session user. CHAT kind is excluded except for room messages.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(unreadCountSchema, "Unread count retrieved", {

@@ -6,15 +6,23 @@ const {
   workspaceFindUniqueMock,
   membershipFindManyMock,
   userFindManyMock,
+  notificationFindFirstMock,
+  resolveDeliveryMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
+  notificationFindFirstMock: vi.fn(),
+  resolveDeliveryMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
   createNotification: (...args: unknown[]) => createNotificationMock(...args),
+  // The counting write asks which channels the row would reach before it looks
+  // for a row to count onto. Which channels those are is the fan-out's
+  // question; this file asks who hears about the message at all.
+  resolveDelivery: (...args: unknown[]) => resolveDeliveryMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -22,6 +30,8 @@ vi.mock("@/lib/db/prisma", () => ({
     workspace: { findUnique: workspaceFindUniqueMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     user: { findMany: userFindManyMock },
+    // The fan-out looks for a row to count onto before it writes one.
+    notification: { findFirst: notificationFindFirstMock },
   },
 }));
 
@@ -76,6 +86,8 @@ beforeEach(() => {
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
   membershipFindManyMock.mockResolvedValue([]);
   userFindManyMock.mockResolvedValue([subscriber(SUBSCRIBER_ID)]);
+  notificationFindFirstMock.mockResolvedValue(null);
+  resolveDeliveryMock.mockResolvedValue({ inApp: true, osBanner: true });
 });
 
 describe("emitChatRoomMessageNotifications", () => {
@@ -260,6 +272,32 @@ describe("emitChatRoomMessageNotifications", () => {
    * room like any other here. Without this it was the one place a message
    * reached nobody.
    */
+  /**
+   * A direct room that reaches this emitter has three or more people in it:
+   * the smaller ones are covered by the direct-message row and returned
+   * above. Its name is the list of who is in it, so the reader is told that
+   * rather than being shown three names where a room name goes.
+   */
+  it("says a group direct room is a group", async () => {
+    await emit({
+      roomKind: "direct",
+      memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID, QUIET_ID],
+      roomName: "Ada, Bob, Alice",
+    });
+
+    expect(createNotificationMock.mock.calls[0]?.[0]).toMatchObject({
+      messageParams: { roomName: "Ada, Bob, Alice", isGroup: true },
+    });
+  });
+
+  it("says nothing about groups for a named channel", async () => {
+    await emit();
+
+    expect(
+      createNotificationMock.mock.calls[0]?.[0].messageParams,
+    ).not.toHaveProperty("isGroup");
+  });
+
   it("covers a direct room the direct-message row has given up on", async () => {
     userFindManyMock.mockResolvedValue([subscriber(SUBSCRIBER_ID)]);
 

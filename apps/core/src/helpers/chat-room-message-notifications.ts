@@ -1,8 +1,8 @@
-import type { NotificationCategory } from "@sokosumi/utils";
 import {
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-  resolveNotificationDelivery,
-} from "@/helpers/notification-delivery";
+  type NotificationCategory,
+} from "@sokosumi/utils";
+import { resolveNotificationDelivery } from "@/helpers/notification-delivery";
 import prisma from "@/lib/db/prisma";
 
 import { shouldEmitChatDirectMessageNotifications } from "./chat-direct-message-notifications";
@@ -132,5 +132,11 @@ export async function emitChatRoomMessageNotifications(
     recipientUserIds,
     messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
     notificationType: "chat-room-message-notification",
+    // A mention and a direct message are each about themselves. This one is
+    // about the room, so the reader gets one row for it and a count.
+    countPerRoom: true,
+    // Only a direct room with three or more people reaches this line: the
+    // one-to-one rooms returned above. Its name is the list of who is in it.
+    isGroup: params.roomKind === "direct",
   });
 }

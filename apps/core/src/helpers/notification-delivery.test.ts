@@ -1,5 +1,7 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
+  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_MESSAGE_KEY,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
   type NotificationCategory,
@@ -7,8 +9,6 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
-  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
-  CHAT_MENTION_MESSAGE_KEY,
   JOB_ATTENTION_MESSAGE_KEYS,
   JOB_COMPLETED_MESSAGE_KEY,
   resolveNotificationDelivery,
