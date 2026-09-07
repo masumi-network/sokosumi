@@ -31,6 +31,8 @@
 	<string>public.app-category.productivity</string>
 	<key>SokosumiOAuthClientID</key>
 	<string>qcVFTjjxjaGdsQsGXEeUSfMCWNHEoVyR</string>
+	<key>SokosumiCoreBaseURL</key>
+	<string>https://api.sokosumi.com/v1</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
