@@ -43,9 +43,10 @@ export function useMessageParamJump({
   const target = roomId && messageId ? `${roomId}:${messageId}` : null;
 
   useEffect(() => {
-    // No message named: the reader has left the one they were sent to, so the
-    // next arrival at it counts as new. Deliberately not keyed on `ready`,
-    // which drops on any reload of the room the reader is still sitting in.
+    // No room, or no message named on it: whatever the reader was sent to is
+    // behind them, so the next arrival at it counts as new. Deliberately not
+    // keyed on `ready`, which drops on any reload of the room the reader is
+    // still sitting in.
     if (!target || !messageId) {
       jumpedRef.current = null;
       return;

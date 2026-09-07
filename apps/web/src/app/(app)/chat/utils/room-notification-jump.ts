@@ -1,10 +1,18 @@
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
+/**
+ * What a lookup found. A message that is gone and a lookup that failed are
+ * different answers: the first is settled, the second may still come good.
+ */
+export type RoomNotificationLookup =
+  | { status: "found"; message: ChatRoomMessage }
+  | { status: "gone" }
+  | { status: "unavailable" };
+
 export interface RoomNotificationJumpDeps {
   /** True when the message is already rendered, which saves the lookup. */
   highlight: (messageId: string) => boolean;
-  /** Null when the message is gone, or in a room the reader cannot read. */
-  loadMessage: (messageId: string) => Promise<ChatRoomMessage | null>;
+  loadMessage: (messageId: string) => Promise<RoomNotificationLookup>;
   jumpInRoom: (messageId: string) => Promise<void>;
   jumpInThread: (message: ChatRoomMessage) => Promise<void>;
 }
@@ -20,12 +28,15 @@ export interface RoomNotificationJumpDeps {
  * The read is skipped when the message is already on screen, which is the
  * common case for a room the reader is looking at.
  *
- * A message that cannot be read leaves the reader in the room, which the
+ * A message that is gone leaves the reader in the room, which the
  * notification's own link already opened. Asking the room to scroll to an id
- * the server has just refused would only fail a second time, and loudly: the
- * around-window call raises an error toast for a message that is not there.
- * The reader gets the room they were sent to and no complaint about a message
- * somebody deleted.
+ * the server has just said nothing about would fail a second time, and loudly:
+ * that second failure is what the reader would see, as an error about a
+ * message somebody else deleted.
+ *
+ * A lookup that merely failed is different. The message is probably still
+ * there, so the room jump is worth trying: it loads its own window and may
+ * well succeed, and if it does not, its error is one the reader can act on.
  */
 export async function performRoomNotificationJump(
   messageId: string,
@@ -35,15 +46,21 @@ export async function performRoomNotificationJump(
     return;
   }
 
-  const message = await deps.loadMessage(messageId);
-  if (!message) {
+  const lookup = await deps.loadMessage(messageId);
+
+  if (lookup.status === "gone") {
     return;
   }
 
-  if (message.parentMessageId) {
-    await deps.jumpInThread(message);
+  if (lookup.status === "unavailable") {
+    await deps.jumpInRoom(messageId);
     return;
   }
 
-  await deps.jumpInRoom(message.id);
+  if (lookup.message.parentMessageId) {
+    await deps.jumpInThread(lookup.message);
+    return;
+  }
+
+  await deps.jumpInRoom(lookup.message.id);
 }

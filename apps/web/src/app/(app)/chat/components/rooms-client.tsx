@@ -2173,6 +2173,12 @@ export function RoomsClient({
         setSearchHoldOffBottom(true);
       },
       releaseHoldOffBottom: () => {
+        // The hold is one flag for the whole client, so a jump abandoned
+        // because the reader moved on must not release the hold the room they
+        // moved to is relying on. Switching rooms clears it anyway.
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
         releaseStickToBottomSuppress();
         setSearchHoldOffBottom(false);
       },
@@ -2193,12 +2199,12 @@ export function RoomsClient({
         setOlderNextCursor(result.value.nextCursor);
         return true;
       },
-      // Called with no message id on purpose: this waits a fixed few frames
-      // for the merged window to settle, rather than returning the moment the
-      // target exists. The stick-to-bottom observer has to see the growth
-      // while the hold is still on, or it re-pins the view to the newest
-      // message and undoes the jump.
-      afterRender: () => waitForSearchJumpPaint(),
+      // `RoomMessageJumpDeps.afterRender` takes no message id, so this waits
+      // a fixed few frames for the merged window to settle rather than
+      // returning the moment the target exists. The stick-to-bottom observer
+      // has to see the growth while the hold is still on, or it re-pins the
+      // view to the newest message and undoes the jump.
+      afterRender: waitForSearchJumpPaint,
     });
   }
 
@@ -2216,35 +2222,57 @@ export function RoomsClient({
       highlight: highlightRoomMessageElement,
       loadMessage: async (id) => {
         const result = await getRoomMessageAction(roomId, id);
-        if (!result.ok) {
-          // No toast. The reader is already in the room the notification sent
-          // them to, and a message that cannot be read is nothing they can act
-          // on.
-          return null;
-        }
         // The reader can click a second notification while this one is still
         // loading. Answering for a room they have left would open a thread
         // from the old room over the new one.
         if (!isStillSelectedRoom(roomId)) {
-          return null;
+          return { status: "gone" };
         }
-        return result.value;
+        if (!result.ok) {
+          return { status: "unavailable" };
+        }
+        // Core answers a message it cannot find with a 404, which the service
+        // reads as no message rather than as a failure.
+        return result.value
+          ? { status: "found", message: result.value }
+          : { status: "gone" };
       },
       jumpInRoom: handleJumpToMessage,
-      jumpInThread: handleSearchJump,
+      jumpInThread: async (message) => {
+        // Opening a thread writes the panel's state before it awaits
+        // anything, so the room has to be checked again here rather than only
+        // before the lookup that led to it.
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
+        await handleSearchJump(message);
+      },
     });
   }
 
   useMessageParamJump({
     roomId: selectedRoom?.id ?? null,
-    messageId: searchParams.get(CHAT_MESSAGE_PARAM),
+    // Trimmed like the href builder trims it, so a hand-typed blank names
+    // nothing here either.
+    messageId: searchParams.get(CHAT_MESSAGE_PARAM)?.trim() || null,
     // Highlighting reads the DOM, so the first page of messages has to be on
     // screen before a jump can find anything to highlight.
     ready: !messagesPending,
     jump: (messageId) => {
+      // Spend the message from the URL as soon as it is acted on. Left there,
+      // every Back into this history entry would jump again and drag a reader
+      // who had scrolled away back to a message they have already read.
+      const remaining = new URLSearchParams(searchParams);
+      remaining.delete(CHAT_MESSAGE_PARAM);
+      const query = remaining.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      });
       // Nothing awaits this, so a transport failure would otherwise surface as
       // an unhandled rejection on room open rather than on a click.
-      handleJumpToNotificationMessage(messageId).catch(() => {});
+      handleJumpToNotificationMessage(messageId).catch((error) => {
+        console.error("Failed to open the message a notification named", error);
+      });
     },
   });
 

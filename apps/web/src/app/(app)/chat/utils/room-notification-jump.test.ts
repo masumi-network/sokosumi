@@ -33,7 +33,9 @@ function deps(
 ) {
   return {
     highlight: vi.fn(() => false),
-    loadMessage: vi.fn(async () => message()),
+    loadMessage: vi.fn(
+      async () => ({ status: "found", message: message() }) as const,
+    ),
     jumpInRoom: vi.fn(async () => {}),
     jumpInThread: vi.fn(async () => {}),
     ...overrides,
@@ -63,7 +65,11 @@ describe("performRoomNotificationJump", () => {
 
   it("opens the thread for a reply, which the room timeline never shows", async () => {
     const reply = message({ id: "msg-2", parentMessageId: "msg-1" });
-    const d = deps({ loadMessage: vi.fn(async () => reply) });
+    const d = deps({
+      loadMessage: vi.fn(
+        async () => ({ status: "found", message: reply }) as const,
+      ),
+    });
 
     await performRoomNotificationJump("msg-2", d);
 
@@ -72,13 +78,28 @@ describe("performRoomNotificationJump", () => {
   });
 
   it("leaves the reader in the room when the message cannot be read", async () => {
-    const d = deps({ loadMessage: vi.fn(async () => null) });
+    const d = deps({
+      loadMessage: vi.fn(async () => ({ status: "gone" }) as const),
+    });
 
     await performRoomNotificationJump("msg-1", d);
 
     // Asking the room to scroll to an id the server just refused fails again,
     // and that second failure is the one the reader sees as an error toast.
     expect(d.jumpInRoom).not.toHaveBeenCalled();
+    expect(d.jumpInThread).not.toHaveBeenCalled();
+  });
+
+  it("still tries the room when the lookup itself failed", async () => {
+    const d = deps({
+      loadMessage: vi.fn(async () => ({ status: "unavailable" }) as const),
+    });
+
+    await performRoomNotificationJump("msg-1", d);
+
+    // The message is probably still there. The room jump loads its own window
+    // and may well land it, and its error is one the reader can act on.
+    expect(d.jumpInRoom).toHaveBeenCalledExactlyOnceWith("msg-1");
     expect(d.jumpInThread).not.toHaveBeenCalled();
   });
 
