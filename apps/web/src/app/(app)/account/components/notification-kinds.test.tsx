@@ -1908,6 +1908,54 @@ describe("NotificationKinds", () => {
     expect(setAccountEnabled).not.toHaveBeenCalled();
   });
 
+  it("keeps consent when another row enables push during an in-flight write", async () => {
+    let resolveFirst: (value: ReturnType<typeof response>) => void;
+    let resolveSecond: (value: ReturnType<typeof response>) => void;
+    patchMyPreferences
+      .mockImplementationOnce(
+        () =>
+          new Promise<ReturnType<typeof response>>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<ReturnType<typeof response>>((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+    renderKinds(
+      MATRIX.map((cell) =>
+        cell.channel === "OS_BANNER"
+          ? { ...cell, enabled: cell.category === "SYSTEM" }
+          : cell,
+      ),
+    );
+
+    await toggle("kindSystem", "channelPush");
+    await toggle("kindJobUpdate", "channelPush");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      resolveFirst!(
+        response(
+          MATRIX.map((cell) =>
+            cell.channel === "OS_BANNER" ? { ...cell, enabled: false } : cell,
+          ),
+        ),
+      );
+    });
+
+    expect(setAccountEnabled).not.toHaveBeenCalledWith(false);
+
+    await act(async () => {
+      resolveSecond!(response());
+    });
+  });
+
   /**
    * The stop the reader pressed has to still read as pressed once Core answers.
    * A stop that wrote cells it does not itself describe would settle back onto

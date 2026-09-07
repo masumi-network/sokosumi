@@ -11,7 +11,6 @@ import { preferencesBrowserClient } from "@/lib/clients/core.preferences.browser
 import type {
   GetUsersByIdPreferencesResponse,
   NotificationPreference,
-  PatchUsersByIdPreferencesResponse,
 } from "@/lib/clients/generated/core";
 import {
   getMyPreferencesQueryKey,
@@ -274,19 +273,21 @@ export function useNotificationDelivery(): NotificationDelivery {
    * push is welcome, until they sign out. It is released here so the two
    * answers say the same thing.
    *
-   * Read from the stored matrix rather than this write, because the answer is
-   * about every kind and a write covers one group at a time.
+   * Read the current cached matrix, because the answer is about every kind
+   * and another row can change while this write waits for Core.
    *
    * A failure is logged and no more than that. The reader's own write landed,
    * no push arrives either way, and a toast would report a failure against
    * something they did not ask for.
    */
-  async function releasePushIfSilent(
-    stored: PatchUsersByIdPreferencesResponse,
-  ) {
-    const silent = stored.data.notificationPreferences.every(
-      (cell) => cell.channel !== "OS_BANNER" || !cell.enabled,
+  async function releasePushIfSilent() {
+    const current = queryClient.getQueryData<GetUsersByIdPreferencesResponse>(
+      getMyPreferencesQueryKey(userId),
     );
+    const silent =
+      current?.data.notificationPreferences.every(
+        (cell) => cell.channel !== "OS_BANNER" || !cell.enabled,
+      ) ?? false;
 
     // Same one-write-at-a-time rule the activation keeps, and the same reason.
     if (
@@ -347,7 +348,7 @@ export function useNotificationDelivery(): NotificationDelivery {
       // delivery, then drop back to the old one under a busy row.
       paint(written);
 
-      const stored = await preferencesBrowserClient.patchMyPreferences({
+      await preferencesBrowserClient.patchMyPreferences({
         notificationPreferences: written.map((cell) => ({
           category: cell.category,
           channel: cell.channel,
@@ -360,7 +361,7 @@ export function useNotificationDelivery(): NotificationDelivery {
       await queryClient.cancelQueries({
         queryKey: getMyPreferencesQueryKey(userId),
       });
-      await releasePushIfSilent(stored);
+      await releasePushIfSilent();
     } catch (error) {
       console.error("Failed to update the notification preference", error);
       paint(previous);
