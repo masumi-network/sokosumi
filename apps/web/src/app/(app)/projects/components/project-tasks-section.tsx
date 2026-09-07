@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
@@ -9,40 +9,25 @@ import { toast } from "sonner";
 import { ProjectTaskPickerDialog } from "@/app/projects/components/project-task-picker-dialog";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { TimeAgo } from "@/components/time-ago";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  addProjectTask,
-  removeProjectTask,
-} from "@/lib/actions/project/action";
+import { addProjectTask } from "@/lib/actions/project/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskListItem } from "@/lib/clients/generated/core/types.gen";
+import { cn } from "@/lib/utils";
 
 interface ProjectTasksSectionLabels {
   title: string;
   empty: string;
   add: string;
-  remove: string;
+  viewAll: string;
   pickerTitle: string;
   pickerDescription: string;
   pickerSearchPlaceholder: string;
   pickerEmpty: string;
   pickerLoading: string;
   pickerError: string;
-  confirmRemove: string;
-  cancel: string;
   errors: {
     add: string;
-    remove: string;
   };
 }
 
@@ -60,10 +45,8 @@ export function ProjectTasksSection({
   const router = useRouter();
   const locale = useLocale();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [taskToRemove, setTaskToRemove] = useState<TaskListItem | null>(null);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
   const [isAdding, startAddTransition] = useTransition();
-  const [isRemoving, startRemoveTransition] = useTransition();
 
   const sortedTasks = [...tasks].sort(
     (firstTask, secondTask) =>
@@ -87,82 +70,72 @@ export function ProjectTasksSection({
     });
   }
 
-  function handleRemoveTask() {
-    if (!taskToRemove) return;
-
-    const taskId = taskToRemove.id;
-    setPendingTaskId(taskId);
-
-    startRemoveTransition(async () => {
-      try {
-        await removeProjectTask({ projectId, taskId });
-        setTaskToRemove(null);
-        router.refresh();
-      } catch {
-        toast.error(labels.errors.remove);
-      } finally {
-        setPendingTaskId(null);
-      }
-    });
-  }
-
   return (
-    <section className="space-y-4">
+    <section className="space-y-4" data-testid="project-tasks-section">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-muted-foreground/60 text-xs font-medium">
           {labels.title}
         </h2>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setIsPickerOpen(true)}
-        >
-          <Plus className="size-4" aria-hidden />
-          {labels.add}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/tasks?projectId=${projectId}`}
+            className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+          >
+            {labels.viewAll}
+          </Link>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsPickerOpen(true)}
+          >
+            <Plus className="size-4" aria-hidden />
+            {labels.add}
+          </Button>
+        </div>
       </div>
 
       {sortedTasks.length === 0 ? (
         <p className="text-muted-foreground text-sm">{labels.empty}</p>
       ) : (
-        <ul className="space-y-3">
-          {sortedTasks.map((task) => (
-            <li
-              key={task.id}
-              className="bg-muted/40 border-border/50 flex items-center gap-2 rounded-lg border p-3"
-            >
+        <div className="divide-border/50 -mx-2 divide-y px-0">
+          {sortedTasks.map((task) => {
+            const secondary = task.description?.trim() || null;
+
+            return (
               <Link
+                key={task.id}
                 href={`/tasks/${task.id}`}
-                className="hover:text-primary grid min-w-0 flex-1 gap-2 transition-colors sm:grid-cols-[minmax(0,1fr)_auto_96px] sm:items-center"
-              >
-                <p className="truncate text-sm">{task.name}</p>
-                <TaskStatusBadge
-                  status={task.status as TaskStatus}
-                  className="shrink-0 justify-self-start"
-                />
-                <p className="text-muted-foreground shrink-0 text-xs sm:text-right">
-                  <TimeAgo date={task.createdAt} locale={locale} />
-                </p>
-              </Link>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8 shrink-0"
-                aria-label={labels.remove}
-                disabled={isRemoving && pendingTaskId === task.id}
-                onClick={() => setTaskToRemove(task)}
-              >
-                {isRemoving && pendingTaskId === task.id ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <Trash2 className="size-4" aria-hidden />
+                className={cn(
+                  "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
+                  "rounded-lg px-2 py-3 transition-colors",
+                  "hover:bg-muted/50",
+                  "active:scale-[0.995]",
                 )}
-              </Button>
-            </li>
-          ))}
-        </ul>
+              >
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-foreground line-clamp-1 text-sm font-medium">
+                    {task.name}
+                  </span>
+                  {secondary ? (
+                    <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
+                      {secondary}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
+                  <TaskStatusBadge
+                    status={task.status as TaskStatus}
+                    className="w-fit shrink-0 rounded-sm"
+                  />
+                  <span className="text-muted-foreground shrink-0">
+                    <TimeAgo date={task.createdAt} locale={locale} />
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       )}
 
       <ProjectTaskPickerDialog
@@ -180,37 +153,6 @@ export function ProjectTasksSection({
           pickerError: labels.pickerError,
         }}
       />
-
-      <AlertDialog
-        open={taskToRemove !== null}
-        onOpenChange={(open) => {
-          if (!open) setTaskToRemove(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{labels.remove}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {labels.confirmRemove}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isRemoving}>
-              {labels.cancel}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
-              disabled={isRemoving}
-              onClick={(event) => {
-                event.preventDefault();
-                handleRemoveTask();
-              }}
-            >
-              {labels.remove}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </section>
   );
 }

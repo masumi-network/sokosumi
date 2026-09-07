@@ -2227,7 +2227,6 @@
         },
         "briefing": "Briefing",
         "emptyBriefing": "Noch kein Briefing.",
-        "editBriefing": "Bearbeiten",
         "writeBriefing": "Briefing verfassen",
         "showMore": "Mehr anzeigen",
         "showLess": "Weniger anzeigen",
@@ -2245,7 +2244,9 @@
           "removeDialog": {
             "title": "Markenkontext entfernen?",
             "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt."
-          }
+          },
+          "upload": "Hochladen",
+          "moreActions": "Brand-Aktionen"
         },
         "backToProject": "Zurück zum Projekt",
         "memory": {
@@ -2279,13 +2280,13 @@
           "title": "Tasks",
           "empty": "Diesem Projekt sind noch keine Tasks zugeordnet.",
           "add": "Task hinzufügen",
-          "remove": "Task entfernen",
           "pickerTitle": "Task hinzufügen",
           "pickerDescription": "Wähle einen nicht zugewiesenen Task aus, um ihn diesem Projekt zuzuordnen.",
           "pickerSearchPlaceholder": "Tasks suchen...",
           "pickerEmpty": "Keine nicht zugewiesenen Tasks gefunden.",
           "pickerLoading": "Tasks werden geladen...",
-          "pickerError": "Tasks konnten nicht geladen werden."
+          "pickerError": "Tasks konnten nicht geladen werden.",
+          "viewAll": "Alle anzeigen"
         },
         "modules": {
           "title": "Arbeitsbereich",
@@ -2329,8 +2330,7 @@
           "edit": "Bearbeiten",
           "delete": "Löschen",
           "remove": "Entfernen",
-          "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?",
-          "confirmRemoveTask": "Diesen Task aus dem Projekt entfernen?"
+          "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
         },
         "deleteDialog": {
           "title": "Projekt löschen",
@@ -2345,7 +2345,6 @@
           "addJob": "Job konnte nicht hinzugefügt werden",
           "removeJob": "Job konnte nicht entfernt werden",
           "addTask": "Task konnte nicht hinzugefügt werden",
-          "removeTask": "Task konnte nicht entfernt werden",
           "loadMore": "Weitere Projekte konnten nicht geladen werden",
           "contextMd": "Projektgedächtnis konnte nicht geladen werden",
           "brand": "Projekt-Markenkontext konnte nicht aktualisiert werden"

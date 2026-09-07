@@ -47,7 +47,7 @@ describe("ProjectMemoryRow", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the empty state as a non-interactive stat card", () => {
+  it("renders the empty state as a non-interactive open section", () => {
     render(
       <ProjectMemoryRow
         projectId="project-1"
@@ -56,9 +56,12 @@ describe("ProjectMemoryRow", () => {
       />,
     );
 
-    expect(screen.getByTestId("project-memory-empty")).toHaveTextContent(
+    const empty = screen.getByTestId("project-memory-empty");
+    expect(empty).toHaveTextContent(
       "MemoryBuilds as tasks completeMistral Medium · hosted in the EU 🇪🇺",
     );
+    expect(empty.className).not.toContain("bg-muted/30");
+    expect(empty.className).not.toMatch(/\bborder\b/);
     expect(screen.queryByTestId("project-memory-row")).not.toBeInTheDocument();
   });
 
@@ -87,8 +90,9 @@ describe("ProjectMemoryRow", () => {
     );
 
     expect(screen.getByTestId("project-memory-updating")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Memory" })).toBeInTheDocument();
     expect(screen.getByTestId("project-memory-row")).toHaveTextContent(
-      "MemoryBuilds as tasks completeMistral Medium · hosted in the EU 🇪🇺",
+      "Builds as tasks completeMistral Medium · hosted in the EU 🇪🇺",
     );
   });
 

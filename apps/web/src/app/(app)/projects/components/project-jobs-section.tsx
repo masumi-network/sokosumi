@@ -104,7 +104,7 @@ export function ProjectJobsSection({
   }
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4" data-testid="project-jobs-section">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-muted-foreground/60 text-xs font-medium">
           {labels.title}

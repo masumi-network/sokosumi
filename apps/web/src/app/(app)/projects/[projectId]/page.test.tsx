@@ -164,6 +164,9 @@ describe("ProjectDetailPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
     expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
+    expect(container.innerHTML).not.toContain(
+      "bg-muted/30 border-border/50 rounded-none border p-4",
+    );
     const workspaceHeading = screen.getByText(
       "App.Projects.Detail.modules.title",
     );

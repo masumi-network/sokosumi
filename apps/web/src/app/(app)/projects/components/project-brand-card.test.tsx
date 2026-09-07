@@ -25,6 +25,8 @@ const MESSAGES: Record<string, string> = {
   "brandCard.open": "Open",
   "brandCard.edit": "Edit",
   "brandCard.remove": "Remove",
+  "brandCard.upload": "Upload",
+  "brandCard.moreActions": "Brand actions",
   "brandCard.removed": "Brand context removed",
   "brandCard.removeDialog.title": "Remove brand context?",
   "brandCard.removeDialog.description":
@@ -108,28 +110,38 @@ function renderBrandDashboard({
   );
 }
 
+async function openBrandMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Brand actions" }));
+}
+
 describe("ProjectBrandCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
   });
 
-  it("generates with force and exposes existing file actions", async () => {
+  it("keeps status visible and puts brand actions in a dots menu", async () => {
     const user = userEvent.setup();
     renderBrandDashboard();
 
+    const card = screen.getByTestId("project-brand-card");
+    expect(card.className).not.toContain("bg-muted/30");
+    expect(card.className).not.toMatch(/\bborder\b/);
+    expect(screen.getByRole("heading", { name: "Brand" })).toBeInTheDocument();
     expect(screen.getByText("Ready")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
+
+    await openBrandMenu(user);
+    expect(screen.getByRole("menuitem", { name: /Open/ })).toHaveAttribute(
       "href",
       "https://blob.example/DESIGN.md",
     );
-    expect(screen.getByRole("link", { name: "Edit" })).toHaveAttribute(
+    expect(screen.getByRole("menuitem", { name: /Edit/ })).toHaveAttribute(
       "href",
       "/projects/project-1/design-md/edit",
     );
 
     await user.click(
-      screen.getByRole("button", { name: /Generate from website/ }),
+      screen.getByRole("menuitem", { name: /Generate from website/ }),
     );
     expect(generateMock).toHaveBeenCalledWith({
       force: true,
@@ -144,13 +156,16 @@ describe("ProjectBrandCard", () => {
     renderBrandDashboard({ designMd: null });
 
     expect(screen.getByText("Not set")).toBeInTheDocument();
+    await openBrandMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: /Upload/ }));
     await user.click(screen.getByRole("button", { name: "Upload existing" }));
-    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
+
+    await openBrandMenu(user);
+    expect(screen.getByRole("menuitem", { name: /Open/ })).toHaveAttribute(
       "href",
       "https://blob.example/uploaded/DESIGN.md",
     );
-
-    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await user.click(screen.getByRole("menuitem", { name: /Remove/ }));
     const dialog = screen.getByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Remove" }));
 
@@ -167,7 +182,8 @@ describe("ProjectBrandCard", () => {
     });
     renderBrandDashboard();
 
-    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await openBrandMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: /Remove/ }));
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
         name: "Remove",
@@ -213,12 +229,14 @@ describe("ProjectBrandCard", () => {
     expect(generateMock).toHaveBeenCalledOnce();
   });
 
-  it("disables generation and explains when website is missing", () => {
+  it("disables generation and explains when website is missing", async () => {
+    const user = userEvent.setup();
     renderBrandDashboard({ designMd: null, websiteUrl: null });
 
+    await openBrandMenu(user);
     expect(
-      screen.getByRole("button", { name: /Generate from website/ }),
-    ).toBeDisabled();
+      screen.getByRole("menuitem", { name: /Generate from website/ }),
+    ).toHaveAttribute("data-disabled");
     expect(
       screen.getByText(
         "Add a project website before generating brand context.",

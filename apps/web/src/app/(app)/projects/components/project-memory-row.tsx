@@ -95,21 +95,21 @@ export function ProjectMemoryRow({
 
   if (!contextMd && !contextMdUpdating) {
     return (
-      <div
-        className="bg-muted/30 border-border/50 min-w-0 self-start rounded-none border p-4 md:rounded-xl"
+      <section
+        className="min-w-0 self-start space-y-2"
         data-testid="project-memory-empty"
       >
-        <p className="text-muted-foreground text-xs font-medium">
+        <h2 className="text-muted-foreground/60 text-xs font-medium">
           {t("memory.fileName")}
-        </p>
-        <p className="mt-2 truncate text-sm font-medium">{t("memory.empty")}</p>
-        <div className="mt-1 space-y-0.5">
+        </h2>
+        <p className="truncate text-sm font-medium">{t("memory.empty")}</p>
+        <div className="space-y-0.5">
           <p className="text-muted-foreground truncate text-xs">
             {t("memory.modelLine", { model: modelLabel })}
           </p>
           {notConfiguredHint}
         </div>
-      </div>
+      </section>
     );
   }
 
@@ -124,33 +124,35 @@ export function ProjectMemoryRow({
 
   return (
     <>
-      <button
-        type="button"
-        data-testid="project-memory-row"
-        disabled={!contextMd}
-        onClick={() => void handleOpen()}
-        className="bg-muted/30 border-border/50 hover:bg-muted/50 min-w-0 self-start rounded-none border p-4 text-left transition-colors disabled:cursor-default disabled:hover:bg-muted/30 md:rounded-xl"
-      >
-        <p className="text-muted-foreground text-xs font-medium">
+      <section className="min-w-0 self-start space-y-2">
+        <h2 className="text-muted-foreground/60 text-xs font-medium">
           {t("memory.fileName")}
-        </p>
-        <div className="mt-2 flex items-center gap-1.5">
-          <p className="truncate text-sm font-medium">{statusLabel}</p>
-          {contextMdUpdating ? (
-            <span
-              className="bg-muted-foreground/40 size-1.5 shrink-0 animate-pulse rounded-full"
-              data-testid="project-memory-updating"
-              aria-hidden
-            />
-          ) : null}
-        </div>
-        <div className="mt-1 space-y-0.5">
-          <p className="text-muted-foreground truncate text-xs">
-            {t("memory.modelLine", { model: modelLabel })}
-          </p>
-          {notConfiguredHint}
-        </div>
-      </button>
+        </h2>
+        <button
+          type="button"
+          data-testid="project-memory-row"
+          disabled={!contextMd}
+          onClick={() => void handleOpen()}
+          className="hover:bg-muted/50 -mx-2 w-[calc(100%+1rem)] rounded-lg px-2 py-2 text-left transition-colors disabled:cursor-default disabled:hover:bg-transparent"
+        >
+          <div className="flex items-center gap-1.5">
+            <p className="truncate text-sm font-medium">{statusLabel}</p>
+            {contextMdUpdating ? (
+              <span
+                className="bg-muted-foreground/40 size-1.5 shrink-0 animate-pulse rounded-full"
+                data-testid="project-memory-updating"
+                aria-hidden
+              />
+            ) : null}
+          </div>
+          <div className="mt-1 space-y-0.5">
+            <p className="text-muted-foreground truncate text-xs">
+              {t("memory.modelLine", { model: modelLabel })}
+            </p>
+            {notConfiguredHint}
+          </div>
+        </button>
+      </section>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[85dvh] max-w-2xl flex-col gap-0 overflow-hidden p-0">

@@ -93,15 +93,14 @@ export default async function ProjectDetailPage({
           initialDesignMd={project.designMd}
           websiteUrl={project.websiteUrl}
         >
-          <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <div className="bg-muted/30 border-border/50 rounded-none border p-4 md:rounded-xl xl:col-span-2">
+          <div className="mt-6 grid grid-cols-1 gap-8 xl:grid-cols-3">
+            <div className="xl:col-span-2">
               <ProjectBriefing
                 title={t("briefing")}
                 briefing={project.briefing}
                 emptyLabel={t("emptyBriefing")}
                 emptyActionLabel={t("writeBriefing")}
                 editHref={`/projects/${project.id}/edit`}
-                editLabel={t("editBriefing")}
                 showMoreLabel={t("showMore")}
                 showLessLabel={t("showLess")}
               />
@@ -114,7 +113,7 @@ export default async function ProjectDetailPage({
               websiteUrl={project.websiteUrl}
             />
 
-            <div className="bg-muted/30 border-border/50 rounded-none border p-4 md:rounded-xl xl:col-span-2">
+            <div className="xl:col-span-2">
               <ProjectTasksSection
                 projectId={project.id}
                 tasks={projectTasksResult.tasks}
@@ -122,18 +121,15 @@ export default async function ProjectDetailPage({
                   title: t("tasks.title"),
                   empty: t("tasks.empty"),
                   add: t("tasks.add"),
-                  remove: t("tasks.remove"),
+                  viewAll: t("tasks.viewAll"),
                   pickerTitle: t("tasks.pickerTitle"),
                   pickerDescription: t("tasks.pickerDescription"),
                   pickerSearchPlaceholder: t("tasks.pickerSearchPlaceholder"),
                   pickerEmpty: t("tasks.pickerEmpty"),
                   pickerLoading: t("tasks.pickerLoading"),
                   pickerError: t("tasks.pickerError"),
-                  confirmRemove: t("actions.confirmRemoveTask"),
-                  cancel: t("deleteDialog.cancel"),
                   errors: {
                     add: t("errors.addTask"),
-                    remove: t("errors.removeTask"),
                   },
                 }}
               />
@@ -147,7 +143,7 @@ export default async function ProjectDetailPage({
               memoryModel={project.memoryModel}
             />
 
-            <div className="bg-muted/30 border-border/50 rounded-none border p-4 md:rounded-xl xl:col-span-3">
+            <div className="xl:col-span-3">
               <ProjectJobsSection
                 projectId={project.id}
                 jobs={projectJobsResult.jobs}
