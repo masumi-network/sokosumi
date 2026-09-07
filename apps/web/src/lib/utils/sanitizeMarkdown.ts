@@ -1,7 +1,5 @@
+import { MARKDOWN_FENCED_BLOCK_REGEX } from "@sokosumi/utils";
 import sanitizeHtml from "sanitize-html";
-
-const FENCED_CODE_BLOCK_REGEX =
-  /(^|\n)(`{3,})([^\n]*)\n([\s\S]*?)\n\2(?=\n|$)/g;
 
 function createUniqueCodeBlockToken(
   source: string,
@@ -25,7 +23,7 @@ function tokenizeFencedCodeBlocks(markdown: string) {
   const usedTokens = new Set<string>();
 
   const tokenized = markdown.replace(
-    FENCED_CODE_BLOCK_REGEX,
+    MARKDOWN_FENCED_BLOCK_REGEX,
     (fullMatch: string, leadingNewline: string) => {
       const token = createUniqueCodeBlockToken(
         markdown,
