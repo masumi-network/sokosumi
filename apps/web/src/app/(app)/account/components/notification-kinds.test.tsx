@@ -2561,6 +2561,23 @@ describe("NotificationKinds", () => {
       return screen.getByRole("button", { name: "deviceBannerAction" });
     }
 
+    /**
+     * The label is two words, so the line above has to carry the rest. Read on
+     * its own, "Turn off" answers nothing: which push, and on what. The notice
+     * already says both, one line up, so the button points at it rather than
+     * repeating it and running off the edge of a phone.
+     */
+    it("describes the press by the notice it sits in", () => {
+      renderKinds();
+
+      const described = silenceButton().getAttribute("aria-describedby");
+
+      expect(described).not.toBeNull();
+      expect(document.getElementById(described ?? "")).toHaveTextContent(
+        "deviceBannerTitle",
+      );
+    });
+
     it("silences this browser without touching the account", async () => {
       const user = userEvent.setup();
       renderKinds();
