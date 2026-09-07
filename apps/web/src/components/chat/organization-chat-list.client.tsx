@@ -1,28 +1,20 @@
 "use client";
 
-import { ChevronDown, Ellipsis, Globe2, RotateCcw, Trash2 } from "lucide-react";
+import { Ellipsis, Globe2, RotateCcw, Trash2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   acceptChatRoomInvitationAction,
   declineChatRoomInvitationAction,
   deleteRoomAction,
-  listPendingChatRoomInvitationsAction,
   restoreRoomAction,
 } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
-import { publishMembershipVisibleRooms } from "@/components/chat/membership-visible-rooms-store";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,11 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,33 +41,21 @@ import {
 } from "@/components/ui/sidebar";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
-import { useChatMembershipRevokedControl } from "@/lib/ably/use-chat-membership-revoked-control";
 import type {
   ChatRoom,
   ChatRoomInvitation,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { getActiveRoomIdFromPathname } from "./active-room-id";
 import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
+import { ChatMembershipRevokedListBridge } from "./chat-membership-revoked-list-bridge";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
+import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
 import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
-import {
-  notifyOrganizationChatRoomsChanged,
-  ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-  type OrganizationChatRoomsChangedDetail,
-} from "./organization-chat-events";
-import {
-  listOrganizationArchivedChatRoomsAction,
-  listOrganizationChatRoomsAction,
-} from "./organization-chat-list.actions";
+import { listOrganizationChatRoomsAction } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
-import {
-  applyRoomReadOverlays,
-  forgetRoomRead,
-  rememberRoomRead,
-} from "./room-read-overlay";
-
-const ORGANIZATION_CHAT_POLL_MS = 15_000;
+import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
 /** Stable empty default — inline `= []` is a new array every render and
  *  infinite-loops the render-time pendingInvitations sync (React #301). */
@@ -108,80 +84,6 @@ interface OrganizationChatListProps {
   paintOnly?: boolean;
 }
 
-function SectionHeader({
-  children,
-  isOpen,
-  createAction,
-  secondaryAction,
-}: {
-  children: ReactNode;
-  isOpen: boolean;
-  createAction?: ReactNode;
-  secondaryAction?: ReactNode;
-}) {
-  const trailingCount = (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);
-
-  return (
-    <div className="group-data-[collapsible=icon]:hidden relative flex h-10 items-center gap-1 px-3 md:h-8">
-      <CollapsibleTrigger
-        className={cn(
-          "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium transition-colors md:text-xs",
-          trailingCount === 1 && "pr-9",
-          trailingCount >= 2 && "pr-16",
-          trailingCount === 0 && "md:pr-0",
-          trailingCount === 1 && "md:pr-8",
-          trailingCount >= 2 && "md:pr-14",
-        )}
-      >
-        <ChevronDown
-          aria-hidden
-          className={cn(
-            "size-4 shrink-0 transition-transform md:size-3",
-            !isOpen && "-rotate-90",
-          )}
-        />
-        <span className="truncate">{children}</span>
-      </CollapsibleTrigger>
-      {trailingCount > 0 ? (
-        <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
-          {secondaryAction}
-          {createAction}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function getActiveRoomIdFromPathname(pathname: string | null): string | null {
-  if (!pathname?.startsWith("/chat/rooms/")) {
-    return null;
-  }
-
-  const roomId = pathname.split("/")[3];
-  return roomId || null;
-}
-
-/**
- * List-mounted control-channel UI (SOK-746). Soft-removes membership-visible
- * rooms when kicked even if the open-room Ably island is not mounted.
- * Navigation/refresh lives only on the open-room bridge so both mounts never
- * double `replace`/`refresh` for the same event.
- */
-function ChatMembershipRevokedListBridge({
-  currentUserId,
-}: {
-  currentUserId: string;
-}) {
-  useChatMembershipRevokedControl({
-    currentUserId,
-    onRevoked: (event) => {
-      notifyOrganizationChatRoomsChanged({ removedRoomId: event.roomId });
-    },
-  });
-
-  return null;
-}
-
 export function OrganizationChatList({
   rooms,
   archivedRooms,
@@ -198,13 +100,23 @@ export function OrganizationChatList({
   const pathname = usePathname();
   const router = useRouter();
   const hasOrganization = Boolean(organizationId);
-  const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
-  const [archivedRows, setArchivedRows] = useState(archivedRooms);
-  const [pendingRows, setPendingRows] = useState(pendingInvitations);
-  const [prevRooms, setPrevRooms] = useState(rooms);
-  const [prevArchivedRooms, setPrevArchivedRooms] = useState(archivedRooms);
-  const [prevPendingInvitations, setPrevPendingInvitations] =
-    useState(pendingInvitations);
+  const {
+    roomRows,
+    archivedRows,
+    pendingRows,
+    setArchivedRows,
+    setPendingRows,
+    upsertRoomToTop,
+    replaceRoom,
+    replaceAllRooms,
+  } = useOrganizationChatRooms({
+    rooms,
+    archivedRooms,
+    pendingInvitations,
+    currentUserId,
+    organizationId,
+    paintOnly,
+  });
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
@@ -234,188 +146,6 @@ export function OrganizationChatList({
       </LazyAblyProvider>
     ) : null;
 
-  // Replace local list when RSC props change (full membership-visible set).
-  if (rooms !== prevRooms) {
-    setPrevRooms(rooms);
-    setRoomRows(applyRoomReadOverlays(rooms));
-  }
-  if (archivedRooms !== prevArchivedRooms) {
-    setPrevArchivedRooms(archivedRooms);
-    setArchivedRows(archivedRooms);
-  }
-  if (pendingInvitations !== prevPendingInvitations) {
-    setPrevPendingInvitations(pendingInvitations);
-    setPendingRows(pendingInvitations);
-  }
-
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const refreshRooms = async () => {
-      const [activeResult, archivedResult, pendingResult] = await Promise.all([
-        listOrganizationChatRoomsAction(),
-        hasOrganization
-          ? listOrganizationArchivedChatRoomsAction()
-          : Promise.resolve({
-              ok: true as const,
-              value: {
-                rooms: [] as ChatRoom[],
-                nextCursor: null as string | null,
-              },
-            }),
-        listPendingChatRoomInvitationsAction(),
-      ]);
-      if (cancelled) {
-        return;
-      }
-      if (activeResult.ok) {
-        setRoomRows(applyRoomReadOverlays(activeResult.value.rooms));
-      }
-      if (archivedResult.ok) {
-        setArchivedRows(archivedResult.value.rooms);
-      }
-      if (pendingResult.ok) {
-        setPendingRows(pendingResult.value);
-      }
-    };
-
-    // Mobile sheet remounts the list with stale RSC props; refresh immediately
-    // so overlays can drop once Core confirms the mark-read.
-    void refreshRooms();
-
-    const intervalId = window.setInterval(
-      refreshRooms,
-      ORGANIZATION_CHAT_POLL_MS,
-    );
-    window.addEventListener("focus", refreshRooms);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshRooms);
-    };
-  }, [hasOrganization, organizationId, paintOnly]);
-
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
-
-    const handleRoomRead = (event: Event) => {
-      const detail = (
-        event as CustomEvent<{ room?: ChatRoom; roomId?: string }>
-      ).detail;
-      if (!detail?.roomId) {
-        return;
-      }
-
-      if (detail.room) {
-        // Dual-baseline: leftover Participant Thread unread stays on the row.
-        rememberRoomRead(detail.room);
-      }
-
-      setRoomRows((current) =>
-        applyRoomReadOverlays(
-          current.map((room) =>
-            room.id === detail.roomId
-              ? (detail.room ?? {
-                  ...room,
-                  unreadCount: 0,
-                  unreadMentionCount: 0,
-                  markedUnread: false,
-                })
-              : room,
-          ),
-        ),
-      );
-    };
-
-    window.addEventListener("organization-chat-room-read", handleRoomRead);
-    return () => {
-      window.removeEventListener("organization-chat-room-read", handleRoomRead);
-    };
-  }, [paintOnly]);
-
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const handleRoomsChanged = (event: Event) => {
-      const detail = (event as CustomEvent<OrganizationChatRoomsChangedDetail>)
-        .detail;
-      const removedRoomId = detail?.removedRoomId;
-      if (removedRoomId) {
-        setRoomRows((current) =>
-          applyRoomReadOverlays(
-            current.filter((row) => row.id !== removedRoomId),
-          ),
-        );
-        setArchivedRows((current) =>
-          current.filter((row) => row.id !== removedRoomId),
-        );
-        return;
-      }
-
-      const room = detail?.room;
-      if (room) {
-        setRoomRows((current) => {
-          const without = current.filter((row) => row.id !== room.id);
-          return applyRoomReadOverlays([room, ...without]);
-        });
-        setArchivedRows((current) =>
-          current.filter((row) => row.id !== room.id),
-        );
-        return;
-      }
-
-      void Promise.all([
-        listOrganizationChatRoomsAction(),
-        hasOrganization
-          ? listOrganizationArchivedChatRoomsAction()
-          : Promise.resolve({
-              ok: true as const,
-              value: {
-                rooms: [] as ChatRoom[],
-                nextCursor: null as string | null,
-              },
-            }),
-        listPendingChatRoomInvitationsAction(),
-      ]).then(([activeResult, archivedResult, pendingResult]) => {
-        if (cancelled) {
-          return;
-        }
-        if (activeResult.ok) {
-          setRoomRows(applyRoomReadOverlays(activeResult.value.rooms));
-        }
-        if (archivedResult.ok) {
-          setArchivedRows(archivedResult.value.rooms);
-        }
-        if (pendingResult.ok) {
-          setPendingRows(pendingResult.value);
-        }
-      });
-    };
-
-    window.addEventListener(
-      ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-      handleRoomsChanged,
-    );
-    return () => {
-      cancelled = true;
-      window.removeEventListener(
-        ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
-        handleRoomsChanged,
-      );
-    };
-  }, [hasOrganization, paintOnly]);
-
   function handleRestoreRoom(room: ChatRoom) {
     if (restoringRoomId || deletingRoomId) {
       return;
@@ -429,11 +159,7 @@ export function OrganizationChatList({
         return;
       }
       toast.success(tActions("restoreSuccess", { name: room.name }));
-      setArchivedRows((current) => current.filter((row) => row.id !== room.id));
-      setRoomRows((current) => {
-        const without = current.filter((row) => row.id !== result.value.id);
-        return applyRoomReadOverlays([result.value, ...without]);
-      });
+      upsertRoomToTop(result.value);
       router.push(`/chat/rooms/${result.value.id}`);
       router.refresh();
     });
@@ -459,17 +185,6 @@ export function OrganizationChatList({
     });
   }
 
-  function handleRoomUpdated(updated: ChatRoom) {
-    if (updated.markedUnread) {
-      forgetRoomRead(updated.id);
-    }
-    setRoomRows((current) =>
-      applyRoomReadOverlays(
-        current.map((room) => (room.id === updated.id ? updated : room)),
-      ),
-    );
-  }
-
   function handleAcceptInvitation(invitation: ChatRoomInvitation) {
     if (respondingInvitation) {
       return;
@@ -491,7 +206,7 @@ export function OrganizationChatList({
         current.filter((row) => row.id !== invitation.id),
       );
       if (roomsResult.ok) {
-        setRoomRows(applyRoomReadOverlays(roomsResult.value.rooms));
+        replaceAllRooms(roomsResult.value.rooms);
       }
       router.push(`/chat/rooms/${invitation.roomId}`);
       router.refresh();
@@ -523,13 +238,6 @@ export function OrganizationChatList({
     [roomRows],
   );
 
-  useEffect(() => {
-    if (paintOnly) {
-      return;
-    }
-    publishMembershipVisibleRooms(roomRows, organizationId, currentUserId);
-  }, [currentUserId, organizationId, paintOnly, roomRows]);
-
   const sortedArchivedChannels = useMemo(() => {
     return [...archivedRows].sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
@@ -545,13 +253,13 @@ export function OrganizationChatList({
             open={channelSectionOpen}
             onOpenChange={setChannelSectionOpen}
           >
-            <SectionHeader
+            <ChatSidebarSectionHeader
               isOpen={channelSectionOpen}
               createAction={<CreateChannelDialog />}
               secondaryAction={<BrowseChannelsDialog />}
             >
               {t("title")}
-            </SectionHeader>
+            </ChatSidebarSectionHeader>
             <CollapsibleContent>
               <SidebarMenu className="gap-0">
                 {namedChannels.map((room) => (
@@ -566,7 +274,7 @@ export function OrganizationChatList({
                         discoverability={room.discoverability}
                       />
                     }
-                    onRoomUpdated={handleRoomUpdated}
+                    onRoomUpdated={replaceRoom}
                     dismissSheetOnNavigate={dismissSheetOnNavigate}
                   />
                 ))}
@@ -584,9 +292,9 @@ export function OrganizationChatList({
 
         {pendingRows.length > 0 || externalJoined.length > 0 ? (
           <Collapsible open={externalOpen} onOpenChange={setExternalOpen}>
-            <SectionHeader isOpen={externalOpen}>
+            <ChatSidebarSectionHeader isOpen={externalOpen}>
               {tExternal("title")}
-            </SectionHeader>
+            </ChatSidebarSectionHeader>
             <CollapsibleContent>
               <SidebarMenu className="gap-0">
                 {pendingRows.map((invitation) => {
@@ -665,7 +373,7 @@ export function OrganizationChatList({
                     leading={
                       <ChannelDiscoverabilityIcon discoverability="external" />
                     }
-                    onRoomUpdated={handleRoomUpdated}
+                    onRoomUpdated={replaceRoom}
                     dismissSheetOnNavigate={dismissSheetOnNavigate}
                   />
                 ))}
@@ -679,9 +387,9 @@ export function OrganizationChatList({
             open={archivedSectionOpen}
             onOpenChange={setArchivedSectionOpen}
           >
-            <SectionHeader isOpen={archivedSectionOpen}>
+            <ChatSidebarSectionHeader isOpen={archivedSectionOpen}>
               {t("archivedChannels")}
-            </SectionHeader>
+            </ChatSidebarSectionHeader>
             <CollapsibleContent>
               <SidebarMenu className="gap-0">
                 {sortedArchivedChannels.map((room) => {
@@ -837,12 +545,12 @@ export function OrganizationChatList({
             Personal workspace still mounts the picker with empty members
             (coworkers only).
           */}
-          <SectionHeader
+          <ChatSidebarSectionHeader
             isOpen={directOpen}
             createAction={<CreateDirectDialog />}
           >
             {t("directMessages")}
-          </SectionHeader>
+          </ChatSidebarSectionHeader>
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
               {directMessages.map((room) => (
@@ -860,7 +568,7 @@ export function OrganizationChatList({
                       selectedRoomId={activeRoomId}
                     />
                   }
-                  onRoomUpdated={handleRoomUpdated}
+                  onRoomUpdated={replaceRoom}
                   dismissSheetOnNavigate={dismissSheetOnNavigate}
                 />
               ))}

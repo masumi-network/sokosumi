@@ -65,6 +65,14 @@ interface NotificationEventData {
    * the same answer the push extras were gated on.
    */
   osBanner: boolean;
+  /**
+   * Whether the row was written by this event rather than changed by it.
+   *
+   * A room's messages are counted onto one row, so a reader's tab can be sent
+   * a row that was already there. It counts a row it does not hold towards the
+   * badge, which is right for a new row and one too many for this one.
+   */
+  created: boolean;
 }
 
 interface PublishNotificationEventInput {

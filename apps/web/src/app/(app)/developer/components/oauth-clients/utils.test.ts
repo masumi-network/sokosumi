@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createOAuthClientSchema,
+  inferOAuthApplicationType,
   isSafeRedirectUri,
   parseRedirectUris,
 } from "./utils";
@@ -16,6 +17,12 @@ describe("parseRedirectUris", () => {
       parseRedirectUris(" https://example.com/a \n\nhttps://example.com/b\n  "),
     ).toEqual(["https://example.com/a", "https://example.com/b"]);
   });
+
+  it("does not rewrite reverse-domain :// to :/", () => {
+    expect(parseRedirectUris("com.example.app://callback")).toEqual([
+      "com.example.app://callback",
+    ]);
+  });
 });
 
 describe("isSafeRedirectUri", () => {
@@ -29,8 +36,34 @@ describe("isSafeRedirectUri", () => {
     expect(isSafeRedirectUri("http://[::1]/callback")).toBe(true);
   });
 
-  it("accepts custom app schemes", () => {
-    expect(isSafeRedirectUri("myapp://callback")).toBe(true);
+  it("accepts RFC 8252 reverse-domain private-use schemes", () => {
+    expect(isSafeRedirectUri("com.example.app:/callback")).toBe(true);
+    expect(isSafeRedirectUri("com.sokosumi.app:/oauth/signin")).toBe(true);
+  });
+
+  it("rejects custom schemes that Better Auth native policy rejects", () => {
+    expect(isSafeRedirectUri("sokosumi://oauth/signin")).toBe(false);
+    expect(isSafeRedirectUri("myapp://callback")).toBe(false);
+    expect(isSafeRedirectUri("sokosumi:/oauth/signin")).toBe(false);
+    expect(isSafeRedirectUri("com.sokosumi.app://auth")).toBe(false);
+    expect(isSafeRedirectUri("com.example.app://callback")).toBe(false);
+  });
+
+  it("rejects https loopback", () => {
+    expect(isSafeRedirectUri("https://localhost/callback")).toBe(false);
+    expect(isSafeRedirectUri("https://127.0.0.1/callback")).toBe(false);
+    expect(isSafeRedirectUri("https://[::1]/callback")).toBe(false);
+  });
+
+  it("rejects native HTTP outside exact localhost / 127.0.0.1 / [::1]", () => {
+    expect(isSafeRedirectUri("http://127.0.0.2/callback")).toBe(false);
+    expect(isSafeRedirectUri("http://app.localhost/callback")).toBe(false);
+  });
+
+  it("rejects credentials in the URI", () => {
+    expect(isSafeRedirectUri("https://user:pass@example.com/callback")).toBe(
+      false,
+    );
   });
 
   it("rejects non-loopback http", () => {
@@ -126,5 +159,79 @@ describe("createOAuthClientSchema", () => {
       includeCoreApi: false,
     });
     expect(result.success).toBe(false);
+  });
+
+  it("accepts a reverse-domain native redirect URI", () => {
+    const result = schema.safeParse({
+      name: "Mac App",
+      redirectUris: "com.sokosumi.app:/oauth/signin",
+      includeCoreApi: true,
+      includeOfflineAccess: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects sokosumi://oauth/signin", () => {
+    const result = schema.safeParse({
+      name: "Mac App",
+      redirectUris: "sokosumi://oauth/signin",
+      includeCoreApi: true,
+      includeOfflineAccess: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects reverse-domain :// even when the scheme is otherwise valid", () => {
+    const result = schema.safeParse({
+      name: "Mac App",
+      redirectUris: "com.sokosumi.app://auth",
+      includeCoreApi: true,
+      includeOfflineAccess: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts mixed claimed HTTPS and reverse-domain native URIs", () => {
+    const result = schema.safeParse({
+      name: "Mac App",
+      redirectUris:
+        "https://example.com/callback\ncom.sokosumi.app:/oauth/signin",
+      includeCoreApi: true,
+      includeOfflineAccess: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects mixed claimed HTTPS and reverse-domain ://", () => {
+    const result = schema.safeParse({
+      name: "Mac App",
+      redirectUris: "https://example.com/callback\ncom.sokosumi.app://auth",
+      includeCoreApi: true,
+      includeOfflineAccess: true,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("inferOAuthApplicationType", () => {
+  it("defaults https-only clients to web", () => {
+    expect(inferOAuthApplicationType(["https://example.com/callback"])).toBe(
+      "web",
+    );
+  });
+
+  it("uses native for loopback HTTP or private-use schemes", () => {
+    expect(inferOAuthApplicationType(["http://localhost:3000/callback"])).toBe(
+      "native",
+    );
+    expect(inferOAuthApplicationType(["com.example.app:/callback"])).toBe(
+      "native",
+    );
+    expect(
+      inferOAuthApplicationType([
+        "https://example.com/callback",
+        "com.sokosumi.app:/oauth/signin",
+      ]),
+    ).toBe("native");
   });
 });

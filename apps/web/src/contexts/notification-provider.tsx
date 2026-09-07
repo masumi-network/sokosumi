@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  isBrowserOnlyNotificationKind,
+  isBrowserOnlyNotification,
   makeUserNotificationsChannelName,
 } from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
@@ -58,6 +58,24 @@ const NotificationContext = createContext<NotificationContextValue | null>(
 
 const NOTIFICATION_LIST_LIMIT = 10;
 
+/** The order the feed reads in: newest first, and by id when they tie. */
+function byNewestFirst(a: NotificationItem, b: NotificationItem): number {
+  const byTime = b.createdAt.getTime() - a.createdAt.getTime();
+
+  return byTime !== 0 ? byTime : b.id.localeCompare(a.id);
+}
+
+/**
+ * Whether this row belongs to a surface other than the notification center.
+ *
+ * The kind alone stopped answering it once a chat room message started
+ * reaching the feed, so the message key is asked as well, in the one place
+ * both apps read it from.
+ */
+function isFeedExcluded(notification: NotificationItem): boolean {
+  return isBrowserOnlyNotification(notification.kind, notification.messageKey);
+}
+
 function mergeNotificationList(
   current: NotificationItem[],
   fetched: NotificationItem[],
@@ -98,7 +116,7 @@ type NotificationAction =
       fetched: NotificationItem[];
       serverUnreadCount: number;
     }
-  | { type: "realtime"; notification: NotificationItem }
+  | { type: "realtime"; notification: NotificationItem; created: boolean }
   | {
       type: "mark_read_success";
       id: string;
@@ -114,13 +132,13 @@ export function notificationReducer(
 ): NotificationState {
   switch (action.type) {
     case "fetch_success": {
-      // Browser-only kinds never belong in local feed state; drop leaks so
+      // Browser-only rows never belong in local feed state; drop leaks so
       // mergeNotificationList cannot keep them as "pending realtime".
       const current = state.notifications.filter(
-        (notification) => !isBrowserOnlyNotificationKind(notification.kind),
+        (notification) => !isFeedExcluded(notification),
       );
       const fetched = action.fetched.filter(
-        (notification) => !isBrowserOnlyNotificationKind(notification.kind),
+        (notification) => !isFeedExcluded(notification),
       );
 
       return {
@@ -136,7 +154,7 @@ export function notificationReducer(
       const convertedNotification = action.notification;
 
       // Browser-OS only; room attention uses a separate path.
-      if (isBrowserOnlyNotificationKind(convertedNotification.kind)) {
+      if (isFeedExcluded(convertedNotification)) {
         return state;
       }
 
@@ -155,24 +173,43 @@ export function notificationReducer(
           unreadCount = unreadCount + 1;
         }
 
+        // Sorted rather than replaced in place. A room's row moves to the
+        // top of the feed when a message counts onto it, and a list that kept
+        // it where it was would disagree with the order the next read
+        // returns: the same rows, in a different order, for no reason the
+        // reader can see.
         return {
-          notifications: state.notifications.map((notification) =>
-            notification.id === convertedNotification.id
-              ? convertedNotification
-              : notification,
-          ),
+          notifications: state.notifications
+            .map((notification) =>
+              notification.id === convertedNotification.id
+                ? convertedNotification
+                : notification,
+            )
+            .sort(byNewestFirst),
           unreadCount,
         };
       }
 
+      // An unseen read update only confirms server state. Adding its old row
+      // would put it at the front and displace a newer notification.
+      if (!action.created && convertedNotification.isRead) {
+        return state;
+      }
+
+      // A row this list does not hold is either new, or one the list never
+      // reached: the reader has more unread rows than the window keeps, and a
+      // room's later messages arrive as changes to a row written earlier.
+      // Counting the second kind would put the badge one ahead of the server
+      // for the rest of the session.
       return {
         notifications: [convertedNotification, ...state.notifications].slice(
           0,
           NOTIFICATION_LIST_LIMIT,
         ),
-        unreadCount: convertedNotification.isRead
-          ? state.unreadCount
-          : state.unreadCount + 1,
+        unreadCount:
+          convertedNotification.isRead || !action.created
+            ? state.unreadCount
+            : state.unreadCount + 1,
       };
     }
     case "mark_read_optimistic": {
@@ -196,9 +233,9 @@ export function notificationReducer(
       };
     }
     case "mark_read_success": {
-      // Browser-only kinds are never counted in the in-app badge. Toast click
+      // Browser-only rows are never counted in the in-app badge. Toast click
       // still calls markRead for room attention; ignore feed state.
-      if (isBrowserOnlyNotificationKind(action.updated.kind)) {
+      if (isFeedExcluded(action.updated)) {
         return state;
       }
 
@@ -433,6 +470,7 @@ export function NotificationProvider({
 
       dispatch({
         type: "realtime",
+        created: notification.created,
         notification: {
           ...notification,
           kind: notification.kind as NotificationItem["kind"],

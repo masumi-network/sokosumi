@@ -2,7 +2,18 @@
 
 import { type LucideIcon, Mail } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
   Popover,
@@ -45,6 +56,9 @@ const NAME = cn(
  */
 const CLOSE_DELAY_MS = 150;
 
+/** The email column stands outside `CHANNEL_SPECS` and needs a name of its own. */
+const EMAIL_NAME = "email";
+
 /**
  * What arriving on one channel means, on hover and on a tap.
  *
@@ -63,6 +77,8 @@ function ChannelExplainer({
   label,
   hint,
   notes,
+  open,
+  onOpenChange,
 }: {
   icon: LucideIcon;
   label: string;
@@ -70,9 +86,16 @@ function ChannelExplainer({
   hint: string;
   /** What is standing in the way here, a line at a time. */
   notes: readonly string[];
+  /** This name is the one of the row holding the panel. */
+  open: boolean;
+  /** Ask the row for the panel, or hand it back. */
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const byPointer = useRef(false);
+  // Whether the caret went into the panel. Only then is there anything to give
+  // back when it goes, and giving back what was never taken is how a hover
+  // ends up dragging the focus ring across the page.
+  const heldFocus = useRef(false);
   const closing = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const holdOpen = () => {
@@ -84,23 +107,40 @@ function ChannelExplainer({
 
   const closeSoon = () => {
     holdOpen();
-    closing.current = setTimeout(() => setOpen(false), CLOSE_DELAY_MS);
+    closing.current = setTimeout(() => {
+      // The pointer's claim on the panel ends with the panel. This close is
+      // ours rather than Radix's, so `onOpenChange` never runs and nothing
+      // else puts the flag down; left standing, the press handler below goes
+      // on refusing every press, and Enter and Space open nothing ever again.
+      byPointer.current = false;
+      onOpenChange(false);
+    }, CLOSE_DELAY_MS);
   };
 
   // Nothing else stops the timer. A reader who leaves the name and then leaves
   // the page has a close waiting on a component that is gone.
   useEffect(() => holdOpen, []);
 
+  // Another name can close this panel through the shared state without
+  // calling this popover's `onOpenChange`.
+  useEffect(() => {
+    if (!open) {
+      byPointer.current = false;
+    }
+  }, [open]);
+
   return (
     <Popover
       open={open}
       onOpenChange={(next) => {
-        if (!next) {
+        if (next) {
+          heldFocus.current = false;
+        } else {
           byPointer.current = false;
         }
 
         holdOpen();
-        setOpen(next);
+        onOpenChange(next);
       }}
     >
       <PopoverTrigger
@@ -112,7 +152,13 @@ function ChannelExplainer({
 
           holdOpen();
           byPointer.current = true;
-          setOpen(true);
+          // Only for a panel this pointer is about to open. The panel a
+          // reader opened with Enter already holds the caret, and a mouse
+          // crossing its name is not the reader leaving it.
+          if (!open) {
+            heldFocus.current = false;
+          }
+          onOpenChange(true);
         }}
         onPointerLeave={(event) => {
           if (event.pointerType !== "mouse" || !byPointer.current) {
@@ -159,6 +205,28 @@ function ChannelExplainer({
             event.preventDefault();
           }
         }}
+        // The caret came in here, so it goes back to the name it came from.
+        onFocusCapture={() => {
+          heldFocus.current = true;
+        }}
+        // And it goes back only then. Radix hands focus to the trigger on
+        // every close, which after a hover means the ring lands on a word the
+        // reader only passed over, and on a scrolled page it takes the page
+        // back with it.
+        onCloseAutoFocus={(event) => {
+          if (!heldFocus.current) {
+            event.preventDefault();
+          }
+        }}
+        // Focus leaving is not a dismissal. Nothing in here can be tabbed to,
+        // and the caret does leave on its own: the panel a reader opened with
+        // Enter hands focus back to its name as it closes, and that name is
+        // outside the panel they have just hovered. Dismissing on it closed
+        // the new panel the moment it opened. Escape, a press outside and the
+        // pointer leaving all still close it.
+        onFocusOutside={(event) => {
+          event.preventDefault();
+        }}
       >
         <p className="flex items-center gap-1.5 font-medium">
           <Icon className="size-3.5 shrink-0" aria-hidden="true" />
@@ -196,6 +264,30 @@ function ChannelExplainer({
  * head. A phone has no width to spare for the word, and the names of the
  * columns need what there is, so there it is left out.
  */
+/**
+ * The one name on the page whose explanation is up.
+ *
+ * Held over every legend rather than inside one, because the page draws a
+ * legend per open group and the pointer crosses between them: sweeping down a
+ * column from one group's name to the next left the first panel counting down
+ * while the second stood up, which is the pair of 288px panels this state
+ * exists to stop.
+ */
+const OpenExplainer = createContext<{
+  openName: string | null;
+  setOpenName: Dispatch<SetStateAction<string | null>>;
+} | null>(null);
+
+/** Wraps the legends that share one open panel. */
+export function ChannelLegendScope({ children }: { children: ReactNode }) {
+  const [openName, setOpenName] = useState<string | null>(null);
+  const value = useMemo(() => ({ openName, setOpenName }), [openName]);
+
+  return (
+    <OpenExplainer.Provider value={value}>{children}</OpenExplainer.Provider>
+  );
+}
+
 export function ChannelLegend({
   pushBlock,
   named = false,
@@ -205,6 +297,40 @@ export function ChannelLegend({
   named?: boolean;
 }) {
   const t = useTranslations("App.Account.Notifications");
+  const shared = useContext(OpenExplainer);
+  // The columns are named the same in every legend, so the name alone would
+  // put one hover's panel up in all of them. Read before the guard below, so
+  // every render of this component calls the same hooks in the same order.
+  const legendId = useId();
+
+  if (!shared) {
+    throw new Error("ChannelLegend needs a ChannelLegendScope around it.");
+  }
+
+  const { openName, setOpenName } = shared;
+
+  /**
+   * One panel at a time, held above the legends rather than by each name.
+   *
+   * Each name closes behind the pointer on a wait, so a pointer crossing the
+   * row arrived at the next name while the one it came from was still counting
+   * down: two panels 288px wide, both up, over the rows they explain. Held
+   * in one place, the name being arrived at takes the panel and the one being
+   * left is closed on the spot. It is still drawn while its exit plays, the way every
+   * popover on this page is, so what overlaps is a panel on its way out rather
+   * than a second one standing there for the whole wait.
+   *
+   * The close still goes through the name that asked for it. It comes in late
+   * by design, and by then the panel may belong to a name further along the
+   * row, which this must not take away.
+   */
+  const nameFor = (name: string) => `${legendId}:${name}`;
+
+  const answerFor = (name: string) => (open: boolean) => {
+    const key = nameFor(name);
+
+    setOpenName((current) => (open ? key : current === key ? null : current));
+  };
 
   return (
     <div
@@ -222,6 +348,8 @@ export function ChannelLegend({
       {CHANNEL_SPECS.map((spec) => (
         <ChannelExplainer
           key={spec.id}
+          open={openName === nameFor(spec.id)}
+          onOpenChange={answerFor(spec.id)}
           icon={CHANNEL_ICON[spec.id]}
           label={t(spec.labelKey)}
           hint={t(spec.hintKey)}
@@ -237,6 +365,8 @@ export function ChannelLegend({
         />
       ))}
       <ChannelExplainer
+        open={openName === nameFor(EMAIL_NAME)}
+        onOpenChange={answerFor(EMAIL_NAME)}
         icon={Mail}
         label={t("channelEmail")}
         hint={t("channelEmailHint")}
