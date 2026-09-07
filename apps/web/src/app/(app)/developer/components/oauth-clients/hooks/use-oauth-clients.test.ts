@@ -217,6 +217,38 @@ describe("useOAuthClients", () => {
     });
   });
 
+  it("registers native application_type for private-use redirect URIs", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_native",
+        client_secret: "secret",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "Mac App",
+        redirectUris: ["com.sokosumi.app:/oauth/signin"],
+        includeCoreApi: true,
+        includeOfflineAccess: true,
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      redirect_uris: ["com.sokosumi.app:/oauth/signin"],
+      client_name: "Mac App",
+      scope: "openid sokosumi:api offline_access",
+      grant_types: ["authorization_code", "refresh_token"],
+      application_type: "native",
+    });
+  });
+
   it("updates a client with the Better Auth payload shape", async () => {
     updateClientMock.mockResolvedValue({
       data: {
@@ -250,6 +282,39 @@ describe("useOAuthClients", () => {
       },
     });
     expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("updates native application_type for private-use redirect URIs", async () => {
+    updateClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_1",
+        client_name: "Mac App",
+        redirect_uris: ["com.sokosumi.app:/oauth/signin"],
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "Mac App",
+        redirectUris: ["com.sokosumi.app:/oauth/signin"],
+      });
+    });
+
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "Mac App",
+        redirect_uris: ["com.sokosumi.app:/oauth/signin"],
+        application_type: "native",
+      },
+    });
   });
 
   it("updates a client with Core API scope when includeCoreApi is true", async () => {
