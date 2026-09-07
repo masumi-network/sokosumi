@@ -6,6 +6,14 @@ import {
 import { buildVendorGrantReviewHref } from "@/lib/utils/vendor-grant-approval";
 import { resolveVendorGrantNotificationTarget } from "@/lib/utils/vendor-grant-notification";
 
+/**
+ * Names the message a chat notification is about, on the room's own URL.
+ *
+ * Built here and read by the room client, so the two never disagree about
+ * what the parameter is called.
+ */
+export const CHAT_MESSAGE_PARAM = "message";
+
 interface NotificationHrefItem {
   kind: NotificationKind;
   referenceId: string;
@@ -32,8 +40,18 @@ export function getNotificationHref(
       return `/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(notification.referenceId)}`;
     }
 
-    case "CHAT":
-      return `/chat/rooms/${encodeURIComponent(notification.referenceId)}`;
+    case "CHAT": {
+      const room = `/chat/rooms/${encodeURIComponent(notification.referenceId)}`;
+      const messageId = notification.metadata?.messageId;
+      // A room notification is about one message in it. Without the message
+      // the reader lands at the bottom of the room and scrolls back to find
+      // what they were just told about. Rows written before this shipped
+      // carry no message id and still open the room.
+      if (typeof messageId !== "string" || messageId.length === 0) {
+        return room;
+      }
+      return `${room}?${CHAT_MESSAGE_PARAM}=${encodeURIComponent(messageId)}`;
+    }
 
     case "SYSTEM": {
       if (notification.messageKey) {
