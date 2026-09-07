@@ -4381,7 +4381,9 @@
           "includeCoreApiLabel": "Permitir acceso a la API de Sokosumi",
           "includeCoreApiHelp": "Desmarcado (predeterminado): solo identidad (openid / userinfo). Marcado: también permite llamar a la API Core como el usuario (sokosumi:api).",
           "includeOfflineAccessLabel": "Permitir tokens de actualización",
-          "includeOfflineAccessHelp": "Desmarcado (predeterminado): sin tokens de actualización. Marcado: el cliente puede solicitar offline_access y recibir tokens de actualización que permiten obtener nuevos tokens de acceso más tarde (hasta unos 90 días). Desactivarlo elimina offline_access de la lista de permisos del cliente; los usuarios deben reautorizar para obtener nuevos tokens de actualización."
+          "includeOfflineAccessHelp": "Desmarcado (predeterminado): sin tokens de actualización. Marcado: el cliente puede solicitar offline_access y recibir tokens de actualización que permiten obtener nuevos tokens de acceso más tarde (hasta unos 90 días). Desactivarlo elimina offline_access de la lista de permisos del cliente; los usuarios deben reautorizar para obtener nuevos tokens de actualización.",
+          "isPublicLabel": "Cliente público (sin secreto, solo PKCE)",
+          "isPublicHelp": "Marcado: cliente PKCE público para apps nativas o móviles que no pueden guardar un secreto. No se emite client secret; las peticiones de token usan solo PKCE. Desmarcado (predeterminado): cliente confidencial con client secret."
         },
         "CreatedSuccess": {
           "title": "OAuth Client creado",
@@ -4389,6 +4391,7 @@
           "clientIdLabel": "Client ID",
           "clientSecretLabel": "Client Secret",
           "clientSecretWarning": "Este Secret solo se mostrará una vez. Asegúrate de guardarlo de forma segura.",
+          "publicNote": "Cliente público creado — no se emitió ningún secreto. Usa el ID de cliente con PKCE (S256).",
           "doneButton": "Listo",
           "showSecret": "Mostrar secreto",
           "hideSecret": "Ocultar secreto"
@@ -4403,7 +4406,9 @@
           "disabled": "Deshabilitado",
           "apiAccess": "Acceso API",
           "identityOnly": "Solo identidad",
-          "refresh": "Token de actualización"
+          "refresh": "Token de actualización",
+          "public": "Público",
+          "confidential": "Confidencial"
         },
         "Actions": {
           "editTooltip": "Editar cliente OAuth",
@@ -4423,7 +4428,10 @@
           "includeCoreApiLabel": "Permitir acceso a la API de Sokosumi",
           "includeCoreApiHelp": "Desmarcado: solo identidad (openid). Marcado: permite la API Core (sokosumi:api) en la autorización. Cambiar esto actualiza la lista de permisos del cliente. Desactivar la API bloquea el acceso a Core de los tokens existentes de inmediato; activarla exige que los usuarios reautoricen para obtener tokens nuevos con ese scope.",
           "includeOfflineAccessLabel": "Permitir tokens de actualización",
-          "includeOfflineAccessHelp": "Desmarcado: sin tokens de actualización. Marcado: el cliente puede solicitar offline_access y recibir tokens de actualización que permiten obtener nuevos tokens de acceso más tarde (hasta unos 90 días). Cambiar esto actualiza la lista de permisos de scopes del cliente. Desactivar la actualización elimina offline_access de esa lista; los usuarios deben reautorizar para obtener nuevos tokens de actualización."
+          "includeOfflineAccessHelp": "Desmarcado: sin tokens de actualización. Marcado: el cliente puede solicitar offline_access y recibir tokens de actualización que permiten obtener nuevos tokens de acceso más tarde (hasta unos 90 días). Cambiar esto actualiza la lista de permisos de scopes del cliente. Desactivar la actualización elimina offline_access de esa lista; los usuarios deben reautorizar para obtener nuevos tokens de actualización.",
+          "clientTypeLabel": "Tipo de cliente",
+          "clientTypePublic": "Público — solo PKCE, sin secreto. El tipo no se puede cambiar tras la creación.",
+          "clientTypeConfidential": "Confidencial — se autentica con un client secret. El tipo no se puede cambiar tras la creación."
         },
         "DeleteDialog": {
           "title": "Eliminar cliente OAuth",
