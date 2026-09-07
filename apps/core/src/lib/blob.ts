@@ -537,7 +537,7 @@ export async function uploadCoworkerImage(params: {
 
   try {
     attachUploadToLogger({
-      filename: pathname.split("/").pop() || params.filename,
+      filename: pathname.split("/").pop() || pathname,
       size:
         params.bytes instanceof Blob
           ? params.bytes.size
