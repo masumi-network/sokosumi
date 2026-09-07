@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getActiveRoomIdFromPathname } from "@/components/chat/active-room-id";
 import { countChatRoomsWithUnreadAttention } from "@/components/chat/chat-unread-document-title";
 import { getLatestMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
@@ -12,6 +12,8 @@ import {
 import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
 import {
   applyRoomReadOverlays,
+  beginRoomAttentionRefresh,
+  reconcileRoomAttention,
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
 import type { ChatRoom } from "@/lib/clients/generated/core";
@@ -32,6 +34,7 @@ interface UseChatTabUnreadPresenceResult {
 
 export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
   const pathname = usePathname();
+  const latestRefreshRef = useRef(0);
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const [rooms, setRooms] = useState<ChatRoom[]>(
     getInitialRoomsFromSessionSnapshot,
@@ -44,11 +47,17 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
     let cancelled = false;
 
     const refreshRooms = async () => {
+      const requestRevision = beginRoomAttentionRefresh();
+      latestRefreshRef.current = requestRevision;
       const result = await listOrganizationChatRoomsAction();
-      if (cancelled || !result.ok) {
+      if (
+        cancelled ||
+        requestRevision !== latestRefreshRef.current ||
+        !result.ok
+      ) {
         return;
       }
-      setRooms(applyRoomReadOverlays(result.value.rooms));
+      setRooms(reconcileRoomAttention(result.value.rooms, requestRevision));
     };
 
     void refreshRooms();
@@ -81,16 +90,17 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
 
       setRooms((current) =>
         applyRoomReadOverlays(
-          current.map((room) =>
-            room.id === detail.roomId
-              ? (detail.room ?? {
-                  ...room,
-                  unreadCount: 0,
-                  unreadMentionCount: 0,
-                  markedUnread: false,
-                })
-              : room,
-          ),
+          current.map((room) => {
+            if (room.id !== detail.roomId) return room;
+            const updated = detail.room ?? {
+              ...room,
+              unreadCount: 0,
+              unreadMentionCount: 0,
+              markedUnread: false,
+            };
+            if (!detail.room) rememberRoomRead(updated);
+            return updated;
+          }),
         ),
       );
     };
@@ -126,11 +136,17 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
         return;
       }
 
+      const requestRevision = beginRoomAttentionRefresh();
+      latestRefreshRef.current = requestRevision;
       void listOrganizationChatRoomsAction().then((result) => {
-        if (cancelled || !result.ok) {
+        if (
+          cancelled ||
+          requestRevision !== latestRefreshRef.current ||
+          !result.ok
+        ) {
           return;
         }
-        setRooms(applyRoomReadOverlays(result.value.rooms));
+        setRooms(reconcileRoomAttention(result.value.rooms, requestRevision));
       });
     };
 

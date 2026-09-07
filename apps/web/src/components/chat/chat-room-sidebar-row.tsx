@@ -28,6 +28,10 @@ import {
 } from "@/components/chat/organization-chat-list.actions";
 import { resolveRoomAttention } from "@/components/chat/room-attention";
 import {
+  beginRoomAttentionChange,
+  settleRoomAttentionChange,
+} from "@/components/chat/room-read-overlay";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -126,17 +130,36 @@ export function ChatRoomSidebarRow({
     ) => Promise<OrganizationChatListActionResult<ChatRoom>>,
     optimisticRoom?: ChatRoom,
   ) {
+    const attentionToken =
+      action === markOrganizationChatRoomUnreadAction && optimisticRoom
+        ? beginRoomAttentionChange(optimisticRoom)
+        : null;
     if (optimisticRoom) {
       onRoomUpdated(optimisticRoom);
     }
-    startTransition(async () => {
-      const result = await action(room.id);
-      if (!result.ok) {
-        onRoomUpdated(room);
-        toast.error(tActions("actionFailed"));
-        return;
+
+    function applyResult(updatedRoom: ChatRoom): boolean {
+      if (
+        attentionToken !== null &&
+        !settleRoomAttentionChange(room.id, attentionToken, updatedRoom)
+      ) {
+        return false;
       }
-      onRoomUpdated(result.value);
+      onRoomUpdated(updatedRoom);
+      return true;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await action(room.id);
+        if (!result.ok) {
+          if (applyResult(room)) toast.error(tActions("actionFailed"));
+          return;
+        }
+        applyResult(result.value);
+      } catch {
+        if (applyResult(room)) toast.error(tActions("actionFailed"));
+      }
     });
   }
 

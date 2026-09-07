@@ -534,7 +534,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           .map((change) => change.subject.id);
 
         return {
-          room,
+          room:
+            createdStatus.length > 0
+              ? await tx.chatRoom.findUniqueOrThrow({
+                  where: { id: room.id },
+                  include: chatRoomInclude,
+                })
+              : room,
           statusMessages: createdStatus,
           removedUserIds,
           mentionMessageIds,
