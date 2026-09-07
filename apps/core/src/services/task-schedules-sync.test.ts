@@ -16,11 +16,10 @@ const removeTaskSchedulePlannedOccurrencesMock = vi.fn();
 const publishTaskEventDataMock = vi.fn();
 const lockCalendarScopeMock = vi.fn();
 const lockTaskRowsMock = vi.fn();
-const isNmkrEmailMock = vi.fn();
+const hasCalendarBetaAccessMock = vi.fn();
 
-vi.mock("@sokosumi/utils", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@sokosumi/utils")>()),
-  isNmkrEmail: isNmkrEmailMock,
+vi.mock("@/helpers/calendar-beta-access", () => ({
+  hasCalendarBetaAccess: hasCalendarBetaAccessMock,
 }));
 const TaskScheduleOccurrenceLimitErrorMock = vi.hoisted(
   () => class TaskScheduleOccurrenceLimitError extends Error {},
@@ -93,7 +92,7 @@ describe("taskSchedulesSyncService", () => {
     mockTaskScheduleQuarantineUpsert.mockResolvedValue({ id: "quarantine-1" });
     lockCalendarScopeMock.mockResolvedValue(true);
     lockTaskRowsMock.mockResolvedValue(true);
-    isNmkrEmailMock.mockReturnValue(true);
+    hasCalendarBetaAccessMock.mockResolvedValue(true);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-10T12:00:00.000Z"));
   });
@@ -249,7 +248,6 @@ describe("taskSchedulesSyncService", () => {
     mockFindFirst.mockResolvedValue({
       id: "template-1",
       ownerId: "user-1",
-      owner: { email: "user@nmkr.io" },
       organizationId: "org-1",
       workspaceId: "workspace-1",
       projectId: null,
@@ -281,8 +279,8 @@ describe("taskSchedulesSyncService", () => {
     expect(mockTaskCreate).toHaveBeenCalled();
   });
 
-  it("does not create calendar history for a non-NMKR schedule", async () => {
-    isNmkrEmailMock.mockReturnValue(false);
+  it("does not create calendar history outside the Calendar beta", async () => {
+    hasCalendarBetaAccessMock.mockResolvedValue(false);
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"
     );
@@ -337,8 +335,8 @@ describe("taskSchedulesSyncService", () => {
     expect(mockTaskScheduleQuarantineUpsert).not.toHaveBeenCalled();
   });
 
-  it("records a released occurrence and increments a non-NMKR v2 schedule", async () => {
-    isNmkrEmailMock.mockReturnValue(false);
+  it("records a released occurrence and increments a non-beta v2 schedule", async () => {
+    hasCalendarBetaAccessMock.mockResolvedValue(false);
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"
     );
@@ -413,8 +411,8 @@ describe("taskSchedulesSyncService", () => {
     });
   });
 
-  it("ends a non-NMKR v2 after-N schedule at its release target", async () => {
-    isNmkrEmailMock.mockReturnValue(false);
+  it("ends a non-beta v2 after-N schedule at its release target", async () => {
+    hasCalendarBetaAccessMock.mockResolvedValue(false);
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"
     );
@@ -1075,8 +1073,8 @@ describe("taskSchedulesSyncService", () => {
     expect(mockTaskScheduleQuarantineUpsert).not.toHaveBeenCalled();
   });
 
-  it("skips a non-NMKR v2 release when its Calendar source moves", async () => {
-    isNmkrEmailMock.mockReturnValue(false);
+  it("skips a non-beta v2 release when its Calendar source moves", async () => {
+    hasCalendarBetaAccessMock.mockResolvedValue(false);
     const { taskSchedulesSyncService } = await import(
       "@/services/task-schedules-sync"
     );

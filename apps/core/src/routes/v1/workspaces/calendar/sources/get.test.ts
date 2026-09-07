@@ -6,21 +6,21 @@ import type { AuthenticationContext } from "@/middleware/auth";
 const {
   coworkerFindFirstMock,
   hasAssignedOrganizationSeatMock,
+  memberFindFirstMock,
   projectFindManyMock,
   resolveWorkspaceForContextMock,
   taskFindFirstMock,
   taskScheduleOccurrenceFindFirstMock,
-  userFindUniqueMock,
   vendorGrantFindUniqueMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
   hasAssignedOrganizationSeatMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   projectFindManyMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskScheduleOccurrenceFindFirstMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
 }));
@@ -50,10 +50,10 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworker: { findFirst: coworkerFindFirstMock },
+    member: { findFirst: memberFindFirstMock },
     project: { findMany: projectFindManyMock },
     task: { findFirst: taskFindFirstMock },
     taskScheduleOccurrence: { findFirst: taskScheduleOccurrenceFindFirstMock },
-    user: { findUnique: userFindUniqueMock },
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
   },
@@ -116,7 +116,7 @@ describe("GET /workspaces/calendar/sources", () => {
     vi.clearAllMocks();
     coworkerFindFirstMock.mockResolvedValue({ id: "coworker_123" });
     hasAssignedOrganizationSeatMock.mockResolvedValue(true);
-    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
+    memberFindFirstMock.mockResolvedValue({ id: "member_123" });
     resolveWorkspaceForContextMock.mockResolvedValue({ id: WORKSPACE_ID });
     workspaceFindUniqueMock.mockResolvedValue({
       organization: null,
@@ -295,7 +295,7 @@ describe("GET /workspaces/calendar/sources", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(userFindUniqueMock).not.toHaveBeenCalled();
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
     expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
     expect(projectFindManyMock).not.toHaveBeenCalled();
   });
@@ -306,13 +306,13 @@ describe("GET /workspaces/calendar/sources", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(userFindUniqueMock).not.toHaveBeenCalled();
+    expect(memberFindFirstMock).not.toHaveBeenCalled();
     expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
     expect(projectFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("rejects non-NMKR users before reading sources", async () => {
-    userFindUniqueMock.mockResolvedValue({ email: "ada@example.com" });
+  it("rejects users outside the Calendar beta before reading sources", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp().request(
       "http://localhost/calendar/sources",

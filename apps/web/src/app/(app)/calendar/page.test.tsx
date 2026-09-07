@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
+const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
 const listCoworkersMock = vi.fn();
@@ -42,6 +43,11 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
 }));
 
+vi.mock("@/lib/calendar-beta-access.server", () => ({
+  hasCurrentUserCalendarBetaAccess: () =>
+    hasCurrentUserCalendarBetaAccessMock(),
+}));
+
 vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
     listCoworkers: () => listCoworkersMock(),
@@ -65,6 +71,7 @@ import CalendarPage from "./page";
 describe("CalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getSessionMock.mockResolvedValue(null);
     getWorkspaceCalendarMock.mockResolvedValue({
       items: [],
@@ -80,8 +87,8 @@ describe("CalendarPage", () => {
     getProjectFilterOptionsMock.mockResolvedValue([]);
   });
 
-  it("does not load Calendar data for non-NMKR users", async () => {
-    getSessionMock.mockResolvedValue({ user: { email: "ada@example.com" } });
+  it("does not load Calendar data outside the Calendar beta", async () => {
+    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
 
     await expect(
       CalendarPage({ searchParams: Promise.resolve({}) }),
@@ -91,9 +98,7 @@ describe("CalendarPage", () => {
     expect(getWorkspaceCalendarSourcesMock).not.toHaveBeenCalled();
   });
 
-  it("loads Calendar data for NMKR users", async () => {
-    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
-
+  it("loads Calendar data for Calendar beta users", async () => {
     await CalendarPage({ searchParams: Promise.resolve({}) });
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledOnce();
@@ -102,7 +107,6 @@ describe("CalendarPage", () => {
   });
 
   it("offers only schedulable Projects in the shared task modal", async () => {
-    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
     getWorkspaceCalendarSourcesMock.mockResolvedValue([
       {
         sourceId: "project:project-1",
@@ -130,8 +134,6 @@ describe("CalendarPage", () => {
   });
 
   it("passes the Calendar status filter to the initial read", async () => {
-    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
-
     await CalendarPage({
       searchParams: Promise.resolve({ status: "READY" }),
     });
@@ -142,8 +144,6 @@ describe("CalendarPage", () => {
   });
 
   it("passes the selected Project filter to the initial Calendar read", async () => {
-    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
-
     await CalendarPage({
       searchParams: Promise.resolve({ projectId: "project-1" }),
     });
@@ -154,7 +154,6 @@ describe("CalendarPage", () => {
   });
 
   it("still renders Calendar items when Calendar sources fail to load", async () => {
-    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
     getWorkspaceCalendarMock.mockResolvedValue({
       items: [{ id: "occurrence-1" }],
       pagination: null,
@@ -174,8 +173,6 @@ describe("CalendarPage", () => {
   });
 
   it("passes the selected non-Project source filter to the initial Calendar read", async () => {
-    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
-
     await CalendarPage({
       searchParams: Promise.resolve({
         sourceId: "legacy-unknown:workspace-1",

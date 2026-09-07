@@ -14,6 +14,7 @@ const {
   toastDismissMock,
   toastErrorMock,
   showCalendarClientUpgradeModalMock,
+  calendarBetaAccessMock,
 } = vi.hoisted(() => ({
   markdownEditorPropsSpy: vi.fn(),
   uploadUserFileDirectMock: vi.fn(),
@@ -21,6 +22,11 @@ const {
   toastDismissMock: vi.fn(),
   toastErrorMock: vi.fn(),
   showCalendarClientUpgradeModalMock: vi.fn(),
+  calendarBetaAccessMock: { enabled: true },
+}));
+
+vi.mock("@/contexts/calendar-beta-access-context", () => ({
+  useCalendarBetaAccess: () => calendarBetaAccessMock.enabled,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -351,12 +357,33 @@ function updateTaskSuccess(taskId: string) {
 describe("TaskForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    calendarBetaAccessMock.enabled = true;
     markdownEditorPropsSpy.mockClear();
     try {
       window.localStorage.clear();
     } catch {
       // Ignore environments without localStorage.
     }
+  });
+
+  it("hides scheduling controls outside the Calendar beta", () => {
+    calendarBetaAccessMock.enabled = false;
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: baseLabels.openSchedule }),
+    ).not.toBeInTheDocument();
   });
 
   function getHiddenFileInput(container: HTMLElement): HTMLInputElement {

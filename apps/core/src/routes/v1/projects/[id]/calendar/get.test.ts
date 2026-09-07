@@ -11,20 +11,20 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 const {
   coworkerFindFirstMock,
+  memberFindFirstMock,
   projectFindFirstMock,
   taskFindFirstMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
-  userFindUniqueMock,
   vendorGrantFindUniqueMock,
   resolveWorkspaceForContextMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
 }));
@@ -54,13 +54,13 @@ vi.mock(
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworker: { findFirst: coworkerFindFirstMock },
+    member: { findFirst: memberFindFirstMock },
     project: { findFirst: projectFindFirstMock },
     task: { findFirst: taskFindFirstMock },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
-    user: { findUnique: userFindUniqueMock },
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
   },
 }));
@@ -139,7 +139,7 @@ describe("GET /projects/{id}/calendar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
-    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
+    memberFindFirstMock.mockResolvedValue({ id: "member_123" });
     taskScheduleOccurrenceCountMock.mockResolvedValue(1);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([createOccurrence()]);
     coworkerFindFirstMock.mockResolvedValue({ id: "coworker_123" });
@@ -173,6 +173,17 @@ describe("GET /projects/{id}/calendar", () => {
         }),
       }),
     );
+  });
+
+  it("rejects users outside the Calendar beta before reading the Project", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
+
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
+    );
+
+    expect(response.status).toBe(403);
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns calendar items for a closed Project", async () => {

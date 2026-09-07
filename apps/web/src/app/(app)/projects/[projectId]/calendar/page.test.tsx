@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionMock = vi.fn();
+const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
@@ -54,6 +55,11 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
 }));
 
+vi.mock("@/lib/calendar-beta-access.server", () => ({
+  hasCurrentUserCalendarBetaAccess: () =>
+    hasCurrentUserCalendarBetaAccessMock(),
+}));
+
 vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
     listCoworkers: () => listCoworkersMock(),
@@ -90,7 +96,8 @@ const PROJECT = {
 describe("ProjectCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
+    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
+    getSessionMock.mockResolvedValue({ user: { email: "ada@example.com" } });
     getProjectByIdMock.mockResolvedValue(PROJECT);
     getProjectCalendarMock.mockResolvedValue({
       items: [],
@@ -109,8 +116,8 @@ describe("ProjectCalendarPage", () => {
     listCoworkersMock.mockResolvedValue([]);
   });
 
-  it("does not load Project data for non-NMKR users", async () => {
-    getSessionMock.mockResolvedValue({ user: { email: "ada@example.com" } });
+  it("does not load Project data outside the Calendar beta", async () => {
+    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
 
     await expect(
       ProjectCalendarPage({

@@ -11,11 +11,10 @@ import {
 } from "@sokosumi/database";
 import {
   hasReachedTaskScheduleReleaseTarget,
-  isNmkrEmail,
   parseTaskScheduleMetadata,
   type TaskScheduleMetadata,
 } from "@sokosumi/utils";
-
+import { hasCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import {
   computeScheduleNextRun,
@@ -384,7 +383,6 @@ async function processDueTask(
           description: true,
           metadata: true,
           nextRunAt: true,
-          owner: { select: { email: true } },
         },
       });
 
@@ -393,7 +391,10 @@ async function processDueTask(
       }
 
       const claimedNextRunAt = candidate.nextRunAt;
-      const calendarBetaEnabled = isNmkrEmail(candidate.owner?.email);
+      const calendarBetaEnabled = await hasCalendarBetaAccess(
+        candidate.ownerId,
+        tx,
+      );
       const candidateMetadata = parseTaskScheduleMetadata(candidate.metadata);
       let template = candidate;
       let scheduleMetadata: TaskScheduleMetadata;
@@ -424,7 +425,6 @@ async function processDueTask(
             description: true,
             metadata: true,
             nextRunAt: true,
-            owner: { select: { email: true } },
           },
         });
         if (!currentTemplate?.nextRunAt) {

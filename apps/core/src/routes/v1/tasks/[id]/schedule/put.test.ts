@@ -17,6 +17,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   prismaTransactionMock,
+  memberFindFirstMock,
   taskUpdateMock,
   requireTaskCollaborationMock,
   hasAssignedOrganizationSeatMock,
@@ -26,6 +27,7 @@ const {
   replaceTaskSchedulePlannedOccurrencesMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   taskUpdateMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
   hasAssignedOrganizationSeatMock: vi.fn(),
@@ -63,6 +65,7 @@ vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    member: { findFirst: memberFindFirstMock },
     task: {
       update: taskUpdateMock,
     },
@@ -151,6 +154,7 @@ function createApp(
 describe("PUT /tasks/{id}/schedule", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    memberFindFirstMock.mockResolvedValue({ id: "member_123" });
     hasAssignedOrganizationSeatMock.mockResolvedValue(true);
     requireTaskCollaborationMock.mockResolvedValue({
       id: TASK_ID,
@@ -174,6 +178,25 @@ describe("PUT /tasks/{id}/schedule", () => {
     taskUpdateMock.mockImplementation(async ({ data }) =>
       createTaskResult(data.metadata, data.nextRunAt),
     );
+  });
+
+  it("returns 403 outside the Calendar beta", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
+
+    const response = await createApp().request(
+      `http://localhost/${TASK_ID}/schedule`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "once",
+          runAt: "2099-01-01T09:00:00.000Z",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the member has no assigned organization seat", async () => {

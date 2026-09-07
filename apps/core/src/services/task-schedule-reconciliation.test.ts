@@ -239,8 +239,34 @@ describe("taskScheduleReconciliationService", () => {
     );
     expect(taskLinkFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ type: "SCHEDULE" }),
+        where: expect.objectContaining({
+          type: "SCHEDULE",
+          fromTask: {
+            owner: {
+              members: {
+                some: { organization: { slug: "utxo-ag" } },
+              },
+            },
+          },
+        }),
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      }),
+    );
+    expect(taskLinkFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            {
+              fromTask: {
+                owner: {
+                  members: {
+                    some: { organization: { slug: "utxo-ag" } },
+                  },
+                },
+              },
+            },
+          ]),
+        }),
       }),
     );
     expect(occurrenceUpsertMock).toHaveBeenCalledWith({

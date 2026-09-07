@@ -1,3 +1,4 @@
+import { CALENDAR_BETA_USER_WHERE } from "@/helpers/calendar-beta-access";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import {
   removeTaskSchedulePlannedOccurrences,
@@ -115,9 +116,7 @@ export const taskScheduleValidationService = {
       where: {
         archivedAt: null,
         scheduleQuarantine: null,
-        owner: {
-          email: { endsWith: "@nmkr.io", mode: "insensitive" },
-        },
+        owner: CALENDAR_BETA_USER_WHERE,
         OR: [{ metadata: { not: null } }, { nextRunAt: { not: null } }],
         ...(cursor?.cursorId ? { id: { gt: cursor.cursorId } } : {}),
       },

@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { isBetaAccessEmail } from "@/lib/beta-access";
+import {
+  hasCalendarBetaAccess,
+  isSokoBotBetaAccessEmail,
+} from "@/lib/beta-access";
 
-describe("isBetaAccessEmail", () => {
+describe("isSokoBotBetaAccessEmail", () => {
   it.each(["a@nmkr.io", "A@NMKR.IO", "patrick@nmkr.io"])(
     "allows nmkr.io email %s",
     (email) => {
-      expect(isBetaAccessEmail(email)).toBe(true);
+      expect(isSokoBotBetaAccessEmail(email)).toBe(true);
     },
   );
 
@@ -18,11 +21,29 @@ describe("isBetaAccessEmail", () => {
     ["not an email", "not-an-email"],
     ["empty string", ""],
   ])("denies %s", (_label, email) => {
-    expect(isBetaAccessEmail(email)).toBe(false);
+    expect(isSokoBotBetaAccessEmail(email)).toBe(false);
   });
 
   it("denies null and undefined", () => {
-    expect(isBetaAccessEmail(null)).toBe(false);
-    expect(isBetaAccessEmail(undefined)).toBe(false);
+    expect(isSokoBotBetaAccessEmail(null)).toBe(false);
+    expect(isSokoBotBetaAccessEmail(undefined)).toBe(false);
+  });
+});
+
+describe("hasCalendarBetaAccess", () => {
+  it("allows membership in the utxo AG workspace", () => {
+    expect(
+      hasCalendarBetaAccess([
+        { organization: { slug: "other" } },
+        { organization: { slug: "utxo-ag" } },
+      ]),
+    ).toBe(true);
+  });
+
+  it("denies users without an utxo AG workspace membership", () => {
+    expect(hasCalendarBetaAccess([{ organization: { slug: "other" } }])).toBe(
+      false,
+    );
+    expect(hasCalendarBetaAccess([])).toBe(false);
   });
 });

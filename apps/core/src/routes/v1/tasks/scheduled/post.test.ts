@@ -21,6 +21,7 @@ const {
   createScheduledTaskInTransactionMock,
   findScheduledTaskCreateOperationMock,
   mapTaskMock,
+  memberFindFirstMock,
   prismaTransactionMock,
   findTaskProjectInWorkspaceMock,
   healProjectBriefingUrlMock,
@@ -29,11 +30,11 @@ const {
   requireAssignedOrganizationSeatMock,
   requireScheduledTaskCreatorMock,
   taskFindUniqueOrThrowMock,
-  userFindUniqueMock,
 } = vi.hoisted(() => ({
   createScheduledTaskInTransactionMock: vi.fn(),
   findScheduledTaskCreateOperationMock: vi.fn(),
   mapTaskMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   findTaskProjectInWorkspaceMock: vi.fn(),
   healProjectBriefingUrlMock: vi.fn(),
@@ -42,7 +43,6 @@ const {
   requireAssignedOrganizationSeatMock: vi.fn(),
   requireScheduledTaskCreatorMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -56,8 +56,8 @@ vi.mock("@/helpers/task", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    member: { findFirst: memberFindFirstMock },
     task: { findUniqueOrThrow: taskFindUniqueOrThrowMock },
-    user: { findUnique: userFindUniqueMock },
   },
 }));
 
@@ -206,10 +206,7 @@ describe("POST /tasks/scheduled", () => {
     resolveTaskDescriptionWithContextMock.mockImplementation(
       async ({ description }) => description ?? null,
     );
-    userFindUniqueMock.mockResolvedValue({
-      email: "ada@nmkr.io",
-      emailVerified: true,
-    });
+    memberFindFirstMock.mockResolvedValue({ id: "member_123" });
   });
 
   function createApp() {
@@ -441,11 +438,8 @@ describe("POST /tasks/scheduled", () => {
     );
   });
 
-  it("rejects a non-NMKR user before creating a scheduled task", async () => {
-    userFindUniqueMock.mockResolvedValue({
-      email: "ada@example.com",
-      emailVerified: true,
-    });
+  it("rejects users outside the Calendar beta before creating a scheduled task", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
     const transaction = {};
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback(transaction),
@@ -463,31 +457,6 @@ describe("POST /tasks/scheduled", () => {
     createScheduledTaskInTransactionMock.mockResolvedValue("task_123");
     taskFindUniqueOrThrowMock.mockResolvedValue({ id: "task_123" });
     mapTaskMock.mockReturnValue(buildMappedTask());
-
-    const response = await createApp().request("http://localhost/scheduled", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        operationId: "123e4567-e89b-42d3-a456-426614174000",
-        source: { type: "workspace" },
-        name: "Prepare release notes",
-        assigneeId: "coworker_123",
-        schedule: {
-          mode: "once",
-          runAt: "2099-09-24T09:00:00.000Z",
-        },
-      }),
-    });
-
-    expect(response.status).toBe(403);
-    expect(createScheduledTaskInTransactionMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects an unverified NMKR user before creating a scheduled task", async () => {
-    userFindUniqueMock.mockResolvedValue({
-      email: "ada@nmkr.io",
-      emailVerified: false,
-    });
 
     const response = await createApp().request("http://localhost/scheduled", {
       method: "POST",

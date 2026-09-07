@@ -8,7 +8,7 @@ import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar"
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { getSession } from "@/lib/auth/auth.server";
-import { isBetaAccessEmail } from "@/lib/beta-access";
+import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import {
@@ -44,7 +44,7 @@ export default async function CalendarPage({
 }: CalendarPageProps) {
   await connection();
   const session = await getSession();
-  if (!isBetaAccessEmail(session?.user.email)) {
+  if (!(await hasCurrentUserCalendarBetaAccess())) {
     notFound();
   }
 

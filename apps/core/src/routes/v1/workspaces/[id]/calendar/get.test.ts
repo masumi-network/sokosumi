@@ -11,24 +11,24 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 const {
   coworkerFindFirstMock,
+  memberFindFirstMock,
   projectFindFirstMock,
   taskFindManyMock,
   taskFindFirstMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
-  userFindUniqueMock,
   vendorGrantFindUniqueMock,
   resolveWorkspaceForContextMock,
   workspaceFindUniqueMock,
   resolveMemberOrganizationByIdMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -60,13 +60,13 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworker: { findFirst: coworkerFindFirstMock },
+    member: { findFirst: memberFindFirstMock },
     project: { findFirst: projectFindFirstMock },
     task: { findFirst: taskFindFirstMock, findMany: taskFindManyMock },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
-    user: { findUnique: userFindUniqueMock },
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
   },
@@ -169,7 +169,7 @@ describe("GET /workspaces/{id}/calendar", () => {
     taskFindManyMock.mockReset();
     taskScheduleOccurrenceCountMock.mockReset();
     taskScheduleOccurrenceFindManyMock.mockReset();
-    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
+    memberFindFirstMock.mockResolvedValue({ id: "member_123" });
     vendorGrantFindUniqueMock.mockResolvedValue(null);
     resolveWorkspaceForContextMock.mockResolvedValue({ id: WORKSPACE_ID });
     taskFindFirstMock.mockResolvedValue(null);
@@ -278,8 +278,8 @@ describe("GET /workspaces/{id}/calendar", () => {
     ]);
   });
 
-  it("rejects non-NMKR users before reading calendar data", async () => {
-    userFindUniqueMock.mockResolvedValue({ email: "ada@example.com" });
+  it("rejects users outside the Calendar beta before reading calendar data", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
 
     const response = await requestCalendar(createApp());
 

@@ -4,12 +4,12 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { TaskScheduleOccurrenceState, TaskStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
-  isNmkrEmail,
   parseTaskScheduleMetadata,
   type TaskScheduleMetadataV2,
 } from "@sokosumi/utils";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
+import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -76,13 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const userContext = requireOwnerUserContext(authContext);
-    const user = await prisma.user.findUnique({
-      where: { id: userContext.userId },
-      select: { email: true, emailVerified: true },
-    });
-    if (!user?.emailVerified || !isNmkrEmail(user.email)) {
-      throw forbidden("Calendar is only available to NMKR users");
-    }
+    await requireCalendarBetaAccess(userContext.userId, prisma);
     const { id } = c.req.valid("param");
     const schedule = getTaskScheduleInput(c.req.valid("json"));
     validateScheduleInput(schedule);

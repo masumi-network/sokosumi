@@ -8,7 +8,7 @@ import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-ven
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getSession } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
-import { isBetaAccessEmail } from "@/lib/beta-access";
+import { hasCalendarBetaAccess } from "@/lib/beta-access";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import { YouPageClient } from "./you-page.client";
@@ -40,7 +40,7 @@ export async function YouPageContent() {
 
   const credits = mapAccountCreditsChrome(creditsResult);
   const planName = await resolvePlanName(credits.planForLabel);
-  const calendarMenuEnabled = isBetaAccessEmail(session.user.email);
+  const calendarMenuEnabled = hasCalendarBetaAccess(members);
   const adminMenuEnabled = hasAdminRole(
     (session.user as typeof session.user & { role?: string | null }).role,
   );

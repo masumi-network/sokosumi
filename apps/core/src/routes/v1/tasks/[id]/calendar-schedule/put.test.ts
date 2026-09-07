@@ -17,6 +17,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   lockCalendarScopeMock,
   lockTaskRowsMock,
+  memberFindFirstMock,
   prismaMock,
   quarantineFindUniqueMock,
   releasedOccurrenceCountMock,
@@ -25,13 +26,13 @@ const {
   requireTaskCollaborationMock,
   serializableTransactionMock,
   taskUpdateMock,
-  userFindUniqueMock,
 } = vi.hoisted(() => {
-  const userFindUniqueMock = vi.fn();
+  const memberFindFirstMock = vi.fn();
   return {
     lockCalendarScopeMock: vi.fn(),
     lockTaskRowsMock: vi.fn(),
-    prismaMock: { user: { findUnique: userFindUniqueMock } },
+    memberFindFirstMock,
+    prismaMock: { member: { findFirst: memberFindFirstMock } },
     quarantineFindUniqueMock: vi.fn(),
     releasedOccurrenceCountMock: vi.fn(),
     replaceTaskSchedulePlannedOccurrencesMock: vi.fn(),
@@ -39,7 +40,6 @@ const {
     requireTaskCollaborationMock: vi.fn(),
     serializableTransactionMock: vi.fn(),
     taskUpdateMock: vi.fn(),
-    userFindUniqueMock,
   };
 });
 
@@ -156,10 +156,7 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     taskUpdateMock.mockImplementation(async ({ data }) =>
       createTaskResult(data.metadata, data.nextRunAt ?? NEXT_RUN_AT),
     );
-    userFindUniqueMock.mockResolvedValue({
-      email: "ada@nmkr.io",
-      emailVerified: true,
-    });
+    memberFindFirstMock.mockResolvedValue({ id: "member_123" });
   });
 
   it("atomically converts a finite v1 rule before applying the Calendar edit", async () => {
@@ -292,11 +289,8 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     expect(releasedOccurrenceCountMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a non-NMKR user before updating a Calendar schedule", async () => {
-    userFindUniqueMock.mockResolvedValue({
-      email: "ada@example.com",
-      emailVerified: true,
-    });
+  it("rejects users outside the Calendar beta before updating a Calendar schedule", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
     requireTaskCollaborationMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
@@ -318,30 +312,6 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
         anchorAt: "2026-06-01T09:00:00.000Z",
       }),
       nextRunAt: NEXT_RUN_AT,
-    });
-
-    const response = await createApp().request(
-      `http://localhost/${TASK_ID}/calendar-schedule`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "recurring",
-          timezone: "UTC",
-          expr: "0 9 * * *",
-          endsMode: "never",
-        }),
-      },
-    );
-
-    expect(response.status).toBe(403);
-    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects an unverified NMKR user before updating a Calendar schedule", async () => {
-    userFindUniqueMock.mockResolvedValue({
-      email: "ada@nmkr.io",
-      emailVerified: false,
     });
 
     const response = await createApp().request(

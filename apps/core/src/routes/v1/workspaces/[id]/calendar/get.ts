@@ -5,8 +5,8 @@ import {
   TaskScheduleOccurrenceState,
   TaskStatus,
 } from "@sokosumi/database";
-import { isNmkrEmail } from "@sokosumi/utils";
 import { requireCoworkerCapability } from "@/helpers/access-control";
+import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
@@ -420,13 +420,7 @@ export async function readWorkspaceCalendar(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
-    const user = await prisma.user.findUnique({
-      where: { id: userContext.userId },
-      select: { email: true },
-    });
-    if (!isNmkrEmail(user?.email)) {
-      throw forbidden("Calendar is only available to NMKR users");
-    }
+    await requireCalendarBetaAccess(userContext.userId, prisma);
     const { id: workspaceId } = c.req.valid("param");
     if (userContext.source === "context") {
       const activeWorkspace = requireWorkspaceContext(c.var.workspaceContext);
