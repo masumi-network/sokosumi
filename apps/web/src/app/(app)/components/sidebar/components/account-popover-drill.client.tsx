@@ -92,7 +92,12 @@ export function AccountPopoverDrill({
 
   function getAccountItemLabel(translationKey: string): string {
     return tUserAvatar(
-      translationKey as "account" | "billing" | "connections" | "organization",
+      translationKey as
+        | "account"
+        | "billing"
+        | "connections"
+        | "notifications"
+        | "organization",
     );
   }
 
