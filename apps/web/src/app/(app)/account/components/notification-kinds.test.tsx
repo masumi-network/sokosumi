@@ -39,6 +39,7 @@ let sessionPending = false;
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
     values ? `${key} ${Object.values(values).join(" ")}` : key,
+  useLocale: () => "en",
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -567,20 +568,22 @@ describe("NotificationKinds", () => {
     // Which kinds this group sends to the device, named here rather than left
     // to a sentence every group shares.
     expect(presetItem("presetMost")).toHaveTextContent(
-      "channelPush: kindJobAttention, kindJobCompleted",
+      "presetPushesLine kindJobAttention and kindJobCompleted",
     );
     // It stops none of them, so it names none.
-    expect(presetItem("presetMost")).not.toHaveTextContent("presetStopsLabel");
+    expect(presetItem("presetMost")).not.toHaveTextContent("presetStopsLine");
     expect(presetItem("presetEssential")).toHaveTextContent(
       "presetJobEssentialHint",
     );
     expect(presetItem("presetEssential")).toHaveTextContent(
-      "channelPush: kindJobAttention",
+      "presetPushesLine kindJobAttention",
     );
     // It pushes none of them, and its own word says where they land instead.
-    expect(presetItem("presetAppOnly")).not.toHaveTextContent("channelPush:");
+    expect(presetItem("presetAppOnly")).not.toHaveTextContent(
+      "presetPushesLine",
+    );
     // Off stops all three, and its own word says so.
-    expect(presetItem("presetOff")).not.toHaveTextContent("presetStopsLabel");
+    expect(presetItem("presetOff")).not.toHaveTextContent("presetStopsLine");
   });
 
   /**
@@ -1746,7 +1749,7 @@ describe("NotificationKinds", () => {
     await toggle("kindSystem", "channelPush");
 
     await waitFor(() => {
-      expect(vi.mocked(toast.error)).toHaveBeenCalledWith("pushError");
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith("pushEnableError");
     });
     expect(logged).toHaveBeenCalled();
     logged.mockRestore();

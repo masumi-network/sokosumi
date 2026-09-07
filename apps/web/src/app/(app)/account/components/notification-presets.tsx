@@ -9,7 +9,7 @@ import {
   SlidersHorizontal,
   Star,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useId } from "react";
 
 import {
@@ -83,17 +83,28 @@ function MenuLists({
   stops: readonly string[];
 }) {
   const t = useTranslations("App.Account.Notifications");
+  const locale = useLocale();
+
+  // One message each, rather than a label and a colon glued to a list in JSX.
+  // Split, a locale could move neither the colon nor the order, and `Stops`
+  // reached translators with no sentence around it and came back as a finite
+  // verb in both. `Intl.ListFormat` joins the kinds in the reader's own
+  // language, where `", "` was English punctuation everywhere.
+  const list = new Intl.ListFormat(locale, {
+    style: "long",
+    type: "conjunction",
+  });
 
   return (
     <>
       {pushes.length > 0 ? (
-        <span className="text-muted-foreground block text-xs leading-snug">
-          {t("channelPush")}: {pushes.join(", ")}
+        <span className="text-muted-foreground block text-xs leading-normal">
+          {t("presetPushesLine", { kinds: list.format(pushes) })}
         </span>
       ) : null}
       {stops.length > 0 ? (
-        <span className="text-muted-foreground block text-xs leading-snug">
-          {t("presetStopsLabel")}: {stops.join(", ")}
+        <span className="text-muted-foreground block text-xs leading-normal">
+          {t("presetStopsLine", { kinds: list.format(stops) })}
         </span>
       ) : null}
     </>
@@ -228,7 +239,7 @@ export function GroupAnswer({
                   <span className="block text-xs font-medium">
                     {t(PRESET_LABEL_KEY[one.id])}
                   </span>
-                  <span className="text-muted-foreground block text-xs leading-snug">
+                  <span className="text-muted-foreground block text-xs leading-normal">
                     {t(one.hintKey)}
                   </span>
                   <MenuLists {...named(one)} />
@@ -246,7 +257,7 @@ export function GroupAnswer({
               <span className="block text-xs font-medium">
                 {t(PRESET_LABEL_KEY.CUSTOM)}
               </span>
-              <span className="text-muted-foreground block text-xs leading-snug">
+              <span className="text-muted-foreground block text-xs leading-normal">
                 {t(CUSTOM_HINT_KEY)}
               </span>
             </span>

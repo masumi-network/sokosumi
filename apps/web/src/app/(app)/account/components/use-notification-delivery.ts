@@ -240,8 +240,12 @@ export function useNotificationDelivery(): NotificationDelivery {
       // A refused prompt lands here as well, and reads as a failure on
       // purpose: the reader asked this browser for a push and will not get
       // one. The cell itself carries the reason from the next render on.
+      //
+      // Its own message, because a refusal is the likely way in and the way
+      // back is the browser's own settings. The other push failure on this
+      // page is the opposite press, where that advice would be wrong.
       console.error("Failed to activate push from a delivery control", error);
-      toast.error(t("pushError"));
+      toast.error(t("pushEnableError"));
     }
   }
 
