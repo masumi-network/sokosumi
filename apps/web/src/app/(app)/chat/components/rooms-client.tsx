@@ -2011,10 +2011,22 @@ export function RoomsClient({
     }
     await performRoomSearchJump(hit, {
       holdOffBottom: () => {
+        // Guarded like the release below, and it has to be: the two must
+        // agree. A hold taken for a room the reader has left is never
+        // released, and the room they moved to stops following new messages.
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
         suppressStickToBottom();
         setSearchHoldOffBottom(true);
       },
       releaseHoldOffBottom: () => {
+        // Reached from a notification for a thread reply, which arrives after
+        // a read and a thread load, so the reader can have moved on. Releasing
+        // then would drop the hold the room they moved to is relying on.
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
         releaseStickToBottomSuppress();
         setSearchHoldOffBottom(false);
       },
@@ -2166,6 +2178,13 @@ export function RoomsClient({
     await performRoomMessageJump(messageId, {
       highlight: highlightRoomMessageElement,
       holdOffBottom: () => {
+        // Guarded like the release below, and for the same reason. A
+        // notification jump reaches this after reading the message, so the
+        // reader can have moved on by now, and a hold taken on the room they
+        // moved to would never be released.
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
         suppressStickToBottom();
         setSearchHoldOffBottom(true);
       },
