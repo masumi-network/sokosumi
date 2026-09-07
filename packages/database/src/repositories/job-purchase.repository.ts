@@ -81,14 +81,7 @@ function buildUpdateData(
   return updateData;
 }
 
-/**
- * Repository for managing JobPurchase entities and related queries.
- * Provides methods for creating, retrieving, updating, and deleting JobPurchase records.
- */
 export const jobPurchaseRepository = {
-  /**
-   * Creates a new JobPurchase record
-   */
   async createJobPurchase(
     data: CreateJobPurchaseData,
     tx: Prisma.TransactionClient,
@@ -110,59 +103,6 @@ export const jobPurchaseRepository = {
     });
   },
 
-  /**
-   * Retrieves a JobPurchase by its ID
-   */
-  async getJobPurchaseById(
-    id: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobPurchase | null> {
-    return await tx.jobPurchase.findUnique({
-      where: { id },
-    });
-  },
-
-  /**
-   * Retrieves a JobPurchase by its jobId (unique)
-   */
-  async getJobPurchaseByJobId(
-    jobId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobPurchase | null> {
-    return await tx.jobPurchase.findUnique({
-      where: { jobId },
-    });
-  },
-
-  /**
-   * Retrieves a JobPurchase by its externalId (unique)
-   */
-  async getJobPurchaseByExternalId(
-    externalId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobPurchase | null> {
-    return await tx.jobPurchase.findUnique({
-      where: { externalId },
-    });
-  },
-
-  /**
-   * Updates a JobPurchase by its ID
-   */
-  async updateJobPurchaseById(
-    id: string,
-    data: UpdateJobPurchaseData,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobPurchase> {
-    return await tx.jobPurchase.update({
-      where: { id },
-      data: buildUpdateData(data),
-    });
-  },
-
-  /**
-   * Updates a JobPurchase by its jobId
-   */
   async updateJobPurchaseByJobId(
     jobId: string,
     data: UpdateJobPurchaseData,
@@ -174,9 +114,6 @@ export const jobPurchaseRepository = {
     });
   },
 
-  /**
-   * Updates a JobPurchase by its externalId
-   */
   async updateJobPurchaseByExternalId(
     externalId: string,
     data: UpdateJobPurchaseData,
@@ -185,30 +122,6 @@ export const jobPurchaseRepository = {
     return await tx.jobPurchase.update({
       where: { externalId },
       data: buildUpdateData(data),
-    });
-  },
-
-  /**
-   * Deletes a JobPurchase by its ID
-   */
-  async deleteJobPurchaseById(
-    id: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobPurchase> {
-    return await tx.jobPurchase.delete({
-      where: { id },
-    });
-  },
-
-  /**
-   * Deletes a JobPurchase by its jobId
-   */
-  async deleteJobPurchaseByJobId(
-    jobId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobPurchase> {
-    return await tx.jobPurchase.delete({
-      where: { jobId },
     });
   },
 };

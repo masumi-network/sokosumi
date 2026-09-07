@@ -7,20 +7,6 @@ import { publicShareInclude } from "../types/public-share.js";
  * Generic repository for managing token-based public shares across resources.
  */
 export const publicShareRepository = {
-  async getShareById(id: string, tx: Prisma.TransactionClient) {
-    return await tx.publicShare.findUnique({
-      where: { id },
-      include: publicShareInclude,
-    });
-  },
-
-  async getShareByToken(token: string, tx: Prisma.TransactionClient) {
-    return await tx.publicShare.findUnique({
-      where: { token },
-      include: publicShareInclude,
-    });
-  },
-
   async upsertForJob(
     jobId: string,
     allowSearchIndexing: boolean = true,
