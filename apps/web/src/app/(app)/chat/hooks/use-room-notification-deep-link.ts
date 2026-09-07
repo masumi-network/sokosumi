@@ -1,0 +1,114 @@
+"use client";
+
+import type { ReadonlyURLSearchParams } from "next/navigation";
+
+import { getRoomMessageAction } from "@/app/chat/actions";
+import { pathWithSearch } from "@/app/chat/utils/chat-route-base";
+import {
+  performRoomNotificationJump,
+  type RoomNotificationLookup,
+} from "@/app/chat/utils/room-notification-jump";
+import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
+
+import { useMessageParamJump } from "./use-message-param-jump";
+
+export interface RoomNotificationDeepLinkParams {
+  /** The room on screen, or null before one is selected. */
+  roomId: string | null;
+  /**
+   * The room's messages have loaded. Highlighting reads the DOM, so the first
+   * page has to be on screen before a jump can find anything to highlight.
+   */
+  ready: boolean;
+  pathname: string;
+  searchParams: ReadonlyURLSearchParams;
+  replace: (href: string, options: { scroll: false }) => void;
+  /** True when the message is already rendered, which saves the lookup. */
+  highlight: (messageId: string) => boolean;
+  /** Still the room this jump was started for. */
+  isStillSelectedRoom: (roomId: string) => boolean;
+  jumpInRoom: (messageId: string) => Promise<void>;
+  jumpInThread: (message: ChatRoomMessage) => Promise<void>;
+}
+
+/**
+ * Open the message a chat notification named, from the room's own URL.
+ *
+ * A notification arrives with a message id and nothing else. It may name a
+ * message in the room timeline or a reply that only exists inside a thread,
+ * so the message is read before the jump is chosen.
+ *
+ * Extracted from the room client rather than written inside it: the wiring
+ * between the URL, the read and the two jumps is where this feature can go
+ * wrong, and it is worth being able to see and test on its own.
+ */
+export function useRoomNotificationDeepLink({
+  roomId,
+  ready,
+  pathname,
+  searchParams,
+  replace,
+  highlight,
+  isStillSelectedRoom,
+  jumpInRoom,
+  jumpInThread,
+}: RoomNotificationDeepLinkParams): void {
+  async function jumpToNotificationMessage(messageId: string): Promise<void> {
+    if (!roomId) {
+      return;
+    }
+
+    await performRoomNotificationJump(messageId, {
+      highlight,
+      loadMessage: async (id): Promise<RoomNotificationLookup> => {
+        const result = await getRoomMessageAction(roomId, id);
+        // The reader can click a second notification while this one is still
+        // loading. Answering for a room they have left would open a thread
+        // from the old room over the new one.
+        if (!isStillSelectedRoom(roomId)) {
+          return { status: "gone" };
+        }
+        if (!result.ok) {
+          return { status: "unavailable" };
+        }
+        // Core answers a message it cannot find with a 404, which the service
+        // reads as no message rather than as a failure.
+        return result.value
+          ? { status: "found", message: result.value }
+          : { status: "gone" };
+      },
+      jumpInRoom,
+      jumpInThread: async (message) => {
+        // Opening a thread writes the panel's state before it awaits
+        // anything, so the room has to be checked again here rather than only
+        // before the lookup that led to it.
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
+        await jumpInThread(message);
+      },
+    });
+  }
+
+  useMessageParamJump({
+    roomId,
+    // Trimmed like the href builder trims it, so a hand-typed blank names
+    // nothing here either.
+    messageId: searchParams.get(CHAT_MESSAGE_PARAM)?.trim() || null,
+    ready,
+    jump: (messageId) => {
+      // Spend the message from the URL as soon as it is acted on. Left there,
+      // every Back into this history entry would jump again and drag a reader
+      // who had scrolled away back to a message they have already read.
+      const remaining = new URLSearchParams(searchParams);
+      remaining.delete(CHAT_MESSAGE_PARAM);
+      replace(pathWithSearch(pathname, remaining), { scroll: false });
+      // Nothing awaits this, so a transport failure would otherwise surface as
+      // an unhandled rejection on room open rather than on a click.
+      jumpToNotificationMessage(messageId).catch((error) => {
+        console.error("Failed to open the message a notification named", error);
+      });
+    },
+  });
+}

@@ -22,7 +22,6 @@ import {
   type ChatComposeSokoBot,
   deleteRoomMessageAction,
   editRoomMessageAction,
-  getRoomMessageAction,
   getRoomThreadAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
@@ -48,7 +47,7 @@ import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
-import { useMessageParamJump } from "@/app/chat/hooks/use-message-param-jump";
+import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import {
@@ -96,7 +95,6 @@ import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { performRoomMessageJump } from "@/app/chat/utils/room-message-jump";
-import { performRoomNotificationJump } from "@/app/chat/utils/room-notification-jump";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
 import {
   performRoomSearchJump,
@@ -146,7 +144,6 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
-import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
 import { EditChannelDialog } from "./edit-channel-dialog";
 import { MembershipStatusRow } from "./membership-status-row";
@@ -2193,6 +2190,11 @@ export function RoomsClient({
         if (!isStillSelectedRoom(roomId)) {
           return false;
         }
+        // The timeline is now showing a window from the past, not the head.
+        // Every head refetch is guarded on this flag, and without it the next
+        // one overwrites the window's cursor with the newest page's, which
+        // leaves the gap under the jumped message unreachable by Load older.
+        historicalTimelineRef.current = true;
         setMessagesState((current) =>
           mergeRoomMessages(current, result.value.messages),
         );
@@ -2208,72 +2210,16 @@ export function RoomsClient({
     });
   }
 
-  /**
-   * Open the message a notification named. Unlike the pinned list, this
-   * arrives with an id alone and no idea whether it names a room message or a
-   * reply, so the message is read before the jump is chosen.
-   */
-  async function handleJumpToNotificationMessage(messageId: string) {
-    const roomId = selectedRoom?.id;
-    if (!roomId) {
-      return;
-    }
-    await performRoomNotificationJump(messageId, {
-      highlight: highlightRoomMessageElement,
-      loadMessage: async (id) => {
-        const result = await getRoomMessageAction(roomId, id);
-        // The reader can click a second notification while this one is still
-        // loading. Answering for a room they have left would open a thread
-        // from the old room over the new one.
-        if (!isStillSelectedRoom(roomId)) {
-          return { status: "gone" };
-        }
-        if (!result.ok) {
-          return { status: "unavailable" };
-        }
-        // Core answers a message it cannot find with a 404, which the service
-        // reads as no message rather than as a failure.
-        return result.value
-          ? { status: "found", message: result.value }
-          : { status: "gone" };
-      },
-      jumpInRoom: handleJumpToMessage,
-      jumpInThread: async (message) => {
-        // Opening a thread writes the panel's state before it awaits
-        // anything, so the room has to be checked again here rather than only
-        // before the lookup that led to it.
-        if (!isStillSelectedRoom(roomId)) {
-          return;
-        }
-        await handleSearchJump(message);
-      },
-    });
-  }
-
-  useMessageParamJump({
+  useRoomNotificationDeepLink({
     roomId: selectedRoom?.id ?? null,
-    // Trimmed like the href builder trims it, so a hand-typed blank names
-    // nothing here either.
-    messageId: searchParams.get(CHAT_MESSAGE_PARAM)?.trim() || null,
-    // Highlighting reads the DOM, so the first page of messages has to be on
-    // screen before a jump can find anything to highlight.
     ready: !messagesPending,
-    jump: (messageId) => {
-      // Spend the message from the URL as soon as it is acted on. Left there,
-      // every Back into this history entry would jump again and drag a reader
-      // who had scrolled away back to a message they have already read.
-      const remaining = new URLSearchParams(searchParams);
-      remaining.delete(CHAT_MESSAGE_PARAM);
-      const query = remaining.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, {
-        scroll: false,
-      });
-      // Nothing awaits this, so a transport failure would otherwise surface as
-      // an unhandled rejection on room open rather than on a click.
-      handleJumpToNotificationMessage(messageId).catch((error) => {
-        console.error("Failed to open the message a notification named", error);
-      });
-    },
+    pathname,
+    searchParams,
+    replace: router.replace,
+    highlight: highlightRoomMessageElement,
+    isStillSelectedRoom,
+    jumpInRoom: handleJumpToMessage,
+    jumpInThread: handleSearchJump,
   });
 
   async function loadThreadMessages(
