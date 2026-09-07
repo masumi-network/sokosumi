@@ -8,31 +8,10 @@ import {
 
 /**
  * Repository for managing Organization entities and related queries.
- * Provides methods for creating organizations, fetching organizations with relations
+ * Provides methods for fetching organizations with relations
  * and updating organization data.
  */
 export const organizationRepository = {
-  /**
-   * Creates a new organization with the specified slug, name, and metadata.
-   *
-   * @param slug - The unique slug for the organization.
-   * @param name - The name of the organization.
-   * @param metadata - The metadata of the organization.
-   * @param tx - Optional Prisma transaction client for transactional operations.
-   * @returns The created Organization object.
-   */
-  async createOrganization(
-    slug: string,
-    name: string,
-    metadata: string | null,
-    tx: Prisma.TransactionClient,
-  ): Promise<Organization> {
-    return await tx.organization.create({
-      data: { slug, name, metadata },
-      include: organizationInclude,
-    });
-  },
-
   /**
    * Retrieves a unique organization with its relations based on a unique identifier.
    *
