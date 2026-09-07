@@ -83,6 +83,7 @@ function message(overrides: Record<string, unknown> = {}) {
     content: "Hello room",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     editedAt: null,
+    deletedAt: null,
     metadata: null,
     senderUser: {
       id: USER_ID,
@@ -92,6 +93,7 @@ function message(overrides: Record<string, unknown> = {}) {
       sessions: [],
     },
     senderCoworker: null,
+    senderSokoBot: null,
     mentionsAsSource: [],
     reactions: [],
     replies: [],
@@ -194,6 +196,9 @@ describe("GET /chats/rooms/{id}/messages/{messageId}", () => {
     // else's, and the reader's own reaction loses its highlight.
     expect(mine.reactedByCurrentUser).toBe(true);
     expect(theirs.reactedByCurrentUser).toBe(false);
+    // The other field the caller's id decides: the reader is never told they
+    // are offline on a message they wrote.
+    expect(body.data.sender.user.presence).toBe("online");
   });
 
   it("returns a deleted message as a tombstone", async () => {
@@ -222,6 +227,12 @@ describe("GET /chats/rooms/{id}/messages/{messageId}", () => {
     expect(body.data.content).toBe("");
     expect(body.data.deletedAt).toBe("2026-01-02T00:00:00.000Z");
     expect(body.data.reactions).toEqual([]);
+    // The author is not redacted, here or in the message list this mirrors.
+    // Pinned because a deep link makes a single message reachable by id, so a
+    // later decision to redact the sender has to be a decision, not a drift.
+    expect(body.data.sender.user).toEqual(
+      expect.objectContaining({ id: USER_ID, email: "ada@example.com" }),
+    );
   });
 
   it("returns 404 when the message is not in the room", async () => {

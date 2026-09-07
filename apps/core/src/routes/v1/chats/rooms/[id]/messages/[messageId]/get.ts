@@ -46,6 +46,7 @@ const route = withGlobalHeaderParameters(
     },
     responses: {
       200: jsonSuccessResponse(chatRoomMessageSchema, "Room message"),
+      400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room or message not found"),
