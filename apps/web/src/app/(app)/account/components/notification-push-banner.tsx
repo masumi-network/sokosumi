@@ -2,6 +2,7 @@
 
 import { AlertTriangle, type LucideIcon, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useId } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ function BrowserNotice({
   action: NoticeAction | null;
 }) {
   const t = useTranslations("App.Account.Notifications");
+  const titleId = useId();
 
   return (
     // It usually arrives in the middle of a press: a cell asks for a push,
@@ -94,7 +96,9 @@ function BrowserNotice({
             aria-hidden="true"
           />
           <div className="min-w-0 space-y-1">
-            <p className="text-sm leading-5 font-medium">{t(titleKey)}</p>
+            <p id={titleId} className="text-sm leading-5 font-medium">
+              {t(titleKey)}
+            </p>
             <p className="text-muted-foreground text-sm leading-5">
               {t(bodyKey)}
             </p>
@@ -104,6 +108,10 @@ function BrowserNotice({
           <Button
             variant="outline"
             size="sm"
+            // The line above says which push and which browser, so the button
+            // does not have to. Read on its own, "Turn off" answers nothing;
+            // read with the sentence it sits under, it is the whole of it.
+            aria-describedby={titleId}
             // Reachable while the write is in flight, and doing nothing. The
             // browser drops a `disabled` control out of the tab order under
             // the reader's finger, and this write waits on the browser's own
