@@ -5,7 +5,7 @@
       "source": "better-auth/skills",
       "sourceType": "github",
       "skillPath": "better-auth/best-practices/SKILL.md",
-      "computedHash": "61ba0ef64ed2e7c424401cc848ca33dd6d790a720c44727717dc0c5cba5fc122"
+      "computedHash": "0c30be0e118c2b7a0c4c57bd9e63bf110c7e420a79ec6ce7997153f3b1e066ee"
     },
     "next-best-practices": {
       "source": "vercel-labs/openreview",
@@ -23,7 +23,7 @@
       "source": "vercel/next.js",
       "sourceType": "github",
       "skillPath": "skills/next-cache-components-adoption/SKILL.md",
-      "computedHash": "b6eddcf230b2a4d12929a234b53a3d91aceebeb3b5ad3588e42eae4f10abe6c5"
+      "computedHash": "ea3275e24fc88ab7464563bbe6be87b8b5c0a2e44f753572fb94193bea91e863"
     },
     "next-cache-components-optimizer": {
       "source": "vercel/next.js",
