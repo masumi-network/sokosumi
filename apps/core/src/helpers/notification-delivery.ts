@@ -1,19 +1,14 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
+  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
   type NotificationCategory,
   type NotificationChannel,
   notificationDefault,
 } from "@sokosumi/utils";
-
-/** The message key an @mention carries. Read by the category mapping below. */
-export const CHAT_MENTION_MESSAGE_KEY = "Notifications.Chat.mentioned";
-
-/** The message key a direct message carries. */
-export const CHAT_DIRECT_MESSAGE_MESSAGE_KEY =
-  "Notifications.Chat.directMessage";
-export const CHAT_ROOM_MESSAGE_MESSAGE_KEY = "Notifications.Chat.roomMessage";
 
 /**
  * The chat notifications a room's badge counts.

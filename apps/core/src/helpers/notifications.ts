@@ -36,6 +36,10 @@ export interface CreateNotificationResult {
 /**
  * Where this notification goes: the app, the OS banner, both, or neither.
  *
+ * Exported for the chat fan-out, which writes a room's row itself once the
+ * reader already has an unread one, and has to ask the same question before it
+ * publishes.
+ *
  * Read once, before the row is written, because the in-app answer is stored on
  * the row itself. That costs one read per notification on the bulk job and task
  * paths too, and one read per recipient of a room mention.
@@ -46,7 +50,7 @@ export interface CreateNotificationResult {
  * back to the in-app notification without the banner, which is the quieter of
  * the two and the one that leaves a record the reader can still find.
  */
-async function resolveDelivery(
+export async function resolveDelivery(
   input: CreateNotificationInput,
 ): Promise<NotificationDelivery> {
   try {
@@ -87,9 +91,23 @@ async function resolveDelivery(
   }
 }
 
-async function publishNotificationCreated(
+/**
+ * Tell the reader's open tabs about a row, and raise the OS banner.
+ *
+ * Named for the row rather than for the insert: the chat fan-out publishes a
+ * row it has just counted a message onto, and an open tab replaces the one it
+ * is holding by id.
+ */
+export async function publishNotificationRow(
   notification: Notification,
   delivery: NotificationDelivery,
+  /**
+   * False when the row was already there and this publish only changes it.
+   * A reader's open tab counts an unread row it has never seen towards the
+   * badge, which is right for a row that has just been written and one too
+   * many for a row the badge already counted.
+   */
+  created = true,
 ): Promise<void> {
   try {
     await publishNotificationEvent({
@@ -111,6 +129,7 @@ async function publishNotificationCreated(
         createdAt: notification.createdAt.toISOString(),
         inApp: notification.inApp,
         osBanner: delivery.osBanner,
+        created,
       },
     });
   } catch (error) {
@@ -170,7 +189,7 @@ export async function createNotification(
     // Nothing to render and nothing to interrupt with: the publish would be an
     // Ably message no client acts on.
     if (delivery.inApp || delivery.osBanner) {
-      await publishNotificationCreated(notification, delivery);
+      await publishNotificationRow(notification, delivery);
     }
 
     return { notification, created: true };

@@ -33,7 +33,7 @@ describe("notificationReducer", () => {
 
     const afterRealtime = notificationReducer(
       { notifications: [], unreadCount: 0 },
-      { type: "realtime", notification: chatNotification },
+      { type: "realtime", notification: chatNotification, created: true },
     );
 
     expect(afterRealtime.notifications).toEqual([]);
@@ -129,7 +129,7 @@ describe("notificationReducer", () => {
 
     const afterRealtime = notificationReducer(
       { notifications: [], unreadCount: 0 },
-      { type: "realtime", notification: realtimeNotification },
+      { type: "realtime", notification: realtimeNotification, created: true },
     );
 
     const afterFetch = notificationReducer(afterRealtime, {
@@ -144,6 +144,111 @@ describe("notificationReducer", () => {
     expect(afterFetch.unreadCount).toBe(1);
   });
 
+  /**
+   * A room's later messages arrive as changes to the row the first one wrote.
+   * The reader can hold more unread rows than this list keeps, so a change can
+   * land for a row the list has never seen, and counting it would put the
+   * badge one ahead of the server for the rest of the session.
+   */
+  it("does not count a changed row the list never loaded", () => {
+    const counted = createNotification({ id: "notification-counted" });
+
+    const after = notificationReducer(
+      { notifications: [], unreadCount: 12 },
+      { type: "realtime", notification: counted, created: false },
+    );
+
+    expect(after.unreadCount).toBe(12);
+    expect(after.notifications.map((one) => one.id)).toEqual([
+      "notification-counted",
+    ]);
+  });
+
+  it("counts a row the list never loaded when the event wrote it", () => {
+    const written = createNotification({ id: "notification-written" });
+
+    const after = notificationReducer(
+      { notifications: [], unreadCount: 12 },
+      { type: "realtime", notification: written, created: true },
+    );
+
+    expect(after.unreadCount).toBe(13);
+  });
+
+  /**
+   * A room's row moves to the top of the feed when a message counts onto it.
+   * Left where it was, the list would disagree with the order the next read
+   * returns: the same rows, in a different order, for no reason the reader
+   * can see.
+   */
+  it("moves a row that came back newer to the front", () => {
+    const older = createNotification({
+      id: "notification-room",
+      createdAt: new Date("2026-01-01T09:00:00.000Z"),
+    });
+    const newer = createNotification({
+      id: "notification-job",
+      createdAt: new Date("2026-01-01T10:00:00.000Z"),
+    });
+
+    const loaded = notificationReducer(
+      { notifications: [newer, older], unreadCount: 2 },
+      {
+        type: "realtime",
+        notification: {
+          ...older,
+          createdAt: new Date("2026-01-01T11:00:00.000Z"),
+        },
+        created: false,
+      },
+    );
+
+    expect(loaded.notifications.map((one) => one.id)).toEqual([
+      "notification-room",
+      "notification-job",
+    ]);
+    expect(loaded.unreadCount).toBe(2);
+  });
+
+  /**
+   * A room read clears its rows on the server and says so over the same
+   * channel. The badge has to come down with them.
+   */
+  it("takes a loaded row off the badge when it comes back read", () => {
+    const unread = createNotification({ id: "notification-read-later" });
+
+    const loaded = notificationReducer(
+      { notifications: [], unreadCount: 0 },
+      { type: "realtime", notification: unread, created: true },
+    );
+
+    const after = notificationReducer(loaded, {
+      type: "realtime",
+      notification: { ...unread, isRead: true },
+      created: false,
+    });
+
+    expect(after.unreadCount).toBe(0);
+  });
+
+  it("ignores a read update for a row outside the local window", () => {
+    const visible = createNotification({ id: "notification-visible" });
+    const cleared = createNotification({
+      id: "notification-cleared",
+      isRead: true,
+      readAt: new Date("2026-01-01T11:00:00.000Z"),
+    });
+    const state = { notifications: [visible], unreadCount: 2 };
+
+    const after = notificationReducer(state, {
+      type: "realtime",
+      notification: cleared,
+      created: false,
+    });
+
+    expect(after).toBe(state);
+  });
+
   it("does not double-count unread realtime items already included in server count", () => {
     const realtimeNotification = createNotification({
       id: "notification-realtime",
@@ -151,7 +256,7 @@ describe("notificationReducer", () => {
 
     const afterRealtime = notificationReducer(
       { notifications: [], unreadCount: 0 },
-      { type: "realtime", notification: realtimeNotification },
+      { type: "realtime", notification: realtimeNotification, created: true },
     );
 
     const afterFetch = notificationReducer(afterRealtime, {

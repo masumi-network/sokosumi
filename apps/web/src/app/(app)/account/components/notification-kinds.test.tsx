@@ -381,6 +381,11 @@ async function openGroup(group: string) {
 describe("NotificationKinds", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // `clearAllMocks` takes the calls and leaves the implementations behind.
+    // The pending and the failed render each hand this one an answer of their
+    // own, a promise that never settles and a rejection, and either of them
+    // stood for every test that ran after it.
+    getMyPreferences.mockReset();
     isAccountEnabled = true;
     isDeviceEnabled = true;
     isDeviceKnown = true;
@@ -861,14 +866,16 @@ describe("NotificationKinds", () => {
    * words sat wherever they ended and named no column at all.
    *
    * The width itself is not the invariant. That the head and its column agree
-   * on one is.
+   * on one is, and the column has two: a phone's and the one it takes once
+   * there is room. A prefix match on `w-` reads the first and never sees
+   * `@xl:w-18`, so the wide layout could drift with nothing watching.
    */
   it("gives a column name the width of the cells it names", async () => {
     renderKinds();
     await openGroup("groupJob");
 
-    const width = (element: Element | null | undefined) =>
-      [...(element?.classList ?? [])].find((name) => name.startsWith("w-"));
+    const widths = (element: Element | null | undefined) =>
+      [...(element?.classList ?? [])].filter((name) => /(^|:)w-/.test(name));
 
     for (const [channel, kind] of [
       ["channelInApp", "kindJobAttention"],
@@ -879,8 +886,8 @@ describe("NotificationKinds", () => {
       });
       const track = cellFor(kind, channel).parentElement;
 
-      expect(width(head)).toBeDefined();
-      expect(width(track)).toBe(width(head));
+      expect(widths(head)).not.toHaveLength(0);
+      expect(widths(track)).toEqual(widths(head));
     }
   });
 
@@ -945,6 +952,207 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(screen.queryByText("channelPushHint")).toBeNull();
     });
+  });
+
+  /**
+   * A press that arrives with the pointer is refused, so the pointer does not
+   * shut what it has just opened. That refusal is the pointer's alone: once
+   * the panel the pointer opened has gone, the name has to answer a press
+   * again, and Enter and Space are the only way in that a keyboard has.
+   */
+  it("opens a column's explanation from the keyboard after a hover", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const name = screen.getByRole("button", { name: "channelPush" });
+
+    await user.hover(name);
+    await screen.findByText("channelPushHint");
+    await user.unhover(name);
+
+    await waitFor(() => {
+      expect(screen.queryByText("channelPushHint")).toBeNull();
+    });
+
+    name.focus();
+    await user.keyboard("{Enter}");
+
+    expect(await screen.findByText("channelPushHint")).toBeInTheDocument();
+  });
+
+  /**
+   * The names sit next to each other, and a panel is 288px wide over a column
+   * 72px wide. Each name closing on its own wait, a pointer crossing the row
+   * left one panel counting down under the next one, and for that moment the
+   * rows were behind two boxes saying different things.
+   *
+   * Read on the row's state rather than on the frame: a browser still plays
+   * the outgoing panel's exit, and this asks that it has been told to go.
+   */
+  it("shows one column's explanation at a time", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    await user.hover(screen.getByRole("button", { name: "channelInApp" }));
+    await screen.findByText("channelInAppHint");
+
+    await user.hover(screen.getByRole("button", { name: "channelPush" }));
+
+    // Read at once, and not after the wait: the point is that the panel moves
+    // with the pointer rather than that the old one goes away eventually.
+    expect(screen.queryByText("channelInAppHint")).toBeNull();
+    expect(await screen.findByText("channelPushHint")).toBeInTheDocument();
+  });
+
+  it("clears pointer ownership when another explanation takes the panel", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const inApp = screen.getByRole("button", { name: "channelInApp" });
+    const push = screen.getByRole("button", { name: "channelPush" });
+
+    await user.hover(inApp);
+    await screen.findByText("channelInAppHint");
+    await user.hover(push);
+    await screen.findByText("channelPushHint");
+
+    inApp.focus();
+    await user.keyboard("{Enter}");
+
+    expect(await screen.findByText("channelInAppHint")).toBeInTheDocument();
+  });
+
+  /**
+   * A panel opened with Enter holds the caret, and Radix hands it back to the
+   * name as the panel goes. That name is outside the panel the pointer has
+   * just arrived at, and a panel that dismissed on focus leaving closed itself
+   * in the same breath it opened.
+   */
+  it("keeps the hovered explanation open over a keyboard-opened one", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    screen.getByRole("button", { name: "channelInApp" }).focus();
+    await user.keyboard("{Enter}");
+    await screen.findByText("channelInAppHint");
+
+    await user.hover(screen.getByRole("button", { name: "channelPush" }));
+
+    await act(async () => {
+      await new Promise((settle) => setTimeout(settle, 300));
+    });
+
+    expect(screen.getByText("channelPushHint")).toBeInTheDocument();
+  });
+
+  /**
+   * Hovering a word must not take the caret. Radix gives focus back to the
+   * trigger on every close, and after a hover there is nothing to give back:
+   * the ring would land on a word the reader only passed over, and a scrolled
+   * page would jump back to the legend to show it.
+   */
+  it("leaves the caret where it was after a hovered explanation closes", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const name = screen.getByRole("button", { name: "channelPush" });
+
+    await user.hover(name);
+    await screen.findByText("channelPushHint");
+    await user.unhover(name);
+
+    await waitFor(() => {
+      expect(screen.queryByText("channelPushHint")).toBeNull();
+    });
+
+    expect(document.activeElement).not.toBe(name);
+  });
+
+  /**
+   * And it does go back when it was taken. A reader who opened the panel with
+   * Enter is in it; closing it without handing the caret back would drop them
+   * at the top of the page.
+   */
+  it("gives the caret back to the name when Escape closes the explanation", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const name = screen.getByRole("button", { name: "channelPush" });
+
+    name.focus();
+    await user.keyboard("{Enter}");
+    await screen.findByText("channelPushHint");
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByText("channelPushHint")).toBeNull();
+    });
+
+    expect(document.activeElement).toBe(name);
+  });
+
+  /**
+   * The panel sits below the name rather than over it, so a mouse on its way
+   * anywhere crosses a word the reader is already reading from. Reading that
+   * as a hover would hand the caret to the body on the way out.
+   */
+  it("gives the caret back after the pointer crosses a keyboard-opened name", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const name = screen.getByRole("button", { name: "channelPush" });
+
+    name.focus();
+    await user.keyboard("{Enter}");
+    await screen.findByText("channelPushHint");
+
+    await user.hover(name);
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByText("channelPushHint")).toBeNull();
+    });
+
+    expect(document.activeElement).toBe(name);
+  });
+
+  /**
+   * The page draws a legend per open group, so a pointer sweeping down a
+   * column crosses one group's names and then the next group's. Two panels
+   * 288px wide standing over the rows they explain is what the shared state
+   * exists to stop, and a group boundary is not a reason for it to stop
+   * working.
+   */
+  it("shows one explanation at a time across two open groups", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+    await openGroup("groupTask");
+
+    const names = screen.getAllByRole("button", { name: "channelPush" });
+    expect(names).toHaveLength(2);
+
+    await user.hover(names[0]!);
+    await screen.findByText("channelPushHint");
+    await user.hover(names[1]!);
+
+    expect(screen.queryAllByText("channelPushHint")).toHaveLength(1);
   });
 
   it("puts the channel legend inside each expanded section", async () => {

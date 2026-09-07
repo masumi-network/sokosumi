@@ -6453,7 +6453,10 @@
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",
         "directMessage": "{authorName} te envió un mensaje",
-        "roomMessage": "{authorName} escribió en {roomName}"
+        "roomMessage": "{authorName} escribió en {roomName}",
+        "roomMessages": "{count} mensajes en {roomName}",
+        "roomMessageGroup": "{authorName} escribió en el grupo {roomName}",
+        "roomMessagesGroup": "{count} mensajes en el grupo {roomName}"
       }
     }
   },
