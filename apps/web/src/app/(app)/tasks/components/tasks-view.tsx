@@ -387,13 +387,17 @@ export function TasksView({
   const [density, setDensity] = useState<TasksDensity>(
     defaultDensity ?? "normal",
   );
-  const [activeTab, setActiveTab] = useState<TasksTabValue>(initialTab);
   const tabFromUrl = parseTasksTab(
     searchParams.get(TASKS_TAB_PARAM) ?? undefined,
   );
-  useEffect(() => {
+  const [activeTab, setActiveTab] = useState<TasksTabValue>(
+    () => tabFromUrl || initialTab,
+  );
+  const [prevTabFromUrl, setPrevTabFromUrl] = useState(tabFromUrl);
+  if (tabFromUrl !== prevTabFromUrl) {
+    setPrevTabFromUrl(tabFromUrl);
     setActiveTab(tabFromUrl);
-  }, [tabFromUrl]);
+  }
   const [guideCompleted, setGuideCompleted] = useState<boolean | null>(null);
   const [forceShowGuide, setForceShowGuide] = useState(false);
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
@@ -1267,7 +1271,7 @@ export function TasksView({
     <Tabs
       value={activeTab}
       onValueChange={(value) => {
-        const next = value as TasksTabValue;
+        const next = parseTasksTab(value);
         setActiveTab(next);
         const params = applyTasksTabSearchParam(
           new URLSearchParams(window.location.search),

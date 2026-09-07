@@ -16,9 +16,9 @@ import {
   PROJECTS_DETAIL_TOP_CLASS,
   PROJECTS_DETAIL_WORKSPACE_CLASS,
 } from "@/app/projects/constants";
+import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { getSession } from "@/lib/auth/auth.server";
 import { isBetaAccessEmail } from "@/lib/beta-access";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { projectService } from "@/lib/services/project.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
@@ -44,30 +44,9 @@ export default async function ProjectDetailPage({
       getLocale(),
     ]);
 
-  const taskStatusLabels: Record<TaskStatus, string> = {
-    [TaskStatus.DRAFT]: tTaskFilters("statusOptions.DRAFT"),
-    [TaskStatus.QUEUED]: tTaskFilters("statusOptions.QUEUED"),
-    [TaskStatus.READY]: tTaskFilters("statusOptions.READY"),
-    [TaskStatus.GRANT_PENDING]: tTaskFilters("statusOptions.GRANT_PENDING"),
-    [TaskStatus.INPUT_REQUIRED]: tTaskFilters("statusOptions.INPUT_REQUIRED"),
-    [TaskStatus.APPROVAL_REQUIRED]: tTaskFilters(
-      "statusOptions.APPROVAL_REQUIRED",
-    ),
-    [TaskStatus.AUTHENTICATION_REQUIRED]: tTaskFilters(
-      "statusOptions.AUTHENTICATION_REQUIRED",
-    ),
-    [TaskStatus.OUT_OF_CREDITS]: tTaskFilters("statusOptions.OUT_OF_CREDITS"),
-    [TaskStatus.CREDITS_TOPPED_UP]: tTaskFilters(
-      "statusOptions.CREDITS_TOPPED_UP",
-    ),
-    [TaskStatus.RUNNING]: tTaskFilters("statusOptions.RUNNING"),
-    [TaskStatus.AWAITING_EXTERNAL]: tTaskFilters(
-      "statusOptions.AWAITING_EXTERNAL",
-    ),
-    [TaskStatus.COMPLETED]: tTaskFilters("statusOptions.COMPLETED"),
-    [TaskStatus.FAILED]: tTaskFilters("statusOptions.FAILED"),
-    [TaskStatus.CANCELED]: tTaskFilters("statusOptions.CANCELED"),
-  };
+  const taskStatusLabels = buildTaskStatusLabels((key) =>
+    tTaskFilters(`statusOptions.${key}`),
+  );
 
   return (
     <div className={PROJECTS_DETAIL_SHELL_CLASS}>

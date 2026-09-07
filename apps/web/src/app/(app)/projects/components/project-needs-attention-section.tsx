@@ -12,9 +12,10 @@ import {
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { TimeAgo } from "@/components/time-ago";
-import { TaskStatus } from "@/lib/clients/generated/core";
-import type { HistoryItem } from "@/lib/services/history.service";
-import type { SokosumiJobStatus } from "@/lib/types/core-dto";
+import {
+  type HistoryItem,
+  TaskStatus,
+} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 export interface ProjectNeedsAttentionLabels {
@@ -63,7 +64,7 @@ export function ProjectNeedsAttentionSection({
           />
           <nav className="flex items-center gap-3">
             <Link
-              href={`/tasks?projectId=${projectId}&tab=tasks`}
+              href={`/tasks?projectId=${projectId}`}
               className="text-muted-foreground hover:text-foreground text-xs transition-colors"
             >
               {labels.viewAllTasks}
@@ -125,15 +126,12 @@ function ProjectNeedsAttentionRow({
         <div className="flex shrink-0 items-center gap-3 text-xs">
           {item.kind === "task" ? (
             <TaskStatusBadge
-              status={item.status as TaskStatus}
-              label={labels.taskStatus[item.status as TaskStatus]}
+              status={item.status}
+              label={labels.taskStatus[item.status]}
               className="w-fit shrink-0 rounded-sm"
             />
           ) : (
-            <JobStatusBadge
-              status={item.status as SokosumiJobStatus}
-              className="shrink-0"
-            />
+            <JobStatusBadge status={item.status} className="shrink-0" />
           )}
           <span className="text-muted-foreground shrink-0">
             <TimeAgo date={item.updatedAt} locale={labels.locale} />

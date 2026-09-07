@@ -2,8 +2,13 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProjectNeedsAttentionSection } from "@/app/projects/components/project-needs-attention-section";
-import { TaskStatus } from "@/lib/clients/generated/core";
-import type { HistoryItem } from "@/lib/services/history.service";
+import {
+  type HistoryItem,
+  type HistoryJobItem,
+  type HistoryTaskItem,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@/lib/clients/generated/core";
 
 vi.mock("@/components/time-ago", () => ({
   TimeAgo: () => <span>2h ago</span>,
@@ -53,7 +58,9 @@ const labels = {
   locale: "en",
 };
 
-function buildTaskItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
+function buildTaskItem(
+  overrides: Partial<HistoryTaskItem> = {},
+): HistoryItem {
   return {
     kind: "task",
     id: "task-1",
@@ -61,13 +68,17 @@ function buildTaskItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
     description: null,
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
     archivedAt: null,
+    credits: null,
+    owner: null,
     status: TaskStatus.INPUT_REQUIRED,
     projectId: "project-1",
+    coworkerId: null,
+    sokoBotId: null,
     ...overrides,
-  } as HistoryItem;
+  };
 }
 
-function buildJobItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
+function buildJobItem(overrides: Partial<HistoryJobItem> = {}): HistoryItem {
   return {
     kind: "job",
     id: "job-1",
@@ -75,12 +86,15 @@ function buildJobItem(overrides: Partial<HistoryItem> = {}): HistoryItem {
     description: null,
     updatedAt: new Date("2026-05-27T11:00:00.000Z"),
     archivedAt: null,
-    status: "payment_failed",
+    credits: null,
+    owner: null,
+    status: SokosumiJobStatus.PAYMENT_FAILED,
     projectId: "project-1",
     agentId: "agent-1",
     agentName: "Designer",
+    agentIcon: null,
     ...overrides,
-  } as HistoryItem;
+  };
 }
 
 describe("ProjectNeedsAttentionSection", () => {
@@ -102,7 +116,7 @@ describe("ProjectNeedsAttentionSection", () => {
     expect(screen.getByLabelText("Jobs: 2")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "View all tasks" }),
-    ).toHaveAttribute("href", "/tasks?projectId=project-1&tab=tasks");
+    ).toHaveAttribute("href", "/tasks?projectId=project-1");
     expect(screen.getByRole("link", { name: "View all jobs" })).toHaveAttribute(
       "href",
       "/tasks?projectId=project-1&tab=jobs",
@@ -117,7 +131,7 @@ describe("ProjectNeedsAttentionSection", () => {
     const jobLink = screen.getByRole("link", { name: /Generate assets/ });
     expect(jobLink).toHaveAttribute("href", "/agents/agent-1/jobs/job-1");
     expect(screen.getByTestId("job-status")).toHaveTextContent(
-      "payment_failed",
+      SokosumiJobStatus.PAYMENT_FAILED,
     );
   });
 

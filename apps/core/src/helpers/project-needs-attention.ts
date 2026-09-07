@@ -18,7 +18,14 @@ import {
 import { createProjectListCountsInclude } from "@/types/project";
 
 /** Lower is more urgent. Exclude is not a tier — those rows never enter the list. */
-export type NeedsAttentionTier = 0 | 1 | 2;
+export const NeedsAttentionTier = {
+  mustAct: 0,
+  failed: 1,
+  inFlight: 2,
+} as const;
+
+export type NeedsAttentionTier =
+  (typeof NeedsAttentionTier)[keyof typeof NeedsAttentionTier];
 
 type AttentionClass = "must_act" | "failed" | "in_flight" | "exclude";
 
@@ -58,9 +65,9 @@ const TIER_BY_CLASS: Record<
   Exclude<AttentionClass, "exclude">,
   NeedsAttentionTier
 > = {
-  must_act: 0,
-  failed: 1,
-  in_flight: 2,
+  must_act: NeedsAttentionTier.mustAct,
+  failed: NeedsAttentionTier.failed,
+  in_flight: NeedsAttentionTier.inFlight,
 };
 
 export const TASK_ATTENTION_STATUSES = Object.entries(TASK_ATTENTION_CLASS)

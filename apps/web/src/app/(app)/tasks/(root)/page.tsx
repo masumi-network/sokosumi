@@ -28,7 +28,6 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import { getTasksListPage } from "@/app/tasks/utils/tasks-list-page";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
-import { parseTasksTab } from "@/app/tasks/utils/tasks-tab";
 import { getSession } from "@/lib/auth/auth.server";
 import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -59,7 +58,6 @@ interface TasksPageProps {
     projectId?: string | string[];
     agentId?: string | string[];
     jobStatus?: string | string[];
-    tab?: string | string[];
   }>;
 }
 
@@ -101,9 +99,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     projectId,
     agentId,
     jobStatus,
-    tab,
   } = await searchParams;
-  const initialTab = parseTasksTab(tab);
   const [
     t,
     tColumns,
@@ -320,7 +316,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       </Suspense>
       <TasksView
         tasks={tasks}
-        initialTab={initialTab}
         listNextCursor={listNextCursor}
         columnNextCursorById={columnNextCursorById}
         columns={KANBAN_COLUMNS}
