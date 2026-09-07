@@ -716,6 +716,33 @@ describe("TaskForm", () => {
     );
   });
 
+  it("keeps a prefilled human assignee absent from options on create (SOK-868)", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeId: null,
+        assigneeUserId: "user-1",
+      }),
+    );
+  });
+
   it("clears a staged schedule when switching to Unassigned (SOK-868)", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);

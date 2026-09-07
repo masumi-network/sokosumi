@@ -520,6 +520,7 @@ export function TaskForm({
               assigneeId,
               coworkerOptions,
               knownSokoBotId,
+              initialValues?.assigneeUserId,
             ),
             context: {
               brand: {

@@ -68,17 +68,15 @@ export default async function TaskEditModalPage({
     );
   }
 
-  const [taskCoworkers, agents, projectsPage, ownerBot, tTasks] =
+  const [taskCoworkers, agents, projectsPage, ownerBot, tTasks, memberOptions] =
     await Promise.all([
       coworkerService.listCoworkers("tasks").catch(() => []),
       agentService.getAvailableAgentsWithCreditsPrice(),
       projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
       sokoBotService.getMine().catch(() => null),
       getTranslations("App.Tasks"),
+      listTaskAssigneeMemberOptions(targetOrganizationId),
     ]);
-
-  const memberOptions =
-    await listTaskAssigneeMemberOptions(targetOrganizationId);
   const coworkerOptions = withOwnerSokoBotOption(
     [...memberOptions, ...getCoworkerOptions(taskCoworkers)],
     ownerBot,

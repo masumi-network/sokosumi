@@ -258,6 +258,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           scope: activeFilters.scope,
           assigneeId: activeFilters.assigneeId ?? undefined,
           assigneeSokoBotId: activeFilters.assigneeSokoBotId ?? undefined,
+          assigneeUserId: activeFilters.assigneeUserId ?? undefined,
           projectId: activeFilters.projectId ?? undefined,
           limit: 1,
         })

@@ -665,6 +665,51 @@ describe("getPublicSharedResourceByToken", () => {
     expect(() => publicSharedTaskSchema.parse(resource.task)).not.toThrow();
   });
 
+  it("validates a human-assigned shared task with a null slug", async () => {
+    publicShareFindUniqueMock.mockResolvedValue({
+      id: "share_human_task",
+      taskId: "tsk_human",
+      jobId: null,
+      token: "human-task-token",
+      allowSearchIndexing: false,
+      createdAt: new Date("2026-03-30T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T10:00:00.000Z"),
+      job: null,
+      task: {
+        id: "tsk_human",
+        archivedAt: null,
+        createdAt: new Date("2026-03-30T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-30T10:10:00.000Z"),
+        name: "Human shared task",
+        description: null,
+        status: "READY",
+        assignee: null,
+        assigneeUser: {
+          id: "user_123",
+          name: "Bob",
+          image: null,
+        },
+        jobs: [],
+        files: [],
+        events: [],
+      },
+    });
+
+    const resource = await getPublicSharedResourceByToken("human-task-token");
+
+    if (!resource || resource.kind !== "task") {
+      throw new Error("Expected a shared task response");
+    }
+
+    expect(() => publicSharedTaskSchema.parse(resource.task)).not.toThrow();
+    expect(publicSharedTaskSchema.parse(resource.task).assignee).toEqual({
+      id: "user_123",
+      name: "Bob",
+      slug: null,
+      image: null,
+    });
+  });
+
   it("returns null for archived shared tasks", async () => {
     publicShareFindUniqueMock.mockResolvedValue({
       id: "share_archived_task",
