@@ -2,7 +2,7 @@ import type { NotificationKind } from "@sokosumi/database";
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
-  CHAT_ROOM_MESSAGE_KEYS,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
   type NotificationCategory,
@@ -111,7 +111,7 @@ export function toNotificationCategory(
       if (messageKey === CHAT_DIRECT_MESSAGE_MESSAGE_KEY) {
         return "CHAT_DIRECT_MESSAGE";
       }
-      if (CHAT_ROOM_MESSAGE_KEYS.includes(messageKey)) {
+      if (messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) {
         return "CHAT_ROOM_MESSAGE";
       }
       return null;

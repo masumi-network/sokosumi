@@ -1,5 +1,7 @@
 import {
+  CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGES_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGES_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
@@ -68,6 +70,56 @@ describe("getNotificationMessageTranslationKey", () => {
       getNotificationMessageTranslationKey(
         CHAT_ROOM_MESSAGE_MESSAGE_KEY,
         { roomName: "Design", count: 23 },
+        { counted: false },
+      ),
+    ).toBe(`Library.${CHAT_ROOM_MESSAGE_MESSAGE_KEY}`);
+  });
+
+  /**
+   * A room of three or more people has no name but the list of who is in it,
+   * so "Ada, Ben, Cara" alone reads as three people rather than as somewhere
+   * a message was written.
+   */
+  it("names a room of people as a group", () => {
+    expect(
+      getNotificationMessageTranslationKey(CHAT_ROOM_MESSAGE_MESSAGE_KEY, {
+        roomName: "Ada, Ben, Cara",
+        isGroup: true,
+      }),
+    ).toBe(`Library.${CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY}`);
+  });
+
+  it("counts a group's messages as a group's", () => {
+    expect(
+      getNotificationMessageTranslationKey(CHAT_ROOM_MESSAGE_MESSAGE_KEY, {
+        roomName: "Ada, Ben, Cara",
+        isGroup: true,
+        count: 23,
+      }),
+    ).toBe(`Library.${CHAT_ROOM_MESSAGES_GROUP_MESSAGE_KEY}`);
+  });
+
+  it("leaves a named channel unnamed as a group", () => {
+    for (const isGroup of [undefined, false, "true"]) {
+      expect(
+        getNotificationMessageTranslationKey(CHAT_ROOM_MESSAGE_MESSAGE_KEY, {
+          roomName: "Design",
+          isGroup,
+          count: 23,
+        }),
+      ).toBe(`Library.${CHAT_ROOM_MESSAGES_MESSAGE_KEY}`);
+    }
+  });
+
+  /**
+   * The group wording is the feed's, like the count. The banner and the push
+   * both render the stored key, so both say the same thing.
+   */
+  it("leaves the group out when the caller asks for the arrival", () => {
+    expect(
+      getNotificationMessageTranslationKey(
+        CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        { roomName: "Ada, Ben, Cara", isGroup: true },
         { counted: false },
       ),
     ).toBe(`Library.${CHAT_ROOM_MESSAGE_MESSAGE_KEY}`);

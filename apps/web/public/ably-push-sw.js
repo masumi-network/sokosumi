@@ -83,6 +83,10 @@ const MESSAGES = {
     "Notifications.Chat.directMessage": "{authorName} sent you a message",
     "Notifications.Chat.roomMessage": "{authorName} wrote in {roomName}",
     "Notifications.Chat.roomMessages": "{count} messages in {roomName}",
+    "Notifications.Chat.roomMessageGroup":
+      "{authorName} wrote in group {roomName}",
+    "Notifications.Chat.roomMessagesGroup":
+      "{count} messages in group {roomName}",
     "notifications.vendorGrant.pending":
       "{vendorName} requested vendor access to your workspace",
     "notifications.coworkerAccess.pending":
@@ -122,6 +126,10 @@ const MESSAGES = {
     "Notifications.Chat.roomMessage":
       "{authorName} hat in {roomName} geschrieben",
     "Notifications.Chat.roomMessages": "{count} Nachrichten in {roomName}",
+    "Notifications.Chat.roomMessageGroup":
+      "{authorName} hat in der Gruppe {roomName} geschrieben",
+    "Notifications.Chat.roomMessagesGroup":
+      "{count} Nachrichten in der Gruppe {roomName}",
     "notifications.vendorGrant.pending":
       "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert",
     "notifications.coworkerAccess.pending":
@@ -155,6 +163,10 @@ const MESSAGES = {
     "Notifications.Chat.directMessage": "{authorName} te envió un mensaje",
     "Notifications.Chat.roomMessage": "{authorName} escribió en {roomName}",
     "Notifications.Chat.roomMessages": "{count} mensajes en {roomName}",
+    "Notifications.Chat.roomMessageGroup":
+      "{authorName} escribió en el grupo {roomName}",
+    "Notifications.Chat.roomMessagesGroup":
+      "{count} mensajes en el grupo {roomName}",
     "notifications.vendorGrant.pending":
       "{vendorName} solicitó acceso de proveedor al workspace de la organización",
     "notifications.coworkerAccess.pending":

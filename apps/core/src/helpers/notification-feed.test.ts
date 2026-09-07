@@ -3,10 +3,7 @@ import {
   NotificationKind,
   VendorGrantStatus,
 } from "@sokosumi/database";
-import {
-  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-  CHAT_ROOM_MESSAGES_MESSAGE_KEY,
-} from "@sokosumi/utils";
+import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -43,9 +40,7 @@ const FEED_OR = [
   { kind: { notIn: [NotificationKind.CHAT] } },
   {
     kind: { in: [NotificationKind.CHAT] },
-    messageKey: {
-      in: [CHAT_ROOM_MESSAGE_MESSAGE_KEY, CHAT_ROOM_MESSAGES_MESSAGE_KEY],
-    },
+    messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   },
 ];
 

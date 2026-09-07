@@ -4,7 +4,6 @@ import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-  CHAT_ROOM_MESSAGES_MESSAGE_KEY,
 } from "./chat-notification-message-keys";
 import {
   BROWSER_ONLY_NOTIFICATION_KINDS,
@@ -22,12 +21,13 @@ describe("isBrowserOnlyNotification", () => {
     expect(BROWSER_ONLY_NOTIFICATION_KINDS).toEqual(["CHAT"]);
   });
 
-  it("lets a room message into the feed, counted or not", () => {
+  /**
+   * The one stored key. The counted and group keys are what web renders the
+   * row under; Core never writes them, so a row never carries one.
+   */
+  it("lets a room message into the feed", () => {
     expect(
       isBrowserOnlyNotification("CHAT", CHAT_ROOM_MESSAGE_MESSAGE_KEY),
-    ).toBe(false);
-    expect(
-      isBrowserOnlyNotification("CHAT", CHAT_ROOM_MESSAGES_MESSAGE_KEY),
     ).toBe(false);
   });
 

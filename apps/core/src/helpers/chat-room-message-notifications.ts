@@ -135,5 +135,8 @@ export async function emitChatRoomMessageNotifications(
     // A mention and a direct message are each about themselves. This one is
     // about the room, so the reader gets one row for it and a count.
     countPerRoom: true,
+    // Only a direct room with three or more people reaches this line: the
+    // one-to-one rooms returned above. Its name is the list of who is in it.
+    isGroup: params.roomKind === "direct",
   });
 }

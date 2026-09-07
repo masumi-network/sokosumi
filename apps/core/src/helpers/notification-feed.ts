@@ -6,7 +6,7 @@ import {
 } from "@sokosumi/database";
 import {
   BROWSER_ONLY_NOTIFICATION_KINDS,
-  CHAT_ROOM_MESSAGE_KEYS,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
 } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
@@ -33,7 +33,7 @@ export const COWORKER_ACCESS_PENDING_MESSAGE_KEY =
  */
 const BROWSER_ONLY_KIND_FEED_EXCEPTION: Prisma.NotificationWhereInput = {
   kind: { in: BROWSER_ONLY_KIND_FILTER },
-  messageKey: { in: [...CHAT_ROOM_MESSAGE_KEYS] },
+  messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
 };
 
 /**

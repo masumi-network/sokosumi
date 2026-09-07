@@ -265,6 +265,32 @@ describe("emitChatRoomMessageNotifications", () => {
    * room like any other here. Without this it was the one place a message
    * reached nobody.
    */
+  /**
+   * A direct room that reaches this emitter has three or more people in it:
+   * the smaller ones are covered by the direct-message row and returned
+   * above. Its name is the list of who is in it, so the reader is told that
+   * rather than being shown three names where a room name goes.
+   */
+  it("says a group direct room is a group", async () => {
+    await emit({
+      roomKind: "direct",
+      memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID, QUIET_ID],
+      roomName: "Ada, Bob, Alice",
+    });
+
+    expect(createNotificationMock.mock.calls[0]?.[0]).toMatchObject({
+      messageParams: { roomName: "Ada, Bob, Alice", isGroup: true },
+    });
+  });
+
+  it("says nothing about groups for a named channel", async () => {
+    await emit();
+
+    expect(
+      createNotificationMock.mock.calls[0]?.[0].messageParams,
+    ).not.toHaveProperty("isGroup");
+  });
+
   it("covers a direct room the direct-message row has given up on", async () => {
     userFindManyMock.mockResolvedValue([subscriber(SUBSCRIBER_ID)]);
 

@@ -6454,7 +6454,9 @@
         "mentioned": "{authorName} mentioned you in {roomName}",
         "directMessage": "{authorName} sent you a message",
         "roomMessage": "{authorName} wrote in {roomName}",
-        "roomMessages": "{count} messages in {roomName}"
+        "roomMessages": "{count} messages in {roomName}",
+        "roomMessageGroup": "{authorName} wrote in group {roomName}",
+        "roomMessagesGroup": "{count} messages in group {roomName}"
       }
     }
   },

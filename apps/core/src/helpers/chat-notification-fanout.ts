@@ -27,6 +27,12 @@ export interface FanOutChatNotificationsParams {
    * have one, instead of writing a row of its own.
    */
   countPerRoom?: boolean;
+  /**
+   * The room is a group of people rather than a named channel, so its name is
+   * the list of who is in it. The reader is told so, because a bare list of
+   * names does not read as somewhere a message was written.
+   */
+  isGroup?: boolean;
 }
 
 /** How many messages a row is already standing for. */
@@ -246,6 +252,7 @@ export async function fanOutChatNotifications(
       messageParams: {
         authorName: params.authorName,
         roomName: params.roomName,
+        ...(params.isGroup ? { isGroup: true } : {}),
       },
       metadata: {
         messageId: params.messageId,

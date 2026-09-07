@@ -1,4 +1,4 @@
-import { CHAT_ROOM_MESSAGE_KEYS } from "./chat-notification-message-keys.js";
+import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "./chat-notification-message-keys.js";
 
 /**
  * Notification kinds that still create rows + realtime events (browser OS
@@ -38,6 +38,6 @@ export function isBrowserOnlyNotification(
 ): boolean {
   return (
     isBrowserOnlyNotificationKind(kind) &&
-    !CHAT_ROOM_MESSAGE_KEYS.includes(messageKey)
+    messageKey !== CHAT_ROOM_MESSAGE_MESSAGE_KEY
   );
 }
