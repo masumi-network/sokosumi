@@ -4099,7 +4099,6 @@
         "pushBannerUnsupportedTitle": "Dieser Browser kann keine Push-Benachrichtigungen anzeigen",
         "pushBannerUnsupportedBody": "Push-Benachrichtigungen kommen hier nicht an, egal was die Zeilen unten sagen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
         "deviceBannerTitle": "Push-Benachrichtigungen sind in diesem Browser aktiviert",
-        "deviceBannerBody": "Was auf Push eingestellt ist, kommt hier an. Deine anderen Geräte sind davon nicht betroffen.",
         "deviceBannerAction": "Deaktivieren",
         "deviceDisabledSuccess": "Push-Benachrichtigungen in diesem Browser aus",
         "pushEnabledSuccess": "Push-Benachrichtigungen aktiviert",

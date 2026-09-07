@@ -4099,7 +4099,6 @@
         "pushBannerUnsupportedTitle": "Este navegador no puede mostrar notificaciones push",
         "pushBannerUnsupportedBody": "Las notificaciones push no llegan aquí, digan lo que digan las filas de abajo. Tus otros dispositivos puede que sigan recibiéndolas.",
         "deviceBannerTitle": "Las notificaciones push están activadas en este navegador",
-        "deviceBannerBody": "Lo que está configurado como Push llega aquí. Tus otros dispositivos no se ven afectados.",
         "deviceBannerAction": "Desactivar",
         "deviceDisabledSuccess": "Notificaciones push desactivadas en este navegador",
         "pushEnabledSuccess": "Notificaciones push activadas",

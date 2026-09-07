@@ -46,9 +46,10 @@ interface NoticeAction {
  * Drawing them apart would give the same sentence two layouts and put the
  * button in two places.
  *
- * Only the tint and the mark tell them apart. A browser that cannot show a
- * push the reader asked for is a warning; a browser that can is not, so the
- * second one takes the card's own colours and says its piece quietly.
+ * A browser that cannot show a push the reader asked for is a warning: it
+ * takes the warning tint and the warning mark, and owes the reader a second
+ * line saying why. A browser that can show one is not a warning. It keeps the
+ * card's own colours, says its piece in the title, and stops there.
  */
 function BrowserNotice({
   warning,
@@ -60,7 +61,7 @@ function BrowserNotice({
   warning: boolean;
   icon: LucideIcon;
   titleKey: string;
-  bodyKey: string;
+  bodyKey: string | null;
   action: NoticeAction | null;
 }) {
   const t = useTranslations("App.Account.Notifications");
@@ -99,9 +100,11 @@ function BrowserNotice({
             <p id={titleId} className="text-sm leading-5 font-medium">
               {t(titleKey)}
             </p>
-            <p className="text-muted-foreground text-sm leading-5">
-              {t(bodyKey)}
-            </p>
+            {bodyKey ? (
+              <p className="text-muted-foreground text-sm leading-5">
+                {t(bodyKey)}
+              </p>
+            ) : null}
           </div>
         </div>
         {action ? (
@@ -200,7 +203,8 @@ export function PushBanner({
  *
  * It carries the mark of the Push column rather than a warning's, because
  * nothing here is wrong. It is the state the reader asked for, and the press
- * is there for the day they stop wanting it.
+ * is there for the day they stop wanting it. Nothing being wrong is also why
+ * it is one line: a reader who set this up is being told it worked.
  */
 export function DeviceBanner({
   saving,
@@ -215,7 +219,9 @@ export function DeviceBanner({
       warning={false}
       icon={Smartphone}
       titleKey="deviceBannerTitle"
-      bodyKey="deviceBannerBody"
+      // The title is the whole notice: which push, and where it lands. A
+      // second line under it can only repeat that in more words.
+      bodyKey={null}
       action={{
         labelKey: "deviceBannerAction",
         saving,
