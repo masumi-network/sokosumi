@@ -102,7 +102,7 @@ describe("ProjectNeedsAttentionSection", () => {
     expect(screen.getByLabelText("Jobs: 2")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "View all tasks" }),
-    ).toHaveAttribute("href", "/tasks?projectId=project-1");
+    ).toHaveAttribute("href", "/tasks?projectId=project-1&tab=tasks");
     expect(screen.getByRole("link", { name: "View all jobs" })).toHaveAttribute(
       "href",
       "/tasks?projectId=project-1&tab=jobs",

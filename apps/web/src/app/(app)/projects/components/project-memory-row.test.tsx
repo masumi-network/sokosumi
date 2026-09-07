@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -131,7 +131,13 @@ describe("ProjectMemoryRow", () => {
     );
 
     expect(screen.getByText("Updated 2 hours ago")).toBeInTheDocument();
-    await user.click(screen.getByTestId("project-memory-row"));
+    const memoryControl = screen.getByTestId("project-memory-row");
+    expect(
+      within(memoryControl).getByRole("heading", { name: "Memory" }),
+    ).toBeInTheDocument();
+    await user.click(
+      within(memoryControl).getByRole("heading", { name: "Memory" }),
+    );
 
     await waitFor(() => {
       expect(getProjectContextMdMock).toHaveBeenCalledWith({
