@@ -71,11 +71,24 @@ describe("CreditsCycleOverview", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     const additionalHeading = screen.getByText("additionalCreditsLabel");
+    expect(additionalHeading.className).toContain("text-muted-foreground");
+    expect(additionalHeading.className).toContain("text-xs");
     expect(additionalHeading.className).toContain("font-medium");
+    expect(monthlyHeading.className).toContain("text-muted-foreground");
+    expect(monthlyHeading.className).toContain("text-xs");
+    const remainingHero = screen.getByText("creditsRemainingHero 750");
+    expect(remainingHero.className).toContain("text-sm");
+    expect(remainingHero.className).toContain("tabular-nums");
+    expect(remainingHero.className).not.toContain("text-lg");
+    expect(remainingHero.className).not.toContain("font-semibold");
+    const additionalHero = screen.getByText("additionalCreditsHero 51162");
+    expect(additionalHero.className).toContain("text-muted-foreground");
+    expect(additionalHero.className).toContain("text-sm");
+    expect(additionalHero.className).not.toContain("text-lg");
+    expect(additionalHero.className).not.toContain("font-semibold");
     expect(
-      additionalHeading.compareDocumentPosition(
-        screen.getByText("additionalCreditsHero 51162"),
-      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      additionalHeading.compareDocumentPosition(additionalHero) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(additional).toHaveTextContent("additionalCreditsHero 51162");
     expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();

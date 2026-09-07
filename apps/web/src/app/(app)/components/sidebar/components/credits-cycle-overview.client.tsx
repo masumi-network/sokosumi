@@ -73,12 +73,12 @@ export function CreditsCycleOverview({
     }
 
     monthly = (
-      <div className="space-y-1.5">
-        <p id={headingId} className="text-xs font-medium">
+      <div className="space-y-1">
+        <p id={headingId} className="text-muted-foreground text-xs font-medium">
           {tCredit("monthlyUsageLimit")}
         </p>
         {remaining > 0 ? (
-          <p className="text-lg leading-none font-semibold tracking-tight tabular-nums">
+          <p className="text-sm leading-tight tabular-nums">
             {tCredit("creditsRemainingHero", { credits: remaining })}
           </p>
         ) : null}
@@ -101,7 +101,7 @@ export function CreditsCycleOverview({
   }
 
   return (
-    <div className="space-y-4" data-testid="credits-cycle-overview">
+    <div className="space-y-3" data-testid="credits-cycle-overview">
       {monthly}
       {monthly !== null && formattedExtra !== null ? (
         <div
@@ -113,11 +113,11 @@ export function CreditsCycleOverview({
         <div className="space-y-1" data-testid="credits-additional">
           <p
             id={monthly === null ? headingId : undefined}
-            className="text-xs font-medium"
+            className="text-muted-foreground text-xs font-medium"
           >
             {tCredit("additionalCreditsLabel")}
           </p>
-          <p className="text-lg leading-none font-semibold tracking-tight tabular-nums">
+          <p className="text-muted-foreground text-sm leading-tight tabular-nums">
             {tCredit("additionalCreditsHero", {
               credits: formattedExtra,
             })}
