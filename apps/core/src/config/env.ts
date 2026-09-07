@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { resolveBetterAuthPublicBaseUrl } from "@sokosumi/utils";
+import {
+  getCanonicalWebAppUrl,
+  resolveBetterAuthPublicBaseUrl,
+} from "@sokosumi/utils";
 import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
 
@@ -352,11 +355,27 @@ export function getEnv(): EnvConfig {
 
 /**
  * Web app base URL (used for Better Auth trusted origin, redirects, and links).
- * On Vercel, uses the related web project deployment URL when core's
- * relatedProjects point to the web app; otherwise uses WEB_APP_BASE_URL.
+ *
+ * On Vercel Production the answer is the network's canonical domain, and the
+ * related project is not consulted at all. `withRelatedProject` returns the
+ * related project's production alias only when Vercel populates one, and falls
+ * back to its `production.url`: the per-deployment host, whose hash changes
+ * with every web deploy. Links Core hands out live longer than one deploy, and
+ * a reader who follows one onto that host keeps the app there. The browser
+ * scopes a push subscription to the origin that created it, so their
+ * notifications then arrive from, and lead back to, a deployment URL.
+ *
+ * Everywhere else the related project still answers: on Vercel Preview it is
+ * the only source that knows the sibling branch deployment, and locally it is
+ * absent so `WEB_APP_BASE_URL` answers as before.
  */
 export function getWebAppBaseUrl(): string {
   const env = getEnv();
+
+  if (env.VERCEL_ENV === "production") {
+    return getCanonicalWebAppUrl(env.NETWORK);
+  }
+
   return withRelatedProject({
     projectName: getWebRelatedProjectName(env.NETWORK),
     defaultHost: resolveWebRelatedProjectFallbackHost({

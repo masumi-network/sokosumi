@@ -63,6 +63,108 @@ describe("resolveWebRelatedProjectFallbackHost", () => {
   });
 });
 
+describe("getWebAppBaseUrl", () => {
+  /**
+   * `getEnv` caches the parsed environment at module scope, so each case gets
+   * a fresh module rather than a shared one that froze the first case's
+   * values.
+   */
+  async function loadWebAppBaseUrl(
+    caseOverrides: Record<string, string | undefined>,
+  ): Promise<string> {
+    // A deployed environment rejects the suite's in-memory Soko Bot adapter,
+    // and a rejected environment exits the process before any URL is read.
+    const overrides = {
+      SOKO_BOT_RUNTIME_ADAPTER: "in-process",
+      ...caseOverrides,
+    };
+    const previous = Object.fromEntries(
+      Object.keys(overrides).map((key) => [key, process.env[key]]),
+    );
+
+    for (const [key, value] of Object.entries(overrides)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+
+    try {
+      vi.resetModules();
+      const { getWebAppBaseUrl } = await import("./env.js");
+      return getWebAppBaseUrl();
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      vi.resetModules();
+    }
+  }
+
+  it.each([
+    ["Mainnet", "https://app.sokosumi.com"],
+    ["Preprod", "https://preprod.sokosumi.com"],
+  ])(
+    "answers the canonical %s domain on Vercel production",
+    async (network, expected) => {
+      await expect(
+        loadWebAppBaseUrl({ NETWORK: network, VERCEL_ENV: "production" }),
+      ).resolves.toBe(expected);
+    },
+  );
+
+  it("ignores the related project on production, whatever it reports", async () => {
+    // The bug: `withRelatedProject` falls back to `production.url`, the
+    // per-deployment host whose hash changes with every web deploy. A reader
+    // who follows such a link keeps the app on that origin, and the browser
+    // ties their push subscription to it.
+    await expect(
+      loadWebAppBaseUrl({
+        NETWORK: "Mainnet",
+        VERCEL_ENV: "production",
+        VERCEL_RELATED_PROJECTS: JSON.stringify([
+          {
+            project: { id: "prj_test", name: "sokosumi-app-mainnet" },
+            production: {
+              url: "sokosumi-app-mainnet-od9mmtb7d.preview.sokosumi.com",
+            },
+            preview: {},
+          },
+        ]),
+      }),
+    ).resolves.toBe("https://app.sokosumi.com");
+  });
+
+  it("still asks the related project on Vercel preview", async () => {
+    await expect(
+      loadWebAppBaseUrl({
+        NETWORK: "Mainnet",
+        VERCEL_ENV: "preview",
+        VERCEL_RELATED_PROJECTS: JSON.stringify([
+          {
+            project: { id: "prj_test", name: "sokosumi-app-mainnet" },
+            production: {},
+            preview: {
+              branch: "sokosumi-app-mainnet-git-topic.preview.sokosumi.com",
+            },
+          },
+        ]),
+      }),
+    ).resolves.toBe(
+      "https://sokosumi-app-mainnet-git-topic.preview.sokosumi.com",
+    );
+  });
+
+  it("uses the configured URL when there is no Vercel environment", async () => {
+    await expect(
+      loadWebAppBaseUrl({
+        VERCEL_ENV: undefined,
+        VERCEL_RELATED_PROJECTS: undefined,
+        WEB_APP_BASE_URL: "http://localhost:3000",
+      }),
+    ).resolves.toBe("http://localhost:3000");
+  });
+});
+
 describe("Soko Bot deployment environment", () => {
   it.each([
     ["Node production", { NODE_ENV: "production" }],

@@ -28,6 +28,7 @@ import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
+  getCanonicalWebAppUrl,
   getEmailLocale,
   OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_PROVIDER_SCOPES,
@@ -451,8 +452,10 @@ export const auth = betterAuth({
   },
   trustedOrigins: Array.from(
     new Set([
-      "https://app.sokosumi.com",
-      "https://preprod.sokosumi.com",
+      // Both networks, whichever one this deployment serves: a Preprod Core
+      // still answers a Mainnet origin during a cutover.
+      getCanonicalWebAppUrl("Mainnet"),
+      getCanonicalWebAppUrl("Preprod"),
       webAppBaseUrl,
       "https://*.preview.sokosumi.com", // Vercel preview deployment suffix
       ...(env.NODE_ENV === "development"
