@@ -1,9 +1,6 @@
-import * as Sentry from "@sentry/node";
-import { NotificationKind } from "@sokosumi/database";
-
 import { CHAT_MENTION_MESSAGE_KEY } from "@/helpers/notification-delivery";
-import { createNotification } from "@/helpers/notifications";
-import prisma from "@/lib/db/prisma";
+
+import { fanOutChatNotifications } from "./chat-notification-fanout";
 
 export interface EmitChatMentionNotificationsParams {
   roomId: string;
@@ -19,72 +16,15 @@ export interface EmitChatMentionNotificationsParams {
 export async function emitChatMentionNotifications(
   params: EmitChatMentionNotificationsParams,
 ): Promise<void> {
-  const recipientUserIds = [
-    ...new Set(
-      params.mentionedUserIds.filter(
-        (userId) => userId !== params.authorUserId,
-      ),
-    ),
-  ];
-
-  if (recipientUserIds.length === 0) {
-    return;
-  }
-
-  const mutedMemberships = await prisma.chatRoomUserMember.findMany({
-    where: {
-      roomId: params.roomId,
-      userId: { in: recipientUserIds },
-      mutedAt: { not: null },
-    },
-    select: { userId: true },
+  await fanOutChatNotifications({
+    roomId: params.roomId,
+    roomName: params.roomName,
+    organizationId: params.organizationId,
+    messageId: params.messageId,
+    authorUserId: params.authorUserId,
+    authorName: params.authorName,
+    recipientUserIds: params.mentionedUserIds,
+    messageKey: CHAT_MENTION_MESSAGE_KEY,
+    notificationType: "chat-mention-notification",
   });
-  const mutedUserIds = new Set(
-    mutedMemberships.map((membership) => membership.userId),
-  );
-  const notifyUserIds = recipientUserIds.filter(
-    (userId) => !mutedUserIds.has(userId),
-  );
-
-  if (notifyUserIds.length === 0) {
-    return;
-  }
-
-  let workspaceId: string | null = null;
-  if (params.organizationId) {
-    const workspace = await prisma.workspace.findUnique({
-      where: { organizationId: params.organizationId },
-      select: { id: true },
-    });
-    workspaceId = workspace?.id ?? null;
-  }
-
-  for (const userId of notifyUserIds) {
-    try {
-      await createNotification({
-        userId,
-        kind: NotificationKind.CHAT,
-        referenceId: params.roomId,
-        eventId: params.messageId,
-        messageKey: CHAT_MENTION_MESSAGE_KEY,
-        messageParams: {
-          authorName: params.authorName,
-          roomName: params.roomName,
-        },
-        metadata: {
-          messageId: params.messageId,
-          workspaceId,
-        },
-      });
-    } catch (error) {
-      Sentry.captureException(error, {
-        extra: {
-          roomId: params.roomId,
-          messageId: params.messageId,
-          userId,
-          notificationType: "chat-mention-notification",
-        },
-      });
-    }
-  }
 }

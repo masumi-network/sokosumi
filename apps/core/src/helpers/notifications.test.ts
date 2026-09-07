@@ -479,7 +479,7 @@ describe("createNotification push gating", () => {
     );
   });
 
-  it("splits the two chat rows, so muting mentions leaves direct messages alone", async () => {
+  it("splits the chat rows, so muting mentions leaves direct messages alone", async () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(createChatRecord());
     mockReader({
