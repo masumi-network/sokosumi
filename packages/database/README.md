@@ -103,14 +103,7 @@ import { userRepository, jobRepository } from "@sokosumi/database/repositories";
 // Execute multiple operations atomically
 await transaction.run(async (tx) => {
   const user = await userRepository.getUserById(userId, tx);
-  const job = await jobRepository.createJob(
-    {
-      userId: user.id,
-      agentId,
-      input: {},
-    },
-    tx,
-  );
+  const job = await jobRepository.getJobById(jobId, tx);
 
   // If any operation fails, all changes are rolled back
 });

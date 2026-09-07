@@ -26,7 +26,7 @@
  *
  * ### Import helpers:
  * ```typescript
- * import { computeJobStatus, isAgentNew } from '@sokosumi/database/helpers'
+ * import { computeJobStatus, mapJobWithStatus } from '@sokosumi/database/helpers'
  * ```
  */
 
@@ -42,7 +42,6 @@ export * from "./generated/prisma/models.js";
 
 // Export shared types
 export * from "./types/agent.js";
-export * from "./types/agentRating.js";
 export * from "./types/invitation.js";
 export * from "./types/job.js";
 export * from "./types/member.js";

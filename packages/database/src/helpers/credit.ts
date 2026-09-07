@@ -44,14 +44,6 @@ export function getCreditExpiryDate(baseDate: Date, days: number): Date {
   return new Date(baseDate.getTime() + days * MILLISECONDS_PER_DAY);
 }
 
-/**
- * Escapes a string for use as a literal in SQL LIKE patterns (e.g. when using Prisma's startsWith).
- * Prisma translates startsWith to LIKE 'value%'; the database treats % and _ as wildcards, so they must be escaped.
- */
-export function escapeStringForLike(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
-}
-
 export function getOrganizationMemberSubscriptionReferencePrefix(
   userId: string,
 ): string {
