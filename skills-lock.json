@@ -414,6 +414,13 @@
       "skillPath": "skills/misc/scaffold-exercises/SKILL.md",
       "computedHash": "354c91f6dbc9b058632f30594aacb4edc6d25012596585abb00402af8d7ec5e9"
     },
+    "sentry-cli": {
+      "source": "cli.sentry.dev",
+      "sourceUrl": "https://cli.sentry.dev",
+      "sourceType": "well-known",
+      "computedHash": "82ab12258160dbe8f8c75aaac945cf750f34d49bedd942fa753b617d94aecd66",
+      "wellKnownDigest": "sha256:f0e5c3fdf1cfe71cefcdff90fd9bc5ab37e0a5f92692ee8579bfbfac275100a0"
+    },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",
       "sourceType": "github",

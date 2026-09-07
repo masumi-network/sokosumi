@@ -1,0 +1,466 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sokosumi Core (Apple tracer slice)",
+    "version": "1.0.0",
+    "description": "GET /users/{id} extracted from apps/web/openapi-core.snapshot.json for SOK-971."
+  },
+  "paths": {
+    "/users/{id}": {
+      "get": {
+        "description": "Get a user: path `me` for the session user, or a user id when the session user matches that id, a session admin requests any user, or a coworker supplies matching authorized `X-Context-User-Id`.",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "$ref": "#/components/parameters/ContextUserId"
+          },
+          {
+            "$ref": "#/components/parameters/ContextOrganizationId"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+              "example": "me"
+            },
+            "required": true,
+            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieve the user",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj",
+                    "createdAt": "2025-01-01T00:00:00.000Z",
+                    "updatedAt": "2025-01-01T00:00:00.000Z",
+                    "name": "John Doe",
+                    "email": "john.doe@example.com",
+                    "emailVerified": true,
+                    "image": "https://example.com/image.png",
+                    "role": "user"
+                  },
+                  "meta": {
+                    "timestamp": "2025-01-01T00:00:00.000Z",
+                    "requestId": "550e8400-e29b-41d4-a716-446655440000"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "OrganizationSlug": {
+        "name": "X-Organization-Slug",
+        "in": "header",
+        "description": "Optional organization slug to set the organization context.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "example": "my-organization-slug"
+        }
+      },
+      "ContextUserId": {
+        "name": "X-Context-User-Id",
+        "in": "header",
+        "description": "Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "example": "user_abc123"
+        }
+      },
+      "ContextOrganizationId": {
+        "name": "X-Context-Organization-Id",
+        "in": "header",
+        "description": "Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "example": "org_xyz789"
+        }
+      }
+    },
+    "schemas": {
+      "PaginationMetadata": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "cmg4zknxt0000l404yn4li0kp",
+            "description": "Cursor for the current page"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 20,
+            "description": "Number of items returned"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 100,
+            "description": "Total number of items"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "cmi4gmksz000104l8wps8p7fp",
+            "description": "Cursor for the next page"
+          }
+        },
+        "required": [
+          "cursor",
+          "limit",
+          "total",
+          "nextCursor"
+        ]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          },
+          "name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "john.doe@example.com"
+          },
+          "emailVerified": {
+            "type": "boolean",
+            "example": true
+          },
+          "image": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "https://example.com/image.png"
+          },
+          "role": {
+            "type": "string",
+            "example": "user"
+          }
+        },
+        "required": [
+          "id",
+          "createdAt",
+          "updatedAt",
+          "name",
+          "email",
+          "emailVerified",
+          "role"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Authentication required for all endpoints. Supports Better Auth user credentials and dedicated agent bearer API keys (`coworker_` or `sokoBot_`). Soko Bot runtime routes use their documented Vercel OIDC plus scoped turn-grant authentication."
+      }
+    }
+  }
+}
