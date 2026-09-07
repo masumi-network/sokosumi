@@ -12,7 +12,6 @@ const config = {
   plugins: [
     ...defaultPlugins,
     "@hey-api/client-next",
-    "@hey-api/schemas",
     {
       dates: true,
       name: "@hey-api/transformers",
