@@ -1008,6 +1008,26 @@ describe("NotificationKinds", () => {
     expect(await screen.findByText("channelPushHint")).toBeInTheDocument();
   });
 
+  it("clears pointer ownership when another explanation takes the panel", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const inApp = screen.getByRole("button", { name: "channelInApp" });
+    const push = screen.getByRole("button", { name: "channelPush" });
+
+    await user.hover(inApp);
+    await screen.findByText("channelInAppHint");
+    await user.hover(push);
+    await screen.findByText("channelPushHint");
+
+    inApp.focus();
+    await user.keyboard("{Enter}");
+
+    expect(await screen.findByText("channelInAppHint")).toBeInTheDocument();
+  });
+
   /**
    * A panel opened with Enter holds the caret, and Radix hands it back to the
    * name as the panel goes. That name is outside the panel the pointer has

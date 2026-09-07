@@ -121,6 +121,14 @@ function ChannelExplainer({
   // the page has a close waiting on a component that is gone.
   useEffect(() => holdOpen, []);
 
+  // Another name can close this panel through the shared state without
+  // calling this popover's `onOpenChange`.
+  useEffect(() => {
+    if (!open) {
+      byPointer.current = false;
+    }
+  }, [open]);
+
   return (
     <Popover
       open={open}
