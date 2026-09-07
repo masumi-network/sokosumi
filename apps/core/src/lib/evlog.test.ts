@@ -6,6 +6,7 @@ import { requestId } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { uploadCoworkerImage } from "@/lib/blob";
 import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
 import {
   attachAuthToLogger,
@@ -18,15 +19,28 @@ import {
 import type { AuthVariables } from "@/middleware/auth";
 import { setAuthContext } from "@/middleware/auth";
 
-const { issueSignedTokenMock, presignUrlMock } = vi.hoisted(() => ({
-  issueSignedTokenMock: vi.fn(),
-  presignUrlMock: vi.fn(),
-}));
+const { issueSignedTokenMock, presignUrlMock, putMock, getEnvMock } =
+  vi.hoisted(() => ({
+    issueSignedTokenMock: vi.fn(),
+    presignUrlMock: vi.fn(),
+    putMock: vi.fn(),
+    getEnvMock: vi.fn(),
+  }));
 
 vi.mock("@vercel/blob", () => ({
   issueSignedToken: issueSignedTokenMock,
   presignUrl: presignUrlMock,
+  put: putMock,
 }));
+
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  getEnvMock.mockImplementation(() => actual.getEnv());
+  return {
+    ...actual,
+    getEnv: getEnvMock,
+  };
+});
 
 vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
@@ -284,6 +298,39 @@ describe("core evlog request events", () => {
       filename: "document.pdf",
       size: 1_024_000,
       mimeType: "application/pdf",
+    });
+  });
+
+  it("adds stored pathname basename when a coworker image is uploaded", async () => {
+    const env = getEnvMock();
+    getEnvMock.mockReturnValueOnce({
+      ...env,
+      BLOB_READ_WRITE_TOKEN: "rw_token",
+    });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/coworkers/cow-1/image-Ops_Logo_1-xyz.png",
+    });
+
+    const app = createApp();
+    app.post("/v1/coworkers/image", async (c) => {
+      await uploadCoworkerImage({
+        coworkerId: "01960001-0001-7001-8001-000000000099",
+        bytes: Buffer.from("png-bytes"),
+        contentType: "image/png",
+        filename: " Ops Logo (1).png ",
+      });
+      return c.json({ ok: true });
+    });
+
+    const response = await app.request("http://localhost/v1/coworkers/image", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(captured[0]?.event.upload).toEqual({
+      filename: "image-Ops_Logo_1.png",
+      size: 9,
+      mimeType: "image/png",
     });
   });
 });
