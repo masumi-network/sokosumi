@@ -600,7 +600,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
-  const mentionChatLog = !mention.sokoBotId ? createCoreLogger() : null;
+  const mentionChatLog = mention.coworkerId != null ? createCoreLogger() : null;
   if (mentionChatLog) {
     mentionChatLog.set({
       chat: {
@@ -751,6 +751,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     mentionChatLog?.set({
       chat: {
         mention: {
+          id: mentionId,
           claim: claimed ? "claimed" : "already_in_flight",
         },
       },

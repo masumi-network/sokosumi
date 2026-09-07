@@ -981,6 +981,10 @@ describe("dispatchChatRoomMention claim", () => {
         status: "failed",
       }),
     });
+    expect(capturedChatEvents[0]?.event.chat).toMatchObject({
+      kind: "coworker_channel_mention",
+      mention: { id: MENTION_ID, claim: "claimed" },
+    });
   });
 
   it("fails closed when fullStream emits an error part after Thought", async () => {
