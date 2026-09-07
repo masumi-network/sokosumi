@@ -290,15 +290,16 @@ export function ChannelLegend({
 }) {
   const t = useTranslations("App.Account.Notifications");
   const shared = useContext(OpenExplainer);
+  // The columns are named the same in every legend, so the name alone would
+  // put one hover's panel up in all of them. Read before the guard below, so
+  // every render of this component calls the same hooks in the same order.
+  const legendId = useId();
 
   if (!shared) {
     throw new Error("ChannelLegend needs a ChannelLegendScope around it.");
   }
 
   const { openName, setOpenName } = shared;
-  // The columns are named the same in every legend, so the name alone would
-  // put one hover's panel up in all of them.
-  const legendId = useId();
 
   /**
    * One panel at a time, held above the legends rather than by each name.
