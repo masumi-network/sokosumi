@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  isBrowserOnlyNotificationKind,
+  isBrowserOnlyNotification,
   makeUserNotificationsChannelName,
 } from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
@@ -57,6 +57,17 @@ const NotificationContext = createContext<NotificationContextValue | null>(
 );
 
 const NOTIFICATION_LIST_LIMIT = 10;
+
+/**
+ * Whether this row belongs to a surface other than the notification center.
+ *
+ * The kind alone stopped answering it once a chat room message started
+ * reaching the feed, so the message key is asked as well, in the one place
+ * both apps read it from.
+ */
+function isFeedExcluded(notification: NotificationItem): boolean {
+  return isBrowserOnlyNotification(notification.kind, notification.messageKey);
+}
 
 function mergeNotificationList(
   current: NotificationItem[],
@@ -114,13 +125,13 @@ export function notificationReducer(
 ): NotificationState {
   switch (action.type) {
     case "fetch_success": {
-      // Browser-only kinds never belong in local feed state; drop leaks so
+      // Browser-only rows never belong in local feed state; drop leaks so
       // mergeNotificationList cannot keep them as "pending realtime".
       const current = state.notifications.filter(
-        (notification) => !isBrowserOnlyNotificationKind(notification.kind),
+        (notification) => !isFeedExcluded(notification),
       );
       const fetched = action.fetched.filter(
-        (notification) => !isBrowserOnlyNotificationKind(notification.kind),
+        (notification) => !isFeedExcluded(notification),
       );
 
       return {
@@ -136,7 +147,7 @@ export function notificationReducer(
       const convertedNotification = action.notification;
 
       // Browser-OS only; room attention uses a separate path.
-      if (isBrowserOnlyNotificationKind(convertedNotification.kind)) {
+      if (isFeedExcluded(convertedNotification)) {
         return state;
       }
 
@@ -196,9 +207,9 @@ export function notificationReducer(
       };
     }
     case "mark_read_success": {
-      // Browser-only kinds are never counted in the in-app badge. Toast click
+      // Browser-only rows are never counted in the in-app badge. Toast click
       // still calls markRead for room attention; ignore feed state.
-      if (isBrowserOnlyNotificationKind(action.updated.kind)) {
+      if (isFeedExcluded(action.updated)) {
         return state;
       }
 

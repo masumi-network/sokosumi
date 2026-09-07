@@ -6,14 +6,10 @@ import {
 } from "@sokosumi/database";
 import {
   BROWSER_ONLY_NOTIFICATION_KINDS,
-  isBrowserOnlyNotificationKind,
+  CHAT_ROOM_MESSAGE_KEYS,
 } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
-
-const ALL_NOTIFICATION_KINDS = Object.values(
-  NotificationKind,
-) as NotificationKind[];
 
 const BROWSER_ONLY_KIND_FILTER = [
   ...BROWSER_ONLY_NOTIFICATION_KINDS,
@@ -27,26 +23,18 @@ export const VENDOR_GRANT_PENDING_MESSAGE_KEY =
 export const COWORKER_ACCESS_PENDING_MESSAGE_KEY =
   "notifications.coworkerAccess.pending";
 
-function notificationFeedKindWhere(
-  requestedKinds?: readonly NotificationKind[],
-): Prisma.EnumNotificationKindFilter {
-  if (requestedKinds && requestedKinds.length > 0) {
-    const feedKinds = requestedKinds.filter(
-      (kind) => !isBrowserOnlyNotificationKind(kind),
-    );
-
-    if (feedKinds.length === 0) {
-      // Explicit match-nothing: every known kind is excluded (no opaque `in: []`).
-      return { notIn: ALL_NOTIFICATION_KINDS };
-    }
-
-    return { in: feedKinds };
-  }
-
-  return {
-    notIn: BROWSER_ONLY_KIND_FILTER,
-  };
-}
+/**
+ * The rows a browser-only kind still sends to the feed.
+ *
+ * CHAT is browser-only because a mention belongs beside the room it was
+ * written in, not in a list of everything that happened. A room message is the
+ * other way round: the reader asked to be told about every message, and the
+ * feed is the only surface that keeps what it was told.
+ */
+const BROWSER_ONLY_KIND_FEED_EXCEPTION: Prisma.NotificationWhereInput = {
+  kind: { in: BROWSER_ONLY_KIND_FILTER },
+  messageKey: { in: [...CHAT_ROOM_MESSAGE_KEYS] },
+};
 
 /**
  * Prisma filter for the in-app notification feed (list, unread count,
@@ -54,15 +42,28 @@ function notificationFeedKindWhere(
  *
  * Two reasons a stored notification never reaches the feed, returned together
  * so a call site cannot apply one and forget the other: its kind is
- * browser-only, such as CHAT, or the reader silenced its category in the app.
+ * browser-only, such as CHAT, and it is not one of that kind's exceptions; or
+ * the reader silenced its category in the app.
+ *
+ * `requestedKinds` narrows on top rather than replacing the rule, so asking
+ * for CHAT returns the room messages and nothing else.
  */
 export function notificationFeedWhere(
   requestedKinds?: readonly NotificationKind[],
 ): Prisma.NotificationWhereInput {
-  return {
-    kind: notificationFeedKindWhere(requestedKinds),
+  const feedWhere: Prisma.NotificationWhereInput = {
     inApp: true,
+    OR: [
+      { kind: { notIn: BROWSER_ONLY_KIND_FILTER } },
+      BROWSER_ONLY_KIND_FEED_EXCEPTION,
+    ],
   };
+
+  if (requestedKinds && requestedKinds.length > 0) {
+    return { ...feedWhere, kind: { in: [...requestedKinds] } };
+  }
+
+  return feedWhere;
 }
 
 /**

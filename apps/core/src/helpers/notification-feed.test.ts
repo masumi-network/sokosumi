@@ -3,6 +3,10 @@ import {
   NotificationKind,
   VendorGrantStatus,
 } from "@sokosumi/database";
+import {
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGES_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -35,15 +39,30 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+const FEED_OR = [
+  { kind: { notIn: [NotificationKind.CHAT] } },
+  {
+    kind: { in: [NotificationKind.CHAT] },
+    messageKey: {
+      in: [CHAT_ROOM_MESSAGE_MESSAGE_KEY, CHAT_ROOM_MESSAGES_MESSAGE_KEY],
+    },
+  },
+];
+
 describe("notificationFeedWhere", () => {
-  it("excludes CHAT from the default in-app feed", () => {
+  it("keeps a mention out of the default in-app feed and lets a room message in", () => {
     expect(notificationFeedWhere()).toEqual({
-      kind: { notIn: [NotificationKind.CHAT] },
       inApp: true,
+      OR: FEED_OR,
     });
   });
 
-  it("drops CHAT when an explicit kind filter includes it", () => {
+  /**
+   * The rule is not replaced by the request. A reader asking for CHAT is asking
+   * for the chat rows the feed has, which is the room messages, and a mention
+   * named explicitly is still a mention.
+   */
+  it("narrows a requested kind on top of the rule", () => {
     expect(
       notificationFeedWhere([
         NotificationKind.JOB,
@@ -51,23 +70,23 @@ describe("notificationFeedWhere", () => {
         NotificationKind.TASK,
       ]),
     ).toEqual({
-      kind: { in: [NotificationKind.JOB, NotificationKind.TASK] },
       inApp: true,
+      kind: {
+        in: [
+          NotificationKind.JOB,
+          NotificationKind.CHAT,
+          NotificationKind.TASK,
+        ],
+      },
+      OR: FEED_OR,
     });
   });
 
-  it("matches nothing when the only requested kind is browser-only", () => {
+  it("answers a request for CHAT with the room messages", () => {
     expect(notificationFeedWhere([NotificationKind.CHAT])).toEqual({
-      kind: {
-        notIn: [
-          NotificationKind.JOB,
-          NotificationKind.TASK,
-          NotificationKind.BILLING,
-          NotificationKind.SYSTEM,
-          NotificationKind.CHAT,
-        ],
-      },
       inApp: true,
+      kind: { in: [NotificationKind.CHAT] },
+      OR: FEED_OR,
     });
   });
 
@@ -75,8 +94,9 @@ describe("notificationFeedWhere", () => {
     expect(
       notificationFeedWhere([NotificationKind.JOB, NotificationKind.SYSTEM]),
     ).toEqual({
-      kind: { in: [NotificationKind.JOB, NotificationKind.SYSTEM] },
       inApp: true,
+      kind: { in: [NotificationKind.JOB, NotificationKind.SYSTEM] },
+      OR: FEED_OR,
     });
   });
 

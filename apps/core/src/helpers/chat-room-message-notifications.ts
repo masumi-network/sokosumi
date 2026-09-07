@@ -1,8 +1,8 @@
-import type { NotificationCategory } from "@sokosumi/utils";
 import {
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-  resolveNotificationDelivery,
-} from "@/helpers/notification-delivery";
+  type NotificationCategory,
+} from "@sokosumi/utils";
+import { resolveNotificationDelivery } from "@/helpers/notification-delivery";
 import prisma from "@/lib/db/prisma";
 
 import { shouldEmitChatDirectMessageNotifications } from "./chat-direct-message-notifications";

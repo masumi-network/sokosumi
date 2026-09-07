@@ -45,6 +45,13 @@ export {
   type ChatMembershipRevokeReason,
 } from "./chat-membership-revoked.js";
 export {
+  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_KEYS,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGES_MESSAGE_KEY,
+} from "./chat-notification-message-keys.js";
+export {
   ABLY_CLIENT_INSTANCE_ID_PATTERN,
   ABLY_PRESENCE_CLIENT_ID_SEPARATOR,
   aggregateChatPresenceByUserId,
@@ -233,7 +240,7 @@ export { isNmkrEmail } from "./nmkr-email.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   type BrowserOnlyNotificationKind,
-  isBrowserOnlyNotificationKind,
+  isBrowserOnlyNotification,
 } from "./notification-feed-kinds.js";
 export {
   NOTIFICATION_CATEGORIES,
