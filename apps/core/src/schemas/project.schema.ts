@@ -17,6 +17,7 @@ import {
   sokosumiJobStatusSchema,
   taskStatusSchema,
 } from "@/schemas/domain-enums.schema";
+import { historyItemSchema } from "@/schemas/history.schema";
 
 const PROJECT_MEMORY_UPDATING_WINDOW_MS = 5 * 60 * 1000;
 
@@ -168,6 +169,29 @@ export const projectListItemSchema = projectSchema
   })
   .openapi("ProjectListItem");
 
+export const PROJECT_NEEDS_ATTENTION_LIMIT = 5 as const;
+
+export const projectNeedsAttentionSchema = z
+  .object({
+    taskCount: z.number().int().nonnegative().openapi({
+      description:
+        "Linked non-archived tasks. Same meaning as ProjectListItem.taskCount.",
+      example: 2,
+    }),
+    jobCount: z.number().int().nonnegative().openapi({
+      description: "Linked jobs. Same meaning as ProjectListItem.jobCount.",
+      example: 1,
+    }),
+    items: z
+      .array(historyItemSchema)
+      .max(PROJECT_NEEDS_ATTENTION_LIMIT)
+      .openapi({
+        description:
+          "Mixed tasks+jobs that need attention, already ranked, length 0..5. Never padded with excluded statuses.",
+      }),
+  })
+  .openapi("ProjectNeedsAttention");
+
 function resolveProjectBriefingAlias(
   briefing: string | null | undefined,
   description: string | null | undefined,
@@ -291,6 +315,7 @@ export const projectStatsBatchSchema = z
 
 export type Project = z.infer<typeof projectSchema>;
 export type ProjectContextMd = z.infer<typeof projectContextMdSchema>;
+export type ProjectNeedsAttention = z.infer<typeof projectNeedsAttentionSchema>;
 
 function countLines(content: string): number {
   return content.split(/\r\n|\r|\n/).length;
