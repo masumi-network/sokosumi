@@ -1084,6 +1084,33 @@ describe("NotificationKinds", () => {
     expect(document.activeElement).toBe(name);
   });
 
+  /**
+   * The panel sits below the name rather than over it, so a mouse on its way
+   * anywhere crosses a word the reader is already reading from. Reading that
+   * as a hover would hand the caret to the body on the way out.
+   */
+  it("gives the caret back after the pointer crosses a keyboard-opened name", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const name = screen.getByRole("button", { name: "channelPush" });
+
+    name.focus();
+    await user.keyboard("{Enter}");
+    await screen.findByText("channelPushHint");
+
+    await user.hover(name);
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByText("channelPushHint")).toBeNull();
+    });
+
+    expect(document.activeElement).toBe(name);
+  });
+
   it("puts the channel legend inside each expanded section", async () => {
     renderKinds();
 

@@ -133,7 +133,12 @@ function ChannelExplainer({
 
           holdOpen();
           byPointer.current = true;
-          heldFocus.current = false;
+          // Only for a panel this pointer is about to open. The panel a
+          // reader opened with Enter already holds the caret, and a mouse
+          // crossing its name is not the reader leaving it.
+          if (!open) {
+            heldFocus.current = false;
+          }
           onOpenChange(true);
         }}
         onPointerLeave={(event) => {
