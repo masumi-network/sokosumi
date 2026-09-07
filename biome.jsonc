@@ -26,7 +26,8 @@
       "!apps/web/src/components/ui/**",
       "!apps/web/public/js/**/*.js",
       "!apps/web/public/**/*.svg",
-      "!apps/web/next-env.d.ts"
+      "!apps/web/next-env.d.ts",
+      "!apps/apple/**"
     ]
   },
   "formatter": {

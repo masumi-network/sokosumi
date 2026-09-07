@@ -8,7 +8,7 @@ A Mac user who wants Sokosumi chat as a real Mac app (dock icon, native windows,
 
 ## Solution
 
-Ship a macOS Sokosumi app that signs the user in, picks a workspace, lists membership-visible rooms, opens one room, paginates history, sends a classic message, and shows live creates/updates from Ably. Shared Swift modules (`SokosumiKit`) own that behavior so an iOS target can link them later. The Mac UI is Mac-specific SwiftUI (AppKit text where the composer needs it). Windows and Linux stay on web. Android is not this tree.
+Ship a macOS Sokosumi app that signs the user in, picks a workspace, lists membership-visible rooms, opens one room, paginates history, sends a classic message, and shows live creates/updates from Ably. Shared Swift packages under `apps/apple/Packages/` own that behavior so an iOS target can link them later. First package is `CoreAPI` (generated Core HTTP via Swift OpenAPI Generator). Not a single Kit. The Mac UI is Mac-specific SwiftUI (AppKit text where the composer needs it). Windows and Linux stay on web. Android is not this tree.
 
 ## User Stories
 
@@ -48,15 +48,15 @@ Ship a macOS Sokosumi app that signs the user in, picks a workspace, lists membe
 34. As a Mac user, I want a stable per-install Ably `clientInstanceId`, so that this Mac is one device in `{userId}:{instanceId}` (ADR 0003).
 35. As a Mac user, I want to see another person’s message body as text, so that the tracer is readable (markdown rendering polish can wait).
 36. As a Mac user, I want the main window to use a sidebar plus transcript plus composer, so that the layout is a Mac chat window, not an iPhone stack.
-37. As a future iOS engineer, I want SokosumiKit free of AppKit/SwiftUI, so that iOS can link the same modules without taking Mac chrome.
+37. As a future iOS engineer, I want Swift packages free of AppKit/SwiftUI, so that iOS can link the same modules without taking Mac chrome.
 38. As a Core owner, I want the Mac app to call existing `/v1` routes only, so that this tracer does not grow a parallel API.
 39. As an operator, I want the app pointed at a Core base URL (dev vs production), so that local portless Core works.
 40. As a user on a Mac with no network, I want sign-in and room load to fail visibly, so that I am not staring at a blank window.
 
 ## Implementation Decisions
 
-- **Home:** `apps/apple`. Xcode project/product name Sokosumi. Shared modules: SokosumiKit. macOS app target Sokosumi. No iOS target in this tracer; Kit must stay UI-free so iOS can link later. No `package.json`. Outside turbo and Biome.
-- **One new seam:** SokosumiKit. The Mac app is a SwiftUI shell (workspace switcher, room list, transcript, composer, menus). Kit owns session, Core HTTP, Ably subscribe, room list, transcript merge, send queue, unread-from-DTO, mark-read. Do not put merge rules in views.
+- **Home:** `apps/apple`. Xcode project/product name Sokosumi. Shared code is Swift packages under `Packages/` (first: `CoreAPI`). macOS app target Sokosumi stays a thin SwiftUI app. No iOS target in this tracer; packages must stay UI-free so iOS can link later. No `package.json`. Outside turbo and Biome.
+- **Seam for SOK-971:** `CoreAPI` — official [swift-openapi-generator](https://github.com/apple/swift-openapi-generator) SPM plugin, generated `Client`, no AppKit/SwiftUI. Later tickets add packages (auth, chat) instead of growing a Kit.
 - **Talk to Core only.** Bearer `Authorization` with a Sokosumi OAuth access token (`sokosumi:api`). Organization workspace: `X-Organization-Slug`. Personal workspace: omit that header. No Prisma, no cookies copied from Safari.
 - **Auth:** First-party **public** OAuth client (PKCE, no client secret) against Core’s existing Better Auth oauth provider. Scopes: `openid`, `sokosumi:api`, `offline_access`. Redirect URI: `com.sokosumi.app:/auth` (RFC 8252 private-use form: one slash, no host. URL scheme `com.sokosumi.app`; `ASWebAuthenticationSession` callback scheme is `com.sokosumi.app`). Do not register `com.sokosumi.app://auth` — Better Auth rejects the double slash. System browser. Tokens in Keychain. Refresh without UI; revoked refresh → sign-in. Register the client with the existing OAuth client machinery (developer/admin), not a new Core route. Do not use coworker API keys or Better Auth user API keys as the human session.
 - **Workspace gate:** `GET /v1/users/me/workspace-access`. Only `ready` continues into chat. Other gates: blocked screen + open web / sign out. No native identity onboarding, invite accept, or create-organization wizard.
@@ -66,19 +66,19 @@ Ship a macOS Sokosumi app that signs the user in, picks a workspace, lists membe
 - **Send:** `POST /v1/chats/rooms/{id}/messages` with `content` only (no mention id arrays required for the tracer). Pending shell + client turn id + single-flight per room composer (ADR 0004). No durable outbox.
 - **Mark read:** `POST /v1/chats/rooms/{id}/read` when that room’s history has resolved on screen (ADR 0026). Unread chrome from list DTO `unreadCount` / `unreadMentionCount`. Do not Look threads; do not POST thread read.
 - **Ably:** `POST /v1/realtime/ably-token?clientInstanceId=` then `ably-cocoa` Realtime. Subscribe to the open room channel (`chat_rooms:room_{id}`) and the user chat-control channel. Apply `chat_room_message` create/update/delete: full DTO merge, or id envelope → refetch focused room (ADR 0014). Remint the token when membership changes. Persist `clientInstanceId` per install. Do not enter org presence (ADR 0003) in this tracer. Do not activate push (ADR 0022 / 0023).
-- **HTTP client:** Generate Swift types/operations from Core’s OpenAPI snapshot (the same spec web generates from). Do not hand-copy TypeScript DTOs. Kit wraps the generated client; views do not call generated methods directly.
+- **HTTP client:** Generate Swift types/operations from Core’s OpenAPI snapshot (the same spec web generates from) with Swift OpenAPI Generator. Do not hand-copy TypeScript DTOs. The Mac app may call `CoreAPI.Client` for this tracer.
 - **Core base URL:** build-time or runtime setting for local Core vs production. Local must work against this checkout’s Core (portless named HTTPS URL).
 - **Mac UI:** One main window: sidebar (workspace + rooms) | transcript + composer. Native text input. Standard Mac menu with Sign out. Not Catalyst, not `#if os` iPhone layout.
 - **Interop:** A message confirmed on Mac must appear on web in that room, and the reverse, using the same Core rows and Ably events.
 
 ## Testing Decisions
 
-- **Seam:** SokosumiKit only. Prefer one Chat/session façade over many view models. Fake Core HTTP and Ably at protocol boundaries (recorded JSON from OpenAPI shapes, fake realtime events). Do not test SwiftUI layout, Keychain, or `ASWebAuthenticationSession` as the required suite.
-- **Good tests** assert external behavior of Kit: given these Core payloads / Ably events, the room list, transcript, unread, and send queue look like this. No tests of private merge helpers unless they are the façade.
-- **Must cover:** OAuth token attached as Bearer and org slug header set/omitted; workspace-access not `ready` does not load rooms; room list pagination; history pagination; mark-read only after successful history; pending → confirmed vs failed send; client turn id dedupes POST result + Ably create; full DTO merge; id envelope on focused room triggers refetch; chat-control revoke drops the room; personal vs org header.
+- **Seam:** Swift packages (start with `CoreAPI`). Fake Core HTTP at the OpenAPI `ClientTransport` boundary. Do not test SwiftUI layout, Keychain, or `ASWebAuthenticationSession` as the required suite.
+- **Good tests** assert package behavior: given these Core payloads, the generated client (and later chat packages) look like this.
+- **Must cover (971):** no token → GET `/users/me` is unauthorized. Later tickets add org slug, rooms, send, Ably.
 - **Do not test in this tracer:** Core route behavior (already covered in Core), web UI, presence roster, push, coworker stream.
-- **Prior art:** Core chat-room list/message/read tests and web `chat-room.service` / Ably merge tests. Apple has no test tree yet — use Swift Testing inside SokosumiKit, run via Xcode (not turbo).
-- **Manual proof (once Kit is green):** sign in on Mac, open a room that also exists on web, send both directions, confirm one transcript.
+- **Prior art:** Core chat-room list/message/read tests and web `chat-room.service` / Ably merge tests. Apple tests live in the Swift packages (`swift test`), not turbo.
+- **Manual proof (971):** Mac window against local Core with no token shows 401 on screen.
 
 ## Out of Scope
 
