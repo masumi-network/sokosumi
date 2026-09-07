@@ -25,6 +25,13 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomUserMember: {
       findMany: membershipFindManyMock,
     },
+    // The fan-out reads the message before it builds a preview, so a body
+    // deleted while it ran is not written back onto the notifications.
+    chatRoomMessage: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue({ deletedAt: null, content: "ship it" }),
+    },
   },
 }));
 

@@ -50,6 +50,14 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { rewriteChatNotificationPreviewsMock } = vi.hoisted(() => ({
+  rewriteChatNotificationPreviewsMock: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/helpers/chat-notification-fanout", () => ({
+  rewriteChatNotificationPreviews: rewriteChatNotificationPreviewsMock,
+}));
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
 const USER_ID = "user_123";
@@ -187,6 +195,65 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     expect(body.data.editedAt).toBe("2026-07-01T12:05:00.000Z");
     expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
     expect(waitUntilMock).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * The notifications for this message carry what it used to say, and the
+   * reader can still read them. An edit brings that copy up to date.
+   */
+  it("puts what the message now says on its notifications", async () => {
+    await patchMessage({ content: "hello fixed" });
+
+    expect(rewriteChatNotificationPreviewsMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+      content: "hello fixed",
+    });
+  });
+
+  /**
+   * A uuid is matched without case by the message's own column and with case
+   * by the notification's, which stores it as text.
+   */
+  it("names the message by the ids on its row, not the ones in the path", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID.toUpperCase()}/messages/${MESSAGE_ID.toUpperCase()}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "hello fixed" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(rewriteChatNotificationPreviewsMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+      content: "hello fixed",
+    });
+  });
+
+  /**
+   * The reader is answered once the copy is up to date. Answering first would
+   * send them back to a list that still carries what the message used to say.
+   */
+  it("answers only once the rewrite has run", async () => {
+    const order: string[] = [];
+    rewriteChatNotificationPreviewsMock.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      order.push("rewrite");
+    });
+
+    await patchMessage({ content: "hello fixed" });
+    order.push("answer");
+
+    expect(order).toEqual(["rewrite", "answer"]);
+  });
+
+  it("leaves the notifications alone when the content did not change", async () => {
+    await patchMessage({ content: "hello" });
+
+    expect(rewriteChatNotificationPreviewsMock).not.toHaveBeenCalled();
   });
 
   it("returns current DTO without bumping editedAt when content is unchanged", async () => {
