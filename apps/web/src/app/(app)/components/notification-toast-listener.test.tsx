@@ -72,6 +72,7 @@ vi.mock("@/lib/utils/browser-notification", () => ({
 }));
 
 const handleNotificationNavigation = vi.fn();
+const formatMessage = vi.fn();
 const markRead = vi.fn(() => Promise.resolve());
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -86,7 +87,12 @@ vi.mock("@/lib/auth/auth.client", () => ({
   authClient: { getSession: vi.fn().mockResolvedValue({ data: null }) },
 }));
 vi.mock("@/lib/utils/notification-message", () => ({
-  useNotificationMessage: () => () => "message",
+  useNotificationMessage:
+    () =>
+    (...args: unknown[]) => {
+      formatMessage(...args);
+      return "message";
+    },
 }));
 vi.mock("@/lib/utils/notification-navigation", () => ({
   handleNotificationNavigation: (...args: unknown[]) =>
@@ -127,7 +133,26 @@ describe("NotificationToastListener OS banner", () => {
     answerShowsNotificationsQuery.mockClear();
     stopAnswering.mockClear();
     handleNotificationNavigation.mockClear();
+    formatMessage.mockClear();
     markRead.mockClear();
+  });
+
+  /**
+   * A banner interrupts because a message arrived, so it says that message.
+   * The worker renders the same event for a tab that was closed and knows
+   * nothing of counts, so a counted line here would be a second answer to one
+   * arrival for whoever happened to have the tab open.
+   */
+  it("asks for the arrival rather than the room's count", async () => {
+    emitOnUnfocusedTab();
+
+    await vi.waitFor(() => {
+      expect(formatMessage).toHaveBeenCalledWith(
+        NOTIFICATION.messageKey,
+        NOTIFICATION.messageParams,
+        { counted: false },
+      );
+    });
   });
 
   /**
