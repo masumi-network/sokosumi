@@ -163,12 +163,23 @@ describe("NotificationProvider island", () => {
     createdAt: "2026-06-18T09:00:00.000Z",
     inApp: true,
     osBanner: true,
+    created: true,
   };
 
   it("counts a delivered notification the moment it arrives", async () => {
     await emit(REALTIME_EVENT);
 
     expect(screen.getByTestId("unread-count")).toHaveTextContent("1");
+  });
+
+  /**
+   * A room's later messages arrive as changes to the row the first one wrote,
+   * and the badge already counted that row.
+   */
+  it("leaves the bell alone for a row the event only changed", async () => {
+    await emit({ ...REALTIME_EVENT, created: false });
+
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
   });
 
   /**

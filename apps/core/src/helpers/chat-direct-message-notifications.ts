@@ -1,4 +1,4 @@
-import { CHAT_DIRECT_MESSAGE_MESSAGE_KEY } from "@/helpers/notification-delivery";
+import { CHAT_DIRECT_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 
 import { fanOutChatNotifications } from "./chat-notification-fanout";
 

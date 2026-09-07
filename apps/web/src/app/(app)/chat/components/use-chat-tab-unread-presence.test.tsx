@@ -23,10 +23,7 @@ import {
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
 
-import {
-  getActiveRoomIdFromPathname,
-  useChatTabUnreadPresence,
-} from "./use-chat-tab-unread-presence";
+import { useChatTabUnreadPresence } from "./use-chat-tab-unread-presence";
 
 const listRoomsMock = vi.mocked(listOrganizationChatRoomsAction);
 
@@ -50,18 +47,6 @@ function Harness() {
     <div data-testid="presence" data-show={showUnreadDot ? "yes" : "no"} />
   );
 }
-
-describe("getActiveRoomIdFromPathname", () => {
-  it("extracts the room id from /chat/rooms/[id]", () => {
-    expect(getActiveRoomIdFromPathname("/chat/rooms/room-1")).toBe("room-1");
-  });
-
-  it("returns null outside room routes", () => {
-    expect(getActiveRoomIdFromPathname("/chat")).toBeNull();
-    expect(getActiveRoomIdFromPathname("/chat/something")).toBeNull();
-    expect(getActiveRoomIdFromPathname(null)).toBeNull();
-  });
-});
 
 describe("useChatTabUnreadPresence", () => {
   beforeEach(() => {

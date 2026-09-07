@@ -21,7 +21,7 @@ import {
   presetChanges,
   withChannel,
 } from "./notification-delivery";
-import { ChannelLegend } from "./notification-legend";
+import { ChannelLegend, ChannelLegendScope } from "./notification-legend";
 import { GroupAnswer } from "./notification-presets";
 import { DeviceBanner, PushBanner } from "./notification-push-banner";
 import {
@@ -417,21 +417,26 @@ export function NotificationKinds({
           onSilence={choices.device.onSilence}
         />
       ) : null}
-      <div className="divide-y rounded-lg border">
-        {showKinds ? (
-          <KindGroups
-            email={email}
-            pushBlock={choices.pushBlock}
-            choices={choices}
-          />
-        ) : null}
-        {/* Last, because it is the one row that is not about the reader's own
+      {/* One open explanation for the whole box. A pointer sweeping down a
+          column crosses the names of every open group, and each legend
+          holding its own would leave the one it came from standing. */}
+      <ChannelLegendScope>
+        <div className="divide-y rounded-lg border">
+          {showKinds ? (
+            <KindGroups
+              email={email}
+              pushBlock={choices.pushBlock}
+              choices={choices}
+            />
+          ) : null}
+          {/* Last, because it is the one row that is not about the reader's own
             work, and the only one Sokosumi sends rather than reports. It is
             also the row that does not come from the matrix, so it stands
             whether or not the read landed. */}
-        {choices.loading || mailedByARow ? null : <EmailRow email={email} />}
-        <NewsRow news={news} />
-      </div>
+          {choices.loading || mailedByARow ? null : <EmailRow email={email} />}
+          <NewsRow news={news} />
+        </div>
+      </ChannelLegendScope>
     </div>
   );
 }

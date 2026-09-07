@@ -17,6 +17,7 @@ import {
   readUnfurlsFromMetadata,
 } from "@/helpers/chat-room-message-unfurl-metadata";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
+import { CHAT_ROOM_BADGE_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { isDirectKeyUniqueConstraintError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
@@ -712,8 +713,13 @@ export async function markAllChatRoomThreadsRead(
 }
 
 /**
- * Per-room count of unread CHAT notifications for the user.
- * `referenceId` is the room id (see emitChatMentionNotifications).
+ * Per-room count of the unread chat notifications a badge is for.
+ *
+ * `referenceId` is the room id, and every chat notification carries the same
+ * `NotificationKind.CHAT`, so the message key is the only thing that says which
+ * of them was addressed to the reader. `CHAT_ROOM_BADGE_MESSAGE_KEYS` is that
+ * list. Counting the kind alone made a badge out of every message in a room the
+ * moment `CHAT_ROOM_MESSAGE` gave rooms a third notification.
  */
 export async function getChatRoomUnreadMentionCounts(
   roomIds: readonly string[],
@@ -730,6 +736,7 @@ export async function getChatRoomUnreadMentionCounts(
     where: {
       userId,
       kind: NotificationKind.CHAT,
+      messageKey: { in: [...CHAT_ROOM_BADGE_MESSAGE_KEYS] },
       isRead: false,
       referenceId: { in: uniqueRoomIds },
     },

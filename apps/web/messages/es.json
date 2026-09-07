@@ -4098,8 +4098,7 @@
         "pushBannerDeniedBody": "Sokosumi no puede volver a preguntar. Permite las notificaciones para este sitio en la configuración del navegador. Puede que tus otros dispositivos sigan recibiéndolas.",
         "pushBannerUnsupportedTitle": "Este navegador no puede mostrar notificaciones push",
         "pushBannerUnsupportedBody": "Las notificaciones push no llegan aquí, digan lo que digan las filas de abajo. Tus otros dispositivos puede que sigan recibiéndolas.",
-        "deviceBannerTitle": "Las notificaciones push están activadas en este navegador",
-        "deviceBannerBody": "Lo que está configurado como Push llega aquí. Tus otros dispositivos no se ven afectados.",
+        "deviceBannerTitle": "Las notificaciones push están activadas en este navegador. Tus otros dispositivos no se ven afectados.",
         "deviceBannerAction": "Desactivar",
         "deviceDisabledSuccess": "Notificaciones push desactivadas en este navegador",
         "pushEnabledSuccess": "Notificaciones push activadas",
@@ -6454,7 +6453,10 @@
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",
         "directMessage": "{authorName} te envió un mensaje",
-        "roomMessage": "{authorName} escribió en {roomName}"
+        "roomMessage": "{authorName} escribió en {roomName}",
+        "roomMessages": "{count} mensajes en {roomName}",
+        "roomMessageGroup": "{authorName} escribió en el grupo {roomName}",
+        "roomMessagesGroup": "{count} mensajes en el grupo {roomName}"
       }
     }
   },
