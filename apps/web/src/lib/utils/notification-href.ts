@@ -47,10 +47,16 @@ export function getNotificationHref(
       // the reader lands at the bottom of the room and scrolls back to find
       // what they were just told about. Rows written before this shipped
       // carry no message id and still open the room.
-      if (typeof messageId !== "string" || messageId.length === 0) {
+      //
+      // Trimmed because the room is the honest destination for a blank id,
+      // and naming a blank one sends the room off to look for a message that
+      // cannot exist.
+      const trimmedMessageId =
+        typeof messageId === "string" ? messageId.trim() : "";
+      if (trimmedMessageId.length === 0) {
         return room;
       }
-      return `${room}?${CHAT_MESSAGE_PARAM}=${encodeURIComponent(messageId)}`;
+      return `${room}?${CHAT_MESSAGE_PARAM}=${encodeURIComponent(trimmedMessageId)}`;
     }
 
     case "SYSTEM": {

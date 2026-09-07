@@ -65,6 +65,26 @@ describe("getNotificationHref", () => {
     ).toBe("/chat/rooms/room-1");
   });
 
+  it("deep-links CHAT notifications to the room when the message is blank", () => {
+    expect(
+      getNotificationHref({
+        kind: "CHAT",
+        referenceId: "room-1",
+        metadata: { messageId: "" },
+      }),
+    ).toBe("/chat/rooms/room-1");
+  });
+
+  it("deep-links CHAT notifications to the room when the message is spaces", () => {
+    expect(
+      getNotificationHref({
+        kind: "CHAT",
+        referenceId: "room-1",
+        metadata: { messageId: "   " },
+      }),
+    ).toBe("/chat/rooms/room-1");
+  });
+
   it("encodes roomId in CHAT deep links", () => {
     expect(
       getNotificationHref({
