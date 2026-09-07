@@ -15,14 +15,15 @@ export default async function AccountNotificationsPage() {
   const session = await getSessionOrRedirect();
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4 px-4">
+    <div className="mx-auto w-full max-w-4xl px-4">
       <NotificationPreferences
         notificationsOptIn={session.user.notificationsOptIn ?? true}
         marketingOptIn={session.user.marketingOptIn ?? false}
-      />
-      <ChatDisplayPreferences
-        showRoomUnreadCount={session.user.showRoomUnreadCount ?? false}
-      />
+      >
+        <ChatDisplayPreferences
+          showRoomUnreadCount={session.user.showRoomUnreadCount ?? false}
+        />
+      </NotificationPreferences>
     </div>
   );
 }

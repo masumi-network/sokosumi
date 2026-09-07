@@ -4180,7 +4180,6 @@
       },
       "ChatDisplay": {
         "title": "Chat-Anzeige",
-        "description": "Wähle, was deine Chat-Seitenleiste dir zeigt",
         "roomUnreadCountTitle": "Anzahl ungelesener Nachrichten anzeigen",
         "roomUnreadCountDescription": "Zeige, wie viele ungelesene Nachrichten jeder Chat enthält. Stummgeschaltete Chats und der geöffnete Chat bleiben ruhig. An deinen Benachrichtigungen ändert das nichts.",
         "loading": "Einstellung wird gespeichert...",

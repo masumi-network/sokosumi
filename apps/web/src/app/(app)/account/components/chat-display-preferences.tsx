@@ -4,13 +4,7 @@ import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
@@ -22,13 +16,18 @@ interface ChatDisplayPreferencesProps {
 type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
 
 /**
- * Chat display preferences, in a card of their own.
+ * Chat display preferences, as a recessive card nested in the notification card.
  *
- * It sits beside the notification card rather than inside it. That card answers
- * what Sokosumi tells a reader about and where each of those things reaches
- * them, and its grid is deliberately the only control it holds. This preference
- * changes no delivery at all: it changes what the reader sees in a sidebar they
- * already have open, so a row of that grid would misreport what it does.
+ * It is a card and not a row of that card's grid, because the grid answers what
+ * Sokosumi tells a reader about and where each of those things reaches them.
+ * This preference changes no delivery at all: it changes what the reader sees
+ * in a sidebar they already have open, so a row of that grid would misreport
+ * what it does.
+ *
+ * It reads quieter than its host on purpose. Muted ground rather than card
+ * ground, one radius step down, tighter padding, and a heading dropped to the
+ * same `text-sm` its own control labels use, so a reader meets the delivery
+ * grid first and finds this below it.
  */
 export function ChatDisplayPreferences({
   showRoomUnreadCount: initialShowRoomUnreadCount,
@@ -79,15 +78,25 @@ export function ChatDisplayPreferences({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        {/* h2: the notification card above owns this route's h1. */}
-        <CardTitle>
+    // `rounded-lg` is one step under the host card's `rounded-xl`. The two do
+    // not share a corner (this sits 1.5rem inside), so there is no concentric
+    // radius to preserve, only the hierarchy to state. The border stays: in
+    // light mode this muted ground is five steps under `bg-card` (250 against
+    // 255) and would not read as a card on its own. Dark mode lifts further,
+    // but one card cannot have a boundary in one theme only, and a boundary is
+    // structure, which a border states and a shadow would not.
+    <Card className="bg-muted/50 gap-3 rounded-lg py-4">
+      {/* `gap-0`: `CardHeader` is a two-row grid and this header has one child,
+          so the gutter would otherwise be drawn to an empty second row. */}
+      <CardHeader className="gap-0 px-4">
+        {/* h2: the notification card around this one owns the route's h1.
+            `leading-none` is restated because `text-sm` replaces it in the
+            merge, and without it the title line box grows by six pixels. */}
+        <CardTitle className="text-sm leading-none">
           <h2>{t("title")}</h2>
         </CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-0.5">
             <Label htmlFor={switchId} className="text-sm font-medium">

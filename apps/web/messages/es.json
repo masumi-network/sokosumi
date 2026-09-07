@@ -4180,7 +4180,6 @@
       },
       "ChatDisplay": {
         "title": "Visualización del chat",
-        "description": "Elige qué te muestra tu barra lateral de chat",
         "roomUnreadCountTitle": "Mostrar el número de mensajes no leídos",
         "roomUnreadCountDescription": "Muestra cuántos mensajes no leídos tiene cada chat. Los chats silenciados y el chat que tienes abierto siguen en silencio. Esto no cambia las notificaciones que recibes.",
         "loading": "Guardando configuración...",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -17,6 +17,8 @@ import { NotificationKinds } from "./notification-kinds";
 interface NotificationPreferencesProps {
   notificationsOptIn: boolean;
   marketingOptIn: boolean;
+  /** A quieter card rendered under the grid, for settings that are not delivery. */
+  children?: ReactNode;
 }
 
 type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
@@ -24,6 +26,7 @@ type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
 export function NotificationPreferences({
   notificationsOptIn: initialNotificationsOptIn,
   marketingOptIn: initialMarketingOptIn,
+  children,
 }: NotificationPreferencesProps) {
   const t = useTranslations("App.Account.Notifications");
   const [notificationsOptIn, setNotificationsOptIn] = useState(
@@ -112,11 +115,13 @@ export function NotificationPreferences({
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Everything the card can answer is in the one grid: what Sokosumi
-            tells you about, and where each of those things reaches you. Both
-            account switches are rows of it, so a reader answers one question
-            in one place rather than meeting a second kind of control below.
-            Push has no row of its own at all: a cell asks the browser. */}
+        {/* Everything about delivery is in the one grid: what Sokosumi tells
+            you about, and where each of those things reaches you. Both account
+            switches are rows of it, so a reader answers one question in one
+            place rather than meeting a second kind of control among them. Push
+            has no row of its own at all: a cell asks the browser. A preference
+            that changes no delivery cannot be a row here, so `children` carries
+            it below the grid as its own quieter card instead. */}
         {/* Busy while either write is in flight, because the handler refuses
             both then. A cell that took the press and did nothing would look
             broken; dimmed and marked busy, it says why. */}
@@ -133,6 +138,7 @@ export function NotificationPreferences({
           }}
         />
       </CardContent>
+      {children ? <CardContent>{children}</CardContent> : null}
     </Card>
   );
 }
