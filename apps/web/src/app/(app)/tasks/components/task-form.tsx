@@ -253,6 +253,17 @@ export function TaskForm({
     useState(false);
   const [createProjectQuery, setCreateProjectQuery] = useState("");
   const defaultAssigneeId = useMemo(() => {
+    // Empty string counts as absent: edit pages pass "" for unset tasks.
+    const hasInitialAssignee =
+      initialValues?.assigneeId ||
+      initialValues?.assigneeSokoBotId ||
+      initialValues?.assigneeUserId ||
+      null;
+    // In edit mode an explicitly unassigned task must stay unassigned:
+    // falling through to the create default would silently assign it on save.
+    if (mode === "edit" && hasInitialAssignee === null) {
+      return "";
+    }
     // Default to Elena on first open. Match by slug or name (case-insensitive)
     // so it works across environments (dev seed + mainnet) where the slug may
     // differ; fall back to the highest-priority coworker.
@@ -263,14 +274,10 @@ export function TaskForm({
     );
 
     return (
-      initialValues?.assigneeId ??
-      initialValues?.assigneeSokoBotId ??
-      initialValues?.assigneeUserId ??
-      elenaCoworker?.id ??
-      coworkerOptions[0]?.id ??
-      ""
+      hasInitialAssignee ?? elenaCoworker?.id ?? coworkerOptions[0]?.id ?? ""
     );
   }, [
+    mode,
     coworkerOptions,
     initialValues?.assigneeId,
     initialValues?.assigneeSokoBotId,

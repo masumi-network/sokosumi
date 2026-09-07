@@ -977,6 +977,45 @@ describe("TaskForm", () => {
     );
   });
 
+  it("keeps an unassigned task unassigned when saving an unrelated edit", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: "",
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+          status: TaskStatus.READY,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: "Coworker" }),
+    ).toHaveTextContent("Unassigned");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(updateTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task-1",
+        assigneeId: null,
+        assigneeUserId: null,
+      }),
+    );
+  });
+
   it("does not limit the edit name field length", () => {
     render(
       <TaskForm

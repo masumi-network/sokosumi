@@ -1997,7 +1997,7 @@
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
         "unassigned": "Nicht zugewiesen",
-        "unassignedDescription": "Bereite Arbeit für alle zur Übernahme offen lassen"
+        "unassignedDescription": "Arbeit zur Übernahme offen lassen"
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -2029,7 +2029,7 @@
         "cancel": "Abbrechen",
         "ctrl": "Strg",
         "unassigned": "Nicht zugewiesen",
-        "unassignedDescription": "Bereite Arbeit für alle zur Übernahme offen lassen"
+        "unassignedDescription": "Arbeit zur Übernahme offen lassen"
       },
       "Schedule": {
         "title": "Zeitplan",
