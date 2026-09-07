@@ -160,6 +160,35 @@ describe("createScheduledTaskInTransaction", () => {
     });
   });
 
+  it("creates human scheduled Tasks as READY without entering the agent queue", async () => {
+    const { tx, projectFindFirstMock } = createTransaction();
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      closingAt: null,
+      closedAt: null,
+    });
+
+    await expect(
+      createScheduledTaskInTransaction(
+        {
+          ...createInput(),
+          assigneeId: null,
+          assigneeUserId: "user_assignee_123",
+        },
+        tx,
+      ),
+    ).resolves.toBe("task_123");
+
+    expect(createTaskForActorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeId: null,
+        assigneeUserId: "user_assignee_123",
+        status: TaskStatus.READY,
+      }),
+      tx,
+    );
+  });
+
   it.each([
     [
       "workspace",

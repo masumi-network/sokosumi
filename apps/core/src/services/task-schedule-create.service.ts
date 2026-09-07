@@ -46,7 +46,8 @@ export interface CreateScheduledTaskInput {
   source: { type: "workspace" } | { type: "project"; projectId: string };
   name: string;
   description?: string | null;
-  assigneeId: string;
+  assigneeId?: string | null;
+  assigneeUserId?: string | null;
   schedule: TaskScheduleInput;
   requestFingerprintPayload?: {
     name: string | null;
@@ -88,6 +89,7 @@ function createScheduledTaskRequestFingerprint(
       projectId,
     },
     assigneeId: input.assigneeId,
+    assigneeUserId: input.assigneeUserId,
     request: input.requestFingerprintPayload ?? {
       name: input.name,
       description: input.description ?? null,
@@ -242,8 +244,11 @@ export async function createScheduledTaskInTransaction(
       name: input.name,
       description: input.description,
       assigneeId: input.assigneeId,
+      assigneeUserId: input.assigneeUserId,
       assigneeAuthorization: input.creator.assigneeAuthorization,
-      status: TaskStatus.QUEUED,
+      // Human tasks are calendar reminders, not agent work. Keep them READY
+      // so they do not enter the execution queue.
+      status: input.assigneeUserId ? TaskStatus.READY : TaskStatus.QUEUED,
       schedule: { metadata, nextRunAt },
     },
     tx,

@@ -8,6 +8,10 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { created } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import {
+  refineAssigneeXorConflict,
+  resolveAssigneeIdFromRequest,
+} from "@/helpers/task-assignee-alias";
+import {
   findTaskProjectInWorkspace,
   healProjectBriefingUrl,
   resolveTaskDescriptionWithContext,
@@ -45,9 +49,20 @@ export const createScheduledTaskRequestSchema = z
     source: scheduledTaskSourceSchema,
     name: z.string().trim().min(1).max(LIMITS.NAME_MAX_LENGTH).optional(),
     description: z.string().nullish(),
-    assigneeId: z.string().min(1),
+    assigneeId: z.string().min(1).nullish(),
+    assigneeUserId: z.string().min(1).nullish(),
     context: createTaskContextSchema.optional(),
     schedule: taskScheduleInputSchema,
+  })
+  .superRefine((data, ctx) => {
+    refineAssigneeXorConflict(data, ctx);
+    if (!resolveAssigneeIdFromRequest(data) && !data.assigneeUserId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A task assignee is required",
+        path: ["assigneeUserId"],
+      });
+    }
   })
   .openapi("CreateScheduledTaskRequest");
 
@@ -56,7 +71,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/scheduled",
     description:
-      "Atomically create a queued Task with a mutable version 2 schedule and Calendar occurrence index.",
+      "Atomically create a scheduled Task with a mutable version 2 schedule and Calendar occurrence index.",
     tags: ["Tasks"],
     request: {
       body: {

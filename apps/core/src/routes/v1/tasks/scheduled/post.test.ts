@@ -182,6 +182,21 @@ describe("createScheduledTaskRequestSchema", () => {
     });
   });
 
+  it("accepts a human assignee for a calendar-only scheduled Task", () => {
+    expect(
+      createScheduledTaskRequestSchema.parse({
+        operationId: "123e4567-e89b-42d3-a456-426614174000",
+        source: { type: "workspace" },
+        name: "Review the proposal",
+        assigneeUserId: "user_123",
+        schedule: {
+          mode: "once",
+          runAt: "2099-09-24T09:00:00.000Z",
+        },
+      }),
+    ).toMatchObject({ assigneeUserId: "user_123" });
+  });
+
   it("rejects a project source without a project id", () => {
     expect(
       createScheduledTaskRequestSchema.safeParse({
