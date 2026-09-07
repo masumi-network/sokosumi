@@ -90,7 +90,9 @@ public actor OAuthSession {
     return try await refresh(tokens: tokens)
   }
 
-  public func signOut() {
+  /// True only when the store confirms the tokens are gone.
+  @discardableResult
+  public func signOut() -> Bool {
     store.clear()
   }
 

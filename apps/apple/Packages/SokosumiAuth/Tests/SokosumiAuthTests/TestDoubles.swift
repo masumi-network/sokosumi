@@ -43,7 +43,22 @@ final class InMemoryTokenStore: TokenStore, @unchecked Sendable {
 
   func save(_ tokens: OAuthTokens) { saved = tokens }
 
-  func clear() { saved = nil }
+  @discardableResult
+  func clear() -> Bool {
+    saved = nil
+    return true
+  }
+}
+
+/// Store whose deletion never confirms (unreadable Keychain): tokens stay.
+final class FailingClearStore: TokenStore, @unchecked Sendable {
+  private(set) var saved: OAuthTokens?
+
+  func load() -> OAuthTokens? { saved }
+
+  func save(_ tokens: OAuthTokens) { saved = tokens }
+
+  func clear() -> Bool { false }
 }
 
 struct UnreachableError: Error {}

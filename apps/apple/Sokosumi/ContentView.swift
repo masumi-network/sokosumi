@@ -85,5 +85,5 @@ struct ContentView: View {
 private struct PreviewTokenStore: TokenStore {
   func load() -> OAuthTokens? { nil }
   func save(_ tokens: OAuthTokens) {}
-  func clear() {}
+  func clear() -> Bool { true }
 }

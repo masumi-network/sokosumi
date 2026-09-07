@@ -27,7 +27,11 @@ public struct OAuthTokens: Codable, Sendable, Equatable {
 public protocol TokenStore: Sendable {
   func load() -> OAuthTokens?
   func save(_ tokens: OAuthTokens)
-  func clear()
+  /// Deletes stored tokens. Returns true only when absence is confirmed
+  /// (deleted or already absent) — never on an unreadable store, so callers
+  /// cannot mistake "could not verify" for "signed out".
+  @discardableResult
+  func clear() -> Bool
 }
 
 /// Token-endpoint HTTP boundary (`POST application/x-www-form-urlencoded`).

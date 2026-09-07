@@ -94,16 +94,15 @@ final class AuthState: ObservableObject {
     activeBrowserSession?.cancel()
     activeBrowserSession = nil
     Task {
-      await session?.signOut()
-      guard session != nil else {
+      guard let session else {
         status = .notConfigured
         return
       }
-      if store.load() == nil {
+      if await session.signOut() {
         signOutError = nil
         status = .signedOut(message: message)
       } else {
-        // Deletion failed: the next launch would restore .signedIn, so
+        // Deletion unconfirmed: the next launch could restore .signedIn, so
         // claiming sign-out here would strand a live session on a shared Mac.
         signOutError = "Sign out failed. Your session is still on this Mac — try again."
       }

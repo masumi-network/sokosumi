@@ -45,12 +45,16 @@ struct KeychainTokenStore: TokenStore {
     }
   }
 
-  func clear() {
+  @discardableResult
+  func clear() -> Bool {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: account,
     ]
-    SecItemDelete(query as CFDictionary)
+    let status = SecItemDelete(query as CFDictionary)
+    // Absent already counts as deleted (idempotent sign-out). Any other
+    // failure leaves the item in place and must report false.
+    return status == errSecSuccess || status == errSecItemNotFound
   }
 }

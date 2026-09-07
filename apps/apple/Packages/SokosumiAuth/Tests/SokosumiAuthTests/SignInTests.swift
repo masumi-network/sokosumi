@@ -99,6 +99,24 @@ struct SignInTests {
     #expect(await !session.isSignedIn)
   }
 
+  @Test func signOutReportsUnconfirmedDeletion() async throws {
+    let transport = StubTokenTransport(response: .success(
+      status: 200,
+      json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":7200,\"refresh_token\":\"refresh-1\"}"
+    ))
+    let store = FailingClearStore()
+    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+    try await session.signIn(
+      callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+      expectedState: "s",
+      codeVerifier: "v"
+    )
+
+    #expect(await session.signOut() == false)
+    #expect(await session.isSignedIn)
+    #expect(await store.saved?.accessToken == "access-1")
+  }
+
   @Test func signOutClearsStoredTokens() async throws {
     let transport = StubTokenTransport(response: .success(
       status: 200,
