@@ -60,6 +60,10 @@ model User {
 
   notificationPreferences NotificationPreference[]
 
+  // Chat display preferences. Not delivery: these change what the reader sees,
+  // never which notifications are created or sent.
+  showRoomUnreadCount Boolean @default(false) // Whether chat sidebar rows show a room's unread message count
+
   // UTM Attribution
   utmAttribution UTMAttribution?
 

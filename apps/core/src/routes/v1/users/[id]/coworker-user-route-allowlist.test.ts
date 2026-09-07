@@ -113,6 +113,7 @@ const USER_RECORD = {
   marketingOptIn: true,
   notificationsOptIn: false,
   pushOptIn: false,
+  showRoomUnreadCount: false,
   notificationPreferences: [],
 };
 

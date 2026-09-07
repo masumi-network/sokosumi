@@ -22680,6 +22680,10 @@ export type GetUsersByIdPreferencesResponses = {
              */
             pushOptIn: boolean;
             /**
+             * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+             */
+            showRoomUnreadCount: boolean;
+            /**
              * Every cell of the notification preference matrix, with defaults already applied
              */
             notificationPreferences: Array<NotificationPreference>;
@@ -22708,6 +22712,10 @@ export type PatchUsersByIdPreferencesData = {
          * Whether the user wants OS banners while Sokosumi is closed (push)
          */
         pushOptIn?: boolean;
+        /**
+         * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+         */
+        showRoomUnreadCount?: boolean;
         /**
          * The matrix cells the reader changed. A cell left out keeps its current answer.
          */
@@ -22802,6 +22810,10 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether the user wants OS banners while Sokosumi is closed (push)
              */
             pushOptIn: boolean;
+            /**
+             * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+             */
+            showRoomUnreadCount: boolean;
             /**
              * Every cell of the notification preference matrix, with defaults already applied
              */

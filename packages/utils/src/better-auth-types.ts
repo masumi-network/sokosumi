@@ -23,6 +23,7 @@ export interface SessionUser {
   termsAccepted: boolean;
   marketingOptIn: boolean;
   notificationsOptIn?: boolean | null;
+  showRoomUnreadCount?: boolean | null;
   logo?: string | null;
   metadata?: string | null;
   stripeCustomerId?: string | null;
