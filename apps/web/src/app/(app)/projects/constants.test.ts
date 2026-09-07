@@ -53,7 +53,7 @@ describe("projects mobile padding shells", () => {
     expect(PROJECTS_PAGE_SHELL_CLASS).not.toContain("calc(100%");
   });
 
-  it("detail shell cancels main p-4 on both edges; workspace keeps mobile px-4", () => {
+  it("detail shell cancels main p-4 on both edges; workspace shares overview grid rhythm", () => {
     const shell = PROJECTS_DETAIL_SHELL_CLASS.split(/\s+/);
     const workspace = PROJECTS_DETAIL_WORKSPACE_CLASS.split(/\s+/);
 
@@ -66,8 +66,7 @@ describe("projects mobile padding shells", () => {
     expect(shell).not.toContain("px-2");
 
     expect(PROJECTS_DETAIL_TOP_CLASS).toBe("w-full");
-    expect(workspace).toContain("px-4");
-    expect(workspace).toContain("md:px-0");
+    expect(workspace).toEqual(["space-y-3"]);
   });
 });
 

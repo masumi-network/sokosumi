@@ -153,6 +153,12 @@ describe("ProjectDetailPage", () => {
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
     expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
     expect(screen.getByTestId("needs-attention-section")).toBeInTheDocument();
+    const memory = screen.getByTestId("memory-stat");
+    const needsAttention = screen.getByTestId("needs-attention-section");
+    expect(
+      memory.compareDocumentPosition(needsAttention) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(container.innerHTML).not.toContain(
       "bg-muted/30 border-border/50 rounded-none border p-4",
     );
@@ -160,8 +166,15 @@ describe("ProjectDetailPage", () => {
       "App.Projects.Detail.modules.title",
     );
     expect(workspaceHeading).toBeInTheDocument();
-    expect(workspaceHeading.closest("section")?.className).toContain("px-4");
-    expect(workspaceHeading.closest("section")?.className).toContain("md:px-0");
+    const workspaceSection = workspaceHeading.closest("section");
+    expect(workspaceSection?.className).toContain("space-y-3");
+    expect(workspaceSection?.className).toContain("xl:col-span-2");
+    expect(workspaceSection?.className).not.toContain("px-4");
+    expect(workspaceSection?.className).not.toContain("md:px-0");
+    const overviewGrid = workspaceSection?.parentElement;
+    expect(overviewGrid?.className).toContain("grid");
+    expect(overviewGrid?.className).toContain("xl:grid-cols-3");
+    expect((container.firstChild as HTMLElement).childElementCount).toBe(1);
     expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
       6,
     );
