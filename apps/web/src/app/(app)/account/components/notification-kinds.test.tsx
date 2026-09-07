@@ -1111,6 +1111,30 @@ describe("NotificationKinds", () => {
     expect(document.activeElement).toBe(name);
   });
 
+  /**
+   * The page draws a legend per open group, so a pointer sweeping down a
+   * column crosses one group's names and then the next group's. Two panels
+   * 288px wide standing over the rows they explain is what the shared state
+   * exists to stop, and a group boundary is not a reason for it to stop
+   * working.
+   */
+  it("shows one explanation at a time across two open groups", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+    await openGroup("groupTask");
+
+    const names = screen.getAllByRole("button", { name: "channelPush" });
+    expect(names).toHaveLength(2);
+
+    await user.hover(names[0]!);
+    await screen.findByText("channelPushHint");
+    await user.hover(names[1]!);
+
+    expect(screen.queryAllByText("channelPushHint")).toHaveLength(1);
+  });
+
   it("puts the channel legend inside each expanded section", async () => {
     renderKinds();
 

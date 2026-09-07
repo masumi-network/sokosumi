@@ -2,7 +2,18 @@
 
 import { type LucideIcon, Mail } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
   Popover,
@@ -245,6 +256,30 @@ function ChannelExplainer({
  * head. A phone has no width to spare for the word, and the names of the
  * columns need what there is, so there it is left out.
  */
+/**
+ * The one name on the page whose explanation is up.
+ *
+ * Held over every legend rather than inside one, because the page draws a
+ * legend per open group and the pointer crosses between them: sweeping down a
+ * column from one group's name to the next left the first panel counting down
+ * while the second stood up, which is the pair of 288px panels this state
+ * exists to stop.
+ */
+const OpenExplainer = createContext<{
+  openName: string | null;
+  setOpenName: Dispatch<SetStateAction<string | null>>;
+} | null>(null);
+
+/** Wraps the legends that share one open panel. */
+export function ChannelLegendScope({ children }: { children: ReactNode }) {
+  const [openName, setOpenName] = useState<string | null>(null);
+  const value = useMemo(() => ({ openName, setOpenName }), [openName]);
+
+  return (
+    <OpenExplainer.Provider value={value}>{children}</OpenExplainer.Provider>
+  );
+}
+
 export function ChannelLegend({
   pushBlock,
   named = false,
@@ -254,16 +289,25 @@ export function ChannelLegend({
   named?: boolean;
 }) {
   const t = useTranslations("App.Account.Notifications");
-  const [openName, setOpenName] = useState<string | null>(null);
+  const shared = useContext(OpenExplainer);
+
+  if (!shared) {
+    throw new Error("ChannelLegend needs a ChannelLegendScope around it.");
+  }
+
+  const { openName, setOpenName } = shared;
+  // The columns are named the same in every legend, so the name alone would
+  // put one hover's panel up in all of them.
+  const legendId = useId();
 
   /**
-   * One panel at a time, held by the row rather than by each name.
+   * One panel at a time, held above the legends rather than by each name.
    *
    * Each name closes behind the pointer on a wait, so a pointer crossing the
    * row arrived at the next name while the one it came from was still counting
    * down: two panels 288px wide, both up, over the rows they explain. Held
-   * here, the name being arrived at takes the panel and the one being left is
-   * closed on the spot. It is still drawn while its exit plays, the way every
+   * in one place, the name being arrived at takes the panel and the one being
+   * left is closed on the spot. It is still drawn while its exit plays, the way every
    * popover on this page is, so what overlaps is a panel on its way out rather
    * than a second one standing there for the whole wait.
    *
@@ -271,8 +315,12 @@ export function ChannelLegend({
    * by design, and by then the panel may belong to a name further along the
    * row, which this must not take away.
    */
+  const nameFor = (name: string) => `${legendId}:${name}`;
+
   const answerFor = (name: string) => (open: boolean) => {
-    setOpenName((current) => (open ? name : current === name ? null : current));
+    const key = nameFor(name);
+
+    setOpenName((current) => (open ? key : current === key ? null : current));
   };
 
   return (
@@ -291,7 +339,7 @@ export function ChannelLegend({
       {CHANNEL_SPECS.map((spec) => (
         <ChannelExplainer
           key={spec.id}
-          open={openName === spec.id}
+          open={openName === nameFor(spec.id)}
           onOpenChange={answerFor(spec.id)}
           icon={CHANNEL_ICON[spec.id]}
           label={t(spec.labelKey)}
@@ -308,7 +356,7 @@ export function ChannelLegend({
         />
       ))}
       <ChannelExplainer
-        open={openName === EMAIL_NAME}
+        open={openName === nameFor(EMAIL_NAME)}
         onOpenChange={answerFor(EMAIL_NAME)}
         icon={Mail}
         label={t("channelEmail")}
