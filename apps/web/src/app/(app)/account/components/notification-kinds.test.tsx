@@ -276,6 +276,58 @@ describe("NotificationKinds", () => {
     );
   });
 
+  it("keeps both choices when parallel writes resolve out of order", async () => {
+    let resolveJob: (value: ReturnType<typeof response>) => void;
+    let resolveTask: (value: ReturnType<typeof response>) => void;
+    patchMyPreferences
+      .mockImplementationOnce(
+        () =>
+          new Promise<ReturnType<typeof response>>((resolve) => {
+            resolveJob = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<ReturnType<typeof response>>((resolve) => {
+            resolveTask = resolve;
+          }),
+      );
+    renderKinds();
+
+    await pick("kindJob", "deliveryOff");
+    await pick("kindTask", "deliveryBanner");
+
+    await waitFor(() => {
+      expect(patchMyPreferences).toHaveBeenCalledTimes(2);
+    });
+
+    resolveTask!(
+      response(
+        MATRIX.map((cell) =>
+          cell.category === "TASK" ? { ...cell, enabled: true } : cell,
+        ),
+      ),
+    );
+    resolveJob!(
+      response(
+        MATRIX.map((cell) =>
+          cell.category === "JOB" ? { ...cell, enabled: false } : cell,
+        ),
+      ),
+    );
+
+    await waitFor(() => {
+      expect(stop("kindJob", "deliveryOff")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(stop("kindTask", "deliveryBanner")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+    });
+  });
+
   it("draws nothing for a kind Core does not send", () => {
     renderKinds(MATRIX.filter((cell) => cell.category !== "SYSTEM"));
 

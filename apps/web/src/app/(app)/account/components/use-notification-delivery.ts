@@ -185,7 +185,7 @@ export function useNotificationDelivery(): NotificationDelivery {
     setSaving((current) => [...current, ...categories]);
 
     try {
-      const written = await preferencesBrowserClient.patchMyPreferences({
+      await preferencesBrowserClient.patchMyPreferences({
         notificationPreferences: changes.map((change) => ({
           category: change.category,
           channel: change.channel,
@@ -198,7 +198,6 @@ export function useNotificationDelivery(): NotificationDelivery {
       await queryClient.cancelQueries({
         queryKey: getMyPreferencesQueryKey(userId),
       });
-      queryClient.setQueryData(getMyPreferencesQueryKey(userId), written);
     } catch (error) {
       console.error("Failed to update the notification preference", error);
       paint(previous);
