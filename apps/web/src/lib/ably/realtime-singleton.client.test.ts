@@ -1,7 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { RealtimeMock, PushMock } = vi.hoisted(() => ({
-  RealtimeMock: vi.fn(function Realtime(this: Record<string, unknown>) {
+  RealtimeMock: vi.fn(function Realtime(
+    this: { close: ReturnType<typeof vi.fn> },
+    _options: unknown,
+  ) {
     this.close = vi.fn();
     return this;
   }),
@@ -41,8 +44,14 @@ interface RealtimeClientOptions {
   echoMessages?: boolean;
 }
 
-interface RealtimeClientMock {
+function getConstructedRealtimeClient(): {
   close: ReturnType<typeof vi.fn>;
+} {
+  const constructed = RealtimeMock.mock.instances[0];
+  if (!constructed) {
+    throw new Error("Ably.Realtime was not constructed");
+  }
+  return constructed;
 }
 
 function getRealtimeClientOptions(): RealtimeClientOptions {
@@ -73,12 +82,20 @@ async function invokeAuthCallback(): Promise<{
 
 describe("getAblyRealtimeClient", () => {
   const fetchMock = vi.fn();
+  const consoleErrorMock = vi
+    .spyOn(console, "error")
+    .mockImplementation(() => undefined);
 
   beforeEach(() => {
     globalThis.__sokosumiAblyRealtimeClient = undefined;
     RealtimeMock.mockClear();
     fetchMock.mockReset();
+    consoleErrorMock.mockClear();
     vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterAll(() => {
+    consoleErrorMock.mockRestore();
   });
 
   it("does not echo the publisher's own messages back on the shared client", () => {
@@ -127,7 +144,7 @@ describe("getAblyRealtimeClient", () => {
       text: async () => '{"error":"Unauthorized"}',
     });
 
-    const client = getAblyRealtimeClient() as RealtimeClientMock;
+    getAblyRealtimeClient();
     const authResult = await invokeAuthCallback();
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -140,7 +157,8 @@ describe("getAblyRealtimeClient", () => {
     expect(authResult.token).toBeNull();
     expect(authResult.error).toEqual(expect.any(String));
     expect(globalThis.__sokosumiAblyRealtimeClient).toBeUndefined();
-    expect(client.close).toHaveBeenCalled();
+    expect(getConstructedRealtimeClient().close).toHaveBeenCalled();
+    expect(consoleErrorMock).not.toHaveBeenCalled();
   });
 
   it("does not clear the singleton when /api/ably/auth returns 502", async () => {
@@ -150,13 +168,14 @@ describe("getAblyRealtimeClient", () => {
       text: async () => '{"error":"Failed to create Ably token"}',
     });
 
-    const client = getAblyRealtimeClient() as RealtimeClientMock;
+    const client = getAblyRealtimeClient();
     const authResult = await invokeAuthCallback();
 
     expect(authResult.token).toBeNull();
     expect(authResult.error).toEqual(expect.stringMatching(/502/));
     expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
-    expect(client.close).not.toHaveBeenCalled();
+    expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
+    expect(consoleErrorMock).toHaveBeenCalled();
   });
 
   it("recreates a client after a 401 so a later remount can reconnect", async () => {
