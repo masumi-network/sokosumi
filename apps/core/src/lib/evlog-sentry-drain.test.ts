@@ -1,6 +1,7 @@
+import { createLogger } from "evlog";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { coreEvlogDrain } from "@/lib/evlog";
+import { coreEvlogDrain, initCoreLogger } from "@/lib/evlog";
 
 const createSentryDrainMock = vi.hoisted(() => vi.fn());
 
@@ -34,5 +35,24 @@ describe("coreEvlogDrain", () => {
 
     expect(coreEvlogDrain()).toBe(drain);
     expect(createSentryDrainMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("initCoreLogger without a drain option uses the Sentry drain", async () => {
+    const drain = vi.fn();
+    createSentryDrainMock.mockReturnValue(drain);
+    process.env.SENTRY_DSN = "https://key@o0.ingest.sentry.io/1";
+
+    initCoreLogger({ silent: true });
+    createLogger({ chat: { kind: "coworker_channel_mention" } }).emit();
+    await Promise.resolve();
+
+    expect(drain).toHaveBeenCalledTimes(1);
+    expect(drain.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        event: expect.objectContaining({
+          chat: { kind: "coworker_channel_mention" },
+        }),
+      }),
+    );
   });
 });
