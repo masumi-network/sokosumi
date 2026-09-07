@@ -34,11 +34,12 @@ describe("projects list CLS layout constants", () => {
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:rounded-xl");
   });
 
-  it("exports detail list layout without negative horizontal margin", () => {
+  it("exports detail list layout with mobile bleed out of overview px-4", () => {
     expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("bg-muted/30");
     expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("md:rounded-xl");
     expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("md:border");
-    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).not.toContain("-mx-4");
+    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("-mx-4");
+    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("md:mx-0");
     expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).not.toContain("-mx-6");
   });
 });

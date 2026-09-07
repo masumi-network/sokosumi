@@ -131,6 +131,11 @@ describe("ProjectNeedsAttentionSection", () => {
     expect(screen.getByTestId("job-status")).toHaveTextContent(
       SokosumiJobStatus.PAYMENT_FAILED,
     );
+
+    const listBox = screen
+      .getByTestId("project-needs-attention")
+      .querySelector(":scope > div:last-child");
+    expect(listBox).toHaveClass("-mx-4", "md:mx-0");
   });
 
   it("shows empty copy when there are no attention items", () => {
@@ -147,5 +152,10 @@ describe("ProjectNeedsAttentionSection", () => {
     expect(
       screen.getByText("Nothing needs your attention right now."),
     ).toBeInTheDocument();
+
+    const listBox = screen
+      .getByTestId("project-needs-attention")
+      .querySelector(":scope > div:last-child");
+    expect(listBox).toHaveClass("-mx-4", "md:mx-0");
   });
 });

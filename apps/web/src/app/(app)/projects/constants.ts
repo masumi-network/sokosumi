@@ -46,11 +46,12 @@ export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
 /**
- * Detail overview list box (Tasks / Jobs). Same fill/radius/border as browse,
- * but no `-mx-*`: detail shell already cancels main p-4 and top is full-bleed.
+ * Detail overview list box (Needs attention / Tasks / Jobs). Same fill/radius/border
+ * as browse. Overview grid is `px-4` on mobile, so `-mx-4 md:mx-0` reaches the
+ * viewport edge; desktop stays in the column.
  */
 export const PROJECTS_DETAIL_LIST_LAYOUT_CLASS =
-  "bg-muted/30 border-border/50 overflow-hidden rounded-none border-0 md:rounded-xl md:border";
+  "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
 /**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
