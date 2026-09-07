@@ -117,6 +117,22 @@ export function attachWorkspaceToLogger(
   });
 }
 
+export interface CoreLogUpload {
+  filename: string;
+  size: number;
+  mimeType: string;
+}
+
+export function attachUploadToLogger(file: CoreLogUpload) {
+  tryUseLogger()?.set({
+    upload: {
+      filename: file.filename,
+      size: file.size,
+      mimeType: file.mimeType,
+    },
+  });
+}
+
 export function recordCoreRequestError(error: Error) {
   tryUseLogger()?.error(error);
 }
