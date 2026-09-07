@@ -6,8 +6,7 @@ const { getSessionMock, projectServiceMock, notFoundMock } = vi.hoisted(() => ({
   projectServiceMock: {
     getProjectById: vi.fn(),
     getProjectsStats: vi.fn(),
-    listProjectJobs: vi.fn(),
-    listProjectTasks: vi.fn(),
+    getProjectNeedsAttention: vi.fn(),
   },
   notFoundMock: vi.fn(() => {
     throw new Error("NOT_FOUND");
@@ -47,12 +46,10 @@ vi.mock("@/app/projects/components/project-brand-card", () => ({
   ProjectBrandCard: () => <div data-testid="brand-card">Brand card</div>,
 }));
 
-vi.mock("@/app/projects/components/project-jobs-section", () => ({
-  ProjectJobsSection: () => null,
-}));
-
-vi.mock("@/app/projects/components/project-tasks-section", () => ({
-  ProjectTasksSection: () => null,
+vi.mock("@/app/projects/components/project-needs-attention-section", () => ({
+  ProjectNeedsAttentionSection: () => (
+    <div data-testid="needs-attention-section">Needs attention</div>
+  ),
 }));
 
 function buildProject() {
@@ -84,7 +81,7 @@ describe("ProjectDetailPage", () => {
     getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
   });
 
-  it("calls notFound without loading jobs or tasks when the project is missing", async () => {
+  it("calls notFound without loading needs-attention when the project is missing", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(null);
 
     const { default: ProjectDetailPage } = await import("./page");
@@ -99,21 +96,17 @@ describe("ProjectDetailPage", () => {
       "project-missing",
     );
     expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
-    expect(projectServiceMock.listProjectJobs).not.toHaveBeenCalled();
-    expect(projectServiceMock.listProjectTasks).not.toHaveBeenCalled();
+    expect(projectServiceMock.getProjectNeedsAttention).not.toHaveBeenCalled();
     expect(notFoundMock).toHaveBeenCalledOnce();
   });
 
-  it("loads jobs and tasks in parallel after the project exists", async () => {
+  it("loads needs-attention after the project exists", async () => {
     const project = buildProject();
     projectServiceMock.getProjectById.mockResolvedValue(project);
-    projectServiceMock.listProjectJobs.mockResolvedValue({
-      jobs: [],
-      pagination: null,
-    });
-    projectServiceMock.listProjectTasks.mockResolvedValue({
-      tasks: [],
-      pagination: null,
+    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
+      taskCount: 3,
+      jobCount: 2,
+      items: [],
     });
 
     const { default: ProjectDetailPage } = await import("./page");
@@ -122,13 +115,8 @@ describe("ProjectDetailPage", () => {
       params: Promise.resolve({ projectId: "project-1" }),
     });
 
-    expect(projectServiceMock.listProjectJobs).toHaveBeenCalledWith(
+    expect(projectServiceMock.getProjectNeedsAttention).toHaveBeenCalledWith(
       "project-1",
-      { limit: 100 },
-    );
-    expect(projectServiceMock.listProjectTasks).toHaveBeenCalledWith(
-      "project-1",
-      { limit: 100 },
     );
     expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
     expect(notFoundMock).not.toHaveBeenCalled();
@@ -164,6 +152,7 @@ describe("ProjectDetailPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
     expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
+    expect(screen.getByTestId("needs-attention-section")).toBeInTheDocument();
     expect(container.innerHTML).not.toContain(
       "bg-muted/30 border-border/50 rounded-none border p-4",
     );
@@ -189,13 +178,10 @@ describe("ProjectDetailPage", () => {
     const project = buildProject();
     getSessionMock.mockResolvedValue({ user: { email: "member@example.com" } });
     projectServiceMock.getProjectById.mockResolvedValue(project);
-    projectServiceMock.listProjectJobs.mockResolvedValue({
-      jobs: [],
-      pagination: null,
-    });
-    projectServiceMock.listProjectTasks.mockResolvedValue({
-      tasks: [],
-      pagination: null,
+    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
+      taskCount: 0,
+      jobCount: 0,
+      items: [],
     });
 
     const { default: ProjectDetailPage } = await import("./page");

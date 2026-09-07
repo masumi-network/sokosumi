@@ -2268,6 +2268,7 @@
           "empty": "Diesem Projekt sind noch keine Jobs zugeordnet.",
           "add": "Job hinzufügen",
           "remove": "Job entfernen",
+          "viewAll": "Alle Jobs anzeigen",
           "pickerTitle": "Job hinzufügen",
           "pickerDescription": "Wähle einen nicht zugewiesenen Job aus, um ihn diesem Projekt zuzuordnen.",
           "pickerSearchPlaceholder": "Jobs suchen...",
@@ -2287,6 +2288,10 @@
           "pickerLoading": "Tasks werden geladen...",
           "pickerError": "Tasks konnten nicht geladen werden.",
           "viewAll": "Alle anzeigen"
+        },
+        "needsAttention": {
+          "title": "Erfordert Aufmerksamkeit",
+          "empty": "Derzeit ist nichts zu erledigen."
         },
         "modules": {
           "title": "Arbeitsbereich",

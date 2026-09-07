@@ -8,10 +8,9 @@ import {
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
-import { ProjectJobsSection } from "@/app/projects/components/project-jobs-section";
 import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
 import { ProjectModuleTiles } from "@/app/projects/components/project-module-tiles";
-import { ProjectTasksSection } from "@/app/projects/components/project-tasks-section";
+import { ProjectNeedsAttentionSection } from "@/app/projects/components/project-needs-attention-section";
 import {
   PROJECTS_DETAIL_SHELL_CLASS,
   PROJECTS_DETAIL_TOP_CLASS,
@@ -19,10 +18,9 @@ import {
 } from "@/app/projects/constants";
 import { getSession } from "@/lib/auth/auth.server";
 import { isBetaAccessEmail } from "@/lib/beta-access";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import { projectService } from "@/lib/services/project.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
-
-const PROJECT_DETAIL_RESOURCE_LIMIT = 100;
 
 export default async function ProjectDetailPage({
   params,
@@ -36,19 +34,38 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [projectJobsResult, projectTasksResult] = await Promise.all([
-    projectService.listProjectJobs(project.id, {
-      limit: PROJECT_DETAIL_RESOURCE_LIMIT,
-    }),
-    projectService.listProjectTasks(project.id, {
-      limit: PROJECT_DETAIL_RESOURCE_LIMIT,
-    }),
-  ]);
-
-  const [t, locale] = await Promise.all([
+  const [attention, t, tHistory, tTaskFilters, locale] = await Promise.all([
+    projectService.getProjectNeedsAttention(project.id),
     getTranslations("App.Projects.Detail"),
+    getTranslations("App.History.Row"),
+    getTranslations("App.Tasks.Filters"),
     getLocale(),
   ]);
+
+  const taskStatusLabels: Record<TaskStatus, string> = {
+    [TaskStatus.DRAFT]: tTaskFilters("statusOptions.DRAFT"),
+    [TaskStatus.QUEUED]: tTaskFilters("statusOptions.QUEUED"),
+    [TaskStatus.READY]: tTaskFilters("statusOptions.READY"),
+    [TaskStatus.GRANT_PENDING]: tTaskFilters("statusOptions.GRANT_PENDING"),
+    [TaskStatus.INPUT_REQUIRED]: tTaskFilters("statusOptions.INPUT_REQUIRED"),
+    [TaskStatus.APPROVAL_REQUIRED]: tTaskFilters(
+      "statusOptions.APPROVAL_REQUIRED",
+    ),
+    [TaskStatus.AUTHENTICATION_REQUIRED]: tTaskFilters(
+      "statusOptions.AUTHENTICATION_REQUIRED",
+    ),
+    [TaskStatus.OUT_OF_CREDITS]: tTaskFilters("statusOptions.OUT_OF_CREDITS"),
+    [TaskStatus.CREDITS_TOPPED_UP]: tTaskFilters(
+      "statusOptions.CREDITS_TOPPED_UP",
+    ),
+    [TaskStatus.RUNNING]: tTaskFilters("statusOptions.RUNNING"),
+    [TaskStatus.AWAITING_EXTERNAL]: tTaskFilters(
+      "statusOptions.AWAITING_EXTERNAL",
+    ),
+    [TaskStatus.COMPLETED]: tTaskFilters("statusOptions.COMPLETED"),
+    [TaskStatus.FAILED]: tTaskFilters("statusOptions.FAILED"),
+    [TaskStatus.CANCELED]: tTaskFilters("statusOptions.CANCELED"),
+  };
 
   return (
     <div className={PROJECTS_DETAIL_SHELL_CLASS}>
@@ -114,23 +131,26 @@ export default async function ProjectDetailPage({
             />
 
             <div className="xl:col-span-2">
-              <ProjectTasksSection
+              <ProjectNeedsAttentionSection
                 projectId={project.id}
-                tasks={projectTasksResult.tasks}
+                taskCount={attention.taskCount}
+                jobCount={attention.jobCount}
+                items={attention.items}
                 labels={{
-                  title: t("tasks.title"),
-                  empty: t("tasks.empty"),
-                  add: t("tasks.add"),
-                  viewAll: t("tasks.viewAll"),
-                  pickerTitle: t("tasks.pickerTitle"),
-                  pickerDescription: t("tasks.pickerDescription"),
-                  pickerSearchPlaceholder: t("tasks.pickerSearchPlaceholder"),
-                  pickerEmpty: t("tasks.pickerEmpty"),
-                  pickerLoading: t("tasks.pickerLoading"),
-                  pickerError: t("tasks.pickerError"),
-                  errors: {
-                    add: t("errors.addTask"),
+                  needsAttention: t("needsAttention.title"),
+                  empty: t("needsAttention.empty"),
+                  viewAllTasks: t("tasks.viewAll"),
+                  viewAllJobs: t("jobs.viewAll"),
+                  counts: {
+                    tasks: t("list.stats.tasks"),
+                    jobs: t("list.stats.jobs"),
                   },
+                  kind: {
+                    task: tHistory("kind.task"),
+                    job: tHistory("kind.job"),
+                  },
+                  taskStatus: taskStatusLabels,
+                  locale,
                 }}
               />
             </div>
@@ -142,32 +162,6 @@ export default async function ProjectDetailPage({
               memoryEnabled={project.memoryEnabled}
               memoryModel={project.memoryModel}
             />
-
-            <div className="xl:col-span-3">
-              <ProjectJobsSection
-                projectId={project.id}
-                jobs={projectJobsResult.jobs}
-                labels={{
-                  title: t("jobs.title"),
-                  empty: t("jobs.empty"),
-                  add: t("jobs.add"),
-                  remove: t("jobs.remove"),
-                  pickerTitle: t("jobs.pickerTitle"),
-                  pickerDescription: t("jobs.pickerDescription"),
-                  pickerSearchPlaceholder: t("jobs.pickerSearchPlaceholder"),
-                  pickerEmpty: t("jobs.pickerEmpty"),
-                  pickerLoading: t("jobs.pickerLoading"),
-                  pickerError: t("jobs.pickerError"),
-                  confirmRemove: t("actions.confirmRemoveJob"),
-                  cancel: t("deleteDialog.cancel"),
-                  untitled: t("jobs.untitled"),
-                  errors: {
-                    add: t("errors.addJob"),
-                    remove: t("errors.removeJob"),
-                  },
-                }}
-              />
-            </div>
           </div>
         </ProjectBrandProvider>
       </div>

@@ -17,7 +17,7 @@ import {
 } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -66,6 +66,10 @@ import {
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
+import {
+  applyTasksTabSearchParam,
+  type TasksTabValue,
+} from "@/app/tasks/utils/tasks-tab";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -263,6 +267,7 @@ interface TasksViewProps {
   initialCreateTaskPrompt?: string | null;
   createTaskModalResetKey?: string;
   canCreateTask?: boolean;
+  initialTab?: TasksTabValue;
   labels: {
     tabs: {
       tasks: string;
@@ -327,8 +332,6 @@ interface TasksViewProps {
   };
 }
 
-type TasksTabValue = "tasks" | "jobs";
-
 export function TasksView({
   tasks,
   listNextCursor: initialListNextCursor,
@@ -347,9 +350,11 @@ export function TasksView({
   initialCreateTaskPrompt = null,
   createTaskModalResetKey = "default",
   canCreateTask = false,
+  initialTab = "tasks",
   labels,
 }: TasksViewProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const searchParams = useSearchParams();
   const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(
@@ -380,7 +385,7 @@ export function TasksView({
   const [density, setDensity] = useState<TasksDensity>(
     defaultDensity ?? "normal",
   );
-  const [activeTab, setActiveTab] = useState<TasksTabValue>("tasks");
+  const [activeTab, setActiveTab] = useState<TasksTabValue>(initialTab);
   const [guideCompleted, setGuideCompleted] = useState<boolean | null>(null);
   const [forceShowGuide, setForceShowGuide] = useState(false);
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
@@ -1253,7 +1258,16 @@ export function TasksView({
   const tabsContent = (
     <Tabs
       value={activeTab}
-      onValueChange={(value: string) => setActiveTab(value as TasksTabValue)}
+      onValueChange={(value) => {
+        const next = value as TasksTabValue;
+        setActiveTab(next);
+        const params = applyTasksTabSearchParam(
+          new URLSearchParams(window.location.search),
+          next,
+        );
+        const query = params.toString();
+        router.replace(query ? `${pathname}?${query}` : pathname);
+      }}
       className={cn(
         "flex h-full min-h-0 flex-1 flex-col gap-5",
         activeTab === "tasks" && LIST_MOBILE_CREATE_FAB_CLEARANCE,

@@ -2268,6 +2268,7 @@
           "empty": "No jobs linked to this project yet.",
           "add": "Add job",
           "remove": "Remove job",
+          "viewAll": "View all jobs",
           "pickerTitle": "Add job",
           "pickerDescription": "Choose an unassigned job to link to this project.",
           "pickerSearchPlaceholder": "Search jobs...",
@@ -2287,6 +2288,10 @@
           "pickerLoading": "Loading tasks...",
           "pickerError": "Failed to load tasks.",
           "viewAll": "View all"
+        },
+        "needsAttention": {
+          "title": "Needs attention",
+          "empty": "Nothing needs your attention right now."
         },
         "modules": {
           "title": "Workspace",

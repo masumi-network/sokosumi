@@ -2268,6 +2268,7 @@
           "empty": "Aún no hay jobs vinculados a este proyecto.",
           "add": "Añadir job",
           "remove": "Quitar job",
+          "viewAll": "Ver todos los jobs",
           "pickerTitle": "Añadir job",
           "pickerDescription": "Elige un job sin asignar para vincularlo a este proyecto.",
           "pickerSearchPlaceholder": "Buscar jobs...",
@@ -2287,6 +2288,10 @@
           "pickerLoading": "Cargando tareas...",
           "pickerError": "No se pudieron cargar las tareas.",
           "viewAll": "Ver todo"
+        },
+        "needsAttention": {
+          "title": "Requiere atención",
+          "empty": "Nada requiere tu atención ahora mismo."
         },
         "modules": {
           "title": "Espacio de trabajo",
