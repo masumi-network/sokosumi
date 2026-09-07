@@ -360,15 +360,17 @@ export function TaskForm({
     (id: string) => {
       coworkerTouchedRef.current = true;
       setAssigneeId(id);
-      // Schedules stay agent-only: drop a staged schedule when the new
-      // assignee is a human or Unassigned so the save cannot submit both.
       const fields = resolveTaskAssigneeFields(
         id,
         coworkerOptions,
         knownSokoBotId,
         initialValues?.assigneeUserId,
       );
-      if (fields.assigneeId === null && fields.assigneeSokoBotId === null) {
+      if (
+        fields.assigneeId === null &&
+        fields.assigneeSokoBotId === null &&
+        fields.assigneeUserId === null
+      ) {
         setScheduleSelection((current) =>
           current.mode === "none"
             ? current
@@ -566,9 +568,16 @@ export function TaskForm({
           // In the modal, confirm success in place and let the user choose when
           // to navigate — the redirect target is prefetched so it lands fast.
           if (isModal) {
+            const assigneeFields = resolveTaskAssigneeFields(
+              assigneeId,
+              coworkerOptions,
+              knownSokoBotId,
+              initialValues?.assigneeUserId,
+            );
             const createdStatus =
               scheduleSelection.mode !== "none" &&
-              desiredStatus !== TaskStatus.DRAFT
+              desiredStatus !== TaskStatus.DRAFT &&
+              assigneeFields.assigneeUserId === null
                 ? "QUEUED"
                 : desiredStatus === TaskStatus.DRAFT
                   ? "DRAFT"
@@ -585,7 +594,8 @@ export function TaskForm({
                     ? labels.statusDraft
                     : labels.statusReady,
               scheduleLabel:
-                createdStatus === "QUEUED"
+                scheduleSelection.mode !== "none" &&
+                desiredStatus !== TaskStatus.DRAFT
                   ? (scheduleLabel ?? undefined)
                   : undefined,
             });
@@ -742,9 +752,6 @@ export function TaskForm({
     () => coworkerOptions.find((option) => option.id === assigneeId),
     [coworkerOptions, assigneeId],
   );
-  // Schedules stay agent-only (SOK-868): human-assigned and unset tasks
-  // cannot be scheduled. Core rejects QUEUED without a coworker or
-  // sokoBot assignee; the picker disables the schedule control first.
   const selectedAssigneeFields = useMemo(
     () =>
       resolveTaskAssigneeFields(
@@ -763,6 +770,8 @@ export function TaskForm({
   const isAgentAssignee =
     selectedAssigneeFields.assigneeId !== null ||
     selectedAssigneeFields.assigneeSokoBotId !== null;
+  const isSchedulableAssignee =
+    isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
   // Queued work must stay agent-assigned: Core rejects reassignment away
   // from an agent while QUEUED, so the edit picker locks non-agent options.
   const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
@@ -1284,7 +1293,7 @@ export function TaskForm({
                       type="button"
                       variant="outline"
                       size="icon"
-                      disabled={createdTask !== null || !isAgentAssignee}
+                      disabled={createdTask !== null || !isSchedulableAssignee}
                       aria-label={labels.openSchedule}
                       aria-pressed={hasSchedule}
                       onClick={() => setIsScheduleModalOpen(true)}
@@ -1343,7 +1352,7 @@ export function TaskForm({
                       type="button"
                       variant="outline"
                       size="icon"
-                      disabled={createdTask !== null || !isAgentAssignee}
+                      disabled={createdTask !== null || !isSchedulableAssignee}
                       aria-label={labels.openSchedule}
                       aria-pressed={hasSchedule}
                       onClick={() => setIsScheduleModalOpen(true)}

@@ -128,7 +128,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         validateTaskAssigneeAssignment({
-          status: TaskStatus.QUEUED,
+          status: currentTask.assigneeUserId
+            ? TaskStatus.READY
+            : TaskStatus.QUEUED,
           assigneeId: currentTask.assigneeId,
           assigneeSokoBotId: currentTask.assigneeSokoBotId,
           assigneeUserId: currentTask.assigneeUserId,

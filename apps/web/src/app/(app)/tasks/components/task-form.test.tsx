@@ -724,7 +724,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("clears a staged schedule when switching to a human assignee (SOK-868)", async () => {
+  it("keeps a staged schedule when switching to a human assignee (SOK-868)", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
@@ -755,16 +755,16 @@ describe("TaskForm", () => {
 
     await user.click(screen.getByRole("button", { name: /Bob/ }));
     expect(
-      screen.getByRole("button", { name: "Create Task" }),
+      screen.getByRole("button", { name: /Schedule Task/ }),
     ).toBeInTheDocument();
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
-    await user.click(screen.getByRole("button", { name: "Create Task" }));
+    await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
 
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         assigneeUserId: "user-1",
-        schedule: expect.objectContaining({ mode: "none" }),
+        schedule: expect.objectContaining({ mode: "once" }),
       }),
     );
   });

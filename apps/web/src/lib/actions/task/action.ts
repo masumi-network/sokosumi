@@ -81,7 +81,8 @@ interface CreateScheduledTaskParameters extends AuthenticatedRequest {
   operationId: string;
   source: CreateScheduledTaskRequest["source"];
   description?: string | null;
-  assigneeId: string;
+  assigneeId?: string | null;
+  assigneeUserId?: string | null;
   context?: TaskContextSelectionInput;
   schedule: TaskScheduleSelection;
 }
@@ -629,17 +630,22 @@ export const createScheduledTask = withSession<
     source,
     description,
     assigneeId,
+    assigneeUserId,
     context,
     schedule,
     session,
   }) => {
-    const trimmedAssigneeId = assigneeId.trim();
+    const trimmedAssigneeId = assigneeId?.trim() || null;
+    const trimmedAssigneeUserId = assigneeUserId?.trim() || null;
     const trimmedDescription = description?.trim();
     if (!isUuidString(operationId)) {
       throw new Error("Operation ID must be a UUID");
     }
-    if (!trimmedAssigneeId) {
-      throw new Error("Assignee required");
+    if (
+      (!trimmedAssigneeId && !trimmedAssigneeUserId) ||
+      (trimmedAssigneeId && trimmedAssigneeUserId)
+    ) {
+      throw new Error("Exactly one assignee is required");
     }
 
     const scheduleBody = getActiveScheduleBody(schedule);
@@ -652,6 +658,9 @@ export const createScheduledTask = withSession<
           ? { description: trimmedDescription || null }
           : {}),
         assigneeId: trimmedAssigneeId,
+        ...(trimmedAssigneeUserId
+          ? { assigneeUserId: trimmedAssigneeUserId }
+          : {}),
         ...(context
           ? { context: toCoreTaskContext(context, session.user.id) }
           : {}),

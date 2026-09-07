@@ -40,8 +40,11 @@ function CalendarCreateTaskModalInstance({
         return createTask(input);
       }
 
-      if (!input.assigneeId || input.assigneeSokoBotId) {
-        throw new Error("A coworker is required to schedule a Calendar task");
+      if (
+        (!input.assigneeId && !input.assigneeUserId) ||
+        input.assigneeSokoBotId
+      ) {
+        throw new Error("An assignee is required to schedule a Calendar task");
       }
 
       const result = await createScheduledTask({
@@ -51,6 +54,9 @@ function CalendarCreateTaskModalInstance({
           : { type: "workspace" },
         description: input.description,
         assigneeId: input.assigneeId,
+        ...(input.assigneeUserId
+          ? { assigneeUserId: input.assigneeUserId }
+          : {}),
         context: input.context,
         schedule: input.schedule,
       });

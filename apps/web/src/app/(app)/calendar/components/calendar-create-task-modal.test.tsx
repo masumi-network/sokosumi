@@ -42,6 +42,7 @@ function getCreateHandler() {
       description: string;
       assigneeId: string | null;
       assigneeSokoBotId: string | null;
+      assigneeUserId?: string | null;
       projectId?: string | null;
       context: typeof CONTEXT;
       status: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
@@ -110,6 +111,37 @@ describe("CalendarCreateTaskModal", () => {
         timezone: "UTC",
       },
     });
+    expect(createTaskMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the Calendar API for a scheduled human task", async () => {
+    render(
+      <CalendarCreateTaskModal coworkerOptions={[]} projectOptions={[]} />,
+    );
+
+    await act(() =>
+      getCreateHandler()({
+        description: "Review launch brief",
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: "user-1",
+        projectId: null,
+        context: CONTEXT,
+        status: TaskStatus.READY,
+        schedule: {
+          mode: "once",
+          oneTimeLocalIso: "2030-01-02T09:00",
+          timezone: "UTC",
+        },
+      }),
+    );
+
+    expect(createScheduledTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeId: null,
+        assigneeUserId: "user-1",
+      }),
+    );
     expect(createTaskMock).not.toHaveBeenCalled();
   });
 

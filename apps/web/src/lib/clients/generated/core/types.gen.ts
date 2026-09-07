@@ -5483,7 +5483,8 @@ export type CreateScheduledTaskRequest = {
     };
     name?: string;
     description?: string | null;
-    assigneeId: string;
+    assigneeId?: string | null;
+    assigneeUserId?: string | null;
     context?: CreateTaskContext;
     schedule: TaskScheduleInput;
 };

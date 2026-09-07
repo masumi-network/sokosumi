@@ -3156,7 +3156,7 @@ export const getTasksSummary = <ThrowOnError extends boolean = false>(options?: 
 });
 
 /**
- * Atomically create a queued Task with a mutable version 2 schedule and Calendar occurrence index.
+ * Atomically create a scheduled Task with a mutable version 2 schedule and Calendar occurrence index.
  */
 export const postTasksScheduled = <ThrowOnError extends boolean = false>(options?: Options<PostTasksScheduledData, ThrowOnError>): RequestResult<PostTasksScheduledResponses, PostTasksScheduledErrors, ThrowOnError> => (options?.client ?? client).post<PostTasksScheduledResponses, PostTasksScheduledErrors, ThrowOnError>({
     responseTransformer: postTasksScheduledResponseTransformer,

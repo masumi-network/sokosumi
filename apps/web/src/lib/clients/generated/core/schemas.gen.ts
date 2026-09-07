@@ -18856,7 +18856,17 @@ export const CreateScheduledTaskRequestSchema = {
             ]
         },
         assigneeId: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
             minLength: 1
         },
         context: {
@@ -18869,7 +18879,6 @@ export const CreateScheduledTaskRequestSchema = {
     required: [
         'operationId',
         'source',
-        'assigneeId',
         'schedule'
     ]
 } as const;
