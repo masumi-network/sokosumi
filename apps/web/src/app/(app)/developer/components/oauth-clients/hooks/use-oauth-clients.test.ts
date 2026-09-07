@@ -249,6 +249,36 @@ describe("useOAuthClients", () => {
     });
   });
 
+  it("registers native application_type for loopback HTTP redirect URIs", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_loopback",
+        client_secret: "secret",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "Local App",
+        redirectUris: ["http://127.0.0.1:8080/callback"],
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      redirect_uris: ["http://127.0.0.1:8080/callback"],
+      client_name: "Local App",
+      scope: "openid",
+      grant_types: ["authorization_code"],
+      application_type: "native",
+    });
+  });
+
   it("updates a client with the Better Auth payload shape", async () => {
     updateClientMock.mockResolvedValue({
       data: {

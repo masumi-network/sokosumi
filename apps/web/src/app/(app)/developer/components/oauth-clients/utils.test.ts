@@ -17,6 +17,12 @@ describe("parseRedirectUris", () => {
       parseRedirectUris(" https://example.com/a \n\nhttps://example.com/b\n  "),
     ).toEqual(["https://example.com/a", "https://example.com/b"]);
   });
+
+  it("does not rewrite reverse-domain :// to :/", () => {
+    expect(parseRedirectUris("com.example.app://callback")).toEqual([
+      "com.example.app://callback",
+    ]);
+  });
 });
 
 describe("isSafeRedirectUri", () => {
@@ -39,6 +45,8 @@ describe("isSafeRedirectUri", () => {
     expect(isSafeRedirectUri("sokosumi://oauth/signin")).toBe(false);
     expect(isSafeRedirectUri("myapp://callback")).toBe(false);
     expect(isSafeRedirectUri("sokosumi:/oauth/signin")).toBe(false);
+    expect(isSafeRedirectUri("com.sokosumi.app://auth")).toBe(false);
+    expect(isSafeRedirectUri("com.example.app://callback")).toBe(false);
   });
 
   it("rejects https loopback", () => {
@@ -165,6 +173,37 @@ describe("createOAuthClientSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("rejects reverse-domain :// even when the scheme is otherwise valid", () => {
+    const result = schema.safeParse({
+      name: "Mac App",
+      redirectUris: "com.sokosumi.app://auth",
+      includeCoreApi: true,
+      includeOfflineAccess: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts mixed claimed HTTPS and reverse-domain native URIs", () => {
+    const result = schema.safeParse({
+      name: "Mac App",
+      redirectUris:
+        "https://example.com/callback\ncom.sokosumi.app:/oauth/signin",
+      includeCoreApi: true,
+      includeOfflineAccess: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects mixed claimed HTTPS and reverse-domain ://", () => {
+    const result = schema.safeParse({
+      name: "Mac App",
+      redirectUris: "https://example.com/callback\ncom.sokosumi.app://auth",
+      includeCoreApi: true,
+      includeOfflineAccess: true,
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("inferOAuthApplicationType", () => {
@@ -181,5 +220,11 @@ describe("inferOAuthApplicationType", () => {
     expect(inferOAuthApplicationType(["com.example.app:/callback"])).toBe(
       "native",
     );
+    expect(
+      inferOAuthApplicationType([
+        "https://example.com/callback",
+        "com.sokosumi.app:/oauth/signin",
+      ]),
+    ).toBe("native");
   });
 });
