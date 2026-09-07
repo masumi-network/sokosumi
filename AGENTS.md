@@ -21,6 +21,7 @@ sokosumi/
 ├── apps/
 │   ├── web/                   # Next.js web app — live tree `src/`
 │   ├── core/                  # Hono API — live tree `src/`
+│   ├── apple/                 # Native macOS + iOS — VISION.md only until specced
 │   └── cli/                   # Developer CLI — VISION.md only until specced
 ├── packages/
 │   ├── database/              # @sokosumi/database — `src/` + `prisma/`; exports in package.json
