@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildAblyClientCapability,
-  buildAblySubscribeCapability,
-} from "./subscribe-capability";
+import { buildAblyClientCapability } from "./subscribe-capability";
 
-describe("buildAblySubscribeCapability", () => {
+const NON_PREVIEW_ENVIRONMENT = {
+  network: "Mainnet" as const,
+  vercelEnv: "production" as const,
+  vercelGitCommitRef: "main",
+};
+
+describe("buildAblyClientCapability", () => {
   it("grants user task/notification channels and per-room chat channels", () => {
-    const capability = buildAblySubscribeCapability("user_123", [
-      "room-a",
-      "room-b",
-    ]);
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: ["room-a", "room-b"],
+      organizationIds: [],
+      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+    });
 
     expect(capability).toEqual({
       "agent_jobs:*:user_user_123": ["subscribe"],
@@ -30,6 +35,7 @@ describe("buildAblySubscribeCapability", () => {
       userId: "user_123",
       roomIds: ["room-a"],
       organizationIds: ["org_a"],
+      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability["notifications:all:user_user_123"]).toEqual([
@@ -43,12 +49,33 @@ describe("buildAblySubscribeCapability", () => {
     ).toEqual(["notifications:all:user_user_123"]);
   });
 
+  it("grants a preview access only to its branch notification channel", () => {
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: [],
+      organizationIds: [],
+      notificationChannelEnvironment: {
+        network: "Mainnet",
+        vercelEnv: "preview",
+        vercelGitCommitRef: "fix/push-urls",
+      },
+    });
+
+    expect(capability["notifications:all:user_user_123"]).toBeUndefined();
+    expect(
+      capability[
+        "notifications:preview:mainnet:branch_fix%2Fpush-urls:user_user_123"
+      ],
+    ).toEqual(["subscribe", "push-subscribe"]);
+  });
+
   it("grants presence on each organization channel", () => {
-    const capability = buildAblySubscribeCapability(
-      "user_123",
-      ["room-a"],
-      ["org_a", "org_b"],
-    );
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: ["room-a"],
+      organizationIds: ["org_a", "org_b"],
+      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+    });
 
     expect(capability["presence:org_org_a"]).toEqual(["presence", "subscribe"]);
     expect(capability["presence:org_org_b"]).toEqual(["presence", "subscribe"]);
@@ -56,7 +83,12 @@ describe("buildAblySubscribeCapability", () => {
   });
 
   it("omits chat room channels when the user has no memberships", () => {
-    const capability = buildAblySubscribeCapability("user_123", []);
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: [],
+      organizationIds: [],
+      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+    });
 
     expect(capability["chat_rooms:room_anything"]).toBeUndefined();
     expect(
@@ -67,7 +99,12 @@ describe("buildAblySubscribeCapability", () => {
   });
 
   it("does not grant the legacy per-user chat_rooms wildcard", () => {
-    const capability = buildAblySubscribeCapability("user_123", ["room-a"]);
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: ["room-a"],
+      organizationIds: [],
+      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+    });
 
     expect(capability["chat_rooms:*:user_user_123"]).toBeUndefined();
     expect(capability["chat_rooms:all:user_user_123"]).toBeUndefined();

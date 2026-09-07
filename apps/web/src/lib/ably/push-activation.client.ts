@@ -1,6 +1,5 @@
 "use client";
 
-import { makeUserNotificationsChannelName } from "@sokosumi/utils";
 import type Ably from "ably";
 
 import {
@@ -8,6 +7,7 @@ import {
   hasWebPushSubscription,
 } from "@/lib/utils/notification-service-worker";
 
+import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
 import { getAblyRealtimeClient } from "./realtime-singleton.client";
 
 /**
@@ -210,5 +210,6 @@ function getNotificationsPushChannel(
   client: Ably.Realtime,
   userId: string,
 ): Ably.PushChannel {
-  return client.channels.get(makeUserNotificationsChannelName(userId)).push;
+  return client.channels.get(makeCurrentUserNotificationsChannelName(userId))
+    .push;
 }

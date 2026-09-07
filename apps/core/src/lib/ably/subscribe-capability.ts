@@ -4,6 +4,7 @@ import {
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  type NotificationChannelEnvironment,
 } from "@sokosumi/utils";
 
 type AblyClientCapabilityOp = "subscribe" | "presence" | "push-subscribe";
@@ -24,6 +25,7 @@ export interface BuildAblyClientCapabilityInput {
   userId: string;
   roomIds: readonly string[];
   organizationIds: readonly string[];
+  notificationChannelEnvironment: NotificationChannelEnvironment;
 }
 
 /**
@@ -35,28 +37,18 @@ export interface BuildAblyClientCapabilityInput {
  * - Notifications: `subscribe` (realtime feed) + `push-subscribe` (register this
  *   device for closed-app OS banners; ADR-0022)
  */
-export function buildAblySubscribeCapability(
-  userId: string,
-  roomIds: readonly string[],
-  organizationIds: readonly string[] = [],
-): AblySubscribeCapabilityMap {
-  return buildAblyClientCapability({
-    userId,
-    roomIds,
-    organizationIds,
-  });
-}
-
 export function buildAblyClientCapability({
   userId,
   roomIds,
   organizationIds,
+  notificationChannelEnvironment,
 }: BuildAblyClientCapabilityInput): AblySubscribeCapabilityMap {
   const capability: AblySubscribeCapabilityMap = {
     // Jobs channels use agent_id in the middle segment; wildcard keeps job pages working.
     [`agent_jobs:*:user_${userId}`]: ["subscribe"],
     [makeUserTasksChannelName(userId)]: ["subscribe"],
-    [makeUserNotificationsChannelName(userId)]: ["subscribe", "push-subscribe"],
+    [makeUserNotificationsChannelName(userId, notificationChannelEnvironment)]:
+      ["subscribe", "push-subscribe"],
     [makeUserChatControlChannelName(userId)]: ["subscribe"],
   };
 

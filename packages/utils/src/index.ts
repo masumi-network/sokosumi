@@ -5,6 +5,7 @@ export {
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  type NotificationChannelEnvironment,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel.js";
