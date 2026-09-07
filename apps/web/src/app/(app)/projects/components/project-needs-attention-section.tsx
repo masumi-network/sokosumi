@@ -63,7 +63,7 @@ export function ProjectNeedsAttentionSection({
           />
           <nav className="flex items-center gap-3">
             <Link
-              href={`/tasks?projectId=${projectId}`}
+              href={`/tasks?projectId=${projectId}&tab=tasks`}
               className="text-muted-foreground hover:text-foreground text-xs transition-colors"
             >
               {labels.viewAllTasks}

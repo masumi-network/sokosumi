@@ -16,10 +16,6 @@ export function applyTasksTabSearchParam(
   tab: TasksTabValue,
 ): URLSearchParams {
   const next = new URLSearchParams(current.toString());
-  if (tab === DEFAULT_TASKS_TAB) {
-    next.delete(TASKS_TAB_PARAM);
-  } else {
-    next.set(TASKS_TAB_PARAM, tab);
-  }
+  next.set(TASKS_TAB_PARAM, tab);
   return next;
 }

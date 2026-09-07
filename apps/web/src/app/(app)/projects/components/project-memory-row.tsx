@@ -124,35 +124,33 @@ export function ProjectMemoryRow({
 
   return (
     <>
-      <section className="min-w-0 self-start space-y-2">
+      <button
+        type="button"
+        data-testid="project-memory-row"
+        disabled={!contextMd}
+        onClick={() => void handleOpen()}
+        className="hover:bg-muted/50 -mx-2 min-w-0 w-[calc(100%+1rem)] space-y-2 self-start rounded-lg px-2 py-2 text-left transition-colors disabled:cursor-default disabled:hover:bg-transparent"
+      >
         <h2 className="text-muted-foreground/60 text-xs font-medium">
           {t("memory.fileName")}
         </h2>
-        <button
-          type="button"
-          data-testid="project-memory-row"
-          disabled={!contextMd}
-          onClick={() => void handleOpen()}
-          className="hover:bg-muted/50 -mx-2 w-[calc(100%+1rem)] rounded-lg px-2 py-2 text-left transition-colors disabled:cursor-default disabled:hover:bg-transparent"
-        >
-          <div className="flex items-center gap-1.5">
-            <p className="truncate text-sm font-medium">{statusLabel}</p>
-            {contextMdUpdating ? (
-              <span
-                className="bg-muted-foreground/40 size-1.5 shrink-0 animate-pulse rounded-full"
-                data-testid="project-memory-updating"
-                aria-hidden
-              />
-            ) : null}
-          </div>
-          <div className="mt-1 space-y-0.5">
-            <p className="text-muted-foreground truncate text-xs">
-              {t("memory.modelLine", { model: modelLabel })}
-            </p>
-            {notConfiguredHint}
-          </div>
-        </button>
-      </section>
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-sm font-medium">{statusLabel}</p>
+          {contextMdUpdating ? (
+            <span
+              className="bg-muted-foreground/40 size-1.5 shrink-0 animate-pulse rounded-full"
+              data-testid="project-memory-updating"
+              aria-hidden
+            />
+          ) : null}
+        </div>
+        <div className="space-y-0.5">
+          <p className="text-muted-foreground truncate text-xs">
+            {t("memory.modelLine", { model: modelLabel })}
+          </p>
+          {notConfiguredHint}
+        </div>
+      </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[85dvh] max-w-2xl flex-col gap-0 overflow-hidden p-0">

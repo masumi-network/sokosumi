@@ -32,13 +32,13 @@ describe("applyTasksTabSearchParam", () => {
     expect(next.get(TASKS_TAB_PARAM)).toBe("jobs");
   });
 
-  it("removes tab when switching back to tasks", () => {
+  it("sets tab=tasks when switching back from jobs", () => {
     const next = applyTasksTabSearchParam(
       new URLSearchParams("projectId=abc&tab=jobs"),
       "tasks",
     );
 
     expect(next.get("projectId")).toBe("abc");
-    expect(next.has(TASKS_TAB_PARAM)).toBe(false);
+    expect(next.get(TASKS_TAB_PARAM)).toBe("tasks");
   });
 });
