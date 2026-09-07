@@ -207,6 +207,12 @@ async function publishMentionThoughtPlaceholder(params: {
       where: { id: params.mentionId },
       data: { responseMessageId: row.id },
     });
+    // The placeholder already counts toward unreadCount; without the bump the
+    // web read overlay keeps the room painted read until the final reply lands.
+    await tx.chatRoom.update({
+      where: { id: params.roomId },
+      data: { updatedAt: new Date() },
+    });
     return row;
   });
   try {

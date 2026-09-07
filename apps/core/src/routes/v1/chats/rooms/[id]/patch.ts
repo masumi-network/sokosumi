@@ -512,16 +512,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             sokoBots: nextSokoBots,
           },
         });
-        const createdStatus = await recordChannelMembershipStatus(tx, {
-          roomId: existing.id,
-          roomKind: existing.kind,
-          changes,
-        });
-
         const room = await tx.chatRoom.update({
           where: { id: existing.id },
           data: updateData,
           include: chatRoomInclude,
+        });
+
+        // After the settings update: the helper's own updatedAt bump must be
+        // the last write, so the room row reflects the membership messages.
+        const createdStatus = await recordChannelMembershipStatus(tx, {
+          roomId: existing.id,
+          roomKind: existing.kind,
+          changes,
         });
 
         const removedUserIds = changes

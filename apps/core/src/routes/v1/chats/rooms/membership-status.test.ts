@@ -8,10 +8,14 @@ import {
 } from "./membership-status";
 
 const messageCreateMock = vi.fn();
+const roomUpdateMock = vi.fn();
 
 const tx = {
   chatRoomMessage: {
     create: messageCreateMock,
+  },
+  chatRoom: {
+    update: roomUpdateMock,
   },
 };
 
@@ -151,6 +155,31 @@ describe("recordChannelMembershipStatus", () => {
     expect(created).toHaveLength(2);
   });
 
+  it("bumps the room updatedAt once with the messages", async () => {
+    await recordChannelMembershipStatus(tx as never, {
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      roomKind: "channel",
+      changes: [
+        {
+          action: "joined",
+          subject: { type: "user", id: "user_ada", name: "Ada" },
+        },
+        {
+          action: "left",
+          subject: { type: "coworker", id: "cow_1", name: "Bot" },
+        },
+      ],
+    });
+
+    // Membership messages count toward unreadCount; the sidebar read overlay
+    // only drops when the room row's updatedAt moves past its snapshot.
+    expect(roomUpdateMock).toHaveBeenCalledTimes(1);
+    expect(roomUpdateMock).toHaveBeenCalledWith({
+      where: { id: "550e8400-e29b-41d4-a716-446655440000" },
+      data: { updatedAt: expect.any(Date) },
+    });
+  });
+
   it("no-ops for directs and empty changes", async () => {
     expect(
       await recordChannelMembershipStatus(tx as never, {
@@ -172,6 +201,7 @@ describe("recordChannelMembershipStatus", () => {
       }),
     ).toEqual([]);
     expect(messageCreateMock).not.toHaveBeenCalled();
+    expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 });
 

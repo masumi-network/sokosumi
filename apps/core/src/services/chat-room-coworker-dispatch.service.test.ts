@@ -20,6 +20,7 @@ const {
   createCoworkerConversationMock,
   getSokosumiProviderMock,
   transactionUpdateManyMock,
+  transactionRoomUpdateMock,
   coworkerMemberFindUniqueMock,
   workspaceFindUniqueMock,
   coworkerFindFirstMock,
@@ -39,6 +40,7 @@ const {
   createCoworkerConversationMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
   transactionUpdateManyMock: vi.fn(),
+  transactionRoomUpdateMock: vi.fn(),
   coworkerMemberFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
@@ -86,7 +88,7 @@ vi.mock("@/lib/db/prisma", () => ({
           update: updateMock,
         },
         chatRoomCoworkerMember: { findUnique: coworkerMemberFindUniqueMock },
-        chatRoom: { update: vi.fn() },
+        chatRoom: { update: transactionRoomUpdateMock },
       }),
     ),
   },
@@ -855,6 +857,14 @@ describe("dispatchChatRoomMention claim", () => {
     expect(updateMock).toHaveBeenCalledWith({
       where: { id: MENTION_ID },
       data: { responseMessageId: "reply_1" },
+    });
+    // The placeholder counts toward unreadCount, so the room updatedAt must
+    // move with it or the sidebar read overlay keeps the room painted read.
+    // Two bumps: one with the placeholder create, one with the finalize.
+    expect(transactionRoomUpdateMock).toHaveBeenCalledTimes(2);
+    expect(transactionRoomUpdateMock).toHaveBeenCalledWith({
+      where: { id: "room_1" },
+      data: { updatedAt: expect.any(Date) },
     });
     expect(updateMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
