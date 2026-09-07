@@ -26,8 +26,8 @@ type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
  *
  * It reads quieter than its host on purpose. It keeps the host's ground so it
  * does not stand out as a second surface, and a border alone says where it
- * starts. One radius step down, tighter padding, and its heading demoted to a
- * muted label, so a reader meets the delivery grid first and finds this below
+ * starts. One radius step down, tighter padding, and its heading dropped to
+ * label size, so a reader meets the delivery grid first and finds this below
  * it.
  */
 export function ChatDisplayPreferences({
@@ -90,9 +90,12 @@ export function ChatDisplayPreferences({
           so the gutter would otherwise be drawn to an empty second row. */}
       <CardHeader className="gap-0 px-4">
         {/* h2: the notification card around this one owns the route's h1.
+            Demoted by size and weight, never by colour: `text-muted-foreground`
+            is a half-alpha near-black, which is 3.7:1 on card ground in light
+            mode and fails AA for text this small.
             `leading-none` is restated because any `text-*` replaces it in the
             merge, and without it the title line box grows. */}
-        <CardTitle className="text-muted-foreground text-xs leading-none font-medium">
+        <CardTitle className="text-xs leading-none font-medium">
           <h2>{t("title")}</h2>
         </CardTitle>
       </CardHeader>
