@@ -190,6 +190,12 @@ export function notificationReducer(
         };
       }
 
+      // An unseen read update only confirms server state. Adding its old row
+      // would put it at the front and displace a newer notification.
+      if (!action.created && convertedNotification.isRead) {
+        return state;
+      }
+
       // A row this list does not hold is either new, or one the list never
       // reached: the reader has more unread rows than the window keeps, and a
       // room's later messages arrive as changes to a row written earlier.

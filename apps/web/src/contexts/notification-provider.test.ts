@@ -231,6 +231,24 @@ describe("notificationReducer", () => {
     expect(after.unreadCount).toBe(0);
   });
 
+  it("ignores a read update for a row outside the local window", () => {
+    const visible = createNotification({ id: "notification-visible" });
+    const cleared = createNotification({
+      id: "notification-cleared",
+      isRead: true,
+      readAt: new Date("2026-01-01T11:00:00.000Z"),
+    });
+    const state = { notifications: [visible], unreadCount: 2 };
+
+    const after = notificationReducer(state, {
+      type: "realtime",
+      notification: cleared,
+      created: false,
+    });
+
+    expect(after).toBe(state);
+  });
+
   it("does not double-count unread realtime items already included in server count", () => {
     const realtimeNotification = createNotification({
       id: "notification-realtime",

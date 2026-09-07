@@ -111,6 +111,15 @@ const COUNT_ATTEMPTS = 3;
  * than a lost message.
  */
 async function countOntoUnreadRow(input: CreateNotificationInput) {
+  const delivery = await resolveDelivery(input);
+
+  // Do not add a banner-only message to a row that remains visible in the
+  // notification center. A separate hidden row preserves the current choice.
+  if (!delivery.inApp) {
+    await createNotification(input);
+    return;
+  }
+
   for (let attempt = 0; attempt < COUNT_ATTEMPTS; attempt += 1) {
     const unread = await prisma.notification.findFirst({
       where: {
@@ -139,7 +148,6 @@ async function countOntoUnreadRow(input: CreateNotificationInput) {
       return;
     }
 
-    const delivery = await resolveDelivery(input);
     // Named rather than blind: the row must still hold the count this attempt
     // read, and must still be unread. Either having moved means another
     // message got here first.

@@ -329,15 +329,17 @@ describe("fanOutChatNotifications, counting per room", () => {
     });
   });
 
-  it("says nothing to a reader the row would reach on neither channel", async () => {
+  it("keeps a banner-only message out of an existing in-app row", async () => {
     notificationFindFirstMock.mockResolvedValue(
       unreadRow({ authorName: "Ada", roomName: "general" }),
     );
-    resolveDeliveryMock.mockResolvedValue({ inApp: false, osBanner: false });
+    resolveDeliveryMock.mockResolvedValue({ inApp: false, osBanner: true });
 
     await fanOutChatNotifications(params({ countPerRoom: true }));
 
-    expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
+    expect(notificationFindFirstMock).not.toHaveBeenCalled();
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(publishNotificationRowMock).not.toHaveBeenCalled();
   });
 
