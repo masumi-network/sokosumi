@@ -12,7 +12,7 @@ import {
   findStaleCoworkerAccessNotificationReferenceIds,
   findStaleVendorGrantNotificationReferenceIds,
   mergeAccessNotificationExclusions,
-  notificationFeedKindWhere,
+  notificationFeedWhere,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "./notification-feed";
 
@@ -35,45 +35,60 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-describe("notificationFeedKindWhere", () => {
+describe("notificationFeedWhere", () => {
   it("excludes CHAT from the default in-app feed", () => {
-    expect(notificationFeedKindWhere()).toEqual({
-      notIn: [NotificationKind.CHAT],
+    expect(notificationFeedWhere()).toEqual({
+      kind: { notIn: [NotificationKind.CHAT] },
+      inApp: true,
     });
   });
 
   it("drops CHAT when an explicit kind filter includes it", () => {
     expect(
-      notificationFeedKindWhere([
+      notificationFeedWhere([
         NotificationKind.JOB,
         NotificationKind.CHAT,
         NotificationKind.TASK,
       ]),
     ).toEqual({
-      in: [NotificationKind.JOB, NotificationKind.TASK],
+      kind: { in: [NotificationKind.JOB, NotificationKind.TASK] },
+      inApp: true,
     });
   });
 
   it("matches nothing when the only requested kind is browser-only", () => {
-    expect(notificationFeedKindWhere([NotificationKind.CHAT])).toEqual({
-      notIn: [
-        NotificationKind.JOB,
-        NotificationKind.TASK,
-        NotificationKind.BILLING,
-        NotificationKind.SYSTEM,
-        NotificationKind.CHAT,
-      ],
+    expect(notificationFeedWhere([NotificationKind.CHAT])).toEqual({
+      kind: {
+        notIn: [
+          NotificationKind.JOB,
+          NotificationKind.TASK,
+          NotificationKind.BILLING,
+          NotificationKind.SYSTEM,
+          NotificationKind.CHAT,
+        ],
+      },
+      inApp: true,
     });
   });
 
   it("keeps non-chat kinds as an explicit in filter", () => {
     expect(
-      notificationFeedKindWhere([
-        NotificationKind.JOB,
-        NotificationKind.SYSTEM,
-      ]),
+      notificationFeedWhere([NotificationKind.JOB, NotificationKind.SYSTEM]),
     ).toEqual({
-      in: [NotificationKind.JOB, NotificationKind.SYSTEM],
+      kind: { in: [NotificationKind.JOB, NotificationKind.SYSTEM] },
+      inApp: true,
+    });
+  });
+
+  /**
+   * A notification the reader silenced in the app is written but never shown,
+   * so every feed read has to exclude it. Asserted on its own, because it is
+   * the one clause a new call site is most likely to leave out.
+   */
+  it("hides a notification the reader silenced in the app, whatever the kinds", () => {
+    expect(notificationFeedWhere()).toMatchObject({ inApp: true });
+    expect(notificationFeedWhere([NotificationKind.JOB])).toMatchObject({
+      inApp: true,
     });
   });
 });

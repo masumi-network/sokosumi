@@ -6,7 +6,7 @@ import {
   findStaleCoworkerAccessNotificationReferenceIds,
   findStaleVendorGrantNotificationReferenceIds,
   mergeAccessNotificationExclusions,
-  notificationFeedKindWhere,
+  notificationFeedWhere,
 } from "@/helpers/notification-feed";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -53,7 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: {
         userId: userContext.userId,
         isRead: false,
-        kind: notificationFeedKindWhere(),
+        ...notificationFeedWhere(),
         ...mergeAccessNotificationExclusions(
           excludeResolvedVendorGrantNotificationsWhere(
             staleVendorGrantReferenceIds,
