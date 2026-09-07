@@ -41,12 +41,12 @@ V8: signup/login happen in browser. CLI does not collect password.
 
 id|status|task|cites
 T1|x|package spec; binary `sokosumi`, package `sokosumi-cli`|V7,I
-T2|.|scaffold `apps/cli` package (ESM, Ink, pinned deps)|V7,I
-T3|.|OAuth PKCE + loopback + keychain|V1,V4,V8
-T4|.|`auth login` / `auth logout` + `--json`|I,V1
-T5|.|thin Ink login/status/sign-out|I
-T6|.|Core seed `sokosumi_cli` native public client|V3,V4
-T7|.|tests: protocol, manager, boot route, upsert|V1,V3
+T2|x|scaffold `apps/cli` package (ESM, Ink, pinned deps)|V7,I
+T3|x|OAuth PKCE + loopback + keychain|V1,V4,V8
+T4|x|`auth login` / `auth logout` + `--json`|I,V1
+T5|x|thin Ink login/status/sign-out|I
+T6|x|Core seed `sokosumi_cli` native public client|V3,V4
+T7|x|tests: protocol, manager, boot route, upsert|V1,V3
 T8|.|coworker connect loop (later slice)|V5,V6
 
 ## §B BUGS
