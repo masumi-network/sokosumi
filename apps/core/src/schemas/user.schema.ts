@@ -1,4 +1,8 @@
 import { z } from "@hono/zod-openapi";
+import {
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CHANNELS,
+} from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { subscriptionSchema } from "@/schemas/subscription.schema";
@@ -115,6 +119,32 @@ export const userSummarySchema = z
 export type User = z.infer<typeof userSchema>;
 export type UserSummary = z.infer<typeof userSummarySchema>;
 
+/**
+ * One cell of the notification preference matrix: a category, a delivery
+ * channel, and the reader's answer.
+ *
+ * The response carries every cell, resolved, so a client renders what it is
+ * given rather than reimplementing the defaults. A request carries only the
+ * cells the reader changed.
+ */
+export const notificationPreferenceSchema = z
+  .object({
+    category: z.enum(NOTIFICATION_CATEGORIES).openapi({
+      description: "What the notification is about",
+      example: "CHAT_MENTION",
+    }),
+    channel: z.enum(NOTIFICATION_CHANNELS).openapi({
+      description:
+        "Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)",
+      example: "OS_BANNER",
+    }),
+    enabled: z.boolean().openapi({
+      description: "Whether the reader wants this category on this channel",
+      example: true,
+    }),
+  })
+  .openapi("NotificationPreference");
+
 export const userPreferencesResponseSchema = z.object({
   marketingOptIn: z.boolean().openapi({
     description: "Whether the user wants to receive marketing emails",
@@ -128,6 +158,10 @@ export const userPreferencesResponseSchema = z.object({
     description:
       "Whether the user wants OS banners while Sokosumi is closed (push)",
     example: false,
+  }),
+  notificationPreferences: z.array(notificationPreferenceSchema).openapi({
+    description:
+      "Every cell of the notification preference matrix, with defaults already applied",
   }),
 });
 

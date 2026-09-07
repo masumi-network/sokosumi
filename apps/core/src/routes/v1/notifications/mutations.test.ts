@@ -195,6 +195,7 @@ describe("PATCH /notifications/read-all", () => {
         userId: "user_123",
         isRead: false,
         kind: { notIn: [NotificationKind.CHAT] },
+        inApp: true,
       },
       data: {
         isRead: true,
@@ -226,6 +227,7 @@ describe("GET /notifications/unread-count", () => {
         userId: "user_123",
         isRead: false,
         kind: { notIn: [NotificationKind.CHAT] },
+        inApp: true,
       },
     });
 
@@ -251,6 +253,7 @@ describe("GET /notifications/unread-count", () => {
         userId: "user_123",
         isRead: false,
         kind: { notIn: [NotificationKind.CHAT] },
+        inApp: true,
         NOT: {
           AND: [
             { messageKey: "notifications.vendorGrant.pending" },
@@ -278,6 +281,7 @@ describe("GET /notifications/unread-count", () => {
         userId: "user_123",
         isRead: false,
         kind: { notIn: [NotificationKind.CHAT] },
+        inApp: true,
         NOT: {
           AND: [
             { messageKey: "notifications.coworkerAccess.pending" },

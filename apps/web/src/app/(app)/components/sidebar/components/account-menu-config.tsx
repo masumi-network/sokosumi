@@ -1,4 +1,5 @@
 import {
+  Bell,
   BookOpen,
   Bot,
   Building2,
@@ -12,6 +13,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import type { ComponentType } from "react";
+import { NOTIFICATION_PREFERENCES_HREF } from "@/app/account/constants";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { MemberRole } from "@/lib/clients/generated/core";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
@@ -103,6 +105,15 @@ export function getAccountNavItems({
       href: "/account",
       translationKey: "account",
       Icon: UserIcon,
+    },
+    // Its own entry rather than a link inside the account page. It is the
+    // settings a reader returns to, and everything else on that page is a
+    // thing they set once.
+    {
+      key: "notifications",
+      href: NOTIFICATION_PREFERENCES_HREF,
+      translationKey: "notifications",
+      Icon: Bell,
     },
   ];
 
