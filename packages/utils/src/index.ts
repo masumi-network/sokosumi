@@ -419,6 +419,10 @@ export {
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
 export {
+  getCanonicalWebAppHost,
+  getCanonicalWebAppUrl,
+} from "./web-app-url.js";
+export {
   buildWebhookFailureContext,
   DEFAULT_WEBHOOK_TIMEOUT_MS,
   MAX_REPORTED_WEBHOOK_BODY_LENGTH,
