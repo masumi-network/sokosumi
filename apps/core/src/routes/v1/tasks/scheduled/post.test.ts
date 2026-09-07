@@ -97,6 +97,7 @@ function buildMappedTask() {
     organization: { id: "org_123", name: "Acme Labs", slug: "acme-labs" },
     assigneeId: "coworker_123",
     assigneeSokoBotId: null,
+    assigneeUserId: null,
     assignee: {
       type: "coworker" as const,
       id: "coworker_123",
