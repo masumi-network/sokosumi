@@ -173,7 +173,7 @@ describe("ProjectDetailPage", () => {
     expect(workspaceSection?.className).not.toContain("md:px-0");
     const overviewGrid = workspaceSection?.parentElement;
     expect(overviewGrid?.className).toContain("grid");
-    expect(overviewGrid?.className).toContain("px-2");
+    expect(overviewGrid?.className).toContain("px-4");
     expect(overviewGrid?.className).toContain("md:px-0");
     expect(overviewGrid?.className).toContain("xl:grid-cols-3");
     expect((container.firstChild as HTMLElement).childElementCount).toBe(1);
