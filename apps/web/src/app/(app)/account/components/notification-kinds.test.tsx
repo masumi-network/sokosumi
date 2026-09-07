@@ -381,6 +381,11 @@ async function openGroup(group: string) {
 describe("NotificationKinds", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // `clearAllMocks` takes the calls and leaves the implementations behind.
+    // The pending and the failed render each hand this one an answer of their
+    // own, a promise that never settles and a rejection, and either of them
+    // stood for every test that ran after it.
+    getMyPreferences.mockReset();
     isAccountEnabled = true;
     isDeviceEnabled = true;
     isDeviceKnown = true;
