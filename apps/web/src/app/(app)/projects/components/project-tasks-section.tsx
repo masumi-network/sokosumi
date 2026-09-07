@@ -108,7 +108,7 @@ export function ProjectTasksSection({
                 href={`/tasks/${task.id}`}
                 className={cn(
                   "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
-                  "rounded-lg px-2 py-3 transition-colors",
+                  "-mx-2 rounded-lg px-4 py-3 transition-colors",
                   "hover:bg-muted/50",
                   "active:scale-[0.995]",
                 )}
