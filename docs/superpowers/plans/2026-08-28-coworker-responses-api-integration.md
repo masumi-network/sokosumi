@@ -120,6 +120,8 @@ Deliverable: this plan plus the slice-1 OAuth spec. No product implementation in
 
 ### Developer CLI OAuth (slice 1)
 
+Linear: SOK-947 → SOK-948 → SOK-949.
+
 Branch: `sok-909-apps-cli-oauth` (or this branch if the planning PR is allowed to grow)
 
 Deliverables:
@@ -133,7 +135,20 @@ Deliverables:
 
 Spec: `docs/superpowers/specs/2026-09-07-developer-cli-oauth-slice-design.md`.
 
+### CLI discovery
+
+Linear: SOK-966. Blocked by SOK-949. Blocks SOK-950.
+
+Deliverables:
+
+- `sokosumi vendors me`
+- `sokosumi workspaces list`
+- `--json` output
+- Keychain OAuth token only
+
 ### Core connection contract
+
+Linear: SOK-967. Parallel with slice 1. Blocks SOK-950.
 
 Branch: `sok-909-core-connection-contract`
 
@@ -153,6 +168,8 @@ Deliverables:
 
 ### Responses runtime
 
+Linear: SOK-953 → SOK-954.
+
 Branch: `sok-909-responses-runtime`
 
 Deliverables:
@@ -167,6 +184,8 @@ Deliverables:
 - Add redirect, auth-leak, streaming, private-address, missing-credential, provider-failure, and response-recovery tests.
 
 ### Web onboarding
+
+Linear: SOK-955.
 
 Branch: `sok-909-web-onboarding`
 
@@ -183,9 +202,11 @@ Deliverables:
 
 ### Monorepo CLI coworker loop
 
+Linear: SOK-950 → SOK-951 → SOK-952.
+
 Branch: `sok-909-apps-cli-coworker-loop`
 
-Blocked by: Developer CLI OAuth (slice 1) and Core connection contract.
+Blocked by: SOK-966 (discovery) and SOK-967 (Core connection contract).
 
 Deliverables:
 
@@ -195,6 +216,8 @@ Deliverables:
 - No Agent, Hire, or Job work from the deferred vision section.
 
 ### MCP handoff
+
+Linear: SOK-956.
 
 Branch: `sok-909-mcp-handoff`
 
