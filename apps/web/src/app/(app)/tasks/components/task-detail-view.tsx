@@ -376,10 +376,6 @@ async function TaskVendorGrantApprovalBannerSlot({
     organizationSlug: viewerMembership?.organization.slug,
   });
 
-  if (!reviewHref) {
-    return null;
-  }
-
   return (
     <TaskVendorGrantApprovalBanner
       grantId={grantId}

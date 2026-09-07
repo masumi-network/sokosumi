@@ -61,11 +61,9 @@ export function getNotificationHref(
           metadata: notification.metadata,
         });
         if (vendorTarget) {
-          return (
-            buildVendorGrantReviewHref({
-              organizationId: vendorTarget.organizationId,
-            }) ?? `/`
-          );
+          return buildVendorGrantReviewHref({
+            organizationId: vendorTarget.organizationId,
+          });
         }
 
         const coworkerTarget = resolveCoworkerAccessNotificationTarget({
@@ -74,12 +72,10 @@ export function getNotificationHref(
           metadata: notification.metadata,
         });
         if (coworkerTarget) {
-          return (
-            buildCoworkerAccessReviewHref({
-              organizationId: coworkerTarget.organizationId,
-              organizationSlug: coworkerTarget.organizationSlug,
-            }) ?? `/`
-          );
+          return buildCoworkerAccessReviewHref({
+            organizationId: coworkerTarget.organizationId,
+            organizationSlug: coworkerTarget.organizationSlug,
+          });
         }
       }
       return `/`;
