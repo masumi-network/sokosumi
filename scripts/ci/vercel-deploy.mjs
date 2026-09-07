@@ -105,6 +105,46 @@ export function deployTargets(networks) {
   return targets;
 }
 
+/**
+ * Repo paths that can change a web/core preview build: the two Vercel apps
+ * plus every workspace package (the transitive dependency closure of web and
+ * core — currently all of `packages/`). Mirrored as the `paths:` filter on
+ * the `pull_request` trigger in `.github/workflows/preview-deploy.yml`; the
+ * `/deploy` comment flow checks the same prefixes via the PR files API.
+ */
+export const PREVIEW_RELEVANT_PREFIXES = [
+  "apps/web/",
+  "apps/core/",
+  "packages/",
+];
+
+export function isPreviewRelevantPath(filePath) {
+  if (typeof filePath !== "string" || filePath.length === 0) {
+    return false;
+  }
+  const normalized = filePath.startsWith("./") ? filePath.slice(2) : filePath;
+  return PREVIEW_RELEVANT_PREFIXES.some((prefix) =>
+    normalized.startsWith(prefix),
+  );
+}
+
+export function hasPreviewRelevantChanges(files) {
+  if (!Array.isArray(files)) {
+    return false;
+  }
+  return files.some((file) =>
+    isPreviewRelevantPath(typeof file === "string" ? file : file?.filename),
+  );
+}
+
+export function noPreviewChangesMessage() {
+  return [
+    "No preview deployment: this pull request has no changes under `apps/web/`, `apps/core/`, or `packages/`.",
+    "",
+    "Previews only build web/core and their package dependencies. If you still need a preview, push a change under one of those paths and comment `/deploy <network>` again.",
+  ].join("\n");
+}
+
 function asHttpsUrl(host) {
   if (!host) {
     return undefined;
@@ -249,6 +289,35 @@ async function githubJson(fetchImpl, token, url, init = {}) {
   return payload;
 }
 
+export async function listPullRequestFiles({
+  fetchImpl = globalThis.fetch,
+  githubToken,
+  repoOwner,
+  repoName,
+  pullNumber,
+  perPage = 100,
+}) {
+  const files = [];
+  let page = 1;
+  for (;;) {
+    const url = new URL(
+      `https://api.github.com/repos/${repoOwner}/${repoName}/pulls/${pullNumber}/files`,
+    );
+    url.searchParams.set("per_page", String(perPage));
+    url.searchParams.set("page", String(page));
+    const payload = await githubJson(fetchImpl, githubToken, String(url));
+    if (!Array.isArray(payload) || payload.length === 0) {
+      break;
+    }
+    files.push(...payload);
+    if (payload.length < perPage) {
+      break;
+    }
+    page += 1;
+  }
+  return files;
+}
+
 function failedDeploymentNames(targets, deployments) {
   return targets.flatMap((target, index) => {
     const state = deployments[index]?.readyState;
@@ -331,6 +400,7 @@ export async function runPreviewDeployComment(options) {
     fetchImpl = globalThis.fetch,
     readPermission,
     readPullRequest,
+    listFiles,
     createDeployment,
     pollDeployment,
     postComment,
@@ -417,6 +487,19 @@ export async function runPreviewDeployComment(options) {
 
   try {
     await react("eyes");
+    const files = await (listFiles
+      ? listFiles()
+      : listPullRequestFiles({
+          fetchImpl,
+          githubToken,
+          repoOwner,
+          repoName,
+          pullNumber: issueNumber,
+        }));
+    if (!hasPreviewRelevantChanges(files)) {
+      await comment(noPreviewChangesMessage());
+      return { kind: "skip" };
+    }
     const result = await settlePreviewDeployments({
       networks: parsed.networks,
       git: previewGitSource(pullRequest, repoId),
