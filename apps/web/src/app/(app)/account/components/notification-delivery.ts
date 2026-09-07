@@ -48,20 +48,43 @@ export interface GroupSpec {
  * The kinds, grouped by what a reader would decide about at once.
  *
  * A group of one is drawn as a plain row: folding a single kind away behind a
- * chevron hides it without shortening anything. Chat folds because its two
- * kinds are often set apart, which is the whole reason they are separate rows.
+ * chevron hides it without shortening anything. The rest fold, because each
+ * holds something that waits on the reader next to something that merely
+ * happened, and those are the two the reader wants to set apart.
  */
 export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
   {
     id: "JOB",
-    labelKey: "kindJob",
-    kinds: [{ category: "JOB", labelKey: "kindJob", hintKey: "kindJobHint" }],
+    labelKey: "groupJob",
+    descriptionKey: "groupJobDescription",
+    kinds: [
+      {
+        category: "JOB_ATTENTION",
+        labelKey: "kindJobAttention",
+        hintKey: "kindJobAttentionHint",
+      },
+      {
+        category: "JOB_UPDATE",
+        labelKey: "kindJobUpdate",
+        hintKey: "kindJobUpdateHint",
+      },
+    ],
   },
   {
     id: "TASK",
-    labelKey: "kindTask",
+    labelKey: "groupTask",
+    descriptionKey: "groupTaskDescription",
     kinds: [
-      { category: "TASK", labelKey: "kindTask", hintKey: "kindTaskHint" },
+      {
+        category: "TASK_ATTENTION",
+        labelKey: "kindTaskAttention",
+        hintKey: "kindTaskAttentionHint",
+      },
+      {
+        category: "TASK_UPDATE",
+        labelKey: "kindTaskUpdate",
+        hintKey: "kindTaskUpdateHint",
+      },
     ],
   },
   {
