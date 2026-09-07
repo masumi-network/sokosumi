@@ -353,7 +353,7 @@ describe("PUT /tasks/{id}/schedule", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects scheduling a human-assigned task (SOK-868)", async () => {
+  it("keeps human-assigned tasks READY when scheduled", async () => {
     requireTaskCollaborationMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
@@ -378,8 +378,15 @@ describe("PUT /tasks/{id}/schedule", () => {
       },
     );
 
-    expect(response.status).toBe(422);
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          nextRunAt: expect.any(Date),
+        }),
+      }),
+    );
+    expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
   });
 
   it("rejects scheduling an unset task (SOK-868)", async () => {
