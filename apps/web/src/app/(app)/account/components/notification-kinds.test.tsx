@@ -861,14 +861,16 @@ describe("NotificationKinds", () => {
    * words sat wherever they ended and named no column at all.
    *
    * The width itself is not the invariant. That the head and its column agree
-   * on one is.
+   * on one is, and the column has two: a phone's and the one it takes once
+   * there is room. A prefix match on `w-` reads the first and never sees
+   * `@xl:w-18`, so the wide layout could drift with nothing watching.
    */
   it("gives a column name the width of the cells it names", async () => {
     renderKinds();
     await openGroup("groupJob");
 
-    const width = (element: Element | null | undefined) =>
-      [...(element?.classList ?? [])].find((name) => name.startsWith("w-"));
+    const widths = (element: Element | null | undefined) =>
+      [...(element?.classList ?? [])].filter((name) => /(^|:)w-/.test(name));
 
     for (const [channel, kind] of [
       ["channelInApp", "kindJobAttention"],
@@ -879,8 +881,8 @@ describe("NotificationKinds", () => {
       });
       const track = cellFor(kind, channel).parentElement;
 
-      expect(width(head)).toBeDefined();
-      expect(width(track)).toBe(width(head));
+      expect(widths(head)).not.toHaveLength(0);
+      expect(widths(track)).toEqual(widths(head));
     }
   });
 
