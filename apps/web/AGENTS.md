@@ -454,6 +454,22 @@ Prefer session reuse so you only log in once per machine:
 export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 ```
 
+## Agent skills
+
+When implementing or reviewing UI in this app, load and follow these root skills. Do not invent parallel UI rules.
+
+- [`.agents/skills/better-ui/`](../../.agents/skills/better-ui/)
+- [`.agents/skills/better-typography/`](../../.agents/skills/better-typography/)
+- [`.agents/skills/better-colors/`](../../.agents/skills/better-colors/)
+- [`.agents/skills/better-accessibility/`](../../.agents/skills/better-accessibility/)
+- [`.agents/skills/better-layout/`](../../.agents/skills/better-layout/)
+- [`.agents/skills/better-writing/`](../../.agents/skills/better-writing/)
+- [`.agents/skills/better-interface/`](../../.agents/skills/better-interface/)
+- [`.agents/skills/interface-review/`](../../.agents/skills/interface-review/)
+- [`.agents/skills/explain-interface/`](../../.agents/skills/explain-interface/)
+- [`.agents/skills/variant/`](../../.agents/skills/variant/)
+- [`.agents/skills/break/`](../../.agents/skills/break/)
+
 ## Additional Rules
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
