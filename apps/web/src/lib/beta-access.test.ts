@@ -35,7 +35,7 @@ describe("hasCalendarBetaAccess", () => {
     expect(
       hasCalendarBetaAccess([
         { organization: { slug: "other" } },
-        { organization: { slug: "utxo-ag" } },
+        { organization: { slug: "utxo" } },
       ]),
     ).toBe(true);
   });

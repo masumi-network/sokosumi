@@ -19,7 +19,7 @@ describe("hasCurrentUserCalendarBetaAccess", () => {
   it("allows any membership in the utxo AG workspace", async () => {
     getMyMembersWithOrganizationsMock.mockResolvedValue([
       { organization: { slug: "other" } },
-      { organization: { slug: "utxo-ag" } },
+      { organization: { slug: "utxo" } },
     ]);
 
     const { hasCurrentUserCalendarBetaAccess } = await import(

@@ -244,7 +244,7 @@ describe("taskScheduleReconciliationService", () => {
           fromTask: {
             owner: {
               members: {
-                some: { organization: { slug: "utxo-ag" } },
+                some: { organization: { slug: "utxo" } },
               },
             },
           },
@@ -260,7 +260,7 @@ describe("taskScheduleReconciliationService", () => {
               fromTask: {
                 owner: {
                   members: {
-                    some: { organization: { slug: "utxo-ag" } },
+                    some: { organization: { slug: "utxo" } },
                   },
                 },
               },

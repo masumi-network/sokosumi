@@ -18,7 +18,7 @@ describe("Calendar beta access", () => {
     expect(findFirst).toHaveBeenCalledWith({
       where: {
         userId: "user-1",
-        organization: { slug: "utxo-ag" },
+        organization: { slug: "utxo" },
       },
       select: { id: true },
     });

@@ -1,1 +1,1 @@
-export const CALENDAR_BETA_ORGANIZATION_SLUG = "utxo-ag";
+export const CALENDAR_BETA_ORGANIZATION_SLUG = "utxo";

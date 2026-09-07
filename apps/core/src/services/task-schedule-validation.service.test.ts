@@ -90,7 +90,7 @@ describe("taskScheduleValidationService", () => {
         where: expect.objectContaining({
           owner: {
             members: {
-              some: { organization: { slug: "utxo-ag" } },
+              some: { organization: { slug: "utxo" } },
             },
           },
         }),
