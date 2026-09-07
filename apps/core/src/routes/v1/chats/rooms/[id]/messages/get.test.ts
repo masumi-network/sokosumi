@@ -56,9 +56,11 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
+  dispatchChatRoomMention: vi.fn(),
+}));
+vi.mock("@/services/chat-room-mention-state", () => ({
   listStaleSentChatRoomMentionIds: (...args: unknown[]) =>
     listStaleSentChatRoomMentionIdsMock(...args),
-  dispatchChatRoomMention: vi.fn(),
 }));
 
 vi.mock("@vercel/functions", () => ({

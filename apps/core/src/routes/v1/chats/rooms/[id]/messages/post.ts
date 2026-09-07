@@ -31,7 +31,6 @@ import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unf
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
-  markChatRoomThreadRead,
   mergeChatRoomMessageMetadata,
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
@@ -43,6 +42,7 @@ import {
   resolveThreadParentMessageId,
   sokoBotDisplayName,
 } from "../../helpers";
+import { markChatRoomThreadRead } from "../../room-unread";
 
 const paramsSchema = z.object({
   id: z
