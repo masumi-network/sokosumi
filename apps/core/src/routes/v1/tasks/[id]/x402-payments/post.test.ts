@@ -714,19 +714,28 @@ describe("POST /{id}/x402-payments", () => {
 
   describe("request validation", () => {
     it.each([
-      ["missing body", undefined, undefined],
-      ["missing JSON Content-Type", JSON.stringify(validBody()), undefined],
-    ])("rejects %s before any transaction", async (_name, body, headers) => {
-      const app = createApp(COWORKER_AGENT_CONTEXT);
+      ["missing body", undefined, undefined, 422],
+      // @hono/zod-openapi 1.6.3: declared JSON media type + no Content-Type → 415
+      [
+        "missing JSON Content-Type",
+        JSON.stringify(validBody()),
+        undefined,
+        415,
+      ],
+    ])(
+      "rejects %s before any transaction",
+      async (_name, body, headers, status) => {
+        const app = createApp(COWORKER_AGENT_CONTEXT);
 
-      const response = await app.request(
-        `http://localhost/${TASK_ID}/x402-payments`,
-        { method: "POST", body, headers },
-      );
+        const response = await app.request(
+          `http://localhost/${TASK_ID}/x402-payments`,
+          { method: "POST", body, headers },
+        );
 
-      expect(response.status).toBe(422);
-      expect(prismaTransactionMock).not.toHaveBeenCalled();
-    });
+        expect(response.status).toBe(status);
+        expect(prismaTransactionMock).not.toHaveBeenCalled();
+      },
+    );
 
     it("rejects an idempotencyKey over 200 characters before any transaction", async () => {
       // The key sits inside the [taskId, idempotencyKey] btree unique; an
