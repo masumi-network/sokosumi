@@ -114,7 +114,7 @@ export function recordCoreRequestError(error: Error) {
   tryUseLogger()?.error(error);
 }
 
-function tryUseLogger() {
+export function tryUseLogger() {
   try {
     return useLogger();
   } catch {

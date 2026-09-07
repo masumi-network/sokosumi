@@ -1,5 +1,8 @@
+import type { DrainContext } from "evlog";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
+import { initCoreLogger } from "@/lib/evlog";
 
 const {
   findUniqueMock,
@@ -133,6 +136,7 @@ function asyncStreamParts(
 
 const MENTION_ID = "mention_1";
 const ORG_WORKSPACE_ID = "ws_org_1";
+const capturedChatEvents: DrainContext[] = [];
 
 function pendingMention(
   overrides: {
@@ -179,6 +183,13 @@ function pendingMention(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  capturedChatEvents.length = 0;
+  initCoreLogger({
+    silent: true,
+    drain: (ctx) => {
+      capturedChatEvents.push(ctx);
+    },
+  });
   getSokosumiProviderMock.mockReturnValue(() => "mock-model");
   createCoworkerConversationMock.mockResolvedValue({ id: "provider_conv_1" });
   findManyMock.mockResolvedValue([]);
@@ -1080,6 +1091,91 @@ describe("dispatchChatRoomMention claim", () => {
     );
     expect(publishRealtimeMock).not.toHaveBeenCalledWith("reply_1", "delete");
     expect(deleteMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("coworker mention chat log fields", () => {
+  it("emits room, coworker, mention, and already-in-flight when claim loses", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 0 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(capturedChatEvents).toHaveLength(1);
+    expect(capturedChatEvents[0]?.event.chat).toEqual({
+      kind: "coworker_channel_mention",
+      room: { id: "room_1" },
+      coworker: { id: "cow_1", slug: "hannah" },
+      mention: { id: MENTION_ID, claim: "already_in_flight" },
+    });
+    expect(capturedChatEvents[0]?.event.coworker).toBeUndefined();
+    expect(JSON.stringify(capturedChatEvents[0]?.event.chat)).not.toContain(
+      "@hannah hi",
+    );
+  });
+
+  it("records claimed when dispatch wins the mention slot", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(capturedChatEvents[0]?.event.chat).toMatchObject({
+      kind: "coworker_channel_mention",
+      mention: { id: MENTION_ID, claim: "claimed" },
+    });
+  });
+
+  it("includes thread parent when the source message is a thread reply", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      message: {
+        ...pendingMention().message,
+        parentMessageId: "parent_1",
+      },
+    });
+    updateManyMock.mockResolvedValue({ count: 0 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(capturedChatEvents[0]?.event.chat).toMatchObject({
+      thread: { parentMessageId: "parent_1" },
+      mention: { claim: "already_in_flight" },
+    });
+  });
+
+  it("still emits room and mention id when the coworker row is gone", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      coworker: null,
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(capturedChatEvents[0]?.event.chat).toEqual({
+      kind: "coworker_channel_mention",
+      room: { id: "room_1" },
+      coworker: { id: "cow_1" },
+      mention: { id: MENTION_ID },
+    });
+  });
+
+  it("does not emit coworker chat fields for a Soko Bot mention", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      coworkerId: null,
+      coworker: null,
+      sokoBotId: "bot_1",
+      sokoBot: {
+        id: "bot_1",
+        userId: "user_1",
+        archivedAt: new Date("2025-01-01T00:00:00.000Z"),
+      },
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(capturedChatEvents).toHaveLength(0);
   });
 });
 
