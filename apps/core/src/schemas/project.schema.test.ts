@@ -25,6 +25,8 @@ function createDatabaseProject(
     filesToken: null,
     briefing: "# Briefing",
     briefingUrl: "https://blob.example/projects/project_1/BRIEFING.md",
+    latestUpdateMd: null,
+    latestUpdateMdUpdatedAt: null,
     contextMd: null,
     contextMdUrl: null,
     contextMdUpdatedAt: null,
@@ -141,6 +143,24 @@ describe("project schemas", () => {
       designMd: { url: designMdUrl, extractionId: "extract_123" },
     });
     expect(mapProjectForApi(createDatabaseProject()).designMd).toBeNull();
+    expect(mapProjectForApi(createDatabaseProject()).latestUpdate).toBeNull();
+  });
+
+  it("maps latest update markdown when both body and timestamp exist", () => {
+    const updatedAt = new Date("2026-09-07T10:00:00.000Z");
+    expect(
+      mapProjectForApi(
+        createDatabaseProject({
+          latestUpdateMd:
+            "# Weekly Activity Report\n\nDate window: 2026-09-01 to 2026-09-07\n\n## TL;DR\n\nShipped.",
+          latestUpdateMdUpdatedAt: updatedAt,
+        }),
+      ).latestUpdate,
+    ).toEqual({
+      content:
+        "# Weekly Activity Report\n\nDate window: 2026-09-01 to 2026-09-07\n\n## TL;DR\n\nShipped.",
+      updatedAt: "2026-09-07T10:00:00.000Z",
+    });
   });
 
   it("maps the Project lifecycle revision and terminal timestamps", () => {

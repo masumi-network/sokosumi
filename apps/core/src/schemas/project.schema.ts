@@ -103,6 +103,16 @@ export const projectContextMdSchema = projectContextMdMetadataSchema
   })
   .openapi("ProjectContextMd");
 
+export const projectLatestUpdateSchema = z
+  .object({
+    content: z.string().openapi({
+      example:
+        "# Weekly Activity Report\n\nDate window: 2026-09-01 to 2026-09-07\n\n## TL;DR\n\nShipped onboarding polish.",
+    }),
+    updatedAt: dateTimeSchema,
+  })
+  .openapi("ProjectLatestUpdate");
+
 export const projectSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -116,6 +126,13 @@ export const projectSchema = z
     briefingUrl: z.url().nullable().openapi({
       example:
         "https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/BRIEFING.md",
+    }),
+    // Union-with-null instead of `.nullable()`: `.nullable()` on a named
+    // `.openapi(...)` schema drops `| null` from the generated client.
+    latestUpdate: z.union([projectLatestUpdateSchema, z.null()]).openapi({
+      description:
+        "Weekly activity report markdown. Null until a valid report is generated.",
+      example: null,
     }),
     websiteUrl: z.url().nullable().openapi({ example: "https://example.com" }),
     logo: z.url().nullable().openapi({
@@ -362,6 +379,13 @@ export function mapProjectForApi(
     workspaceId: project.workspaceId,
     name: project.name,
     briefing: project.briefing,
+    latestUpdate:
+      project.latestUpdateMd && project.latestUpdateMdUpdatedAt
+        ? {
+            content: project.latestUpdateMd,
+            updatedAt: project.latestUpdateMdUpdatedAt,
+          }
+        : null,
     briefingUrl: project.briefingUrl,
     websiteUrl: project.websiteUrl,
     logo: project.logo,

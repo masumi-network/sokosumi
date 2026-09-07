@@ -1937,12 +1937,20 @@ export const postChatRoomInviteLinksByTokenAcceptResponseTransformer = async (da
     return data;
 };
 
+const projectLatestUpdateSchemaResponseTransformer = (data: any) => {
+    data.updatedAt = new Date(data.updatedAt);
+    return data;
+};
+
 const projectContextMdMetadataSchemaResponseTransformer = (data: any) => {
     data.updatedAt = new Date(data.updatedAt);
     return data;
 };
 
 const projectSchemaResponseTransformer = (data: any) => {
+    if (data.latestUpdate) {
+        data.latestUpdate = projectLatestUpdateSchemaResponseTransformer(data.latestUpdate);
+    }
     if (data.contextMd) {
         data.contextMd = projectContextMdMetadataSchemaResponseTransformer(data.contextMd);
     }

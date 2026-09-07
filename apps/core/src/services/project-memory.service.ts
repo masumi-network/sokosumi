@@ -10,6 +10,7 @@ import {
   uploadProjectContextMdFile,
 } from "@/lib/project-files-blob";
 import { isProjectMemoryConfigured } from "@/lib/project-memory-config";
+import { refreshProjectLatestUpdate } from "./project-latest-update";
 
 const MEMORY_LOCK_TTL_MS = 5 * 60 * 1000;
 const MEMORY_GENERATION_TIMEOUT_MS = 60_000;
@@ -353,6 +354,18 @@ async function refreshProjectMemoryIteration({
         result: { status: "skipped", reason: "lost_lock" },
       };
     }
+
+    await refreshProjectLatestUpdate({
+      projectId,
+      projectName: project.name,
+      briefing: project.briefing,
+      contextMd,
+      completedWorkXml: [triggeringTask, ...recentCompletedTasks]
+        .map(formatTaskForPrompt)
+        .join("\n\n"),
+      lockStartedAt,
+      modelId: env.PROJECT_MEMORY_MODEL,
+    });
 
     const nextVersion = project.contextMdVersion + 1;
     const filesToken = await ensureProjectFilesToken(

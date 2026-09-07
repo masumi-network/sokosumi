@@ -8,6 +8,7 @@ import {
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
+import { ProjectLatestUpdate } from "@/app/projects/components/project-latest-update";
 import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
 import { ProjectModuleTiles } from "@/app/projects/components/project-module-tiles";
 import { ProjectNeedsAttentionSection } from "@/app/projects/components/project-needs-attention-section";
@@ -92,6 +93,17 @@ export default async function ProjectDetailPage({
           websiteUrl={project.websiteUrl}
         >
           <div className="mt-6 grid grid-cols-1 gap-8 xl:grid-cols-3">
+            {project.latestUpdate ? (
+              <div className="xl:col-span-3">
+                <ProjectLatestUpdate
+                  title={t("latestUpdate")}
+                  content={project.latestUpdate.content}
+                  showMoreLabel={t("showMore")}
+                  showLessLabel={t("showLess")}
+                />
+              </div>
+            ) : null}
+
             <div className="xl:col-span-2">
               <ProjectBriefing
                 title={t("briefing")}

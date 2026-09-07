@@ -64,6 +64,7 @@ const CREATED_PROJECT = {
   designMd: null,
   contextMd: null,
   contextMdUpdating: false,
+  latestUpdate: null,
   projectRevision: 0,
   closingAt: null,
   closedAt: null,

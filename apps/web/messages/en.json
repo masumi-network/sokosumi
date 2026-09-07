@@ -2227,6 +2227,7 @@
           "created": "Created"
         },
         "briefing": "Briefing",
+        "latestUpdate": "Latest update",
         "emptyBriefing": "No briefing yet.",
         "writeBriefing": "Write briefing",
         "showMore": "Show more",

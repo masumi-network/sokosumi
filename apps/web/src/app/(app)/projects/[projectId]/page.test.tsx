@@ -70,6 +70,7 @@ function buildProject() {
     },
     contextMd: null,
     contextMdUpdating: false,
+    latestUpdate: null,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
   };
@@ -150,6 +151,9 @@ describe("ProjectDetailPage", () => {
         name: "App.Projects.Detail.briefing",
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("project-latest-update"),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
     expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
     expect(screen.getByTestId("needs-attention-section")).toBeInTheDocument();
@@ -196,5 +200,41 @@ describe("ProjectDetailPage", () => {
         name: "App.Projects.Detail.modules.calendar.title",
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders Latest update above Briefing when a report exists", async () => {
+    const project = {
+      ...buildProject(),
+      latestUpdate: {
+        content:
+          "# Weekly Activity Report\n\nDate window: 2026-09-01 to 2026-09-07\n\n## TL;DR\n\nShipped.",
+        updatedAt: "2026-09-07T10:00:00.000Z",
+      },
+    };
+    projectServiceMock.getProjectById.mockResolvedValue(project);
+    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
+      taskCount: 0,
+      jobCount: 0,
+      items: [],
+    });
+
+    const { default: ProjectDetailPage } = await import("./page");
+    const html = await ProjectDetailPage({
+      params: Promise.resolve({ projectId: "project-1" }),
+    });
+
+    render(html);
+
+    const latestHeading = screen.getByRole("heading", {
+      name: "App.Projects.Detail.latestUpdate",
+    });
+    const briefingHeading = screen.getByRole("heading", {
+      name: "App.Projects.Detail.briefing",
+    });
+    expect(latestHeading.compareDocumentPosition(briefingHeading)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(screen.getByTestId("project-latest-update")).toBeInTheDocument();
+    expect(screen.getByText(/Shipped/)).toBeInTheDocument();
   });
 });

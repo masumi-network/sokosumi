@@ -14435,6 +14435,25 @@ export const ProjectListItemSchema = {
     ]
 } as const;
 
+export const ProjectLatestUpdateSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string',
+            example: '# Weekly Activity Report\n\nDate window: 2026-09-01 to 2026-09-07\n\n## TL;DR\n\nShipped onboarding polish.'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'content',
+        'updatedAt'
+    ]
+} as const;
+
 export const ProjectDesignMdSchema = {
     type: 'object',
     properties: {
@@ -14549,6 +14568,18 @@ export const ProjectSchema = {
             format: 'uri',
             example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/BRIEFING.md'
         },
+        latestUpdate: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectLatestUpdate'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Weekly activity report markdown. Null until a valid report is generated.',
+            example: null
+        },
         websiteUrl: {
             type: [
                 'string',
@@ -14645,6 +14676,7 @@ export const ProjectSchema = {
         'name',
         'briefing',
         'briefingUrl',
+        'latestUpdate',
         'websiteUrl',
         'logo',
         'designMd',

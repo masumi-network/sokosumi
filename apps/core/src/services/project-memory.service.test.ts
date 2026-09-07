@@ -72,6 +72,8 @@ const project = {
   contextMdModel: MODEL_ID,
   contextMdUpdatingSince: new Date("2026-08-16T09:00:00.000Z"),
   contextMdVersion: 3,
+  latestUpdateMd: null,
+  latestUpdateMdUpdatedAt: null,
   createdAt: new Date("2026-08-15T09:00:00.000Z"),
   updatedAt: new Date("2026-08-16T09:00:00.000Z"),
 };
@@ -328,6 +330,8 @@ describe("projectMemoryService", () => {
       ...project,
       contextMd: "# Updated once",
       contextMdVersion: 4,
+      latestUpdateMd: null,
+      latestUpdateMdUpdatedAt: null,
     });
 
     await expect(
@@ -337,8 +341,8 @@ describe("projectMemoryService", () => {
       }),
     ).resolves.toMatchObject({ status: "updated", version: 5 });
 
-    expect(generateTextMock).toHaveBeenCalledTimes(2);
-    expect(generateTextMock.mock.calls[1]?.[0].prompt).toContain(
+    expect(generateTextMock).toHaveBeenCalledTimes(4);
+    expect(generateTextMock.mock.calls[2]?.[0].prompt).toContain(
       "Follow-up completion",
     );
     expect(taskFindFirstMock.mock.calls[1]?.[0]).toEqual(
@@ -386,5 +390,67 @@ describe("projectMemoryService", () => {
         data: { contextMdUpdatingSince: null },
       }),
     );
+  });
+
+  it("writes latest update markdown after memory when the report has a leading TL;DR", async () => {
+    const report = `# Weekly Activity Report
+
+Date window: 2026-09-01 to 2026-09-07
+
+## TL;DR
+
+Shipped the launch report.
+
+## Audience
+
+Reached technical founders.`;
+    generateTextMock
+      .mockResolvedValueOnce({ text: "# Updated\nNew decision" })
+      .mockResolvedValueOnce({ text: report });
+
+    await expect(
+      projectMemoryService.refreshAfterTaskCompleted({
+        projectId: PROJECT_ID,
+        taskId: TASK_ID,
+      }),
+    ).resolves.toEqual({ status: "updated", version: 4, lineCount: 2 });
+
+    expect(generateTextMock).toHaveBeenCalledTimes(2);
+    expect(generateTextMock.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        model: MODEL_ID,
+        maxOutputTokens: 2_000,
+        prompt: expect.stringContaining("Date window:"),
+      }),
+    );
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: PROJECT_ID,
+        contextMdUpdatingSince: expect.any(Date),
+      },
+      data: {
+        latestUpdateMd: report,
+        latestUpdateMdUpdatedAt: expect.any(Date),
+      },
+    });
+  });
+
+  it("keeps memory and leaves the previous report when TL;DR is missing", async () => {
+    generateTextMock
+      .mockResolvedValueOnce({ text: "# Updated\nNew decision" })
+      .mockResolvedValueOnce({ text: "# Weekly Activity Report\n\nNo tldr" });
+
+    await expect(
+      projectMemoryService.refreshAfterTaskCompleted({
+        projectId: PROJECT_ID,
+        taskId: TASK_ID,
+      }),
+    ).resolves.toEqual({ status: "updated", version: 4, lineCount: 2 });
+
+    expect(
+      projectUpdateManyMock.mock.calls.some(
+        ([args]) => args.data?.latestUpdateMd !== undefined,
+      ),
+    ).toBe(false);
   });
 });
