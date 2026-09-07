@@ -149,9 +149,9 @@
       "creditsRemainingHero": "{credits, number} remaining",
       "creditsRemainingOfTotal": "{remaining, number} of {total, number} remaining",
       "creditsAllowanceProgressAria": "Plan-cycle credit allowance remaining",
-      "creditsExpiresInDays": "Allowance resets in {days, plural, =1 {1 day} other {# days}}",
-      "creditsExpiresToday": "Allowance resets today",
-      "creditsExpired": "Allowance period ended",
+      "creditsExpiresInDays": "Credits reset in {days, plural, =1 {1 day} other {# days}}",
+      "creditsExpiresToday": "Credits reset today",
+      "creditsExpired": "Credits period ended",
       "organizations": "Organizations",
       "organization": "Organization"
     },
