@@ -295,4 +295,28 @@ describe("buildTaskActivityActors", () => {
       },
     });
   });
+
+  it("records a user assignee as a user actor (SOK-868)", () => {
+    const task = {
+      owner: { id: "user-1", name: "Ada Lovelace", image: null },
+      assignee: {
+        type: "user" as const,
+        id: "user-2",
+        user: { id: "user-2", name: "Bob", image: null },
+      },
+      creator: {
+        type: "user" as const,
+        id: "user-1",
+        user: { id: "user-1", name: "Ada Lovelace", image: null },
+      },
+      events: [],
+    } satisfies Pick<Task, "owner" | "assignee" | "creator" | "events">;
+
+    const result = buildTaskActivityActors(task);
+
+    expect(result.userById).toMatchObject({
+      "user-2": { name: "Bob", image: null },
+    });
+    expect(result.coworkerById).toBeUndefined();
+  });
 });

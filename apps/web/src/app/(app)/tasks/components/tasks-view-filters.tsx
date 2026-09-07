@@ -124,7 +124,10 @@ export function TasksViewFilters({
       id: "coworker",
       label: labels.coworkerLabel,
       icon: Sparkles,
-      value: filters.assigneeSokoBotId ?? filters.assigneeId,
+      value:
+        filters.assigneeSokoBotId ??
+        filters.assigneeUserId ??
+        filters.assigneeId,
       allLabel: labels.all,
       onChange: (selectedId) => {
         const selected = coworkerOptions.find(
@@ -134,12 +137,22 @@ export function TasksViewFilters({
           handleFilterChange({
             assigneeId: null,
             assigneeSokoBotId: selectedId,
+            assigneeUserId: null,
+          });
+          return;
+        }
+        if (selected?.kind === "user") {
+          handleFilterChange({
+            assigneeId: null,
+            assigneeSokoBotId: null,
+            assigneeUserId: selectedId,
           });
           return;
         }
         handleFilterChange({
           assigneeId: selectedId,
           assigneeSokoBotId: null,
+          assigneeUserId: null,
         });
       },
       options: coworkerOptions.map((coworker) => ({

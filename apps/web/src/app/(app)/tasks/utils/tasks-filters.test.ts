@@ -26,6 +26,7 @@ describe("tasks-filters", () => {
       scope: "workspace",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -37,6 +38,7 @@ describe("tasks-filters", () => {
       scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -47,6 +49,7 @@ describe("tasks-filters", () => {
       scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -111,6 +114,7 @@ describe("tasks-filters", () => {
       scope: "owned",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
     });
@@ -121,8 +125,65 @@ describe("tasks-filters", () => {
       scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
+    });
+  });
+
+  it("maps URL search params to filters with a user allowlist (SOK-868)", () => {
+    const params = new URLSearchParams({
+      scope: "owned",
+      assigneeUserId: "user-1",
+      status: TaskStatus.READY,
+      projectId: PROJECT_ID,
+    });
+
+    expect(
+      getTasksFiltersFromSearchParams(params, "org-1", [
+        { id: "user-1", kind: "user" },
+      ]),
+    ).toEqual({
+      scope: "owned",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: "user-1",
+      status: TaskStatus.READY,
+      projectId: PROJECT_ID,
+    });
+
+    expect(
+      getTasksFiltersFromSearchParams(params, "org-1", [
+        { id: "other", kind: "user" },
+      ]),
+    ).toEqual({
+      scope: "owned",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: TaskStatus.READY,
+      projectId: PROJECT_ID,
+    });
+  });
+
+  it("gives a valid user filter precedence over a coworker filter (SOK-868)", () => {
+    const params = new URLSearchParams({
+      assigneeId: "coworker-1",
+      assigneeUserId: "user-1",
+    });
+
+    expect(
+      getTasksFiltersFromSearchParams(params, "org-1", [
+        { id: "coworker-1" },
+        { id: "user-1", kind: "user" },
+      ]),
+    ).toEqual({
+      scope: "workspace",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: "user-1",
+      status: null,
+      projectId: null,
     });
   });
 
@@ -137,6 +198,7 @@ describe("tasks-filters", () => {
       scope: "workspace",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -152,6 +214,7 @@ describe("tasks-filters", () => {
       scope: "workspace",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -172,6 +235,7 @@ describe("tasks-filters", () => {
       scope: "owned",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
     });
@@ -192,6 +256,7 @@ describe("tasks-filters", () => {
       scope: "workspace",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: PROJECT_ID,
     });
@@ -209,6 +274,7 @@ describe("tasks-filters", () => {
         scope: "owned",
         assigneeId: "coworker-1",
         assigneeSokoBotId: null,
+        assigneeUserId: null,
         status: TaskStatus.READY,
         projectId: PROJECT_ID,
       },
@@ -233,6 +299,7 @@ describe("tasks-filters", () => {
       scope: "workspace",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -251,6 +318,7 @@ describe("tasks-filters", () => {
         scope: "workspace",
         assigneeId: null,
         assigneeSokoBotId: null,
+        assigneeUserId: null,
         status: null,
         projectId: null,
       },
@@ -268,6 +336,7 @@ describe("tasks-filters", () => {
           scope: "workspace",
           assigneeId: "coworker-1",
           assigneeSokoBotId: null,
+          assigneeUserId: null,
           status: TaskStatus.READY,
           projectId: PROJECT_ID,
         },
@@ -289,6 +358,7 @@ describe("tasks-filters", () => {
           scope: "workspace",
           assigneeId: null,
           assigneeSokoBotId: null,
+          assigneeUserId: null,
           status: null,
           projectId: null,
         },
@@ -303,6 +373,7 @@ describe("tasks-filters", () => {
           scope: "workspace",
           assigneeId: null,
           assigneeSokoBotId: null,
+          assigneeUserId: null,
           status: null,
           projectId: null,
         },
@@ -317,6 +388,7 @@ describe("tasks-filters", () => {
           scope: "owned",
           assigneeId: null,
           assigneeSokoBotId: null,
+          assigneeUserId: null,
           status: null,
           projectId: null,
         },
@@ -330,6 +402,7 @@ describe("tasks-filters", () => {
       scope: "owned" as const,
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     };
@@ -413,6 +486,7 @@ describe("tasks-filters", () => {
       scope: "workspace" as const,
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     };
@@ -420,6 +494,7 @@ describe("tasks-filters", () => {
       scope: "owned" as const,
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     };
@@ -453,6 +528,7 @@ describe("tasks-filters", () => {
         scope: "workspace",
         assigneeId: null,
         assigneeSokoBotId: "bot-1",
+        assigneeUserId: null,
         status: null,
         projectId: null,
       });
@@ -473,6 +549,7 @@ describe("tasks-filters", () => {
         scope: "workspace",
         assigneeId: null,
         assigneeSokoBotId: "bot-1",
+        assigneeUserId: null,
         status: null,
         projectId: null,
       });
@@ -485,6 +562,7 @@ describe("tasks-filters", () => {
           scope: "workspace",
           assigneeId: null,
           assigneeSokoBotId: "bot-1",
+          assigneeUserId: null,
           status: null,
           projectId: null,
         },
@@ -492,6 +570,23 @@ describe("tasks-filters", () => {
       );
 
       expect(nextSearchParams.toString()).toBe("assigneeSokoBotId=bot-1");
+    });
+
+    it("serializes user assignee filters onto assigneeUserId (SOK-868)", () => {
+      const nextSearchParams = buildTasksFiltersSearchParams(
+        new URLSearchParams(),
+        {
+          scope: "workspace",
+          assigneeId: null,
+          assigneeSokoBotId: null,
+          assigneeUserId: "user-1",
+          status: null,
+          projectId: null,
+        },
+        "org-1",
+      );
+
+      expect(nextSearchParams.toString()).toBe("assigneeUserId=user-1");
     });
 
     it("allows drag when route and initial filters agree for the viewer's task", () => {

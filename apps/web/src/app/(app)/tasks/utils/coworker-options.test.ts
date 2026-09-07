@@ -9,6 +9,7 @@ import {
   findCoworkerIdBySlug,
   getCoworkerOptions,
   getOwnerSokoBotOption,
+  getUserOptions,
   resolveTaskAssigneeFields,
   taskFormAssigneeId,
   withOwnerSokoBotOption,
@@ -161,14 +162,17 @@ describe("owner soko bot option", () => {
     expect(resolveTaskAssigneeFields("bot-1", options)).toEqual({
       assigneeId: null,
       assigneeSokoBotId: "bot-1",
+      assigneeUserId: null,
     });
     expect(resolveTaskAssigneeFields("cow_1", options)).toEqual({
       assigneeId: "cow_1",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
     });
     expect(resolveTaskAssigneeFields("", options)).toEqual({
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
     });
   });
 
@@ -178,6 +182,7 @@ describe("owner soko bot option", () => {
     ).toEqual({
       assigneeId: "coworker-2",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
     });
   });
 
@@ -190,6 +195,7 @@ describe("owner soko bot option", () => {
     expect(resolveTaskAssigneeFields("missing-coworker", options)).toEqual({
       assigneeId: "missing-coworker",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
     });
   });
 
@@ -203,6 +209,7 @@ describe("owner soko bot option", () => {
     ).toEqual({
       assigneeId: null,
       assigneeSokoBotId: "bot-1",
+      assigneeUserId: null,
     });
   });
 
@@ -211,11 +218,70 @@ describe("owner soko bot option", () => {
       taskFormAssigneeId({
         assigneeId: "cow_1",
         assigneeSokoBotId: "bot-1",
+        assigneeUserId: null,
       }),
     ).toBe("bot-1");
     expect(
       taskFormAssigneeId({ assigneeId: "cow_1", assigneeSokoBotId: null }),
     ).toBe("cow_1");
+    expect(
+      taskFormAssigneeId({
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: "user_1",
+      }),
+    ).toBe("user_1");
+  });
+
+  it("resolves a user option onto assigneeUserId", () => {
+    expect(
+      resolveTaskAssigneeFields("user_1", [
+        { id: "user_1", kind: "user" },
+        { id: "cow_1", kind: "coworker" },
+      ]),
+    ).toEqual({
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: "user_1",
+    });
+  });
+
+  it("keeps a known user id when it is absent from options", () => {
+    expect(
+      resolveTaskAssigneeFields("user_1", [{ id: "cow_1" }], null, "user_1"),
+    ).toEqual({
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: "user_1",
+    });
+  });
+
+  it("builds sorted user options from members", () => {
+    expect(
+      getUserOptions([
+        {
+          id: "m_2",
+          user: {
+            id: "user_2",
+            name: "Zoe",
+            email: "zoe@example.com",
+            image: null,
+          },
+        },
+        {
+          id: "m_1",
+          user: {
+            id: "user_1",
+            name: "Amy",
+            email: "amy@example.com",
+            image: null,
+          },
+        },
+      ] as never),
+    ).toMatchObject([
+      { id: "user_1", kind: "user", name: "Amy" },
+      { id: "user_2", kind: "user", name: "Zoe" },
+    ]);
   });
 
   it("uses translated copy for an unnamed bot and the Soko Bots group", () => {

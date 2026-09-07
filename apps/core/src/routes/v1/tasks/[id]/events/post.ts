@@ -14,8 +14,8 @@ import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
   requireTaskCancelAccess,
-  requireTaskCollaboration,
   requireTaskCommentAccess,
+  requireTaskStatusWriteAccess,
 } from "@/helpers/access-control";
 import {
   getCardanoV2ReadySources,
@@ -37,6 +37,7 @@ import {
   type CascadedCancelChild,
   cascadeCancelNonTerminalScheduleRuns,
   mapTaskEvent,
+  taskAssigneeKind,
   taskEventApiInclude,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
@@ -368,7 +369,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const task = isCancelOnlyWrite
         ? await requireTaskCancelAccess(c.var, taskId, tx)
         : hasNonCommentWrite
-          ? await requireTaskCollaboration(authContext, taskId, tx)
+          ? await requireTaskStatusWriteAccess(c.var, taskId, tx)
           : await requireTaskCommentAccess(c.var, taskId, tx);
 
       const isAgent = isAgentAuthContext(authContext);
@@ -408,11 +409,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (status !== undefined) {
-        validateStatusTransition(authContext, task.status, status);
+        validateStatusTransition(
+          authContext,
+          task.status,
+          status,
+          taskAssigneeKind(task),
+        );
         validateTaskAssigneeAssignment({
           status,
           assigneeId: task.assigneeId,
           assigneeSokoBotId: task.assigneeSokoBotId,
+          assigneeUserId: task.assigneeUserId,
         });
 
         if (

@@ -10,6 +10,7 @@ import {
   taskFormAssigneeId,
   withOwnerSokoBotOption,
 } from "@/app/tasks/utils/coworker-options";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
@@ -40,8 +41,8 @@ export default async function TaskEditModalPage({
     redirect(`/tasks/${taskId}`);
   }
 
-  const activeOrganizationId =
-    (await getSession())?.session.activeOrganizationId ?? null;
+  const session = await getSession();
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const targetOrganizationId = taskResult.workspace.organizationId ?? null;
 
   if (activeOrganizationId !== targetOrganizationId) {
@@ -67,17 +68,17 @@ export default async function TaskEditModalPage({
     );
   }
 
-  const [taskCoworkers, agents, projectsPage, ownerBot, tTasks] =
+  const [taskCoworkers, agents, projectsPage, ownerBot, tTasks, memberOptions] =
     await Promise.all([
       coworkerService.listCoworkers("tasks").catch(() => []),
       agentService.getAvailableAgentsWithCreditsPrice(),
       projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
       sokoBotService.getMine().catch(() => null),
       getTranslations("App.Tasks"),
+      listTaskAssigneeMemberOptions(targetOrganizationId),
     ]);
-
   const coworkerOptions = withOwnerSokoBotOption(
-    getCoworkerOptions(taskCoworkers),
+    [...memberOptions, ...getCoworkerOptions(taskCoworkers)],
     ownerBot,
     { fallbackName: tTasks("sokoBot"), vendorName: tTasks("sokoBots") },
   );
@@ -110,6 +111,8 @@ export default async function TaskEditModalPage({
         projectCreateNamed: tEdit.raw("projectCreateNamed") as string,
         coworker: tEdit("coworker"),
         coworkerDescription: tEdit("coworkerDescription"),
+        unassigned: tEdit("unassigned"),
+        unassignedDescription: tEdit("unassignedDescription"),
         status: tEdit("status"),
         statusDescription: tEdit("statusDescription"),
         statusDraft: tEdit("statusDraft"),
@@ -141,6 +144,7 @@ export default async function TaskEditModalPage({
         description: taskResult.description ?? "",
         assigneeId: taskFormAssigneeId(taskResult),
         assigneeSokoBotId: taskResult.assigneeSokoBotId ?? null,
+        assigneeUserId: taskResult.assigneeUserId ?? null,
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
         metadata: taskResult.metadata,

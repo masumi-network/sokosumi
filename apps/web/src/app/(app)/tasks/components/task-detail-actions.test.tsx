@@ -384,7 +384,10 @@ vi.mock("@/app/tasks/components/task-form", () => ({
     onCreateTask,
     onSuccess,
   }: {
-    initialValues?: { assigneeId?: string | null };
+    initialValues?: {
+      assigneeId?: string | null;
+      assigneeUserId?: string | null;
+    };
     initialDesignMdAttachment?: {
       label: string;
       url: string;
@@ -394,6 +397,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
       description: string;
       assigneeId: string | null;
       assigneeSokoBotId: string | null;
+      assigneeUserId?: string | null;
       status: TaskStatus;
       context: {
         brand: {
@@ -409,6 +413,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
   }) => (
     <div>
       <span>{initialValues?.assigneeId ?? "no-coworker"}</span>
+      <span>{initialValues?.assigneeUserId ?? "no-user"}</span>
       {initialDesignMdAttachment ? (
         <span data-testid="design-md-picker">
           {initialDesignMdAttachment.label}
@@ -422,6 +427,7 @@ vi.mock("@/app/tasks/components/task-form", () => ({
             description: "Created related task",
             assigneeId: initialValues?.assigneeId ?? null,
             assigneeSokoBotId: null,
+            assigneeUserId: initialValues?.assigneeUserId ?? null,
             status: TaskStatus.READY,
             context: {
               brand: { enabled: true, source: "default", custom: null },
@@ -506,6 +512,12 @@ const labels = {
   revertToDraft: "Revert to Draft",
   cancel: "Cancel",
   share: "Share",
+  startWorking: "Start working",
+  pauseToReady: "Pause to Ready",
+  waitExternal: "Wait on external",
+  resumeRunning: "Resume running",
+  resumeReady: "Back to Ready",
+  markComplete: "Mark complete",
 };
 
 const actionsMenuLabel = "Actions";
@@ -1036,21 +1048,79 @@ describe("TaskDetailActions", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides reopen when a canceled task has no coworker", async () => {
+  it("shows reopen when a canceled task is unset (SOK-868)", async () => {
     const user = userEvent.setup();
     renderActions({
       status: TaskStatus.CANCELED,
       defaultAssigneeId: null,
+      assigneeKind: "unset",
       organizations: undefined,
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
     expect(
-      screen.queryByRole("menuitem", { name: labels.reopenToReady }),
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers start working for a human-assigned ready task (SOK-868)", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.READY,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.startWorking }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.revertToDraft }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers pause, wait, and complete for a human running task (SOK-868)", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.RUNNING,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.markComplete }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.waitExternal }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: labels.pauseToReady }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps agent running tasks on cancel-only (SOK-868)", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TaskStatus.RUNNING,
+      defaultAssigneeId: "coworker-1",
+      assigneeKind: "coworker",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.queryByRole("menuitem", { name: labels.markComplete }),
     ).toBeNull();
     expect(
-      screen.getByRole("menuitem", { name: labels.archive }),
+      screen.getByRole("menuitem", { name: labels.cancel }),
     ).toBeInTheDocument();
   });
 
@@ -1403,6 +1473,7 @@ describe("TaskDetailActions", () => {
         description: "Created related task",
         assigneeId: "coworker-1",
         assigneeSokoBotId: null,
+        assigneeUserId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {
@@ -1456,6 +1527,7 @@ describe("TaskDetailActions", () => {
         description: "Created related task",
         assigneeId: "coworker-1",
         assigneeSokoBotId: null,
+        assigneeUserId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {
@@ -1464,6 +1536,46 @@ describe("TaskDetailActions", () => {
           contextMdEnabled: true,
         },
       });
+    });
+  });
+
+  it("preserves human assignment in create-related (SOK-868)", async () => {
+    const user = userEvent.setup();
+    const createTaskAndLinkMock = vi.mocked(createTaskAndLink);
+    createTaskAndLinkMock.mockResolvedValue(
+      createTaskAndLinkSuccess({
+        taskId: "task-1",
+        createdTaskId: "task-created",
+        linkId: "link-created",
+        name: "Created related task",
+      }),
+    );
+
+    renderActions({
+      status: TaskStatus.READY,
+      defaultAssigneeId: "user-1",
+      assigneeKind: "human",
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Create related" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Add sub-task" }),
+    );
+
+    expect(screen.getByText("user-1")).toBeInTheDocument();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Submit related task" }),
+    );
+
+    await waitFor(() => {
+      expect(createTaskAndLinkMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assigneeId: null,
+          assigneeUserId: "user-1",
+        }),
+      );
     });
   });
 
@@ -1754,6 +1866,7 @@ describe("TaskDetailActions", () => {
         description: "Created related task",
         assigneeId: "coworker-1",
         assigneeSokoBotId: null,
+        assigneeUserId: null,
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
         context: {
