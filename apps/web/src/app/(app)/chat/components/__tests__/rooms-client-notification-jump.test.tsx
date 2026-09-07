@@ -266,9 +266,12 @@ import {
   listRoomMessagesAction,
 } from "@/app/chat/actions";
 
-function sampleMessage(content = "history body"): ChatRoomMessage {
+function sampleMessage(
+  content = "history body",
+  id = "msg-real",
+): ChatRoomMessage {
   return {
-    id: "msg-real",
+    id,
     roomId: "room-channel",
     parentMessageId: null,
     content,
@@ -422,7 +425,7 @@ describe("RoomsClient notification deep link", () => {
     expect(getRoomMessageAction).not.toHaveBeenCalled();
   });
 
-  it("stops a head refetch from overwriting the window it jumped to", async () => {
+  it("keeps following the room after it jumps to an older message", async () => {
     mockSearch.current = "message=msg-1";
     vi.mocked(getRoomMessageAction).mockResolvedValue({
       ok: true as const,
@@ -431,7 +434,7 @@ describe("RoomsClient notification deep link", () => {
     vi.mocked(listRoomMessagesAction).mockResolvedValue({
       ok: true as const,
       value: {
-        messages: [sampleMessage("window body")],
+        messages: [sampleMessage("window body", "msg-window")],
         nextCursor: "cursor-window",
       },
     });
@@ -447,14 +450,18 @@ describe("RoomsClient notification deep link", () => {
     });
 
     // A head page arriving after the jump: an Ably reconnect, a room refetch,
-    // or the page re-rendering. The timeline is showing the past now, so it
-    // must not be replaced by the newest messages behind the reader's back.
-    const headPage = settledMessages([sampleMessage("head body")]);
+    // or the page re-rendering. It has to be merged in. The jump loads a
+    // window around an old message and leaves the head on screen, so the room
+    // still looks live to the reader, and a room that looks live must not
+    // silently drop what arrives in it.
+    const headPage = settledMessages([sampleMessage("head body", "msg-head")]);
     await act(async () => {
       rerender(<RoomsClient {...baseProps} messagesPromise={headPage} />);
       await headPage;
     });
 
-    expect(screen.queryByText("head body")).toBeNull();
+    expect(screen.getByText("head body")).toBeInTheDocument();
+    // And the window the reader was sent to is still there beside it.
+    expect(screen.getByText("window body")).toBeInTheDocument();
   });
 });

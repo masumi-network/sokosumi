@@ -2209,11 +2209,14 @@ export function RoomsClient({
         if (!isStillSelectedRoom(roomId)) {
           return false;
         }
-        // The timeline is now showing a window from the past, not the head.
-        // Every head refetch is guarded on this flag, and without it the next
-        // one overwrites the window's cursor with the newest page's, which
-        // leaves the gap under the jumped message unreachable by Load older.
-        historicalTimelineRef.current = true;
+        // Deliberately not marked historical. The window is merged, not
+        // swapped in, so the head is still on screen and the room still reads
+        // as live. Marking it would make that a lie: every refetch and every
+        // realtime message is dropped while the flag is on, and it is cleared
+        // only by sending a message, switching rooms, or a reload. It would
+        // also freeze `olderNextCursor` at this window's oldest row, so Load
+        // older would walk further into the past and never fill the gap
+        // between the window and the head.
         setMessagesState((current) =>
           mergeRoomMessages(current, result.value.messages),
         );
