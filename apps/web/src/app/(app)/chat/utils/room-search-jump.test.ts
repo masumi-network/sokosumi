@@ -179,4 +179,20 @@ describe("performRoomSearchJump", () => {
 
     expect(jump.releaseHoldOffBottom).toHaveBeenCalledOnce();
   });
+  it("drops the hold when a lookup rejects instead of failing", async () => {
+    const hit = message();
+    const jump = deps({
+      loadAroundInRoom: vi.fn(async () => {
+        throw new Error("offline");
+      }),
+    });
+
+    // A rejection is a dropped connection, not a refusal: these actions
+    // report a server-side error by returning one. The caller on the
+    // notification path does not surface what it catches, so a hold left on
+    // here would strand the room off the bottom with nothing said.
+    await expect(performRoomSearchJump(hit, jump)).rejects.toThrow("offline");
+
+    expect(jump.releaseHoldOffBottom).toHaveBeenCalledOnce();
+  });
 });
