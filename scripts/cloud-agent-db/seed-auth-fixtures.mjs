@@ -162,7 +162,6 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
       `UPDATE account
        SET password = $2,
            "accountId" = $3,
-           issuer = 'local:credential',
            "updatedAt" = $4
        WHERE id = $1`,
       [account.rows[0].id, passwordHash, userId, now],
@@ -170,8 +169,8 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
   } else {
     await client.query(
       `INSERT INTO account (
-         id, issuer, "accountId", "providerId", "userId", password, "createdAt", "updatedAt"
-       ) VALUES ($1, 'local:credential', $2, 'credential', $2, $3, $4, $4)`,
+         id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt"
+       ) VALUES ($1, $2, 'credential', $2, $3, $4, $4)`,
       [randomUUID(), userId, passwordHash, now],
     );
   }
