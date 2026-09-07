@@ -65,7 +65,7 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 
 | Variable | Purpose |
 | -------- | ------- |
-| `WEB_APP_BASE_URL` | Defaults to `http://localhost:3000`. Used by `getWebAppBaseUrl()` (with Vercel [related projects](https://vercel.com/docs/monorepos#related-projects) when deployed) so Core knows the browser origin for the web app |
+| `WEB_APP_BASE_URL` | Defaults to `http://localhost:3000`. Read by `getWebAppBaseUrl()` outside Vercel, so Core knows the browser origin for the web app. On Vercel Preview it is the fallback behind the [related project](https://vercel.com/docs/monorepos#related-projects) branch host. Ignored on Vercel Production, which answers with the network's canonical domain (`@sokosumi/utils` `getCanonicalWebAppUrl`) so a link never carries a per-deployment host |
 | `VERCEL_ENV` | Optional. `preview` \| `production` \| `development` — set on Vercel |
 | `VERCEL_URL` | Optional. Current deployment hostname/URL on Vercel (often set automatically) |
 | `VERCEL_BRANCH_URL` | Optional. Stable branch URL on Vercel Preview |
