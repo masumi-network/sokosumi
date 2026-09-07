@@ -103,18 +103,24 @@ export function CreditsCycleOverview({
   return (
     <div className="space-y-4" data-testid="credits-cycle-overview">
       {monthly}
+      {monthly !== null && formattedExtra !== null ? (
+        <div
+          className="bg-border h-px"
+          data-testid="credits-overview-separator"
+        />
+      ) : null}
       {formattedExtra !== null ? (
         <div className="space-y-1" data-testid="credits-additional">
+          <p
+            id={monthly === null ? headingId : undefined}
+            className="text-xs font-medium"
+          >
+            {tCredit("additionalCreditsLabel")}
+          </p>
           <p className="text-lg leading-none font-semibold tracking-tight tabular-nums">
             {tCredit("additionalCreditsHero", {
               credits: formattedExtra,
             })}
-          </p>
-          <p
-            id={monthly === null ? headingId : undefined}
-            className="text-muted-foreground text-xs"
-          >
-            {tCredit("additionalCreditsLabel")}
           </p>
         </div>
       ) : null}

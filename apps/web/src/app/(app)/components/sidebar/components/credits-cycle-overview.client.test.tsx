@@ -40,6 +40,9 @@ describe("CreditsCycleOverview", () => {
     );
 
     expect(screen.getByTestId("credits-cycle-overview")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("credits-overview-separator"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("credits-additional")).not.toBeInTheDocument();
     expect(screen.getByText("monthlyUsageLimit")).toBeInTheDocument();
     expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
@@ -58,12 +61,23 @@ describe("CreditsCycleOverview", () => {
     expect(screen.getByTestId("credits-cycle-overview")).toBeInTheDocument();
     const monthlyHeading = screen.getByText("monthlyUsageLimit");
     const additional = screen.getByTestId("credits-additional");
+    const separator = screen.getByTestId("credits-overview-separator");
     expect(
-      monthlyHeading.compareDocumentPosition(additional) &
+      monthlyHeading.compareDocumentPosition(separator) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    expect(
+      separator.compareDocumentPosition(additional) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const additionalHeading = screen.getByText("additionalCreditsLabel");
+    expect(additionalHeading.className).toContain("font-medium");
+    expect(
+      additionalHeading.compareDocumentPosition(
+        screen.getByText("additionalCreditsHero 51162"),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(additional).toHaveTextContent("additionalCreditsHero 51162");
-    expect(screen.getByText("additionalCreditsLabel")).toBeInTheDocument();
     expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
     expect(
       screen.getByText("creditsRemainingOfTotal 750 1000"),
@@ -127,6 +141,9 @@ describe("CreditsCycleOverview", () => {
     expect(screen.getByTestId("credits-additional")).toHaveTextContent(
       "additionalCreditsHero 15750",
     );
+    expect(
+      screen.queryByTestId("credits-overview-separator"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("monthlyUsageLimit")).not.toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
