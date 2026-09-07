@@ -45,6 +45,27 @@ describe("proxy", () => {
     );
   });
 
+  it("redirects a production deployment host before it reads the session", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    getEnvSecretsMock.mockReturnValue({
+      MAINTENANCE_MODE: false,
+      NETWORK: "Mainnet",
+      VERCEL_ENV: "production",
+    });
+    const request = new NextRequest(
+      "https://sokosumi-app-mainnet-od9mmtb7d.preview.sokosumi.com/chat?room=abc",
+    );
+
+    const response = await proxy(request);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe(
+      "https://app.sokosumi.com/chat?room=abc",
+    );
+    expect(getSessionCookieMock).not.toHaveBeenCalled();
+  });
+
   it("edge-redirects anonymous / to /signin with returnUrl without running the app shell", async () => {
     const { NextRequest } = await import("next/server");
     const { proxy } = await import("./proxy");

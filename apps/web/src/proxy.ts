@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { applyDocumentSecurityHeaders } from "@/config/document-security-headers";
 import { getEnvSecrets } from "@/config/env.secrets";
+import { handleNonCanonicalHost } from "@/lib/canonical-host";
 import {
   applyPendingOrganizationJoinCookie,
   joinTokenFromJoinPath,
@@ -61,6 +62,17 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.search;
   const env = getEnvSecrets();
+
+  // Before anything reads the session: a production reader on a deployment
+  // host is answered about the host, not about what they asked for.
+  const nonCanonicalHostResponse = handleNonCanonicalHost(request, {
+    vercelEnv: env.VERCEL_ENV,
+    network: env.NETWORK,
+  });
+  if (nonCanonicalHostResponse) {
+    return nonCanonicalHostResponse;
+  }
+
   const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
     network: env.NETWORK,
     vercelEnv: env.VERCEL_ENV,
