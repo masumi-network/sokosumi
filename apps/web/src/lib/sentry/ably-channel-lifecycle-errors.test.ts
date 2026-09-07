@@ -102,4 +102,35 @@ describe("beforeSendClientEvent Ably lifecycle", () => {
     });
     expect(beforeSendClientEvent(event, {})).toBe(event);
   });
+
+  it("drops the SOKOSUMI-RT Ably authUrl 401 message", () => {
+    expect(
+      beforeSendClientEvent(
+        createErrorEvent({
+          exception: {
+            values: [
+              {
+                value:
+                  'Error response received from server: 401 body was: {"error":"Unauthorized"}',
+              },
+            ],
+          },
+        }),
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps unrelated Ably unauthorized errors", () => {
+    const event = createErrorEvent({
+      exception: {
+        values: [
+          {
+            value: "Unauthorized to publish",
+          },
+        ],
+      },
+    });
+    expect(beforeSendClientEvent(event, {})).toBe(event);
+  });
 });
