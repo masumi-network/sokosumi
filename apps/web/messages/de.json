@@ -1482,7 +1482,6 @@
         "newChat": "Neuer Chat",
         "conversationSwitcher": "Unterhaltungen",
         "noChats": "Noch keine Chats",
-        "noCoworkersAvailable": "Keine Coworker verfügbar. Bitte versuche es später erneut.",
         "welcomeSendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
         "emptyState": {
           "title": "Gespräch starten",
@@ -1512,17 +1511,7 @@
           "cancel": "Abbrechen",
           "delete": "Löschen"
         },
-        "selectCoworker": {
-          "title": "Agentischen Coworker auswählen",
-          "description": "Wähle einen Coworker, um ein Gespräch zu starten.",
-          "placeholder": "Coworker auswählen...",
-          "useCase": "Anwendungsfall",
-          "cancel": "Abbrechen",
-          "confirm": "Chat starten",
-          "selectButton": "Chat mit {coworker} starten"
-        },
         "comingSoon": "Demnächst verfügbar",
-        "agenticCoworkers": "Agentische Coworker",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",
@@ -1553,7 +1542,6 @@
         "waitForResponses": "Bitte warte, bis die anderen Antworten abgeschlossen sind (max. 3 gleichzeitig).",
         "imageAttachment": "Ein Bild-Anhang",
         "fileLabel": "Datei",
-        "loaderTitle": "Wird geladen",
         "modelAlt": "Modell",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Nutzer-Avatar",
@@ -1570,7 +1558,6 @@
         },
         "chatErrorTitle": "Chat-Fehler",
         "errorFallbackDescription": "Bei der Chat-Oberfläche ist ein Problem aufgetreten. Bitte lade die Seite neu oder kontaktiere den Support, falls das Problem weiterhin besteht.",
-        "promptPlaceholder": "Was möchtest du wissen?",
         "pastedImage": "Eingefügtes Bild",
         "errorTitle": "Fehler",
         "errorDescription": "Bei der Verarbeitung deiner Nachricht ist ein Fehler aufgetreten. Bitte versuche es erneut.",

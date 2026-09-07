@@ -1,10 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
-import type {
-  InputFieldSchemaType,
-  InputSchemaSchemaType,
-} from "@sokosumi/masumi/schemas";
-import { inputGroupsSchema, inputSchemaSchema } from "@sokosumi/masumi/schemas";
+import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
@@ -321,25 +317,3 @@ export const createJobRequestSchema = z.object({
         "If not provided, an AI-generated name will be created based on the agent details and input data.",
     }),
 });
-
-// Helper function to flatten input schema (handles both grouped and flat schemas)
-const groupedInputSchema = z.object({
-  input_groups: inputGroupsSchema,
-});
-
-type GroupedInputSchema = z.infer<typeof groupedInputSchema>;
-
-function isGroupedSchema(
-  schema: InputSchemaSchemaType,
-): schema is GroupedInputSchema {
-  return groupedInputSchema.safeParse(schema).success;
-}
-
-export function flattenInputs(
-  schema: InputSchemaSchemaType,
-): InputFieldSchemaType[] {
-  if (isGroupedSchema(schema)) {
-    return schema.input_groups.flatMap((group) => group.input_data);
-  }
-  return schema.input_data;
-}

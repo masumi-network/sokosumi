@@ -290,7 +290,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
   slide.
 - **Tokens:** animations are `--animate-*` aliases (accordion 0.2s, roll-up/down 0.2s,
   rotate-once 0.6s, reasoning-* shimmer/step/cursor). Add new keyframes there.
-- **Reduced motion:** respected — heavy/ambient motion (hermes blobs) slows rather than dies;
+- **Reduced motion:** respected — heavy/ambient motion slows rather than dies;
   `agent-card-roll-up` disables under `prefers-reduced-motion`. Use `motion-safe:`/`motion-reduce:`
   for flourishes. Never animate a focus ring's appearance.
 

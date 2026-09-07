@@ -55,8 +55,6 @@ export async function handleCustomerCreatedEvent(
         throw error;
       }
 
-      console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
-
       await prisma.$transaction(async (tx) => {
         await ensureInitialLocalFreeSubscriptionPeriod(
           {
@@ -96,10 +94,6 @@ export async function handleCustomerCreatedEvent(
         }
         throw error;
       }
-
-      console.log(
-        `✅ Set organization ${organizationId} stripe customer id to ${customer.id}`,
-      );
 
       await prisma.$transaction(async (tx) => {
         await ensureInitialLocalFreeSubscriptionPeriod(
