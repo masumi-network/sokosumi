@@ -63,6 +63,21 @@ function markAllNotificationsReadLocally(
   return changed ? next : notifications;
 }
 
+export function mergeProviderNotifications(
+  current: NotificationItem[],
+  provider: NotificationItem[],
+): NotificationItem[] {
+  if (provider.length === 0) {
+    return current;
+  }
+
+  const providerIds = new Set(provider.map((notification) => notification.id));
+  return [
+    ...provider,
+    ...current.filter((notification) => !providerIds.has(notification.id)),
+  ];
+}
+
 export function NotificationsPageContent({
   userId: _userId,
 }: NotificationsPageContentProps) {
@@ -149,38 +164,9 @@ export function NotificationsPageContent({
   }, [fetchNotifications]);
 
   useEffect(() => {
-    setNotifications((prev) => {
-      const providerById = new Map(
-        providerNotifications.map((notification) => [
-          notification.id,
-          notification,
-        ]),
-      );
-      let changed = false;
-      let next = prev.map((notification) => {
-        const updated = providerById.get(notification.id);
-        if (
-          updated &&
-          (updated.isRead !== notification.isRead ||
-            updated.readAt !== notification.readAt)
-        ) {
-          changed = true;
-          return updated;
-        }
-        return notification;
-      });
-
-      const prevIds = new Set(prev.map((notification) => notification.id));
-      const newItems = providerNotifications.filter(
-        (notification) => !prevIds.has(notification.id),
-      );
-      if (newItems.length > 0) {
-        changed = true;
-        next = [...newItems, ...next];
-      }
-
-      return changed ? next : prev;
-    });
+    setNotifications((current) =>
+      mergeProviderNotifications(current, providerNotifications),
+    );
   }, [providerNotifications]);
 
   const handleNotificationClick = (notification: NotificationItem) => {

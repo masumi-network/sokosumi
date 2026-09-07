@@ -77,6 +77,9 @@ describe("publishNotificationEvent", () => {
     isRead: false,
     readAt: null,
     createdAt: "2026-06-17T12:00:00.000Z",
+    inApp: true,
+    osBanner: false,
+    created: true,
   };
 
   beforeEach(() => {

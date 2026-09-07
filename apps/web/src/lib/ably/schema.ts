@@ -35,6 +35,19 @@ export const notificationEventDataSchema = z.object({
   isRead: z.boolean(),
   readAt: z.string().nullable(),
   createdAt: z.string(),
+  /**
+   * Where the reader's preference matrix said this goes. Both default to true
+   * for an event published by a Core that predates the matrix: it was delivered
+   * on both channels, so that is what the reader saw.
+   */
+  inApp: z.boolean().default(true),
+  osBanner: z.boolean().default(true),
+  /**
+   * Whether this event wrote the row or changed one that was already there.
+   * A room's messages are counted onto one row, so a row can arrive twice.
+   * True for an event published by a Core that only ever wrote rows.
+   */
+  created: z.boolean().default(true),
 });
 
 export type NotificationEventData = z.infer<typeof notificationEventDataSchema>;

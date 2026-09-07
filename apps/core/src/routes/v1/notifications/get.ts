@@ -8,7 +8,7 @@ import {
   findStaleCoworkerAccessNotificationReferenceIds,
   findStaleVendorGrantNotificationReferenceIds,
   mergeAccessNotificationExclusions,
-  notificationFeedKindWhere,
+  notificationFeedWhere,
 } from "@/helpers/notification-feed";
 import {
   jsonErrorResponse,
@@ -73,7 +73,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/",
     description:
-      "List in-app notification-center items for the interactive session user with cursor pagination. CHAT kind is excluded (browser OS alerts + room attention only).",
+      "List in-app notification-center items for the interactive session user with cursor pagination. CHAT kind is excluded except for room messages, which the reader asked to be told about and the feed is the only surface that keeps.",
     tags: ["Notifications"],
     request: {
       query,
@@ -167,7 +167,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const where: Prisma.NotificationWhereInput = {
       userId: userContext.userId,
-      kind: notificationFeedKindWhere(queryParams.kind),
+      ...notificationFeedWhere(queryParams.kind),
       ...mergeAccessNotificationExclusions(
         excludeResolvedVendorGrantNotificationsWhere(
           staleVendorGrantReferenceIds,

@@ -3,6 +3,7 @@ import {
   NotificationKind,
   VendorGrantStatus,
 } from "@sokosumi/database";
+import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -12,7 +13,7 @@ import {
   findStaleCoworkerAccessNotificationReferenceIds,
   findStaleVendorGrantNotificationReferenceIds,
   mergeAccessNotificationExclusions,
-  notificationFeedKindWhere,
+  notificationFeedWhere,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "./notification-feed";
 
@@ -35,45 +36,74 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-describe("notificationFeedKindWhere", () => {
-  it("excludes CHAT from the default in-app feed", () => {
-    expect(notificationFeedKindWhere()).toEqual({
-      notIn: [NotificationKind.CHAT],
+const FEED_OR = [
+  { kind: { notIn: [NotificationKind.CHAT] } },
+  {
+    kind: { in: [NotificationKind.CHAT] },
+    messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  },
+];
+
+describe("notificationFeedWhere", () => {
+  it("keeps a mention out of the default in-app feed and lets a room message in", () => {
+    expect(notificationFeedWhere()).toEqual({
+      inApp: true,
+      OR: FEED_OR,
     });
   });
 
-  it("drops CHAT when an explicit kind filter includes it", () => {
+  /**
+   * The rule is not replaced by the request. A reader asking for CHAT is asking
+   * for the chat rows the feed has, which is the room messages, and a mention
+   * named explicitly is still a mention.
+   */
+  it("narrows a requested kind on top of the rule", () => {
     expect(
-      notificationFeedKindWhere([
+      notificationFeedWhere([
         NotificationKind.JOB,
         NotificationKind.CHAT,
         NotificationKind.TASK,
       ]),
     ).toEqual({
-      in: [NotificationKind.JOB, NotificationKind.TASK],
+      inApp: true,
+      kind: {
+        in: [
+          NotificationKind.JOB,
+          NotificationKind.CHAT,
+          NotificationKind.TASK,
+        ],
+      },
+      OR: FEED_OR,
     });
   });
 
-  it("matches nothing when the only requested kind is browser-only", () => {
-    expect(notificationFeedKindWhere([NotificationKind.CHAT])).toEqual({
-      notIn: [
-        NotificationKind.JOB,
-        NotificationKind.TASK,
-        NotificationKind.BILLING,
-        NotificationKind.SYSTEM,
-        NotificationKind.CHAT,
-      ],
+  it("answers a request for CHAT with the room messages", () => {
+    expect(notificationFeedWhere([NotificationKind.CHAT])).toEqual({
+      inApp: true,
+      kind: { in: [NotificationKind.CHAT] },
+      OR: FEED_OR,
     });
   });
 
   it("keeps non-chat kinds as an explicit in filter", () => {
     expect(
-      notificationFeedKindWhere([
-        NotificationKind.JOB,
-        NotificationKind.SYSTEM,
-      ]),
+      notificationFeedWhere([NotificationKind.JOB, NotificationKind.SYSTEM]),
     ).toEqual({
-      in: [NotificationKind.JOB, NotificationKind.SYSTEM],
+      inApp: true,
+      kind: { in: [NotificationKind.JOB, NotificationKind.SYSTEM] },
+      OR: FEED_OR,
+    });
+  });
+
+  /**
+   * A notification the reader silenced in the app is written but never shown,
+   * so every feed read has to exclude it. Asserted on its own, because it is
+   * the one clause a new call site is most likely to leave out.
+   */
+  it("hides a notification the reader silenced in the app, whatever the kinds", () => {
+    expect(notificationFeedWhere()).toMatchObject({ inApp: true });
+    expect(notificationFeedWhere([NotificationKind.JOB])).toMatchObject({
+      inApp: true,
     });
   });
 });

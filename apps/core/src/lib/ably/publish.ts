@@ -52,6 +52,27 @@ interface NotificationEventData {
   isRead: boolean;
   readAt: string | null;
   createdAt: string;
+  /**
+   * Whether the app shows this at all: the Notification Center for a feed
+   * kind, the in-app toast for a browser-only one. False when the reader
+   * silenced its category in the app but still wants the OS banner, which is
+   * why the event is published at all in that case.
+   */
+  inApp: boolean;
+  /**
+   * Whether this may interrupt with an OS banner. An open tab renders its own
+   * banner from this event rather than waiting for the push, so it has to read
+   * the same answer the push extras were gated on.
+   */
+  osBanner: boolean;
+  /**
+   * Whether the row was written by this event rather than changed by it.
+   *
+   * A room's messages are counted onto one row, so a reader's tab can be sent
+   * a row that was already there. It counts a row it does not hold towards the
+   * badge, which is right for a new row and one too many for this one.
+   */
+  created: boolean;
 }
 
 interface PublishNotificationEventInput {

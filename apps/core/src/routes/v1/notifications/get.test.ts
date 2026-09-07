@@ -2,6 +2,7 @@ import { NotificationKind } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";
+import { notificationFeedWhere } from "@/helpers/notification-feed";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -122,7 +123,7 @@ describe("GET /notifications", () => {
     expect(notificationFindManyMock).toHaveBeenLastCalledWith({
       where: {
         userId: "user_123",
-        kind: { notIn: [NotificationKind.CHAT] },
+        ...notificationFeedWhere(),
       },
       take: LIMITS.DEFAULT_PAGINATION_LIMIT + 1,
       skip: undefined,
@@ -132,7 +133,7 @@ describe("GET /notifications", () => {
     expect(notificationCountMock).toHaveBeenCalledWith({
       where: {
         userId: "user_123",
-        kind: { notIn: [NotificationKind.CHAT] },
+        ...notificationFeedWhere(),
       },
     });
 
@@ -161,14 +162,22 @@ describe("GET /notifications", () => {
       expect.objectContaining({
         where: {
           userId: "user_123",
-          kind: { in: [NotificationKind.JOB, NotificationKind.TASK] },
+          ...notificationFeedWhere([
+            NotificationKind.JOB,
+            NotificationKind.TASK,
+          ]),
           isRead: false,
         },
       }),
     );
   });
 
-  it("strips CHAT from an explicit kind filter", async () => {
+  /**
+   * CHAT asked for by name is not thrown away any more. It narrows to the chat
+   * rows the feed has, which the clause itself decides, so the route hands the
+   * kind through and the exclusion stays in one place.
+   */
+  it("hands an explicit CHAT filter to the feed clause", async () => {
     const app = createApp();
     const response = await app.request(
       "http://localhost/?kind=JOB,CHAT&isRead=false",
@@ -179,7 +188,10 @@ describe("GET /notifications", () => {
       expect.objectContaining({
         where: {
           userId: "user_123",
-          kind: { in: [NotificationKind.JOB] },
+          ...notificationFeedWhere([
+            NotificationKind.JOB,
+            NotificationKind.CHAT,
+          ]),
           isRead: false,
         },
       }),
@@ -200,7 +212,7 @@ describe("GET /notifications", () => {
         AND: [
           {
             userId: "user_123",
-            kind: { in: [NotificationKind.JOB] },
+            ...notificationFeedWhere([NotificationKind.JOB]),
             isRead: false,
           },
           { id: "notif_cursor" },
@@ -266,7 +278,7 @@ describe("GET /notifications", () => {
       expect.objectContaining({
         where: {
           userId: "user_123",
-          kind: { notIn: [NotificationKind.CHAT] },
+          ...notificationFeedWhere(),
           NOT: {
             AND: [
               { messageKey: "notifications.vendorGrant.pending" },
@@ -279,7 +291,7 @@ describe("GET /notifications", () => {
     expect(notificationCountMock).toHaveBeenCalledWith({
       where: {
         userId: "user_123",
-        kind: { notIn: [NotificationKind.CHAT] },
+        ...notificationFeedWhere(),
         NOT: {
           AND: [
             { messageKey: "notifications.vendorGrant.pending" },
@@ -311,7 +323,7 @@ describe("GET /notifications", () => {
       expect.objectContaining({
         where: {
           userId: "user_123",
-          kind: { notIn: [NotificationKind.CHAT] },
+          ...notificationFeedWhere(),
           NOT: {
             AND: [
               { messageKey: "notifications.coworkerAccess.pending" },

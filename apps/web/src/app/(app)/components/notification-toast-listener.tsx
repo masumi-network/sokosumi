@@ -155,13 +155,19 @@ export function NotificationToastListener({
       const isDocumentFocused =
         typeof document !== "undefined" ? document.hasFocus() : true;
       const permission = getBrowserNotificationPermission();
-      const showBrowser = shouldShowBrowserNotification({
-        permission,
-        isDocumentFocused,
-        isRead: notification.isRead,
-      });
+      // `osBanner` is the reader's own choice for this category. An open tab
+      // renders its banner from this event rather than from the push, so the
+      // choice has to be read here as well as at publish time.
+      const showBrowser =
+        notification.osBanner &&
+        shouldShowBrowserNotification({
+          permission,
+          isDocumentFocused,
+          isRead: notification.isRead,
+        });
       const showPendingAccessToast =
         isDocumentFocused &&
+        notification.inApp &&
         !notification.isRead &&
         (isPendingVendorGrantNotification(notification) ||
           isPendingCoworkerAccessNotification(notification));
@@ -170,9 +176,14 @@ export function NotificationToastListener({
         return;
       }
 
+      // Not the count. This interrupts because a message just arrived, and
+      // the push service worker says the same thing for a tab that was
+      // closed; a banner that read "12 messages in Design" here and named the
+      // sender there would be two answers to one arrival.
       const message = formatMessage(
         notification.messageKey,
         notification.messageParams ?? {},
+        { counted: false },
       );
 
       if (showBrowser) {

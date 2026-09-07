@@ -5,6 +5,11 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 
+import type { NotificationDelivery } from "@/helpers/notification-delivery";
+import {
+  resolveNotificationDelivery,
+  toNotificationCategory,
+} from "@/helpers/notification-delivery";
 import {
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
@@ -29,54 +34,84 @@ export interface CreateNotificationResult {
 }
 
 /**
- * Whether this notification also goes out as a closed-app OS banner.
+ * Where this notification goes: the app, the OS banner, both, or neither.
  *
- * Push rides the notification publish over Ably (ADR-0022), gated on explicit
- * user consent. This slice pushes chat only; widening the kinds is a change to
- * this gate alone (SOK-877). Non-chat kinds skip the user read entirely, so the
- * bulk job and task paths keep their current query count. Chat pays one read
- * per notification, so a room mention costs one per recipient.
+ * Exported for the chat fan-out, which writes a room's row itself once the
+ * reader already has an unread one, and has to ask the same question before it
+ * publishes.
+ *
+ * Read once, before the row is written, because the in-app answer is stored on
+ * the row itself. That costs one read per notification on the bulk job and task
+ * paths too, and one read per recipient of a room mention.
  *
  * Never throws, and never reads through the caller's transaction client. A
- * consent read that fails must degrade push alone: it must not abort a caller's
- * transaction, and it must not stop the in-app realtime publish.
+ * failed read must degrade delivery alone: it must not abort a caller's
+ * transaction, and it must not cost the reader the notification. So it falls
+ * back to the in-app notification without the banner, which is the quieter of
+ * the two and the one that leaves a record the reader can still find.
  */
-async function shouldPushNotification(
-  notification: Notification,
-): Promise<boolean> {
-  if (notification.kind !== NotificationKind.CHAT) {
-    return false;
-  }
-
+export async function resolveDelivery(
+  input: CreateNotificationInput,
+): Promise<NotificationDelivery> {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: notification.userId },
-      select: { pushOptIn: true },
-    });
-
-    return user?.pushOptIn === true;
-  } catch (error) {
-    console.error("Failed to read the push opt-in; skipping push:", error);
-    Sentry.captureException(error, {
-      extra: {
-        notificationId: notification.id,
-        userId: notification.userId,
-        errorType: "push-opt-in-read",
+      where: { id: input.userId },
+      select: {
+        pushOptIn: true,
+        notificationPreferences: {
+          select: { category: true, channel: true, enabled: true },
+        },
       },
     });
 
-    return false;
+    if (!user) {
+      return { inApp: true, osBanner: false };
+    }
+
+    return resolveNotificationDelivery({
+      category: toNotificationCategory(input.kind, input.messageKey),
+      preferences: user.notificationPreferences,
+      pushOptIn: user.pushOptIn,
+    });
+  } catch (error) {
+    console.error(
+      "Failed to read the notification preferences; skipping push:",
+      error,
+    );
+    Sentry.captureException(error, {
+      extra: {
+        userId: input.userId,
+        kind: input.kind,
+        messageKey: input.messageKey,
+        errorType: "notification-delivery-read",
+      },
+    });
+
+    return { inApp: true, osBanner: false };
   }
 }
 
-async function publishNotificationCreated(
+/**
+ * Tell the reader's open tabs about a row, and raise the OS banner.
+ *
+ * Named for the row rather than for the insert: the chat fan-out publishes a
+ * row it has just counted a message onto, and an open tab replaces the one it
+ * is holding by id.
+ */
+export async function publishNotificationRow(
   notification: Notification,
+  delivery: NotificationDelivery,
+  /**
+   * False when the row was already there and this publish only changes it.
+   * A reader's open tab counts an unread row it has never seen towards the
+   * badge, which is right for a row that has just been written and one too
+   * many for a row the badge already counted.
+   */
+  created = true,
 ): Promise<void> {
   try {
-    const push = await shouldPushNotification(notification);
-
     await publishNotificationEvent({
-      push,
+      push: delivery.osBanner,
       userId: notification.userId,
       notification: {
         id: notification.id,
@@ -92,6 +127,9 @@ async function publishNotificationCreated(
         isRead: notification.isRead,
         readAt: notification.readAt?.toISOString() ?? null,
         createdAt: notification.createdAt.toISOString(),
+        inApp: notification.inApp,
+        osBanner: delivery.osBanner,
+        created,
       },
     });
   } catch (error) {
@@ -133,6 +171,8 @@ export async function createNotification(
     messageKey: input.messageKey,
   };
 
+  const delivery = await resolveDelivery(input);
+
   try {
     const notification = await prisma.notification.create({
       data: {
@@ -142,10 +182,15 @@ export async function createNotification(
           input.metadata === undefined || input.metadata === null
             ? null
             : JSON.stringify(input.metadata),
+        inApp: delivery.inApp,
       },
     });
 
-    await publishNotificationCreated(notification);
+    // Nothing to render and nothing to interrupt with: the publish would be an
+    // Ably message no client acts on.
+    if (delivery.inApp || delivery.osBanner) {
+      await publishNotificationRow(notification, delivery);
+    }
 
     return { notification, created: true };
   } catch (error) {

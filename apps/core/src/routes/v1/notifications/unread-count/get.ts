@@ -6,7 +6,7 @@ import {
   findStaleCoworkerAccessNotificationReferenceIds,
   findStaleVendorGrantNotificationReferenceIds,
   mergeAccessNotificationExclusions,
-  notificationFeedKindWhere,
+  notificationFeedWhere,
 } from "@/helpers/notification-feed";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -23,7 +23,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/unread-count",
     description:
-      "Get the count of unread in-app notification-center items for the interactive session user. CHAT kind is excluded.",
+      "Get the count of unread in-app notification-center items for the interactive session user. CHAT kind is excluded except for room messages.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(unreadCountSchema, "Unread count retrieved", {
@@ -53,7 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: {
         userId: userContext.userId,
         isRead: false,
-        kind: notificationFeedKindWhere(),
+        ...notificationFeedWhere(),
         ...mergeAccessNotificationExclusions(
           excludeResolvedVendorGrantNotificationsWhere(
             staleVendorGrantReferenceIds,
