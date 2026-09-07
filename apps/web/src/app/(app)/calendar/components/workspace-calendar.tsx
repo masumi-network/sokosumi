@@ -541,6 +541,7 @@ export function WorkspaceCalendar({
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
   const [eventLoadError, setEventLoadError] = useState(false);
+  const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const eventRequestId = useRef(0);
   const hasActivatedRef = useRef(false);
 
@@ -565,7 +566,7 @@ export function WorkspaceCalendar({
     // Defer past React StrictMode's synchronous setup -> cleanup -> setup
     // dev-mode cycle: only the microtask from the setup that survives (isn't
     // cancelled by an immediate synthetic cleanup) marks activation or
-    // refreshes, so neither fires twice for one real mount/reactivation.
+    // recreates the Calendar views once for a real reactivation.
     let cancelled = false;
 
     queueMicrotask(() => {
@@ -573,7 +574,7 @@ export function WorkspaceCalendar({
         return;
       }
       if (hasActivatedRef.current) {
-        router.refresh();
+        setCalendarRenderEpoch((epoch) => epoch + 1);
         return;
       }
       hasActivatedRef.current = true;
@@ -934,6 +935,7 @@ export function WorkspaceCalendar({
       ) : null}
       <div className="hidden md:block">
         <CalendarView
+          key={`desktop-${calendarRenderEpoch}`}
           date={date}
           items={visibleItems}
           onDateClick={handleDateClick}
@@ -946,6 +948,7 @@ export function WorkspaceCalendar({
       </div>
       <div className="md:hidden">
         <CalendarView
+          key={`mobile-${calendarRenderEpoch}`}
           date={date}
           items={visibleItems}
           onDateClick={handleDateClick}

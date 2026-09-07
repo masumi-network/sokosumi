@@ -215,7 +215,7 @@ describe("WorkspaceCalendar", () => {
     }
   });
 
-  it("refreshes only when reactivated from a cached Activity route, not on first mount (StrictMode)", async () => {
+  it("recreates the Calendar view when a cached Activity route is reactivated", async () => {
     refreshMock.mockClear();
 
     function ActivityHarness({ mode }: { mode: "hidden" | "visible" }) {
@@ -235,17 +235,24 @@ describe("WorkspaceCalendar", () => {
     }
 
     const { rerender } = render(<ActivityHarness mode="visible" />);
+    const initialCalendar = screen.getAllByTestId("calendar-agenda")[0];
 
     // Let StrictMode's synchronous setup -> cleanup -> setup cycle settle
     // (its dangling microtask, if any) before asserting on initial mount.
     await Promise.resolve();
 
     expect(refreshMock).not.toHaveBeenCalled();
+    expect(screen.getAllByTestId("calendar-agenda")[0]).toBe(initialCalendar);
 
     rerender(<ActivityHarness mode="hidden" />);
     rerender(<ActivityHarness mode="visible" />);
 
-    await waitFor(() => expect(refreshMock).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(screen.getAllByTestId("calendar-agenda")[0]).not.toBe(
+        initialCalendar,
+      ),
+    );
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 
   it("places the schedule action at the right edge of the toolbar", () => {
