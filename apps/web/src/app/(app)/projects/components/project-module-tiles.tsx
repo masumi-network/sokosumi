@@ -63,11 +63,7 @@ export function ProjectModuleTiles({
   projectId,
 }: ProjectModuleTilesProps) {
   return (
-    <div
-      className={`grid grid-cols-2 gap-4 md:grid-cols-4 ${
-        calendarHref ? "xl:grid-cols-4" : "xl:grid-cols-7"
-      }`}
-    >
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
       {calendarHref ? (
         <Link
           aria-label={labels.calendar.title}
