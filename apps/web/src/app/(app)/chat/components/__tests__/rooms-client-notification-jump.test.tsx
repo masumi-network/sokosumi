@@ -161,8 +161,23 @@ vi.mock("../room-message-row", () => ({
   ),
 }));
 
+// Reports which thread was opened and what it holds. A notification for a
+// reply is meant to land inside the thread, and the real panel renders far
+// more than this test can set up.
 vi.mock("../thread-panel", () => ({
-  ThreadPanel: () => null,
+  ThreadPanel: ({
+    parentMessage,
+    replies,
+  }: {
+    parentMessage: ChatRoomMessage | null;
+    replies: ChatRoomMessage[];
+  }) => (
+    <div
+      data-testid="thread-panel"
+      data-parent-id={parentMessage?.id ?? ""}
+      data-reply-ids={replies.map((reply) => reply.id).join(",")}
+    />
+  ),
 }));
 
 vi.mock("../edit-channel-dialog", () => ({
@@ -264,6 +279,8 @@ import {
   getRoomMessageAction,
   getRoomThreadAction,
   listRoomMessagesAction,
+  listThreadMessagesAction,
+  markThreadReadAction,
 } from "@/app/chat/actions";
 
 function sampleMessage(
@@ -463,5 +480,70 @@ describe("RoomsClient notification deep link", () => {
     expect(screen.getByText("head body")).toBeInTheDocument();
     // And the window the reader was sent to is still there beside it.
     expect(screen.getByText("window body")).toBeInTheDocument();
+  });
+  it("opens the thread when the notification names a reply", async () => {
+    mockSearch.current = "message=msg-reply";
+    const parent = sampleMessage("parent body", "msg-parent");
+    const reply: ChatRoomMessage = {
+      ...sampleMessage("reply body", "msg-reply"),
+      parentMessageId: "msg-parent",
+    };
+
+    vi.mocked(getRoomMessageAction).mockResolvedValue({
+      ok: true as const,
+      value: reply,
+    });
+    vi.mocked(getRoomThreadAction).mockResolvedValue({
+      ok: true as const,
+      value: {
+        parentMessage: parent,
+        replyCount: 1,
+        lastReplyAt: new Date("2026-07-01T12:02:00.000Z"),
+        unreadReplyCount: 0,
+        lastUnreadReplyAt: null,
+        hasLooked: true,
+      },
+    });
+    vi.mocked(markThreadReadAction).mockResolvedValue({
+      ok: true as const,
+      value: {
+        parentMessageId: "msg-parent",
+        lastReadAt: new Date("2026-07-01T12:02:00.000Z"),
+      },
+    });
+    vi.mocked(listThreadMessagesAction).mockResolvedValue({
+      ok: true as const,
+      value: { messages: [reply], nextCursor: null },
+    });
+
+    render(<RoomsClient {...baseProps} messagesPromise={settledMessages()} />);
+
+    // A reply never appears in the room timeline, so landing on the message a
+    // notification named means opening the thread that holds it. The id the
+    // notification carries names the reply, not the thread, which is why the
+    // message is read first and its parent looked up from what comes back.
+    await waitFor(() => {
+      expect(getRoomThreadAction).toHaveBeenCalledWith(
+        "room-channel",
+        "msg-parent",
+      );
+    });
+    // The thread is open on the right parent, holding the reply the
+    // notification was about.
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+        "data-parent-id",
+        "msg-parent",
+      );
+    });
+    expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+      "data-reply-ids",
+      "msg-reply",
+    );
+
+    // Scrolling the room to a reply cannot work: it is not on that timeline.
+    expect(listRoomMessagesAction).not.toHaveBeenCalledWith("room-channel", {
+      around: "msg-reply",
+    });
   });
 });
