@@ -12,8 +12,11 @@ vi.mock("@vercel/functions", () => ({
 }));
 
 import { errorHandler } from "@/helpers/error-handler";
+import { uploadCoworkerImage } from "@/lib/blob";
+import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
 import {
   attachAuthToLogger,
+  attachUploadToLogger,
   attachWorkspaceToLogger,
   bindCoreRequestId,
   coreEvlogMiddleware,
@@ -22,6 +25,29 @@ import {
 } from "@/lib/evlog";
 import type { AuthVariables } from "@/middleware/auth";
 import { setAuthContext } from "@/middleware/auth";
+
+const { issueSignedTokenMock, presignUrlMock, putMock, getEnvMock } =
+  vi.hoisted(() => ({
+    issueSignedTokenMock: vi.fn(),
+    presignUrlMock: vi.fn(),
+    putMock: vi.fn(),
+    getEnvMock: vi.fn(),
+  }));
+
+vi.mock("@vercel/blob", () => ({
+  issueSignedToken: issueSignedTokenMock,
+  presignUrl: presignUrlMock,
+  put: putMock,
+}));
+
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  getEnvMock.mockImplementation(() => actual.getEnv());
+  return {
+    ...actual,
+    getEnv: getEnvMock,
+  };
+});
 
 vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
@@ -220,6 +246,99 @@ describe("core evlog request events", () => {
     expect(response.status).toBe(500);
     expect(captured[0]?.event.status).toBe(500);
     expect(captured[0]?.event.level).toBe("error");
+  });
+
+  it("adds upload filename, size, and mimeType on the wide event", async () => {
+    const app = createApp();
+    app.post("/v1/uploads", (c) => {
+      attachUploadToLogger({
+        filename: "document.pdf",
+        size: 1_024_000,
+        mimeType: "application/pdf",
+      });
+      return c.json({ ok: true });
+    });
+
+    const response = await app.request("http://localhost/v1/uploads", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(captured).toHaveLength(1);
+    expect(captured[0]?.event.upload).toEqual({
+      filename: "document.pdf",
+      size: 1_024_000,
+      mimeType: "application/pdf",
+    });
+  });
+
+  it("adds upload fields when a blob upload grant is minted", async () => {
+    issueSignedTokenMock.mockResolvedValue({
+      delegationToken: "delegation",
+      clientSigningToken: "signing",
+      validUntil: Date.now() + 60_000,
+    });
+    presignUrlMock.mockResolvedValue({
+      presignedUrl: "https://blob.example/upload?sig=1",
+    });
+
+    const app = createApp();
+    app.post("/v1/uploads", async (c) => {
+      await createBlobUploadGrant({
+        pathname: "users/user_123/document.pdf",
+        contentType: "application/pdf",
+        maximumSizeInBytes: 1_024_000,
+        maxSizeBytes: 104_857_600,
+        access: "public",
+        addRandomSuffix: true,
+        token: "rw-token",
+      });
+      return c.json({ ok: true });
+    });
+
+    const response = await app.request("http://localhost/v1/uploads", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(captured[0]?.event.upload).toEqual({
+      filename: "document.pdf",
+      size: 1_024_000,
+      mimeType: "application/pdf",
+    });
+  });
+
+  it("adds stored pathname basename when a coworker image is uploaded", async () => {
+    const env = getEnvMock();
+    getEnvMock.mockReturnValueOnce({
+      ...env,
+      BLOB_READ_WRITE_TOKEN: "rw_token",
+    });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/coworkers/cow-1/image-Ops_Logo_1-xyz.png",
+    });
+
+    const app = createApp();
+    app.post("/v1/coworkers/image", async (c) => {
+      await uploadCoworkerImage({
+        coworkerId: "01960001-0001-7001-8001-000000000099",
+        bytes: Buffer.from("png-bytes"),
+        contentType: "image/png",
+        filename: " Ops Logo (1).png ",
+      });
+      return c.json({ ok: true });
+    });
+
+    const response = await app.request("http://localhost/v1/coworkers/image", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(captured[0]?.event.upload).toEqual({
+      filename: "image-Ops_Logo_1.png",
+      size: 9,
+      mimeType: "image/png",
+    });
   });
 });
 
