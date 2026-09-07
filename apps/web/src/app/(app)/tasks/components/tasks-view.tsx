@@ -390,9 +390,7 @@ export function TasksView({
   const tabFromUrl = parseTasksTab(
     searchParams.get(TASKS_TAB_PARAM) ?? undefined,
   );
-  const [activeTab, setActiveTab] = useState<TasksTabValue>(
-    () => tabFromUrl || initialTab,
-  );
+  const [activeTab, setActiveTab] = useState<TasksTabValue>(initialTab);
   const [prevTabFromUrl, setPrevTabFromUrl] = useState(tabFromUrl);
   if (tabFromUrl !== prevTabFromUrl) {
     setPrevTabFromUrl(tabFromUrl);

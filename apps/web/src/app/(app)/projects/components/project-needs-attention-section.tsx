@@ -12,10 +12,7 @@ import {
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { TimeAgo } from "@/components/time-ago";
-import {
-  type HistoryItem,
-  TaskStatus,
-} from "@/lib/clients/generated/core";
+import { type HistoryItem, TaskStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 export interface ProjectNeedsAttentionLabels {

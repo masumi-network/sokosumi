@@ -58,9 +58,7 @@ const labels = {
   locale: "en",
 };
 
-function buildTaskItem(
-  overrides: Partial<HistoryTaskItem> = {},
-): HistoryItem {
+function buildTaskItem(overrides: Partial<HistoryTaskItem> = {}): HistoryItem {
   return {
     kind: "task",
     id: "task-1",
