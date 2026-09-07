@@ -40,6 +40,25 @@ struct SignInTests {
     #expect(fields["client_secret"] == nil)
   }
 
+  @Test func signInRejectsCallbackWithWrongPath() async throws {
+    let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
+    let session = OAuthSession(
+      configuration: configuration(),
+      store: InMemoryTokenStore(),
+      transport: transport
+    )
+
+    await #expect(throws: OAuthError.invalidCallbackURL) {
+      try await session.signIn(
+        callbackURL: URL(string: "com.sokosumi.app:/other?code=auth-code-1&state=state-123")!,
+        expectedState: "state-123",
+        codeVerifier: "verifier-abc"
+      )
+    }
+    #expect(transport.lastRequest == nil)
+    #expect(await !session.isSignedIn)
+  }
+
   @Test func signInRejectsMismatchedStateWithoutCallingCore() async throws {
     let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
     let session = OAuthSession(
@@ -70,7 +89,7 @@ struct SignInTests {
       transport: transport
     )
 
-    await #expect(throws: OAuthError.tokenExchangeFailed(status: 400, message: "Code expired")) {
+    await #expect(throws: OAuthError.tokenExchangeFailed(status: 400, message: "Code expired", code: "invalid_grant")) {
       try await session.signIn(
         callbackURL: URL(string: "com.sokosumi.app:/auth?code=stale&state=state-123")!,
         expectedState: "state-123",

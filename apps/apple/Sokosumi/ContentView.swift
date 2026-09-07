@@ -32,6 +32,10 @@ struct ContentView: View {
       case .signingIn:
         ProgressView("Contacting Sokosumi…")
       case .signedIn:
+        if let signOutError = auth.signOutError {
+          Text(signOutError)
+            .foregroundStyle(.red)
+        }
         Text(probe)
           .textSelection(.enabled)
         HStack {

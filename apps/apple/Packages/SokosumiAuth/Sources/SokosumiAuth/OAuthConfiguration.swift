@@ -13,19 +13,22 @@ public struct OAuthConfiguration: Sendable {
   /// e.g. `https://api.sokosumi.com/auth` (Core origin + `/auth`, no `/v1`).
   public var issuerBaseURL: URL
   public var clientID: String
-  public var redirectURI: String
   public var scopes: [String]
 
   public init(
     issuerBaseURL: URL,
     clientID: String,
-    redirectURI: String = OAuthConfiguration.redirectURI,
     scopes: [String] = OAuthConfiguration.defaultScopes
   ) {
     self.issuerBaseURL = issuerBaseURL
     self.clientID = clientID
-    self.redirectURI = redirectURI
     self.scopes = scopes
+  }
+
+  /// Path of the fixed redirect URI (`/auth`). Callbacks must land here,
+  /// not just anywhere under the callback scheme.
+  public static var redirectPath: String {
+    URLComponents(string: OAuthConfiguration.redirectURI)?.path ?? "/auth"
   }
 
   /// Core's auth base shares the Core API origin: strip `/v1`, append `/auth`.
@@ -54,7 +57,7 @@ public struct OAuthConfiguration: Sendable {
     components.queryItems = [
       URLQueryItem(name: "response_type", value: "code"),
       URLQueryItem(name: "client_id", value: clientID),
-      URLQueryItem(name: "redirect_uri", value: redirectURI),
+      URLQueryItem(name: "redirect_uri", value: OAuthConfiguration.redirectURI),
       URLQueryItem(name: "scope", value: scopes.joined(separator: " ")),
       URLQueryItem(name: "code_challenge", value: codeChallenge),
       URLQueryItem(name: "code_challenge_method", value: "S256"),
@@ -71,15 +74,16 @@ public enum OAuthError: Error, Equatable {
   case invalidAuthorizeURL
   case invalidCallbackURL
   case stateMismatch
-  case tokenExchangeFailed(status: Int, message: String)
+  case tokenExchangeFailed(status: Int, message: String, code: String?)
   case needsSignIn
 
   /// The authorization server definitively rejected the grant
   /// (`invalid_grant`: revoked, rotated, or malformed). Only this clears
-  /// the stored session; transport failures and 5xx never do.
+  /// the stored session; other error codes, transport failures, and 5xx
+  /// never do — a `400 invalid_client` must not wipe a good session.
   var isInvalidGrant: Bool {
-    if case .tokenExchangeFailed(let status, _) = self {
-      return status == 400 || status == 401
+    if case .tokenExchangeFailed(_, _, let code) = self {
+      return code == "invalid_grant"
     }
     return false
   }

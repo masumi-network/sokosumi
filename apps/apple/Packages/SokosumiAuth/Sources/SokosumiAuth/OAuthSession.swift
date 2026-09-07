@@ -57,6 +57,7 @@ public actor OAuthSession {
     guard
       let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
       components.scheme == OAuthConfiguration.callbackScheme,
+      components.path == OAuthConfiguration.redirectPath,
       let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
       !code.isEmpty
     else {
@@ -69,7 +70,7 @@ public actor OAuthSession {
     let payload = try await postToken(fields: [
       (name: "grant_type", value: "authorization_code"),
       (name: "code", value: code),
-      (name: "redirect_uri", value: configuration.redirectURI),
+      (name: "redirect_uri", value: OAuthConfiguration.redirectURI),
       (name: "client_id", value: configuration.clientID),
       (name: "code_verifier", value: codeVerifier),
     ])
@@ -124,10 +125,10 @@ public actor OAuthSession {
     let (data, status) = try await transport.postForm(fields, to: configuration.tokenEndpoint)
     let decoder = JSONDecoder()
     guard status == 200, let payload = try? decoder.decode(TokenPayload.self, from: data) else {
-      let message = (try? decoder.decode(TokenErrorPayload.self, from: data))
-        .flatMap { $0.errorDescription ?? $0.error }
+      let errorPayload = try? decoder.decode(TokenErrorPayload.self, from: data)
+      let message = errorPayload.flatMap { $0.errorDescription ?? $0.error }
         ?? HTTPURLResponse.localizedString(forStatusCode: status)
-      throw OAuthError.tokenExchangeFailed(status: status, message: message)
+      throw OAuthError.tokenExchangeFailed(status: status, message: message, code: errorPayload?.error)
     }
     return payload
   }

@@ -104,6 +104,35 @@ struct RefreshTests {
     #expect(await store.saved?.refreshToken == "refresh-1")
   }
 
+  @Test func nonGrantRejectionKeepsSession() async throws {
+    let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
+    let clock = TestClock()
+    let store = InMemoryTokenStore()
+    let session = OAuthSession(
+      configuration: configuration(),
+      store: store,
+      transport: transport,
+      now: { clock.now }
+    )
+    try await signIn(session: session, transport: transport)
+    clock.now = clock.now.addingTimeInterval(8_000)
+    for (status, code) in [(400, "invalid_client"), (401, "invalid_token")] {
+      transport.response = .success(
+        status: status,
+        json: "{\"error\":\"\(code)\",\"error_description\":\"Not a grant problem\"}"
+      )
+      await #expect(throws: OAuthError.tokenExchangeFailed(
+        status: status,
+        message: "Not a grant problem",
+        code: code
+      )) {
+        try await session.validAccessToken()
+      }
+      #expect(await session.isSignedIn)
+      #expect(await store.saved?.refreshToken == "refresh-1")
+    }
+  }
+
   @Test func revokedRefreshReturnsToSignIn() async throws {
     let transport = StubTokenTransport(response: .success(
       status: 200,

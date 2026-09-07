@@ -26,6 +26,9 @@ final class AuthState: ObservableObject {
   }
 
   @Published private(set) var status: Status = .signingIn
+  /// Set when sign-out could not durably delete the Keychain item: the
+  /// session is still on this Mac, so the UI must not claim otherwise.
+  @Published private(set) var signOutError: String?
 
   private let store: any TokenStore
   private var session: OAuthSession?
@@ -92,7 +95,18 @@ final class AuthState: ObservableObject {
     activeBrowserSession = nil
     Task {
       await session?.signOut()
-      status = session == nil ? .notConfigured : .signedOut(message: message)
+      guard session != nil else {
+        status = .notConfigured
+        return
+      }
+      if store.load() == nil {
+        signOutError = nil
+        status = .signedOut(message: message)
+      } else {
+        // Deletion failed: the next launch would restore .signedIn, so
+        // claiming sign-out here would strand a live session on a shared Mac.
+        signOutError = "Sign out failed. Your session is still on this Mac — try again."
+      }
     }
   }
 
@@ -139,7 +153,7 @@ final class AuthState: ObservableObject {
       "Your session expired. Sign in again."
     case OAuthError.stateMismatch, OAuthError.invalidCallbackURL:
       "Sign-in was interrupted. Try again."
-    case let OAuthError.tokenExchangeFailed(_, message):
+    case let OAuthError.tokenExchangeFailed(_, message, _):
       message.isEmpty ? "Sign-in failed." : message
     case let error as URLError where error.code == .notConnectedToInternet:
       "No network connection. Check your connection and try again."
