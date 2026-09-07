@@ -200,6 +200,41 @@ describe("authoritative tab attention", () => {
     listRoomsMock.mockReset();
   });
 
+  it("applies successful polls that take longer than the polling interval", async () => {
+    vi.useFakeTimers();
+    const responseDelayMs = 16_000;
+    listRoomsMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(
+            () =>
+              resolve({
+                ok: true,
+                value: {
+                  rooms: [room({ id: "slow-room", unreadCount: 4 })],
+                  nextCursor: null,
+                },
+              }),
+            responseDelayMs,
+          );
+        }),
+    );
+    const { unmount } = render(<Harness />);
+    try {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+      expect(listRoomsMock).toHaveBeenCalledTimes(5);
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      );
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it("shows remote Mark unread at the same timestamp despite a local read snapshot", async () => {
     const readRoom = room({ id: "a" });
     rememberRoomRead(readRoom);

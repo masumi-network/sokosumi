@@ -34,7 +34,7 @@ interface UseChatTabUnreadPresenceResult {
 
 export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
   const pathname = usePathname();
-  const latestRefreshRef = useRef(0);
+  const latestAppliedRefreshRef = useRef(0);
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const [rooms, setRooms] = useState<ChatRoom[]>(
     getInitialRoomsFromSessionSnapshot,
@@ -48,15 +48,15 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
 
     const refreshRooms = async () => {
       const requestRevision = beginRoomAttentionRefresh();
-      latestRefreshRef.current = requestRevision;
       const result = await listOrganizationChatRoomsAction();
       if (
         cancelled ||
-        requestRevision !== latestRefreshRef.current ||
+        requestRevision < latestAppliedRefreshRef.current ||
         !result.ok
       ) {
         return;
       }
+      latestAppliedRefreshRef.current = requestRevision;
       setRooms(reconcileRoomAttention(result.value.rooms, requestRevision));
     };
 
@@ -137,15 +137,15 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
       }
 
       const requestRevision = beginRoomAttentionRefresh();
-      latestRefreshRef.current = requestRevision;
       void listOrganizationChatRoomsAction().then((result) => {
         if (
           cancelled ||
-          requestRevision !== latestRefreshRef.current ||
+          requestRevision < latestAppliedRefreshRef.current ||
           !result.ok
         ) {
           return;
         }
+        latestAppliedRefreshRef.current = requestRevision;
         setRooms(reconcileRoomAttention(result.value.rooms, requestRevision));
       });
     };

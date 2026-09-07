@@ -89,7 +89,7 @@ export function useOrganizationChatRooms({
   paintOnly,
 }: UseOrganizationChatRoomsOptions) {
   const hasOrganization = Boolean(organizationId);
-  const latestRefreshRef = useRef(0);
+  const latestAppliedRefreshRef = useRef(0);
   const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
   const [pendingRows, setPendingRows] = useState(pendingInvitations);
@@ -147,8 +147,8 @@ export function useOrganizationChatRooms({
   /** Replace the whole live list with a freshly fetched one. */
   const replaceAllRooms = useCallback(
     (rooms: ChatRoom[], requestRevision: number) => {
-      if (requestRevision < latestRefreshRef.current) return;
-      latestRefreshRef.current = requestRevision;
+      if (requestRevision < latestAppliedRefreshRef.current) return;
+      latestAppliedRefreshRef.current = requestRevision;
       setRoomRows(reconcileRoomAttention(rooms, requestRevision));
     },
     [],
@@ -165,6 +165,10 @@ export function useOrganizationChatRooms({
       [activeResult, archivedResult, pendingResult]: SidebarRoomData,
       requestRevision: number,
     ) => {
+      if (requestRevision < latestAppliedRefreshRef.current) return;
+      if (activeResult.ok || archivedResult.ok || pendingResult.ok) {
+        latestAppliedRefreshRef.current = requestRevision;
+      }
       if (activeResult.ok) {
         replaceAllRooms(activeResult.value.rooms, requestRevision);
       }
@@ -187,9 +191,8 @@ export function useOrganizationChatRooms({
 
     const refreshRooms = async () => {
       const requestRevision = beginRoomAttentionRefresh();
-      latestRefreshRef.current = requestRevision;
       const data = await fetchSidebarRoomData(hasOrganization);
-      if (cancelled || requestRevision !== latestRefreshRef.current) {
+      if (cancelled || requestRevision < latestAppliedRefreshRef.current) {
         return;
       }
       applySidebarRoomData(data, requestRevision);
@@ -283,9 +286,8 @@ export function useOrganizationChatRooms({
       }
 
       const requestRevision = beginRoomAttentionRefresh();
-      latestRefreshRef.current = requestRevision;
       void fetchSidebarRoomData(hasOrganization).then((data) => {
-        if (cancelled || requestRevision !== latestRefreshRef.current) {
+        if (cancelled || requestRevision < latestAppliedRefreshRef.current) {
           return;
         }
         applySidebarRoomData(data, requestRevision);

@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ChatRoom,
@@ -282,6 +282,32 @@ describe("authoritative sidebar refresh", () => {
   beforeEach(() => {
     resetOrganizationChatListMocks();
     clearRoomReadOverlays();
+  });
+
+  it("applies successful polls that take longer than the polling interval", async () => {
+    vi.useFakeTimers();
+    const original = channel("slow-room");
+    const responseDelayMs = 16_000;
+    listRoomsMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(
+            () => resolve(emptyListResult([{ ...original, unreadCount: 4 }])),
+            responseDelayMs,
+          );
+        }),
+    );
+    const { result, unmount } = mount({ rooms: [original] });
+    try {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+      expect(listRoomsMock).toHaveBeenCalledTimes(5);
+      expect(result.current.roomRows[0]?.unreadCount).toBe(4);
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
   });
 
   it("accepts remote Mark unread at the same timestamp and retains it on remount", async () => {
