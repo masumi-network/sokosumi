@@ -56,7 +56,7 @@ final class AuthState: ObservableObject {
   }
 
   func startSignIn() {
-    guard let session, let configuration else {
+    guard let configuration else {
       status = .notConfigured
       return
     }
