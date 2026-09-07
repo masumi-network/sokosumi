@@ -275,6 +275,8 @@ const baseProps = {
   messagesNextCursor: null as string | null,
 };
 
+import { toast } from "sonner";
+
 import {
   getRoomMessageAction,
   getRoomThreadAction,
@@ -622,5 +624,60 @@ describe("RoomsClient notification deep link", () => {
     // would put that room's panel over the one they are in, holding no
     // replies, and would close the thread list and roster they just opened.
     expect(screen.queryByTestId("thread-panel")).toBeNull();
+  });
+  it("says nothing about a room the reader has already left", async () => {
+    mockSearch.current = "message=msg-reply";
+    const reply: ChatRoomMessage = {
+      ...sampleMessage("reply body", "msg-reply"),
+      parentMessageId: "msg-parent",
+    };
+    const otherRoom: ChatRoom = { ...channelRoom(), id: "room-other" };
+
+    vi.mocked(getRoomMessageAction).mockResolvedValue({
+      ok: true as const,
+      value: reply,
+    });
+
+    let failParent = (): void => {};
+    vi.mocked(getRoomThreadAction).mockReturnValue(
+      new Promise((resolve) => {
+        failParent = () =>
+          resolve({
+            ok: false as const,
+            error: { code: "INTERNAL_ERROR", message: "Server error" },
+          });
+      }),
+    );
+
+    const { rerender } = render(
+      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
+    );
+
+    await waitFor(() => {
+      expect(getRoomThreadAction).toHaveBeenCalledWith(
+        "room-channel",
+        "msg-parent",
+      );
+    });
+
+    mockSearch.current = "";
+    rerender(
+      <RoomsClient
+        {...baseProps}
+        rooms={[channelRoom(), otherRoom]}
+        selectedRoomId="room-other"
+        messagesPromise={settledMessages()}
+      />,
+    );
+
+    await act(async () => {
+      failParent();
+      await Promise.resolve();
+    });
+
+    // The request was for a room the reader has since left, so its failure is
+    // not theirs to see. An error toast here reads as a complaint about the
+    // room they are looking at now.
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

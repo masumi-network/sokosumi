@@ -2036,11 +2036,11 @@ export function RoomsClient({
         const result = await listRoomMessagesAction(roomId, {
           around: aroundId,
         });
-        if (!result.ok) {
-          toast.error(result.error.message);
+        if (!isStillSelectedRoom(roomId)) {
           return false;
         }
-        if (!isStillSelectedRoom(roomId)) {
+        if (!result.ok) {
+          toast.error(result.error.message);
           return false;
         }
         historicalTimelineRef.current = true;
@@ -2055,11 +2055,11 @@ export function RoomsClient({
           : undefined),
       loadParent: async (parentId) => {
         const result = await getRoomThreadAction(roomId, parentId);
-        // Checked before the error is shown, not after. The reader can switch
-        // rooms while this is in flight, and once they have, neither a thread
-        // nor a complaint about it belongs on the room they moved to.
-        // `loadThreadMessages` writes the panel state before its first await,
-        // so by the time it could check for itself the panel is already open.
+        // Every load in this jump checks the room before it reports anything:
+        // once the reader has moved on, neither the result nor a complaint
+        // about it belongs on the room they moved to. This one also guards
+        // state, because `loadThreadMessages` opens the panel before its
+        // first await, too early to check for itself.
         if (!isStillSelectedRoom(roomId)) {
           return null;
         }
@@ -2074,11 +2074,11 @@ export function RoomsClient({
         const result = await listThreadMessagesAction(roomId, parentId, {
           around: aroundId,
         });
-        if (!result.ok) {
-          toast.error(result.error.message);
+        if (!isStillSelectedRoom(roomId)) {
           return false;
         }
-        if (!isStillSelectedRoom(roomId)) {
+        if (!result.ok) {
+          toast.error(result.error.message);
           return false;
         }
         historicalThreadRef.current = true;
@@ -2210,11 +2210,11 @@ export function RoomsClient({
         const result = await listRoomMessagesAction(roomId, {
           around: aroundId,
         });
-        if (!result.ok) {
-          toast.error(result.error.message);
+        if (!isStillSelectedRoom(roomId)) {
           return false;
         }
-        if (!isStillSelectedRoom(roomId)) {
+        if (!result.ok) {
+          toast.error(result.error.message);
           return false;
         }
         // Deliberately not marked historical. The window is merged, not
