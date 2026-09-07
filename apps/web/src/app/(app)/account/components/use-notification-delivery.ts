@@ -104,6 +104,19 @@ export interface NotificationDelivery {
    */
   loading: boolean;
   /**
+   * The read did not land, and there is nothing cached to draw instead.
+   *
+   * Told apart from `loading` because the page has to say two different
+   * things: one waits, and the other has to explain. Without it a read that
+   * failed looks exactly like a read that is slow, and the rows are missing
+   * either way with nothing on the page to account for them.
+   *
+   * A refetch that fails over rows already on screen is not this. The reader
+   * is looking at the stored answer, and a line saying it did not load would
+   * be talking about something they can see.
+   */
+  failed: boolean;
+  /**
    * Writes every named category, each on its own channels, in one request.
    *
    * One request rather than one per kind, so a preset cannot land half applied
@@ -125,9 +138,11 @@ export function useNotificationDelivery(): NotificationDelivery {
   const { data: session, isPending: sessionPending } = useSession();
   const userId = session?.user.id;
   const queryClient = useQueryClient();
-  const { data: preferences, isPending } = useQuery(
-    getMyPreferencesQueryOptions(userId),
-  );
+  const {
+    data: preferences,
+    isPending,
+    isError,
+  } = useQuery(getMyPreferencesQueryOptions(userId));
   const push = usePushPreference(userId);
   const [saving, setSaving] = useState<readonly NotificationCategory[]>([]);
 
@@ -445,6 +460,7 @@ export function useNotificationDelivery(): NotificationDelivery {
           }
         : null,
     loading: sessionPending || (Boolean(userId) && isPending),
+    failed: Boolean(userId) && isError && preferences === undefined,
     setDeliveries,
   };
 }

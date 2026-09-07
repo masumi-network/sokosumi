@@ -108,6 +108,20 @@ describe("NotificationPreferences", () => {
     updateUser.mockResolvedValue({ data: {}, error: null });
   });
 
+  /**
+   * The route holds this card and nothing else, so the card's title is the
+   * page's heading. `CardTitle` is a div, and heading navigation is how a
+   * settings page is read: without a level on it the page has no landmark to
+   * arrive at.
+   */
+  it("titles the page with a heading", () => {
+    renderPreferences();
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "title",
+    );
+  });
+
   it("shows the picked value before the write lands", async () => {
     const user = userEvent.setup();
     updateUser.mockReturnValue(new Promise(() => {}));

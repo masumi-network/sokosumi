@@ -170,10 +170,11 @@ export function GroupAnswer({
       </span>
       <DropdownMenu>
         <DropdownMenuTrigger
-          // Reachable while a write is in flight, and doing nothing: a control
-          // the browser disables drops out of the tab order under the reader's
-          // finger, and a screen reader loses the control it was on.
-          aria-disabled={saving || undefined}
+          // No `aria-disabled` here, because nothing is refused here. The menu
+          // opens while a write is in flight and Custom still works; only the
+          // four situations are refused, and those items carry the state
+          // themselves. Announcing the trigger unavailable would talk a reader
+          // out of a control that is open.
           aria-describedby={hintId}
           className={cn(
             TRIGGER,
@@ -229,9 +230,10 @@ export function GroupAnswer({
               <DropdownMenuRadioItem
                 key={one.id}
                 value={one.id}
-                // The trigger says it is busy and the guard above refuses the
-                // write. Left selectable, each of these would announce as a
-                // choice and then do nothing, silently.
+                // The guard above refuses the write, and this is where the
+                // press lands, so this is where the refusal is said. Left
+                // selectable, each of these would announce as a choice and
+                // then do nothing, silently.
                 disabled={saving}
                 className="items-start py-2"
               >

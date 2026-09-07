@@ -195,6 +195,20 @@ function renderPending() {
   );
 }
 
+/** Renders with the read refused, the way a Core that is down meets it. */
+function renderFailed() {
+  getMyPreferences.mockRejectedValue(new Error("core_down"));
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AccountHost />
+    </QueryClientProvider>,
+  );
+}
+
 function lastWrite() {
   const calls = patchMyPreferences.mock.calls;
   return calls[calls.length - 1][0].notificationPreferences;
@@ -514,11 +528,12 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * A control the browser disables drops out of the tab order under the
-   * reader's finger. The answer stays reachable, says it is busy, and refuses
-   * the second press until the first write lands.
+   * The write is refused where it is asked for. The answer opens as it always
+   * does, because the menu still holds Custom and Custom is not a write; the
+   * situations under it are the four the second press would go to, and those
+   * are the ones the browser refuses.
    */
-  it("keeps the answer reachable while a write is in flight", async () => {
+  it("refuses the second situation while a write is in flight", async () => {
     const user = userEvent.setup();
     patchMyPreferences.mockReturnValue(new Promise(() => {}));
     renderKinds();
@@ -526,12 +541,14 @@ describe("NotificationKinds", () => {
     await pickPreset("groupChat", "presetOff");
 
     const answer = presetButton("groupChat");
-    await waitFor(() => {
-      expect(answer).toHaveAttribute("aria-disabled", "true");
-    });
     expect(answer).toBeEnabled();
+    expect(answer).not.toHaveAttribute("aria-disabled");
 
     await user.click(answer);
+    await waitFor(() => {
+      expect(presetItem("presetMost")).toHaveAttribute("aria-disabled", "true");
+    });
+
     await user.click(presetItem("presetMost"));
     expect(patchMyPreferences).toHaveBeenCalledTimes(1);
   });
@@ -847,6 +864,69 @@ describe("NotificationKinds", () => {
       expect(width(head)).toBeDefined();
       expect(width(track)).toBe(width(head));
     }
+  });
+
+  /**
+   * The rows have a heading of their own, under the card's. A reader moving
+   * by heading passes the card's title and would otherwise land in the middle
+   * of thirty cells with nothing having named them.
+   */
+  it("heads the groups with a heading", () => {
+    renderKinds();
+
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(
+      "kindsTitle",
+    );
+  });
+
+  /**
+   * The panel sits 4px off the name it explains, so the move towards it
+   * leaves the name first. Closing on that would put three sentences where a
+   * mouse can see them and never reach them.
+   */
+  it("holds a column's explanation open under the pointer", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const name = screen.getByRole("button", { name: "channelPush" });
+
+    await user.hover(name);
+
+    const panel = await screen.findByText("channelPushHint");
+
+    // The move across the gap, in the order a browser sends it: the name is
+    // left before the panel is reached.
+    await user.unhover(name);
+    await user.hover(panel);
+
+    // Past the wait the leave started, which the arrival here called off.
+    await act(async () => {
+      await new Promise((settle) => setTimeout(settle, 300));
+    });
+
+    expect(screen.getByText("channelPushHint")).toBeInTheDocument();
+  });
+
+  /**
+   * And it does close. A panel that waits for a pointer that never comes back
+   * would stand over the rows until something else took it away.
+   */
+  it("closes a column's explanation once the pointer is gone", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    await user.hover(screen.getByRole("button", { name: "channelPush" }));
+    await screen.findByText("channelPushHint");
+
+    await user.unhover(screen.getByRole("button", { name: "channelPush" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("channelPushHint")).toBeNull();
+    });
   });
 
   it("puts the channel legend inside each expanded section", async () => {
@@ -1885,34 +1965,30 @@ describe("NotificationKinds", () => {
 
     await pickPreset("groupChat", "presetMost");
 
+    await openPresets("groupChat");
     await waitFor(() => {
-      expect(presetButton("groupChat")).toHaveAttribute(
-        "aria-disabled",
-        "true",
-      );
+      expect(presetItem("presetOff")).toHaveAttribute("aria-disabled", "true");
     });
 
-    await pickPreset("groupChat", "presetOff");
+    await userEvent.setup().click(presetItem("presetOff"));
     expect(patchMyPreferences).not.toHaveBeenCalled();
   });
 
   /**
-   * A control the browser disables drops out of the tab order under the
-   * reader's finger, and a screen reader loses the control it was on. It stays
-   * reachable and says it is busy instead, and presses do nothing until the
-   * write lands.
+   * The answer never leaves the tab order. A control the browser disables
+   * drops out of it under the reader's finger, and a screen reader loses the
+   * control it was on; this one opens throughout, and the write is refused at
+   * the situation the press lands on.
    */
-  it("keeps the controls reachable while a write is in flight", async () => {
+  it("keeps the answer reachable while a write is in flight", async () => {
     patchMyPreferences.mockReturnValue(new Promise(() => {}));
     renderKinds();
 
     await pickPreset("groupChat", "presetMost");
 
     const answer = presetButton("groupChat");
-    await waitFor(() => {
-      expect(answer).toHaveAttribute("aria-disabled", "true");
-    });
     expect(answer).toBeEnabled();
+    expect(answer).not.toHaveAttribute("aria-disabled");
 
     await pickPreset("groupChat", "presetOff");
     expect(patchMyPreferences).toHaveBeenCalledTimes(1);
@@ -2168,6 +2244,54 @@ describe("NotificationKinds", () => {
     expect(
       screen.queryByRole("button", { name: "channelEmailLabel" }),
     ).toBeNull();
+  });
+
+  /**
+   * The wait is said as well as drawn. A reader who cannot see the card meets
+   * a marketing switch and nothing else for the length of a round trip, and
+   * the rows arriving under a heading of their own is what tells them the
+   * wait is over.
+   */
+  it("says the rows are on their way while the read is in flight", () => {
+    renderPending();
+
+    expect(screen.getByRole("status")).toHaveTextContent("kindsLoading");
+  });
+
+  /**
+   * A read that fails is the one state with no landing. The rows never
+   * arrive, the heading that would name them is not drawn, and without this
+   * line the card is a marketing switch and no account of what is missing.
+   * Shown as well as spoken, because a sighted reader gets no other signal.
+   */
+  it("says so when the read fails", async () => {
+    renderFailed();
+
+    const note = await screen.findByText("kindsLoadError");
+
+    expect(note).toHaveAttribute("role", "status");
+    expect(note).not.toHaveClass("sr-only");
+  });
+
+  /**
+   * A refetch that fails over rows already on screen is not a read that
+   * failed. The reader is looking at the stored answer, and a line saying it
+   * did not load would be talking about something they can see.
+   */
+  it("says nothing when a refetch fails over rows already drawn", async () => {
+    getMyPreferences.mockRejectedValue(new Error("core_down"));
+    renderKinds();
+
+    await waitFor(() => {
+      expect(
+        queryClient.getQueryState(getMyPreferencesQueryKey("user_1")),
+      ).toMatchObject({
+        status: "error",
+      });
+    });
+
+    expect(screen.queryByText("kindsLoadError")).toBeNull();
+    expect(presetButton("groupChat")).toBeInTheDocument();
   });
 
   it("waits for the read before drawing the kinds, and not before the news", () => {
@@ -2438,15 +2562,18 @@ describe("NotificationKinds", () => {
 
     /**
      * The press waits where it is while a push write is in flight, the way the
-     * warning's does. Both are one button on a notice rather than a cell in
-     * the tab order of the grid, so disabling it costs the reader nothing.
+     * warning's does, and stays reachable while it waits. This write hangs on
+     * the browser's own permission prompt, so it is in flight for as long as a
+     * person takes to answer it, and a disabled button would leave the tab
+     * order under the reader's finger for that whole time.
      */
     it("holds the press while a push write is in flight", async () => {
       const user = userEvent.setup();
       isSaving = true;
       renderKinds();
 
-      expect(silenceButton()).toBeDisabled();
+      expect(silenceButton()).toBeEnabled();
+      expect(silenceButton()).toHaveAttribute("aria-disabled", "true");
 
       await user.click(silenceButton());
 

@@ -4110,6 +4110,8 @@
         "error": "No se pudo guardar el cambio. Comprueba tu conexión e inténtalo de nuevo.",
         "kindsTitle": "Sobre qué te avisamos",
         "kindsDescription": "Ajusta un grupo entero de una vez, o ábrelo y elige para cada notificación.",
+        "kindsLoading": "Cargando tus ajustes de notificaciones.",
+        "kindsLoadError": "Tus ajustes de notificaciones no se cargaron. Recarga la página para intentarlo de nuevo.",
         "groupJob": "Trabajos",
         "groupJobDescription": "Trabajos que te esperan, y el resto.",
         "kindJobAttention": "Trabajos que te esperan",

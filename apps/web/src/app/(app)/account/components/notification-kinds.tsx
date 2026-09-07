@@ -9,6 +9,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import {
   ChannelGrid,
   EmailCell,
@@ -78,7 +79,10 @@ function FoldRow({
               mark and the box it belongs to stop together. Under reduced
               motion it has no transition at all and simply points the other
               way, which is what the fold does too. */}
-          <ChevronRight className="text-muted-foreground size-4 shrink-0 duration-200 ease-out group-data-[state=open]:rotate-90 motion-safe:transition-transform" />
+          <ChevronRight
+            className="text-muted-foreground size-4 shrink-0 duration-200 ease-out group-data-[state=open]:rotate-90 motion-safe:transition-transform"
+            aria-hidden="true"
+          />
           <span className="min-w-0">
             <span className="block text-sm leading-5">{name}</span>
             <span
@@ -344,15 +348,42 @@ export function NotificationKinds({
   // rather than blanking and coming back.
   const showKinds = !choices.loading && choices.groups.length > 0;
 
+  const readNote = choices.failed
+    ? t("kindsLoadError")
+    : choices.loading
+      ? t("kindsLoading")
+      : "";
+
   return (
     <div className="space-y-3">
+      {/* One region for the whole read, drawn from the first paint and empty
+          until it has something to say. A region that arrives with its text
+          already in it is announced by some screen readers and not by others;
+          one that was already there and then changed is announced by all of
+          them.
+
+          It says the rows are coming, and then says nothing: they arrive
+          under a heading of their own, which is where a reader going through
+          the card meets them. A read that failed has no such landing, so that
+          line is shown as well as spoken. Without it the card is a marketing
+          switch and no account of the rows nobody can see. */}
+      <p
+        role="status"
+        aria-live="polite"
+        className={cn(
+          "text-muted-foreground text-sm leading-5",
+          !choices.failed && "sr-only",
+        )}
+      >
+        {readNote}
+      </p>
       {/* The heading describes the groups, so it comes with them. A read that
           failed leaves the box holding the one row Sokosumi can still answer
           for, and a title about setting groups would be pointing at nothing. */}
       {showKinds ? (
         <div>
-          <p className="text-sm leading-5 font-medium">{t("kindsTitle")}</p>
-          <p className="text-muted-foreground text-sm leading-6">
+          <h2 className="text-sm leading-5 font-medium">{t("kindsTitle")}</h2>
+          <p className="text-muted-foreground text-sm leading-5">
             {t("kindsDescription")}
           </p>
         </div>

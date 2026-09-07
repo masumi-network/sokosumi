@@ -4141,6 +4141,8 @@
         "error": "Could not save that change. Check your connection and try again.",
         "kindsTitle": "What you get notified about",
         "kindsDescription": "Set a whole group at once, or open it and choose for each notification.",
+        "kindsLoading": "Loading your notification settings.",
+        "kindsLoadError": "Your notification settings did not load. Reload the page to try again.",
         "groupJob": "Jobs",
         "groupJobDescription": "Jobs waiting on you, and the rest.",
         "kindJobAttention": "Jobs waiting on you",

@@ -104,8 +104,20 @@ function BrowserNotice({
           <Button
             variant="outline"
             size="sm"
-            disabled={action.saving}
-            onClick={action.onPress}
+            // Reachable while the write is in flight, and doing nothing. The
+            // browser drops a `disabled` control out of the tab order under
+            // the reader's finger, and this write waits on the browser's own
+            // permission prompt, so it is in flight for as long as a person
+            // takes to answer it. Every other control on this card refuses a
+            // press the same way.
+            aria-disabled={action.saving || undefined}
+            onClick={() => {
+              if (action.saving) {
+                return;
+              }
+
+              action.onPress();
+            }}
             // Stacked under the words on a phone, it starts where the words
             // start rather than where the mark does: the mark and the gap
             // beside it are 28px.
@@ -116,7 +128,10 @@ function BrowserNotice({
             // German label ran 283px. Wrapping costs a second line and keeps
             // the words. The fixed height goes with it, or the second line
             // would leave the box the same way.
-            className="ml-7 h-auto min-h-8 self-start py-1.5 whitespace-normal sm:ml-0 sm:h-8 sm:self-auto sm:py-0"
+            className={cn(
+              "ml-7 h-auto min-h-8 self-start py-1.5 whitespace-normal sm:ml-0 sm:h-8 sm:self-auto sm:py-0",
+              action.saving && "opacity-50",
+            )}
           >
             {t(action.labelKey)}
           </Button>

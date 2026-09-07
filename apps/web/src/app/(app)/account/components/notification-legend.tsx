@@ -2,7 +2,7 @@
 
 import { type LucideIcon, Mail } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Popover,
@@ -35,6 +35,17 @@ const NAME = cn(
 );
 
 /**
+ * How long the panel waits before it closes behind the pointer.
+ *
+ * It sits 4px off the name it explains, and Radix takes the panel out of the
+ * page the moment it closes. Closed on the leave itself, it would be gone
+ * before the pointer had crossed the gap, and three sentences a mouse can see
+ * would be three a mouse can never reach. Long enough to cross 4px, short
+ * enough that a pointer on its way elsewhere does not drag the panel along.
+ */
+const CLOSE_DELAY_MS = 150;
+
+/**
  * What arriving on one channel means, on hover and on a tap.
  *
  * A tooltip would answer the pointer and nothing else: Radix closes one on
@@ -62,6 +73,23 @@ function ChannelExplainer({
 }) {
   const [open, setOpen] = useState(false);
   const byPointer = useRef(false);
+  const closing = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const holdOpen = () => {
+    if (closing.current) {
+      clearTimeout(closing.current);
+      closing.current = null;
+    }
+  };
+
+  const closeSoon = () => {
+    holdOpen();
+    closing.current = setTimeout(() => setOpen(false), CLOSE_DELAY_MS);
+  };
+
+  // Nothing else stops the timer. A reader who leaves the name and then leaves
+  // the page has a close waiting on a component that is gone.
+  useEffect(() => holdOpen, []);
 
   return (
     <Popover
@@ -71,6 +99,7 @@ function ChannelExplainer({
           byPointer.current = false;
         }
 
+        holdOpen();
         setOpen(next);
       }}
     >
@@ -81,6 +110,7 @@ function ChannelExplainer({
             return;
           }
 
+          holdOpen();
           byPointer.current = true;
           setOpen(true);
         }}
@@ -89,7 +119,7 @@ function ChannelExplainer({
             return;
           }
 
-          setOpen(false);
+          closeSoon();
         }}
         onClick={(event) => {
           // The press that arrives with the pointer must not close what the
@@ -106,6 +136,24 @@ function ChannelExplainer({
       <PopoverContent
         align="center"
         className="w-72 space-y-1.5 p-3 text-xs"
+        // The panel takes the close over from the name. The pointer arrives
+        // here inside the wait the leave started, and this stops it; leaving
+        // here starts it again. Radix still dismisses on Escape and on a
+        // press outside.
+        onPointerEnter={(event) => {
+          if (event.pointerType !== "mouse") {
+            return;
+          }
+
+          holdOpen();
+        }}
+        onPointerLeave={(event) => {
+          if (event.pointerType !== "mouse" || !byPointer.current) {
+            return;
+          }
+
+          closeSoon();
+        }}
         onOpenAutoFocus={(event) => {
           if (byPointer.current) {
             event.preventDefault();

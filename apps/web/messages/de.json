@@ -4110,6 +4110,8 @@
         "error": "Die Änderung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
         "kindsTitle": "Worüber wir dich benachrichtigen",
         "kindsDescription": "Stelle eine ganze Gruppe auf einmal ein, oder öffne sie und wähle für jede Benachrichtigung.",
+        "kindsLoading": "Deine Benachrichtigungseinstellungen werden geladen.",
+        "kindsLoadError": "Deine Benachrichtigungseinstellungen wurden nicht geladen. Lade die Seite neu, um es erneut zu versuchen.",
         "groupJob": "Jobs",
         "groupJobDescription": "Jobs, die auf dich warten, und der Rest.",
         "kindJobAttention": "Jobs, die auf dich warten",

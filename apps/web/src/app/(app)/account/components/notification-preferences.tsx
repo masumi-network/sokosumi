@@ -102,7 +102,13 @@ export function NotificationPreferences({
   return (
     <Card className="flex h-full flex-col">
       <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
+        {/* The route's only heading. `CardTitle` is a div, so without this
+            heading navigation, which is how a settings page is read, reaches
+            nothing here. Preflight resets a heading's size and weight, so the
+            card looks the same. */}
+        <CardTitle>
+          <h1>{t("title")}</h1>
+        </CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
