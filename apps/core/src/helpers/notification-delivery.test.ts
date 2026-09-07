@@ -184,21 +184,27 @@ describe("toNotificationCategory", () => {
 describe("resolveNotificationDelivery", () => {
   const NO_PREFERENCES: StoredNotificationPreference[] = [];
 
-  it("delivers on both channels for a reader who set nothing", () => {
+  /**
+   * The device is what a reader asks for, one group at a time. Until they do,
+   * a stored nothing is Sokosumi and no banner, whatever consent stands.
+   */
+  it("delivers in Sokosumi and nowhere else for a reader who set nothing", () => {
     expect(
       resolveNotificationDelivery({
         category: "JOB_ATTENTION",
         preferences: NO_PREFERENCES,
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: true });
+    ).toEqual({ inApp: true, osBanner: false });
   });
 
   it("withholds the banner without account-wide push consent", () => {
     expect(
       resolveNotificationDelivery({
         category: "JOB_ATTENTION",
-        preferences: NO_PREFERENCES,
+        preferences: [
+          { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: true },
+        ],
         pushOptIn: false,
       }),
     ).toEqual({ inApp: true, osBanner: false });
@@ -210,6 +216,7 @@ describe("resolveNotificationDelivery", () => {
         category: "TASK_UPDATE",
         preferences: [
           { category: "TASK_UPDATE", channel: "IN_APP", enabled: false },
+          { category: "TASK_UPDATE", channel: "OS_BANNER", enabled: true },
         ],
         pushOptIn: true,
       }),
@@ -238,7 +245,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: true });
+    ).toEqual({ inApp: true, osBanner: false });
   });
 
   it("falls back to the defaults for a notification with no category", () => {
@@ -260,7 +267,7 @@ describe("resolveNotificationDelivery", () => {
         preferences: [{ category: "SYSTEM", channel: "EMAIL", enabled: false }],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: true });
+    ).toEqual({ inApp: true, osBanner: false });
   });
 });
 
@@ -302,14 +309,31 @@ describe("resolveNotificationMatrix", () => {
     );
     expect(
       matrix
-        .filter((cell) => cell.category !== "CHAT_ROOM_MESSAGE")
+        .filter(
+          (cell) =>
+            cell.channel === "IN_APP" && cell.category !== "CHAT_ROOM_MESSAGE",
+        )
         .every((cell) => cell.enabled),
     ).toBe(true);
     expect(matrix).toContainEqual({
       category: "CHAT_MENTION",
-      channel: "OS_BANNER",
+      channel: "IN_APP",
       enabled: true,
     });
+  });
+
+  /**
+   * The device is the half a reader asks for, one group at a time. An account
+   * that stored nothing reads as the quiet situation on every group of the
+   * settings page, rather than as a banner per row waiting on one press of
+   * push consent.
+   */
+  it("leaves every row off the device until the reader asks", () => {
+    expect(
+      resolveNotificationMatrix([]).filter(
+        (cell) => cell.channel === "OS_BANNER" && cell.enabled,
+      ),
+    ).toEqual([]);
   });
 
   /**
@@ -357,7 +381,7 @@ describe("resolveNotificationMatrix", () => {
     expect(matrix).toContainEqual({
       category: "JOB_ATTENTION",
       channel: "OS_BANNER",
-      enabled: true,
+      enabled: false,
     });
   });
 
@@ -376,7 +400,10 @@ describe("resolveNotificationMatrix", () => {
     );
     expect(
       matrix
-        .filter((cell) => cell.category !== "CHAT_ROOM_MESSAGE")
+        .filter(
+          (cell) =>
+            cell.channel === "IN_APP" && cell.category !== "CHAT_ROOM_MESSAGE",
+        )
         .every((cell) => cell.enabled),
     ).toBe(true);
   });

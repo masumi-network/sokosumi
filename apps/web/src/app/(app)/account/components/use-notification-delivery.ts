@@ -17,37 +17,111 @@ import {
   getMyPreferencesQueryOptions,
 } from "@/queries/preferences";
 import {
-  categoryDelivery,
+  categoryChannels,
   cellsFor,
-  type Delivery,
-  type GroupDelivery,
+  type DeliveryChange,
   type GroupSpec,
-  groupDelivery,
+  groupPreset,
   type KindSpec,
   NOTIFICATION_GROUPS,
   type NotificationCategory,
+  type PresetSpec,
+  type PresetState,
+  type PushBlock,
+  type StoredChannel,
 } from "./notification-delivery";
 
 export interface KindChoice {
   spec: KindSpec;
-  delivery: Delivery;
+  channels: StoredChannel[];
   saving: boolean;
 }
 
 export interface GroupChoice {
   spec: GroupSpec;
-  delivery: GroupDelivery;
+  /** The situations worth offering for the kinds that came back. */
+  presets: readonly PresetSpec[];
+  /** The situation its cells are in, or that the reader set them one by one. */
+  preset: PresetState;
   kinds: KindChoice[];
   saving: boolean;
 }
 
+/** This browser's own subscription, as the one cell that drops it. */
+export interface DeviceChoice {
+  /** A push write is in flight. The cell stays reachable, and does nothing. */
+  saving: boolean;
+  /** Drops it. There is no other direction: the row is only drawn while it stands. */
+  onSilence: () => void;
+}
+
 export interface NotificationDelivery {
   groups: GroupChoice[];
-  /** Writes every named category at one loudness, in a single request. */
-  setDelivery: (
-    categories: readonly NotificationCategory[],
-    delivery: Delivery,
-  ) => Promise<void>;
+  /**
+   * Why this browser cannot show a push, when it cannot.
+   *
+   * Null covers both a browser that can and one that has not answered yet: the
+   * capability read needs `window`, so it lands after the first paint, and a
+   * column drawn dead in the meantime would tell every reader on every browser
+   * that theirs cannot push.
+   */
+  pushBlock: PushBlock | null;
+  /**
+   * Whether any kind is asking for a push at all.
+   *
+   * The banner reads it with `pushBlock`: a browser that cannot show a push is
+   * only worth saying something about while something is trying to arrive on
+   * it. With every banner cell off, nothing is going wrong.
+   */
+  pushWanted: boolean;
+  /** A push write is in flight, so the banner's button waits for it. */
+  pushSaving: boolean;
+  /**
+   * Subscribes this browser, asking the browser for the permission if it has
+   * not been asked. The same path a push cell takes, from the banner instead.
+   */
+  activatePush: () => Promise<void>;
+  /**
+   * This browser, while a push is arriving on it and there is one to stop.
+   *
+   * Null wherever the row would answer nothing: with no kind asking for a
+   * push, before the browser has answered, and in every state the banner
+   * already covers. The row and the banner are two halves of one answer about
+   * this browser, and only one of them is ever on screen.
+   */
+  device: DeviceChoice | null;
+  /**
+   * An answer is still coming.
+   *
+   * Told apart from an answer with nothing in it, because the two want
+   * different pages: one waits, and the other has to say so.
+   *
+   * A read that cannot run is not waiting. Without a session the preferences
+   * query stays disabled, and a disabled query reports pending for as long as
+   * the page is open, so asking it alone would wait for an answer nobody is
+   * fetching.
+   */
+  loading: boolean;
+  /**
+   * The read did not land, and there is nothing cached to draw instead.
+   *
+   * Told apart from `loading` because the page has to say two different
+   * things: one waits, and the other has to explain. Without it a read that
+   * failed looks exactly like a read that is slow, and the rows are missing
+   * either way with nothing on the page to account for them.
+   *
+   * A refetch that fails over rows already on screen is not this. The reader
+   * is looking at the stored answer, and a line saying it did not load would
+   * be talking about something they can see.
+   */
+  failed: boolean;
+  /**
+   * Writes every named category, each on its own channels, in one request.
+   *
+   * One request rather than one per kind, so a preset cannot land half applied
+   * with the reader watching its kinds settle one by one.
+   */
+  setDeliveries: (changes: readonly DeliveryChange[]) => Promise<void>;
 }
 
 /**
@@ -60,10 +134,14 @@ export interface NotificationDelivery {
  */
 export function useNotificationDelivery(): NotificationDelivery {
   const t = useTranslations("App.Account.Notifications");
-  const { data: session } = useSession();
+  const { data: session, isPending: sessionPending } = useSession();
   const userId = session?.user.id;
   const queryClient = useQueryClient();
-  const { data: preferences } = useQuery(getMyPreferencesQueryOptions(userId));
+  const {
+    data: preferences,
+    isPending,
+    isError,
+  } = useQuery(getMyPreferencesQueryOptions(userId));
   const push = usePushPreference(userId);
   const [saving, setSaving] = useState<readonly NotificationCategory[]>([]);
 
@@ -77,13 +155,21 @@ export function useNotificationDelivery(): NotificationDelivery {
       return [];
     }
 
+    // A group Core answered only part of is one no situation can speak for.
+    // Each is written as the whole group: its sentence names rows that are not
+    // on screen, and two of them can come to write the same cells, so the rail
+    // would light a word the reader did not press. The rows still answer for
+    // themselves, one kind at a time.
+    const presets = kinds.length === spec.kinds.length ? spec.presets : [];
+
     return [
       {
         spec,
-        delivery: groupDelivery(cells, kinds),
+        presets,
+        preset: groupPreset(cells, presets, kinds),
         kinds: kinds.map((kind) => ({
           spec: kind,
-          delivery: categoryDelivery(cells, kind.category),
+          channels: categoryChannels(cells, kind.category),
           saving: saving.includes(kind.category),
         })),
         saving: kinds.some((kind) => saving.includes(kind.category)),
@@ -125,17 +211,39 @@ export function useNotificationDelivery(): NotificationDelivery {
   /**
    * Turns push on from the control the reader actually pressed.
    *
-   * Asking for a banner is a clear enough request to prompt for the browser
+   * Asking for a push is a clear enough request to prompt for the browser
    * permission. A refusal still records the preference: account consent and
    * this browser's subscription are separate, and dropping the preference
    * because one browser said no would be the wrong half to lose.
+   *
+   * Two things can be missing, and consent standing does not imply the other.
+   * Signing out drops this browser's subscription and leaves consent where it
+   * was, and clearing site data drops it without asking anyone. So a browser
+   * that holds no subscription subscribes here, under the same press. Without
+   * that, the cells would sit on and this browser would never push again.
    */
   async function activatePushIfNeeded() {
-    if (push.isAccountEnabled || !push.canToggleAccount) {
+    // One push write at a time, across every row. The busy flag the rows hold
+    // is per kind, so two kinds can ask within one write of each other: the
+    // second would read the same stale answer as the first, subscribe on top
+    // of it, and release the shared row while the first is still running.
+    if (push.isSaving || !push.canToggleAccount) {
       return;
     }
 
     try {
+      if (push.isAccountEnabled) {
+        // `canToggleDevice` carries the rest of the answer: a session, a
+        // browser that can subscribe, and consent already on.
+        if (push.isDeviceEnabled || !push.canToggleDevice) {
+          return;
+        }
+
+        await push.setDeviceEnabled(true);
+        toast.success(t("pushEnabledSuccess"));
+        return;
+      }
+
       const subscribedHere = await push.setAccountEnabled(true);
       toast.success(
         subscribedHere
@@ -143,22 +251,70 @@ export function useNotificationDelivery(): NotificationDelivery {
           : t("pushEnabledOtherDevicesSuccess"),
       );
     } catch (error) {
+      // A refused prompt lands here as well, and reads as a failure on
+      // purpose: the reader asked this browser for a push and will not get
+      // one. The cell itself carries the reason from the next render on.
+      //
+      // Its own message, because a refusal is the likely way in and the way
+      // back is the browser's own settings. The other push failure on this
+      // page is the opposite press, where that advice would be wrong.
       console.error("Failed to activate push from a delivery control", error);
-      toast.error(t("pushError"));
+      toast.error(t("pushEnableError"));
     }
   }
 
-  async function setDelivery(
-    categories: readonly NotificationCategory[],
-    delivery: Delivery,
-  ) {
-    const changes = cellsFor(cells, categories, delivery);
+  /**
+   * Takes the account-wide consent back once no kind is left on the banner.
+   *
+   * Consent and the cells are two separate answers, and Core's publish gate
+   * reads both, so clearing every banner cell already stops every push. What
+   * stays behind is the consent, which nothing else on this page writes: a
+   * reader who silenced push row by row would keep an account that still says
+   * push is welcome, until they sign out. It is released here so the two
+   * answers say the same thing.
+   *
+   * Read the current cached matrix, because the answer is about every kind
+   * and another row can change while this write waits for Core.
+   *
+   * A failure is logged and no more than that. The reader's own write landed,
+   * no push arrives either way, and a toast would report a failure against
+   * something they did not ask for.
+   */
+  async function releasePushIfSilent() {
+    const current = queryClient.getQueryData<GetUsersByIdPreferencesResponse>(
+      getMyPreferencesQueryKey(userId),
+    );
+    const silent =
+      current?.data.notificationPreferences.every(
+        (cell) => cell.channel !== "OS_BANNER" || !cell.enabled,
+      ) ?? false;
 
-    if (changes.length === 0) {
+    // Same one-write-at-a-time rule the activation keeps, and the same reason.
+    if (
+      !silent ||
+      !push.isAccountEnabled ||
+      !push.canToggleAccount ||
+      push.isSaving
+    ) {
       return;
     }
 
-    const previous = changes.map((change) => ({
+    try {
+      await push.setAccountEnabled(false);
+    } catch (error) {
+      console.error("Failed to release the push consent", error);
+    }
+  }
+
+  async function setDeliveries(changes: readonly DeliveryChange[]) {
+    const categories = changes.map((change) => change.category);
+    const written = cellsFor(cells, changes);
+
+    if (written.length === 0) {
+      return;
+    }
+
+    const previous = written.map((change) => ({
       ...change,
       enabled:
         cells.find(
@@ -168,28 +324,35 @@ export function useNotificationDelivery(): NotificationDelivery {
         )?.enabled ?? false,
     }));
 
-    // A banner that was already on is not a new request, so a group write that
-    // happens to carry one must not put a permission prompt on the screen.
-    const asksForBanner = changes.some(
-      (change, index) =>
-        change.channel === "OS_BANNER" &&
-        change.enabled &&
-        !previous[index]?.enabled,
+    // Every push needs the account-wide opt-in, so a write that leaves one on
+    // asks for it. Asking only about a cell this write turns on would miss the
+    // reader whose push cells were on from the start, which is where a reader
+    // starts: nothing would ever prompt, and no push would arrive.
+    const asksForPush = written.some(
+      (change) => change.channel === "OS_BANNER" && change.enabled,
     );
 
-    if (asksForBanner) {
-      await activatePushIfNeeded();
-    }
-
-    paint(changes);
+    // Marked busy before the prompt, which waits on a person. A second press
+    // on the same group while it stands would land its write, then have this
+    // one overwrite it on the way back.
     setSaving((current) => [...current, ...categories]);
 
     try {
+      if (asksForPush) {
+        await activatePushIfNeeded();
+      }
+
+      // Painted after the consent, never before it. Recording the consent
+      // seeds this same cache with the answer its own write returned, and
+      // that answer predates this one: painting first would show the new
+      // delivery, then drop back to the old one under a busy row.
+      paint(written);
+
       await preferencesBrowserClient.patchMyPreferences({
-        notificationPreferences: changes.map((change) => ({
-          category: change.category,
-          channel: change.channel,
-          enabled: change.enabled,
+        notificationPreferences: written.map((cell) => ({
+          category: cell.category,
+          channel: cell.channel,
+          enabled: cell.enabled,
         })),
       });
 
@@ -198,10 +361,22 @@ export function useNotificationDelivery(): NotificationDelivery {
       await queryClient.cancelQueries({
         queryKey: getMyPreferencesQueryKey(userId),
       });
+      await releasePushIfSilent();
     } catch (error) {
       console.error("Failed to update the notification preference", error);
       paint(previous);
       toast.error(t("error"));
+
+      // The cache notifies its readers on a macrotask, so this rollback is
+      // not on screen yet, and the busy flag below is plain state that lands
+      // sooner. A row reads "the write settled" from that flag and says where
+      // the kind arrives now: cleared first, it would read the channels the
+      // write failed to store and report them as stored, then fall silent
+      // when the rollback took the sentence back down. Same delay, queued
+      // after the cache's, so the flag follows the paint.
+      await new Promise((resolve) => {
+        setTimeout(resolve, 0);
+      });
     } finally {
       setSaving((current) =>
         current.filter((candidate) => !categories.includes(candidate)),
@@ -209,5 +384,84 @@ export function useNotificationDelivery(): NotificationDelivery {
     }
   }
 
-  return { groups, setDelivery };
+  /**
+   * Why no push arrives on this browser, when none does.
+   *
+   * `isSupported` is null until the mount read lands, so only an explicit
+   * false is an answer. A blocked browser can be told apart from one that
+   * cannot push at all, and the two need different words.
+   *
+   * A browser that can push and holds no subscription is the third: consent
+   * stands, the cells are on, and nothing reaches this browser until a press
+   * subscribes it again. `canToggleDevice` carries the rest of that sentence,
+   * a session and standing consent included, and `isDeviceKnown` keeps the
+   * mount read from reporting every browser as missing on the first paint.
+   */
+  const pushBlock: PushBlock | null = readPushBlock();
+
+  function readPushBlock(): PushBlock | null {
+    if (push.isSupported === false) {
+      return "unsupported";
+    }
+
+    if (push.isBlocked) {
+      return "denied";
+    }
+
+    return push.canToggleDevice && push.isDeviceKnown && !push.isDeviceEnabled
+      ? "unsubscribed"
+      : null;
+  }
+
+  const pushWanted = cells.some(
+    (cell) => cell.channel === "OS_BANNER" && cell.enabled,
+  );
+
+  /**
+   * Drops this browser's own subscription, and nothing else.
+   *
+   * The account consent and every cell stay where they were, so the reader's
+   * other devices carry on: they asked for quiet here, not on their phone.
+   * Turning it back on is the banner's press, which has the account consent to
+   * consider as well and already knows how.
+   */
+  async function silenceThisBrowser() {
+    if (push.isSaving || !push.canToggleDevice) {
+      return;
+    }
+
+    try {
+      await push.setDeviceEnabled(false);
+      toast.success(t("deviceDisabledSuccess"));
+    } catch (error) {
+      console.error("Failed to silence push on this browser", error);
+      toast.error(t("pushError"));
+    }
+  }
+
+  return {
+    groups,
+    pushBlock,
+    pushWanted,
+    pushSaving: push.isSaving,
+    activatePush: activatePushIfNeeded,
+    // Only while a push is actually arriving here. A row for a browser
+    // nothing is trying to reach answers a question nobody asked, and every
+    // other state of this browser is what the banner is for: it says a push
+    // will not arrive and offers to fix that, where this says one will and
+    // offers to stop it. `pushBlock` being null is the whole of "this browser
+    // is subscribed and can push", so it carries the rest of the sentence.
+    device:
+      pushWanted && push.isDeviceEnabled && pushBlock === null
+        ? {
+            saving: push.isSaving,
+            onSilence: () => {
+              void silenceThisBrowser();
+            },
+          }
+        : null,
+    loading: sessionPending || (Boolean(userId) && isPending),
+    failed: Boolean(userId) && isError && preferences === undefined,
+    setDeliveries,
+  };
 }
