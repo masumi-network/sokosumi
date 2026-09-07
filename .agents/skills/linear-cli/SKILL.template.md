@@ -127,6 +127,38 @@ linear issue comment add ENG-123 --body-file /tmp/comment.md
 
 **Only use inline flags** (`--description`, `--body`) for simple, single-line content.
 
+## Linear Markdown Features
+
+### Mention people and resources with plain URLs
+
+Linear turns a resource's **plain Linear URL** in Markdown into a linked mention. A literal `@name`, `@[Name](id)`, or a Markdown link such as `[Name](url)` does not create the same mention. Put the plain URL directly in the comment or description:
+
+```markdown
+https://linear.app/yourworkspace/profiles/someuser could you review this? https://linear.app/yourworkspace/issue/ENG-123 is related.
+```
+
+Resolve people within the relevant team first. The team can usually be inferred from the issue identifier or current directory:
+
+```bash
+linear team members ENG --json
+```
+
+Use the selected member's `url` field verbatim in the Markdown. If the intended person is not a member of that team, stop and confirm before searching the whole workspace with `linear user list --json`; mentioning someone outside the team is likely accidental. For issues, use `linear issue url ENG-123` and include that plain URL.
+
+### Add collapsible sections
+
+Open a collapsible section with `+++ [title]` and close it with `+++`:
+
+```markdown
++++ [Server log]
+
+Markdown content that is initially hidden.
+
++++
+```
+
+The square brackets around the title and the closing `+++` are required.
+
 ## Available Commands
 
 Compact command list, generated from `linear --help`:
@@ -156,7 +188,7 @@ Each command has detailed help output describing all available flags and options
 
 Some commands have required flags that aren't obvious. Notable examples:
 
-- `issue list` sorts by priority by default — override via `--sort` (valid values: `manual`, `priority`), the `issue_sort` config option, or the `LINEAR_ISSUE_SORT` env var. Requires `--team <key>` unless the team can be inferred from the directory — if unknown, run `linear team list` first.
+- `issue list` sorts by priority by default — override via `--sort` (valid values: `manual`, `priority`), the `issue_sort` config option, or the `LINEAR_ISSUE_SORT` env var. Requires `--team <key>` unless the team can be inferred from the directory — if unknown, run `linear team list` first (`linear team list --json` maps team names to their `key` and `id`).
 - `--no-pager` is only supported on `issue list` — passing it to other commands like `project list` will error.
 
 ## Using the Linear GraphQL API Directly
