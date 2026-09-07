@@ -81,6 +81,10 @@ function ChannelExplainer({
   onOpenChange: (open: boolean) => void;
 }) {
   const byPointer = useRef(false);
+  // Whether the caret went into the panel. Only then is there anything to give
+  // back when it goes, and giving back what was never taken is how a hover
+  // ends up dragging the focus ring across the page.
+  const heldFocus = useRef(false);
   const closing = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const holdOpen = () => {
@@ -110,7 +114,9 @@ function ChannelExplainer({
     <Popover
       open={open}
       onOpenChange={(next) => {
-        if (!next) {
+        if (next) {
+          heldFocus.current = false;
+        } else {
           byPointer.current = false;
         }
 
@@ -127,6 +133,7 @@ function ChannelExplainer({
 
           holdOpen();
           byPointer.current = true;
+          heldFocus.current = false;
           onOpenChange(true);
         }}
         onPointerLeave={(event) => {
@@ -174,16 +181,27 @@ function ChannelExplainer({
             event.preventDefault();
           }
         }}
-        // And it must not take the caret back on the way out. Radix returns
-        // focus to the name it came from when the panel goes, which for a
-        // panel the pointer opened means the caret is dragged along behind a
-        // mouse that was never asking for it. It also puts focus outside the
-        // panel the pointer has just arrived at, and that panel dismisses
-        // itself on the spot.
+        // The caret came in here, so it goes back to the name it came from.
+        onFocusCapture={() => {
+          heldFocus.current = true;
+        }}
+        // And it goes back only then. Radix hands focus to the trigger on
+        // every close, which after a hover means the ring lands on a word the
+        // reader only passed over, and on a scrolled page it takes the page
+        // back with it.
         onCloseAutoFocus={(event) => {
-          if (byPointer.current) {
+          if (!heldFocus.current) {
             event.preventDefault();
           }
+        }}
+        // Focus leaving is not a dismissal. Nothing in here can be tabbed to,
+        // and the caret does leave on its own: the panel a reader opened with
+        // Enter hands focus back to its name as it closes, and that name is
+        // outside the panel they have just hovered. Dismissing on it closed
+        // the new panel the moment it opened. Escape, a press outside and the
+        // pointer leaving all still close it.
+        onFocusOutside={(event) => {
+          event.preventDefault();
         }}
       >
         <p className="flex items-center gap-1.5 font-medium">
@@ -237,10 +255,12 @@ export function ChannelLegend({
    * One panel at a time, held by the row rather than by each name.
    *
    * Each name closes behind the pointer on a wait, so a pointer crossing the
-   * row arrives at the next name while the one it came from is still counting
-   * down: two panels 288px wide, overlapping, over the rows they explain. Held
-   * here, the name being arrived at takes the panel and the one being left
-   * loses it in the same paint.
+   * row arrived at the next name while the one it came from was still counting
+   * down: two panels 288px wide, both up, over the rows they explain. Held
+   * here, the name being arrived at takes the panel and the one being left is
+   * closed on the spot. It is still drawn while its exit plays, the way every
+   * popover on this page is, so what overlaps is a panel on its way out rather
+   * than a second one standing there for the whole wait.
    *
    * The close still goes through the name that asked for it. It comes in late
    * by design, and by then the panel may belong to a name further along the

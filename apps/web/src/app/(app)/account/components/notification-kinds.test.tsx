@@ -987,6 +987,9 @@ describe("NotificationKinds", () => {
    * 72px wide. Each name closing on its own wait, a pointer crossing the row
    * left one panel counting down under the next one, and for that moment the
    * rows were behind two boxes saying different things.
+   *
+   * Read on the row's state rather than on the frame: a browser still plays
+   * the outgoing panel's exit, and this asks that it has been told to go.
    */
   it("shows one column's explanation at a time", async () => {
     const user = userEvent.setup();
@@ -1003,6 +1006,82 @@ describe("NotificationKinds", () => {
     // with the pointer rather than that the old one goes away eventually.
     expect(screen.queryByText("channelInAppHint")).toBeNull();
     expect(await screen.findByText("channelPushHint")).toBeInTheDocument();
+  });
+
+  /**
+   * A panel opened with Enter holds the caret, and Radix hands it back to the
+   * name as the panel goes. That name is outside the panel the pointer has
+   * just arrived at, and a panel that dismissed on focus leaving closed itself
+   * in the same breath it opened.
+   */
+  it("keeps the hovered explanation open over a keyboard-opened one", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    screen.getByRole("button", { name: "channelInApp" }).focus();
+    await user.keyboard("{Enter}");
+    await screen.findByText("channelInAppHint");
+
+    await user.hover(screen.getByRole("button", { name: "channelPush" }));
+
+    await act(async () => {
+      await new Promise((settle) => setTimeout(settle, 300));
+    });
+
+    expect(screen.getByText("channelPushHint")).toBeInTheDocument();
+  });
+
+  /**
+   * Hovering a word must not take the caret. Radix gives focus back to the
+   * trigger on every close, and after a hover there is nothing to give back:
+   * the ring would land on a word the reader only passed over, and a scrolled
+   * page would jump back to the legend to show it.
+   */
+  it("leaves the caret where it was after a hovered explanation closes", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const name = screen.getByRole("button", { name: "channelPush" });
+
+    await user.hover(name);
+    await screen.findByText("channelPushHint");
+    await user.unhover(name);
+
+    await waitFor(() => {
+      expect(screen.queryByText("channelPushHint")).toBeNull();
+    });
+
+    expect(document.activeElement).not.toBe(name);
+  });
+
+  /**
+   * And it does go back when it was taken. A reader who opened the panel with
+   * Enter is in it; closing it without handing the caret back would drop them
+   * at the top of the page.
+   */
+  it("gives the caret back to the name when Escape closes the explanation", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const name = screen.getByRole("button", { name: "channelPush" });
+
+    name.focus();
+    await user.keyboard("{Enter}");
+    await screen.findByText("channelPushHint");
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByText("channelPushHint")).toBeNull();
+    });
+
+    expect(document.activeElement).toBe(name);
   });
 
   it("puts the channel legend inside each expanded section", async () => {
