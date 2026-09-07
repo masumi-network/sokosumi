@@ -24,6 +24,7 @@
     "web:typecheck": "pnpm --filter web typecheck",
     "core:typecheck": "pnpm --filter core typecheck",
     "start": "pnpm -r start",
+    "sokosumi": "pnpm --filter sokosumi-cli sokosumi",
     "core:start": "pnpm --filter core start",
     "web:start": "pnpm --filter web start",
     "precommit": "pnpm check && pnpm typecheck",
