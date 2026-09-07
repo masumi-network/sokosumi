@@ -73,8 +73,8 @@ function FoldRow({
 }) {
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
-      <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
-        <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px] sm:flex-1">
+      <div className="flex flex-col gap-2 px-4 py-3 @xl:flex-row @xl:items-center @xl:gap-4">
+        <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px] @xl:flex-1">
           {/* Turned on the same 200ms ease-out the fold opens on, so the
               mark and the box it belongs to stop together. Under reduced
               motion it has no transition at all and simply points the other
@@ -93,7 +93,7 @@ function FoldRow({
             </span>
           </span>
         </CollapsibleTrigger>
-        {answer ? <div className="shrink-0 pl-6 sm:pl-0">{answer}</div> : null}
+        {answer ? <div className="shrink-0 pl-6 @xl:pl-0">{answer}</div> : null}
       </div>
       {/* The fold measures itself, so the cells slide out of the row rather
           than replacing it between two frames. `overflow-hidden` is what makes
@@ -355,7 +355,12 @@ export function NotificationKinds({
       : "";
 
   return (
-    <div className="space-y-3">
+    // The card decides its own layout. Every switch below reads this width
+    // rather than the window's: with the sidebar open the card is about 430px
+    // inside a 768px window, and a window-width switch put the wide layout on
+    // it there. The kind name got 156px and stood six lines tall, where the
+    // same card one pixel narrower stacked the row and gave it two.
+    <div className="@container space-y-3">
       {/* One region for the whole read, drawn from the first paint and empty
           until it has something to say. A region that arrives with its text
           already in it is announced by some screen readers and not by others;

@@ -79,7 +79,7 @@ function BrowserNotice({
           : "bg-muted/50",
       )}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 @xl:flex-row @xl:items-center">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           {/* The tint and the mark carry the warning; the words do not.
               `--semantic-warning` is a 40% yellow, about 2.3:1 on its own
@@ -129,7 +129,7 @@ function BrowserNotice({
             // the words. The fixed height goes with it, or the second line
             // would leave the box the same way.
             className={cn(
-              "ml-7 h-auto min-h-8 self-start py-1.5 whitespace-normal sm:ml-0 sm:h-8 sm:self-auto sm:py-0",
+              "ml-7 h-auto min-h-8 self-start py-1.5 whitespace-normal @xl:ml-0 @xl:h-8 @xl:self-auto @xl:py-0",
               action.saving && "opacity-50",
             )}
           >

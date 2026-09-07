@@ -215,7 +215,7 @@ export function ChannelLegend({
       {named ? (
         // Lined up with the kind names below it, which is the whole of what it
         // is doing here.
-        <span className="hidden min-w-0 flex-1 pr-3 pl-6 sm:block sm:pl-10">
+        <span className="hidden min-w-0 flex-1 pr-3 pl-6 @xl:block @xl:pl-10">
           {t("channelsKindLabel")}
         </span>
       ) : null}

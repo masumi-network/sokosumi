@@ -70,7 +70,7 @@ const CELL_DEAD = "text-muted-foreground/45 cursor-default border-transparent";
  * fits, and the names wrap to two lines rather than going missing. The wide
  * one comes back at `sm`, where it holds the German "In der App" on one line.
  */
-export const CELL_TRACK = "flex w-12 shrink-0 justify-center sm:w-18";
+export const CELL_TRACK = "flex w-12 shrink-0 justify-center @xl:w-18";
 
 /**
  * The face of each channel in the grid.
@@ -441,10 +441,10 @@ export function ChannelGrid({
         // right edge either way.
         <div
           key={kind.spec.category}
-          className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2"
+          className="flex flex-col gap-2 py-2 @xl:flex-row @xl:items-center @xl:justify-end @xl:gap-2"
         >
           {showNames ? (
-            <div className="min-w-0 pr-3 pl-6 break-words sm:flex-1 sm:pl-10">
+            <div className="min-w-0 pr-3 pl-6 break-words @xl:flex-1 @xl:pl-10">
               <p className="text-sm leading-5">{t(kind.spec.labelKey)}</p>
               <p className="text-muted-foreground text-sm leading-5">
                 {t(kind.spec.hintKey)}
