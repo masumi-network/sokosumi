@@ -5,7 +5,7 @@
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
       "skillPath": "skills/agent-browser/SKILL.md",
-      "computedHash": "a674b7d81066e3cc471a7512ddb4ae724418cbfefa75cbb050b0dc430e4d57a0"
+      "computedHash": "80161e6836b3b40f4e83730a290deb40ac14d877d38c97ad5f6d71be37ce74c3"
     },
     "ai-sdk": {
       "source": "vercel/ai",
@@ -41,7 +41,7 @@
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman/SKILL.md",
-      "computedHash": "1a41e7f3543c4a969c040c34a96925f8a3f82a6179a3f1002692b37957f7140b"
+      "computedHash": "fa7c0951349ae3782a20e55c6d1e72e4c23585b7932bb5e021c17c4f8f055a07"
     },
     "caveman-commit": {
       "source": "juliusbrussee/caveman",
@@ -53,7 +53,7 @@
       "source": "juliusbrussee/caveman",
       "sourceType": "github",
       "skillPath": "skills/caveman-compress/SKILL.md",
-      "computedHash": "1b22b22d8621e5b1148dc785f8b7682bfba67a5d8e076cecd3fb0df5d9cd8910"
+      "computedHash": "4a890dbf7bd28b62bafd0c8dc98b70e13df67bc78f3d6d9cfe8841aab337349e"
     },
     "caveman-discover": {
       "source": "juliusbrussee/caveman",
@@ -239,7 +239,7 @@
       "source": "schpet/linear-cli",
       "sourceType": "github",
       "skillPath": "skills/linear-cli/SKILL.md",
-      "computedHash": "ca44cd117fccee057d70632aaf596c44529d5ea11d85d7650a62b9ed66475596"
+      "computedHash": "6e87348250fc459b9820e65d448e227af19125b5e7c05c247221b9911ae815d8"
     },
     "linear-requirement": {
       "source": ".",
@@ -429,7 +429,7 @@
       "source": "vercel/turborepo",
       "sourceType": "github",
       "skillPath": "skills/turborepo/SKILL.md",
-      "computedHash": "799ac3cf9ec94f14c37be76f0be14c896727c968c2d49501cd77713d724d1e33"
+      "computedHash": "4289866858fc5314e10ca21584d00c48ddb7e6bc353e262283958f8e4b9bec87"
     },
     "using-ably": {
       "source": "ably/agent-skills",

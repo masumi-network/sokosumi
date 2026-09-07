@@ -81,7 +81,7 @@ strategy:
     node: [18, 20, 22]
 
 steps:
-  - uses: actions/setup-node@v7
+  - uses: actions/setup-node@v4
     with:
       node-version: ${{ matrix.node }}
 
