@@ -45,7 +45,7 @@ The same binary will cover listing, Hire, and Job for Agent developers. That wor
 - Complements `/developer`. API keys, OAuth clients, docs, Coworkers, and vendor Tasks remain on the web.
 - The human at the keyboard authenticates with Better Auth API keys and/or OAuth access tokens, not web session cookies.
 - `coworker_*` keys belong to the Coworker process. The developer CLI session does not use them unless that process *is* the Coworker.
-- No `package.json` until a spec says what the package is. `pnpm-workspace.yaml` already matches `apps/*`, so an empty package would join the turbo graph by accident.
+- Package identity is in [`SPEC.md`](./SPEC.md) (`sokosumi-cli` / bin `sokosumi`). Add `package.json` only when implementing that spec. `pnpm-workspace.yaml` already matches `apps/*`.
 
 ## Out of this vision
 
