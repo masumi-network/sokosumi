@@ -7,16 +7,22 @@ const {
   membershipFindManyMock,
   userFindManyMock,
   notificationFindFirstMock,
+  resolveDeliveryMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
   notificationFindFirstMock: vi.fn(),
+  resolveDeliveryMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
   createNotification: (...args: unknown[]) => createNotificationMock(...args),
+  // The counting write asks which channels the row would reach before it looks
+  // for a row to count onto. Which channels those are is the fan-out's
+  // question; this file asks who hears about the message at all.
+  resolveDelivery: (...args: unknown[]) => resolveDeliveryMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -81,6 +87,7 @@ beforeEach(() => {
   membershipFindManyMock.mockResolvedValue([]);
   userFindManyMock.mockResolvedValue([subscriber(SUBSCRIBER_ID)]);
   notificationFindFirstMock.mockResolvedValue(null);
+  resolveDeliveryMock.mockResolvedValue({ inApp: true, osBanner: true });
 });
 
 describe("emitChatRoomMessageNotifications", () => {
