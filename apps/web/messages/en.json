@@ -4209,6 +4209,16 @@
         "deliveryAriaLabel": "Delivery for {kind}",
         "newsDeliveryAriaLabel": "Delivery for marketing emails"
       },
+      "ChatDisplay": {
+        "title": "Chat display",
+        "description": "Choose what your chat sidebar shows you",
+        "roomUnreadCountTitle": "Show unread message counts",
+        "roomUnreadCountDescription": "Show how many unread messages each chat holds. Muted chats and the chat you have open stay quiet. This changes nothing about the notifications you receive.",
+        "loading": "Saving preference...",
+        "error": "Could not save that change. Check your connection and try again.",
+        "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
+        "roomUnreadCountDisabledSuccess": "Unread message counts disabled"
+      },
       "BillingDetails": {
         "title": "Billing information",
         "description": "Billing address, tax ID, invoice email, and payment methods are managed in Stripe.",
@@ -5516,6 +5526,10 @@
         "loadOlder": "Load older threads",
         "startedBy": "Started by {name}",
         "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}"
+      },
+      "RoomUnread": {
+        "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
+        "unreadMessagesCapped": "More than {max} unread messages"
       },
       "MembershipStatus": {
         "joined": "{name} joined",

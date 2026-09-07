@@ -27,6 +27,7 @@ import {
   unpinOrganizationChatRoomAction,
 } from "@/components/chat/organization-chat-list.actions";
 import { resolveRoomAttention } from "@/components/chat/room-attention";
+import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +69,46 @@ interface ChatRoomSidebarRowProps {
   onRoomUpdated: (room: ChatRoom) => void;
   /** When false, render plain Link (page-mounted list outside Sheet). */
   dismissSheetOnNavigate?: boolean;
+}
+
+/**
+ * The cap the row's numeric chrome shares. `MentionBadge` hardcodes the same
+ * value; this ticket leaves the badge untouched, so the two are stated apart.
+ */
+const ROOM_UNREAD_COUNT_CAP = 99;
+
+/**
+ * The reader's opt-in Room unread count.
+ *
+ * Muted text rather than a pill, because it is not the mention badge and a
+ * reader has to tell the two apart at a glance. It caps like the badge so a
+ * very loud room cannot reflow the row, and it hides with the badge when the
+ * sidebar collapses to icons.
+ */
+function RoomUnreadCount({ count }: { count: number }) {
+  const t = useTranslations("App.Channels.RoomUnread");
+
+  if (count <= 0) {
+    return null;
+  }
+
+  const capped = count > ROOM_UNREAD_COUNT_CAP;
+
+  // A bare `span` is role `generic`, which prohibits an accessible name, so an
+  // `aria-label` here can be dropped and the row announces a bare number beside
+  // the badge's bare number. Real text carries it instead.
+  return (
+    <span className="text-muted-foreground group-data-[collapsible=icon]:hidden shrink-0 text-xs leading-4 tabular-nums">
+      <span aria-hidden="true">
+        {capped ? `${ROOM_UNREAD_COUNT_CAP}+` : count}
+      </span>
+      <span className="sr-only">
+        {capped
+          ? t("unreadMessagesCapped", { max: ROOM_UNREAD_COUNT_CAP })
+          : t("unreadMessages", { count })}
+      </span>
+    </span>
+  );
 }
 
 function MentionBadge({ count }: { count: number }) {
@@ -112,12 +153,14 @@ export function ChatRoomSidebarRow({
       room.discoverability === "matched" ||
       room.userMembers.filter((member) => member.access === "member").length >
         1);
-  const { bold, badgeCount } = resolveRoomAttention({
+  const showUnreadCount = useShowRoomUnreadCount();
+  const { bold, badgeCount, unreadTextCount } = resolveRoomAttention({
     unreadCount: room.unreadCount,
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
     isMuted,
     isActive,
+    showUnreadCount,
   });
 
   function runRoomAction(
@@ -193,6 +236,7 @@ export function ChatRoomSidebarRow({
           </span>
         ) : null}
       </span>
+      <RoomUnreadCount count={unreadTextCount} />
       <MentionBadge count={badgeCount} />
       <span
         className={cn(

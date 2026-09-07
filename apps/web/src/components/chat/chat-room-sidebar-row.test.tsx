@@ -13,13 +13,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CHAT_CHATS_LIST_PATH } from "@/app/chat/utils/chat-route-base";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
-const { leaveRoomActionMock, replaceMock, refreshMock, notifyMock } =
-  vi.hoisted(() => ({
-    leaveRoomActionMock: vi.fn(),
-    replaceMock: vi.fn(),
-    refreshMock: vi.fn(),
-    notifyMock: vi.fn(),
-  }));
+const {
+  leaveRoomActionMock,
+  replaceMock,
+  refreshMock,
+  notifyMock,
+  showRoomUnreadCountMock,
+} = vi.hoisted(() => ({
+  leaveRoomActionMock: vi.fn(),
+  replaceMock: vi.fn(),
+  refreshMock: vi.fn(),
+  notifyMock: vi.fn(),
+  showRoomUnreadCountMock: vi.fn(() => false),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -36,8 +42,11 @@ vi.mock("next/link", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations:
-    (_namespace?: string) => (key: string, values?: Record<string, string>) => {
+    (_namespace?: string) =>
+    (key: string, values?: Record<string, string | number>) => {
       const translations: Record<string, string> = {
+        unreadMessages: `${values?.count ?? ""} unread messages`,
+        unreadMessagesCapped: `More than ${values?.max ?? ""} unread messages`,
         leave: "Leave channel",
         leaveConfirmTitle: `Leave ${values?.name ?? ""}?`,
         leaveConfirmDescription: `Leave description for ${values?.name ?? ""}`,
@@ -65,6 +74,10 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/app/chat/actions", () => ({
   leaveRoomAction: (...args: unknown[]) => leaveRoomActionMock(...args),
+}));
+
+vi.mock("@/components/chat/use-show-room-unread-count", () => ({
+  useShowRoomUnreadCount: () => showRoomUnreadCountMock(),
 }));
 
 vi.mock("@/components/chat/organization-chat-events", () => ({
@@ -446,5 +459,168 @@ describe("ChatRoomSidebarRow leave menu", () => {
     expect(notifyMock).toHaveBeenCalledWith({ removedRoomId: "room-1" });
     expect(replaceMock).toHaveBeenCalledWith(CHAT_CHATS_LIST_PATH);
     expect(refreshMock).toHaveBeenCalled();
+  });
+});
+
+describe("ChatRoomSidebarRow unread message count", () => {
+  beforeEach(() => {
+    showRoomUnreadCountMock.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    showRoomUnreadCountMock.mockReturnValue(false);
+  });
+
+  function renderRow(room: ChatRoom, isActive = false) {
+    return render(
+      <ChatRoomSidebarRow
+        room={room}
+        href={`/chat/rooms/${room.id}`}
+        label={room.name ?? room.id}
+        isActive={isActive}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+  }
+
+  it("shows nothing extra when the reader has not opted in", () => {
+    showRoomUnreadCountMock.mockReturnValue(false);
+    renderRow(makeRoom({ unreadCount: 4 }));
+
+    expect(screen.queryByText("4 unread messages")).toBeNull();
+    expect(screen.queryByText("4")).toBeNull();
+  });
+
+  it("shows the unread message count when the reader opted in", () => {
+    renderRow(makeRoom({ unreadCount: 4 }));
+
+    expect(screen.getByText("4")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("4 unread messages").className).toContain(
+      "sr-only",
+    );
+  });
+
+  it("shows no count on a room with nothing unread", () => {
+    renderRow(makeRoom({ unreadCount: 0 }));
+
+    expect(screen.queryByText(/unread messages/)).toBeNull();
+  });
+
+  it("shows no count on a muted room", () => {
+    renderRow(makeRoom({ unreadCount: 4, mutedAt: new Date() }));
+
+    expect(screen.queryByText(/unread messages/)).toBeNull();
+  });
+
+  it("shows no count on the room the reader has open", () => {
+    renderRow(makeRoom({ unreadCount: 4 }), true);
+
+    expect(screen.queryByText(/unread messages/)).toBeNull();
+  });
+
+  it("caps a very loud room so the row cannot reflow", () => {
+    renderRow(makeRoom({ unreadCount: 1234 }));
+
+    expect(screen.getByText("99+")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("More than 99 unread messages")).toBeVisible();
+  });
+
+  it("hides the count with the mention badge when the sidebar collapses", () => {
+    renderRow(makeRoom({ unreadCount: 4 }));
+
+    expect(
+      screen.getByText("4 unread messages").parentElement?.className,
+    ).toContain("group-data-[collapsible=icon]:hidden");
+  });
+
+  // The regression guard: a mention and unread messages on one row, each
+  // number saying its own thing. The badge must keep counting mentions.
+  it("shows a mention badge and a message count without either changing", () => {
+    renderRow(makeRoom({ unreadCount: 9, unreadMentionCount: 2 }));
+
+    expect(screen.getByLabelText("2 mentions")).toHaveTextContent("2");
+    expect(screen.getByText("9 unread messages")).toBeInTheDocument();
+    expect(screen.getByText("9")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  // The pure-function seam never receives the room kind, so it cannot prove
+  // these. They fail if anyone ever puts a kind gate on the count path.
+  it("shows the count on a Direct", () => {
+    renderRow(
+      makeRoom({
+        id: "direct-1",
+        name: "Ada",
+        kind: "direct",
+        slug: null,
+        directKey: "user-1:user-2",
+        discoverability: null,
+        unreadCount: 3,
+      }),
+    );
+
+    expect(screen.getByText("3 unread messages")).toBeInTheDocument();
+  });
+
+  it("shows the count on a multi-human group Direct", () => {
+    renderRow(
+      makeRoom({
+        id: "direct-2",
+        name: "Ada, Grace, Alan",
+        kind: "direct",
+        slug: null,
+        directKey: "user-1:user-2:user-3",
+        discoverability: null,
+        unreadCount: 6,
+        userMembers: [
+          makeUser("user-1"),
+          makeUser("user-2"),
+          makeUser("user-3"),
+        ],
+      }),
+    );
+
+    expect(screen.getByText("6 unread messages")).toBeInTheDocument();
+  });
+
+  it("shows the count on a coworker 1:1", () => {
+    renderRow(
+      makeRoom({
+        id: "direct-3",
+        name: "Scout",
+        kind: "direct",
+        slug: null,
+        directKey: "user-1:coworker-1",
+        discoverability: null,
+        unreadCount: 2,
+        userMembers: [makeUser("user-1")],
+        coworkerMembers: [
+          {
+            id: "coworker-1",
+            name: "Scout",
+            slug: "scout",
+            caption: null,
+            image: null,
+            presence: "offline",
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByText("2 unread messages")).toBeInTheDocument();
+  });
+
+  it("shows the count on an External channel", () => {
+    renderRow(
+      makeRoom({
+        id: "external-1",
+        name: "partner-room",
+        organizationName: "Partner Inc",
+        myAccess: "guest",
+        unreadCount: 5,
+      }),
+    );
+
+    expect(screen.getByText("5 unread messages")).toBeInTheDocument();
   });
 });
