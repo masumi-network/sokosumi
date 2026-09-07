@@ -63,6 +63,7 @@ const MESSAGES = {
       "{agentName} needs your input for {jobName}",
     "Notifications.Job.refundResolved": "{jobName} was refunded",
     "Notifications.Job.disputeResolved": "Dispute resolved for {jobName}",
+    "Notifications.Task.assigned": "You were assigned {taskName}",
     "Notifications.Task.inputRequired":
       "{coworkerName} needs your input for {taskName}",
     "Notifications.Task.approvalRequired":
@@ -94,6 +95,7 @@ const MESSAGES = {
       "{agentName} benötigt deinen Input für {jobName}",
     "Notifications.Job.refundResolved": "{jobName} wurde erstattet",
     "Notifications.Job.disputeResolved": "Einspruch für {jobName} gelöst",
+    "Notifications.Task.assigned": "Dir wurde {taskName} zugewiesen",
     "Notifications.Task.inputRequired":
       "{coworkerName} benötigt deinen Input für {taskName}",
     "Notifications.Task.approvalRequired":
@@ -128,6 +130,7 @@ const MESSAGES = {
       "{agentName} necesita tu input para {jobName}",
     "Notifications.Job.refundResolved": "{jobName} fue reembolsado",
     "Notifications.Job.disputeResolved": "Disputa resuelta para {jobName}",
+    "Notifications.Task.assigned": "Se te asignó {taskName}",
     "Notifications.Task.inputRequired":
       "{coworkerName} necesita tu input para {taskName}",
     "Notifications.Task.approvalRequired":
