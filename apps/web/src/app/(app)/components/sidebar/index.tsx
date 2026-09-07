@@ -49,6 +49,7 @@ export interface AccountCreditsChrome {
   currentTimestampMs: number;
   subscriptionPeriodEndMs: number | null;
   totalCredits: number | null;
+  extraCredits: number | null;
   creditUsage: CreditUsage | null;
 }
 
@@ -73,6 +74,7 @@ export function mapAccountCreditsChrome(
       ? new Date(subscriptionPeriodEnd).getTime()
       : null,
     totalCredits: creditsData?.total ?? null,
+    extraCredits: creditsResult?.data.extra.credits.remaining ?? null,
     creditUsage: resolveCreditUsage(creditsData),
   };
 }

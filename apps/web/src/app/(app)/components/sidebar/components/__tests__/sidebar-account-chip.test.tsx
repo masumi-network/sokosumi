@@ -73,6 +73,7 @@ function renderChip(
       sessionUser={sessionUser}
       planName="Pro"
       totalCredits={15_750}
+      extraCredits={15_750}
       creditUsage={null}
       subscriptionPeriodEndMs={null}
       currentTimestampMs={1_700_000_000_000}
@@ -348,6 +349,7 @@ describe("SidebarAccountChip", () => {
         sessionUser={sessionUser}
         planName="Pro"
         totalCredits={15_750}
+        extraCredits={15_750}
         creditUsage={null}
         subscriptionPeriodEndMs={null}
         currentTimestampMs={1_700_000_000_000}
@@ -369,6 +371,7 @@ describe("SidebarAccountChip", () => {
         sessionUser={sessionUser}
         planName="Pro"
         totalCredits={15_750}
+        extraCredits={15_750}
         creditUsage={null}
         subscriptionPeriodEndMs={null}
         currentTimestampMs={1_700_000_000_000}
@@ -418,8 +421,9 @@ describe("SidebarAccountChip", () => {
     expect(screen.queryByText(/collapsedSummary/)).not.toBeInTheDocument();
   });
 
-  it("never shows extra-credit copy in the account overview", () => {
+  it("shows additional credits in the overview without the old extra-credits row", () => {
     renderChip({
+      extraCredits: 51_162,
       creditUsage: {
         percentageUsed: 25,
         remaining: 750,
@@ -434,9 +438,11 @@ describe("SidebarAccountChip", () => {
       screen.queryByText("extraCreditsDescription"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
-    expect(screen.getByTestId("credits-total-available")).toHaveTextContent(
-      "totalAvailableHero 15750",
+    expect(screen.queryByText("totalAvailableLabel")).not.toBeInTheDocument();
+    expect(screen.getByTestId("credits-additional")).toHaveTextContent(
+      "additionalCreditsHero 51162",
     );
+    expect(screen.getByText("additionalCreditsLabel")).toBeInTheDocument();
     expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
   });
 });

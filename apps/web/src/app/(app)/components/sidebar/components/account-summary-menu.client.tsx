@@ -36,7 +36,7 @@ export interface AccountSummaryMenuProps
 export function AccountSummaryMenu({
   sessionUser,
   planName,
-  totalCredits,
+  extraCredits,
   creditUsage,
   subscriptionPeriodEndMs,
   currentTimestampMs,
@@ -158,11 +158,12 @@ export function AccountSummaryMenu({
           <div className="bg-border h-px" />
           <CreditsCycleOverview
             creditUsage={creditUsage}
-            totalCredits={totalCredits}
+            extraCredits={extraCredits}
             subscriptionPeriodEndMs={subscriptionPeriodEndMs}
             currentTimestampMs={currentTimestampMs}
           />
-          {totalCredits !== null || creditUsage !== null ? (
+          {(extraCredits !== null && extraCredits > 0) ||
+          creditUsage !== null ? (
             <div className="bg-border h-px" />
           ) : null}
           <div className="space-y-2">

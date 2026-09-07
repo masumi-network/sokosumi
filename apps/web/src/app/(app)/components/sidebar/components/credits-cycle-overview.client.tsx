@@ -10,24 +10,31 @@ import { resolveCreditRenewalKind } from "./account-summary-labels";
 
 export interface CreditsCycleOverviewProps {
   creditUsage: CreditUsage | null;
-  totalCredits: number | null;
+  extraCredits: number | null;
   subscriptionPeriodEndMs: number | null;
   currentTimestampMs: number;
   headingId?: string;
 }
 
+function additionalCreditsDisplay(extraCredits: number | null): number | null {
+  if (extraCredits === null) {
+    return null;
+  }
+  const formatted = formatCreditsForDisplay(extraCredits);
+  return formatted > 0 ? formatted : null;
+}
+
 export function CreditsCycleOverview({
   creditUsage,
-  totalCredits,
+  extraCredits,
   subscriptionPeriodEndMs,
   currentTimestampMs,
   headingId,
 }: CreditsCycleOverviewProps): ReactElement | null {
   const tCredit = useTranslations("Components.UserAvatar");
 
-  const formattedTotal =
-    totalCredits === null ? null : formatCreditsForDisplay(totalCredits);
-  if (formattedTotal === null && creditUsage === null) {
+  const formattedExtra = additionalCreditsDisplay(extraCredits);
+  if (formattedExtra === null && creditUsage === null) {
     return null;
   }
 
@@ -68,7 +75,7 @@ export function CreditsCycleOverview({
     monthly = (
       <div className="space-y-1.5">
         <p
-          id={formattedTotal === null ? headingId : undefined}
+          id={formattedExtra === null ? headingId : undefined}
           className="text-xs font-medium"
         >
           {tCredit("monthlyUsageLimit")}
@@ -98,15 +105,15 @@ export function CreditsCycleOverview({
 
   return (
     <div className="space-y-4" data-testid="credits-cycle-overview">
-      {formattedTotal !== null ? (
-        <div className="space-y-1" data-testid="credits-total-available">
+      {formattedExtra !== null ? (
+        <div className="space-y-1" data-testid="credits-additional">
           <p className="text-lg leading-none font-semibold tracking-tight tabular-nums">
-            {tCredit("totalAvailableHero", {
-              credits: formattedTotal,
+            {tCredit("additionalCreditsHero", {
+              credits: formattedExtra,
             })}
           </p>
           <p id={headingId} className="text-muted-foreground text-xs">
-            {tCredit("totalAvailableLabel")}
+            {tCredit("additionalCreditsLabel")}
           </p>
         </div>
       ) : null}

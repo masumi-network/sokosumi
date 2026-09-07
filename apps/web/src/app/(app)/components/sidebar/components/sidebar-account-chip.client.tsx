@@ -65,6 +65,7 @@ function SidebarAccountChipDesktop({
   sessionUser,
   planName,
   totalCredits,
+  extraCredits,
   creditUsage,
   subscriptionPeriodEndMs,
   currentTimestampMs,
@@ -170,6 +171,7 @@ function SidebarAccountChipDesktop({
         sessionUser={sessionUser}
         planName={planName}
         totalCredits={totalCredits}
+        extraCredits={extraCredits}
         creditUsage={creditUsage}
         subscriptionPeriodEndMs={subscriptionPeriodEndMs}
         currentTimestampMs={currentTimestampMs}

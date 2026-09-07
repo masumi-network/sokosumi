@@ -59,6 +59,7 @@ export default async function SidebarDeferredAccount({
         sessionUser={sessionUser}
         planName={planName}
         totalCredits={credits.totalCredits}
+        extraCredits={credits.extraCredits}
         creditUsage={credits.creditUsage}
         subscriptionPeriodEndMs={credits.subscriptionPeriodEndMs}
         currentTimestampMs={credits.currentTimestampMs}

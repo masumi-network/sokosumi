@@ -61,6 +61,7 @@ describe("mapAccountCreditsChrome", () => {
       currentTimestampMs: 0,
       subscriptionPeriodEndMs: null,
       totalCredits: null,
+      extraCredits: null,
       creditUsage: null,
     });
   });
@@ -70,7 +71,7 @@ describe("mapAccountCreditsChrome", () => {
     const timestamp = new Date("2026-08-13T12:00:00.000Z");
     const creditsData = {
       ...buildCreditsData(),
-      buffer: 10,
+      buffer: 99,
       subscription: {
         ...buildCreditsData().subscription!,
         periodEnd,
@@ -101,6 +102,7 @@ describe("mapAccountCreditsChrome", () => {
       currentTimestampMs: timestamp.getTime(),
       subscriptionPeriodEndMs: periodEnd.getTime(),
       totalCredits: 100,
+      extraCredits: 10,
       creditUsage: {
         percentageUsed: 25,
         remaining: 75,
