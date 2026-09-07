@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/collapsible";
 import {
   ChannelGrid,
-  DeviceCells,
   EmailCell,
   type EmailChoice,
   UnusedChannelCells,
@@ -23,9 +22,8 @@ import {
 } from "./notification-delivery";
 import { ChannelLegend } from "./notification-legend";
 import { GroupAnswer } from "./notification-presets";
-import { PushBanner } from "./notification-push-banner";
+import { DeviceBanner, PushBanner } from "./notification-push-banner";
 import {
-  type DeviceChoice,
   type GroupChoice,
   type NotificationDelivery,
   useNotificationDelivery,
@@ -247,49 +245,6 @@ function NewsRow({ news }: { news: EmailChoice }) {
   );
 }
 
-/**
- * This browser, as a row of the same card.
- *
- * The push column writes the account, so a reader who wants their laptop quiet
- * and their phone loud has nowhere else to say so. This row is that: it drops
- * this browser's own subscription and leaves every cell and the account
- * consent where they were.
- *
- * It folds on the same columns as every other row, with one live cell in the
- * Push column, because that is the only column a browser can answer for.
- *
- * Drawn only while a push is arriving here. In every other state the banner
- * over the card is the one saying something about this browser, and the two
- * would otherwise contradict each other on the same screen.
- */
-function DeviceRow({ device }: { device: DeviceChoice }) {
-  const t = useTranslations("App.Account.Notifications");
-  const [open, setOpen] = useState(false);
-  const label = t("deviceTitle");
-  const hintId = useId();
-
-  return (
-    <FoldRow
-      name={label}
-      description={t("deviceHint")}
-      descriptionId={hintId}
-      open={open}
-      onOpenChange={setOpen}
-    >
-      <ChannelLegend pushBlock={null} />
-      <div className="flex items-center justify-end gap-2 border-t py-2">
-        <div
-          role="group"
-          aria-label={t("deviceDeliveryAriaLabel")}
-          className="flex shrink-0 items-center justify-end gap-2"
-        >
-          <DeviceCells name={label} describedById={hintId} device={device} />
-        </div>
-      </div>
-    </FoldRow>
-  );
-}
-
 /** The account switch on a row of its own, for when no kind row carries it. */
 function EmailRow({ email }: { email: EmailChoice }) {
   const t = useTranslations("App.Account.Notifications");
@@ -402,13 +357,15 @@ export function NotificationKinds({
           </p>
         </div>
       ) : null}
-      {/* One banner for the whole card, because the browser is one answer for
-          every row. It waits for a kind to be asking for a push: with every
-          banner cell off, nothing is going wrong here.
+      {/* One line for the whole card, because the browser is one answer for
+          every row. Either face waits for a kind to be asking for a push:
+          with every banner cell off, this browser has nothing to say.
 
-          It is the other half of the This browser row below. This says a push
-          the reader asked for will not arrive here; that one says one will,
-          and offers to stop it. Exactly one of the two is ever on screen. */}
+          The two are halves of one answer and exactly one is ever on screen.
+          The warning says a push the reader asked for will not arrive here
+          and offers to fix that; the other says one will, and offers to stop
+          it. `device` is null whenever a block is set, so they cannot both
+          stand. */}
       {choices.pushBlock && choices.pushWanted ? (
         <PushBanner
           block={choices.pushBlock}
@@ -416,6 +373,12 @@ export function NotificationKinds({
           onEnable={() => {
             void choices.activatePush();
           }}
+        />
+      ) : null}
+      {choices.device ? (
+        <DeviceBanner
+          saving={choices.device.saving}
+          onSilence={choices.device.onSilence}
         />
       ) : null}
       <div className="divide-y rounded-lg border">
@@ -432,9 +395,6 @@ export function NotificationKinds({
             whether or not the read landed. */}
         {choices.loading || mailedByARow ? null : <EmailRow email={email} />}
         <NewsRow news={news} />
-        {/* Last of all, because it is the only row that is not about what
-            Sokosumi sends. It answers where the reader is standing. */}
-        {choices.device ? <DeviceRow device={choices.device} /> : null}
       </div>
     </div>
   );

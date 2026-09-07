@@ -1,9 +1,10 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, type LucideIcon, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { PushBlock } from "./notification-delivery";
 
 /** What is wrong, in a line the reader can act on or dismiss in their head. */
@@ -28,6 +29,96 @@ const BODY_KEY: Record<PushBlock, string> = {
   unsubscribed: "pushBannerUnsubscribedBody",
 };
 
+/** The press a notice offers, where it has one to offer. */
+interface NoticeAction {
+  labelKey: string;
+  /** A push write is in flight. The button stays where it is, and waits. */
+  saving: boolean;
+  onPress: () => void;
+}
+
+/**
+ * One line about this browser, over the rows it is about.
+ *
+ * Both faces of that line are this shape, because they are one answer read
+ * twice: the rows below ask for a push, and this says whether it lands here.
+ * Drawing them apart would give the same sentence two layouts and put the
+ * button in two places.
+ *
+ * Only the tint and the mark tell them apart. A browser that cannot show a
+ * push the reader asked for is a warning; a browser that can is not, so the
+ * second one takes the card's own colours and says its piece quietly.
+ */
+function BrowserNotice({
+  warning,
+  icon: Icon,
+  titleKey,
+  bodyKey,
+  action,
+}: {
+  warning: boolean;
+  icon: LucideIcon;
+  titleKey: string;
+  bodyKey: string;
+  action: NoticeAction | null;
+}) {
+  const t = useTranslations("App.Account.Notifications");
+
+  return (
+    // It usually arrives in the middle of a press: a cell asks for a push,
+    // and this is the answer. Fading down into the gap it makes says it
+    // belongs to that press, where appearing between two frames reads as the
+    // page having been like this all along and the reader having missed it. A
+    // reader who set the cell on an earlier visit meets it on the first paint
+    // instead, where one short fade is the whole of it.
+    <div
+      className={cn(
+        "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 animation-duration-200 rounded-lg border p-4",
+        warning
+          ? "border-semantic-warning-tertiary bg-semantic-warning-quinary"
+          : "bg-muted/50",
+      )}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          {/* The tint and the mark carry the warning; the words do not.
+              `--semantic-warning` is a 40% yellow, about 2.3:1 on its own
+              quinary tint in light mode, which is under what a paragraph
+              needs. The account notices colour their text with it and get
+              away with one short line. This one has a reason to explain. */}
+          <Icon
+            className={cn(
+              "mt-0.5 size-4 shrink-0",
+              warning ? "text-semantic-warning" : "text-muted-foreground",
+            )}
+            aria-hidden="true"
+          />
+          <div className="min-w-0 space-y-1">
+            <p className="text-sm leading-5 font-medium">{t(titleKey)}</p>
+            <p className="text-muted-foreground text-sm leading-5">
+              {t(bodyKey)}
+            </p>
+          </div>
+        </div>
+        {action ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={action.saving}
+            onClick={action.onPress}
+            // Stacked under the words on a phone, it starts where the words
+            // start rather than where the mark does: the mark and the gap
+            // beside it are 28px.
+            className="ml-7 self-start sm:ml-0 sm:self-auto"
+          >
+            {t(action.labelKey)}
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /**
  * A push the rows are asking for, that this browser will not show.
  *
@@ -50,51 +141,56 @@ export function PushBanner({
   saving: boolean;
   onEnable: () => void;
 }) {
-  const t = useTranslations("App.Account.Notifications");
-
   return (
-    // It usually arrives in the middle of a press: a cell asks for a push,
-    // and this is the answer. Fading down into the gap it makes says it
-    // belongs to that press, where appearing between two frames reads as the
-    // page having been like this all along and the reader having missed it. A
-    // reader who set the cell on an earlier visit meets it on the first paint
-    // instead, where one short fade is the whole of it.
-    <div className="border-semantic-warning-tertiary bg-semantic-warning-quinary motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 animation-duration-200 rounded-lg border p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          {/* The tint and the mark carry the warning; the words do not.
-              `--semantic-warning` is a 40% yellow, about 2.3:1 on its own
-              quinary tint in light mode, which is under what a paragraph
-              needs. The account notices colour their text with it and get
-              away with one short line. This one has a reason to explain. */}
-          <AlertTriangle
-            className="text-semantic-warning mt-0.5 size-4 shrink-0"
-            aria-hidden="true"
-          />
-          <div className="min-w-0 space-y-1">
-            <p className="text-sm leading-5 font-medium">
-              {t(TITLE_KEY[block])}
-            </p>
-            <p className="text-muted-foreground text-sm leading-5">
-              {t(BODY_KEY[block])}
-            </p>
-          </div>
-        </div>
-        {block === "unsubscribed" ? (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={saving}
-            onClick={onEnable}
-            // Stacked under the words on a phone, it starts where the words
-            // start rather than where the mark does: the mark and the gap
-            // beside it are 28px.
-            className="ml-7 self-start sm:ml-0 sm:self-auto"
-          >
-            {t("pushBannerAction")}
-          </Button>
-        ) : null}
-      </div>
-    </div>
+    <BrowserNotice
+      warning={true}
+      icon={AlertTriangle}
+      titleKey={TITLE_KEY[block]}
+      bodyKey={BODY_KEY[block]}
+      action={
+        block === "unsubscribed"
+          ? {
+              labelKey: "pushBannerAction",
+              saving,
+              onPress: onEnable,
+            }
+          : null
+      }
+    />
+  );
+}
+
+/**
+ * A push the rows are asking for, that this browser will show.
+ *
+ * The other half of the same answer, and never on screen beside it. The push
+ * column writes the account, so a reader who wants their laptop quiet and
+ * their phone loud has nowhere else to say so: this drops this browser's own
+ * subscription and leaves every cell and the account consent where they were.
+ *
+ * It carries the mark of the Push column rather than a warning's, because
+ * nothing here is wrong. It is the state the reader asked for, and the press
+ * is there for the day they stop wanting it.
+ */
+export function DeviceBanner({
+  saving,
+  onSilence,
+}: {
+  /** A push write is in flight. The button stays where it is, and waits. */
+  saving: boolean;
+  onSilence: () => void;
+}) {
+  return (
+    <BrowserNotice
+      warning={false}
+      icon={Smartphone}
+      titleKey="deviceBannerTitle"
+      bodyKey="deviceBannerBody"
+      action={{
+        labelKey: "deviceBannerAction",
+        saving,
+        onPress: onSilence,
+      }}
+    />
   );
 }

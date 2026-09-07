@@ -18,7 +18,7 @@ import {
   type StoredChannel,
   sameChannels,
 } from "./notification-delivery";
-import type { DeviceChoice, KindChoice } from "./use-notification-delivery";
+import type { KindChoice } from "./use-notification-delivery";
 
 /**
  * A cell's shape, and the properties it may animate.
@@ -217,80 +217,6 @@ export function EmailCell({
         <Mail className="size-4" aria-hidden="true" />
       </button>
     </span>
-  );
-}
-
-/**
- * This browser, in the Push column of the same grid.
- *
- * A row of the card like any other, so the one thing it can answer sits in the
- * column that answers it everywhere else. The other two columns are dead: this
- * row is about a browser rather than a kind, and nothing about it reaches
- * Sokosumi's own feed or a mailbox.
- *
- * The cell is on and can only go off. Every other state of this browser is the
- * banner's, so the row is drawn only while a push is arriving here, and the
- * one press it takes is the one that stops that.
- */
-export function DeviceCells({
-  name,
-  describedById,
-  device,
-}: {
-  /** The row's own name, for the cells that compose theirs from it. */
-  name: string;
-  /** The row's visible line, which says what the press does to other devices. */
-  describedById: string;
-  device: DeviceChoice;
-}) {
-  const t = useTranslations("App.Account.Notifications");
-
-  return (
-    <>
-      <DeadCell
-        icon={CHANNEL_ICON.IN_APP}
-        label={t("channelUnavailableLabel", {
-          channel: t("channelInApp"),
-          kind: name,
-        })}
-        hint={t("devicePushOnlyHint")}
-      />
-      <span className={CELL_TRACK}>
-        <button
-          type="button"
-          aria-pressed={true}
-          aria-disabled={device.saving || undefined}
-          aria-label={t("channelCellLabel", {
-            channel: t("channelPush"),
-            kind: name,
-          })}
-          aria-describedby={describedById}
-          onClick={() => {
-            if (device.saving) {
-              return;
-            }
-
-            device.onSilence();
-          }}
-          className={cn(
-            CELL,
-            CELL_PRESS,
-            device.saving && "opacity-50",
-            CELL_ON,
-          )}
-        >
-          <Smartphone className="size-4" aria-hidden="true" />
-        </button>
-      </span>
-      <DeadCell
-        icon={Mail}
-        label={t("channelUnavailableLabel", {
-          channel: t("channelEmail"),
-          kind: name,
-        })}
-        hint={t("devicePushOnlyHint")}
-      />
-    </>
   );
 }
 

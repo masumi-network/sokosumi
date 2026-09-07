@@ -2359,35 +2359,24 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * The one row that is not about what Sokosumi sends.
+   * The half of the browser notice that says a push is landing here.
    *
    * The push column writes the account, so without this a reader who wants
    * their laptop quiet and their phone loud has nowhere to say so. It drops
    * this browser's own subscription and leaves every cell where it was.
    */
   describe("this browser", () => {
-    /** Its cells sit in the same grid, so the same accessors reach them. */
-    function deviceRow() {
-      return screen.getByRole("group", { name: "deviceDeliveryAriaLabel" });
-    }
-
-    function devicePush() {
-      if (!screen.queryByRole("group", { name: "deviceDeliveryAriaLabel" })) {
-        openFolds();
-      }
-
-      return within(deviceRow()).getByRole("button", {
-        name: "channelCellLabel channelPush deviceTitle",
-      });
+    function silenceButton() {
+      return screen.getByRole("button", { name: "deviceBannerAction" });
     }
 
     it("silences this browser without touching the account", async () => {
       const user = userEvent.setup();
       renderKinds();
 
-      expect(devicePush()).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByText("deviceBannerTitle")).toBeInTheDocument();
 
-      await user.click(devicePush());
+      await user.click(silenceButton());
 
       await waitFor(() => {
         expect(setDeviceEnabled).toHaveBeenCalledWith(false);
@@ -2398,27 +2387,8 @@ describe("NotificationKinds", () => {
       expect(patchMyPreferences).not.toHaveBeenCalled();
     });
 
-    /**
-     * A browser is not a kind, so it reaches neither the feed nor a mailbox.
-     * Those two columns say so rather than leaving the row two holes.
-     */
-    it("answers for the push column and no other", () => {
-      renderKinds();
-
-      openFolds();
-
-      for (const channel of ["channelInApp", "channelEmail"]) {
-        const dead = within(deviceRow()).getByRole("button", {
-          name: `channelUnavailableLabel ${channel} deviceTitle`,
-        });
-
-        expect(dead).toHaveAttribute("aria-disabled", "true");
-        expect(describedBy(dead)).toBe("devicePushOnlyHint");
-      }
-    });
-
-    /** No push is asked for, so a row about push answers nothing. */
-    it("offers no row while no kind asks for a push", () => {
+    /** No push is asked for, so a line about push answers nothing. */
+    it("says nothing while no kind asks for a push", () => {
       renderKinds(
         MATRIX.map((cell) => ({
           ...cell,
@@ -2426,56 +2396,56 @@ describe("NotificationKinds", () => {
         })),
       );
 
-      expect(screen.queryByText("deviceTitle")).toBeNull();
+      expect(screen.queryByText("deviceBannerTitle")).toBeNull();
     });
 
     /**
-     * The banner is the other half of this row. It says a push the reader
-     * asked for will not arrive here and offers to fix that; the row says one
-     * will and offers to stop it. Two of them on one screen would be one
-     * browser answering itself twice.
+     * The warning is the other half of this. It says a push the reader asked
+     * for will not arrive here and offers to fix that; this says one will and
+     * offers to stop it. Two of them on one screen would be one browser
+     * answering itself twice.
      */
-    it("leaves a browser holding no subscription to the banner", () => {
+    it("leaves a browser holding no subscription to the warning", () => {
       isDeviceEnabled = false;
       renderKinds();
 
-      expect(screen.queryByText("deviceTitle")).toBeNull();
+      expect(screen.queryByText("deviceBannerTitle")).toBeNull();
       expect(
         screen.getByText("pushBannerUnsubscribedTitle"),
       ).toBeInTheDocument();
     });
 
-    it("offers no row on a browser that cannot push", () => {
+    it("says nothing on a browser that cannot push", () => {
       isSupported = false;
       renderKinds();
 
-      expect(screen.queryByText("deviceTitle")).toBeNull();
+      expect(screen.queryByText("deviceBannerTitle")).toBeNull();
       expect(
         screen.getByText("pushBannerUnsupportedTitle"),
       ).toBeInTheDocument();
     });
 
-    it("offers no row on a browser that refused the permission", () => {
+    it("says nothing on a browser that refused the permission", () => {
       isBlocked = true;
       renderKinds();
 
-      expect(screen.queryByText("deviceTitle")).toBeNull();
+      expect(screen.queryByText("deviceBannerTitle")).toBeNull();
       expect(screen.getByText("pushBannerDeniedTitle")).toBeInTheDocument();
     });
 
     /**
-     * Reachable while a push write is in flight, and doing nothing. A cell the
-     * browser disables drops out of the tab order under the reader's finger,
-     * which is the one moment they are on it.
+     * The press waits where it is while a push write is in flight, the way the
+     * warning's does. Both are one button on a notice rather than a cell in
+     * the tab order of the grid, so disabling it costs the reader nothing.
      */
-    it("keeps the cell reachable while a push write is in flight", async () => {
+    it("holds the press while a push write is in flight", async () => {
       const user = userEvent.setup();
       isSaving = true;
       renderKinds();
 
-      expect(devicePush()).toHaveAttribute("aria-disabled", "true");
+      expect(silenceButton()).toBeDisabled();
 
-      await user.click(devicePush());
+      await user.click(silenceButton());
 
       expect(setDeviceEnabled).not.toHaveBeenCalled();
     });
