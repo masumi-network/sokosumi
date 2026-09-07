@@ -2366,17 +2366,28 @@ describe("NotificationKinds", () => {
    * this browser's own subscription and leaves every cell where it was.
    */
   describe("this browser", () => {
-    function deviceSwitch() {
-      return screen.getByRole("switch", { name: "deviceAriaLabel" });
+    /** Its cells sit in the same grid, so the same accessors reach them. */
+    function deviceRow() {
+      return screen.getByRole("group", { name: "deviceDeliveryAriaLabel" });
+    }
+
+    function devicePush() {
+      if (!screen.queryByRole("group", { name: "deviceDeliveryAriaLabel" })) {
+        openFolds();
+      }
+
+      return within(deviceRow()).getByRole("button", {
+        name: "channelCellLabel channelPush deviceTitle",
+      });
     }
 
     it("silences this browser without touching the account", async () => {
       const user = userEvent.setup();
       renderKinds();
 
-      expect(deviceSwitch()).toBeChecked();
+      expect(devicePush()).toHaveAttribute("aria-pressed", "true");
 
-      await user.click(deviceSwitch());
+      await user.click(devicePush());
 
       await waitFor(() => {
         expect(setDeviceEnabled).toHaveBeenCalledWith(false);
@@ -2388,26 +2399,26 @@ describe("NotificationKinds", () => {
     });
 
     /**
-     * The same switch back on, which is the whole reason it replaced a
-     * warning: the state it reports is one the reader can leave.
+     * A browser is not a kind, so it reaches neither the feed nor a mailbox.
+     * Those two columns say so rather than leaving the row two holes.
      */
-    it("subscribes this browser again from the same switch", async () => {
-      const user = userEvent.setup();
-      isDeviceEnabled = false;
+    it("answers for the push column and no other", () => {
       renderKinds();
 
-      expect(deviceSwitch()).not.toBeChecked();
-      expect(screen.getByText("deviceOffHint")).toBeInTheDocument();
+      openFolds();
 
-      await user.click(deviceSwitch());
+      for (const channel of ["channelInApp", "channelEmail"]) {
+        const dead = within(deviceRow()).getByRole("button", {
+          name: `channelUnavailableLabel ${channel} deviceTitle`,
+        });
 
-      await waitFor(() => {
-        expect(setDeviceEnabled).toHaveBeenCalledWith(true);
-      });
+        expect(dead).toHaveAttribute("aria-disabled", "true");
+        expect(describedBy(dead)).toBe("devicePushOnlyHint");
+      }
     });
 
-    /** No push is asked for, so a switch about push answers nothing. */
-    it("offers no switch while no kind asks for a push", () => {
+    /** No push is asked for, so a row about push answers nothing. */
+    it("offers no row while no kind asks for a push", () => {
       renderKinds(
         MATRIX.map((cell) => ({
           ...cell,
@@ -2415,75 +2426,56 @@ describe("NotificationKinds", () => {
         })),
       );
 
-      expect(
-        screen.queryByRole("switch", { name: "deviceAriaLabel" }),
-      ).toBeNull();
+      expect(screen.queryByText("deviceTitle")).toBeNull();
     });
 
     /**
-     * A browser that cannot push, or one that refused, has nothing this
-     * switch could do. Those two get the banner, which explains rather than
-     * offering a control that would never move.
+     * The banner is the other half of this row. It says a push the reader
+     * asked for will not arrive here and offers to fix that; the row says one
+     * will and offers to stop it. Two of them on one screen would be one
+     * browser answering itself twice.
      */
-    it("offers no switch on a browser that cannot push", () => {
+    it("leaves a browser holding no subscription to the banner", () => {
+      isDeviceEnabled = false;
+      renderKinds();
+
+      expect(screen.queryByText("deviceTitle")).toBeNull();
+      expect(
+        screen.getByText("pushBannerUnsubscribedTitle"),
+      ).toBeInTheDocument();
+    });
+
+    it("offers no row on a browser that cannot push", () => {
       isSupported = false;
       renderKinds();
 
-      expect(
-        screen.queryByRole("switch", { name: "deviceAriaLabel" }),
-      ).toBeNull();
+      expect(screen.queryByText("deviceTitle")).toBeNull();
       expect(
         screen.getByText("pushBannerUnsupportedTitle"),
       ).toBeInTheDocument();
     });
 
-    it("offers no switch on a browser that refused the permission", () => {
+    it("offers no row on a browser that refused the permission", () => {
       isBlocked = true;
       renderKinds();
 
-      expect(
-        screen.queryByRole("switch", { name: "deviceAriaLabel" }),
-      ).toBeNull();
+      expect(screen.queryByText("deviceTitle")).toBeNull();
       expect(screen.getByText("pushBannerDeniedTitle")).toBeInTheDocument();
     });
 
     /**
-     * A browser holding no subscription is a switch rather than a warning:
-     * the reader may have turned it off, and a page that shouts about their
-     * own choice is a page they learn to ignore.
+     * Reachable while a push write is in flight, and doing nothing. A cell the
+     * browser disables drops out of the tab order under the reader's finger,
+     * which is the one moment they are on it.
      */
-    it("says a missing subscription with the switch rather than a banner", () => {
-      isDeviceEnabled = false;
-      renderKinds();
-
-      expect(deviceSwitch()).not.toBeChecked();
-      expect(screen.queryByRole("alert")).toBeNull();
-      expect(screen.queryByText(/pushBanner/)).toBeNull();
-    });
-
-    /** The browser has not answered yet, so neither has the switch. */
-    it("waits for the browser before it draws the switch", () => {
-      isDeviceKnown = false;
-      renderKinds();
-
-      expect(
-        screen.queryByRole("switch", { name: "deviceAriaLabel" }),
-      ).toBeNull();
-    });
-
-    /**
-     * Reachable while a push write is in flight, and doing nothing. A switch
-     * the browser disables drops out of the tab order under the reader's
-     * finger, which is the one moment they are on it.
-     */
-    it("keeps the switch reachable while a push write is in flight", async () => {
+    it("keeps the cell reachable while a push write is in flight", async () => {
       const user = userEvent.setup();
       isSaving = true;
       renderKinds();
 
-      expect(deviceSwitch()).toHaveAttribute("aria-disabled", "true");
+      expect(devicePush()).toHaveAttribute("aria-disabled", "true");
 
-      await user.click(deviceSwitch());
+      await user.click(devicePush());
 
       expect(setDeviceEnabled).not.toHaveBeenCalled();
     });

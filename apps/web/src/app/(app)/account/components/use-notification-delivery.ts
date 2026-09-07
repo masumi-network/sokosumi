@@ -48,12 +48,12 @@ export interface GroupChoice {
   saving: boolean;
 }
 
-/** This browser's own subscription, as one switch. */
+/** This browser's own subscription, as the one cell that drops it. */
 export interface DeviceChoice {
-  enabled: boolean;
-  /** A push write is in flight. The switch stays reachable, and does nothing. */
+  /** A push write is in flight. The cell stays reachable, and does nothing. */
   saving: boolean;
-  onChange: (next: boolean) => void;
+  /** Drops it. There is no other direction: the row is only drawn while it stands. */
+  onSilence: () => void;
 }
 
 export interface NotificationDelivery {
@@ -75,12 +75,20 @@ export interface NotificationDelivery {
    * it. With every banner cell off, nothing is going wrong.
    */
   pushWanted: boolean;
+  /** A push write is in flight, so the banner's button waits for it. */
+  pushSaving: boolean;
   /**
-   * This browser, when it is a browser the reader can move.
+   * Subscribes this browser, asking the browser for the permission if it has
+   * not been asked. The same path a push cell takes, from the banner instead.
+   */
+  activatePush: () => Promise<void>;
+  /**
+   * This browser, while a push is arriving on it and there is one to stop.
    *
-   * Null while nothing is asking for a push, before the browser has answered,
-   * and on a browser that cannot push or was refused the permission: none of
-   * those is a switch, and the last two have a banner that says why.
+   * Null wherever the row would answer nothing: with no kind asking for a
+   * push, before the browser has answered, and in every state the banner
+   * already covers. The row and the banner are two halves of one answer about
+   * this browser, and only one of them is ever on screen.
    */
   device: DeviceChoice | null;
   /**
@@ -390,24 +398,15 @@ export function useNotificationDelivery(): NotificationDelivery {
   );
 
   /**
-   * Turns this browser's own subscription on or off, and nothing else.
+   * Drops this browser's own subscription, and nothing else.
    *
-   * On, it takes the same path a push cell takes, because the account consent
-   * can be missing as well and this browser cannot subscribe without it. Off,
-   * it drops this browser's subscription and leaves the consent alone: the
-   * reader asked for quiet here, not on their phone.
+   * The account consent and every cell stay where they were, so the reader's
+   * other devices carry on: they asked for quiet here, not on their phone.
+   * Turning it back on is the banner's press, which has the account consent to
+   * consider as well and already knows how.
    */
-  async function setDevice(next: boolean) {
-    if (push.isSaving) {
-      return;
-    }
-
-    if (next) {
-      await activatePushIfNeeded();
-      return;
-    }
-
-    if (!push.canToggleDevice) {
+  async function silenceThisBrowser() {
+    if (push.isSaving || !push.canToggleDevice) {
       return;
     }
 
@@ -424,19 +423,20 @@ export function useNotificationDelivery(): NotificationDelivery {
     groups,
     pushBlock,
     pushWanted,
-    // A switch for a browser nothing is trying to reach answers a question
-    // nobody asked, and one on a browser that cannot push at all is a control
-    // that would never move. Both of those say so elsewhere.
+    pushSaving: push.isSaving,
+    activatePush: activatePushIfNeeded,
+    // Only while a push is actually arriving here. A row for a browser
+    // nothing is trying to reach answers a question nobody asked, and every
+    // other state of this browser is what the banner is for: it says a push
+    // will not arrive and offers to fix that, where this says one will and
+    // offers to stop it. `pushBlock` being null is the whole of "this browser
+    // is subscribed and can push", so it carries the rest of the sentence.
     device:
-      pushWanted &&
-      push.isDeviceKnown &&
-      pushBlock !== "unsupported" &&
-      pushBlock !== "denied"
+      pushWanted && push.isDeviceEnabled && pushBlock === null
         ? {
-            enabled: push.isDeviceEnabled,
             saving: push.isSaving,
-            onChange: (next: boolean) => {
-              void setDevice(next);
+            onSilence: () => {
+              void silenceThisBrowser();
             },
           }
         : null,
