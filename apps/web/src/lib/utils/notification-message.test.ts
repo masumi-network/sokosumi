@@ -47,14 +47,30 @@ describe("getNotificationMessageTranslationKey", () => {
    * The count arrives as JSON a Core build wrote, so a string or a null is a
    * shape this reader can be handed rather than one it can rule out.
    */
-  it("keeps the single-message line when the count is not a number", () => {
-    for (const count of ["23", null, undefined, Number.NaN]) {
+  it("keeps the single-message line when the count is not a whole number", () => {
+    for (const count of ["23", null, undefined, Number.NaN, 1.5]) {
       expect(
         getNotificationMessageTranslationKey(CHAT_ROOM_MESSAGE_MESSAGE_KEY, {
           count,
         }),
       ).toBe(`Library.${CHAT_ROOM_MESSAGE_MESSAGE_KEY}`);
     }
+  });
+
+  /**
+   * A banner interrupts because a message just arrived, so it says that
+   * message. The push service worker renders the stored key and knows nothing
+   * of counts, so a counted banner here would be a second answer for a reader
+   * whose tab happened to be open.
+   */
+  it("leaves the count out when the caller asks for the arrival", () => {
+    expect(
+      getNotificationMessageTranslationKey(
+        CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        { roomName: "Design", count: 23 },
+        { counted: false },
+      ),
+    ).toBe(`Library.${CHAT_ROOM_MESSAGE_MESSAGE_KEY}`);
   });
 
   it("counts nothing but a room message", () => {
