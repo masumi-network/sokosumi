@@ -426,7 +426,7 @@ describe("createNotification push gating", () => {
     );
     mockReader({
       preferences: [
-        { category: "JOB_UPDATE", channel: "IN_APP", enabled: false },
+        { category: "JOB_COMPLETED", channel: "IN_APP", enabled: false },
       ],
     });
 
@@ -455,7 +455,7 @@ describe("createNotification push gating", () => {
     );
     mockReader({
       preferences: [
-        { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
+        { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: false },
       ],
     });
 
@@ -509,8 +509,8 @@ describe("createNotification push gating", () => {
     );
     mockReader({
       preferences: [
-        { category: "JOB_UPDATE", channel: "IN_APP", enabled: false },
-        { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
+        { category: "JOB_COMPLETED", channel: "IN_APP", enabled: false },
+        { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: false },
       ],
     });
 

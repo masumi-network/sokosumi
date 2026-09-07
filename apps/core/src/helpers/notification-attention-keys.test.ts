@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   JOB_ATTENTION_MESSAGE_KEYS,
+  JOB_COMPLETED_MESSAGE_KEY,
   TASK_ATTENTION_MESSAGE_KEYS,
+  TASK_COMPLETED_MESSAGE_KEY,
 } from "./notification-delivery";
 
 /**
@@ -15,14 +17,12 @@ import {
  * a key nobody classified falls to the update row on its own. That fallback is
  * the safe direction for noise and the wrong one for work that waits on the
  * reader, and it is silent either way. This test is the noise: add a producer
- * key and it fails until someone puts the key on one of the two rows.
+ * key and it fails until someone puts the key on a row.
  */
 const UPDATE_MESSAGE_KEYS: readonly string[] = [
-  "Notifications.Job.completed",
   "Notifications.Job.failed",
   "Notifications.Job.disputeResolved",
   "Notifications.Job.refundResolved",
-  "Notifications.Task.completed",
   "Notifications.Task.failed",
   "Notifications.Task.canceled",
   "Notifications.Task.scheduleRepaired",
@@ -76,10 +76,12 @@ function emittedMessageKeys(): string[] {
 }
 
 describe("the job and task keys Core names", () => {
-  it("are each classified as waiting on the reader or not", () => {
+  it("are each classified onto a row", () => {
     const classified = new Set([
       ...JOB_ATTENTION_MESSAGE_KEYS,
+      JOB_COMPLETED_MESSAGE_KEY,
       ...TASK_ATTENTION_MESSAGE_KEYS,
+      TASK_COMPLETED_MESSAGE_KEY,
       ...UPDATE_MESSAGE_KEYS,
     ]);
 
@@ -95,7 +97,9 @@ describe("the job and task keys Core names", () => {
     expect(
       [
         ...JOB_ATTENTION_MESSAGE_KEYS,
+        JOB_COMPLETED_MESSAGE_KEY,
         ...TASK_ATTENTION_MESSAGE_KEYS,
+        TASK_COMPLETED_MESSAGE_KEY,
         ...UPDATE_MESSAGE_KEYS,
       ].filter((key) => !emitted.has(key)),
     ).toEqual([]);
