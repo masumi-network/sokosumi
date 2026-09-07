@@ -1,80 +1,41 @@
-//
-//  ContentView.swift
-//  Sokosumi
-//
-//  Created by Andreas Osberghaus on 07.09.26.
-//
-
+import CoreAPI
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+  @State private var status = "Calling Core…"
 
-    var body: some View {
-        NavigationViewWrapper {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-#if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-#endif
-            .toolbar {
-#if os(iOS)
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-#endif
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        }
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("Sokosumi")
+        .font(.title)
+      Text("Core: \(CoreSettings.baseURL.absoluteString)")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      Text(status)
+        .textSelection(.enabled)
     }
+    .padding(24)
+    .frame(minWidth: 420, minHeight: 180, alignment: .topLeading)
+    .task { await probeCore() }
+  }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
+  private func probeCore() async {
+    do {
+      let response = try await Client.connecting(to: CoreSettings.baseURL)
+        .getUsersId(path: .init(id: "me"))
+      switch response {
+      case .unauthorized(let unauthorized):
+        let payload = try unauthorized.body.json
+        status = "Unauthorized as expected: \(payload.message)"
+      default:
+        status = "Expected 401, got \(String(describing: response))"
+      }
+    } catch {
+      status = "Core call failed: \(error.localizedDescription)"
     }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
-        }
-    }
-}
-
-fileprivate struct NavigationViewWrapper<Content: View>: View {
-    let content: () -> Content
-
-    var body: some View {
-#if os(macOS)
-        NavigationSplitView {
-            content()
-        } detail: {
-            Text("Select an item")
-        }
-#else
-        content()
-#endif
-    }
+  }
 }
 
 #Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+  ContentView()
 }

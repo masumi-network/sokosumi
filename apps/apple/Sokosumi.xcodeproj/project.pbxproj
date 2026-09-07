@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E172F750304F3FBD00C517E4 /* CoreAPI in Frameworks */ = {isa = PBXBuildFile; productRef = E172F751304F3FBD00C517E4 /* CoreAPI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		E172F731304F3FBD00C517E4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E172F750304F3FBD00C517E4 /* CoreAPI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = Sokosumi;
 			packageProductDependencies = (
+				E172F751304F3FBD00C517E4 /* CoreAPI */,
 			);
 			productName = Sokosumi;
 			productReference = E172F721304F3FBC00C517E4 /* Sokosumi.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = E172F718304F3FBC00C517E4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E172F752304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/CoreAPI" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E172F722304F3FBC00C517E4 /* Products */;
 			projectDirPath = "";
@@ -388,6 +397,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Sokosumi/Sokosumi.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
@@ -432,6 +442,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Sokosumi/Sokosumi.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
@@ -609,6 +620,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		E172F752304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/CoreAPI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/CoreAPI;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E172F751304F3FBD00C517E4 /* CoreAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E172F752304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/CoreAPI" */;
+			productName = CoreAPI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E172F719304F3FBC00C517E4 /* Project object */;
 }
