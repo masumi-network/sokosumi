@@ -65,3 +65,6 @@ lint-report.json
 
 # verify-sokosumi proof artifacts (keep skill; discard run evidence)
 .cursor/verify-sokosumi-artifacts/
+
+# Xcode per-user state
+**/xcuserdata/

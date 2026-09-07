@@ -21,6 +21,7 @@ sokosumi/
 ├── apps/
 │   ├── web/                   # Next.js web app — live tree `src/`
 │   ├── core/                  # Hono API — live tree `src/`
+│   ├── apple/                 # Native macOS + iOS — Xcode (outside turbo and Biome)
 │   └── cli/                   # Developer CLI — VISION.md only until specced
 ├── packages/
 │   ├── database/              # @sokosumi/database — `src/` + `prisma/`; exports in package.json
@@ -91,7 +92,7 @@ sokosumi/
 
 #### Biome Configuration
 
-The monorepo uses a shared Biome configuration at the repo root (`biome.jsonc`). Each app and package that Biome should cover also has a `biome.json` with `"extends": "//"` so nested projects inherit that root config (see [Biome: big projects / monorepos](https://biomejs.dev/guides/big-projects/)).
+The monorepo uses a shared Biome configuration at the repo root (`biome.jsonc`). Each app and package that Biome should cover also has a `biome.json` with `"extends": "//"` so nested projects inherit that root config (see [Biome: big projects / monorepos](https://biomejs.dev/guides/big-projects/)). `apps/apple` is excluded there (`!apps/apple/**`); do not add a nested Biome config for Swift.
 
 `@biomejs/biome` is a **root-only** `devDependency`. Root-level and workspace scripts all invoke `biome …` the same way; `pnpm run` puts `node_modules/.bin` on `PATH`, so the hoisted `@biomejs/biome` binary is used for full-repo commands (`pnpm check`, `pnpm lint`, `pnpm format`, …) and for per-package scripts without duplicating the dependency in each workspace package.
 
