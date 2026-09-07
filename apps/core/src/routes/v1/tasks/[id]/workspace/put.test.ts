@@ -173,6 +173,7 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
           },
     assigneeId: "cow_123",
     assigneeSokoBotId: null,
+    assigneeUserId: null,
     assignee: {
       type: "coworker" as const,
       id: "cow_123",

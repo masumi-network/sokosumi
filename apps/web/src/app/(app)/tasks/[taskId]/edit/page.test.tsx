@@ -7,6 +7,7 @@ const listProjectsMock = vi.fn();
 const getAvailableAgentsWithCreditsPriceMock = vi.fn();
 const getSessionMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
+const getOrganizationMembersMock = vi.fn(async () => []);
 const getTranslationsMock = vi.fn();
 const autoContextSwitchMock = vi.fn();
 const taskEditModalMock = vi.fn();
@@ -44,6 +45,7 @@ vi.mock("@/app/tasks/utils/agent-names", () => ({
 
 vi.mock("@/app/tasks/utils/coworker-options", () => ({
   getCoworkerOptions: (...args: unknown[]) => getCoworkerOptionsMock(...args),
+  getUserOptions: () => [],
   withOwnerSokoBotOption: (options: unknown) => options,
   taskFormAssigneeId: (task: { assigneeId?: string | null }) =>
     task.assigneeId ?? "",
@@ -89,6 +91,7 @@ vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getMyMembersWithOrganizations: (...args: unknown[]) =>
       getMyMembersWithOrganizationsMock(...args),
+    getOrganizationMembers: getOrganizationMembersMock,
   },
 }));
 
@@ -220,6 +223,7 @@ describe("EditTaskPage", () => {
           description: "Desc",
           assigneeId: "cow_123",
           assigneeSokoBotId: null,
+          assigneeUserId: null,
           projectId: null,
           status: "READY",
           metadata: undefined,

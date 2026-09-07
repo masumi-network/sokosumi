@@ -89,6 +89,15 @@ function mapTaskAssignee(
     };
   }
 
+  if (task.assignee?.type === "user") {
+    return {
+      id: task.assignee.id,
+      name: task.assignee.user.name,
+      image: task.assignee.user.image,
+      kind: "user",
+    };
+  }
+
   if (task.assignee?.type === "coworker") {
     const coworker =
       coworkersById.get(task.assignee.id) ?? task.assignee.coworker;
@@ -113,6 +122,15 @@ function mapTaskAssignee(
       image: coworker.image,
       slug: coworker.slug,
       kind: "coworker",
+    };
+  }
+
+  if (task.assigneeUserId) {
+    return {
+      id: task.assigneeUserId,
+      name: "Member",
+      image: null,
+      kind: "user",
     };
   }
 

@@ -1072,17 +1072,21 @@ export type Task = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Null when the assignee is a Soko Bot.
+     * Marketplace coworker assignee. Null when assigned to a user, a Soko Bot, or unset. Prefer `assignee`.
      */
     assigneeId: string | null;
     /**
-     * Soko Bot assignee. Null when the assignee is a coworker.
+     * Soko Bot assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.
      */
     assigneeSokoBotId: string | null;
     /**
-     * Discriminated assignee: coworker, sokoBot, or unassigned.
+     * Workspace-member assignee id. Null when assigned to a coworker, a Soko Bot, or unset. Prefer `assignee`.
      */
-    assignee: TaskAssigneeCoworker | TaskAssigneeSokoBot | null;
+    assigneeUserId: string | null;
+    /**
+     * Discriminated assignee: coworker, workspace member, Soko Bot, or unassigned.
+     */
+    assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeSokoBot | null;
     /**
      * Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.
      *
@@ -1166,6 +1170,12 @@ export type CoworkerSummary = {
     name: string;
     image?: string | null;
     slug: string;
+};
+
+export type TaskAssigneeUser = {
+    type: 'user';
+    id: string;
+    user: UserSummary;
 };
 
 export type TaskAssigneeSokoBot = {
@@ -5333,17 +5343,21 @@ export type TaskListItem = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
-     * Marketplace coworker assignee. Null when the assignee is a Soko Bot.
+     * Marketplace coworker assignee. Null when assigned to a user, a Soko Bot, or unset. Prefer `assignee`.
      */
     assigneeId: string | null;
     /**
-     * Soko Bot assignee. Null when the assignee is a coworker.
+     * Soko Bot assignee. Null when assigned to a coworker, a user, or unset. Prefer `assignee`.
      */
     assigneeSokoBotId: string | null;
     /**
-     * Discriminated assignee: coworker, sokoBot, or unassigned.
+     * Workspace-member assignee id. Null when assigned to a coworker, a Soko Bot, or unset. Prefer `assignee`.
      */
-    assignee: TaskAssigneeCoworker | TaskAssigneeSokoBot | null;
+    assigneeUserId: string | null;
+    /**
+     * Discriminated assignee: coworker, workspace member, Soko Bot, or unassigned.
+     */
+    assignee: TaskAssigneeCoworker | TaskAssigneeUser | TaskAssigneeSokoBot | null;
     /**
      * Deprecated marketplace coworker assignee. Null when the assignee is a Soko Bot.
      *
@@ -36062,6 +36076,10 @@ export type GetTasksData = {
          */
         assigneeSokoBotId?: string;
         /**
+         * Filter tasks by workspace-member assignee
+         */
+        assigneeUserId?: string;
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -36149,6 +36167,7 @@ export type PostTasksData = {
          */
         coworkerId?: string | null;
         assigneeSokoBotId?: string | null;
+        assigneeUserId?: string | null;
         status?: 'DRAFT' | 'READY';
         channel?: Channel;
         origin?: Channel & unknown;
@@ -36849,6 +36868,7 @@ export type PatchTasksByIdData = {
          */
         coworkerId?: string | null;
         assigneeSokoBotId?: string | null;
+        assigneeUserId?: string | null;
     };
     path: {
         id: string;

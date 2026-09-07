@@ -104,6 +104,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "workspace",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -118,6 +119,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "workspace",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -143,6 +145,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "owned",
       assigneeId: "removed-coworker",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -151,6 +154,7 @@ describe("loadMoreTasksColumn", () => {
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
     });
   });
 
@@ -167,6 +171,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "malicious" as never,
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -194,6 +199,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "workspace",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -216,6 +222,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: "malicious" as never,
       projectId: null,
     });
@@ -238,6 +245,7 @@ describe("loadMoreTasksColumn", () => {
       scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: null,
     });
@@ -277,6 +285,7 @@ describe("loadMoreTasksList", () => {
       scope: "workspace",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -290,6 +299,7 @@ describe("loadMoreTasksList", () => {
       scope: "workspace",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
     });
@@ -314,6 +324,7 @@ describe("loadMoreTasksList", () => {
       scope: "owned",
       assigneeId: "removed-coworker",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -322,6 +333,7 @@ describe("loadMoreTasksList", () => {
     expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
     });
   });
 
@@ -337,6 +349,7 @@ describe("loadMoreTasksList", () => {
       scope: "malicious" as never,
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -361,6 +374,7 @@ describe("loadMoreTasksList", () => {
       scope: "workspace",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
     });
@@ -382,6 +396,7 @@ describe("loadMoreTasksList", () => {
       scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: null,
     });

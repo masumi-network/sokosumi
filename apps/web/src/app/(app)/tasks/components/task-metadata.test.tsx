@@ -261,4 +261,46 @@ describe("TaskMetadata", () => {
     expect(screen.getByText("Jarvis")).toBeInTheDocument();
     expect(screen.getByTestId("assistant-orb")).toBeInTheDocument();
   });
+
+  it("renders a user assignee by name (SOK-868)", () => {
+    render(
+      <TaskMetadata
+        task={{
+          ...createTask({ assigneeName: null }),
+          assignee: {
+            type: "user",
+            id: "user_2",
+            user: { id: "user_2", name: "Bob", image: null },
+          },
+        }}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+  });
+
+  it("falls back to Member for a blank user assignee name (SOK-868)", () => {
+    render(
+      <TaskMetadata
+        task={{
+          ...createTask({ assigneeName: null }),
+          assignee: {
+            type: "user",
+            id: "user_2",
+            user: { id: "user_2", name: "   ", image: null },
+          },
+        }}
+        project={null}
+        createdAtLabel="Jul 16, 10:28 AM"
+        updatedAtLabel="Jul 16, 10:29 AM"
+        labels={baseLabels}
+      />,
+    );
+
+    expect(screen.getByText("Member")).toBeInTheDocument();
+  });
 });

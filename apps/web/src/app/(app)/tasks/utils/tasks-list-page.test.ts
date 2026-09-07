@@ -41,6 +41,7 @@ function buildTask({
     updatedAt: new Date(updatedAt),
     assigneeId: null,
     assigneeSokoBotId: null,
+    assigneeUserId: null,
     description: null,
     commentsCount: 0,
     jobsCount: 0,
@@ -83,6 +84,7 @@ describe("getTasksListPage", () => {
       scope: "workspace",
       assigneeId: "coworker-1",
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: PROJECT_ID,
       coworkersById: new Map(),
@@ -97,6 +99,7 @@ describe("getTasksListPage", () => {
       scope: "workspace",
       assigneeId: "coworker-1",
       assigneeSokoBotId: undefined,
+      assigneeUserId: undefined,
       projectId: PROJECT_ID,
       cursor: null,
       limit: 2,
@@ -121,6 +124,7 @@ describe("getTasksListPage", () => {
       scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: TaskStatus.READY,
       projectId: null,
       coworkersById: new Map(),
@@ -134,6 +138,7 @@ describe("getTasksListPage", () => {
       scope: "owned",
       assigneeId: undefined,
       assigneeSokoBotId: undefined,
+      assigneeUserId: undefined,
       projectId: undefined,
       cursor: null,
       limit: 10,
@@ -158,6 +163,7 @@ describe("getTasksListPage", () => {
       scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
       coworkersById: new Map(),
@@ -171,6 +177,7 @@ describe("getTasksListPage", () => {
       scope: "owned",
       assigneeId: undefined,
       assigneeSokoBotId: undefined,
+      assigneeUserId: undefined,
       projectId: undefined,
       cursor: "cursor-1",
       limit: 1,
@@ -195,6 +202,7 @@ describe("getTasksListPage", () => {
       scope: "owned",
       assigneeId: null,
       assigneeSokoBotId: null,
+      assigneeUserId: null,
       status: null,
       projectId: null,
       coworkersById: new Map(),
@@ -202,5 +210,26 @@ describe("getTasksListPage", () => {
     });
 
     expect(page.nextCursor).toBeNull();
+  });
+
+  it("forwards a user assignee filter to listTasks (SOK-868)", async () => {
+    listTasksMock.mockResolvedValue({ tasks: [], pagination: null });
+
+    await getTasksListPage({
+      cursor: null,
+      limit: 10,
+      scope: "workspace",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: "user-1",
+      status: null,
+      projectId: null,
+      coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
+    });
+
+    expect(listTasksMock).toHaveBeenCalledWith(
+      expect.objectContaining({ assigneeUserId: "user-1" }),
+    );
   });
 });
