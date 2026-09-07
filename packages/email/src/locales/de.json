@@ -77,8 +77,7 @@
       "bodyWithoutJobName": "Dein Job für {agentName} wartet auf deinen Input, um fortzufahren.",
       "button": "Input bereitstellen",
       "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
-      "footer": "Du erhältst diese E-Mail, weil Job-Benachrichtigungen für deinen Account aktiviert sind.",
-      "fallbackJobName": "Dein Job"
+      "footer": "Du erhältst diese E-Mail, weil Job-Benachrichtigungen für deinen Account aktiviert sind."
     },
     "failureNotification": {
       "subject": "Job-Fehlerbenachrichtigung - {jobId}",
@@ -93,10 +92,7 @@
       "jobBlockchainIdentifier": "Job-Blockchain-Kennung:",
       "onChainStatus": "On-Chain-Status:",
       "agentStatus": "Agent-Status:",
-      "inputHash": "Input-Hash:",
       "resultHash": "Ergebnis-Hash:",
-      "inputSchema": "Input-Schema:",
-      "input": "Input:",
       "output": "Output:",
       "footer": "Dies ist eine automatische Benachrichtigung von Sōkosumi."
     }

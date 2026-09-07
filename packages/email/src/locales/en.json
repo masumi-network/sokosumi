@@ -77,8 +77,7 @@
       "bodyWithoutJobName": "Your job for {agentName} is waiting for your input to continue.",
       "button": "Provide input",
       "linkInstructions": "Or copy and paste this URL into your browser:",
-      "footer": "You're receiving this email because job notifications are enabled for your account.",
-      "fallbackJobName": "Your job"
+      "footer": "You're receiving this email because job notifications are enabled for your account."
     },
     "failureNotification": {
       "subject": "Job Failure Notification - {jobId}",
@@ -93,10 +92,7 @@
       "jobBlockchainIdentifier": "Job Blockchain Identifier:",
       "onChainStatus": "On-Chain Status:",
       "agentStatus": "Agent Status:",
-      "inputHash": "Input Hash:",
       "resultHash": "Result Hash:",
-      "inputSchema": "Input Schema:",
-      "input": "Input:",
       "output": "Output:",
       "footer": "This is an automated notification from Sōkosumi."
     }

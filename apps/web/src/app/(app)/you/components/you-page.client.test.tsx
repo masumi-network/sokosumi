@@ -59,7 +59,7 @@ function renderYouPage(
       calendarMenuEnabled={false}
       planName="Pro"
       totalCredits={15_750}
-      extraCredits={750}
+      extraCredits={15_750}
       creditUsage={null}
       subscriptionPeriodEndMs={null}
       currentTimestampMs={1_700_000_000_000}
@@ -101,7 +101,12 @@ describe("YouPageClient", () => {
         .getByText("patrick@example.com")
         .compareDocumentPosition(statusPlan) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByText(/balanceCreditsLabel 15750/)).toBeInTheDocument();
+    expect(screen.queryByText(/balanceCreditsLabel/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("credits-additional")).toHaveTextContent(
+      "additionalCreditsHero 15750",
+    );
+    expect(screen.queryByText("monthlyUsageLimit")).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 
   it("shows a large avatar with initials", () => {
@@ -239,5 +244,31 @@ describe("YouPageClient", () => {
       id: "user_1",
       email: "patrick@example.com",
     });
+  });
+
+  it("shows additional credits plus plan-cycle remaining on You and never extra-row copy", () => {
+    renderYouPage({
+      extraCredits: 51_162,
+      creditUsage: {
+        percentageUsed: 25,
+        remaining: 750,
+        total: 1_000,
+        used: 250,
+      },
+    });
+
+    expect(screen.getByTestId("credits-cycle-overview")).toBeInTheDocument();
+    const monthlyHeading = screen.getByText("monthlyUsageLimit");
+    const additional = screen.getByTestId("credits-additional");
+    expect(
+      monthlyHeading.compareDocumentPosition(additional) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(additional).toHaveTextContent("additionalCreditsHero 51162");
+    expect(screen.getByText("additionalCreditsLabel")).toBeInTheDocument();
+    expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
+    expect(screen.queryByText("extraCredits")).not.toBeInTheDocument();
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+    expect(screen.queryByText("totalAvailableLabel")).not.toBeInTheDocument();
   });
 });
