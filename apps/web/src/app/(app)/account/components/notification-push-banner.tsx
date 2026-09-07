@@ -76,10 +76,15 @@ function BrowserNotice({
     // instead, where one short fade is the whole of it.
     <div
       className={cn(
-        "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 animation-duration-200 rounded-lg border p-4",
-        warning
-          ? "border-semantic-warning-tertiary bg-semantic-warning-quinary"
-          : "bg-muted/50",
+        "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 animation-duration-200",
+        // A card is how this page marks something the reader has to deal
+        // with, and the rows below sit in one. Only the warning is that: a
+        // push was asked for and will not arrive. The other is a receipt for
+        // a setting that worked, so it drops the box, the fill and the
+        // padding and reads as a note above the grid rather than a second
+        // thing to answer.
+        warning &&
+          "border-semantic-warning-tertiary bg-semantic-warning-quinary rounded-lg border p-4",
       )}
     >
       <div className="flex flex-col gap-3 @xl:flex-row @xl:items-center">
@@ -87,8 +92,9 @@ function BrowserNotice({
           {/* The tint and the mark carry the warning; the words do not.
               `--semantic-warning` is a 40% yellow, about 2.3:1 on its own
               quinary tint in light mode, which is under what a paragraph
-              needs. The account notices colour their text with it and get
-              away with one short line. This one has a reason to explain. */}
+              needs, and the warning half has a reason to explain under its
+              title. The account notices colour their text with it and get
+              away with one short line. */}
           <Icon
             className={cn(
               "mt-0.5 size-4 shrink-0",
@@ -97,7 +103,13 @@ function BrowserNotice({
             aria-hidden="true"
           />
           <div className="min-w-0 space-y-1">
-            <p id={titleId} className="text-sm leading-5 font-medium">
+            <p
+              id={titleId}
+              className={cn(
+                "text-sm leading-5",
+                warning ? "font-medium" : "text-muted-foreground",
+              )}
+            >
               {t(titleKey)}
             </p>
             {bodyKey ? (
@@ -109,7 +121,10 @@ function BrowserNotice({
         </div>
         {action ? (
           <Button
-            variant="outline"
+            // The press follows the words. A warning gets an outlined button
+            // over its tint; the quiet half gets no box of its own, or the
+            // note would carry the loudest control on the card.
+            variant={warning ? "outline" : "ghost"}
             size="sm"
             // The line above says which push and which browser, so the button
             // does not have to. Read on its own, "Turn off" answers nothing;
@@ -141,6 +156,7 @@ function BrowserNotice({
             // would leave the box the same way.
             className={cn(
               "ml-7 h-auto min-h-8 self-start py-1.5 whitespace-normal @xl:ml-0 @xl:h-8 @xl:self-auto @xl:py-0",
+              !warning && "text-muted-foreground",
               action.saving && "opacity-50",
             )}
           >
