@@ -12,6 +12,11 @@
         "tags": [
           "Users"
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/OrganizationSlug"
@@ -447,6 +452,14 @@
           "emailVerified",
           "role"
         ]
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Authentication required for all endpoints. Supports Better Auth user credentials and dedicated agent bearer API keys (`coworker_` or `sokoBot_`). Soko Bot runtime routes use their documented Vercel OIDC plus scoped turn-grant authentication."
       }
     }
   }
