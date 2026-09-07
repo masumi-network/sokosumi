@@ -310,7 +310,7 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 
 ## Agent skills
 
-First-party skills are authored in `skills/<name>/`. `.agents/skills/<name>` is a symlink to that tree (`.claude/skills` already symlinks to `.agents`). Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`.
+First-party skills are authored in `skills/<name>/`. `.agents/skills/<name>` is a symlink to that tree (`.claude/skills` already symlinks to `.agents`). Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](apps/web/AGENTS.md) and the Jakub skills under [`.agents/skills/better-ui/`](.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
 
 ### Evlog (Core only)
 
