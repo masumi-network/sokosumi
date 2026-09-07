@@ -148,7 +148,6 @@
       "totalAvailableLabel": "Gesamt verfügbares Kontingent",
       "creditsRemainingHero": "{credits, number} übrig",
       "creditsRemainingOfTotal": "{remaining, number} von {total, number} übrig",
-      "planAllowanceExhausted": "Das Kontingent für diesen Zeitraum ist aufgebraucht",
       "creditsAllowanceProgressAria": "Verbleibendes Plan-Kontingent",
       "creditsExpiresInDays": "Kontingent wird in {days, plural, =1 {1 Tag} other {# Tagen}} zurückgesetzt",
       "creditsExpiresToday": "Kontingent wird heute zurückgesetzt",

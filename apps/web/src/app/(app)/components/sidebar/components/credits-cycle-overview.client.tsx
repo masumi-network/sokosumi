@@ -35,7 +35,6 @@ export function CreditsCycleOverview({
   if (creditUsage !== null) {
     const remaining = formatCreditsForDisplay(creditUsage.remaining);
     const cycleTotal = formatCreditsForDisplay(creditUsage.total);
-    const exhausted = remaining <= 0;
     const remainingPercent =
       cycleTotal <= 0
         ? 0
@@ -74,18 +73,11 @@ export function CreditsCycleOverview({
         >
           {tCredit("monthlyUsageLimit")}
         </p>
-        {exhausted ? (
-          <p
-            className="text-sm leading-snug font-medium"
-            data-testid="credits-cycle-exhausted"
-          >
-            {tCredit("planAllowanceExhausted")}
-          </p>
-        ) : (
+        {remaining > 0 ? (
           <p className="text-lg leading-none font-semibold tracking-tight tabular-nums">
             {tCredit("creditsRemainingHero", { credits: remaining })}
           </p>
-        )}
+        ) : null}
         <Progress
           className="bg-primary/20 h-1.5"
           value={remainingPercent}

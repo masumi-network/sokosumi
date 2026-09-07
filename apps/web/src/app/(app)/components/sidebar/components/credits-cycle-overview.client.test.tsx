@@ -77,9 +77,7 @@ describe("CreditsCycleOverview", () => {
     expect(screen.getByTestId("credits-total-available")).toHaveTextContent(
       "totalAvailableHero 51162",
     );
-    expect(screen.getByTestId("credits-cycle-exhausted")).toHaveTextContent(
-      "planAllowanceExhausted",
-    );
+    expect(screen.getByText("monthlyUsageLimit")).toBeInTheDocument();
     expect(
       screen.getByText("creditsRemainingOfTotal 0 3032"),
     ).toBeInTheDocument();

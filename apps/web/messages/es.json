@@ -148,7 +148,6 @@
       "totalAvailableLabel": "Contingente total disponible",
       "creditsRemainingHero": "{credits, number} restantes",
       "creditsRemainingOfTotal": "{remaining, number} de {total, number} restantes",
-      "planAllowanceExhausted": "La asignación de este período se ha agotado",
       "creditsAllowanceProgressAria": "Asignación de créditos del ciclo restante",
       "creditsExpiresInDays": "La asignación se restablece en {days, plural, =1 {1 día} other {# días}}",
       "creditsExpiresToday": "La asignación se restablece hoy",

@@ -148,7 +148,6 @@
       "totalAvailableLabel": "Total available",
       "creditsRemainingHero": "{credits, number} remaining",
       "creditsRemainingOfTotal": "{remaining, number} of {total, number} remaining",
-      "planAllowanceExhausted": "This period's allowance is used up",
       "creditsAllowanceProgressAria": "Plan-cycle credit allowance remaining",
       "creditsExpiresInDays": "Allowance resets in {days, plural, =1 {1 day} other {# days}}",
       "creditsExpiresToday": "Allowance resets today",
