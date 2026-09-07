@@ -52,14 +52,21 @@ const CELL_OFF =
  */
 const CELL_DEAD = "text-muted-foreground/45 cursor-default border-transparent";
 /**
- * The column a cell stands in, wide enough for the widest column name.
+ * The column a cell stands in, holding one width for the cell and its name.
  *
  * A cell is square and a name is as long as its word, so the two cannot share
  * an edge unless something holds a width for both. This is that width: every
  * cell centres in it and every head fills it, and the columns line up in every
- * language. Sized for the longest of them, which is the German "In der App".
+ * language.
+ *
+ * Two widths, because three columns of the wide one do not fit on a phone.
+ * At 72px the row is 232px and the fold it sits in is 204px at 320px, and
+ * every ancestor clips rather than scrolls: the In app column and its cells
+ * left the screen on the side nothing can reach. At 48px the row is 160px and
+ * fits, and the names wrap to two lines rather than going missing. The wide
+ * one comes back at `sm`, where it holds the German "In der App" on one line.
  */
-export const CELL_TRACK = "flex w-18 shrink-0 justify-center";
+export const CELL_TRACK = "flex w-12 shrink-0 justify-center sm:w-18";
 
 /**
  * The face of each channel in the grid.

@@ -109,7 +109,14 @@ function BrowserNotice({
             // Stacked under the words on a phone, it starts where the words
             // start rather than where the mark does: the mark and the gap
             // beside it are 28px.
-            className="ml-7 self-start sm:ml-0 sm:self-auto"
+            //
+            // It wraps there too. A button holds its label on one line by
+            // default, and this label is a sentence: at 320px it ran 198px
+            // into a 176px column and the end of it was clipped away, and the
+            // German label ran 283px. Wrapping costs a second line and keeps
+            // the words. The fixed height goes with it, or the second line
+            // would leave the box the same way.
+            className="ml-7 h-auto min-h-8 self-start py-1.5 whitespace-normal sm:ml-0 sm:h-8 sm:self-auto sm:py-0"
           >
             {t(action.labelKey)}
           </Button>
