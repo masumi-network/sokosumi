@@ -48,6 +48,14 @@ export interface GroupChoice {
   saving: boolean;
 }
 
+/** This browser's own subscription, as one switch. */
+export interface DeviceChoice {
+  enabled: boolean;
+  /** A push write is in flight. The switch stays reachable, and does nothing. */
+  saving: boolean;
+  onChange: (next: boolean) => void;
+}
+
 export interface NotificationDelivery {
   groups: GroupChoice[];
   /**
@@ -67,13 +75,14 @@ export interface NotificationDelivery {
    * it. With every banner cell off, nothing is going wrong.
    */
   pushWanted: boolean;
-  /** A push write is in flight, so the banner's button waits for it. */
-  pushSaving: boolean;
   /**
-   * Subscribes this browser, asking the browser for the permission if it has
-   * not been asked. The same path a push cell takes, from the banner instead.
+   * This browser, when it is a browser the reader can move.
+   *
+   * Null while nothing is asking for a push, before the browser has answered,
+   * and on a browser that cannot push or was refused the permission: none of
+   * those is a switch, and the last two have a banner that says why.
    */
-  activatePush: () => Promise<void>;
+  device: DeviceChoice | null;
   /**
    * An answer is still coming.
    *
@@ -376,14 +385,61 @@ export function useNotificationDelivery(): NotificationDelivery {
       : null;
   }
 
+  const pushWanted = cells.some(
+    (cell) => cell.channel === "OS_BANNER" && cell.enabled,
+  );
+
+  /**
+   * Turns this browser's own subscription on or off, and nothing else.
+   *
+   * On, it takes the same path a push cell takes, because the account consent
+   * can be missing as well and this browser cannot subscribe without it. Off,
+   * it drops this browser's subscription and leaves the consent alone: the
+   * reader asked for quiet here, not on their phone.
+   */
+  async function setDevice(next: boolean) {
+    if (push.isSaving) {
+      return;
+    }
+
+    if (next) {
+      await activatePushIfNeeded();
+      return;
+    }
+
+    if (!push.canToggleDevice) {
+      return;
+    }
+
+    try {
+      await push.setDeviceEnabled(false);
+      toast.success(t("deviceDisabledSuccess"));
+    } catch (error) {
+      console.error("Failed to silence push on this browser", error);
+      toast.error(t("pushError"));
+    }
+  }
+
   return {
     groups,
     pushBlock,
-    pushWanted: cells.some(
-      (cell) => cell.channel === "OS_BANNER" && cell.enabled,
-    ),
-    pushSaving: push.isSaving,
-    activatePush: activatePushIfNeeded,
+    pushWanted,
+    // A switch for a browser nothing is trying to reach answers a question
+    // nobody asked, and one on a browser that cannot push at all is a control
+    // that would never move. Both of those say so elsewhere.
+    device:
+      pushWanted &&
+      push.isDeviceKnown &&
+      pushBlock !== "unsupported" &&
+      pushBlock !== "denied"
+        ? {
+            enabled: push.isDeviceEnabled,
+            saving: push.isSaving,
+            onChange: (next: boolean) => {
+              void setDevice(next);
+            },
+          }
+        : null,
     loading: sessionPending || (Boolean(userId) && isPending),
     setDeliveries,
   };

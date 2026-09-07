@@ -53,6 +53,14 @@ const STORED_CHANNELS: readonly StoredChannel[] = CHANNEL_SPECS.map(
  */
 export type PushBlock = "unsupported" | "denied" | "unsubscribed";
 
+/**
+ * The two no press on this page can undo.
+ *
+ * A browser that holds no subscription is the third, and it is not one of
+ * these: the switch at the end of the card subscribes it again.
+ */
+export type PushRefusal = Exclude<PushBlock, "unsubscribed">;
+
 /** Why nothing arrives here, in the reader's terms. */
 export const PUSH_BLOCK_HINT_KEY: Record<PushBlock, string> = {
   unsupported: "pushUnsupported",

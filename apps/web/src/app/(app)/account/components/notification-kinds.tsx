@@ -20,6 +20,7 @@ import {
   presetChanges,
   withChannel,
 } from "./notification-delivery";
+import { DeviceRow } from "./notification-device";
 import { ChannelLegend } from "./notification-legend";
 import { GroupAnswer } from "./notification-presets";
 import { PushBanner } from "./notification-push-banner";
@@ -359,15 +360,13 @@ export function NotificationKinds({
       ) : null}
       {/* One banner for the whole card, because the browser is one answer for
           every row. It waits for a kind to be asking for a push: with every
-          banner cell off, nothing is going wrong here. */}
-      {choices.pushBlock && choices.pushWanted ? (
-        <PushBanner
-          block={choices.pushBlock}
-          saving={choices.pushSaving}
-          onEnable={() => {
-            void choices.activatePush();
-          }}
-        />
+          banner cell off, nothing is going wrong here. A browser that merely
+          holds no subscription gets the switch at the end of the card instead,
+          which is the same answer without the alarm. */}
+      {choices.pushBlock &&
+      choices.pushBlock !== "unsubscribed" &&
+      choices.pushWanted ? (
+        <PushBanner block={choices.pushBlock} />
       ) : null}
       <div className="divide-y rounded-lg border">
         {showKinds ? (
@@ -383,6 +382,9 @@ export function NotificationKinds({
             whether or not the read landed. */}
         {choices.loading || mailedByARow ? null : <EmailRow email={email} />}
         <NewsRow news={news} />
+        {/* Last of all, because it is the only row that is not about what
+            Sokosumi sends. It answers where the reader is standing. */}
+        {choices.device ? <DeviceRow device={choices.device} /> : null}
       </div>
     </div>
   );

@@ -3,14 +3,12 @@
 import { AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { Button } from "@/components/ui/button";
-import type { PushBlock } from "./notification-delivery";
+import type { PushRefusal } from "./notification-delivery";
 
 /** What is wrong, in a line the reader can act on or dismiss in their head. */
-const TITLE_KEY: Record<PushBlock, string> = {
+const TITLE_KEY: Record<PushRefusal, string> = {
   unsupported: "pushBannerUnsupportedTitle",
   denied: "pushBannerDeniedTitle",
-  unsubscribed: "pushBannerUnsubscribedTitle",
 };
 
 /**
@@ -22,10 +20,9 @@ const TITLE_KEY: Record<PushBlock, string> = {
  * cells, and never whether another browser still holds a subscription, so
  * anything firmer would be a promise nothing here can keep.
  */
-const BODY_KEY: Record<PushBlock, string> = {
+const BODY_KEY: Record<PushRefusal, string> = {
   unsupported: "pushBannerUnsupportedBody",
   denied: "pushBannerDeniedBody",
-  unsubscribed: "pushBannerUnsubscribedBody",
 };
 
 /**
@@ -35,21 +32,14 @@ const BODY_KEY: Record<PushBlock, string> = {
  * row under it. The cells stay exactly as the reader set them: they write the
  * account rather than this browser, so what is missing is this browser alone.
  *
- * Only one of the three can be fixed from here. A refusal has to be taken back
- * in the browser's own settings, since a site that has been refused cannot ask
- * again, and a browser without the feature has nothing to offer. Those two
- * explain themselves and take no press.
+ * Neither of these can be fixed from here, so the banner carries no control.
+ * A refusal has to be taken back in the browser's own settings, since a site
+ * that has been refused cannot ask again, and a browser without the feature
+ * has nothing to offer. The third case, a browser that simply holds no
+ * subscription, is a switch at the end of the card rather than a warning: it
+ * is a thing the reader can turn on, and one of them meant to turn it off.
  */
-export function PushBanner({
-  block,
-  saving,
-  onEnable,
-}: {
-  block: PushBlock;
-  /** A push write is in flight. The button stays where it is, and waits. */
-  saving: boolean;
-  onEnable: () => void;
-}) {
+export function PushBanner({ block }: { block: PushRefusal }) {
   const t = useTranslations("App.Account.Notifications");
 
   return (
@@ -80,20 +70,6 @@ export function PushBanner({
             </p>
           </div>
         </div>
-        {block === "unsubscribed" ? (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={saving}
-            onClick={onEnable}
-            // Stacked under the words on a phone, it starts where the words
-            // start rather than where the mark does: the mark and the gap
-            // beside it are 28px.
-            className="ml-7 self-start sm:ml-0 sm:self-auto"
-          >
-            {t("pushBannerAction")}
-          </Button>
-        ) : null}
       </div>
     </div>
   );
