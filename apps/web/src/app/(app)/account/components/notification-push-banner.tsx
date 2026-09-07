@@ -46,9 +46,10 @@ interface NoticeAction {
  * Drawing them apart would give the same sentence two layouts and put the
  * button in two places.
  *
- * Only the tint and the mark tell them apart. A browser that cannot show a
- * push the reader asked for is a warning; a browser that can is not, so the
- * second one takes the card's own colours and says its piece quietly.
+ * A browser that cannot show a push the reader asked for is a warning: it
+ * takes the warning tint and the warning mark, and owes the reader a second
+ * line saying why. A browser that can show one is not a warning. It keeps the
+ * card's own colours, says its piece in the title, and stops there.
  */
 function BrowserNotice({
   warning,
@@ -60,7 +61,7 @@ function BrowserNotice({
   warning: boolean;
   icon: LucideIcon;
   titleKey: string;
-  bodyKey: string;
+  bodyKey: string | null;
   action: NoticeAction | null;
 }) {
   const t = useTranslations("App.Account.Notifications");
@@ -75,10 +76,20 @@ function BrowserNotice({
     // instead, where one short fade is the whole of it.
     <div
       className={cn(
-        "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 animation-duration-200 rounded-lg border p-4",
+        "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 animation-duration-200",
+        // A card is how this page marks something the reader has to deal
+        // with, and the rows below sit in one. Only the warning is that: a
+        // push was asked for and will not arrive. The other is a receipt for
+        // a setting that worked, so it drops the box and the fill and reads
+        // as a note above the grid rather than a second thing to answer.
+        //
+        // It keeps room around itself. Without a box, the gap is the only
+        // thing holding the line off the heading above it and the grid
+        // below, and one line pressed against both reads as a caption
+        // belonging to whichever it touches.
         warning
-          ? "border-semantic-warning-tertiary bg-semantic-warning-quinary"
-          : "bg-muted/50",
+          ? "border-semantic-warning-tertiary bg-semantic-warning-quinary rounded-lg border p-4"
+          : "py-2",
       )}
     >
       <div className="flex flex-col gap-3 @xl:flex-row @xl:items-center">
@@ -86,8 +97,9 @@ function BrowserNotice({
           {/* The tint and the mark carry the warning; the words do not.
               `--semantic-warning` is a 40% yellow, about 2.3:1 on its own
               quinary tint in light mode, which is under what a paragraph
-              needs. The account notices colour their text with it and get
-              away with one short line. This one has a reason to explain. */}
+              needs, and the warning half has a reason to explain under its
+              title. The account notices colour their text with it and get
+              away with one short line. */}
           <Icon
             className={cn(
               "mt-0.5 size-4 shrink-0",
@@ -96,17 +108,28 @@ function BrowserNotice({
             aria-hidden="true"
           />
           <div className="min-w-0 space-y-1">
-            <p id={titleId} className="text-sm leading-5 font-medium">
+            <p
+              id={titleId}
+              className={cn(
+                "text-sm leading-5",
+                warning ? "font-medium" : "text-muted-foreground",
+              )}
+            >
               {t(titleKey)}
             </p>
-            <p className="text-muted-foreground text-sm leading-5">
-              {t(bodyKey)}
-            </p>
+            {bodyKey ? (
+              <p className="text-muted-foreground text-sm leading-5">
+                {t(bodyKey)}
+              </p>
+            ) : null}
           </div>
         </div>
         {action ? (
           <Button
-            variant="outline"
+            // The press follows the words. A warning gets an outlined button
+            // over its tint; the quiet half gets no box of its own, or the
+            // note would carry the loudest control on the card.
+            variant={warning ? "outline" : "ghost"}
             size="sm"
             // The line above says which push and which browser, so the button
             // does not have to. Read on its own, "Turn off" answers nothing;
@@ -138,6 +161,7 @@ function BrowserNotice({
             // would leave the box the same way.
             className={cn(
               "ml-7 h-auto min-h-8 self-start py-1.5 whitespace-normal @xl:ml-0 @xl:h-8 @xl:self-auto @xl:py-0",
+              !warning && "text-muted-foreground",
               action.saving && "opacity-50",
             )}
           >
@@ -200,7 +224,8 @@ export function PushBanner({
  *
  * It carries the mark of the Push column rather than a warning's, because
  * nothing here is wrong. It is the state the reader asked for, and the press
- * is there for the day they stop wanting it.
+ * is there for the day they stop wanting it. Nothing being wrong is also why
+ * it is one line: a reader who set this up is being told it worked.
  */
 export function DeviceBanner({
   saving,
@@ -215,7 +240,10 @@ export function DeviceBanner({
       warning={false}
       icon={Smartphone}
       titleKey="deviceBannerTitle"
-      bodyKey="deviceBannerBody"
+      // The title is the whole notice: which push, where it lands, and what
+      // the press here leaves alone. A second line under it can only repeat
+      // that in more words.
+      bodyKey={null}
       action={{
         labelKey: "deviceBannerAction",
         saving,

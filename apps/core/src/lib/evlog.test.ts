@@ -3,18 +3,51 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const waitUntilMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => waitUntilMock(promise),
+}));
 
 import { errorHandler } from "@/helpers/error-handler";
+import { uploadCoworkerImage } from "@/lib/blob";
+import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
 import {
   attachAuthToLogger,
+  attachUploadToLogger,
   attachWorkspaceToLogger,
   bindCoreRequestId,
   coreEvlogMiddleware,
+  createCoreLogger,
   initCoreLogger,
 } from "@/lib/evlog";
 import type { AuthVariables } from "@/middleware/auth";
 import { setAuthContext } from "@/middleware/auth";
+
+const { issueSignedTokenMock, presignUrlMock, putMock, getEnvMock } =
+  vi.hoisted(() => ({
+    issueSignedTokenMock: vi.fn(),
+    presignUrlMock: vi.fn(),
+    putMock: vi.fn(),
+    getEnvMock: vi.fn(),
+  }));
+
+vi.mock("@vercel/blob", () => ({
+  issueSignedToken: issueSignedTokenMock,
+  presignUrl: presignUrlMock,
+  put: putMock,
+}));
+
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  getEnvMock.mockImplementation(() => actual.getEnv());
+  return {
+    ...actual,
+    getEnv: getEnvMock,
+  };
+});
 
 vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
@@ -213,5 +246,130 @@ describe("core evlog request events", () => {
     expect(response.status).toBe(500);
     expect(captured[0]?.event.status).toBe(500);
     expect(captured[0]?.event.level).toBe("error");
+  });
+
+  it("adds upload filename, size, and mimeType on the wide event", async () => {
+    const app = createApp();
+    app.post("/v1/uploads", (c) => {
+      attachUploadToLogger({
+        filename: "document.pdf",
+        size: 1_024_000,
+        mimeType: "application/pdf",
+      });
+      return c.json({ ok: true });
+    });
+
+    const response = await app.request("http://localhost/v1/uploads", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(captured).toHaveLength(1);
+    expect(captured[0]?.event.upload).toEqual({
+      filename: "document.pdf",
+      size: 1_024_000,
+      mimeType: "application/pdf",
+    });
+  });
+
+  it("adds upload fields when a blob upload grant is minted", async () => {
+    issueSignedTokenMock.mockResolvedValue({
+      delegationToken: "delegation",
+      clientSigningToken: "signing",
+      validUntil: Date.now() + 60_000,
+    });
+    presignUrlMock.mockResolvedValue({
+      presignedUrl: "https://blob.example/upload?sig=1",
+    });
+
+    const app = createApp();
+    app.post("/v1/uploads", async (c) => {
+      await createBlobUploadGrant({
+        pathname: "users/user_123/document.pdf",
+        contentType: "application/pdf",
+        maximumSizeInBytes: 1_024_000,
+        maxSizeBytes: 104_857_600,
+        access: "public",
+        addRandomSuffix: true,
+        token: "rw-token",
+      });
+      return c.json({ ok: true });
+    });
+
+    const response = await app.request("http://localhost/v1/uploads", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(captured[0]?.event.upload).toEqual({
+      filename: "document.pdf",
+      size: 1_024_000,
+      mimeType: "application/pdf",
+    });
+  });
+
+  it("adds stored pathname basename when a coworker image is uploaded", async () => {
+    const env = getEnvMock();
+    getEnvMock.mockReturnValueOnce({
+      ...env,
+      BLOB_READ_WRITE_TOKEN: "rw_token",
+    });
+    putMock.mockResolvedValue({
+      url: "https://blob.example/coworkers/cow-1/image-Ops_Logo_1-xyz.png",
+    });
+
+    const app = createApp();
+    app.post("/v1/coworkers/image", async (c) => {
+      await uploadCoworkerImage({
+        coworkerId: "01960001-0001-7001-8001-000000000099",
+        bytes: Buffer.from("png-bytes"),
+        contentType: "image/png",
+        filename: " Ops Logo (1).png ",
+      });
+      return c.json({ ok: true });
+    });
+
+    const response = await app.request("http://localhost/v1/coworkers/image", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(captured[0]?.event.upload).toEqual({
+      filename: "image-Ops_Logo_1.png",
+      size: 9,
+      mimeType: "image/png",
+    });
+  });
+});
+
+describe("core standalone logger drain", () => {
+  afterEach(() => {
+    waitUntilMock.mockReset();
+    vi.unstubAllEnvs();
+  });
+
+  it("emits standalone events through the initCoreLogger drain", async () => {
+    const drain = vi.fn();
+    initCoreLogger({ silent: true, drain });
+
+    createCoreLogger({ chat: { kind: "coworker_channel_mention" } }).emit();
+    await Promise.resolve();
+
+    expect(drain).toHaveBeenCalledTimes(1);
+    expect(drain.mock.calls[0]?.[0]?.event.chat).toEqual({
+      kind: "coworker_channel_mention",
+    });
+  });
+
+  it("registers Vercel waitUntil so standalone drain work can finish", async () => {
+    vi.stubEnv("VERCEL", "1");
+    const drain = vi.fn(async () => {});
+    initCoreLogger({ silent: true, drain });
+
+    createCoreLogger({ chat: { kind: "coworker_channel_mention" } }).emit();
+
+    expect(waitUntilMock).toHaveBeenCalledOnce();
+    await waitUntilMock.mock.calls[0]?.[0];
+    expect(drain).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,4 +1,14 @@
+import type { DrainContext } from "evlog";
+import { Hono } from "hono";
+import { requestId } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { errorHandler } from "@/helpers/error-handler";
+import {
+  bindCoreRequestId,
+  coreEvlogMiddleware,
+  initCoreLogger,
+} from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
@@ -1167,6 +1177,132 @@ describe("POST /chats/rooms/{id}/stream", () => {
         ROOM_ID,
         "instance-test:token-1",
       );
+    });
+  });
+
+  describe("coworker chat log fields", () => {
+    const captured: DrainContext[] = [];
+
+    async function postStreamLogged(body?: unknown) {
+      captured.length = 0;
+      initCoreLogger({
+        silent: true,
+        drain: (ctx) => {
+          captured.push(ctx);
+        },
+      });
+      const inner = createApp();
+      const app = new Hono();
+      app.use(requestId());
+      app.use(coreEvlogMiddleware());
+      app.use(bindCoreRequestId());
+      app.onError(errorHandler);
+      app.route("/", inner);
+      return await app.request(`/${ROOM_ID}/stream`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(
+          body ?? {
+            messages: [
+              { role: "user", parts: [{ type: "text", text: "Hello" }] },
+            ],
+          },
+        ),
+      });
+    }
+
+    it("puts room, coworker, and lock-held on the request event for a 409", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      acquireStreamLockMock.mockResolvedValueOnce({ status: "held" });
+
+      const response = await postStreamLogged();
+
+      expect(response.status).toBe(409);
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.event.chat).toEqual({
+        kind: "coworker_direct_stream",
+        room: { id: ROOM_ID },
+        coworker: { id: COWORKER_ID, slug: "hannah" },
+        lock: { status: "held" },
+      });
+      expect(captured[0]?.event.coworker).toBeUndefined();
+      expect(JSON.stringify(captured[0]?.event.chat)).not.toContain("Hello");
+    });
+
+    it("puts lock-error on the request event for a 503", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      acquireStreamLockMock.mockResolvedValueOnce({ status: "error" });
+
+      const response = await postStreamLogged();
+
+      expect(response.status).toBe(503);
+      expect(captured[0]?.event.chat).toEqual({
+        kind: "coworker_direct_stream",
+        room: { id: ROOM_ID },
+        coworker: { id: COWORKER_ID, slug: "hannah" },
+        lock: { status: "error" },
+      });
+    });
+
+    it("puts lock-acquired on the request event for a successful stream", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+
+      const response = await postStreamLogged();
+
+      expect(response.status).toBe(200);
+      expect(captured[0]?.event.chat).toEqual({
+        kind: "coworker_direct_stream",
+        room: { id: ROOM_ID },
+        coworker: { id: COWORKER_ID, slug: "hannah" },
+        lock: { status: "acquired" },
+      });
+    });
+
+    it("puts lock-unavailable when redis is not configured", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      acquireStreamLockMock.mockResolvedValueOnce({ status: "unavailable" });
+
+      const response = await postStreamLogged();
+
+      expect(response.status).toBe(200);
+      expect(captured[0]?.event.chat).toMatchObject({
+        lock: { status: "unavailable" },
+      });
+    });
+
+    it("includes thread parent on a thread reply stream", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      chatRoomMessageFindFirstMock.mockResolvedValue({
+        id: PARENT_MESSAGE_ID,
+        parentMessageId: null,
+      });
+
+      const response = await postStreamLogged({
+        messages: [
+          { role: "user", parts: [{ type: "text", text: "Thread reply" }] },
+        ],
+        parentMessageId: PARENT_MESSAGE_ID,
+      });
+
+      expect(response.status).toBe(200);
+      expect(captured[0]?.event.chat).toEqual({
+        kind: "coworker_direct_stream",
+        room: { id: ROOM_ID },
+        coworker: { id: COWORKER_ID, slug: "hannah" },
+        thread: { parentMessageId: PARENT_MESSAGE_ID },
+        lock: { status: "acquired" },
+      });
+    });
+
+    it("does not set chat fields when the room is not a 1:1 coworker direct", async () => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithOneCoworker({ coworkerMembers: [] }),
+      );
+
+      const response = await postStreamLogged();
+
+      expect(response.status).toBe(400);
+      expect(captured[0]?.event.chat).toBeUndefined();
     });
   });
 });
