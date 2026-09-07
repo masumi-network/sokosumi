@@ -11,8 +11,13 @@ import {
   listThreadMessagesAction,
   markThreadReadAction,
 } from "@/app/chat/actions";
+import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
+import { RoomsClient } from "@/app/chat/components/rooms-client";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
-import { rememberRoomRead } from "@/components/chat/room-read-overlay";
+import {
+  clearRoomReadOverlays,
+  rememberRoomRead,
+} from "@/components/chat/room-read-overlay";
 import { chatRoomMessageEventDataSchema } from "@/lib/ably";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import type {
@@ -20,8 +25,6 @@ import type {
   ChatRoomMessage,
   Organization,
 } from "@/lib/clients/generated/core";
-import type { RoomComposerHandle } from "../room-composer";
-import { RoomsClient } from "../rooms-client";
 
 const { mockIsMobileMedia, mockHeaderRoomSlotHost, mockStreamMessages } =
   vi.hoisted(() => ({
@@ -145,9 +148,9 @@ vi.mock("@/components/chat/room-read-overlay", async (importOriginal) => {
   return {
     ...actual,
     rememberRoomRead,
-    beginRoomAttentionChange: (room: ChatRoom) => {
+    beginRoomAttentionChange: (room: ChatRoom, previousRoom?: ChatRoom) => {
       rememberRoomRead(room);
-      return actual.beginRoomAttentionChange(room);
+      return actual.beginRoomAttentionChange(room, previousRoom);
     },
     settleRoomAttentionChange: (
       roomId: string,
@@ -343,6 +346,7 @@ const baseProps = {
 
 describe("RoomsClient read visibility", () => {
   beforeEach(() => {
+    clearRoomReadOverlays();
     vi.clearAllMocks();
     mockStreamMessages.mockReturnValue([]);
     vi.mocked(markThreadReadAction).mockResolvedValue({

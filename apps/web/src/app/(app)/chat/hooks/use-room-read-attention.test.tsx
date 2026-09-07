@@ -6,6 +6,7 @@ import { markOrganizationChatRoomReadAction } from "@/components/chat/organizati
 import {
   applyRoomReadOverlays,
   clearRoomReadOverlays,
+  rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
@@ -410,5 +411,104 @@ describe("useRoomReadAttention", () => {
       }),
     );
     expect(applyRoomReadOverlays([room()])[0].unreadCount).toBe(4);
+  });
+  it.each(["failed result", "rejected request"])(
+    "restores settled attention when overlapping reads end with a %s",
+    async (failure) => {
+      type ReadResult = Awaited<
+        ReturnType<typeof markOrganizationChatRoomReadAction>
+      >;
+      const first = Promise.withResolvers<ReadResult>();
+      const second = Promise.withResolvers<ReadResult>();
+      vi.mocked(markOrganizationChatRoomReadAction)
+        .mockReturnValueOnce(first.promise)
+        .mockReturnValueOnce(second.promise);
+      const dispatch = vi.spyOn(window, "dispatchEvent");
+      // A prior successful read left thread unread; the room props are stale.
+      rememberRoomRead({ ...room(), unreadCount: 2 });
+      const { rerender } = renderHook(useRoomReadAttention, {
+        initialProps: options(),
+      });
+      rerender({
+        ...options(),
+        messages: [{ id: "message-2", content: "New message" }],
+      });
+      expect(markOrganizationChatRoomReadAction).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        const error = {
+          ok: false as const,
+          error: { code: "INTERNAL_SERVER_ERROR" as const, message: "failed" },
+        };
+        first.resolve(error);
+        if (failure === "failed result") second.resolve(error);
+        else second.reject(new Error("failed"));
+      });
+      const event = dispatch.mock.calls.at(-1)?.[0] as CustomEvent<{
+        room: ChatRoom;
+      }>;
+      expect(event.detail.room.unreadCount).toBe(2);
+      expect(applyRoomReadOverlays([room()])[0].unreadCount).toBe(2);
+    },
+  );
+
+  it("preserves rollback attention across a remount while the first read is pending", async () => {
+    type ReadResult = Awaited<
+      ReturnType<typeof markOrganizationChatRoomReadAction>
+    >;
+    const first = Promise.withResolvers<ReadResult>();
+    const second = Promise.withResolvers<ReadResult>();
+    vi.mocked(markOrganizationChatRoomReadAction)
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    const dispatch = vi.spyOn(window, "dispatchEvent");
+    const { unmount } = renderHook(() => useRoomReadAttention(options()));
+    unmount();
+    renderHook(() => useRoomReadAttention(options()));
+    await act(async () => {
+      const error = {
+        ok: false as const,
+        error: { code: "INTERNAL_SERVER_ERROR" as const, message: "failed" },
+      };
+      second.resolve(error);
+      first.resolve(error);
+    });
+    const event = dispatch.mock.calls.at(-1)?.[0] as CustomEvent<{
+      room: ChatRoom;
+    }>;
+    expect(event.detail.room.unreadCount).toBe(4);
+    expect(applyRoomReadOverlays([room()])[0].unreadCount).toBe(4);
+  });
+  it("preserves restored activity through the failure notification listener", async () => {
+    const settled = {
+      ...room(),
+      updatedAt: new Date("2026-09-07T12:05:00.000Z"),
+      unreadCount: 2,
+    };
+    rememberRoomRead(settled);
+    vi.mocked(markOrganizationChatRoomReadAction).mockResolvedValue({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR", message: "failed" },
+    });
+    function handleRead(event: Event) {
+      const { room: updatedRoom } = (event as CustomEvent<{ room: ChatRoom }>)
+        .detail;
+      rememberRoomRead(updatedRoom);
+    }
+    // Both sidebar consumers repeat room-read events into the shared store.
+    window.addEventListener("organization-chat-room-read", handleRead);
+    try {
+      renderHook(() => useRoomReadAttention(options()));
+      await act(async () => {});
+      expect(
+        applyRoomReadOverlays([
+          {
+            ...room(),
+            updatedAt: new Date("2026-09-07T12:03:00.000Z"),
+          },
+        ])[0].unreadCount,
+      ).toBe(2);
+    } finally {
+      window.removeEventListener("organization-chat-room-read", handleRead);
+    }
   });
 });

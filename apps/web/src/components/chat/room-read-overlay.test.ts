@@ -330,4 +330,31 @@ describe("authoritative room attention", () => {
       unreadCount: 1,
     });
   });
+  it("restores settled attention after a superseding operation fails", () => {
+    const settled = room({ unreadCount: 2, unreadMentionCount: 1 });
+    rememberRoomRead(settled);
+    const first = beginRoomAttentionChange(room({}), room({ unreadCount: 4 }));
+    rememberRoomRead(room({}));
+    const second = beginRoomAttentionChange(
+      room({ markedUnread: true }),
+      room({}),
+    );
+    rememberRoomRead(room({ markedUnread: true }));
+
+    expect(settleRoomAttentionChange("room-1", first, null)).toBe(false);
+    expect(settleRoomAttentionChange("room-1", second, null)).toBe(true);
+    expect(applyRoomReadOverlays([room({})])).toEqual([settled]);
+  });
+  it("keeps the settled activity timestamp when rollback starts from stale props", () => {
+    rememberRoomRead(
+      room({ updatedAt: "2026-08-01T12:05:00.000Z", unreadCount: 2 }),
+    );
+    const token = beginRoomAttentionChange(room({}), room({ unreadCount: 4 }));
+    settleRoomAttentionChange("room-1", token, null);
+    expect(
+      applyRoomReadOverlays([
+        room({ updatedAt: "2026-08-01T12:03:00.000Z", unreadCount: 4 }),
+      ])[0].unreadCount,
+    ).toBe(2);
+  });
 });

@@ -66,7 +66,7 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
             markedUnread: false,
           }
         : previousRoom;
-      const token = beginRoomAttentionChange(pendingRoom);
+      const token = beginRoomAttentionChange(pendingRoom, current.room);
       if (optimistic) {
         dispatchRoomRead(roomId, pendingRoom);
       }
@@ -81,11 +81,14 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
         ) {
           return result.ok;
         }
-        dispatchRoomRead(roomId, result.ok ? result.value : previousRoom);
+        dispatchRoomRead(
+          roomId,
+          result.ok ? result.value : applyRoomReadOverlays([current.room])[0],
+        );
         return result.ok;
       } catch {
         if (settleRoomAttentionChange(roomId, token, null)) {
-          dispatchRoomRead(roomId, previousRoom);
+          dispatchRoomRead(roomId, applyRoomReadOverlays([current.room])[0]);
         }
         return false;
       }
