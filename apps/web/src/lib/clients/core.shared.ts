@@ -219,6 +219,7 @@ import {
   getProjectsById as coreGetProjectsById,
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
+  getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
   getSokoBotTeam as coreGetSokoBotTeam,
@@ -2766,6 +2767,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdNeedsAttention(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdNeedsAttention({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch project needs-attention",
+    );
+  }
+
   async function patchProjectsById(
     id: string,
     body: NonNullable<PatchProjectsByIdData["body"]>,
@@ -5046,6 +5060,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsById,
     getProjectsByIdCalendar,
     getProjectsByIdContextMd,
+    getProjectsByIdNeedsAttention,
     getProjectsStats,
     getSharedResourceByToken,
     moveJobToWorkspace,

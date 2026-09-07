@@ -4479,6 +4479,21 @@ export type WorkspaceCalendarItem = {
     timeAccuracy: 'EXACT' | 'APPROXIMATE';
 };
 
+export type ProjectNeedsAttention = {
+    /**
+     * Linked non-archived tasks. Same meaning as ProjectListItem.taskCount.
+     */
+    taskCount: number;
+    /**
+     * Linked jobs. Same meaning as ProjectListItem.jobCount.
+     */
+    jobCount: number;
+    /**
+     * Mixed tasks+jobs that need attention, already ranked, length 0..5. Never padded with excluded statuses.
+     */
+    items: Array<HistoryItem>;
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -4808,7 +4823,7 @@ export type PublicSharedTask = {
     coworker?: {
         id: string;
         name: string;
-        slug: string;
+        slug: string | null;
         image?: string | null;
     } | null;
     jobs: Array<PublicSharedTaskJob>;
@@ -4819,7 +4834,7 @@ export type PublicSharedTask = {
 export type PublicSharedTaskAssignee = {
     id: string;
     name: string;
-    slug: string;
+    slug: string | null;
     image?: string | null;
 } | null;
 
@@ -29513,6 +29528,92 @@ export type GetProjectsByIdCalendarResponses = {
 };
 
 export type GetProjectsByIdCalendarResponse = GetProjectsByIdCalendarResponses[keyof GetProjectsByIdCalendarResponses];
+
+export type GetProjectsByIdNeedsAttentionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/needs-attention';
+};
+
+export type GetProjectsByIdNeedsAttentionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdNeedsAttentionError = GetProjectsByIdNeedsAttentionErrors[keyof GetProjectsByIdNeedsAttentionErrors];
+
+export type GetProjectsByIdNeedsAttentionResponses = {
+    /**
+     * Project needs attention
+     */
+    200: {
+        data: ProjectNeedsAttention;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdNeedsAttentionResponse = GetProjectsByIdNeedsAttentionResponses[keyof GetProjectsByIdNeedsAttentionResponses];
 
 export type DeleteProjectsByIdData = {
     body?: never;

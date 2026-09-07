@@ -14971,6 +14971,37 @@ export const WorkspaceCalendarItemSchema = {
     ]
 } as const;
 
+export const ProjectNeedsAttentionSchema = {
+    type: 'object',
+    properties: {
+        taskCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Linked non-archived tasks. Same meaning as ProjectListItem.taskCount.',
+            example: 2
+        },
+        jobCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Linked jobs. Same meaning as ProjectListItem.jobCount.',
+            example: 1
+        },
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HistoryItem'
+            },
+            maxItems: 5,
+            description: 'Mixed tasks+jobs that need attention, already ranked, length 0..5. Never padded with excluded statuses.'
+        }
+    },
+    required: [
+        'taskCount',
+        'jobCount',
+        'items'
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -16149,7 +16180,10 @@ export const PublicSharedTaskSchema = {
                     example: 'Ops Agent'
                 },
                 slug: {
-                    type: 'string',
+                    type: [
+                        'string',
+                        'null'
+                    ],
                     example: 'ops-agent'
                 },
                 image: {
@@ -16217,7 +16251,10 @@ export const PublicSharedTaskAssigneeSchema = {
             example: 'Ops Agent'
         },
         slug: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
             example: 'ops-agent'
         },
         image: {
