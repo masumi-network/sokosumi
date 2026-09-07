@@ -125,10 +125,35 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
   })),
 }));
 
-vi.mock("@/components/chat/room-read-overlay", () => ({
-  rememberRoomRead: vi.fn(),
-  forgetRoomRead: vi.fn(),
-}));
+vi.mock("@/components/chat/room-read-overlay", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/components/chat/room-read-overlay")
+    >();
+  const rememberRoomRead = vi.fn();
+  const forgetRoomRead = vi.fn();
+  return {
+    ...actual,
+    rememberRoomRead,
+    forgetRoomRead,
+    beginRoomAttentionChange: (room: ChatRoom) => {
+      rememberRoomRead(room);
+      return actual.beginRoomAttentionChange(room);
+    },
+    settleRoomAttentionChange: (
+      roomId: string,
+      token: number,
+      room: ChatRoom | null,
+    ) => {
+      const accepted = actual.settleRoomAttentionChange(roomId, token, room);
+      if (accepted) {
+        if (room) rememberRoomRead(room);
+        else forgetRoomRead(roomId);
+      }
+      return accepted;
+    },
+  };
+});
 
 vi.mock("../room-file-drop-zone", () => ({
   RoomFileDropZone: ({ children }: { children: ReactNode }) => (
