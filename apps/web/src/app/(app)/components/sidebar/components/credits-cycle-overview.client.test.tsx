@@ -56,11 +56,14 @@ describe("CreditsCycleOverview", () => {
     );
 
     expect(screen.getByTestId("credits-cycle-overview")).toBeInTheDocument();
-    expect(screen.getByTestId("credits-additional")).toHaveTextContent(
-      "additionalCreditsHero 51162",
-    );
+    const monthlyHeading = screen.getByText("monthlyUsageLimit");
+    const additional = screen.getByTestId("credits-additional");
+    expect(
+      monthlyHeading.compareDocumentPosition(additional) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(additional).toHaveTextContent("additionalCreditsHero 51162");
     expect(screen.getByText("additionalCreditsLabel")).toBeInTheDocument();
-    expect(screen.getByText("monthlyUsageLimit")).toBeInTheDocument();
     expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
     expect(
       screen.getByText("creditsRemainingOfTotal 750 1000"),

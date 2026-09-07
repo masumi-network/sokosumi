@@ -439,9 +439,13 @@ describe("SidebarAccountChip", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
     expect(screen.queryByText("totalAvailableLabel")).not.toBeInTheDocument();
-    expect(screen.getByTestId("credits-additional")).toHaveTextContent(
-      "additionalCreditsHero 51162",
-    );
+    const monthlyHeading = screen.getByText("monthlyUsageLimit");
+    const additional = screen.getByTestId("credits-additional");
+    expect(
+      monthlyHeading.compareDocumentPosition(additional) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(additional).toHaveTextContent("additionalCreditsHero 51162");
     expect(screen.getByText("additionalCreditsLabel")).toBeInTheDocument();
     expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
   });
