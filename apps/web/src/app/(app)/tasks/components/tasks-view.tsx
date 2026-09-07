@@ -68,6 +68,8 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import {
   applyTasksTabSearchParam,
+  parseTasksTab,
+  TASKS_TAB_PARAM,
   type TasksTabValue,
 } from "@/app/tasks/utils/tasks-tab";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
@@ -386,6 +388,12 @@ export function TasksView({
     defaultDensity ?? "normal",
   );
   const [activeTab, setActiveTab] = useState<TasksTabValue>(initialTab);
+  const tabFromUrl = parseTasksTab(
+    searchParams.get(TASKS_TAB_PARAM) ?? undefined,
+  );
+  useEffect(() => {
+    setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
   const [guideCompleted, setGuideCompleted] = useState<boolean | null>(null);
   const [forceShowGuide, setForceShowGuide] = useState(false);
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
