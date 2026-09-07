@@ -34,13 +34,15 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [attention, t, tHistory, tTaskFilters, locale] = await Promise.all([
-    projectService.getProjectNeedsAttention(project.id),
-    getTranslations("App.Projects.Detail"),
-    getTranslations("App.History.Row"),
-    getTranslations("App.Tasks.Filters"),
-    getLocale(),
-  ]);
+  const [attention, t, tHistory, tListStats, tTaskFilters, locale] =
+    await Promise.all([
+      projectService.getProjectNeedsAttention(project.id),
+      getTranslations("App.Projects.Detail"),
+      getTranslations("App.History.Row"),
+      getTranslations("App.Projects.list.stats"),
+      getTranslations("App.Tasks.Filters"),
+      getLocale(),
+    ]);
 
   const taskStatusLabels: Record<TaskStatus, string> = {
     [TaskStatus.DRAFT]: tTaskFilters("statusOptions.DRAFT"),
@@ -142,8 +144,8 @@ export default async function ProjectDetailPage({
                   viewAllTasks: t("tasks.viewAll"),
                   viewAllJobs: t("jobs.viewAll"),
                   counts: {
-                    tasks: t("list.stats.tasks"),
-                    jobs: t("list.stats.jobs"),
+                    tasks: tListStats("tasks"),
+                    jobs: tListStats("jobs"),
                   },
                   kind: {
                     task: tHistory("kind.task"),
