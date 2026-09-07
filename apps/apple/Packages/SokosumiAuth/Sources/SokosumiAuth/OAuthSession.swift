@@ -74,7 +74,7 @@ public actor OAuthSession {
       (name: "client_id", value: configuration.clientID),
       (name: "code_verifier", value: codeVerifier),
     ])
-    store.save(payload.tokens(now: now()))
+    try store.save(payload.tokens(now: now()))
   }
 
   /// A usable access token: cached while fresh, silently refreshed via
@@ -112,7 +112,7 @@ public actor OAuthSession {
       if next.refreshToken == nil {
         next.refreshToken = tokens.refreshToken
       }
-      store.save(next)
+      try store.save(next)
       return next.accessToken
     } catch let failure as OAuthError where failure.isInvalidGrant {
       // Definitive rejection: the grant is dead, so drop the session and

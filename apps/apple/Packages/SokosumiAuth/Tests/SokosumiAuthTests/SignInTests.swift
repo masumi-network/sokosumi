@@ -40,6 +40,28 @@ struct SignInTests {
     #expect(fields["client_secret"] == nil)
   }
 
+  @Test func signInFailsWhenTokensCannotPersist() async throws {
+    let transport = StubTokenTransport(response: .success(
+      status: 200,
+      json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":7200,\"refresh_token\":\"refresh-1\"}"
+    ))
+    struct SaveFailed: Error {}
+    let store = InMemoryTokenStore()
+    store.saveError = SaveFailed()
+    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+
+    // The exchange succeeded but the session must not report signed in:
+    // a relaunch would ask for sign-in again.
+    await #expect(throws: SaveFailed.self) {
+      try await session.signIn(
+        callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+        expectedState: "s",
+        codeVerifier: "v"
+      )
+    }
+    #expect(await !session.isSignedIn)
+  }
+
   @Test func signInRejectsCallbackWithWrongPath() async throws {
     let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
     let session = OAuthSession(

@@ -154,6 +154,8 @@ final class AuthState: ObservableObject {
       "Sign-in was interrupted. Try again."
     case let OAuthError.tokenExchangeFailed(_, message, _):
       message.isEmpty ? "Sign-in failed." : message
+    case TokenStoreError.encodingFailed, TokenStoreError.writeFailed:
+      "Signed in, but your session could not be saved on this Mac. Try again."
     case let error as URLError where error.code == .notConnectedToInternet:
       "No network connection. Check your connection and try again."
     case let error as URLError:

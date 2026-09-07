@@ -25,9 +25,9 @@ struct KeychainTokenStore: TokenStore {
     return try? JSONDecoder().decode(OAuthTokens.self, from: data)
   }
 
-  func save(_ tokens: OAuthTokens) {
+  func save(_ tokens: OAuthTokens) throws {
     guard let data = try? JSONEncoder().encode(tokens) else {
-      return
+      throw TokenStoreError.encodingFailed
     }
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
@@ -38,10 +38,14 @@ struct KeychainTokenStore: TokenStore {
       kSecValueData as String: data,
       kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
     ]
+    let status: OSStatus
     if SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess {
-      SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+      status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
     } else {
-      SecItemAdd((query.merging(attributes) { _, new in new }) as CFDictionary, nil)
+      status = SecItemAdd((query.merging(attributes) { _, new in new }) as CFDictionary, nil)
+    }
+    guard status == errSecSuccess else {
+      throw TokenStoreError.writeFailed
     }
   }
 

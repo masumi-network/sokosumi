@@ -24,9 +24,17 @@ public struct OAuthTokens: Codable, Sendable, Equatable {
 
 /// Token persistence boundary. Keychain lives in the Mac app target (it needs
 /// the `Security` framework); the package only sees this protocol.
+/// Thrown when tokens cannot be persisted. Sign-in and refresh propagate
+/// this instead of reporting an authenticated session that a relaunch
+/// would immediately forget.
+public enum TokenStoreError: Error, Equatable {
+  case encodingFailed
+  case writeFailed
+}
+
 public protocol TokenStore: Sendable {
   func load() -> OAuthTokens?
-  func save(_ tokens: OAuthTokens)
+  func save(_ tokens: OAuthTokens) throws
   /// Deletes stored tokens. Returns true only when absence is confirmed
   /// (deleted or already absent) — never on an unreadable store, so callers
   /// cannot mistake "could not verify" for "signed out".
