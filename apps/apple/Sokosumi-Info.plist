@@ -29,6 +29,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+	<key>SokosumiOAuthClientID</key>
+	<string>qcVFTjjxjaGdsQsGXEeUSfMCWNHEoVyR</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
