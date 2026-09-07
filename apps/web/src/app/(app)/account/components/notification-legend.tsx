@@ -84,7 +84,14 @@ function ChannelExplainer({
 
   const closeSoon = () => {
     holdOpen();
-    closing.current = setTimeout(() => setOpen(false), CLOSE_DELAY_MS);
+    closing.current = setTimeout(() => {
+      // The pointer's claim on the panel ends with the panel. This close is
+      // ours rather than Radix's, so `onOpenChange` never runs and nothing
+      // else puts the flag down; left standing, the press handler below goes
+      // on refusing every press, and Enter and Space open nothing ever again.
+      byPointer.current = false;
+      setOpen(false);
+    }, CLOSE_DELAY_MS);
   };
 
   // Nothing else stops the timer. A reader who leaves the name and then leaves

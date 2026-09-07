@@ -947,6 +947,34 @@ describe("NotificationKinds", () => {
     });
   });
 
+  /**
+   * A press that arrives with the pointer is refused, so the pointer does not
+   * shut what it has just opened. That refusal is the pointer's alone: once
+   * the panel the pointer opened has gone, the name has to answer a press
+   * again, and Enter and Space are the only way in that a keyboard has.
+   */
+  it("opens a column's explanation from the keyboard after a hover", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    const name = screen.getByRole("button", { name: "channelPush" });
+
+    await user.hover(name);
+    await screen.findByText("channelPushHint");
+    await user.unhover(name);
+
+    await waitFor(() => {
+      expect(screen.queryByText("channelPushHint")).toBeNull();
+    });
+
+    name.focus();
+    await user.keyboard("{Enter}");
+
+    expect(await screen.findByText("channelPushHint")).toBeInTheDocument();
+  });
+
   it("puts the channel legend inside each expanded section", async () => {
     renderKinds();
 
