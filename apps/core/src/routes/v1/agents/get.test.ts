@@ -11,7 +11,6 @@ const {
   agentFindManyMock,
   buildAvailableAgentWhereClauseMock,
   calculateAgentRatingsMock,
-  calculateAverageExecutionTimesMock,
   getAgentCostMock,
   getAgentAuthorImageMock,
   getAgentDescriptionMock,
@@ -25,7 +24,6 @@ const {
   agentFindManyMock: vi.fn(),
   buildAvailableAgentWhereClauseMock: vi.fn(),
   calculateAgentRatingsMock: vi.fn(),
-  calculateAverageExecutionTimesMock: vi.fn(),
   getAgentCostMock: vi.fn(),
   getAgentAuthorImageMock: vi.fn(),
   getAgentDescriptionMock: vi.fn(),
@@ -40,7 +38,6 @@ vi.mock("@/helpers/agent", () => ({
   AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
   getCardanoV2ReadySources: () => Promise.resolve([]),
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
-  calculateAverageExecutionTimes: calculateAverageExecutionTimesMock,
   getAgentAuthorImage: getAgentAuthorImageMock,
   getAgentDescription: getAgentDescriptionMock,
   getAgentIcon: getAgentIconMock,
@@ -115,9 +112,6 @@ describe("GET /agents", () => {
     getAgentDescriptionMock.mockImplementation((agent) => agent.description);
     getAgentImageMock.mockImplementation((agent) => agent.image);
     getAgentIconMock.mockImplementation((agent) => agent.icon);
-    calculateAverageExecutionTimesMock.mockResolvedValue(
-      new Map([["agent_123", 120]]),
-    );
     calculateAgentRatingsMock.mockResolvedValue(
       new Map([["agent_123", { total: 3, average: 4.5 }]]),
     );
@@ -214,7 +208,6 @@ describe("GET /agents", () => {
     };
     expect(JSON.stringify(findManyArg.orderBy)).not.toContain("_count");
     expect(findManyArg.include).not.toHaveProperty("_count");
-    expect(calculateAverageExecutionTimesMock).not.toHaveBeenCalled();
     expect(body.data[0]?.metrics.executions).toMatchObject({
       count: 2,
       averageTime: null,
