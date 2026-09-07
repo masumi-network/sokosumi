@@ -24,6 +24,7 @@ export {
   DEFAULT_EDIT_FORM_VALUES,
   DIALOG_CLEANUP_TIMEOUT,
   editOAuthClientSchema,
+  isPublicOAuthClient,
   isSafeRedirectUri,
   parseRedirectUris,
 } from "./utils";
