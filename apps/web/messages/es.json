@@ -6363,7 +6363,9 @@
         "roomMessage": "{authorName} escribió en {roomName}",
         "roomMessages": "{count} mensajes en {roomName}",
         "roomMessageGroup": "{authorName} escribió en el grupo {roomName}",
-        "roomMessagesGroup": "{count} mensajes en el grupo {roomName}"
+        "roomMessagesGroup": "{count} mensajes en el grupo {roomName}",
+        "roomMessageTitle": "{authorName} en {roomName}",
+        "roomMessageGroupTitle": "{authorName} en el grupo {roomName}"
       }
     }
   },

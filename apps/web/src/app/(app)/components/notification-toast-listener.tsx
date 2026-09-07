@@ -19,6 +19,7 @@ import {
   shouldShowBrowserNotification,
 } from "@/lib/utils/browser-notification";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
+import { buildNotificationBannerContent } from "@/lib/utils/notification-banner";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import type { NotificationTarget } from "@/lib/utils/notification-service-worker";
@@ -180,19 +181,23 @@ export function NotificationToastListener({
       // the push service worker says the same thing for a tab that was
       // closed; a banner that read "12 messages in Design" here and named the
       // sender there would be two answers to one arrival.
-      const message = formatMessage(
-        notification.messageKey,
-        notification.messageParams ?? {},
-        { counted: false },
-      );
-
       if (showBrowser) {
         // The worker is the only thing that renders an OS banner (ADR-0023),
         // so a push carrying this same notification replaces this banner by
         // tag rather than stacking a second one beside it.
+        const banner = buildNotificationBannerContent({
+          messageKey: notification.messageKey,
+          messageParams: notification.messageParams ?? {},
+          appTitle: t("browserNotificationTitle"),
+          translate: (messageKey) =>
+            formatMessage(messageKey, notification.messageParams ?? {}, {
+              counted: false,
+            }),
+        });
+
         void showNotification({
-          title: t("browserNotificationTitle"),
-          body: message,
+          title: banner.title,
+          body: banner.body,
           target: toNotificationTarget(notification),
         }).then((shown) => {
           if (!shown) {
@@ -204,6 +209,12 @@ export function NotificationToastListener({
         });
         return;
       }
+
+      const message = formatMessage(
+        notification.messageKey,
+        notification.messageParams ?? {},
+        { counted: false },
+      );
 
       toast(
         () => (

@@ -1,7 +1,13 @@
+import {
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { render } from "@testing-library/react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { NotificationKind } from "@/lib/clients/generated/core";
+import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/lib/utils/coworker-access-notification";
 
 const onNotificationRef = {
   current: null as ((notification: NotificationEventData) => void) | null,
@@ -106,7 +112,11 @@ const NOTIFICATION: NotificationEventData = {
   kind: NotificationKind.CHAT,
   userId: "user-1",
   eventId: "event-1",
-  messageParams: {},
+  messageParams: {
+    authorName: "Ada",
+    roomName: "Design",
+    messagePreview: "your call",
+  },
   isRead: false,
   readAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -156,6 +166,34 @@ describe("NotificationToastListener OS banner", () => {
   });
 
   /**
+   * The title is a catalog string of its own, so it has to be rendered with
+   * the notification's own params. Rendering it with nothing would put
+   * "{authorName} in {roomName}" on the banner.
+   */
+  it("renders the title key with the notification's own params", async () => {
+    const messageParams = {
+      authorName: "Ada",
+      roomName: "Design",
+      messagePreview: "can you look at the login flow",
+    };
+
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+      messageParams,
+    });
+
+    await vi.waitFor(() => {
+      expect(formatMessage).toHaveBeenCalledWith(
+        CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY,
+        messageParams,
+        { counted: false },
+      );
+    });
+  });
+
+  /**
    * ADR-0023 makes the worker's registration the single renderer, so the page
    * asks it for the banner rather than constructing one of its own.
    */
@@ -164,7 +202,58 @@ describe("NotificationToastListener OS banner", () => {
 
     await vi.waitFor(() => {
       expect(showNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ body: "message", target: TARGET }),
+        expect.objectContaining({
+          title: "message",
+          body: "your call",
+          target: TARGET,
+        }),
+      );
+    });
+  });
+
+  /**
+   * The reader judges an arrival by what it says, so the message itself is
+   * the body. Which key titles it is the test above; this one is the body.
+   */
+  it("puts the message itself under the title", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      messageParams: {
+        authorName: "Ada",
+        roomName: "Design",
+        messagePreview: "can you look at the login flow",
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(showNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "message",
+          body: "can you look at the login flow",
+        }),
+      );
+    });
+  });
+
+  /**
+   * Only a chat message carries text of its own. Every other kind keeps the
+   * app name, because its line is longer than a title is shown.
+   */
+  it("keeps the app name on a notification that is not a chat message", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      kind: NotificationKind.TASK,
+      messageKey: "Notifications.Task.completed",
+    });
+
+    await vi.waitFor(() => {
+      expect(showNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "browserNotificationTitle",
+          body: "message",
+        }),
       );
     });
   });
@@ -276,6 +365,69 @@ describe("NotificationToastListener OS banner", () => {
       expect(handleNotificationNavigation).toHaveBeenCalled();
     });
     expect(markRead).toHaveBeenCalledWith("notification-1");
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A focused tab shows a toast instead of a banner. Only a request that waits
+ * on the reader interrupts this way, because the tab already shows the rest.
+ */
+describe("NotificationToastListener in-app toast", () => {
+  const PENDING_ACCESS: NotificationEventData = {
+    ...NOTIFICATION,
+    kind: NotificationKind.SYSTEM,
+    messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+    referenceId: "access-1",
+    messageParams: { coworkerName: "Ada", workspaceName: "Design" },
+    metadata: { organizationId: "org-1", organizationSlug: "acme" },
+  };
+
+  beforeEach(() => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.mocked(toast).mockClear();
+    showNotification.mockClear();
+    getNotificationServiceWorker.mockClear();
+    answerShowsNotificationsQuery.mockClear();
+    stopAnswering.mockClear();
+    formatMessage.mockClear();
+    markRead.mockClear();
+  });
+
+  it("toasts a pending access request with its own line", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.(PENDING_ACCESS);
+
+    await vi.waitFor(() => {
+      expect(toast).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({ id: PENDING_ACCESS.id }),
+      );
+    });
+    expect(formatMessage).toHaveBeenCalledWith(
+      COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+      PENDING_ACCESS.messageParams,
+      { counted: false },
+    );
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The banner is for a tab the reader is not looking at. A toast on top of a
+   * banner would say the same thing twice.
+   */
+  it("leaves a chat message to the banner", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.(NOTIFICATION);
+
+    await vi.waitFor(() => {
+      expect(getNotificationServiceWorker).toHaveBeenCalled();
+    });
+    expect(toast).not.toHaveBeenCalled();
     expect(showNotification).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { LOCALE_COOKIE_NAME, SUPPORTED_LOCALES } from "@sokosumi/utils";
+import {
+  CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY,
+  LOCALE_COOKIE_NAME,
+  SUPPORTED_LOCALES,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
   NOTIFICATION_CLICK_MESSAGE,
@@ -83,6 +88,26 @@ function localeBlock(source: string, locale: string): string {
   );
 }
 
+/**
+ * The block read as the map it is, key by key.
+ *
+ * Asking whether a string is somewhere in the block cannot see two strings
+ * that swapped keys: both are still there, and a banner then titles a group
+ * message the way it titles a channel one.
+ */
+function localeStrings(source: string, locale: string): Map<string, string> {
+  const strings = new Map<string, string>();
+  const pairs = localeBlock(source, locale).matchAll(
+    /"([^"]+)":\s*"((?:[^"\\]|\\.)*)"/g,
+  );
+
+  for (const [, key, value] of pairs) {
+    strings.set(key, JSON.parse(`"${value}"`) as string);
+  }
+
+  return strings;
+}
+
 describe("ably-push-sw message map", () => {
   const source = readFileSync(SERVICE_WORKER_PATH, "utf8");
 
@@ -98,10 +123,37 @@ describe("ably-push-sw message map", () => {
     for (const { key, text } of messageEntries(catalog)) {
       it(`carries the current ${locale} string for ${key}`, () => {
         expect(text).toBeTruthy();
-        expect(localeBlock(source, locale)).toContain(text);
+        expect(localeStrings(source, locale).get(key)).toBe(text);
       });
     }
   }
+
+  /**
+   * Core never stores these two, so the loop above only guards them while the
+   * catalog still has them. Drop one and a chat banner reads its key path back
+   * at the reader instead of naming the sender.
+   */
+  it("keeps the strings web titles a chat banner with in the catalog", () => {
+    expect(MESSAGE_KEYS).toContain(CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY);
+    expect(MESSAGE_KEYS).toContain(CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY);
+  });
+
+  /**
+   * The worker cannot import these, so it repeats the two key paths as
+   * literals. Both constants name a key the catalog has, so pointing one at
+   * the other passes every other check here: the app would then title a
+   * channel message as a group one while the worker still titles it as a
+   * channel. Written out rather than compared to the worker, because the two
+   * copies drifting apart is the thing being guarded against.
+   */
+  it("names the two title keys the worker repeats", () => {
+    expect(CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY).toBe(
+      "Notifications.Chat.roomMessageTitle",
+    );
+    expect(CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY).toBe(
+      "Notifications.Chat.roomMessageGroupTitle",
+    );
+  });
 
   it("reads the locale from the cookie the app writes", () => {
     expect(source).toContain(`"${LOCALE_COOKIE_NAME}"`);

@@ -247,7 +247,11 @@ const MENTION_PUSH = {
   kind: "CHAT",
   referenceId: "room-1",
   messageKey: "Notifications.Chat.mentioned",
-  messageParams: JSON.stringify({ authorName: "Ada", roomName: "General" }),
+  messageParams: JSON.stringify({
+    authorName: "Ada",
+    roomName: "General",
+    messagePreview: "your call",
+  }),
 };
 
 const MENTION_TARGET = {
@@ -268,7 +272,7 @@ describe("ably-push-sw display", () => {
 
     await worker.dispatchPush(MENTION_PUSH);
 
-    expect(worker.shown[0]?.options.body).toBe("Ada mentioned you in General");
+    expect(worker.shown[0]?.title).toBe("Ada mentioned you in General");
   });
 
   /**
@@ -285,9 +289,7 @@ describe("ably-push-sw display", () => {
 
     await worker.dispatchPush(MENTION_PUSH);
 
-    expect(worker.shown[0]?.options.body).toBe(
-      "Ada hat dich in General erwähnt",
-    );
+    expect(worker.shown[0]?.title).toBe("Ada hat dich in General erwähnt");
   });
 
   /**
@@ -304,9 +306,7 @@ describe("ably-push-sw display", () => {
 
     await worker.dispatchPush(MENTION_PUSH);
 
-    expect(worker.shown[0]?.options.body).toBe(
-      "Ada hat dich in General erwähnt",
-    );
+    expect(worker.shown[0]?.title).toBe("Ada hat dich in General erwähnt");
   });
 
   it("renders the localized message tagged with the notification id", async () => {
@@ -316,15 +316,261 @@ describe("ably-push-sw display", () => {
 
     expect(worker.shown).toEqual([
       {
-        title: "Sokosumi",
+        title: "Ada mentioned you in General",
         options: {
-          body: "Ada mentioned you in General",
+          body: "your call",
           tag: "notification-1",
           icon: "/images/app-icons/apple-icon-180.png",
           data: MENTION_TARGET,
         },
       },
     ]);
+  });
+
+  /**
+   * The title carries who wrote and where, so the body is free for the words
+   * themselves. The operating system prints the app name beside the banner
+   * already, and a reader cannot judge a message from the app name.
+   */
+  it("titles a room message with who wrote and where", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.roomMessage",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Design",
+        messagePreview: "can you look at the login flow",
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Ada in Design");
+    expect(worker.shown[0]?.options.body).toBe(
+      "can you look at the login flow",
+    );
+  });
+
+  it("says a room of people is a group", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.roomMessage",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Ada, Ben, Cara",
+        isGroup: true,
+        messagePreview: "standup in five",
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Ada in group Ada, Ben, Cara");
+  });
+
+  /**
+   * The two title strings differ by one clause in German, and both name the
+   * author and the room. Reading a channel message under the group string
+   * tells the reader they are in a group they are not in.
+   */
+  it("titles a German room message under the string for its own shape", async () => {
+    const worker = loadServiceWorker({ isChromium: true, locale: "de" });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.roomMessage",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Design",
+        messagePreview: "schaust du dir den Login an",
+      }),
+    });
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.roomMessage",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Ada, Ben, Cara",
+        isGroup: true,
+        messagePreview: "Standup in fünf",
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Ada in Design");
+    expect(worker.shown[1]?.title).toBe("Ada in der Gruppe Ada, Ben, Cara");
+  });
+
+  /**
+   * A direct room is named after the people in it, so its name is not the
+   * author's. Ben's banner for a message from Ada must say Ada, not Ben.
+   */
+  it("titles a direct message with the author alone", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.directMessage",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Ben",
+        messagePreview: "are you free?",
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Ada");
+    expect(worker.shown[0]?.options.body).toBe("are you free?");
+  });
+
+  /**
+   * The author is the whole title of a direct message, so a message without
+   * one has to fall back rather than show an empty line.
+   */
+  it("falls back to the app name when a direct message has no author", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.directMessage",
+      messageParams: JSON.stringify({ messagePreview: "are you free?" }),
+    });
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.directMessage",
+      messageParams: JSON.stringify({
+        authorName: "",
+        messagePreview: "are you free?",
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Sokosumi");
+    expect(worker.shown[1]?.title).toBe("Sokosumi");
+  });
+
+  /** Mirrors the app: a room title names the author too. */
+  it("falls back to the app name when a room message has no author", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.roomMessage",
+      messageParams: JSON.stringify({
+        authorName: "",
+        roomName: "Design",
+        messagePreview: "can you look at the login flow",
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Sokosumi");
+  });
+
+  /** The preview arrives as JSON, so it is only a string by convention. */
+  it("ignores a preview that is not text", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.roomMessage",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Design",
+        messagePreview: 12,
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Sokosumi");
+    expect(worker.shown[0]?.options.body).toBe("Ada wrote in Design");
+  });
+
+  /** Mirrors the app: a name on its own says less than the line does. */
+  it("keeps the app name and the line when the message left no text", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.roomMessage",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Design",
+      }),
+    });
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageKey: "Notifications.Chat.roomMessage",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "Design",
+        messagePreview: "",
+      }),
+    });
+
+    for (const shown of worker.shown) {
+      expect(shown.title).toBe("Sokosumi");
+      expect(shown.options.body).toBe("Ada wrote in Design");
+    }
+  });
+
+  /**
+   * A title is cut shorter than a body on most platforms, and a task name is
+   * long, so every other kind keeps the app name and its line.
+   */
+  it("leaves a task banner titled with the app name", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      kind: "TASK",
+      messageKey: "Notifications.Task.completed",
+      messageParams: JSON.stringify({
+        coworkerName: "Ada",
+        taskName: "Weekly report",
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Sokosumi");
+    expect(worker.shown[0]?.options.body).toBe("Ada completed Weekly report");
+  });
+
+  /**
+   * Chat's own params on a kind that is not chat. Core writes neither on a
+   * task, so this says the key decides the title, not the params beside it.
+   */
+  it("keeps the app name on a task carrying a chat message's params", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      kind: "TASK",
+      messageKey: "Notifications.Task.completed",
+      messageParams: JSON.stringify({
+        coworkerName: "Ada",
+        taskName: "Weekly report",
+        authorName: "Ada",
+        messagePreview: "done",
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Sokosumi");
+    expect(worker.shown[0]?.options.body).toBe("Ada completed Weekly report");
+  });
+
+  /**
+   * Every chat title names the author, and a mention's is no different: a
+   * blank name would title the banner " mentioned you in General".
+   */
+  it("keeps the app name on a mention with no author to name", async () => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      messageParams: JSON.stringify({
+        authorName: "",
+        roomName: "General",
+        messagePreview: "your call",
+      }),
+    });
+
+    expect(worker.shown[0]?.title).toBe("Sokosumi");
+    expect(worker.shown[0]?.options.body).toBe(" mentioned you in General");
   });
 
   it("tags an unreadable payload so a replay replaces it", async () => {
@@ -464,9 +710,9 @@ describe("ably-push-sw display", () => {
 
     expect(worker.shown).toEqual([
       {
-        title: "Sokosumi",
+        title: "Ada mentioned you in General",
         options: {
-          body: "Ada mentioned you in General",
+          body: "your call",
           tag: "notification-1",
           icon: "/images/app-icons/apple-icon-180.png",
           data: MENTION_TARGET,
