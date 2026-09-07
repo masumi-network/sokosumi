@@ -242,7 +242,16 @@ describe("fanOutChatNotifications, counting per room", () => {
       where: { id: string };
       data: { messageParams: string };
     };
-    expect(write.where).toMatchObject({ id: "notification_1" });
+    // The row, the count it was read with, and still unread. A blind write
+    // would overwrite a count another message put there in between.
+    expect(write.where).toEqual({
+      id: "notification_1",
+      messageParams: JSON.stringify({
+        authorName: "Ada",
+        roomName: "general",
+      }),
+      isRead: false,
+    });
     expect(JSON.parse(write.data.messageParams)).toEqual({
       authorName: "Patrick",
       roomName: "general",
