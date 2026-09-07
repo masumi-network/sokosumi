@@ -38,8 +38,11 @@ export async function waitForSearchJumpPaint(
 }
 
 /**
- * The hold is kept on every path that arrives somewhere, so the view stays
- * where the jump put it. It is dropped on every path that arrives nowhere,
+ * The hold is kept on the two paths that load a window, so the view stays
+ * where the jump put it rather than snapping back to the newest message.
+ *
+ * It is dropped everywhere else: on a target that was already on screen,
+ * which needed no hold to reach, and on every path that arrives nowhere,
  * because a room holding off the bottom for a jump that never happened stops
  * following new messages and cannot be re-armed by scrolling.
  */

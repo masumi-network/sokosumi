@@ -60,8 +60,9 @@ export function useMessageParamJump({
     // messages does not start a second one.
     jumpedRef.current = target;
     jump(messageId);
-    // `jump` is redefined every render by the room client. A changed identity
-    // re-runs this effect and stops at the guard above, so it costs nothing
-    // and keeps the callback current for the jump that does happen.
+    // `jump` is listed so the jump that happens always uses the current
+    // callback. Whether its identity changes each render is up to the caller
+    // and the compiler; either way a re-run stops at the guard above, so the
+    // logic rests on `target` and the ref rather than on that identity.
   }, [target, messageId, ready, jump]);
 }
