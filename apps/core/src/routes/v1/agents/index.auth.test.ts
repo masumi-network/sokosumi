@@ -8,7 +8,6 @@ const {
   agentFindManyMock,
   buildAvailableAgentWhereClauseMock,
   calculateAgentRatingsMock,
-  calculateAverageExecutionTimesMock,
   getAgentCostMock,
   getAgentAuthorImageMock,
   getAgentDescriptionMock,
@@ -33,7 +32,6 @@ const {
   agentFindManyMock: vi.fn(),
   buildAvailableAgentWhereClauseMock: vi.fn(),
   calculateAgentRatingsMock: vi.fn(),
-  calculateAverageExecutionTimesMock: vi.fn(),
   getAgentCostMock: vi.fn(),
   getAgentAuthorImageMock: vi.fn(),
   getAgentDescriptionMock: vi.fn(),
@@ -70,7 +68,6 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 vi.mock("@/helpers/agent", () => ({
   AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
-  calculateAverageExecutionTimes: calculateAverageExecutionTimesMock,
   getAgentAuthorImage: getAgentAuthorImageMock,
   getAgentDescription: getAgentDescriptionMock,
   getAgentIcon: getAgentIconMock,
@@ -127,7 +124,6 @@ describe("agents routes auth gate", () => {
     getAgentDescriptionMock.mockImplementation((agent) => agent.description);
     getAgentImageMock.mockImplementation((agent) => agent.image);
     getAgentIconMock.mockImplementation((agent) => agent.icon);
-    calculateAverageExecutionTimesMock.mockResolvedValue(new Map());
     calculateAgentRatingsMock.mockResolvedValue(new Map());
     agentFindManyMock.mockResolvedValue([]);
     agentCountMock.mockResolvedValue(0);

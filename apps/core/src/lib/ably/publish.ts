@@ -14,11 +14,9 @@ import {
 import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
 
 import {
-  ablyPublishSize,
   CHAT_ROOM_MESSAGE_EVENT_NAME,
   type ChatRoomMessageFullEventType,
   chatRoomMessagePublishBody,
-  isChatRoomMessageIdEnvelope,
 } from "./ably-message-size";
 import { getRestClient } from "./client";
 
@@ -249,17 +247,6 @@ export async function publishChatRoomMessageEvent(
   }
 
   const body = chatRoomMessagePublishBody(input.eventType, input.message);
-  if (isChatRoomMessageIdEnvelope(body)) {
-    const full = {
-      eventType: input.eventType,
-      message: input.message,
-    };
-    console.info("Published chat_room_message id envelope", {
-      messageId: body.messageId,
-      roomId: body.roomId,
-      bytes: ablyPublishSize(CHAT_ROOM_MESSAGE_EVENT_NAME, full),
-    });
-  }
   await channel.publish(CHAT_ROOM_MESSAGE_EVENT_NAME, body);
 }
 
