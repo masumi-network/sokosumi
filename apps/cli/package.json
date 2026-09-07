@@ -1,0 +1,27 @@
+{
+  "name": "sokosumi-cli",
+  "version": "0.1.0",
+  "description": "Developer CLI for Sokosumi Coworker builders",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "files": [
+    "bin",
+    "src"
+  ],
+  "bin": {
+    "sokosumi": "bin/sokosumi.mjs"
+  },
+  "scripts": {
+    "sokosumi": "node bin/sokosumi.mjs",
+    "test": "node --test test/**/*.test.mjs",
+    "test:ci": "node --test test/**/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "ink": "4.4.1",
+    "react": "18.3.1"
+  }
+}
