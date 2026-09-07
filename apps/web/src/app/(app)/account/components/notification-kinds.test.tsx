@@ -326,8 +326,8 @@ describe("NotificationKinds", () => {
       );
     renderKinds();
 
-    await pick("kindJob", "deliveryOff");
-    await pick("kindTask", "deliveryBanner");
+    await pick("groupJob", "deliveryOff");
+    await pick("groupTask", "deliveryBanner");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(2);
@@ -336,24 +336,28 @@ describe("NotificationKinds", () => {
     resolveTask!(
       response(
         MATRIX.map((cell) =>
-          cell.category === "TASK" ? { ...cell, enabled: true } : cell,
+          cell.category === "TASK_ATTENTION" || cell.category === "TASK_UPDATE"
+            ? { ...cell, enabled: true }
+            : cell,
         ),
       ),
     );
     resolveJob!(
       response(
         MATRIX.map((cell) =>
-          cell.category === "JOB" ? { ...cell, enabled: false } : cell,
+          cell.category === "JOB_ATTENTION" || cell.category === "JOB_UPDATE"
+            ? { ...cell, enabled: false }
+            : cell,
         ),
       ),
     );
 
     await waitFor(() => {
-      expect(stop("kindJob", "deliveryOff")).toHaveAttribute(
+      expect(stop("groupJob", "deliveryOff")).toHaveAttribute(
         "aria-pressed",
         "true",
       );
-      expect(stop("kindTask", "deliveryBanner")).toHaveAttribute(
+      expect(stop("groupTask", "deliveryBanner")).toHaveAttribute(
         "aria-pressed",
         "true",
       );
