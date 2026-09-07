@@ -88,6 +88,11 @@ describe("ProjectTasksSection", () => {
     expect(taskLink).toHaveAttribute("href", "/tasks/task-1");
     expect(taskLink.className).toContain("hover:bg-muted/50");
     expect(taskLink.className).not.toMatch(/\bborder\b/);
+
+    const listBox = screen
+      .getByTestId("project-tasks-section")
+      .querySelector(".bg-muted\\/30");
+    expect(listBox?.className).toContain("md:rounded-xl");
     expect(
       screen.queryByRole("button", { name: /remove/i }),
     ).not.toBeInTheDocument();
@@ -102,6 +107,15 @@ describe("ProjectTasksSection", () => {
     expect(
       screen.getByText("No tasks linked to this project yet."),
     ).toBeInTheDocument();
+
+    const listBox = screen
+      .getByTestId("project-tasks-section")
+      .querySelector(".bg-muted\\/30");
+    expect(listBox?.className).toContain("md:rounded-xl");
+    expect(listBox).toContainElement(
+      screen.getByText("No tasks linked to this project yet."),
+    );
+
     await user.click(screen.getByRole("button", { name: "Add task" }));
     expect(screen.getByTestId("task-picker")).toBeInTheDocument();
     expect(

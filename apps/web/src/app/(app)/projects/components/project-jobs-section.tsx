@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ProjectJobPickerDialog } from "@/app/projects/components/project-job-picker-dialog";
+import {
+  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_DETAIL_LIST_LAYOUT_CLASS,
+} from "@/app/projects/constants";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import {
   AlertDialog,
@@ -120,51 +124,55 @@ export function ProjectJobsSection({
         </Button>
       </div>
 
-      {sortedJobs.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{labels.empty}</p>
-      ) : (
-        <ul className="space-y-3">
-          {sortedJobs.map((job) => {
-            const name = job.name?.trim() ? job.name : labels.untitled;
+      <div className={PROJECTS_DETAIL_LIST_LAYOUT_CLASS}>
+        {sortedJobs.length === 0 ? (
+          <div className="text-muted-foreground/50 flex items-center justify-center py-16 text-sm">
+            {labels.empty}
+          </div>
+        ) : (
+          <ul className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+            {sortedJobs.map((job) => {
+              const name = job.name?.trim() ? job.name : labels.untitled;
 
-            return (
-              <li
-                key={job.id}
-                className="bg-muted/40 border-border/50 flex items-center gap-2 rounded-lg border p-3"
-              >
-                <Link
-                  href={`/agents/${job.agentId}/jobs/${job.id}`}
-                  className="hover:text-primary grid min-w-0 flex-1 gap-2 transition-colors sm:grid-cols-[minmax(0,1fr)_140px_96px] sm:items-center"
+              return (
+                <li
+                  key={job.id}
+                  className="-mx-2 flex items-center gap-2 rounded-lg px-4 py-3 transition-colors hover:bg-muted/50"
                 >
-                  <p className="truncate text-sm">{name}</p>
-                  <JobStatusBadge
-                    status={job.status as SokosumiJobStatus}
-                    className="shrink-0"
-                  />
-                  <p className="text-muted-foreground shrink-0 text-xs sm:text-right">
-                    {formatTimeAgo(job.createdAt)}
-                  </p>
-                </Link>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 shrink-0"
-                  aria-label={labels.remove}
-                  disabled={isRemoving && pendingJobId === job.id}
-                  onClick={() => setJobToRemove(job)}
-                >
-                  {isRemoving && pendingJobId === job.id ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Trash2 className="size-4" aria-hidden />
-                  )}
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  <Link
+                    href={`/agents/${job.agentId}/jobs/${job.id}`}
+                    className="hover:text-primary grid min-w-0 flex-1 gap-2 transition-colors sm:grid-cols-[minmax(0,1fr)_140px_96px] sm:items-center"
+                  >
+                    <p className="truncate text-sm">{name}</p>
+                    <JobStatusBadge
+                      status={job.status as SokosumiJobStatus}
+                      className="shrink-0"
+                    />
+                    <p className="text-muted-foreground shrink-0 text-xs sm:text-right">
+                      {formatTimeAgo(job.createdAt)}
+                    </p>
+                  </Link>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0"
+                    aria-label={labels.remove}
+                    disabled={isRemoving && pendingJobId === job.id}
+                    onClick={() => setJobToRemove(job)}
+                  >
+                    {isRemoving && pendingJobId === job.id ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 className="size-4" aria-hidden />
+                    )}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
       <ProjectJobPickerDialog
         open={isPickerOpen}

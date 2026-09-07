@@ -7,6 +7,10 @@ import { useLocale } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ProjectTaskPickerDialog } from "@/app/projects/components/project-task-picker-dialog";
+import {
+  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_DETAIL_LIST_LAYOUT_CLASS,
+} from "@/app/projects/constants";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { TimeAgo } from "@/components/time-ago";
 import { Button } from "@/components/ui/button";
@@ -95,48 +99,52 @@ export function ProjectTasksSection({
         </div>
       </div>
 
-      {sortedTasks.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{labels.empty}</p>
-      ) : (
-        <div className="divide-border/50 -mx-2 divide-y px-0">
-          {sortedTasks.map((task) => {
-            const secondary = task.description?.trim() || null;
+      <div className={PROJECTS_DETAIL_LIST_LAYOUT_CLASS}>
+        {sortedTasks.length === 0 ? (
+          <div className="text-muted-foreground/50 flex items-center justify-center py-16 text-sm">
+            {labels.empty}
+          </div>
+        ) : (
+          <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+            {sortedTasks.map((task) => {
+              const secondary = task.description?.trim() || null;
 
-            return (
-              <Link
-                key={task.id}
-                href={`/tasks/${task.id}`}
-                className={cn(
-                  "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
-                  "-mx-2 rounded-lg px-4 py-3 transition-colors",
-                  "hover:bg-muted/50",
-                  "active:scale-[0.995]",
-                )}
-              >
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-foreground line-clamp-1 text-sm font-medium">
-                    {task.name}
-                  </span>
-                  {secondary ? (
-                    <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
-                      {secondary}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
-                  <TaskStatusBadge
-                    status={task.status as TaskStatus}
-                    className="w-fit shrink-0 rounded-sm"
-                  />
-                  <span className="text-muted-foreground shrink-0">
-                    <TimeAgo date={task.createdAt} locale={locale} />
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+              return (
+                <Link
+                  key={task.id}
+                  href={`/tasks/${task.id}`}
+                  className={cn(
+                    "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
+                    "-mx-2 rounded-lg px-4 py-3 transition-colors",
+                    "hover:bg-muted/50",
+                    "active:scale-[0.995]",
+                  )}
+                >
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-foreground line-clamp-1 text-sm font-medium">
+                      {task.name}
+                    </span>
+                    {secondary ? (
+                      <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
+                        {secondary}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
+                    <TaskStatusBadge
+                      status={task.status as TaskStatus}
+                      className="w-fit shrink-0 rounded-sm"
+                    />
+                    <span className="text-muted-foreground shrink-0">
+                      <TimeAgo date={task.createdAt} locale={locale} />
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <ProjectTaskPickerDialog
         open={isPickerOpen}

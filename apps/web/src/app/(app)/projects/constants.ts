@@ -46,6 +46,13 @@ export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
 /**
+ * Detail overview list box (Tasks / Jobs). Same fill/radius/border as browse,
+ * but no `-mx-*`: detail shell already cancels main p-4 and top is full-bleed.
+ */
+export const PROJECTS_DETAIL_LIST_LAYOUT_CLASS =
+  "bg-muted/30 border-border/50 overflow-hidden rounded-none border-0 md:rounded-xl md:border";
+
+/**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
  */
 export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border/50 divide-y px-2";

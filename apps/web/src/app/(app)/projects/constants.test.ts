@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
   PROJECTS_BROWSE_LAYOUT_CLASS,
+  PROJECTS_DETAIL_LIST_LAYOUT_CLASS,
   PROJECTS_DETAIL_SHELL_CLASS,
   PROJECTS_DETAIL_TOP_CLASS,
   PROJECTS_DETAIL_WORKSPACE_CLASS,
@@ -31,6 +32,14 @@ describe("projects list CLS layout constants", () => {
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).not.toContain("grid-cols-2");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("rounded-none");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:rounded-xl");
+  });
+
+  it("exports detail list layout without negative horizontal margin", () => {
+    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("bg-muted/30");
+    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("md:rounded-xl");
+    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("md:border");
+    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).not.toContain("-mx-4");
+    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).not.toContain("-mx-6");
   });
 });
 
