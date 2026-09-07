@@ -101,7 +101,11 @@ describe("YouPageClient", () => {
         .compareDocumentPosition(statusPlan) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(screen.queryByText(/balanceCreditsLabel/)).not.toBeInTheDocument();
-    expect(screen.queryByTestId("credits-cycle-overview")).toBeNull();
+    expect(screen.getByTestId("credits-total-available")).toHaveTextContent(
+      "totalAvailableHero 15750",
+    );
+    expect(screen.queryByText("monthlyUsageLimit")).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 
   it("shows a large avatar with initials", () => {
@@ -241,7 +245,7 @@ describe("YouPageClient", () => {
     });
   });
 
-  it("shows plan-cycle remaining on You and never extra-credit copy", () => {
+  it("shows spendable total plus plan-cycle remaining on You and never extra-credit copy", () => {
     renderYouPage({
       creditUsage: {
         percentageUsed: 25,
@@ -252,6 +256,9 @@ describe("YouPageClient", () => {
     });
 
     expect(screen.getByTestId("credits-cycle-overview")).toBeInTheDocument();
+    expect(screen.getByTestId("credits-total-available")).toHaveTextContent(
+      "totalAvailableHero 15750",
+    );
     expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
     expect(screen.queryByText("extraCredits")).not.toBeInTheDocument();
     expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();

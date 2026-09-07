@@ -144,6 +144,8 @@
       "expandSidebar": "Expandir barra lateral",
       "creditsSummary": "Resumen de créditos:",
       "monthlyUsageLimit": "Límite de uso mensual",
+      "totalAvailableHero": "{credits, number}",
+      "totalAvailableLabel": "Contingente total disponible",
       "creditsRemainingHero": "{credits, number} restantes",
       "creditsRemainingOfTotal": "{remaining, number} de {total, number} restantes",
       "planAllowanceExhausted": "La asignación de este período se ha agotado",

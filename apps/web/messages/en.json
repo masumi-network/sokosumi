@@ -144,6 +144,8 @@
       "lowCreditsLabel": "Low credits {credits, number}",
       "creditsSummary": "Credits Summary:",
       "monthlyUsageLimit": "Monthly usage limit",
+      "totalAvailableHero": "{credits, number}",
+      "totalAvailableLabel": "Total available",
       "creditsRemainingHero": "{credits, number} remaining",
       "creditsRemainingOfTotal": "{remaining, number} of {total, number} remaining",
       "planAllowanceExhausted": "This period's allowance is used up",

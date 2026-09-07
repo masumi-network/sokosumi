@@ -433,6 +433,10 @@ describe("SidebarAccountChip", () => {
     expect(
       screen.queryByText("extraCreditsDescription"),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+    expect(screen.getByTestId("credits-total-available")).toHaveTextContent(
+      "totalAvailableHero 15750",
+    );
     expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
   });
 });

@@ -50,6 +50,7 @@ export function YouPageClient({
   sessionUser,
   calendarMenuEnabled,
   planName,
+  totalCredits,
   creditUsage,
   subscriptionPeriodEndMs,
   currentTimestampMs,
@@ -129,11 +130,14 @@ export function YouPageClient({
         <section
           className="space-y-4"
           aria-labelledby={
-            creditUsage !== null ? "you-credits-heading" : undefined
+            totalCredits !== null || creditUsage !== null
+              ? "you-credits-heading"
+              : undefined
           }
         >
           <CreditsCycleOverview
             creditUsage={creditUsage}
+            totalCredits={totalCredits}
             subscriptionPeriodEndMs={subscriptionPeriodEndMs}
             currentTimestampMs={currentTimestampMs}
             headingId="you-credits-heading"

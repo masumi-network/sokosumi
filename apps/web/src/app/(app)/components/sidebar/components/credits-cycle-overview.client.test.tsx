@@ -16,10 +16,11 @@ const remainingUsage = {
 };
 
 describe("CreditsCycleOverview", () => {
-  it("renders nothing without a plan-cycle allowance", () => {
+  it("renders nothing without a spendable total or plan-cycle allowance", () => {
     const { container } = render(
       <CreditsCycleOverview
         creditUsage={null}
+        totalCredits={null}
         subscriptionPeriodEndMs={null}
         currentTimestampMs={1_700_000_000_000}
       />,
@@ -28,16 +29,21 @@ describe("CreditsCycleOverview", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows remaining against the cycle cap, not a bank total", () => {
+  it("shows spendable total plus remaining against the cycle cap, not an add-on row", () => {
     render(
       <CreditsCycleOverview
         creditUsage={remainingUsage}
+        totalCredits={52_662}
         subscriptionPeriodEndMs={1_700_000_000_000 + 3 * 24 * 60 * 60 * 1000}
         currentTimestampMs={1_700_000_000_000}
       />,
     );
 
     expect(screen.getByTestId("credits-cycle-overview")).toBeInTheDocument();
+    expect(screen.getByTestId("credits-total-available")).toHaveTextContent(
+      "totalAvailableHero 52662",
+    );
+    expect(screen.getByText("totalAvailableLabel")).toBeInTheDocument();
     expect(screen.getByText("monthlyUsageLimit")).toBeInTheDocument();
     expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
     expect(
@@ -53,7 +59,7 @@ describe("CreditsCycleOverview", () => {
     expect(screen.queryByText(/creditsUsedOfTotal/)).not.toBeInTheDocument();
   });
 
-  it("uses an empty remaining bar and exhausted copy when the allowance is spent", () => {
+  it("keeps spendable total when the period allowance is exhausted", () => {
     render(
       <CreditsCycleOverview
         creditUsage={{
@@ -62,11 +68,15 @@ describe("CreditsCycleOverview", () => {
           total: 3_032,
           used: 3_032,
         }}
+        totalCredits={51_162}
         subscriptionPeriodEndMs={1_700_000_000_000 + 5 * 24 * 60 * 60 * 1000}
         currentTimestampMs={1_700_000_000_000}
       />,
     );
 
+    expect(screen.getByTestId("credits-total-available")).toHaveTextContent(
+      "totalAvailableHero 51162",
+    );
     expect(screen.getByTestId("credits-cycle-exhausted")).toHaveTextContent(
       "planAllowanceExhausted",
     );
@@ -79,5 +89,23 @@ describe("CreditsCycleOverview", () => {
       "0",
     );
     expect(screen.queryByText(/creditsRemainingHero/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/extraCredits/)).not.toBeInTheDocument();
+  });
+
+  it("shows spendable total without a monthly block when there is no period allowance", () => {
+    render(
+      <CreditsCycleOverview
+        creditUsage={null}
+        totalCredits={15_750}
+        subscriptionPeriodEndMs={null}
+        currentTimestampMs={1_700_000_000_000}
+      />,
+    );
+
+    expect(screen.getByTestId("credits-total-available")).toHaveTextContent(
+      "totalAvailableHero 15750",
+    );
+    expect(screen.queryByText("monthlyUsageLimit")).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 });
