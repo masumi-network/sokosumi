@@ -289,6 +289,17 @@ async function githubJson(fetchImpl, token, url, init = {}) {
   return payload;
 }
 
+/**
+ * GitHub's list-pull-request-files endpoint returns at most this many files.
+ * A list that reaches the cap may be truncated, so callers must not treat it
+ * as a complete absence of relevant changes (see isTruncatedFileList).
+ */
+export const GITHUB_PR_FILES_LIMIT = 3000;
+
+export function isTruncatedFileList(files) {
+  return Array.isArray(files) && files.length >= GITHUB_PR_FILES_LIMIT;
+}
+
 export async function listPullRequestFiles({
   fetchImpl = globalThis.fetch,
   githubToken,
@@ -310,7 +321,7 @@ export async function listPullRequestFiles({
       break;
     }
     files.push(...payload);
-    if (payload.length < perPage) {
+    if (payload.length < perPage || isTruncatedFileList(files)) {
       break;
     }
     page += 1;
@@ -496,7 +507,10 @@ export async function runPreviewDeployComment(options) {
           repoName,
           pullNumber: issueNumber,
         }));
-    if (!hasPreviewRelevantChanges(files)) {
+    // A truncated list (GitHub caps PR files at GITHUB_PR_FILES_LIMIT) may hide
+    // relevant changes further down, so only skip on a provably complete list.
+    // Truncated lists fall through to a conservative deploy.
+    if (!isTruncatedFileList(files) && !hasPreviewRelevantChanges(files)) {
       await comment(noPreviewChangesMessage());
       return { kind: "skip" };
     }

@@ -6,8 +6,10 @@ import { describe, it } from "node:test";
 import {
   createGitDeployment,
   deployTargets,
+  GITHUB_PR_FILES_LIMIT,
   hasPreviewRelevantChanges,
   isPreviewRelevantPath,
+  isTruncatedFileList,
   isWritePermission,
   listPullRequestFiles,
   noPreviewChangesMessage,
@@ -1055,6 +1057,52 @@ describe("listPullRequestFiles", () => {
     });
     assert.deepEqual(files, []);
   });
+
+  it("stops paging once the GitHub file cap is reached", async () => {
+    let calls = 0;
+    const files = await listPullRequestFiles({
+      githubToken: "tok",
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      pullNumber: 12,
+      fetchImpl: async () => {
+        calls += 1;
+        return {
+          ok: true,
+          status: 200,
+          json: async () =>
+            Array.from({ length: 100 }, (_, index) => ({
+              filename: `docs/page-${calls}-${index}.md`,
+            })),
+        };
+      },
+    });
+    assert.equal(files.length, GITHUB_PR_FILES_LIMIT);
+    assert.equal(calls, GITHUB_PR_FILES_LIMIT / 100);
+    assert.equal(isTruncatedFileList(files), true);
+  });
+
+  it("flags only capped lists as truncated", () => {
+    assert.equal(isTruncatedFileList([]), false);
+    assert.equal(isTruncatedFileList(undefined), false);
+    assert.equal(isTruncatedFileList([{ filename: "docs/guide.md" }]), false);
+    assert.equal(
+      isTruncatedFileList(
+        Array.from({ length: GITHUB_PR_FILES_LIMIT - 1 }, () => ({
+          filename: "docs/guide.md",
+        })),
+      ),
+      false,
+    );
+    assert.equal(
+      isTruncatedFileList(
+        Array.from({ length: GITHUB_PR_FILES_LIMIT }, () => ({
+          filename: "docs/guide.md",
+        })),
+      ),
+      true,
+    );
+  });
 });
 
 describe("preview skip on /deploy", () => {
@@ -1122,6 +1170,30 @@ describe("preview skip on /deploy", () => {
     );
     assert.equal(result.kind, "deploy");
     assert.equal(created.length, 2);
+  });
+
+  it("deploys conservatively when the file list hits the GitHub cap", async () => {
+    const posted = [];
+    const created = [];
+    const result = await runPreviewDeployComment(
+      baseComment({
+        listFiles: async () =>
+          Array.from({ length: GITHUB_PR_FILES_LIMIT }, (_, index) => ({
+            filename: `docs/page-${index}.md`,
+          })),
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: `dpl_${input.target.app}`, readyState: "READY" };
+        },
+        pollDeployment: async (deployment) => deployment,
+        postComment: async (body) => {
+          posted.push(body);
+        },
+      }),
+    );
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 2);
+    assert.deepEqual(posted, []);
   });
 
   it("comments when listing PR files fails", async () => {
