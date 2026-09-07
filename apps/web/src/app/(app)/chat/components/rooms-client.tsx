@@ -2055,6 +2055,14 @@ export function RoomsClient({
           : undefined),
       loadParent: async (parentId) => {
         const result = await getRoomThreadAction(roomId, parentId);
+        // Checked before the error is shown, not after. The reader can switch
+        // rooms while this is in flight, and once they have, neither a thread
+        // nor a complaint about it belongs on the room they moved to.
+        // `loadThreadMessages` writes the panel state before its first await,
+        // so by the time it could check for itself the panel is already open.
+        if (!isStillSelectedRoom(roomId)) {
+          return null;
+        }
         if (!result.ok) {
           toast.error(result.error.message);
           return null;

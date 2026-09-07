@@ -546,4 +546,81 @@ describe("RoomsClient notification deep link", () => {
       around: "msg-reply",
     });
   });
+  it("drops a thread whose parent arrives after the reader changed rooms", async () => {
+    mockSearch.current = "message=msg-reply";
+    const parent = sampleMessage("parent body", "msg-parent");
+    const reply: ChatRoomMessage = {
+      ...sampleMessage("reply body", "msg-reply"),
+      parentMessageId: "msg-parent",
+    };
+    const otherRoom: ChatRoom = { ...channelRoom(), id: "room-other" };
+
+    vi.mocked(getRoomMessageAction).mockResolvedValue({
+      ok: true as const,
+      value: reply,
+    });
+    vi.mocked(markThreadReadAction).mockResolvedValue({
+      ok: true as const,
+      value: {
+        parentMessageId: "msg-parent",
+        lastReadAt: new Date("2026-07-01T12:02:00.000Z"),
+      },
+    });
+    vi.mocked(listThreadMessagesAction).mockResolvedValue({
+      ok: true as const,
+      value: { messages: [reply], nextCursor: null },
+    });
+
+    // Held open so the reader can leave while the parent is still loading.
+    let releaseParent = (): void => {};
+    vi.mocked(getRoomThreadAction).mockReturnValue(
+      new Promise((resolve) => {
+        releaseParent = () =>
+          resolve({
+            ok: true as const,
+            value: {
+              parentMessage: parent,
+              replyCount: 1,
+              lastReplyAt: new Date("2026-07-01T12:02:00.000Z"),
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+              hasLooked: true,
+            },
+          });
+      }),
+    );
+
+    const { rerender } = render(
+      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
+    );
+
+    await waitFor(() => {
+      expect(getRoomThreadAction).toHaveBeenCalledWith(
+        "room-channel",
+        "msg-parent",
+      );
+    });
+
+    // The real `replace` strips the parameter as soon as the jump is acted
+    // on, so the room the reader moves to is not asked to jump as well.
+    mockSearch.current = "";
+    rerender(
+      <RoomsClient
+        {...baseProps}
+        rooms={[channelRoom(), otherRoom]}
+        selectedRoomId="room-other"
+        messagesPromise={settledMessages()}
+      />,
+    );
+
+    await act(async () => {
+      releaseParent();
+      await Promise.resolve();
+    });
+
+    // The parent belongs to the room the reader left. Opening its thread now
+    // would put that room's panel over the one they are in, holding no
+    // replies, and would close the thread list and roster they just opened.
+    expect(screen.queryByTestId("thread-panel")).toBeNull();
+  });
 });

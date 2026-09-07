@@ -79,15 +79,7 @@ export function useRoomNotificationDeepLink({
           : { status: "gone" };
       },
       jumpInRoom,
-      jumpInThread: async (message) => {
-        // Opening a thread writes the panel's state before it awaits
-        // anything, so the room has to be checked again here rather than only
-        // before the lookup that led to it.
-        if (!isStillSelectedRoom(roomId)) {
-          return;
-        }
-        await jumpInThread(message);
-      },
+      jumpInThread,
     });
   }
 
