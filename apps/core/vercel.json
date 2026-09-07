@@ -40,6 +40,10 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/sync/first-party-oauth-clients",
+      "schedule": "0 * * * *"
+    },
+    {
       "path": "/sync/chat-room-guest-invitations-expire",
       "schedule": "0 3 * * *"
     },

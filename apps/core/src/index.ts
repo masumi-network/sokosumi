@@ -10,6 +10,8 @@ import { requestId } from "hono/request-id";
 import { getBetterAuthPublicBaseUrl, getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
+import { ensureFirstPartyCliOAuthClient } from "@/helpers/first-party-cli-oauth-client";
+import prisma from "@/lib/db/prisma";
 import {
   bindCoreRequestId,
   coreEvlogMiddleware,
@@ -135,6 +137,18 @@ serve(
   (info) => {
     const host = getEnv().HOST || "localhost";
     console.log(`Server is running on http://${host}:${info.port}`);
+    void ensureFirstPartyCliOAuthClient(prisma)
+      .then((client) => {
+        console.log(
+          `[cli-oauth] first-party client ready (${client.clientId})`,
+        );
+      })
+      .catch((error: unknown) => {
+        console.warn(
+          "[cli-oauth] failed to seed first-party client",
+          error instanceof Error ? error.message : error,
+        );
+      });
   },
 );
 
