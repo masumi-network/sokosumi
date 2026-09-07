@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapVendor } from "@/helpers/vendor";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { vendorSchema } from "@/schemas/vendor.schema";
 
 const vendorListSchema = z.array(vendorSchema).openapi("VendorList");
@@ -44,7 +44,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserContext(c.var.authContext);
+    await requireAuthorizedUserContext(c.var.authContext);
 
     const vendors = await prisma.vendor.findMany({
       orderBy: [{ name: "asc" }, { slug: "asc" }],
