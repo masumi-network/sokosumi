@@ -1,6 +1,6 @@
 import { waitUntil } from "@vercel/functions";
 import type { DrainContext } from "evlog";
-import { initLogger } from "evlog";
+import { createLogger, initLogger } from "evlog";
 import { evlog, useLogger } from "evlog/hono";
 import { createSentryDrain } from "evlog/sentry";
 import type { MiddlewareHandler } from "hono";
@@ -17,7 +17,14 @@ export function initCoreLogger(options: InitCoreLoggerOptions = {}) {
   initLogger({
     env: { service: "core" },
     silent: options.silent,
-    drain: options.drain,
+    drain: options.drain ?? coreEvlogDrain(),
+  });
+}
+
+/** Standalone logger for non-HTTP work (mention dispatch). Uses the global drain. */
+export function createCoreLogger(initialContext: Record<string, unknown> = {}) {
+  return createLogger(initialContext, {
+    waitUntil: process.env.VERCEL ? waitUntil : undefined,
   });
 }
 

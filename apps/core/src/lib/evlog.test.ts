@@ -3,7 +3,13 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const waitUntilMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => waitUntilMock(promise),
+}));
 
 import { errorHandler } from "@/helpers/error-handler";
 import {
@@ -11,6 +17,7 @@ import {
   attachWorkspaceToLogger,
   bindCoreRequestId,
   coreEvlogMiddleware,
+  createCoreLogger,
   initCoreLogger,
 } from "@/lib/evlog";
 import type { AuthVariables } from "@/middleware/auth";
@@ -213,5 +220,37 @@ describe("core evlog request events", () => {
     expect(response.status).toBe(500);
     expect(captured[0]?.event.status).toBe(500);
     expect(captured[0]?.event.level).toBe("error");
+  });
+});
+
+describe("core standalone logger drain", () => {
+  afterEach(() => {
+    waitUntilMock.mockReset();
+    vi.unstubAllEnvs();
+  });
+
+  it("emits standalone events through the initCoreLogger drain", async () => {
+    const drain = vi.fn();
+    initCoreLogger({ silent: true, drain });
+
+    createCoreLogger({ chat: { kind: "coworker_channel_mention" } }).emit();
+    await Promise.resolve();
+
+    expect(drain).toHaveBeenCalledTimes(1);
+    expect(drain.mock.calls[0]?.[0]?.event.chat).toEqual({
+      kind: "coworker_channel_mention",
+    });
+  });
+
+  it("registers Vercel waitUntil so standalone drain work can finish", async () => {
+    vi.stubEnv("VERCEL", "1");
+    const drain = vi.fn(async () => {});
+    initCoreLogger({ silent: true, drain });
+
+    createCoreLogger({ chat: { kind: "coworker_channel_mention" } }).emit();
+
+    expect(waitUntilMock).toHaveBeenCalledOnce();
+    await waitUntilMock.mock.calls[0]?.[0];
+    expect(drain).toHaveBeenCalledTimes(1);
   });
 });

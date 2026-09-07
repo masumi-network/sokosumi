@@ -1,8 +1,6 @@
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
 import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import { streamText } from "ai";
-import { createLogger } from "evlog";
-
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import {
@@ -10,6 +8,7 @@ import {
   thoughtMetadataFields,
 } from "@/helpers/persist-assistant-to-chat-room";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { resolveWorkspaceIdForChatRoom } from "@/routes/v1/chats/rooms/helpers";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
@@ -601,7 +600,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
-  const mentionChatLog = !mention.sokoBotId ? createLogger() : null;
+  const mentionChatLog = !mention.sokoBotId ? createCoreLogger() : null;
   if (mentionChatLog) {
     mentionChatLog.set({
       chat: {
