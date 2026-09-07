@@ -76,6 +76,40 @@ _Avoid_: Coworker developer (when meaning this)
 The in-repo command-line client for Coworker developers and Agent developers. Complements web `/developer`; does not replace it.
 _Avoid_: Treating `/developer` as deprecated, a second CLI per persona
 
+### Social publishing
+
+**Social account**:
+An external publishing identity on a social provider, such as an X account. It may be connected to more than one Project.
+_Avoid_: Integration, Project account
+
+**Project social connection**:
+A Project's authorization to publish through one Social account. A Project may have multiple connections, including to different accounts on the same provider.
+_Avoid_: Social account (when meaning the Project authorization), integration account
+
+**Social accounts**:
+The Project Settings section where Social connection managers view and manage a Project's Social connections. It is not a Calendar surface.
+_Avoid_: Social account (when meaning the external publishing identity), integrations page
+
+**Social connection manager**:
+An interactive human user who belongs to a Project's Workspace and may view, connect, reconnect, or disconnect that Project's Social connections. Coworkers, orchestrators, and API keys are not Social connection managers.
+_Avoid_: Connector (the person who completed OAuth), automation
+
+**Reconnect social connection**:
+Reauthorizing a Project social connection with the same Social account after it needs authentication again. It cannot change the external publishing identity.
+_Avoid_: Replace, connect another account
+
+**Replace social connection**:
+Disconnecting a Project's current Social account and connecting a different one. It is a deliberate identity change, not reconnecting.
+_Avoid_: Reconnect, edit connection
+
+**Social connection audit record**:
+A non-executable record of a Project social connection lifecycle event, including the Project, Social account identity, action, actor or scheduler, timestamp, and provider outcome. It never contains OAuth values.
+_Avoid_: Active connection, credential log
+
+**Social scheduling authorization**:
+The consent granted when a Social account is connected that lets the Project's scheduler publish through that Project social connection until it is disconnected.
+_Avoid_: Per-post approval, connector approval
+
 ### Task payments
 
 **Task payment claim**:
