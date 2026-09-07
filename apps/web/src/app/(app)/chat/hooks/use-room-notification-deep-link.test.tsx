@@ -82,9 +82,13 @@ describe("useRoomNotificationDeepLink", () => {
   it("drops the jump when the reader has left the room it was started for", async () => {
     // A reader can click a second notification while the first is still
     // loading. The read is already in flight for the old room by then, so the
-    // answer arrives after the move and has to be discarded: acting on it
-    // would scroll the new room to a message from the old one, or open a
-    // thread from the old room over the top of it.
+    // answer arrives after the move and has to be discarded.
+    //
+    // What it costs to act on it depends on where the message lives. A reply
+    // opens the old room's thread over the new room. A top-level message is
+    // cheaper: the jump it reaches still carries the old room's id, so it
+    // spends a request on that room and lands nothing. Neither is wanted, and
+    // this is the one check that stops both before they start.
     const props = params({ isStillSelectedRoom: vi.fn(() => false) });
 
     render(<Harness {...props} />);

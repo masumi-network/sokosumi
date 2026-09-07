@@ -56,8 +56,10 @@ export function useMessageParamJump({
       return;
     }
 
-    // Marked before the jump runs, so a re-render while it is still loading
-    // messages does not start a second one.
+    // Marked before the jump rather than after it. Nothing observable turns
+    // on the order today: `jump` only starts asynchronous work, and the state
+    // it sets lands in a batch rather than re-entrantly. It is written this
+    // way so that stays true of whatever `jump` becomes.
     jumpedRef.current = target;
     jump(messageId);
     // `jump` is listed so the jump that happens always uses the current
