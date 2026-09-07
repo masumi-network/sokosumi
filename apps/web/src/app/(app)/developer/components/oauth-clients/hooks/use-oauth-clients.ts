@@ -20,7 +20,7 @@ import type {
   UpdateOAuthClientRequest,
   UseOAuthClientsReturn,
 } from "../types";
-import { canonicalizeRedirectUri, inferOAuthApplicationType } from "../utils";
+import { inferOAuthApplicationType } from "../utils";
 
 export function useOAuthClients(): UseOAuthClientsReturn {
   const t = useTranslations("App.Account.OAuthClients");
@@ -65,10 +65,9 @@ export function useOAuthClients(): UseOAuthClientsReturn {
       try {
         const includeCoreApi = data.includeCoreApi ?? false;
         const includeOfflineAccess = data.includeOfflineAccess ?? false;
-        const redirectUris = data.redirectUris.map(canonicalizeRedirectUri);
-        const applicationType = inferOAuthApplicationType(redirectUris);
+        const applicationType = inferOAuthApplicationType(data.redirectUris);
         const result = await authClient.oauth2.createClient({
-          redirect_uris: redirectUris,
+          redirect_uris: data.redirectUris,
           client_name: data.name,
           scope: buildOAuthClientScopeParam({
             includeCoreApi,
@@ -148,13 +147,12 @@ export function useOAuthClients(): UseOAuthClientsReturn {
               }
             : {};
 
-        const redirectUris = data.redirectUris.map(canonicalizeRedirectUri);
-        const applicationType = inferOAuthApplicationType(redirectUris);
+        const applicationType = inferOAuthApplicationType(data.redirectUris);
         const result = await authClient.oauth2.updateClient({
           client_id: data.clientId,
           update: {
             client_name: data.name,
-            redirect_uris: redirectUris,
+            redirect_uris: data.redirectUris,
             ...(applicationType === "native"
               ? { application_type: "native" as const }
               : {}),

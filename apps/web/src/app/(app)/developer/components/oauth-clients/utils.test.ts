@@ -17,15 +17,6 @@ describe("parseRedirectUris", () => {
       parseRedirectUris(" https://example.com/a \n\nhttps://example.com/b\n  "),
     ).toEqual(["https://example.com/a", "https://example.com/b"]);
   });
-
-  it("folds reverse-domain :// into RFC 8252 :/ form", () => {
-    expect(parseRedirectUris("com.sokosumi.app://auth")).toEqual([
-      "com.sokosumi.app:/auth",
-    ]);
-    expect(parseRedirectUris("com.sokosumi.app://oauth/signin")).toEqual([
-      "com.sokosumi.app:/oauth/signin",
-    ]);
-  });
 });
 
 describe("isSafeRedirectUri", () => {
@@ -42,8 +33,6 @@ describe("isSafeRedirectUri", () => {
   it("accepts RFC 8252 reverse-domain private-use schemes", () => {
     expect(isSafeRedirectUri("com.example.app:/callback")).toBe(true);
     expect(isSafeRedirectUri("com.sokosumi.app:/oauth/signin")).toBe(true);
-    expect(isSafeRedirectUri("com.sokosumi.app://auth")).toBe(true);
-    expect(isSafeRedirectUri("com.example.app://callback")).toBe(true);
   });
 
   it("rejects custom schemes that Better Auth native policy rejects", () => {
@@ -161,16 +150,6 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "Mac App",
       redirectUris: "com.sokosumi.app:/oauth/signin",
-      includeCoreApi: true,
-      includeOfflineAccess: true,
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts reverse-domain :// and stores the RFC form", () => {
-    const result = schema.safeParse({
-      name: "Mac App",
-      redirectUris: "com.sokosumi.app://auth",
       includeCoreApi: true,
       includeOfflineAccess: true,
     });
