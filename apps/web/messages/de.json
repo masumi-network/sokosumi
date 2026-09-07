@@ -4374,8 +4374,8 @@
           "nameLabel": "Name",
           "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
           "redirectUrisLabel": "Redirect-URIs",
-          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Eine Redirect-URI pro Zeile. HTTPS verwenden (HTTP nur für localhost/loopback), keine Fragmente. Benutzerdefinierte App-Schemata sind erlaubt.",
+          "redirectUrisPlaceholder": "https://example.com/callback\ncom.example.app:/oauth/callback",
+          "redirectUrisHelp": "Eine URI pro Zeile. HTTPS für Web-Apps. Native Apps: http://127.0.0.1, http://localhost, http://[::1] oder ein Reverse-Domain-Schema ohne Host (com.example.app:/callback). Keine Fragmente.",
           "cancelButton": "Abbrechen",
           "createButton": "OAuth-Client erstellen",
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
@@ -4416,8 +4416,8 @@
           "nameLabel": "Name",
           "namePlaceholder": "z. B. Meine Anwendung, Produktionsserver",
           "redirectUrisLabel": "Redirect-URIs",
-          "redirectUrisPlaceholder": "https://example.com/callback\nhttps://example.com/auth/callback",
-          "redirectUrisHelp": "Eine Redirect-URI pro Zeile. HTTPS verwenden (HTTP nur für localhost/loopback), keine Fragmente. Benutzerdefinierte App-Schemata sind erlaubt.",
+          "redirectUrisPlaceholder": "https://example.com/callback\ncom.example.app:/oauth/callback",
+          "redirectUrisHelp": "Eine URI pro Zeile. HTTPS für Web-Apps. Native Apps: http://127.0.0.1, http://localhost, http://[::1] oder ein Reverse-Domain-Schema ohne Host (com.example.app:/callback). Keine Fragmente.",
           "cancelButton": "Abbrechen",
           "saveButton": "Änderungen speichern",
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
@@ -4448,7 +4448,7 @@
           "nameRequired": "Name ist erforderlich",
           "nameMaxLength": "Name darf maximal 100 Zeichen lang sein",
           "redirectUrisRequired": "Mindestens eine Redirect-URI ist erforderlich",
-          "redirectUrisInvalid": "Jede Redirect-URI muss eine gültige HTTPS-URL sein (HTTP nur für localhost), ohne Fragment."
+          "redirectUrisInvalid": "Jede Redirect-URI muss HTTPS, HTTP auf Loopback (localhost / 127.0.0.1 / [::1]) oder ein Reverse-Domain-App-Schema wie com.example.app:/callback sein, ohne Fragment."
         },
         "RotateDialog": {
           "title": "Client-Secret rotieren",
