@@ -382,7 +382,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 ## Cursor Cloud specific instructions
 
-These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script runs Corepack-backed `pnpm install` (`scripts/cloud-agent-db/ensure-pnpm.sh`) then provisions an ephemeral Neon agent database when secrets are present (see below). Node, tooling, and non-DB `.env` values may still come from the VM snapshot.
+These notes cover non-obvious, durable facts about running this repo in the Cursor Cloud VM. The update script runs Corepack-backed `pnpm install` (`scripts/cloud-agent-db/ensure-pnpm.sh`), provisions an ephemeral Neon agent database when secrets are present (see below), then installs `agent-browser` (`scripts/cloud-agent-db/ensure-agent-browser.sh`). Node, tooling, and non-DB `.env` values may still come from the VM snapshot.
 
 ### Runtime versions
 
@@ -394,6 +394,7 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 Cloud agents get a **disposable Neon branch** forked from production/`main`, not a shared mutable DB and not live production writes.
 
 - **Provision:** `.cursor/environment.json` `install` runs `bash scripts/cloud-agent-db/ensure-pnpm.sh install` then `node scripts/cloud-agent-db/provision.mjs` when `CURSOR_AGENT=1` and `NEON_API_KEY` + `NEON_PROJECT_ID` are set (Cursor Runtime Secrets). Branch name: `cloud-agent-<CURSOR_CONVERSATION_ID>`. Parent is always `NEON_PARENT_BRANCH` (default `main`). Resume reuses the same branch and refreshes the **72h** `expires_at` TTL. Pending migrations run via `pnpm prisma:migrate:deploy` (`DATABASE_URL_UNPOOLED`). After migrate, upserts guarded auth fixtures (`admin@sokosumi.test` / `alice@sokosumi.test` / `bob@sokosumi.test` / `zero@sokosumi.test` / `Password123!`) on agent branches only — **not** a full catalog seed.
+- **agent-browser:** Cloud `install` puts `agent-browser` on `PATH` (symlink in `/usr/local/cargo/bin`) and downloads Chrome for Testing under `~/.agent-browser/browsers/`. Prefer it for UI proof (`verify-sokosumi`). Do not fall back to computer-use when the CLI is present. Do not launch `/usr/local/bin/google-chrome` via agent-browser — that wrapper is computer-use (CDP `9222` + shared profile).
 - **Use:** Prefer `node scripts/cloud-agent-db/with-db.mjs -- <command>` so ambient/stale `DATABASE_URL` cannot win. `start` already wraps `ensure-pnpm.sh dev`. Login shells source `.cursor/cloud-agent-db.env` via bashrc/profile.
 - **Teardown:** deletes only `cloud-agent-*` branches — never production/`main`. Triggers: PR merged/closed (GitHub Action parses `bc-…` from PR body), agent completes with no PR (`pnpm cloud-agent-db:teardown`), agent archived (same when possible). Idle **72h** expiry is Neon `expires_at` only (no scheduled Action GC).
 - **Do not** put a static production `DATABASE_URL` in Cursor secrets. Full runbook: [`docs/agents/cloud-agent-database.md`](./docs/agents/cloud-agent-database.md).

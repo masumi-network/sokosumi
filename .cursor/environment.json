@@ -1,6 +1,6 @@
 {
   "name": "Sokosumi Monorepo",
   "agentCanUpdateSnapshot": true,
-  "install": "bash scripts/cloud-agent-db/ensure-pnpm.sh install && node scripts/cloud-agent-db/provision.mjs",
+  "install": "bash scripts/cloud-agent-db/ensure-pnpm.sh install && node scripts/cloud-agent-db/provision.mjs && bash scripts/cloud-agent-db/ensure-agent-browser.sh",
   "start": "node scripts/cloud-agent-db/with-db.mjs -- bash scripts/cloud-agent-db/ensure-pnpm.sh dev"
 }
