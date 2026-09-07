@@ -111,6 +111,7 @@ describe("emitChatDirectMessageNotifications", () => {
       roomName: "Alice",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       recipientUserIds: [PEER_ID, OTHER_ID],
@@ -134,6 +135,7 @@ describe("emitChatDirectMessageNotifications", () => {
       messageParams: {
         authorName: "Patrick",
         roomName: "Alice",
+        messagePreview: "ship it",
       },
       metadata: {
         messageId: MESSAGE_ID,
@@ -150,6 +152,7 @@ describe("emitChatDirectMessageNotifications", () => {
       roomName: "Alice",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       recipientUserIds: [PEER_ID, OTHER_ID],
@@ -167,6 +170,7 @@ describe("emitChatDirectMessageNotifications", () => {
       roomName: "Hannah",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: null,
       authorName: "Hannah",
       recipientUserIds: [PEER_ID],
@@ -179,6 +183,7 @@ describe("emitChatDirectMessageNotifications", () => {
         messageParams: {
           authorName: "Hannah",
           roomName: "Hannah",
+          messagePreview: "ship it",
         },
       }),
     );
@@ -190,6 +195,7 @@ describe("emitChatDirectMessageNotifications", () => {
       roomName: "Alice",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       recipientUserIds: [AUTHOR_ID],
@@ -208,6 +214,7 @@ describe("emitChatDirectMessageNotifications", () => {
         roomName: "Alice",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
+        content: "ship it",
         authorUserId: AUTHOR_ID,
         authorName: "Patrick",
         recipientUserIds: [PEER_ID, OTHER_ID],

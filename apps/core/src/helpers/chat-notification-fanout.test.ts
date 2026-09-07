@@ -66,6 +66,7 @@ function params(
     roomName: "general",
     organizationId: "org_1" as string | null,
     messageId: MESSAGE_ID,
+    content: "ship it",
     authorUserId: AUTHOR_ID as string | null,
     authorName: "Patrick",
     recipientUserIds: [ALICE_ID],
@@ -118,7 +119,11 @@ describe("fanOutChatNotifications", () => {
       referenceId: ROOM_ID,
       eventId: MESSAGE_ID,
       messageKey: "Notifications.Chat.roomMessage",
-      messageParams: { authorName: "Patrick", roomName: "general" },
+      messageParams: {
+        authorName: "Patrick",
+        roomName: "general",
+        messagePreview: "ship it",
+      },
       metadata: { messageId: MESSAGE_ID, workspaceId: "workspace_1" },
     });
   });
@@ -162,6 +167,58 @@ describe("fanOutChatNotifications", () => {
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: ALICE_ID }),
     );
+  });
+
+  /**
+   * The preview is what a reader is shown on a lock screen, so the line is
+   * written out here rather than built by calling the rule the code calls.
+   */
+  it("gives every recipient the same preview of the message", async () => {
+    await fanOutChatNotifications(
+      params({
+        content:
+          "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:Ada **can you** look at the login flow",
+        recipientUserIds: [ALICE_ID, BOB_ID],
+      }),
+    );
+
+    for (const userId of [ALICE_ID, BOB_ID]) {
+      expect(createNotificationMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId,
+          messageParams: expect.objectContaining({
+            messagePreview: "@Ada can you look at the login flow",
+          }),
+        }),
+      );
+    }
+  });
+
+  it("names the file when the message is only a file", async () => {
+    await fanOutChatNotifications(
+      params({ content: "[report.pdf](https://example.test/report.pdf)" }),
+    );
+
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageParams: expect.objectContaining({
+          messagePreview: "report.pdf",
+        }),
+      }),
+    );
+  });
+
+  /**
+   * Omitted rather than empty, so the reader is shown the line that names the
+   * author and the room instead of a banner with nothing under it.
+   */
+  it("writes no preview when the message cleans to nothing", async () => {
+    await fanOutChatNotifications(params({ content: "****" }));
+
+    const input = createNotificationMock.mock.calls[0]?.[0] as {
+      messageParams: Record<string, unknown>;
+    };
+    expect(input.messageParams).not.toHaveProperty("messagePreview");
   });
 
   it("stops before the workspace lookup when nobody is left to notify", async () => {
@@ -219,7 +276,11 @@ describe("fanOutChatNotifications, counting per room", () => {
     expect(createNotificationMock.mock.calls[0]?.[0]).toMatchObject({
       userId: ALICE_ID,
       referenceId: ROOM_ID,
-      messageParams: { authorName: "Patrick", roomName: "general" },
+      messageParams: {
+        authorName: "Patrick",
+        roomName: "general",
+        messagePreview: "ship it",
+      },
     });
   });
 
@@ -255,6 +316,7 @@ describe("fanOutChatNotifications, counting per room", () => {
     expect(JSON.parse(write.data.messageParams)).toEqual({
       authorName: "Patrick",
       roomName: "general",
+      messagePreview: "ship it",
       count: 2,
     });
   });

@@ -1288,6 +1288,7 @@ export class SokoBotRuntimeService {
             roomName: room.name,
             organizationId: room.organizationId,
             messageId: message.id,
+            content: input.content,
             authorUserId: null,
             authorName: room.authorName,
             recipientUserIds: memberUserIds,

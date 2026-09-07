@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
+import { buildChatMessagePreview } from "@sokosumi/utils";
 
 import type { CreateNotificationInput } from "@/helpers/notifications";
 import {
@@ -14,6 +15,8 @@ export interface FanOutChatNotificationsParams {
   roomName: string;
   organizationId: string | null;
   messageId: string;
+  /** The room message body, which the reader is shown a preview of. */
+  content: string;
   /** Human author to skip. Null when the author is a coworker. */
   authorUserId: string | null;
   authorName: string;
@@ -250,6 +253,10 @@ export async function fanOutChatNotifications(
     workspaceId = workspace?.id ?? null;
   }
 
+  // Built once rather than per reader: every recipient of one message is shown
+  // the same preview, and the rule reads the whole body to get there.
+  const messagePreview = buildChatMessagePreview(params.content);
+
   for (const userId of notifyUserIds) {
     const input: CreateNotificationInput = {
       userId,
@@ -261,6 +268,10 @@ export async function fanOutChatNotifications(
         authorName: params.authorName,
         roomName: params.roomName,
         ...(params.isGroup ? { isGroup: true } : {}),
+        // Omitted rather than empty when the body cleans to nothing. A reader
+        // is then shown the line that names the author and the room, which is
+        // what a banner said before there was a preview at all.
+        ...(messagePreview ? { messagePreview } : {}),
       },
       metadata: {
         messageId: params.messageId,
