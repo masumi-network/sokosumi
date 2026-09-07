@@ -249,6 +249,38 @@ describe("useOAuthClients", () => {
     });
   });
 
+  it("canonicalizes reverse-domain :// redirect URIs before create", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_native",
+        client_secret: "secret",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "Mac App",
+        redirectUris: ["com.sokosumi.app://auth"],
+        includeCoreApi: true,
+        includeOfflineAccess: true,
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      redirect_uris: ["com.sokosumi.app:/auth"],
+      client_name: "Mac App",
+      scope: "openid sokosumi:api offline_access",
+      grant_types: ["authorization_code", "refresh_token"],
+      application_type: "native",
+    });
+  });
+
   it("updates a client with the Better Auth payload shape", async () => {
     updateClientMock.mockResolvedValue({
       data: {

@@ -79,6 +79,36 @@ function isAllowedNativeHttpLoopback(redirectUri: string): boolean {
 }
 
 /**
+ * Better Auth native policy is RFC 8252 (no authority). Mac/iOS apps commonly
+ * type `com.example.app://callback`. Fold the host into the path so the stored
+ * URI is `com.example.app:/callback`.
+ */
+export function canonicalizeRedirectUri(uri: string): string {
+  let url: URL;
+  try {
+    url = new URL(uri);
+  } catch {
+    return uri;
+  }
+
+  const scheme = url.protocol.slice(0, -1);
+  if (
+    url.protocol === "http:" ||
+    url.protocol === "https:" ||
+    url.host.length === 0 ||
+    url.username.length > 0 ||
+    url.password.length > 0 ||
+    uri.includes("#") ||
+    !REVERSE_DOMAIN_PRIVATE_USE_SCHEME.test(scheme)
+  ) {
+    return uri;
+  }
+
+  const path = url.pathname === "/" ? "" : url.pathname;
+  return `${url.protocol}/${url.host}${path}${url.search}`;
+}
+
+/**
  * RFC 8252 §7.1 private-use redirect: reverse-domain scheme, no authority
  * (`com.example.app:/callback`, not `myapp://callback`).
  */
@@ -103,7 +133,7 @@ export function inferOAuthApplicationType(
 ): OAuthApplicationType {
   for (const uri of uris) {
     try {
-      if (new URL(uri).protocol !== "https:") {
+      if (new URL(canonicalizeRedirectUri(uri)).protocol !== "https:") {
         return "native";
       }
     } catch {
@@ -121,9 +151,10 @@ export function isSafeRedirectUri(
   uri: string,
   applicationType: OAuthApplicationType = inferOAuthApplicationType([uri]),
 ): boolean {
+  const canonicalUri = canonicalizeRedirectUri(uri);
   let url: URL;
   try {
-    url = new URL(uri);
+    url = new URL(canonicalUri);
   } catch {
     return false;
   }
@@ -133,7 +164,7 @@ export function isSafeRedirectUri(
   }
 
   if (
-    uri.includes("#") ||
+    canonicalUri.includes("#") ||
     url.hash.length > 0 ||
     url.username.length > 0 ||
     url.password.length > 0
@@ -157,7 +188,7 @@ export function isSafeRedirectUri(
     return !isRedirectLoopback;
   }
   if (isHttp) {
-    return isAllowedNativeHttpLoopback(uri);
+    return isAllowedNativeHttpLoopback(canonicalUri);
   }
 
   return (
@@ -169,7 +200,7 @@ export function isSafeRedirectUri(
 function parseRedirectUris(value: string): string[] {
   return value
     .split("\n")
-    .map((uri) => uri.trim())
+    .map((uri) => canonicalizeRedirectUri(uri.trim()))
     .filter((uri) => uri.length > 0);
 }
 
