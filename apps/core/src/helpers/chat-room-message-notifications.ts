@@ -132,5 +132,8 @@ export async function emitChatRoomMessageNotifications(
     recipientUserIds,
     messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
     notificationType: "chat-room-message-notification",
+    // A mention and a direct message are each about themselves. This one is
+    // about the room, so the reader gets one row for it and a count.
+    countPerRoom: true,
   });
 }

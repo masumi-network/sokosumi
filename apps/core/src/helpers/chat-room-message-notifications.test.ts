@@ -6,11 +6,13 @@ const {
   workspaceFindUniqueMock,
   membershipFindManyMock,
   userFindManyMock,
+  notificationFindFirstMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
+  notificationFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -22,6 +24,8 @@ vi.mock("@/lib/db/prisma", () => ({
     workspace: { findUnique: workspaceFindUniqueMock },
     chatRoomUserMember: { findMany: membershipFindManyMock },
     user: { findMany: userFindManyMock },
+    // The fan-out looks for a row to count onto before it writes one.
+    notification: { findFirst: notificationFindFirstMock },
   },
 }));
 
@@ -76,6 +80,7 @@ beforeEach(() => {
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
   membershipFindManyMock.mockResolvedValue([]);
   userFindManyMock.mockResolvedValue([subscriber(SUBSCRIBER_ID)]);
+  notificationFindFirstMock.mockResolvedValue(null);
 });
 
 describe("emitChatRoomMessageNotifications", () => {

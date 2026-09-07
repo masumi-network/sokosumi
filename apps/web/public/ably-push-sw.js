@@ -82,6 +82,7 @@ const MESSAGES = {
     "Notifications.Chat.mentioned": "{authorName} mentioned you in {roomName}",
     "Notifications.Chat.directMessage": "{authorName} sent you a message",
     "Notifications.Chat.roomMessage": "{authorName} wrote in {roomName}",
+    "Notifications.Chat.roomMessages": "{count} messages in {roomName}",
     "notifications.vendorGrant.pending":
       "{vendorName} requested vendor access to your workspace",
     "notifications.coworkerAccess.pending":
@@ -120,6 +121,7 @@ const MESSAGES = {
       "{authorName} hat dir eine Nachricht gesendet",
     "Notifications.Chat.roomMessage":
       "{authorName} hat in {roomName} geschrieben",
+    "Notifications.Chat.roomMessages": "{count} Nachrichten in {roomName}",
     "notifications.vendorGrant.pending":
       "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert",
     "notifications.coworkerAccess.pending":
@@ -152,6 +154,7 @@ const MESSAGES = {
     "Notifications.Chat.mentioned": "{authorName} te mencionó en {roomName}",
     "Notifications.Chat.directMessage": "{authorName} te envió un mensaje",
     "Notifications.Chat.roomMessage": "{authorName} escribió en {roomName}",
+    "Notifications.Chat.roomMessages": "{count} mensajes en {roomName}",
     "notifications.vendorGrant.pending":
       "{vendorName} solicitó acceso de proveedor al workspace de la organización",
     "notifications.coworkerAccess.pending":

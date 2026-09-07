@@ -6454,7 +6454,8 @@
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
         "directMessage": "{authorName} hat dir eine Nachricht gesendet",
-        "roomMessage": "{authorName} hat in {roomName} geschrieben"
+        "roomMessage": "{authorName} hat in {roomName} geschrieben",
+        "roomMessages": "{count} Nachrichten in {roomName}"
       }
     }
   },
