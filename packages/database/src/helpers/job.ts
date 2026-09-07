@@ -289,7 +289,7 @@ function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
   }
 }
 
-export function getCompletedEvent(job: {
+function getCompletedEvent(job: {
   events: readonly JobEventForListSummary[];
 }): JobEventForListSummary | undefined {
   return job.events.find((event) => event.status === AgentJobStatus.COMPLETED);
@@ -309,7 +309,7 @@ export function getResult(job: {
   return completedEvent?.result ?? null;
 }
 
-export function getInitiatedEvent(
+function getInitiatedEvent(
   job: JobWithEvents,
 ): JobEventWithRelations | undefined {
   const lastEvent = job.events.at(-1);
@@ -324,12 +324,12 @@ export function getInput(job: JobWithEvents): string | null {
   return initiatedEvent?.input?.input ?? null;
 }
 
-export function getInputSchema(job: JobWithEvents): string | null {
+function getInputSchema(job: JobWithEvents): string | null {
   const initiatedEvent = getInitiatedEvent(job);
   return initiatedEvent?.inputSchema ?? null;
 }
 
-export function getInputHash(job: JobWithEvents): string | null {
+function getInputHash(job: JobWithEvents): string | null {
   const initiatedEvent = getInitiatedEvent(job);
   return initiatedEvent?.input?.inputHash ?? null;
 }
