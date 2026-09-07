@@ -159,6 +159,71 @@ describe("GET /chats/rooms/{id}/messages/{messageId}", () => {
     );
   });
 
+  it("reads the reactions from the caller's side", async () => {
+    messageFindFirstMock.mockResolvedValue(
+      message({
+        reactions: [
+          {
+            emoji: "\u{1F44D}",
+            userId: USER_ID,
+            user: { id: USER_ID, name: "Ada" },
+          },
+          {
+            emoji: "\u{1F389}",
+            userId: "user_other",
+            user: { id: "user_other", name: "Ben" },
+          },
+        ],
+      }),
+    );
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages/${MESSAGE_ID}`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const mine = body.data.reactions.find(
+      (reaction: { emoji: string }) => reaction.emoji === "\u{1F44D}",
+    );
+    const theirs = body.data.reactions.find(
+      (reaction: { emoji: string }) => reaction.emoji === "\u{1F389}",
+    );
+
+    // Pins the caller argument. Without it every reaction reads as somebody
+    // else's, and the reader's own reaction loses its highlight.
+    expect(mine.reactedByCurrentUser).toBe(true);
+    expect(theirs.reactedByCurrentUser).toBe(false);
+  });
+
+  it("returns a deleted message as a tombstone", async () => {
+    messageFindFirstMock.mockResolvedValue(
+      message({
+        content: "Regretted",
+        deletedAt: new Date("2026-01-02T00:00:00.000Z"),
+        reactions: [
+          {
+            emoji: "\u{1F44D}",
+            userId: USER_ID,
+            user: { id: USER_ID, name: "Ada" },
+          },
+        ],
+      }),
+    );
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages/${MESSAGE_ID}`,
+    );
+
+    // The reader followed a notification to a message somebody deleted. They
+    // get the room around it rather than an error, and none of what it said.
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.content).toBe("");
+    expect(body.data.deletedAt).toBe("2026-01-02T00:00:00.000Z");
+    expect(body.data.reactions).toEqual([]);
+  });
+
   it("returns 404 when the message is not in the room", async () => {
     messageFindFirstMock.mockResolvedValue(null);
 

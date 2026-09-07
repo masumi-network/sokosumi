@@ -17885,20 +17885,6 @@ export type GetChatsRoomsByIdMessagesByMessageIdData = {
 
 export type GetChatsRoomsByIdMessagesByMessageIdErrors = {
     /**
-     * Invalid request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Unauthorized
      */
     401: {
@@ -17913,9 +17899,37 @@ export type GetChatsRoomsByIdMessagesByMessageIdErrors = {
         };
     };
     /**
-     * Message not found
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room or message not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

@@ -46,9 +46,10 @@ const route = withGlobalHeaderParameters(
     },
     responses: {
       200: jsonSuccessResponse(chatRoomMessageSchema, "Room message"),
-      400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
-      404: jsonErrorResponse("Message not found"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Room or message not found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -76,6 +77,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Soft-deleted messages are returned as the tombstone they are. A reader
     // who followed a notification to a message somebody has since deleted is
     // better served by the room around it than by an error.
-    return ok(c, chatRoomMessageSchema.parse(mapChatRoomMessage(message)));
+    return ok(
+      c,
+      chatRoomMessageSchema.parse(
+        mapChatRoomMessage(message, userContext.userId),
+      ),
+    );
   });
 }
