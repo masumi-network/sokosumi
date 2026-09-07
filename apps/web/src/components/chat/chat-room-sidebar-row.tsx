@@ -221,14 +221,20 @@ export function ChatRoomSidebarRow({
         {leading}
       </span>
       <span className="min-w-0 flex-1">
-        <span
-          className={cn(
-            "block truncate",
-            bold && "font-semibold text-foreground",
-            isMuted && !isActive && "text-muted-foreground",
-          )}
-        >
-          {label}
+        {/* The count rides the end of the name, not the row's right rail, so it
+            reads as belonging to this room rather than to the row's controls.
+            The name keeps `min-w-0` so it truncates first and the count stays. */}
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span
+            className={cn(
+              "min-w-0 truncate",
+              bold && "font-semibold text-foreground",
+              isMuted && !isActive && "text-muted-foreground",
+            )}
+          >
+            {label}
+          </span>
+          <RoomUnreadCount count={unreadTextCount} />
         </span>
         {subtitle ? (
           <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-xs leading-tight">
@@ -236,7 +242,6 @@ export function ChatRoomSidebarRow({
           </span>
         ) : null}
       </span>
-      <RoomUnreadCount count={unreadTextCount} />
       <MentionBadge count={badgeCount} />
       <span
         className={cn(
