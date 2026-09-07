@@ -1,6 +1,6 @@
 # Harvest Microsoft `oid` on 1.6, then atomic 1.7 identity flip
 
-Better Auth **1.7.3** restored 1.6 account identity `(providerId, accountId)` and dropped the required `issuer` column. Microsoft `oid` rewrites from this cutover stay. The Prisma migration `20260907080000_better_auth_1_7_3_drop_account_issuer` removes `account.issuer` and `account_issuer_accountId_key`.
+Better Auth **1.7.3** restored 1.6 account identity `(providerId, accountId)` and stopped writing `issuer`. Microsoft `oid` rewrites from this cutover stay. The Prisma migration `20260907080000_better_auth_1_7_3_relax_account_issuer` drops `account.issuer` NOT NULL and `account_issuer_accountId_key`, and keeps the column nullable so 1.7.2 Core can still write it during the Vercel migrate-then-activate window. Drop the column after 1.7.3 is live.
 
 Better Auth 1.7.0–1.7.2 keyed an external account by `(issuer, accountId)`. Microsoft’s `accountId` changes from pairwise `sub` to directory `oid`. There is no runtime fallback.
 

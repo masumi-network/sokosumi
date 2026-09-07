@@ -137,6 +137,7 @@ model Session {
 
 model Account {
   id                    String    @id @default(uuid(7))
+  issuer                String?
   accountId             String
   providerId            String
   userId                String
