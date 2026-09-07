@@ -1482,7 +1482,6 @@
         "newChat": "Nuevo chat",
         "conversationSwitcher": "Conversaciones",
         "noChats": "Aún sin chats",
-        "noCoworkersAvailable": "No hay Coworkers disponibles. Por favor, inténtalo más tarde.",
         "welcomeSendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
         "emptyState": {
           "title": "Iniciar conversación",
@@ -1512,17 +1511,7 @@
           "cancel": "Cancelar",
           "delete": "Eliminar"
         },
-        "selectCoworker": {
-          "title": "Seleccionar Coworker agéntico",
-          "description": "Elige un Coworker para iniciar una conversación.",
-          "placeholder": "Seleccionar Coworker...",
-          "useCase": "Caso de uso",
-          "cancel": "Cancelar",
-          "confirm": "Iniciar chat",
-          "selectButton": "Iniciar chat con {coworker}"
-        },
         "comingSoon": "Próximamente",
-        "agenticCoworkers": "Coworkers agénticos",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",
@@ -1553,7 +1542,6 @@
         "waitForResponses": "Por favor, espera a que terminen las otras respuestas (máx. 3 simultáneas).",
         "imageAttachment": "Un archivo de imagen adjunto",
         "fileLabel": "Archivo",
-        "loaderTitle": "Cargando",
         "modelAlt": "Modelo",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Avatar del usuario",
@@ -1570,7 +1558,6 @@
         },
         "chatErrorTitle": "Error en el chat",
         "errorFallbackDescription": "Hubo un problema con la interfaz del chat. Por favor, recarga la página o contacta con soporte si el problema persiste.",
-        "promptPlaceholder": "¿Qué quieres saber?",
         "pastedImage": "Imagen pegada",
         "errorTitle": "Error",
         "errorDescription": "Hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.",
