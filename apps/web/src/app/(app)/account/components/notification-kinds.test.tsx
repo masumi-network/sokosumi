@@ -975,6 +975,29 @@ describe("NotificationKinds", () => {
     expect(await screen.findByText("channelPushHint")).toBeInTheDocument();
   });
 
+  /**
+   * The names sit next to each other, and a panel is 288px wide over a column
+   * 72px wide. Each name closing on its own wait, a pointer crossing the row
+   * left one panel counting down under the next one, and for that moment the
+   * rows were behind two boxes saying different things.
+   */
+  it("shows one column's explanation at a time", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupJob");
+
+    await user.hover(screen.getByRole("button", { name: "channelInApp" }));
+    await screen.findByText("channelInAppHint");
+
+    await user.hover(screen.getByRole("button", { name: "channelPush" }));
+
+    // Read at once, and not after the wait: the point is that the panel moves
+    // with the pointer rather than that the old one goes away eventually.
+    expect(screen.queryByText("channelInAppHint")).toBeNull();
+    expect(await screen.findByText("channelPushHint")).toBeInTheDocument();
+  });
+
   it("puts the channel legend inside each expanded section", async () => {
     renderKinds();
 

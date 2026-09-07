@@ -45,6 +45,9 @@ const NAME = cn(
  */
 const CLOSE_DELAY_MS = 150;
 
+/** The email column stands outside `CHANNEL_SPECS` and needs a name of its own. */
+const EMAIL_NAME = "email";
+
 /**
  * What arriving on one channel means, on hover and on a tap.
  *
@@ -63,6 +66,8 @@ function ChannelExplainer({
   label,
   hint,
   notes,
+  open,
+  onOpenChange,
 }: {
   icon: LucideIcon;
   label: string;
@@ -70,8 +75,11 @@ function ChannelExplainer({
   hint: string;
   /** What is standing in the way here, a line at a time. */
   notes: readonly string[];
+  /** This name is the one of the row holding the panel. */
+  open: boolean;
+  /** Ask the row for the panel, or hand it back. */
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const byPointer = useRef(false);
   const closing = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -90,7 +98,7 @@ function ChannelExplainer({
       // else puts the flag down; left standing, the press handler below goes
       // on refusing every press, and Enter and Space open nothing ever again.
       byPointer.current = false;
-      setOpen(false);
+      onOpenChange(false);
     }, CLOSE_DELAY_MS);
   };
 
@@ -107,7 +115,7 @@ function ChannelExplainer({
         }
 
         holdOpen();
-        setOpen(next);
+        onOpenChange(next);
       }}
     >
       <PopoverTrigger
@@ -119,7 +127,7 @@ function ChannelExplainer({
 
           holdOpen();
           byPointer.current = true;
-          setOpen(true);
+          onOpenChange(true);
         }}
         onPointerLeave={(event) => {
           if (event.pointerType !== "mouse" || !byPointer.current) {
@@ -162,6 +170,17 @@ function ChannelExplainer({
           closeSoon();
         }}
         onOpenAutoFocus={(event) => {
+          if (byPointer.current) {
+            event.preventDefault();
+          }
+        }}
+        // And it must not take the caret back on the way out. Radix returns
+        // focus to the name it came from when the panel goes, which for a
+        // panel the pointer opened means the caret is dragged along behind a
+        // mouse that was never asking for it. It also puts focus outside the
+        // panel the pointer has just arrived at, and that panel dismisses
+        // itself on the spot.
+        onCloseAutoFocus={(event) => {
           if (byPointer.current) {
             event.preventDefault();
           }
@@ -212,6 +231,24 @@ export function ChannelLegend({
   named?: boolean;
 }) {
   const t = useTranslations("App.Account.Notifications");
+  const [openName, setOpenName] = useState<string | null>(null);
+
+  /**
+   * One panel at a time, held by the row rather than by each name.
+   *
+   * Each name closes behind the pointer on a wait, so a pointer crossing the
+   * row arrives at the next name while the one it came from is still counting
+   * down: two panels 288px wide, overlapping, over the rows they explain. Held
+   * here, the name being arrived at takes the panel and the one being left
+   * loses it in the same paint.
+   *
+   * The close still goes through the name that asked for it. It comes in late
+   * by design, and by then the panel may belong to a name further along the
+   * row, which this must not take away.
+   */
+  const answerFor = (name: string) => (open: boolean) => {
+    setOpenName((current) => (open ? name : current === name ? null : current));
+  };
 
   return (
     <div
@@ -229,6 +266,8 @@ export function ChannelLegend({
       {CHANNEL_SPECS.map((spec) => (
         <ChannelExplainer
           key={spec.id}
+          open={openName === spec.id}
+          onOpenChange={answerFor(spec.id)}
           icon={CHANNEL_ICON[spec.id]}
           label={t(spec.labelKey)}
           hint={t(spec.hintKey)}
@@ -244,6 +283,8 @@ export function ChannelLegend({
         />
       ))}
       <ChannelExplainer
+        open={openName === EMAIL_NAME}
+        onOpenChange={answerFor(EMAIL_NAME)}
         icon={Mail}
         label={t("channelEmail")}
         hint={t("channelEmailHint")}
