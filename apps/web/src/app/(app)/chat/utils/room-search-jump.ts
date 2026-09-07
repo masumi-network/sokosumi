@@ -37,6 +37,12 @@ export async function waitForSearchJumpPaint(
   }
 }
 
+/**
+ * The hold is kept on every path that arrives somewhere, so the view stays
+ * where the jump put it. It is dropped on every path that arrives nowhere,
+ * because a room holding off the bottom for a jump that never happened stops
+ * following new messages and cannot be re-armed by scrolling.
+ */
 export async function performRoomSearchJump(
   hit: ChatRoomMessage,
   deps: RoomSearchJumpDeps,
@@ -47,6 +53,10 @@ export async function performRoomSearchJump(
       deps.findLoadedParent(hit.parentMessageId) ??
       (await deps.loadParent(hit.parentMessageId));
     if (!parent) {
+      // Nothing was opened, so nothing wants the view held. A room left
+      // holding off the bottom stops following new messages, and the reader
+      // cannot re-arm it by scrolling.
+      deps.releaseHoldOffBottom();
       return;
     }
     await deps.openThread(parent);
@@ -57,6 +67,7 @@ export async function performRoomSearchJump(
     }
     const loaded = await deps.loadAroundInThread(parent.id, hit.id);
     if (!loaded) {
+      deps.releaseHoldOffBottom();
       return;
     }
     await deps.afterRender(hit.id);
@@ -70,6 +81,7 @@ export async function performRoomSearchJump(
   }
   const loaded = await deps.loadAroundInRoom(hit.id);
   if (!loaded) {
+    deps.releaseHoldOffBottom();
     return;
   }
   await deps.afterRender(hit.id);
