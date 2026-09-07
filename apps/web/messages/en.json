@@ -4411,6 +4411,8 @@
           "includeCoreApiHelp": "Unchecked (default): identity only (openid / userinfo). Checked: also allow calling the Core API as the user (sokosumi:api).",
           "includeOfflineAccessLabel": "Allow refresh tokens",
           "includeOfflineAccessHelp": "Unchecked (default): no refresh tokens. Checked: client may request offline_access and receive refresh tokens that can obtain new access tokens later (up to about 90 days). Turning this off removes offline_access from the client's allow-list; users must reauthorize for new refresh tokens.",
+          "isPublicLabel": "Public client (no secret, PKCE only)",
+          "isPublicHelp": "Checked: public PKCE client for native or mobile apps that cannot keep a secret. No client secret is issued; token requests use PKCE only. Unchecked (default): confidential client with a client secret.",
           "cancelButton": "Cancel",
           "createButton": "Create OAuth Client"
         },
@@ -4420,6 +4422,7 @@
           "clientIdLabel": "Client ID",
           "clientSecretLabel": "Client Secret",
           "clientSecretWarning": "This secret will only be shown once. Make sure to save it securely.",
+          "publicNote": "Public client created — no secret was issued. Use the client ID with PKCE (S256).",
           "doneButton": "Done",
           "showSecret": "Show secret",
           "hideSecret": "Hide secret"
@@ -4434,7 +4437,9 @@
           "disabled": "Disabled",
           "apiAccess": "API access",
           "identityOnly": "Identity only",
-          "refresh": "Refresh token"
+          "refresh": "Refresh token",
+          "public": "Public",
+          "confidential": "Confidential"
         },
         "Actions": {
           "editTooltip": "Edit OAuth client",
@@ -4454,7 +4459,10 @@
           "includeCoreApiLabel": "Allow Sokosumi API access",
           "includeCoreApiHelp": "Unchecked: identity only (openid). Checked: allow Core API (sokosumi:api) on authorize. Changing this updates the client's allow-list. Turning API off blocks Core access for existing tokens immediately; turning it on requires users to reauthorize for new tokens with that scope.",
           "includeOfflineAccessLabel": "Allow refresh tokens",
-          "includeOfflineAccessHelp": "Unchecked: no refresh tokens. Checked: client may request offline_access and receive refresh tokens that can obtain new access tokens later (up to about 90 days). Changing this updates the client's scope allow-list. Turning refresh off removes offline_access from that allow-list; users must reauthorize for new refresh tokens."
+          "includeOfflineAccessHelp": "Unchecked: no refresh tokens. Checked: client may request offline_access and receive refresh tokens that can obtain new access tokens later (up to about 90 days). Changing this updates the client's scope allow-list. Turning refresh off removes offline_access from that allow-list; users must reauthorize for new refresh tokens.",
+          "clientTypeLabel": "Client type",
+          "clientTypePublic": "Public — PKCE only, no secret. Type cannot be changed after creation.",
+          "clientTypeConfidential": "Confidential — authenticates with a client secret. Type cannot be changed after creation."
         },
         "DeleteDialog": {
           "title": "Delete OAuth Client",

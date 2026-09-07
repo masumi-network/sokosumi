@@ -11,6 +11,7 @@ import { DeveloperSectionRowsSkeleton } from "@/app/developer/components/develop
 import { Button } from "@/components/ui/button";
 
 import type { OAuthClientsListProps } from "./types";
+import { isPublicOAuthClient } from "./utils";
 
 export function OAuthClientsList({
   clients,
@@ -61,6 +62,7 @@ export function OAuthClientsList({
           : null;
         const allowsCoreApi = hasCoreApiOAuthScope(client.scope);
         const allowsOfflineAccess = hasOfflineAccessOAuthScope(client.scope);
+        const isPublic = isPublicOAuthClient(client);
 
         return (
           <div
@@ -70,6 +72,9 @@ export function OAuthClientsList({
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="truncate font-semibold">{name}</p>
+                <span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
+                  {isPublic ? t("Status.public") : t("Status.confidential")}
+                </span>
                 <span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
                   {allowsCoreApi
                     ? t("Status.apiAccess")
@@ -116,7 +121,7 @@ export function OAuthClientsList({
               >
                 <Pencil className="size-4" />
               </Button>
-              {!client.public ? (
+              {!isPublic ? (
                 <Button
                   size="sm"
                   variant="ghost"

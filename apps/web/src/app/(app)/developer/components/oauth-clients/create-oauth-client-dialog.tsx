@@ -82,6 +82,7 @@ export function CreateOAuthClientDialog({
       redirectUris: parseRedirectUris(values.redirectUris),
       includeCoreApi: values.includeCoreApi,
       includeOfflineAccess: values.includeOfflineAccess,
+      isPublic: values.isPublic,
     });
 
     if (result.success && result.data) {
@@ -201,7 +202,11 @@ export function CreateOAuthClientDialog({
                   hideLabel={t("CreatedSuccess.hideSecret")}
                   onCopy={handleCopy}
                 />
-              ) : null}
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  {t("CreatedSuccess.publicNote")}
+                </p>
+              )}
 
               <DialogFooter>
                 <Button onClick={handleCredentialsDone}>
@@ -316,6 +321,35 @@ export function CreateOAuthClientDialog({
                           </FormLabel>
                           <FormDescription>
                             {t("CreateDialog.includeOfflineAccessHelp")}
+                          </FormDescription>
+                        </div>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="isPublic"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-start gap-3">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked === true);
+                            }}
+                            disabled={isSubmitting}
+                          />
+                        </FormControl>
+                        <div className="space-y-1">
+                          <FormLabel className="font-normal">
+                            {t("CreateDialog.isPublicLabel")}
+                          </FormLabel>
+                          <FormDescription>
+                            {t("CreateDialog.isPublicHelp")}
                           </FormDescription>
                         </div>
                       </div>
