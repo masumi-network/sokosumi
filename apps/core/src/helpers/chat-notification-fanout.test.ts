@@ -8,7 +8,8 @@ const {
   workspaceFindUniqueMock,
   membershipFindManyMock,
   notificationFindFirstMock,
-  notificationUpdateMock,
+  notificationUpdateManyMock,
+  notificationFindUniqueMock,
   captureExceptionMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
@@ -17,7 +18,8 @@ const {
   workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   notificationFindFirstMock: vi.fn(),
-  notificationUpdateMock: vi.fn(),
+  notificationUpdateManyMock: vi.fn(),
+  notificationFindUniqueMock: vi.fn(),
   captureExceptionMock: vi.fn(),
 }));
 
@@ -38,7 +40,8 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     notification: {
       findFirst: notificationFindFirstMock,
-      update: notificationUpdateMock,
+      updateMany: notificationUpdateManyMock,
+      findUnique: notificationFindUniqueMock,
     },
   },
 }));
@@ -78,17 +81,17 @@ beforeEach(() => {
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
   membershipFindManyMock.mockResolvedValue([]);
   notificationFindFirstMock.mockResolvedValue(null);
-  notificationUpdateMock.mockImplementation(
-    ({ data }: { data: Record<string, unknown> }) => ({
-      id: "notification_1",
-      ...data,
-    }),
-  );
+  // One row matched, which is the write landing on the row it named.
+  notificationUpdateManyMock.mockResolvedValue({ count: 1 });
+  notificationFindUniqueMock.mockResolvedValue({ id: "notification_1" });
   resolveDeliveryMock.mockResolvedValue({ inApp: true, osBanner: false });
 });
 
-/** A row the reader already has for this room, unread. */
-function unreadRow(messageParams: Record<string, unknown>) {
+/** A row the reader already has for this room, unread and shown in the app. */
+function unreadRow(
+  messageParams: Record<string, unknown>,
+  metadata: Record<string, unknown> | null = null,
+) {
   return {
     id: "notification_1",
     userId: ALICE_ID,
@@ -96,7 +99,9 @@ function unreadRow(messageParams: Record<string, unknown>) {
     referenceId: ROOM_ID,
     messageKey: "Notifications.Chat.roomMessage",
     messageParams: JSON.stringify(messageParams),
+    metadata: metadata === null ? null : JSON.stringify(metadata),
     isRead: false,
+    inApp: true,
   };
 }
 
@@ -209,7 +214,7 @@ describe("fanOutChatNotifications, counting per room", () => {
   it("writes the first row when the reader has none for the room", async () => {
     await fanOutChatNotifications(params({ countPerRoom: true }));
 
-    expect(notificationUpdateMock).not.toHaveBeenCalled();
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock.mock.calls[0]?.[0]).toMatchObject({
       userId: ALICE_ID,
@@ -231,13 +236,13 @@ describe("fanOutChatNotifications, counting per room", () => {
     await fanOutChatNotifications(params({ countPerRoom: true }));
 
     expect(createNotificationMock).not.toHaveBeenCalled();
-    expect(notificationUpdateMock).toHaveBeenCalledTimes(1);
+    expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
 
-    const write = notificationUpdateMock.mock.calls[0]?.[0] as {
+    const write = notificationUpdateManyMock.mock.calls[0]?.[0] as {
       where: { id: string };
       data: { messageParams: string };
     };
-    expect(write.where).toEqual({ id: "notification_1" });
+    expect(write.where).toMatchObject({ id: "notification_1" });
     expect(JSON.parse(write.data.messageParams)).toEqual({
       authorName: "Patrick",
       roomName: "general",
@@ -252,7 +257,7 @@ describe("fanOutChatNotifications, counting per room", () => {
 
     await fanOutChatNotifications(params({ countPerRoom: true }));
 
-    const write = notificationUpdateMock.mock.calls[0]?.[0] as {
+    const write = notificationUpdateManyMock.mock.calls[0]?.[0] as {
       data: { messageParams: string };
     };
     expect(JSON.parse(write.data.messageParams).count).toBe(23);
@@ -263,7 +268,12 @@ describe("fanOutChatNotifications, counting per room", () => {
    * last looked". The row is found by `isRead: false`, so a read one is never
    * offered here.
    */
-  it("looks only at the reader's unread row for this room", async () => {
+  /**
+   * Unread, and shown in the app. A row written while the reader had the
+   * category silenced is not one they are reading, and counting onto it would
+   * hand them everything they silenced the day they turn it back on.
+   */
+  it("looks only at the reader's unread, unsilenced row for this room", async () => {
     await fanOutChatNotifications(params({ countPerRoom: true }));
 
     expect(notificationFindFirstMock).toHaveBeenCalledWith({
@@ -273,9 +283,23 @@ describe("fanOutChatNotifications, counting per room", () => {
         referenceId: ROOM_ID,
         messageKey: "Notifications.Chat.roomMessage",
         isRead: false,
+        inApp: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
+  });
+
+  it("leaves the row's own delivery answer where it is", async () => {
+    notificationFindFirstMock.mockResolvedValue(
+      unreadRow({ authorName: "Ada", roomName: "general" }),
+    );
+
+    await fanOutChatNotifications(params({ countPerRoom: true }));
+
+    const write = notificationUpdateManyMock.mock.calls[0]?.[0] as {
+      data: Record<string, unknown>;
+    };
+    expect(write.data).not.toHaveProperty("inApp");
   });
 
   /**
@@ -304,8 +328,75 @@ describe("fanOutChatNotifications, counting per room", () => {
 
     await fanOutChatNotifications(params({ countPerRoom: true }));
 
-    expect(notificationUpdateMock).toHaveBeenCalledTimes(1);
+    expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
     expect(publishNotificationRowMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Two messages in one room can read the same count and both write count + 1,
+   * which loses one of them. The write names the count it read, so the loser
+   * is told it matched nothing and reads again.
+   */
+  it("reads again when another message counted onto the row first", async () => {
+    notificationFindFirstMock
+      .mockResolvedValueOnce(unreadRow({ roomName: "general", count: 4 }))
+      .mockResolvedValueOnce(unreadRow({ roomName: "general", count: 5 }));
+    notificationUpdateManyMock
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 });
+
+    await fanOutChatNotifications(params({ countPerRoom: true }));
+
+    expect(notificationUpdateManyMock).toHaveBeenCalledTimes(2);
+
+    const second = notificationUpdateManyMock.mock.calls[1]?.[0] as {
+      data: { messageParams: string };
+    };
+    expect(JSON.parse(second.data.messageParams).count).toBe(6);
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  /** A message that keeps losing is worth a row of its own, not silence. */
+  it("gives up and writes a row after losing every attempt", async () => {
+    notificationFindFirstMock.mockResolvedValue(
+      unreadRow({ roomName: "general" }),
+    );
+    notificationUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await fanOutChatNotifications(params({ countPerRoom: true }));
+
+    expect(notificationUpdateManyMock).toHaveBeenCalledTimes(3);
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * `createNotification` refuses a duplicate emit on its own path, and this
+   * one has to refuse it too: the row already stands for the message.
+   */
+  it("counts the same message once however often it arrives", async () => {
+    notificationFindFirstMock.mockResolvedValue(
+      unreadRow({ roomName: "general" }, { messageId: MESSAGE_ID }),
+    );
+
+    await fanOutChatNotifications(params({ countPerRoom: true }));
+
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The reader's tab counts a row it does not hold towards the badge. This one
+   * was counted the day it was written, so saying it is new puts the badge one
+   * ahead of the server until the next reload.
+   */
+  it("publishes the counted row as a change rather than a new row", async () => {
+    notificationFindFirstMock.mockResolvedValue(
+      unreadRow({ roomName: "general" }),
+    );
+
+    await fanOutChatNotifications(params({ countPerRoom: true }));
+
+    expect(publishNotificationRowMock.mock.calls[0]?.[2]).toBe(false);
   });
 
   /**
@@ -320,7 +411,7 @@ describe("fanOutChatNotifications, counting per room", () => {
     await fanOutChatNotifications(params());
 
     expect(notificationFindFirstMock).not.toHaveBeenCalled();
-    expect(notificationUpdateMock).not.toHaveBeenCalled();
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
   });
 });

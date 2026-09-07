@@ -101,6 +101,13 @@ export async function resolveDelivery(
 export async function publishNotificationRow(
   notification: Notification,
   delivery: NotificationDelivery,
+  /**
+   * False when the row was already there and this publish only changes it.
+   * A reader's open tab counts an unread row it has never seen towards the
+   * badge, which is right for a row that has just been written and one too
+   * many for a row the badge already counted.
+   */
+  created = true,
 ): Promise<void> {
   try {
     await publishNotificationEvent({
@@ -122,6 +129,7 @@ export async function publishNotificationRow(
         createdAt: notification.createdAt.toISOString(),
         inApp: notification.inApp,
         osBanner: delivery.osBanner,
+        created,
       },
     });
   } catch (error) {
