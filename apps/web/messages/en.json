@@ -4129,7 +4129,7 @@
         "pushBannerDeniedBody": "Sokosumi cannot ask again. Allow notifications for this site in your browser settings. Your other devices may still get them.",
         "pushBannerUnsupportedTitle": "This browser cannot show push notifications",
         "pushBannerUnsupportedBody": "Push notifications do not arrive here, whatever the rows below say. Your other devices may still get them.",
-        "deviceBannerTitle": "Push notifications are on in this browser",
+        "deviceBannerTitle": "Push notifications are on in this browser. Your other devices are unaffected.",
         "deviceBannerAction": "Turn off",
         "deviceDisabledSuccess": "Push notifications off in this browser",
         "pushEnabledSuccess": "Push notifications enabled",

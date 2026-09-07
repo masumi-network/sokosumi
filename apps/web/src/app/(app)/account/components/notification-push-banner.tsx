@@ -80,11 +80,16 @@ function BrowserNotice({
         // A card is how this page marks something the reader has to deal
         // with, and the rows below sit in one. Only the warning is that: a
         // push was asked for and will not arrive. The other is a receipt for
-        // a setting that worked, so it drops the box, the fill and the
-        // padding and reads as a note above the grid rather than a second
-        // thing to answer.
-        warning &&
-          "border-semantic-warning-tertiary bg-semantic-warning-quinary rounded-lg border p-4",
+        // a setting that worked, so it drops the box and the fill and reads
+        // as a note above the grid rather than a second thing to answer.
+        //
+        // It keeps room around itself. Without a box, the gap is the only
+        // thing holding the line off the heading above it and the grid
+        // below, and one line pressed against both reads as a caption
+        // belonging to whichever it touches.
+        warning
+          ? "border-semantic-warning-tertiary bg-semantic-warning-quinary rounded-lg border p-4"
+          : "py-2",
       )}
     >
       <div className="flex flex-col gap-3 @xl:flex-row @xl:items-center">
@@ -235,8 +240,9 @@ export function DeviceBanner({
       warning={false}
       icon={Smartphone}
       titleKey="deviceBannerTitle"
-      // The title is the whole notice: which push, and where it lands. A
-      // second line under it can only repeat that in more words.
+      // The title is the whole notice: which push, where it lands, and what
+      // the press here leaves alone. A second line under it can only repeat
+      // that in more words.
       bodyKey={null}
       action={{
         labelKey: "deviceBannerAction",
