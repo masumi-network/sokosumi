@@ -1,5 +1,7 @@
 import { issueSignedToken, presignUrl } from "@vercel/blob";
 
+import { attachUploadToLogger } from "@/lib/evlog";
+
 const DEFAULT_TOKEN_VALID_MS = 15 * 60 * 1000;
 const DEFAULT_URL_VALID_MS = 10 * 60 * 1000;
 
@@ -49,6 +51,12 @@ export interface BlobUploadGrant {
 export async function createBlobUploadGrant(
   input: CreateBlobUploadGrantInput,
 ): Promise<BlobUploadGrant> {
+  attachUploadToLogger({
+    filename: input.pathname.split("/").pop() || input.pathname,
+    size: input.maximumSizeInBytes,
+    mimeType: input.contentType,
+  });
+
   const allowedContentTypes =
     input.allowedContentTypes && input.allowedContentTypes.length > 0
       ? [...input.allowedContentTypes]

@@ -27,6 +27,7 @@ import {
   type BlobUploadGrant,
   createBlobUploadGrant,
 } from "@/lib/blob-upload-grant";
+import { attachUploadToLogger } from "@/lib/evlog";
 import type { BlobFile } from "@/schemas/blob-file.schema";
 import type { UserFileUploadSession } from "@/schemas/user-file-upload.schema";
 
@@ -321,6 +322,11 @@ export async function uploadProfileImage(
 
   // Upload new blob with hash as filename
   try {
+    attachUploadToLogger({
+      filename: imageHash,
+      size: imageData.byteLength,
+      mimeType,
+    });
     const blob = await put(
       `${STORAGE.IMAGES_UPLOAD_DIR}/${imageHash}`,
       imageData,
@@ -372,6 +378,11 @@ export async function uploadOrganizationLogoBytes(params: {
   );
 
   try {
+    attachUploadToLogger({
+      filename: hash,
+      size: buffer.byteLength,
+      mimeType: params.contentType,
+    });
     const blob = await put(pathname, buffer, {
       access: "public",
       contentType: params.contentType,
@@ -413,6 +424,11 @@ export async function uploadProjectLogoBytes(params: {
   const pathname = buildProjectLogoContentHashPathname(params.projectId, hash);
 
   try {
+    attachUploadToLogger({
+      filename: hash,
+      size: buffer.byteLength,
+      mimeType: params.contentType,
+    });
     const blob = await put(pathname, buffer, {
       access: "public",
       contentType: params.contentType,
@@ -520,6 +536,14 @@ export async function uploadCoworkerImage(params: {
   );
 
   try {
+    attachUploadToLogger({
+      filename: pathname.split("/").pop() || params.filename,
+      size:
+        params.bytes instanceof Blob
+          ? params.bytes.size
+          : params.bytes.byteLength,
+      mimeType: params.contentType,
+    });
     const blob = await put(pathname, params.bytes, {
       access: "public",
       contentType: params.contentType,

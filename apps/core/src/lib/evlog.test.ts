@@ -6,8 +6,10 @@ import { requestId } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
 import {
   attachAuthToLogger,
+  attachUploadToLogger,
   attachWorkspaceToLogger,
   bindCoreRequestId,
   coreEvlogMiddleware,
@@ -15,6 +17,16 @@ import {
 } from "@/lib/evlog";
 import type { AuthVariables } from "@/middleware/auth";
 import { setAuthContext } from "@/middleware/auth";
+
+const { issueSignedTokenMock, presignUrlMock } = vi.hoisted(() => ({
+  issueSignedTokenMock: vi.fn(),
+  presignUrlMock: vi.fn(),
+}));
+
+vi.mock("@vercel/blob", () => ({
+  issueSignedToken: issueSignedTokenMock,
+  presignUrl: presignUrlMock,
+}));
 
 vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
@@ -213,5 +225,65 @@ describe("core evlog request events", () => {
     expect(response.status).toBe(500);
     expect(captured[0]?.event.status).toBe(500);
     expect(captured[0]?.event.level).toBe("error");
+  });
+
+  it("adds upload filename, size, and mimeType on the wide event", async () => {
+    const app = createApp();
+    app.post("/v1/uploads", (c) => {
+      attachUploadToLogger({
+        filename: "document.pdf",
+        size: 1_024_000,
+        mimeType: "application/pdf",
+      });
+      return c.json({ ok: true });
+    });
+
+    const response = await app.request("http://localhost/v1/uploads", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(captured).toHaveLength(1);
+    expect(captured[0]?.event.upload).toEqual({
+      filename: "document.pdf",
+      size: 1_024_000,
+      mimeType: "application/pdf",
+    });
+  });
+
+  it("adds upload fields when a blob upload grant is minted", async () => {
+    issueSignedTokenMock.mockResolvedValue({
+      delegationToken: "delegation",
+      clientSigningToken: "signing",
+      validUntil: Date.now() + 60_000,
+    });
+    presignUrlMock.mockResolvedValue({
+      presignedUrl: "https://blob.example/upload?sig=1",
+    });
+
+    const app = createApp();
+    app.post("/v1/uploads", async (c) => {
+      await createBlobUploadGrant({
+        pathname: "users/user_123/document.pdf",
+        contentType: "application/pdf",
+        maximumSizeInBytes: 1_024_000,
+        maxSizeBytes: 104_857_600,
+        access: "public",
+        addRandomSuffix: true,
+        token: "rw-token",
+      });
+      return c.json({ ok: true });
+    });
+
+    const response = await app.request("http://localhost/v1/uploads", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(captured[0]?.event.upload).toEqual({
+      filename: "document.pdf",
+      size: 1_024_000,
+      mimeType: "application/pdf",
+    });
   });
 });
