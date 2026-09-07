@@ -14,9 +14,34 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { vendorFindManyMock } = vi.hoisted(() => ({
+const { vendorFindManyMock, workspaceRepositoryMock } = vi.hoisted(() => ({
   vendorFindManyMock: vi.fn(),
+  workspaceRepositoryMock: {
+    resolveWorkspaceForContext: vi.fn(),
+  },
 }));
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: workspaceRepositoryMock,
+  };
+});
+
+vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/vendor-grants")>();
+  return {
+    ...actual,
+    getWorkspaceGrant: vi.fn().mockResolvedValue({
+      id: "grant_123",
+      status: "GRANTED",
+      permission: "WORKSPACE",
+    }),
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -45,6 +70,9 @@ function createApp(authContext: AuthVariables["authContext"]) {
 describe("GET /vendors", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
+      id: "ws_list_vendors",
+    });
     vendorFindManyMock.mockResolvedValue([
       {
         ...testVendor,

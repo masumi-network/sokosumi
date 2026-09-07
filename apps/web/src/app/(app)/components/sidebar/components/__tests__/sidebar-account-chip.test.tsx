@@ -73,7 +73,7 @@ function renderChip(
       sessionUser={sessionUser}
       planName="Pro"
       totalCredits={15_750}
-      extraCredits={750}
+      extraCredits={15_750}
       creditUsage={null}
       subscriptionPeriodEndMs={null}
       currentTimestampMs={1_700_000_000_000}
@@ -150,10 +150,12 @@ describe("SidebarAccountChip", () => {
     openChip();
 
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
-    expect(screen.queryByText(/creditsUsedOfTotal/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/creditsRemainingOfTotal/),
+    ).not.toBeInTheDocument();
   });
 
-  it("labels the metered allowance as monthly credits", () => {
+  it("labels the metered allowance as a monthly usage limit", () => {
     renderChip({
       creditUsage: {
         percentageUsed: 25,
@@ -164,7 +166,7 @@ describe("SidebarAccountChip", () => {
     });
     openChip();
 
-    expect(screen.getByText("monthlyCredits")).toBeInTheDocument();
+    expect(screen.getByText("monthlyUsageLimit")).toBeInTheDocument();
   });
 
   it("shows Admin and Settings before Logout when admin is enabled", () => {
@@ -221,7 +223,7 @@ describe("SidebarAccountChip", () => {
 
   it("does not flash the credits root when navigating away from settings", () => {
     // forceMount keeps content through close (exit-animation window). If close
-    // remounted the menu at root, totalBalanceLabel would appear — assert the
+    // remounted the menu at root, getMoreCredits would appear — assert the
     // settings drill stays instead.
     accountSummaryPopoverTestFlags.forceMount = true;
     renderChip();
@@ -229,11 +231,15 @@ describe("SidebarAccountChip", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "settings" }));
     expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
-    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "getMoreCredits" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "billing" }));
 
-    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "getMoreCredits" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith("/billing");
   });
@@ -257,7 +263,9 @@ describe("SidebarAccountChip", () => {
     expect(
       screen.queryByRole("button", { name: "back" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("totalBalanceLabel")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "getMoreCredits" }),
+    ).toBeInTheDocument();
   });
 
   it("buys credits and logs out from inside the summary", () => {
@@ -293,8 +301,13 @@ describe("SidebarAccountChip", () => {
     });
     openChip();
 
-    expect(screen.getByRole("progressbar")).toBeInTheDocument();
-    expect(screen.getByText(/creditsUsedOfTotal 250 1000/)).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "75",
+    );
+    expect(
+      screen.getByText(/creditsRemainingOfTotal 750 1000/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/creditsExpiresInDays 3/)).toBeInTheDocument();
   });
 
@@ -336,7 +349,7 @@ describe("SidebarAccountChip", () => {
         sessionUser={sessionUser}
         planName="Pro"
         totalCredits={15_750}
-        extraCredits={750}
+        extraCredits={15_750}
         creditUsage={null}
         subscriptionPeriodEndMs={null}
         currentTimestampMs={1_700_000_000_000}
@@ -358,7 +371,7 @@ describe("SidebarAccountChip", () => {
         sessionUser={sessionUser}
         planName="Pro"
         totalCredits={15_750}
-        extraCredits={750}
+        extraCredits={15_750}
         creditUsage={null}
         subscriptionPeriodEndMs={null}
         currentTimestampMs={1_700_000_000_000}
@@ -408,27 +421,15 @@ describe("SidebarAccountChip", () => {
     expect(screen.queryByText(/collapsedSummary/)).not.toBeInTheDocument();
   });
 
-  it("shows extra credits when a metered period and a positive buffer exist", () => {
+  it("shows additional credits in the overview without the old extra-credits row", () => {
     renderChip({
+      extraCredits: 51_162,
       creditUsage: {
         percentageUsed: 25,
         remaining: 750,
         total: 1_000,
         used: 250,
       },
-      extraCredits: 750,
-    });
-    openChip();
-
-    expect(screen.getByText("extraCredits")).toBeInTheDocument();
-    expect(screen.getByText("balanceCreditsLabel 750")).toBeInTheDocument();
-    expect(screen.getByText("extraCreditsDescription")).toBeInTheDocument();
-  });
-
-  it("hides the extra-credits block when usage data is missing", () => {
-    renderChip({
-      creditUsage: null,
-      extraCredits: 750,
     });
     openChip();
 
@@ -436,5 +437,16 @@ describe("SidebarAccountChip", () => {
     expect(
       screen.queryByText("extraCreditsDescription"),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+    expect(screen.queryByText("totalAvailableLabel")).not.toBeInTheDocument();
+    const monthlyHeading = screen.getByText("monthlyUsageLimit");
+    const additional = screen.getByTestId("credits-additional");
+    expect(
+      monthlyHeading.compareDocumentPosition(additional) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(additional).toHaveTextContent("additionalCreditsHero 51162");
+    expect(screen.getByText("additionalCreditsLabel")).toBeInTheDocument();
+    expect(screen.getByText("creditsRemainingHero 750")).toBeInTheDocument();
   });
 });
