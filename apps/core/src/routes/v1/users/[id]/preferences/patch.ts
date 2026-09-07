@@ -1,4 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import {
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CHANNELS,
+} from "@sokosumi/utils";
+
+import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -8,9 +14,15 @@ import {
   requireUserRouteContext,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
-import { userPreferencesResponseSchema } from "@/schemas/user.schema";
+import {
+  notificationPreferenceSchema,
+  userPreferencesResponseSchema,
+} from "@/schemas/user.schema";
 
-import { USER_PREFERENCES_SELECT } from "./preferences-select.js";
+import {
+  toUserPreferencesResponse,
+  USER_PREFERENCES_SELECT,
+} from "./preferences-select.js";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -31,18 +43,35 @@ const requestBodySchema = z
         "Whether the user wants OS banners while Sokosumi is closed (push)",
       example: false,
     }),
+    notificationPreferences: z
+      .array(notificationPreferenceSchema)
+      // One write per cell, inside one transaction, so the body cannot ask for
+      // more writes than the matrix has cells.
+      .max(NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length)
+      .optional()
+      .openapi({
+        description:
+          "The matrix cells the reader changed. A cell left out keeps its current answer.",
+      }),
   })
   .refine(
     (data) => {
       return (
         data.marketingOptIn !== undefined ||
         data.notificationsOptIn !== undefined ||
-        data.pushOptIn !== undefined
+        data.pushOptIn !== undefined ||
+        (data.notificationPreferences !== undefined &&
+          data.notificationPreferences.length > 0)
       );
     },
     {
       message: "At least one field must be provided",
-      path: ["marketingOptIn", "notificationsOptIn", "pushOptIn"],
+      path: [
+        "marketingOptIn",
+        "notificationsOptIn",
+        "pushOptIn",
+        "notificationPreferences",
+      ],
     },
   );
 
@@ -71,6 +100,10 @@ const route = createRoute({
           marketingOptIn: true,
           notificationsOptIn: true,
           pushOptIn: false,
+          notificationPreferences: [
+            { category: "JOB", channel: "IN_APP", enabled: true },
+            { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+          ],
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -91,26 +124,60 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
     const body = c.req.valid("json");
 
+    const userFlags = {
+      ...(body.marketingOptIn !== undefined && {
+        marketingOptIn: body.marketingOptIn,
+      }),
+      ...(body.notificationsOptIn !== undefined && {
+        notificationsOptIn: body.notificationsOptIn,
+      }),
+      ...(body.pushOptIn !== undefined && {
+        pushOptIn: body.pushOptIn,
+      }),
+    };
+
     const preferences = await prisma.$transaction(async (tx) => {
-      const updatedUser = await tx.user.update({
+      for (const cell of body.notificationPreferences ?? []) {
+        await tx.notificationPreference.upsert({
+          where: {
+            userId_category_channel: {
+              userId: resolvedUserId,
+              category: cell.category,
+              channel: cell.channel,
+            },
+          },
+          create: {
+            userId: resolvedUserId,
+            category: cell.category,
+            channel: cell.channel,
+            enabled: cell.enabled,
+          },
+          update: { enabled: cell.enabled },
+        });
+      }
+
+      // A body that only changed the matrix has nothing to write on the user,
+      // and an empty update would still bump `updatedAt`.
+      if (Object.keys(userFlags).length === 0) {
+        const user = await tx.user.findUnique({
+          where: { id: resolvedUserId },
+          select: USER_PREFERENCES_SELECT,
+        });
+
+        if (!user) {
+          throw internalServerError("Failed to retrieve user");
+        }
+
+        return user;
+      }
+
+      return await tx.user.update({
         where: { id: resolvedUserId },
-        data: {
-          ...(body.marketingOptIn !== undefined && {
-            marketingOptIn: body.marketingOptIn,
-          }),
-          ...(body.notificationsOptIn !== undefined && {
-            notificationsOptIn: body.notificationsOptIn,
-          }),
-          ...(body.pushOptIn !== undefined && {
-            pushOptIn: body.pushOptIn,
-          }),
-        },
+        data: userFlags,
         select: USER_PREFERENCES_SELECT,
       });
-
-      return updatedUser;
     });
 
-    return ok(c, userPreferencesResponseSchema.parse(preferences));
+    return ok(c, toUserPreferencesResponse(preferences));
   });
 }
