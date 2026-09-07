@@ -176,6 +176,41 @@ describe("notificationReducer", () => {
   });
 
   /**
+   * A room's row moves to the top of the feed when a message counts onto it.
+   * Left where it was, the list would disagree with the order the next read
+   * returns: the same rows, in a different order, for no reason the reader
+   * can see.
+   */
+  it("moves a row that came back newer to the front", () => {
+    const older = createNotification({
+      id: "notification-room",
+      createdAt: new Date("2026-01-01T09:00:00.000Z"),
+    });
+    const newer = createNotification({
+      id: "notification-job",
+      createdAt: new Date("2026-01-01T10:00:00.000Z"),
+    });
+
+    const loaded = notificationReducer(
+      { notifications: [newer, older], unreadCount: 2 },
+      {
+        type: "realtime",
+        notification: {
+          ...older,
+          createdAt: new Date("2026-01-01T11:00:00.000Z"),
+        },
+        created: false,
+      },
+    );
+
+    expect(loaded.notifications.map((one) => one.id)).toEqual([
+      "notification-room",
+      "notification-job",
+    ]);
+    expect(loaded.unreadCount).toBe(2);
+  });
+
+  /**
    * A room read clears its rows on the server and says so over the same
    * channel. The badge has to come down with them.
    */

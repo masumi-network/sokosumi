@@ -58,6 +58,13 @@ const NotificationContext = createContext<NotificationContextValue | null>(
 
 const NOTIFICATION_LIST_LIMIT = 10;
 
+/** The order the feed reads in: newest first, and by id when they tie. */
+function byNewestFirst(a: NotificationItem, b: NotificationItem): number {
+  const byTime = b.createdAt.getTime() - a.createdAt.getTime();
+
+  return byTime !== 0 ? byTime : b.id.localeCompare(a.id);
+}
+
 /**
  * Whether this row belongs to a surface other than the notification center.
  *
@@ -166,12 +173,19 @@ export function notificationReducer(
           unreadCount = unreadCount + 1;
         }
 
+        // Sorted rather than replaced in place. A room's row moves to the
+        // top of the feed when a message counts onto it, and a list that kept
+        // it where it was would disagree with the order the next read
+        // returns: the same rows, in a different order, for no reason the
+        // reader can see.
         return {
-          notifications: state.notifications.map((notification) =>
-            notification.id === convertedNotification.id
-              ? convertedNotification
-              : notification,
-          ),
+          notifications: state.notifications
+            .map((notification) =>
+              notification.id === convertedNotification.id
+                ? convertedNotification
+                : notification,
+            )
+            .sort(byNewestFirst),
           unreadCount,
         };
       }
