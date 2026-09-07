@@ -24,10 +24,11 @@ type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
  * in a sidebar they already have open, so a row of that grid would misreport
  * what it does.
  *
- * It reads quieter than its host on purpose. Muted ground rather than card
- * ground, one radius step down, tighter padding, and a heading dropped to the
- * same `text-sm` its own control labels use, so a reader meets the delivery
- * grid first and finds this below it.
+ * It reads quieter than its host on purpose. It keeps the host's ground so it
+ * does not stand out as a second surface, and a border alone says where it
+ * starts. One radius step down, tighter padding, and its heading demoted to a
+ * muted label, so a reader meets the delivery grid first and finds this below
+ * it.
  */
 export function ChatDisplayPreferences({
   showRoomUnreadCount: initialShowRoomUnreadCount,
@@ -80,26 +81,25 @@ export function ChatDisplayPreferences({
   return (
     // `rounded-lg` is one step under the host card's `rounded-xl`. The two do
     // not share a corner (this sits 1.5rem inside), so there is no concentric
-    // radius to preserve, only the hierarchy to state. The border stays: in
-    // light mode this muted ground is five steps under `bg-card` (250 against
-    // 255) and would not read as a card on its own. Dark mode lifts further,
-    // but one card cannot have a boundary in one theme only, and a boundary is
-    // structure, which a border states and a shadow would not.
-    <Card className="bg-muted/50 gap-3 rounded-lg py-4">
+    // radius to preserve, only the hierarchy to state. Ground stays the host's:
+    // a second fill made this read as a louder surface, not a quieter one. The
+    // border does the whole job, and a boundary is structure, which a border
+    // states and a shadow would not.
+    <Card className="gap-2 rounded-lg py-4">
       {/* `gap-0`: `CardHeader` is a two-row grid and this header has one child,
           so the gutter would otherwise be drawn to an empty second row. */}
       <CardHeader className="gap-0 px-4">
         {/* h2: the notification card around this one owns the route's h1.
-            `leading-none` is restated because `text-sm` replaces it in the
-            merge, and without it the title line box grows by six pixels. */}
-        <CardTitle className="text-sm leading-none">
+            `leading-none` is restated because any `text-*` replaces it in the
+            merge, and without it the title line box grows. */}
+        <CardTitle className="text-muted-foreground text-xs leading-none font-medium">
           <h2>{t("title")}</h2>
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-0.5">
-            <Label htmlFor={switchId} className="text-sm font-medium">
+            <Label htmlFor={switchId} className="text-sm font-normal">
               {t("roomUnreadCountTitle")}
             </Label>
             <p className="text-muted-foreground text-xs">

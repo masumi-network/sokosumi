@@ -4212,7 +4212,7 @@
       "ChatDisplay": {
         "title": "Chat display",
         "roomUnreadCountTitle": "Show unread message counts",
-        "roomUnreadCountDescription": "Show how many unread messages each chat holds. Muted chats and the chat you have open stay quiet. This changes nothing about the notifications you receive.",
+        "roomUnreadCountDescription": "Muted chats and the chat you have open stay quiet. Your notifications do not change.",
         "loading": "Saving preference...",
         "error": "Could not save that change. Check your connection and try again.",
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",

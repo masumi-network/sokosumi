@@ -4181,7 +4181,7 @@
       "ChatDisplay": {
         "title": "Visualización del chat",
         "roomUnreadCountTitle": "Mostrar el número de mensajes no leídos",
-        "roomUnreadCountDescription": "Muestra cuántos mensajes no leídos tiene cada chat. Los chats silenciados y el chat que tienes abierto siguen en silencio. Esto no cambia las notificaciones que recibes.",
+        "roomUnreadCountDescription": "Los chats silenciados y el chat que tienes abierto siguen en silencio. Tus notificaciones no cambian.",
         "loading": "Guardando configuración...",
         "error": "No se pudo guardar el cambio. Comprueba tu conexión e inténtalo de nuevo.",
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",

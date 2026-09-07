@@ -4181,7 +4181,7 @@
       "ChatDisplay": {
         "title": "Chat-Anzeige",
         "roomUnreadCountTitle": "Anzahl ungelesener Nachrichten anzeigen",
-        "roomUnreadCountDescription": "Zeige, wie viele ungelesene Nachrichten jeder Chat enthält. Stummgeschaltete Chats und der geöffnete Chat bleiben ruhig. An deinen Benachrichtigungen ändert das nichts.",
+        "roomUnreadCountDescription": "Stummgeschaltete Chats und der geöffnete Chat bleiben ruhig. An deinen Benachrichtigungen ändert sich nichts.",
         "loading": "Einstellung wird gespeichert...",
         "error": "Die Änderung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
