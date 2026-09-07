@@ -332,34 +332,6 @@ export async function requireCoworkerCapability(
 }
 
 /**
- * Actor chat helper: active + chat capability + baseURL. No whitelist.
- * Human chat-in-workspace uses {@link requireCoworkerChatCapabilityInWorkspace}.
- */
-export async function requireCoworkerChatCapability(
-  coworkerId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<{
-  id: string;
-  slug: string;
-  baseURL: string | null;
-}> {
-  const coworker = await findActiveCoworkerByCapability(
-    coworkerId,
-    "chat",
-    tx,
-    {
-      requireBaseUrl: true,
-    },
-  );
-
-  if (!coworker || !hasNonEmptyBaseUrl(coworker.baseURL)) {
-    throw forbidden("Coworker chat is not available");
-  }
-
-  return coworker;
-}
-
-/**
  * Human chat-in-workspace: whitelist OR GRANTED access, chat capability, baseURL.
  */
 export async function requireCoworkerChatCapabilityInWorkspace(

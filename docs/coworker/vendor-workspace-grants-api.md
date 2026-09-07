@@ -121,7 +121,7 @@ See `apps/core/AGENTS.md` (Handler actor menu) and
 
 **Grant admin routes** (`/v1/organizations/{id}/vendor-grants/*`,
 `/v1/users/{id}/vendor-grants/*`) return **403** for coworker auth (bare or
-with context headers). Humans (session) or Hermes orchestrator with workspace
+with context headers). Session users or Soko Bot with workspace
 context may create, approve, deny, or revoke.
 
 ---

@@ -138,7 +138,7 @@ model Session {
 
 model Account {
   id                    String    @id @default(uuid(7))
-  issuer                String
+  issuer                String?
   accountId             String
   providerId            String
   userId                String
@@ -153,7 +153,6 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  @@unique([issuer, accountId])
   @@index([userId])
   @@map("account")
 }

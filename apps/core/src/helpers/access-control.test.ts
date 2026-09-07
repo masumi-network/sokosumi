@@ -20,7 +20,6 @@ import {
   buildCoworkerVisibleToUserOr,
   requireConversationCoworkerAccess,
   requireCoworkerCapability,
-  requireCoworkerChatCapability,
   requireCoworkerChatCapabilityInWorkspace,
   requireCoworkerTaskCollaboration,
   requireJobCollaboration,
@@ -1924,35 +1923,6 @@ describe("requireCoworkerCapability", () => {
         capabilities: {
           has: "tasks",
         },
-      },
-      select: {
-        id: true,
-        slug: true,
-        baseURL: true,
-      },
-    });
-  });
-});
-
-describe("requireCoworkerChatCapability", () => {
-  it("requires active chat capability and baseURL without whitelist (actor path)", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-      slug: "ops-agent",
-      baseURL: "https://responses.example.com/v1",
-    } as never);
-
-    await requireCoworkerChatCapability("cow_123", tx);
-
-    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "cow_123",
-        archivedAt: null,
-        capabilities: {
-          has: "chat",
-        },
-        AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
       },
       select: {
         id: true,

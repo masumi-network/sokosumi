@@ -11,7 +11,6 @@ node_modules
 
 # Framework and build output
 .next
-.eve
 .output
 dist
 .turbo
