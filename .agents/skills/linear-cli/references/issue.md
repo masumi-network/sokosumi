@@ -152,19 +152,24 @@ Usage:   linear issue comment add [issueId]
 
 Description:
 
-  Add a comment or reply; images uploaded with --attach render inline
+  Add a comment or reply; images uploaded with --attach render inline             
+                                                                                  
+  Linear Markdown: a plain Linear URL creates a mention; `@name`, `@[Name](id)`,  
+  and `[Name](url)` do not. Get a person's URL from the `url` field of            
+  `linear team members <TEAM> --json`, or an issue's from `linear issue url <ID>`.
+  Run `linear markdown` for collapsible sections and the full reference.          
 
 Options:
 
-  -h, --help                - Show this help.                                                                
-  --workspace   <slug>      - Target workspace (uses credentials)                                            
-  -b, --body    <text>      - Comment body text                                                              
-  --body-file   <path>      - Read comment body from a file (preferred for markdown content)                 
-  -p, --parent  <id>        - Parent comment ID for replies                                                  
-  -a, --attach  <filepath>  - Upload a file and add its Markdown link to the comment (images render inline;  
-                              repeatable)                                                                    
-  --public                  - Upload attached images to a public, unauthenticated URL (default: private,     
-                              workspace-members only)
+  -h, --help                             - Show this help.                                                                
+  --workspace               <slug>       - Target workspace (uses credentials)                                            
+  -b, --body                <text>       - Comment body text                                                              
+  --body-file               <path>       - Read comment body from a file (preferred for markdown content)                 
+  -p, --parent, --reply-to  <commentId>  - Reply to a top-level comment by ID (the reply joins that thread)               
+  -a, --attach              <filepath>   - Upload a file and add its Markdown link to the comment (images render inline;  
+                                           repeatable)                                                                    
+  --public                               - Upload attached images to a public, unauthenticated URL (default: private,     
+                                           workspace-members only)
 ```
 
 ##### delete
@@ -205,7 +210,12 @@ Usage:   linear issue comment update <commentId>
 
 Description:
 
-  Update an existing comment
+  Update an existing comment                                                      
+                                                                                  
+  Linear Markdown: a plain Linear URL creates a mention; `@name`, `@[Name](id)`,  
+  and `[Name](url)` do not. Get a person's URL from the `url` field of            
+  `linear team members <TEAM> --json`, or an issue's from `linear issue url <ID>`.
+  Run `linear markdown` for collapsible sections and the full reference.          
 
 Options:
 
@@ -241,7 +251,12 @@ Usage:   linear issue create
 
 Description:
 
-  Create a linear issue
+  Create a linear issue                                                           
+                                                                                  
+  Linear Markdown: a plain Linear URL creates a mention; `@name`, `@[Name](id)`,  
+  and `[Name](url)` do not. Get a person's URL from the `url` field of            
+  `linear team members <TEAM> --json`, or an issue's from `linear issue url <ID>`.
+  Run `linear markdown` for collapsible sections and the full reference.          
 
 Options:
 
@@ -256,7 +271,7 @@ Options:
   -d, --description          <description>  - Description of the issue                                                      
   --description-file         <path>         - Read description from a file (preferred for markdown content)                 
   -l, --label                <label>        - Issue label associated with the issue. May be repeated.                       
-  --team                     <team>         - Team associated with the issue (if not your default team)                     
+  --team                     <team>         - Team (key, name, or ID) for the issue, if not your default team               
   --project                  <project>      - Project for the issue (UUID, slug ID, or name)                                
   -s, --state                <state>        - Workflow state for the issue (by name or type)                                
   --milestone                <milestone>    - Project milestone (UUID, or name when --project is set)                       
@@ -360,24 +375,24 @@ Description:
 
 Options:
 
-  -h, --help                       - Show this help.                                                                                                                         
-  --workspace      <slug>          - Target workspace (uses credentials)                                                                                                     
-  -s, --state      <state>         - Filter by issue state (can be repeated for multiple states)                      (Default: [ "unstarted" ], Values: "triage", "backlog",
-                                                                                                                      "unstarted", "started", "completed", "canceled")       
-  --all-states                     - Show issues from all states                                                                                                             
-  --sort           <sort>          - Sort order (default: priority, can also be set via LINEAR_ISSUE_SORT)            (Values: "manual", "priority")                         
-  --team           <team>          - Team to list issues for (if not your default team)                                                                                      
-  --project        <project>       - Filter by project (UUID, slug ID, or name)                                                                                              
-  --project-label  <projectLabel>  - Filter by project label name (shows issues from all projects with this label)                                                           
-  --cycle          <cycle>         - Filter by cycle name, number, 'active'/'now', 'next', 'previous', or a relative                                                         
-                                     offset like +1                                                                                                                          
-  --milestone      <milestone>     - Filter by project milestone (UUID, or name when --project is set)                                                                       
-  -l, --label      <label>         - Filter by label name (can be repeated for multiple labels)                                                                              
-  --limit          <limit>         - Maximum number of issues to fetch (default: 50, use 0 for unlimited)             (Default: 50)                                          
-  --created-after  <date>          - Filter issues created after this date (ISO 8601 or YYYY-MM-DD)                                                                          
-  --updated-after  <date>          - Filter issues updated after this date (ISO 8601 or YYYY-MM-DD)                                                                          
-  -w, --web                        - Open in web browser                                                                                                                     
-  -a, --app                        - Open in Linear.app                                                                                                                      
+  -h, --help                       - Show this help.                                                                                                
+  --workspace      <slug>          - Target workspace (uses credentials)                                                                            
+  -s, --state      <state>         - Filter by workflow state type (triage, backlog, unstarted, started, completed,   (Default: [ "unstarted" ])    
+                                     canceled), name, or ID (can be repeated for multiple states)                                                   
+  --all-states                     - Show issues from all states                                                                                    
+  --sort           <sort>          - Sort order (default: priority, can also be set via LINEAR_ISSUE_SORT)            (Values: "manual", "priority")
+  --team           <team>          - Team key, name, or ID to list issues for (if not your default team)                                            
+  --project        <project>       - Filter by project (UUID, slug ID, or name)                                                                     
+  --project-label  <projectLabel>  - Filter by project label name (shows issues from all projects with this label)                                  
+  --cycle          <cycle>         - Filter by cycle name, number, 'active'/'now', 'next', 'previous', or a relative                                
+                                     offset like +1                                                                                                 
+  --milestone      <milestone>     - Filter by project milestone (UUID, or name when --project is set)                                              
+  -l, --label      <label>         - Filter by label name (can be repeated for multiple labels)                                                     
+  --limit          <limit>         - Maximum number of issues to fetch (default: 50, use 0 for unlimited)             (Default: 50)                 
+  --created-after  <date>          - Filter issues created after this date (ISO 8601 or YYYY-MM-DD)                                                 
+  --updated-after  <date>          - Filter issues updated after this date (ISO 8601 or YYYY-MM-DD)                                                 
+  -w, --web                        - Open in web browser                                                                                            
+  -a, --app                        - Open in Linear.app                                                                                             
   --no-pager                       - Disable automatic paging for long output
 ```
 
@@ -394,13 +409,16 @@ Description:
 
 Options:
 
-  -h, --help             - Show this help.                                                         
-  --workspace  <slug>    - Target workspace (uses credentials)                                     
-  --base       <branch>  - The branch into which you want your code merged                         
-  --draft                - Create the pull request as a draft                                      
-  -t, --title  <title>   - Optional title for the pull request (Linear issue ID will be prefixed)  
-  --web                  - Open the pull request in the browser after creating it                  
-  --head       <branch>  - The branch that contains commits for your pull request
+  -h, --help                - Show this help.                                                               
+  --workspace     <slug>    - Target workspace (uses credentials)                                           
+  --base          <branch>  - The branch into which you want your code merged                               
+  --draft                   - Create the pull request as a draft                                            
+  -t, --title     <title>   - Optional title for the pull request (Linear issue ID will be prefixed)        
+  --web                     - Open the pull request in the browser after creating it                        
+  --head          <branch>  - The branch that contains commits for your pull request                        
+  -T, --template  <file>    - Start the pull request body from this template file (the Linear issue URL is  
+                              appended)                                                                     
+  --no-template             - Ignore the pr_template config option for this pull request
 ```
 
 ### query
@@ -416,30 +434,30 @@ Description:
 
 Options:
 
-  -h, --help                           - Show this help.                                                                                                                       
-  --workspace          <slug>          - Target workspace (uses credentials)                                                                                                   
-  --search             <term>          - Full-text search term                                                                                                                 
-  --search-comments                    - Also search inside issue comments (requires --search)                                                                                 
-  --team               <team>          - Filter by team key (can be repeated for multiple teams)                                                                               
-  --all-teams                          - Query across all teams                                                                                                                
-  -s, --state          <state>         - Filter by issue state (can be repeated for multiple states)                      (Values: "triage", "backlog", "unstarted", "started",
-                                                                                                                          "completed", "canceled")                             
-  --all-states                         - Show issues from all states (this is the default)                                                                                     
-  --assignee           <assignee>      - Filter by assignee (username)                                                                                                         
-  -A, --all-assignees                  - Show issues for all assignees (this is the default)                                                                                   
-  -U, --unassigned                     - Show only unassigned issues                                                                                                           
-  --sort               <sort>          - Sort order: manual or priority (default: priority, not available with --search)  (Values: "manual", "priority")                       
-  --project            <project>       - Filter by project (UUID, slug ID, or name)                                                                                            
-  --project-label      <projectLabel>  - Filter by project label name (shows issues from all projects with this label)                                                         
-  --cycle              <cycle>         - Filter by cycle name, number, 'active'/'now', 'next', 'previous', or a relative                                                       
-                                         offset like +1                                                                                                                        
-  --milestone          <milestone>     - Filter by project milestone (UUID, or name when --project is set)                                                                     
-  -l, --label          <label>         - Filter by label name (can be repeated for multiple labels)                                                                            
-  --limit              <limit>         - Maximum number of issues to fetch (default: 50, use 0 for unlimited)             (Default: 50)                                        
-  --created-after      <date>          - Filter issues created after this date (ISO 8601 or YYYY-MM-DD)                                                                        
-  --updated-after      <date>          - Filter issues updated after this date (ISO 8601 or YYYY-MM-DD)                                                                        
-  --include-archived                   - Include archived issues                                                                                                               
-  -j, --json                           - Output results as JSON                                                                                                                
+  -h, --help                           - Show this help.                                                                                                
+  --workspace          <slug>          - Target workspace (uses credentials)                                                                            
+  --search             <term>          - Full-text search term                                                                                          
+  --search-comments                    - Also search inside issue comments (requires --search)                                                          
+  --team               <team>          - Filter by team key, name, or ID (can be repeated for multiple teams)                                           
+  --all-teams                          - Query across all teams                                                                                         
+  -s, --state          <state>         - Filter by workflow state type (triage, backlog, unstarted, started, completed,                                 
+                                         canceled), name, or ID (can be repeated for multiple states)                                                   
+  --all-states                         - Show issues from all states (this is the default)                                                              
+  --assignee           <assignee>      - Filter by assignee (username)                                                                                  
+  -A, --all-assignees                  - Show issues for all assignees (this is the default)                                                            
+  -U, --unassigned                     - Show only unassigned issues                                                                                    
+  --sort               <sort>          - Sort order: manual or priority (default: priority, not available with --search)  (Values: "manual", "priority")
+  --project            <project>       - Filter by project (UUID, slug ID, or name)                                                                     
+  --project-label      <projectLabel>  - Filter by project label name (shows issues from all projects with this label)                                  
+  --cycle              <cycle>         - Filter by cycle name, number, 'active'/'now', 'next', 'previous', or a relative                                
+                                         offset like +1                                                                                                 
+  --milestone          <milestone>     - Filter by project milestone (UUID, or name when --project is set)                                              
+  -l, --label          <label>         - Filter by label name (can be repeated for multiple labels)                                                     
+  --limit              <limit>         - Maximum number of issues to fetch (default: 50, use 0 for unlimited)             (Default: 50)                 
+  --created-after      <date>          - Filter issues created after this date (ISO 8601 or YYYY-MM-DD)                                                 
+  --updated-after      <date>          - Filter issues updated after this date (ISO 8601 or YYYY-MM-DD)                                                 
+  --include-archived                   - Include archived issues                                                                                        
+  -j, --json                           - Output results as JSON                                                                                         
   --no-pager                           - Disable automatic paging for long output
 ```
 
@@ -567,7 +585,12 @@ Usage:   linear issue update [issueId]
 
 Description:
 
-  Update a linear issue
+  Update a linear issue                                                           
+                                                                                  
+  Linear Markdown: a plain Linear URL creates a mention; `@name`, `@[Name](id)`,  
+  and `[Name](url)` do not. Get a person's URL from the `url` field of            
+  `linear team members <TEAM> --json`, or an issue's from `linear issue url <ID>`.
+  Run `linear markdown` for collapsible sections and the full reference.          
 
 Options:
 
@@ -575,10 +598,13 @@ Options:
   --workspace         <slug>         - Target workspace (uses credentials)                                              
   -a, --assignee      <assignee>     - Assign the issue to 'self' or someone (by username or name)                      
   --unassign                         - Clear the issue's assignee (cannot be combined with --assignee)                  
-  --due-date          <dueDate>      - Due date of the issue                                                            
-  --parent            <parent>       - Parent issue (if any) as a team_number code                                      
+  --due-date          <dueDate>      - Due date of the issue. Use --clear-due-date to remove it                         
+  --clear-due-date                   - Remove the issue's due date (cannot be combined with --due-date)                 
+  --parent            <parent>       - Parent issue (if any) as a team_number code. Use --clear-parent to remove it     
+  --clear-parent                     - Remove the issue's parent (cannot be combined with --parent)                     
   -p, --priority      <priority>     - Priority of the issue (1-4, descending priority)                                 
-  --estimate          <estimate>     - Points estimate of the issue                                                     
+  --estimate          <estimate>     - Points estimate of the issue. Use --clear-estimate to remove it                  
+  --clear-estimate                   - Remove the issue's estimate (cannot be combined with --estimate)                 
   -d, --description   <description>  - Description of the issue                                                         
   --description-file  <path>         - Read description from a file (preferred for markdown content)                    
   -l, --label         <label>        - Issue label associated with the issue; replaces the issue's entire label set.    
@@ -586,11 +612,16 @@ Options:
   --add-label         <label>        - Add a label to the issue, keeping its existing labels. May be repeated.          
   --remove-label      <label>        - Remove a label from the issue, keeping its other labels (does not delete the     
                                        label from the team). May be repeated.                                           
-  --team              <team>         - Team associated with the issue (if not your default team)                        
-  --project           <project>      - Project to assign the issue to (UUID, slug ID, or name)                          
+  --team              <team>         - Team (key, name, or ID) to move the issue to                                     
+  --project           <project>      - Project to assign the issue to (UUID, slug ID, or name). Use --clear-project to  
+                                       remove it                                                                        
+  --clear-project                    - Remove the issue from its project (cannot be combined with --project or          
+                                       --milestone)                                                                     
   -s, --state         <state>        - Workflow state for the issue (by name or type)                                   
   --milestone         <milestone>    - Project milestone (UUID, or name when --project is set or the issue already has  
-                                       a project)                                                                       
+                                       a project). Use --clear-milestone to remove it                                   
+  --clear-milestone                  - Remove the issue from its project milestone (cannot be combined with             
+                                       --milestone)                                                                     
   --cycle             <cycle>        - Cycle name, number, 'active'/'now', 'next', 'previous', or a relative offset     
                                        like +1 (use --cycle=-1 for negatives). Use --clear-cycle to remove the issue    
                                        from its cycle                                                                   
