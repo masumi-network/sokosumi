@@ -236,6 +236,13 @@ export {
   isBrowserOnlyNotificationKind,
 } from "./notification-feed-kinds.js";
 export {
+  NOTIFICATION_CATEGORIES,
+  NOTIFICATION_CHANNELS,
+  type NotificationCategory,
+  type NotificationChannel,
+  notificationDefault,
+} from "./notification-preferences.js";
+export {
   type BuildOAuthClientScopeParamOptions,
   buildOAuthClientGrantTypes,
   buildOAuthClientScopeParam,

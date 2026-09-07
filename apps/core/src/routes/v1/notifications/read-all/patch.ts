@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notificationFeedKindWhere } from "@/helpers/notification-feed";
+import { notificationFeedWhere } from "@/helpers/notification-feed";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -52,7 +52,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: {
         userId: userContext.userId,
         isRead: false,
-        kind: notificationFeedKindWhere(),
+        ...notificationFeedWhere(),
       },
       data: {
         isRead: true,

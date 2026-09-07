@@ -46,6 +46,7 @@ import {
   THREAD_PROVIDER_CONVERSATION_ID_KEY,
 } from "@/helpers/room-stream-thread";
 import prisma from "@/lib/db/prisma";
+import { tryUseLogger } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -243,6 +244,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // unavailable = Redis never configured (local) → fail-open with soft dedup.
     // error = Redis configured but broken → fail-closed (no unlocked multi-instance races).
     const streamLock = await acquireStreamLock(room.id);
+    tryUseLogger()?.set({
+      chat: {
+        kind: "coworker_direct_stream",
+        room: { id: room.id },
+        coworker: { id: coworker.id, slug: coworker.slug },
+        ...(parentMessageId ? { thread: { parentMessageId } } : {}),
+        lock: { status: streamLock.status },
+      },
+    });
     if (streamLock.status === "held") {
       throw conflict(
         "A coworker response is already in progress for this room.",

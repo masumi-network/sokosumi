@@ -27,11 +27,7 @@ export const VENDOR_GRANT_PENDING_MESSAGE_KEY =
 export const COWORKER_ACCESS_PENDING_MESSAGE_KEY =
   "notifications.coworkerAccess.pending";
 
-/**
- * Prisma `kind` filter for the in-app notification feed (list, unread count,
- * mark-all-read). Always excludes browser-only kinds such as CHAT.
- */
-export function notificationFeedKindWhere(
+function notificationFeedKindWhere(
   requestedKinds?: readonly NotificationKind[],
 ): Prisma.EnumNotificationKindFilter {
   if (requestedKinds && requestedKinds.length > 0) {
@@ -49,6 +45,23 @@ export function notificationFeedKindWhere(
 
   return {
     notIn: BROWSER_ONLY_KIND_FILTER,
+  };
+}
+
+/**
+ * Prisma filter for the in-app notification feed (list, unread count,
+ * mark-all-read).
+ *
+ * Two reasons a stored notification never reaches the feed, returned together
+ * so a call site cannot apply one and forget the other: its kind is
+ * browser-only, such as CHAT, or the reader silenced its category in the app.
+ */
+export function notificationFeedWhere(
+  requestedKinds?: readonly NotificationKind[],
+): Prisma.NotificationWhereInput {
+  return {
+    kind: notificationFeedKindWhere(requestedKinds),
+    inApp: true,
   };
 }
 

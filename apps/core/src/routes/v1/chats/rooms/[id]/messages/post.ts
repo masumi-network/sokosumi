@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
-
 import {
   emitChatDirectMessageNotifications,
   shouldEmitChatDirectMessageNotifications,
 } from "@/helpers/chat-direct-message-notifications";
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
+import { emitChatRoomMessageNotifications } from "@/helpers/chat-room-message-notifications";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -140,35 +140,59 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
 
-      if (room.kind === "direct") {
-        const memberUserIds = (
-          await prisma.chatRoomUserMember.findMany({
-            where: { roomId: room.id },
-            select: { userId: true },
-          })
-        ).map((member) => member.userId);
+      // Only a direct room needs the roster here, to count the humans in it.
+      // A channel leaves the read to the emitter, which runs after the
+      // response rather than in front of it.
+      const memberUserIds =
+        room.kind === "direct"
+          ? (
+              await prisma.chatRoomUserMember.findMany({
+                where: { roomId: room.id },
+                select: { userId: true },
+              })
+            ).map((member) => member.userId)
+          : undefined;
 
-        if (
-          shouldEmitChatDirectMessageNotifications({
-            kind: room.kind,
-            memberUserIds,
-          })
-        ) {
-          waitUntil(
-            emitChatDirectMessageNotifications({
-              roomId: room.id,
-              roomName: room.name,
-              organizationId: room.organizationId,
-              messageId: message.id,
-              authorUserId: null,
-              authorName: message.senderSokoBot
-                ? sokoBotDisplayName(message.senderSokoBot)
-                : (message.senderCoworker?.name ?? "Someone"),
-              recipientUserIds: memberUserIds,
-            }),
-          );
-        }
+      // The author is a coworker or Soko Bot, never a human, so the
+      // name comes from whichever one sent it.
+      const authorName = message.senderSokoBot
+        ? sokoBotDisplayName(message.senderSokoBot)
+        : (message.senderCoworker?.name ?? "Someone");
+
+      if (
+        memberUserIds &&
+        shouldEmitChatDirectMessageNotifications({
+          kind: room.kind,
+          memberUserIds,
+        })
+      ) {
+        waitUntil(
+          emitChatDirectMessageNotifications({
+            roomId: room.id,
+            roomName: room.name,
+            organizationId: room.organizationId,
+            messageId: message.id,
+            authorUserId: null,
+            authorName,
+            recipientUserIds: memberUserIds,
+          }),
+        );
       }
+
+      waitUntil(
+        emitChatRoomMessageNotifications({
+          roomId: room.id,
+          roomName: room.name,
+          roomKind: room.kind,
+          organizationId: room.organizationId,
+          messageId: message.id,
+          authorUserId: null,
+          authorName,
+          // Already read for the direct-message decision, so the emitter is
+          // not asked to read the same roster again.
+          memberUserIds,
+        }),
+      );
 
       return created(
         c,
@@ -483,6 +507,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
       }
+
+      waitUntil(
+        emitChatRoomMessageNotifications({
+          roomId: room.id,
+          roomName: room.name,
+          roomKind: room.kind,
+          organizationId: room.organizationId,
+          messageId: message.id,
+          authorUserId: userContext.userId,
+          authorName: message.senderUser?.name ?? "Someone",
+          // Read inside the write transaction, so the roster is the one the
+          // message was posted against.
+          memberUserIds: room.memberUserIds,
+          mentionedUserIds,
+        }),
+      );
 
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
     }
