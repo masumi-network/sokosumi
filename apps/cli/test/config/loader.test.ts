@@ -103,6 +103,44 @@ test("TestV23 hosted OAuth resolves legacy web auth proxy to Core auth", () => {
   }
 });
 
+test("TestV24 hosted OAuth derives auth base from selected target", () => {
+  const fixture = createFixture();
+  try {
+    writeFileSync(
+      join(fixture.homeDir, ".sokosumi", "config.json"),
+      JSON.stringify({
+        apiUrl: "https://api.sokosumi.com",
+        authUrl: "https://api.sokosumi.com/auth",
+      }),
+    );
+
+    const environment = loadCliEnvironment({
+      cwd: fixture.cwd,
+      homeDir: fixture.homeDir,
+      packageRoot: fixture.packageRoot,
+      environment: {},
+    });
+
+    const preprodConfig = resolveCliConfig({
+      env: environment,
+      preprod: true,
+    });
+    assert.equal(
+      preprodConfig.authBaseUrl,
+      "https://api.preprod.sokosumi.com/auth",
+    );
+
+    const customConfig = resolveCliConfig({
+      env: environment,
+      apiUrl: "https://api.example.test",
+      authBaseUrl: "https://auth.example.test",
+    });
+    assert.equal(customConfig.authBaseUrl, "https://auth.example.test");
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test("does not load secret fields from the home config file", () => {
   const fixture = createFixture();
   try {

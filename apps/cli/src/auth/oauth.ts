@@ -398,8 +398,19 @@ function waitForCallback({
         }
 
         response.statusCode = 200;
-        response.setHeader("content-type", "text/plain; charset=utf-8");
-        response.end("Sokosumi sign-in completed. You can close this window.");
+        response.setHeader("cache-control", "no-store");
+        response.setHeader("content-type", "text/html; charset=utf-8");
+        response.setHeader("referrer-policy", "no-referrer");
+        response.end(`<!doctype html>
+<html lang="en">
+  <head><meta name="referrer" content="no-referrer"><title>Sokosumi sign-in completed</title></head>
+  <body>
+    <p>Sokosumi sign-in completed. You can close this window.</p>
+    <script>
+      window.history.replaceState(null, "", window.location.pathname);
+    </script>
+  </body>
+</html>`);
         finish("resolve", url.toString());
       },
     );

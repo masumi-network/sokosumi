@@ -8,6 +8,47 @@ interface FetchRequest {
   options?: RequestInit;
 }
 
+test("TestV25 successful OAuth callback clears the browser URL", async () => {
+  let callbackResponsePromise: Promise<Response> | undefined;
+  const fetchImpl: typeof fetch = async () => {
+    return new Response(
+      JSON.stringify({
+        access_token: "access-token",
+        refresh_token: "refresh-token",
+        expires_in: 7200,
+      }),
+      { status: 200 },
+    );
+  };
+  const openUrl = async (authorizationUrl: string) => {
+    const authorization = new URL(authorizationUrl);
+    const redirectUri = authorization.searchParams.get("redirect_uri");
+    const state = authorization.searchParams.get("state");
+    if (!redirectUri || !state) throw new Error("OAuth URL was incomplete");
+    callbackResponsePromise = fetch(
+      `${redirectUri}?code=auth-code&state=${encodeURIComponent(state)}`,
+    );
+  };
+
+  await loginWithBrowser({
+    authBaseUrl: "https://api.example.test/auth",
+    clientId: "cli-client",
+    port: 53683,
+    openUrl,
+    fetchImpl,
+    timeoutMs: 5000,
+  });
+
+  if (!callbackResponsePromise) {
+    throw new Error("OAuth callback request was not captured");
+  }
+  const callbackResponse = await callbackResponsePromise;
+  const callbackBody = await callbackResponse.text();
+  assert.equal(callbackResponse.status, 200);
+  assert.match(callbackBody, /history\.replaceState/u);
+  assert.doesNotMatch(callbackBody, /auth-code|state=/u);
+});
+
 test("completes browser OAuth through the loopback callback", async () => {
   let tokenRequest: FetchRequest | undefined;
   const fetchImpl: typeof fetch = async (url, options) => {

@@ -57,6 +57,8 @@ V20: TUI selection → arrows + Enter. Esc back. q quit. ⊥ letter/numeric alia
 V21: `coworkers register` request → Core create schema required `vendorId`; CLI accepts `--vendor-id`, emits `vendorId`, and rejects missing value before POST.
 V22: CLI `test` and `test:ci` scripts pass the quoted recursive test glob to `tsx`; default suite collects nested command tests.
 V23: hosted OAuth authorization and token URLs use the Core API auth base; legacy web `/api/auth` proxy preferences resolve to `<api>/auth`.
+V24: hosted target OAuth auth base = selected API URL + `/auth`; auth URL overrides apply only to custom targets.
+V25: successful loopback OAuth callbacks return no-store HTML that removes code and state from the browser address bar.
 
 ## §T TASKS
 
@@ -87,3 +89,5 @@ B2|2026-09-08|hosted OAuth used silent `sokosumi_cli` fallback; Core flow ended 
 B3|2026-09-08|`coworkers register` omitted Core-required `vendorId`; Core create schema rejected the request|V21
 B4|2026-09-08|CLI test scripts left recursive glob unquoted; shell expansion omitted nested command tests from default suite|V22
 B5|2026-09-08|stale home `authUrl` pointed hosted CLI OAuth at the web `/api/auth` proxy, which returned redirect metadata instead of browser navigation|V23
+B6|2026-09-08|hosted preprod selected the mainnet `authUrl` from home config instead of deriving auth from the selected API target|V24
+B7|2026-09-08|successful OAuth callback left one-time code and state in the browser address bar|V25

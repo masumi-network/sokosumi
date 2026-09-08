@@ -13,10 +13,6 @@ export interface CliTargetConfig {
 export const MAINNET_API_URL = "https://api.sokosumi.com";
 export const PREPROD_API_URL = "https://api.preprod.sokosumi.com";
 export const DEFAULT_OAUTH_CLIENT_ID = "sokosumi_cli";
-const LEGACY_WEB_AUTH_PROXY_URLS = new Set([
-  "https://app.sokosumi.com/api/auth",
-  "https://preprod.sokosumi.com/api/auth",
-]);
 
 export const USER_API_KEY_PREFIX_BY_TARGET: Readonly<
   Record<Exclude<CliTarget, "custom">, string>
@@ -70,10 +66,8 @@ function resolveAuthBaseUrl(
   configuredAuthBaseUrl?: string,
 ): string {
   const defaultAuthBaseUrl = `${apiUrl}/auth`;
-  const normalizedAuthBaseUrl = trimUrl(configuredAuthBaseUrl || "");
-  return LEGACY_WEB_AUTH_PROXY_URLS.has(normalizedAuthBaseUrl)
-    ? defaultAuthBaseUrl
-    : normalizedAuthBaseUrl || defaultAuthBaseUrl;
+  if (target !== "custom") return defaultAuthBaseUrl;
+  return trimUrl(configuredAuthBaseUrl || "") || defaultAuthBaseUrl;
 }
 
 export function resolveCliConfig({
