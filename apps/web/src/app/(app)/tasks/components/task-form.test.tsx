@@ -2217,6 +2217,74 @@ describe("TaskForm", () => {
     expect(screen.getByText("Linked task")).toBeInTheDocument();
   });
 
+  it("toasts the schedule error when create rejects an invalid schedule", async () => {
+    const user = userEvent.setup();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const onCreateTask = vi
+      .fn()
+      .mockRejectedValue(new Error("Invalid schedule"));
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{
+          assigneeId: "coworker-2",
+          schedule: {
+            mode: "once",
+            oneTimeLocalIso: "2030-01-02T09:00",
+            timezone: "UTC",
+          },
+        }}
+        onCreateTask={onCreateTask}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Schedule Task" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("errors.futureDateTime");
+    });
+    expect(toastErrorMock).not.toHaveBeenCalledWith("Failed to save task");
+    consoleError.mockRestore();
+  });
+
+  it("toasts the generic save error for other create failures", async () => {
+    const user = userEvent.setup();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const onCreateTask = vi.fn().mockRejectedValue(new Error("boom"));
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onCreateTask={onCreateTask}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("Failed to save task");
+    });
+    consoleError.mockRestore();
+  });
+
   it("does not create a duplicate task when Ctrl+Enter is pressed on the success step", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);

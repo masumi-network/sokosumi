@@ -10,6 +10,7 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { createScheduledTask, createTask } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { selectionToApiBody } from "@/lib/utils/task-schedule";
 
 interface CalendarCreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
@@ -45,6 +46,10 @@ function CalendarCreateTaskModalInstance({
         input.assigneeSokoBotId
       ) {
         throw new Error("An assignee is required to schedule a Calendar task");
+      }
+
+      if (!selectionToApiBody(input.schedule)) {
+        throw new Error("Invalid schedule");
       }
 
       const result = await createScheduledTask({

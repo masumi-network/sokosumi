@@ -1,5 +1,5 @@
 import { act, render } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskStatus } from "@/lib/clients/generated/core";
 
@@ -67,6 +67,10 @@ describe("CalendarCreateTaskModal", () => {
       ok: true,
       value: { taskId: "task-1", name: "Prepare launch" },
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("uses the Calendar API for an active schedule and selected Project", async () => {
@@ -177,6 +181,33 @@ describe("CalendarCreateTaskModal", () => {
       expect(createScheduledTaskMock).not.toHaveBeenCalled();
     },
   );
+
+  it("does not call the Calendar API for a past once-schedule", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+    render(
+      <CalendarCreateTaskModal coworkerOptions={[]} projectOptions={[]} />,
+    );
+
+    await expect(
+      getCreateHandler()({
+        description: "Prepare launch",
+        assigneeId: "coworker-1",
+        assigneeSokoBotId: null,
+        projectId: null,
+        context: CONTEXT,
+        status: TaskStatus.READY,
+        schedule: {
+          mode: "once",
+          oneTimeLocalIso: "2026-09-08T18:00",
+          timezone: "Europe/Prague",
+        },
+      }),
+    ).rejects.toThrow("Invalid schedule");
+
+    expect(createScheduledTaskMock).not.toHaveBeenCalled();
+    expect(createTaskMock).not.toHaveBeenCalled();
+  });
 
   it("keeps the operation ID stable when a scheduled request is retried", async () => {
     createScheduledTaskMock.mockResolvedValue({
