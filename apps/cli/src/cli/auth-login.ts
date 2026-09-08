@@ -206,7 +206,7 @@ export async function runAuthLogin({
   }
 
   const loginRequest: BrowserLoginOptions = {
-    authBaseUrl: authBaseUrl || resolvedConfig.authBaseUrl,
+    authBaseUrl: resolvedConfig.authBaseUrl,
     clientId: clientId || resolvedConfig.clientId,
     ...(clientSecret || resolvedConfig.clientSecret
       ? { clientSecret: clientSecret || resolvedConfig.clientSecret }

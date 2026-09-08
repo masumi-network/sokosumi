@@ -60,6 +60,40 @@ test("dispatches auth login and emits token-free JSON", async () => {
   assert.doesNotMatch(output.join(""), /access-token|refresh-token/);
 });
 
+test("TestV24 preprod auth ignores a hosted mainnet auth URL flag", async () => {
+  let loginRequest: BrowserLoginOptions | undefined;
+  await runCli(
+    [
+      "--preprod",
+      "auth",
+      "login",
+      "--auth-url",
+      "https://api.sokosumi.com/auth",
+    ],
+    {
+      env: {
+        SOKOSUMI_PREPROD_OAUTH_CLIENT_ID: "preprod-client",
+      },
+      loginFn: async (request) => {
+        loginRequest = request;
+        return {
+          authToken: "access-token",
+          refreshToken: "refresh-token",
+          expiresAt: "2030-01-01T00:00:00.000Z",
+        };
+      },
+      authManager: createTestAuthManager(),
+      stdout: { write: () => undefined },
+    },
+  );
+
+  assert.equal(
+    loginRequest?.authBaseUrl,
+    "https://api.preprod.sokosumi.com/auth",
+  );
+  assert.equal(loginRequest?.clientId, "preprod-client");
+});
+
 test("strips a lone -- so pnpm extra-args work", async () => {
   const output: string[] = [];
   const result = await runCli(["--", "--help"], {

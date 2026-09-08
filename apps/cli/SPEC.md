@@ -91,3 +91,4 @@ B4|2026-09-08|CLI test scripts left recursive glob unquoted; shell expansion omi
 B5|2026-09-08|stale home `authUrl` pointed hosted CLI OAuth at the web `/api/auth` proxy, which returned redirect metadata instead of browser navigation|V23
 B6|2026-09-08|hosted preprod selected the mainnet `authUrl` from home config instead of deriving auth from the selected API target|V24
 B7|2026-09-08|successful OAuth callback left one-time code and state in the browser address bar|V25
+B8|2026-09-08|auth login passed raw `--auth-url` over resolved hosted target config, so `--preprod` could launch mainnet auth|V24
