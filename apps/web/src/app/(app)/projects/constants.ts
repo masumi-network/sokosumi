@@ -31,13 +31,10 @@ export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 /**
  * Primary browse outer chrome: divided list at all breakpoints (Tasks/Drive rhythm).
  * Square corners on mobile; `md:rounded-xl` + border on desktop.
- * Shared by live `ProjectsView` and Instant skeleton.
+ * Shared by live `ProjectsView`, Instant skeleton, and project needs-attention list.
  */
 export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
-
-export const PROJECTS_DETAIL_LIST_LAYOUT_CLASS =
-  "bg-muted/30 border-border/50 overflow-hidden rounded-none border-0 md:rounded-xl md:border";
 
 /**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.

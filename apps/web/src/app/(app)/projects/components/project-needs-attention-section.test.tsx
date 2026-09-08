@@ -136,7 +136,6 @@ describe("ProjectNeedsAttentionSection", () => {
     const listBox = screen
       .getByTestId("project-needs-attention")
       .querySelector(":scope > div:last-child");
-    // Mobile edge-to-edge bleed out of main p-4 / detail column padding.
     expect(listBox).toHaveClass(
       ...PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/),
     );
