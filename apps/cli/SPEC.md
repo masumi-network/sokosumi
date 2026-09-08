@@ -55,6 +55,7 @@ V18: resource command data path → Core HTTP client → typed service. ⊥ dire
 V19: `--json` command → one parseable JSON document on stdout. ⊥ progress/text mixing.
 V20: TUI selection → arrows + Enter. Esc back. q quit. ⊥ letter/numeric aliases.
 V21: `coworkers register` request → Core create schema required `vendorId`; CLI accepts `--vendor-id`, emits `vendorId`, and rejects missing value before POST.
+V22: CLI `test` and `test:ci` scripts pass the quoted recursive test glob to `tsx`; default suite collects nested command tests.
 
 ## §T TASKS
 
@@ -83,3 +84,4 @@ id|date|cause|fix
 B1|2026-09-08|macOS vault writes passed serialized credentials through `security` argv and raw write errors reached CLI stderr|V15
 B2|2026-09-08|hosted OAuth used silent `sokosumi_cli` fallback; Core flow ended `invalid_client`|V16
 B3|2026-09-08|`coworkers register` omitted Core-required `vendorId`; Core create schema rejected the request|V21
+B4|2026-09-08|CLI test scripts left recursive glob unquoted; shell expansion omitted nested command tests from default suite|V22
