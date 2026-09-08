@@ -311,11 +311,15 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 
 ## Agent skills
 
-First-party skills are authored in `skills/<name>/`. `.agents/skills/<name>` is a symlink to that tree (`.claude/skills` already symlinks to `.agents`). Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](apps/web/AGENTS.md) and the Jakub skills under [`.agents/skills/better-ui/`](.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
+First-party skills are authored in `skills/<name>/`. `.agents/skills/<name>` is a symlink to that tree (`.claude/skills` already symlinks to `.agents`). Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](apps/web/AGENTS.md) and the Jakub skills under [`.agents/skills/better-ui/`](.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
 
 ### Evlog (Core only)
 
 Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](./apps/core/AGENTS.md) (the `<!-- evlog:start -->` block plus Sokosumi constraints). Skills are under `apps/core/.agents/skills/` (`review-logging-patterns`, `build-audit-logs`, `analyze-logs`). Do not add `evlog/next` to Web. Do not run `evlog agents` at the repo root.
+
+### Apple (apps/apple only)
+
+Native SwiftUI work uses `swiftui-expert-skill` (from `avdlee/swiftui-agent-skill`), installed app-scoped under `apps/apple/.agents/skills/` — never the repo root. Load it when writing, reviewing, or refactoring SwiftUI for macOS/iOS. Install or update with `apps/apple` as cwd: `npx skills add https://github.com/avdlee/swiftui-agent-skill -s swiftui-expert-skill -y`. The repo's second skill, `update-swiftui-apis`, is intentionally not installed (skill maintenance; requires Sosumi MCP).
 
 ### Ask Matt
 
