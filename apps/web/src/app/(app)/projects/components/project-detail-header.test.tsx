@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 
 describe("ProjectDetailHeader", () => {
-  it("pads on mobile and places metadata as a full-width sibling row", () => {
+  it("places metadata as a full-width sibling row below the title", () => {
     const { container } = render(
       <ProjectDetailHeader
         projectName="Example project"
@@ -19,8 +19,8 @@ describe("ProjectDetailHeader", () => {
     );
 
     const root = container.firstElementChild;
-    expect(root?.className).toContain("px-4");
-    expect(root?.className).toContain("md:px-0");
+    expect(root?.className).not.toContain("px-4");
+    expect(root?.className).not.toContain("md:px-0");
 
     const back = screen.getByRole("link", { name: "Back" });
     expect(back).toHaveAttribute("href", "/projects");

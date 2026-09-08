@@ -95,6 +95,8 @@ describe("GET /projects", () => {
       contextMdModel: null,
       contextMdUpdatingSince: null,
       contextMdVersion: 0,
+      latestUpdateMd: null,
+      latestUpdateMdUpdatedAt: null,
       createdAt: new Date("2026-04-01T10:00:00.000Z"),
       updatedAt: new Date("2026-04-01T10:00:00.000Z"),
       _count: {
@@ -167,6 +169,8 @@ describe("GET /projects", () => {
         contextMdModel: null,
         contextMdUpdatingSince: null,
         contextMdVersion: 0,
+        latestUpdateMd: null,
+        latestUpdateMdUpdatedAt: null,
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         updatedAt: new Date("2026-04-01T10:00:00.000Z"),
         _count: {

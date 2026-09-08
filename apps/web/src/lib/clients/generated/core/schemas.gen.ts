@@ -12717,7 +12717,7 @@ export const PreferredOrganizationSchema = {
                 'null'
             ],
             example: 'org_123',
-            description: 'Organization id of the preferred workspace, or null for the personal workspace'
+            description: 'Organization id of the preferred workspace, or null for personal. The key is required: send {"organizationId":null} for personal. Omitting it (`{}`) is 422.'
         }
     },
     required: [
@@ -14435,6 +14435,25 @@ export const ProjectListItemSchema = {
     ]
 } as const;
 
+export const ProjectLatestUpdateSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string',
+            example: '# Weekly Activity Report\n\nDate window: 2026-09-01 to 2026-09-07\n\n## TL;DR\n\nShipped onboarding polish.'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'content',
+        'updatedAt'
+    ]
+} as const;
+
 export const ProjectDesignMdSchema = {
     type: 'object',
     properties: {
@@ -14549,6 +14568,18 @@ export const ProjectSchema = {
             format: 'uri',
             example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/BRIEFING.md'
         },
+        latestUpdate: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectLatestUpdate'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Weekly activity report markdown. Null until a valid report is generated.',
+            example: null
+        },
         websiteUrl: {
             type: [
                 'string',
@@ -14645,6 +14676,7 @@ export const ProjectSchema = {
         'name',
         'briefing',
         'briefingUrl',
+        'latestUpdate',
         'websiteUrl',
         'logo',
         'designMd',
@@ -15023,6 +15055,37 @@ export const WorkspaceCalendarItemSchema = {
         'sourceProjectId',
         'sourceAccuracy',
         'timeAccuracy'
+    ]
+} as const;
+
+export const ProjectNeedsAttentionSchema = {
+    type: 'object',
+    properties: {
+        taskCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Linked non-archived tasks. Same meaning as ProjectListItem.taskCount.',
+            example: 2
+        },
+        jobCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Linked jobs. Same meaning as ProjectListItem.jobCount.',
+            example: 1
+        },
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/HistoryItem'
+            },
+            maxItems: 5,
+            description: 'Mixed tasks+jobs that need attention, already ranked, length 0..5. Never padded with excluded statuses.'
+        }
+    },
+    required: [
+        'taskCount',
+        'jobCount',
+        'items'
     ]
 } as const;
 
@@ -15959,6 +16022,21 @@ export const MarkAllReadResponseSchema = {
             type: 'integer',
             minimum: 0,
             description: 'Number of notifications marked as read',
+            example: 10
+        }
+    },
+    required: [
+        'count'
+    ]
+} as const;
+
+export const ClearNotificationsResponseSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of notifications deleted',
             example: 10
         }
     },

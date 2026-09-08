@@ -9,6 +9,7 @@ import type {
   ProjectContextMd,
   ProjectDeleted,
   ProjectListItem,
+  ProjectNeedsAttention,
   ProjectStatsEntry,
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
@@ -77,6 +78,13 @@ export const projectService = (() => {
 
       throw error;
     }
+  }
+
+  async function getProjectNeedsAttention(
+    projectId: string,
+  ): Promise<ProjectNeedsAttention> {
+    const result = await coreClient.getProjectsByIdNeedsAttention(projectId);
+    return result.data;
   }
 
   async function getProjectContextMd(
@@ -250,6 +258,7 @@ export const projectService = (() => {
     listProjects,
     getProjectsStats,
     getProjectById,
+    getProjectNeedsAttention,
     getProjectContextMd,
     getProjectCalendar,
     createProject,

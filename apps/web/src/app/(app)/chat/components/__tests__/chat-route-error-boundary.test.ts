@@ -14,6 +14,17 @@ describe("chatRouteErrorBoundaryKey", () => {
     }
   });
 
+  it("preserves the room while the edit dialog is asked for and consumed", () => {
+    const pathname = "/chat/rooms/room-1";
+    const roomKey = chatRouteErrorBoundaryKey(pathname);
+
+    for (const search of ["edit=1", ""]) {
+      expect(
+        chatRouteErrorBoundaryKey(pathname, new URLSearchParams(search)),
+      ).toBe(roomKey);
+    }
+  });
+
   it("keeps other query parameters when consuming a notification message", () => {
     expect(
       chatRouteErrorBoundaryKey(

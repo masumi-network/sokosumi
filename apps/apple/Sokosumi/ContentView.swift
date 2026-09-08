@@ -1,4 +1,5 @@
 import CoreAPI
+import ImageIO
 import SokosumiAuth
 import SokosumiChat
 import SwiftUI
@@ -131,7 +132,7 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                 }
                 ForEach(partitioned.directMessages, id: \.id) { room in
-                  roomRow(room, icon: "person")
+                  roomRow(room, icon: "person", showsDirectAvatars: true)
                 }
               }
               if !partitioned.external.isEmpty {
@@ -203,7 +204,11 @@ struct ContentView: View {
     .padding(.vertical, 4)
   }
 
-  private func roomRow(_ room: Components.Schemas.ChatRoom, icon: String) -> some View {
+  private func roomRow(
+    _ room: Components.Schemas.ChatRoom,
+    icon: String,
+    showsDirectAvatars: Bool = false
+  ) -> some View {
     let attention = resolveRoomAttention(
       unreadCount: room.unreadCount,
       unreadMentionCount: room.unreadMentionCount,
@@ -212,11 +217,17 @@ struct ContentView: View {
     )
     return Label {
       Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
+        .lineLimit(1)
         .fontWeight(attention.bold ? .bold : .regular)
     } icon: {
-      Image(systemName: icon)
-        .foregroundStyle(.secondary)
+      RoomLeadingIcon(
+        room: room,
+        icon: icon,
+        currentUserId: workspaces.currentUserId,
+        showsDirectAvatars: showsDirectAvatars
+      )
     }
+    .labelStyle(RoomRowLabelStyle())
     .tag(room.id)
     .badge(attention.badgeCount)
   }
@@ -234,7 +245,11 @@ struct ContentView: View {
       }
     } label: {
       HStack(spacing: 8) {
-        avatarView
+        CircleAvatar(
+          imageURL: workspaces.currentUserImageURL,
+          name: workspaces.currentUserName,
+          size: 28
+        )
         VStack(alignment: .leading, spacing: 0) {
           Text(workspaces.currentUserName.isEmpty ? "Me" : workspaces.currentUserName)
             .font(.callout)
@@ -254,32 +269,6 @@ struct ContentView: View {
     .buttonStyle(.plain)
   }
 
-  @ViewBuilder
-  private var avatarView: some View {
-    if let urlString = workspaces.currentUserImageURL, let url = URL(string: urlString) {
-      AsyncImage(url: url) { image in
-        image
-          .resizable()
-          .scaledToFill()
-      } placeholder: {
-        initialsFallback
-      }
-      .frame(width: 28, height: 28)
-      .clipShape(Circle())
-    } else {
-      initialsFallback
-    }
-  }
-
-  private var initialsFallback: some View {
-    Text(initials(for: workspaces.currentUserName))
-      .font(.caption)
-      .fontWeight(.semibold)
-      .foregroundStyle(.white)
-      .frame(width: 28, height: 28)
-      .background(Circle().fill(Color.accentColor))
-  }
-
   private func blockedMessage(for gate: Components.Schemas.WorkspaceGateStatus) -> String {
     switch gate {
     case .pendingInvites:
@@ -290,6 +279,179 @@ struct ContentView: View {
       "Unexpected state. Try again."
     }
   }
+}
+
+/// Sidebar `Label` otherwise pins the icon to a square column, which
+/// squashes a group Direct stack into overlapping blobs.
+private struct RoomRowLabelStyle: LabelStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    HStack(spacing: 8) {
+      configuration.icon
+        .fixedSize()
+      configuration.title
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+  }
+}
+
+/// Sidebar leading slot. Direct messages get the participant stack; channels
+/// and External keep an SF Symbol. Guest Directs in External stay a symbol.
+private struct RoomLeadingIcon: View {
+  let icon: String
+  let showsDirectAvatars: Bool
+  let participants: [DirectRoomAvatarParticipant]
+
+  init(
+    room: Components.Schemas.ChatRoom,
+    icon: String,
+    currentUserId: String,
+    showsDirectAvatars: Bool
+  ) {
+    self.icon = icon
+    self.showsDirectAvatars = showsDirectAvatars
+    participants = showsDirectAvatars
+      ? directRoomAvatarParticipants(room, currentUserId: currentUserId)
+      : []
+  }
+
+  var body: some View {
+    if showsDirectAvatars {
+      DirectRoomAvatarStack(participants: participants)
+    } else {
+      Image(systemName: icon)
+        .foregroundStyle(.secondary)
+        .frame(width: DirectRoomAvatarStack.faceSize, height: DirectRoomAvatarStack.faceSize)
+    }
+  }
+}
+
+private struct DirectRoomAvatarStack: View {
+  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-2` overlap.
+  static let faceSize: CGFloat = 20
+  private static let overlap: CGFloat = 8
+
+  let participants: [DirectRoomAvatarParticipant]
+
+  var body: some View {
+    stackContent
+      .accessibilityHidden(true)
+  }
+
+  @ViewBuilder
+  private var stackContent: some View {
+    if participants.isEmpty {
+      Image(systemName: "message")
+        .foregroundStyle(.secondary)
+        .frame(width: Self.faceSize, height: Self.faceSize)
+    } else {
+      HStack(spacing: -Self.overlap) {
+        ForEach(participants.enumerated(), id: \.element.id) { index, participant in
+          CircleAvatar(
+            imageURL: participant.imageURL,
+            name: participant.name,
+            size: Self.faceSize
+          )
+          .overlay {
+            Circle()
+              .strokeBorder(.background, lineWidth: 1)
+          }
+          .zIndex(Double(participants.count - index))
+        }
+      }
+    }
+  }
+}
+
+private struct CircleAvatar: View {
+  let imageURL: String?
+  let name: String
+  var size: CGFloat = DirectRoomAvatarStack.faceSize
+
+  @Environment(\.displayScale) private var displayScale
+  @State private var cgImage: CGImage?
+
+  var body: some View {
+    fill
+      .frame(width: size, height: size)
+      .compositingGroup()
+      .clipShape(Circle())
+      .task(id: "\(imageURL ?? "")-\(size)-\(displayScale)") {
+        let loaded = await loadAvatarCGImage(
+          urlString: imageURL,
+          pointSize: size,
+          scale: displayScale
+        )
+        guard !Task.isCancelled else { return }
+        cgImage = loaded
+      }
+  }
+
+  @ViewBuilder
+  private var fill: some View {
+    if let cgImage {
+      Image(decorative: cgImage, scale: displayScale)
+        .resizable()
+        .interpolation(.high)
+        .scaledToFill()
+    } else {
+      initialsView
+    }
+  }
+
+  private var initialsView: some View {
+    Text(avatarInitials(from: name))
+      .font(size >= 24 ? .caption : .caption2)
+      .fontWeight(.semibold)
+      .foregroundStyle(.white)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .background(Circle().fill(Color.accentColor))
+  }
+}
+
+/// Decode a thumbnail at `pointSize * scale` pixels so 20pt faces stay
+/// sharp on Retina. `AsyncImage` tags the bitmap as 1x and looks soft.
+private func loadAvatarCGImage(
+  urlString: String?,
+  pointSize: CGFloat,
+  scale: CGFloat
+) async -> CGImage? {
+  guard let urlString, let url = URL(string: urlString) else { return nil }
+  let data: Data
+  let response: URLResponse
+  do {
+    (data, response) = try await URLSession.shared.data(from: url)
+  } catch is CancellationError {
+    return nil
+  } catch {
+    return nil
+  }
+  guard !Task.isCancelled else { return nil }
+  if let http = response as? HTTPURLResponse, !(200 ..< 300).contains(http.statusCode) {
+    return nil
+  }
+  return avatarThumbnail(data: data, maxPixel: max(pointSize * scale, 1))
+}
+
+private func avatarThumbnail(data: Data, maxPixel: CGFloat) -> CGImage? {
+  let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
+  guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions as CFDictionary) else {
+    return nil
+  }
+  let options: [CFString: Any] = [
+    kCGImageSourceCreateThumbnailFromImageAlways: true,
+    kCGImageSourceCreateThumbnailWithTransform: true,
+    kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+    kCGImageSourceShouldCacheImmediately: true
+  ]
+  return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+}
+
+private func avatarInitials(from name: String) -> String {
+  let words = name.split(separator: " ")
+  let first = words.first?.first.map(String.init) ?? ""
+  let second = words.dropFirst().first?.first.map(String.init) ?? ""
+  let result = (first + second).uppercased()
+  return result.isEmpty ? "?" : result
 }
 
 #Preview {

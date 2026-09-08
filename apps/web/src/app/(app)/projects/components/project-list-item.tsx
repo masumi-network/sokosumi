@@ -1,16 +1,16 @@
-import { Briefcase, ListTodo, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import {
+  type ProjectResourceCountPillLabels,
+  ProjectResourceCountPills,
+} from "@/app/projects/components/project-resource-count-pills";
 import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
 import { previewProjectBriefing } from "@/app/projects/project-briefing";
-import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
+import { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 interface ProjectListItemLabels {
-  counts: {
-    tasks: string;
-    jobs: string;
-  };
+  counts: ProjectResourceCountPillLabels;
 }
 
 interface ProjectListItemProps {
@@ -43,52 +43,13 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
         </div>
 
         <div className="flex shrink-0 items-center">
-          <ProjectResourceCounts project={project} labels={labels.counts} />
+          <ProjectResourceCountPills
+            taskCount={project.taskCount}
+            jobCount={project.jobCount}
+            labels={labels.counts}
+          />
         </div>
       </Link>
     </article>
-  );
-}
-
-function ProjectResourceCounts({
-  project,
-  labels,
-}: {
-  project: ProjectListItemType;
-  labels: ProjectListItemLabels["counts"];
-}) {
-  return (
-    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 text-xs">
-      <ResourceCountPill
-        icon={ListTodo}
-        ariaLabel={labels.tasks}
-        total={project.taskCount}
-      />
-      <ResourceCountPill
-        icon={Briefcase}
-        ariaLabel={labels.jobs}
-        total={project.jobCount}
-      />
-    </div>
-  );
-}
-
-function ResourceCountPill({
-  icon: Icon,
-  ariaLabel,
-  total,
-}: {
-  icon: LucideIcon;
-  ariaLabel: string;
-  total: number;
-}) {
-  return (
-    <span
-      className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
-      aria-label={`${ariaLabel}: ${total}`}
-    >
-      <Icon className="size-3.5 shrink-0" aria-hidden />
-      {total}
-    </span>
   );
 }

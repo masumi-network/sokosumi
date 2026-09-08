@@ -13,7 +13,6 @@ interface ProjectBriefingProps {
   briefing?: string | null;
   emptyLabel: string;
   editHref?: string;
-  editLabel?: string;
   emptyActionLabel?: string;
   showMoreLabel: string;
   showLessLabel: string;
@@ -24,7 +23,6 @@ export function ProjectBriefing({
   briefing,
   emptyLabel,
   editHref,
-  editLabel,
   emptyActionLabel,
   showMoreLabel,
   showLessLabel,
@@ -37,19 +35,7 @@ export function ProjectBriefing({
 
   return (
     <section className="space-y-2" data-testid="project-briefing">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-muted-foreground/60 text-xs font-medium">
-          {title}
-        </h2>
-        {editHref && editLabel ? (
-          <Link
-            href={editHref}
-            className="text-muted-foreground hover:text-foreground text-xs transition-colors"
-          >
-            {editLabel}
-          </Link>
-        ) : null}
-      </div>
+      <h2 className="text-muted-foreground/60 text-xs font-medium">{title}</h2>
       {content ? (
         <div className="space-y-2">
           <div

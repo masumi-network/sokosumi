@@ -23,6 +23,67 @@ public struct RoomAttention: Equatable, Sendable {
   }
 }
 
+/// One face in a Direct sidebar stack. Mirrors web's `DirectRoomAvatarStack`
+/// participant: other humans (not you), then coworkers, then Soko Bots.
+public struct DirectRoomAvatarParticipant: Equatable, Sendable, Identifiable {
+  public var id: String
+  public var name: String
+  public var imageURL: String?
+
+  public init(id: String, name: String, imageURL: String?) {
+    self.id = id
+    self.name = name
+    self.imageURL = imageURL
+  }
+}
+
+/// Faces for a Direct sidebar row. Empty means the row should show the
+/// message glyph (self-only Direct, or not a Direct). Caps at 3, same
+/// order as `roomDisplayName`.
+public func directRoomAvatarParticipants(
+  _ room: Components.Schemas.ChatRoom,
+  currentUserId: String
+) -> [DirectRoomAvatarParticipant] {
+  Array(directRoomOtherParticipants(room, currentUserId: currentUserId).prefix(3))
+}
+
+/// Other humans (not you), then coworkers, then Soko Bots — the same
+/// ordered set `roomDisplayName` joins and the sidebar stack caps at 3.
+private func directRoomOtherParticipants(
+  _ room: Components.Schemas.ChatRoom,
+  currentUserId: String
+) -> [DirectRoomAvatarParticipant] {
+  guard room.kind == .direct else { return [] }
+  let humans = room.userMembers
+    .filter { $0.id != currentUserId }
+    .map {
+      DirectRoomAvatarParticipant(
+        id: $0.id,
+        name: $0.name.isEmpty ? $0.email : $0.name,
+        imageURL: $0.image
+      )
+    }
+    .sorted(by: compareParticipants)
+  let coworkers = room.coworkerMembers
+    .map {
+      DirectRoomAvatarParticipant(id: $0.id, name: $0.name, imageURL: $0.image)
+    }
+    .sorted(by: compareParticipants)
+  let bots = room.sokoBotMembers
+    .map {
+      DirectRoomAvatarParticipant(id: $0.id, name: $0.name, imageURL: $0.image)
+    }
+    .sorted(by: compareParticipants)
+  return humans + coworkers + bots
+}
+
+private func compareParticipants(
+  _ lhs: DirectRoomAvatarParticipant,
+  _ rhs: DirectRoomAvatarParticipant
+) -> Bool {
+  compareNameThenId((lhs.name, lhs.id), (rhs.name, rhs.id))
+}
+
 /// Sidebar display name mirroring web's `getRoomDisplayName`: channels and
 /// external rooms use the stored name; Directs list the participants with
 /// yourself excluded (humans by name-or-email, then coworkers, then bots).
@@ -33,17 +94,7 @@ public func roomDisplayName(
   currentUserId: String
 ) -> String {
   guard room.kind == .direct else { return room.name }
-  let humans = room.userMembers
-    .filter { $0.id != currentUserId }
-    .map { ($0.name.isEmpty ? $0.email : $0.name, $0.id) }
-    .sorted(by: compareNameThenId)
-  let coworkers = room.coworkerMembers
-    .map { ($0.name, $0.id) }
-    .sorted(by: compareNameThenId)
-  let bots = room.sokoBotMembers
-    .map { ($0.name, $0.id) }
-    .sorted(by: compareNameThenId)
-  let names = (humans + coworkers + bots).map(\.0)
+  let names = directRoomOtherParticipants(room, currentUserId: currentUserId).map(\.name)
   if names.isEmpty {
     let target = room.userMembers.first { $0.id != currentUserId }
       ?? room.userMembers.first
