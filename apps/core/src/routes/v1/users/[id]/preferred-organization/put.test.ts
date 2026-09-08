@@ -126,6 +126,21 @@ describe("PUT /users/{id}/preferred-organization", () => {
     expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
   });
 
+  it("returns 422 when the organizationId key is missing (not explicit null)", async () => {
+    // Generated Apple clients omit nil optionals, sending `{}` — the key is
+    // required, so this must 422 rather than silently clearing the preference.
+    const response = await createApp().request(
+      "http://localhost/me/preferred-organization",
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+    expect(response.status).toBe(422);
+    expect(updatePreferredOrganizationIdMock).not.toHaveBeenCalled();
+  });
+
   it("returns 404 when switching to personal without a personal workspace", async () => {
     workspaceFindUniqueMock.mockResolvedValue(null);
     const response = await putPreferredOrganization(createApp(), "me", null);

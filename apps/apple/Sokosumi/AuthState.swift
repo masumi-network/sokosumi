@@ -3,6 +3,7 @@ import AuthenticationServices
 import Combine
 import CoreAPI
 import SokosumiAuth
+import SokosumiChat
 
 /// Presentation anchor for the system-browser sign-in sheet.
 private final class SignInPresentationContext: NSObject, ASWebAuthenticationPresentationContextProviding {
@@ -120,7 +121,10 @@ final class AuthState: ObservableObject {
     }
     return Client.connecting(
       to: CoreSettings.baseURL,
-      middlewares: [BearerAuthMiddleware(session: session)]
+      middlewares: [
+        BearerAuthMiddleware(session: session),
+        ExplicitNullPreferredOrganizationMiddleware(),
+      ]
     )
   }
 

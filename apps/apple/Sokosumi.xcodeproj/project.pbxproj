@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		E172F750304F3FBD00C517E4 /* CoreAPI in Frameworks */ = {isa = PBXBuildFile; productRef = E172F751304F3FBD00C517E4 /* CoreAPI */; };
 		E172F755304F3FBD00C517E4 /* SokosumiAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E172F754304F3FBD00C517E4 /* SokosumiAuth */; };
+		E173A001304F3FBD00C517E4 /* SokosumiChat in Frameworks */ = {isa = PBXBuildFile; productRef = E173A002304F3FBD00C517E4 /* SokosumiChat */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +31,7 @@
 			files = (
 				E172F750304F3FBD00C517E4 /* CoreAPI in Frameworks */,
 				E172F755304F3FBD00C517E4 /* SokosumiAuth in Frameworks */,
+				E173A001304F3FBD00C517E4 /* SokosumiChat in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,6 +76,7 @@
 			packageProductDependencies = (
 				E172F751304F3FBD00C517E4 /* CoreAPI */,
 				E172F754304F3FBD00C517E4 /* SokosumiAuth */,
+				E173A002304F3FBD00C517E4 /* SokosumiChat */,
 			);
 			productName = Sokosumi;
 			productReference = E172F721304F3FBC00C517E4 /* Sokosumi.app */;
@@ -106,6 +109,7 @@
 			packageReferences = (
 				E172F752304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/CoreAPI" */,
 				E172F753304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiAuth" */,
+				E173A003304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiChat" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E172F722304F3FBC00C517E4 /* Products */;
@@ -265,11 +269,12 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Y3ZJFLUYRB;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Sokosumi-Info.plist;
+				INFOPLIST_FILE = "Sokosumi-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -299,11 +304,12 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Y3ZJFLUYRB;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Sokosumi-Info.plist;
+				INFOPLIST_FILE = "Sokosumi-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -356,6 +362,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SokosumiAuth;
 		};
+		E173A003304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiChat" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SokosumiChat;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -368,6 +378,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E172F753304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiAuth" */;
 			productName = SokosumiAuth;
+		};
+		E173A002304F3FBD00C517E4 /* SokosumiChat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E173A003304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiChat" */;
+			productName = SokosumiChat;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
