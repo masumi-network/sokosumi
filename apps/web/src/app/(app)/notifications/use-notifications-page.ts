@@ -86,7 +86,12 @@ export function useNotificationsPage() {
 
   const fetchNotifications = useCallback(
     async (nextCursor?: string | null) => {
-      if (fetchInFlight.current || pending.current.size > 0) return;
+      if (pending.current.size > 0) {
+        // Replay recovery refreshes once the last deletion settles.
+        if (nextCursor == null) hasLoaded.current = false;
+        return;
+      }
+      if (fetchInFlight.current) return;
       fetchInFlight.current = true;
       const generation = ++fetchGeneration.current;
       const providerUpdates = new Set<string>();

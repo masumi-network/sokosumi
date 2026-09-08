@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   count: vi.fn(),
   delete: vi.fn(),
   clear: vi.fn(),
+  markAll: vi.fn(),
   realtime: undefined as undefined | ((event: NotificationEventData) => void),
 }));
 vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
@@ -24,6 +25,7 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
     getNotificationsUnreadCount: mocks.count,
     deleteNotification: mocks.delete,
     deleteNotifications: mocks.clear,
+    patchNotificationsReadAll: mocks.markAll,
   },
 }));
 vi.mock("@/contexts/lazy-ably-provider", () => ({
@@ -71,6 +73,7 @@ beforeEach(() => {
   mocks.get.mockReset();
   mocks.delete.mockReset();
   mocks.clear.mockReset();
+  mocks.markAll.mockReset();
   mocks.count.mockResolvedValue({ data: { count: 2 } });
   mocks.get.mockImplementation(async ({ limit }: { limit: number }) => ({
     data: limit === 20 ? rows : rows.slice(0, 1),
@@ -315,3 +318,90 @@ it("does not preserve a clear ghost when its event shares the clear completion b
   });
   expect(result.current.page.notifications).toHaveLength(0);
 });
+
+it.each([false, true])(
+  "retries read rollback after a pending deletion settles (fails: %s)",
+  async (deleteFails) => {
+    const serverRows = Array.from({ length: 12 }, (_, index) =>
+      notification(`row-${index}`),
+    );
+    function response(data: NotificationItem[]) {
+      return { data, meta: { pagination: { nextCursor: null } } };
+    }
+    mocks.get.mockImplementation(async ({ limit }: { limit: number }) =>
+      response(serverRows.slice(0, limit)),
+    );
+    mocks.count.mockResolvedValue({ data: { count: serverRows.length } });
+    const { result } = renderHook(usePageAndProvider, { wrapper });
+    await waitFor(() =>
+      expect(result.current.page.notifications).toHaveLength(12),
+    );
+    let failMarkAll!: (error: Error) => void;
+    let finishDelete!: () => void;
+    mocks.markAll.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        failMarkAll = reject;
+      }),
+    );
+    mocks.delete.mockReturnValue(
+      new Promise((resolve, reject) => {
+        finishDelete = () =>
+          deleteFails
+            ? reject(new Error("delete failed"))
+            : resolve({ data: serverRows[0] });
+      }),
+    );
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    let markAll!: Promise<void>;
+    act(() => {
+      // Match the page's optimistic update and failed Mark all read recovery.
+      result.current.page.setNotifications((notifications) =>
+        notifications.map((row) => ({
+          ...row,
+          isRead: true,
+          readAt: new Date(),
+        })),
+      );
+      markAll = result.current.provider.markAllRead().catch(() => {
+        void result.current.page.fetchNotifications();
+      });
+    });
+    let deletion!: Promise<void>;
+    act(() => {
+      deletion = result.current.provider
+        .deleteNotification(serverRows[0].id, { isRead: true })
+        .catch(() => {});
+    });
+    const pageReadsBeforeFailure = mocks.get.mock.calls.filter(
+      ([request]) => request.limit === 20,
+    ).length;
+    await act(async () => {
+      failMarkAll(new Error("mark all failed"));
+      await markAll;
+    });
+    expect(
+      mocks.get.mock.calls.filter(([request]) => request.limit === 20),
+    ).toHaveLength(pageReadsBeforeFailure);
+    const remaining = deleteFails ? serverRows : serverRows.slice(1);
+    mocks.get.mockImplementation(async ({ limit }: { limit: number }) =>
+      response(remaining.slice(0, limit)),
+    );
+    mocks.count.mockResolvedValue({ data: { count: remaining.length } });
+    await act(async () => {
+      finishDelete();
+      await deletion;
+    });
+    await waitFor(() =>
+      expect(result.current.provider.unreadCount).toBe(remaining.length),
+    );
+    expect(
+      result.current.page.notifications.find(
+        (row) => row.id === serverRows[11].id,
+      )?.isRead,
+    ).toBe(false);
+    expect(
+      mocks.get.mock.calls.filter(([request]) => request.limit === 20),
+    ).toHaveLength(pageReadsBeforeFailure + 1);
+    error.mockRestore();
+  },
+);
