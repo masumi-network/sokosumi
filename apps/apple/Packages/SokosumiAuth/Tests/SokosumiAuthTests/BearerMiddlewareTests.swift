@@ -37,7 +37,7 @@ struct BearerMiddlewareTests {
     _ = try await middleware.intercept(
       HTTPRequest(method: .get, scheme: nil, authority: nil, path: "/users/me"),
       body: nil,
-      baseURL: URL(string: "https://core.example/v1")!,
+      baseURL: #require(URL(string: "https://core.example/v1")),
       operationID: "get/users/{id}",
       next: inner.send
     )
@@ -59,11 +59,11 @@ struct BearerMiddlewareTests {
       json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":100,\"refresh_token\":\"refresh-1\"}"
     )
     try await session.signIn(
-      callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )
-    clock.now = clock.now.addingTimeInterval(1_000)
+    clock.now = clock.now.addingTimeInterval(1000)
     transport.response = .failure(UnreachableError())
     let inner = RecordingCoreTransport(status: 200, body: "{}")
     let middleware = BearerAuthMiddleware(session: session)
@@ -72,7 +72,7 @@ struct BearerMiddlewareTests {
       try await middleware.intercept(
         HTTPRequest(method: .get, scheme: nil, authority: nil, path: "/users/me"),
         body: nil,
-        baseURL: URL(string: "https://core.example/v1")!,
+        baseURL: #require(URL(string: "https://core.example/v1")),
         operationID: "get/users/{id}",
         next: inner.send
       )
@@ -91,7 +91,7 @@ struct BearerMiddlewareTests {
     _ = try await middleware.intercept(
       HTTPRequest(method: .get, scheme: nil, authority: nil, path: "/users/me"),
       body: nil,
-      baseURL: URL(string: "https://core.example/v1")!,
+      baseURL: #require(URL(string: "https://core.example/v1")),
       operationID: "get/users/{id}",
       next: inner.send
     )
@@ -112,8 +112,8 @@ private final class RecordingCoreTransport: @unchecked Sendable {
 
   func send(
     _ request: HTTPRequest,
-    _ requestBody: HTTPBody?,
-    _ baseURL: URL
+    _: HTTPBody?,
+    _: URL
   ) async throws -> (HTTPResponse, HTTPBody?) {
     lastRequest = request
     return (HTTPResponse(status: HTTPResponse.Status(code: status)), HTTPBody(Data(body.utf8)))

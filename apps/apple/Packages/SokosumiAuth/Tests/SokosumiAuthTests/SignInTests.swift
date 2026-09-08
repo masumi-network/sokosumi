@@ -19,7 +19,7 @@ struct SignInTests {
     let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
 
     try await session.signIn(
-      callbackURL: URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=state-123")!,
+      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=state-123")),
       expectedState: "state-123",
       codeVerifier: "verifier-abc"
     )
@@ -54,7 +54,7 @@ struct SignInTests {
     // a relaunch would ask for sign-in again.
     await #expect(throws: SaveFailed.self) {
       try await session.signIn(
-        callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
         expectedState: "s",
         codeVerifier: "v"
       )
@@ -72,7 +72,7 @@ struct SignInTests {
 
     await #expect(throws: OAuthError.invalidCallbackURL) {
       try await session.signIn(
-        callbackURL: URL(string: "com.sokosumi.app:/other?code=auth-code-1&state=state-123")!,
+        callbackURL: #require(URL(string: "com.sokosumi.app:/other?code=auth-code-1&state=state-123")),
         expectedState: "state-123",
         codeVerifier: "verifier-abc"
       )
@@ -91,7 +91,7 @@ struct SignInTests {
 
     await #expect(throws: OAuthError.stateMismatch) {
       try await session.signIn(
-        callbackURL: URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=other")!,
+        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=other")),
         expectedState: "state-123",
         codeVerifier: "verifier-abc"
       )
@@ -113,7 +113,7 @@ struct SignInTests {
 
     await #expect(throws: OAuthError.tokenExchangeFailed(status: 400, message: "Code expired", code: "invalid_grant")) {
       try await session.signIn(
-        callbackURL: URL(string: "com.sokosumi.app:/auth?code=stale&state=state-123")!,
+        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=stale&state=state-123")),
         expectedState: "state-123",
         codeVerifier: "verifier-abc"
       )
@@ -129,7 +129,7 @@ struct SignInTests {
     let store = FailingClearStore()
     let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
     try await session.signIn(
-      callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )
@@ -147,7 +147,7 @@ struct SignInTests {
     let store = InMemoryTokenStore()
     let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
     try await session.signIn(
-      callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )

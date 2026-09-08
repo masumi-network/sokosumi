@@ -165,14 +165,14 @@ final class WorkspaceState: ObservableObject {
     keepReady: Bool = false
   ) {
     switch error {
-    case .blocked(let gate):
+    case let .blocked(gate):
       phase = .blocked(gate: gate)
-    case .unauthorized(let message):
+    case let .unauthorized(message):
       auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
       if let signedOutMessage {
         phase = .failed(message: signedOutMessage)
       }
-    case .unprocessable(let statusCode, let message):
+    case let .unprocessable(statusCode, message):
       let text = "Core rejected the request (\(statusCode)): \(message)"
       if keepReady {
         switchError = text

@@ -10,7 +10,10 @@ import OpenAPIRuntime
 /// schema requires the key and its validation hook answers 422. Only this
 /// operation's empty-object body is rewritten; everything else passes
 /// through untouched.
-public struct ExplicitNullPreferredOrganizationMiddleware: ClientMiddleware {
+///
+/// The length carries the contract (explicit-null rewrite scoped to
+/// preferred-organization).
+public struct ExplicitNullPreferredOrganizationMiddleware: ClientMiddleware { // swiftlint:disable:this type_name
   private static let operationID = "put/users/{id}/preferred-organization"
 
   public init() {}
@@ -28,13 +31,11 @@ public struct ExplicitNullPreferredOrganizationMiddleware: ClientMiddleware {
     // Collect once, then always rebuild. Passing the original body after
     // collecting empties a non-replayable stream (org switch would PUT {}).
     let bytes = try await Array(collecting: body, upTo: 1_000_000)
-    let outgoing: HTTPBody
-    if let json = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
-      json.isEmpty
-    {
-      outgoing = HTTPBody(#"{"organizationId":null}"#)
+    let outgoing = if let json = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
+                      json.isEmpty {
+      HTTPBody(#"{"organizationId":null}"#)
     } else {
-      outgoing = HTTPBody(bytes)
+      HTTPBody(bytes)
     }
     return try await next(request, outgoing, baseURL)
   }

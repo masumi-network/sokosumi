@@ -90,3 +90,37 @@ jobs:
           for package in apps/apple/Packages/SokosumiChat apps/apple/Packages/SokosumiAuth; do
             swift test --package-path "$package"
           done
+
+  lint:
+    name: Swift lint and format
+    needs: changes
+    # Same gate as `build`/`test` above: ready-for-review PRs (or manual
+    # dispatch) touching apps/apple/**.
+    if: (needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch') && (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)
+    runs-on: macos-26
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Mint
+        run: brew install mint
+
+      - name: Cache Mint packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.mint
+          key: ${{ runner.os }}-mint-${{ hashFiles('apps/apple/Mintfile') }}
+
+      - name: Bootstrap pinned Swift tools
+        working-directory: apps/apple
+        run: mint bootstrap
+
+      - name: Check Swift formatting
+        working-directory: apps/apple
+        run: mint run swiftformat --lint .
+
+      - name: Lint Swift
+        working-directory: apps/apple
+        run: mint run swiftlint lint --strict

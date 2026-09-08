@@ -28,8 +28,8 @@ private func roomJSON(
 private func roomsPageBody(rooms: [String], nextCursor: String?) -> String {
   let cursorJSON = nextCursor.map { "\"\($0)\"" } ?? "null"
   return """
-    {"data":[\(rooms.joined(separator: ","))],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(rooms.count),"nextCursor":\(cursorJSON)}}}
-    """
+  {"data":[\(rooms.joined(separator: ","))],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(rooms.count),"nextCursor":\(cursorJSON)}}}
+  """
 }
 
 private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
@@ -49,7 +49,7 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
   func send(
     _ request: HTTPRequest,
     body: HTTPBody?,
-    baseURL: URL,
+    baseURL _: URL,
     operationID: String
   ) async throws -> (HTTPResponse, HTTPBody?) {
     requests.append(.init(operationID: operationID, request: request))
@@ -129,7 +129,7 @@ struct ChatServiceTests {
   @Test func readyGateLoadsRooms() async throws {
     let transport = ScriptedTransport([
       (200, accessBody(gate: "ready")),
-      (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440002", name: "chat", kind: "direct", unreadCount: 5, unreadMentionCount: 0)], nextCursor: nil)),
+      (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440002", name: "chat", kind: "direct", unreadCount: 5, unreadMentionCount: 0)], nextCursor: nil))
     ])
     let rooms = try await ChatService().loadRoomsIfReady(client: makeClient(transport), organizationSlug: nil)
     #expect(rooms.count == 1)
@@ -141,7 +141,7 @@ struct ChatServiceTests {
   @Test func roomListPaginationWalksNextCursor() async throws {
     let transport = ScriptedTransport([
       (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440010", name: "one", kind: "channel", unreadCount: 1, unreadMentionCount: 0)], nextCursor: "cursor-2")),
-      (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440011", name: "two", kind: "direct", unreadCount: 0, unreadMentionCount: 3)], nextCursor: nil)),
+      (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440011", name: "two", kind: "direct", unreadCount: 0, unreadMentionCount: 3)], nextCursor: nil))
     ])
     let rooms = try await ChatService().listRooms(client: makeClient(transport), organizationSlug: "acme")
     #expect(rooms.map(\.name) == ["one", "two"])
@@ -173,8 +173,8 @@ struct ChatServiceTests {
       {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """)
     ])
-    let client = Client.connecting(
-      to: URL(string: "https://core.example/v1")!,
+    let client = try Client.connecting(
+      to: #require(URL(string: "https://core.example/v1")),
       transport: transport,
       middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
     )
@@ -194,8 +194,8 @@ struct ChatServiceTests {
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """)
     ])
-    let client = Client.connecting(
-      to: URL(string: "https://core.example/v1")!,
+    let client = try Client.connecting(
+      to: #require(URL(string: "https://core.example/v1")),
       transport: transport,
       middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
     )
@@ -207,8 +207,8 @@ struct ChatServiceTests {
 
   @Test func documented500SurfacesFriendlyMessage() async throws {
     let transport = ScriptedTransport([(500, """
-      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
-      """)])
+    {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+    """)])
     do {
       try await ChatService().setPreferredOrganization(client: makeClient(transport), organizationId: "org_1")
       Issue.record("expected an error")
@@ -224,8 +224,8 @@ struct ChatServiceTests {
     // User symptom (SOK-973 follow-up): a 422 dumped raw response headers
     // into the window. It must surface as a short message instead.
     let transport = ScriptedTransport([(422, """
-      {"error":"Unprocessable Entity","message":"organizationId: Required","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
-      """)])
+    {"error":"Unprocessable Entity","message":"organizationId: Required","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+    """)])
     do {
       try await ChatService().setPreferredOrganization(client: makeClient(transport), organizationId: nil)
       Issue.record("expected an error")
@@ -247,7 +247,7 @@ struct ChatServiceTests {
       """),
       (200, """
       {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      """)
     ])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
     #expect(Set(transport.requests.map(\.operationID)) == ["get/users/{id}/workspace-access", "get/users/{id}/organizations", "get/users/{id}"])
@@ -268,7 +268,7 @@ struct ChatServiceTests {
       """),
       (200, """
       {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      """)
     ])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
     #expect(state.defaultSelection == .organization(id: "org_1", slug: "acme"))
@@ -281,7 +281,7 @@ struct ChatServiceTests {
       (200, """
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """),
-      (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440020", name: "launch", kind: "channel", unreadCount: 1, unreadMentionCount: 0)], nextCursor: nil)),
+      (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440020", name: "launch", kind: "channel", unreadCount: 1, unreadMentionCount: 0)], nextCursor: nil))
     ])
     let rooms = try await ChatService().switchWorkspace(
       client: makeClient(transport),
@@ -302,10 +302,10 @@ struct ChatServiceTests {
       """),
       (200, """
       {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      """)
     ])
-    let client = Client.connecting(
-      to: URL(string: "https://core.example/v1")!,
+    let client = try Client.connecting(
+      to: #require(URL(string: "https://core.example/v1")),
       transport: transport,
       middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
     )
@@ -324,7 +324,7 @@ struct ChatServiceTests {
     #expect(transport.requests.map(\.operationID) == [
       "put/users/{id}/preferred-organization",
       "get/chats/rooms",
-      "put/users/{id}/preferred-organization",
+      "put/users/{id}/preferred-organization"
     ])
     let rollback = try #require(transport.bodies.last)
     let json = try #require(JSONSerialization.jsonObject(with: rollback) as? [String: Any])
@@ -336,10 +336,10 @@ struct ChatServiceTests {
       (200, """
       {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """),
-      (200, roomsPageBody(rooms: [], nextCursor: nil)),
+      (200, roomsPageBody(rooms: [], nextCursor: nil))
     ])
-    let client = Client.connecting(
-      to: URL(string: "https://core.example/v1")!,
+    let client = try Client.connecting(
+      to: #require(URL(string: "https://core.example/v1")),
       transport: transport,
       middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
     )
@@ -350,7 +350,7 @@ struct ChatServiceTests {
     #expect(orgSlugHeader(transport.requests[1].request) == nil)
   }
 
-  @Test func friendlyMessageShortensTransportErrors() async throws {
+  @Test func friendlyMessageShortensTransportErrors() {
     // User symptom: a -1005 filled the window with an NSError dump.
     #expect(friendlyMessage(for: URLError(.networkConnectionLost)) == "The network connection was lost.")
     let wrapped = NSError(
@@ -374,7 +374,7 @@ struct ChatServiceTests {
       """),
       (200, """
       {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      """)
     ])
     let state = try await ChatService().loadInitialState(client: makeClient(transport), savedWorkspaceId: "org_2")
     #expect(state.defaultSelection == .organization(id: "org_2", slug: "other"))
@@ -388,7 +388,7 @@ struct ChatServiceTests {
       """),
       (200, """
       {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      """)
     ])
     let state = try await ChatService().loadInitialState(client: makeClient(transport), savedWorkspaceId: "org_gone")
     #expect(state.defaultSelection == .personal)
@@ -413,7 +413,7 @@ struct ChatServiceTests {
       """),
       (200, """
       {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      """)
     ])
     let service = ChatService()
     await #expect(throws: Never.self) {

@@ -28,9 +28,9 @@ final class StubTokenTransport: TokenEndpointTransport, @unchecked Sendable {
       fields: fields
     )
     switch response {
-    case .success(let status, let json):
+    case let .success(status, json):
       return (Data(json.utf8), status)
-    case .failure(let error):
+    case let .failure(error):
       throw error
     }
   }
@@ -40,7 +40,9 @@ final class InMemoryTokenStore: TokenStore, @unchecked Sendable {
   private(set) var saved: OAuthTokens?
   var saveError: (any Error)?
 
-  func load() -> OAuthTokens? { saved }
+  func load() -> OAuthTokens? {
+    saved
+  }
 
   func save(_ tokens: OAuthTokens) throws {
     if let saveError {
@@ -60,11 +62,17 @@ final class InMemoryTokenStore: TokenStore, @unchecked Sendable {
 final class FailingClearStore: TokenStore, @unchecked Sendable {
   private(set) var saved: OAuthTokens?
 
-  func load() -> OAuthTokens? { saved }
+  func load() -> OAuthTokens? {
+    saved
+  }
 
-  func save(_ tokens: OAuthTokens) { saved = tokens }
+  func save(_ tokens: OAuthTokens) {
+    saved = tokens
+  }
 
-  func clear() -> Bool { false }
+  func clear() -> Bool {
+    false
+  }
 }
 
 struct UnreachableError: Error {}
