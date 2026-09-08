@@ -130,7 +130,7 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                 }
                 ForEach(partitioned.directMessages, id: \.id) { room in
-                  roomRow(room, icon: "person")
+                  roomRow(room, icon: "person", showsDirectAvatars: true)
                 }
               }
               if !partitioned.external.isEmpty {
@@ -211,7 +211,11 @@ struct ContentView: View {
     .padding(.vertical, 4)
   }
 
-  private func roomRow(_ room: Components.Schemas.ChatRoom, icon: String) -> some View {
+  private func roomRow(
+    _ room: Components.Schemas.ChatRoom,
+    icon: String,
+    showsDirectAvatars: Bool = false
+  ) -> some View {
     let attention = resolveRoomAttention(
       unreadCount: room.unreadCount,
       unreadMentionCount: room.unreadMentionCount,
@@ -222,8 +226,12 @@ struct ContentView: View {
       Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
         .fontWeight(attention.bold ? .bold : .regular)
     } icon: {
-      Image(systemName: icon)
-        .foregroundStyle(.secondary)
+      RoomLeadingIcon(
+        room: room,
+        icon: icon,
+        currentUserId: workspaces.currentUserId,
+        showsDirectAvatars: showsDirectAvatars
+      )
     }
     .tag(room.id)
     .badge(attention.badgeCount)
@@ -242,7 +250,11 @@ struct ContentView: View {
       }
     } label: {
       HStack(spacing: 8) {
-        avatarView
+        CircleAvatar(
+          imageURL: workspaces.currentUserImageURL,
+          name: workspaces.currentUserName,
+          size: 28
+        )
         VStack(alignment: .leading, spacing: 0) {
           Text(workspaces.currentUserName.isEmpty ? "Me" : workspaces.currentUserName)
             .font(.callout)
@@ -262,40 +274,6 @@ struct ContentView: View {
     .buttonStyle(.plain)
   }
 
-  @ViewBuilder
-  private var avatarView: some View {
-    if let urlString = workspaces.currentUserImageURL, let url = URL(string: urlString) {
-      AsyncImage(url: url) { image in
-        image
-          .resizable()
-          .scaledToFill()
-      } placeholder: {
-        initialsFallback
-      }
-      .frame(width: 28, height: 28)
-      .clipShape(Circle())
-    } else {
-      initialsFallback
-    }
-  }
-
-  private var initialsFallback: some View {
-    Text(initials)
-      .font(.caption)
-      .fontWeight(.semibold)
-      .foregroundStyle(.white)
-      .frame(width: 28, height: 28)
-      .background(Circle().fill(Color.accentColor))
-  }
-
-  private var initials: String {
-    let words = workspaces.currentUserName.split(separator: " ")
-    let first = words.first?.first.map(String.init) ?? ""
-    let second = words.dropFirst().first?.first.map(String.init) ?? ""
-    let result = first + second
-    return result.isEmpty ? "?" : result
-  }
-
   private func blockedMessage(for gate: Components.Schemas.WorkspaceGateStatus) -> String {
     switch gate {
     case .pendingInvites:
@@ -306,6 +284,115 @@ struct ContentView: View {
       "Unexpected state. Try again."
     }
   }
+}
+
+/// Sidebar leading slot. Direct messages get the participant stack; channels
+/// and External keep an SF Symbol. Guest Directs in External stay a symbol.
+private struct RoomLeadingIcon: View {
+  let icon: String
+  let showsDirectAvatars: Bool
+  let participants: [DirectRoomAvatarParticipant]
+
+  init(
+    room: Components.Schemas.ChatRoom,
+    icon: String,
+    currentUserId: String,
+    showsDirectAvatars: Bool
+  ) {
+    self.icon = icon
+    self.showsDirectAvatars = showsDirectAvatars
+    participants = showsDirectAvatars
+      ? directRoomAvatarParticipants(room, currentUserId: currentUserId)
+      : []
+  }
+
+  var body: some View {
+    if showsDirectAvatars {
+      DirectRoomAvatarStack(participants: participants)
+    } else {
+      Image(systemName: icon)
+        .foregroundStyle(.secondary)
+    }
+  }
+}
+
+private struct DirectRoomAvatarStack: View {
+  let participants: [DirectRoomAvatarParticipant]
+
+  var body: some View {
+    stackContent
+      .accessibilityHidden(true)
+  }
+
+  @ViewBuilder
+  private var stackContent: some View {
+    if participants.isEmpty {
+      Image(systemName: "message")
+        .foregroundStyle(.secondary)
+    } else {
+      HStack(spacing: -6) {
+        ForEach(participants.enumerated(), id: \.element.id) { index, participant in
+          CircleAvatar(
+            imageURL: participant.imageURL,
+            name: participant.name,
+            size: 16
+          )
+          .overlay {
+            Circle()
+              .strokeBorder(.background, lineWidth: 1)
+          }
+          .zIndex(Double(participants.count - index))
+        }
+      }
+    }
+  }
+}
+
+private struct CircleAvatar: View {
+  let imageURL: String?
+  let name: String
+  var size: CGFloat = 16
+
+  var body: some View {
+    fill
+      .frame(width: size, height: size)
+      .clipShape(Circle())
+  }
+
+  @ViewBuilder
+  private var fill: some View {
+    if let urlString = imageURL, let url = URL(string: urlString) {
+      AsyncImage(url: url) { phase in
+        switch phase {
+        case let .success(image):
+          image
+            .resizable()
+            .scaledToFill()
+        default:
+          initialsView
+        }
+      }
+    } else {
+      initialsView
+    }
+  }
+
+  private var initialsView: some View {
+    Text(avatarInitials(from: name))
+      .font(size >= 24 ? .caption : .caption2)
+      .fontWeight(.semibold)
+      .foregroundStyle(.white)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .background(Circle().fill(Color.accentColor))
+  }
+}
+
+private func avatarInitials(from name: String) -> String {
+  let words = name.split(separator: " ")
+  let first = words.first?.first.map(String.init) ?? ""
+  let second = words.dropFirst().first?.first.map(String.init) ?? ""
+  let result = (first + second).uppercased()
+  return result.isEmpty ? "?" : result
 }
 
 #Preview {
