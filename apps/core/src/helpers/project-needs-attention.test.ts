@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
@@ -6,9 +6,11 @@ import type { HistoryItem } from "@/schemas/history.schema";
 
 import {
   compareNeedsAttention,
+  jobAttentionUpdatedAt,
   jobNeedsAttentionTier,
   rankNeedsAttentionItems,
   taskNeedsAttentionTier,
+  unsettledProjectJobsWhere,
 } from "./project-needs-attention";
 
 function task(
@@ -185,5 +187,49 @@ describe("rankNeedsAttentionItems", () => {
       "job-payment-failed-old",
       "task-running-new",
     ]);
+  });
+});
+
+describe("jobAttentionUpdatedAt", () => {
+  it("uses the latest status-driving timestamp over a stale job.updatedAt", () => {
+    expect(
+      jobAttentionUpdatedAt({
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        purchase: { updatedAt: new Date("2026-02-01T00:00:00.000Z") },
+        events: [{ createdAt: new Date("2026-03-01T00:00:00.000Z") }],
+      }).toISOString(),
+    ).toBe("2026-03-01T00:00:00.000Z");
+  });
+
+  it("falls back to job.updatedAt when there is no event or purchase", () => {
+    expect(
+      jobAttentionUpdatedAt({
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        purchase: null,
+        events: [],
+      }).toISOString(),
+    ).toBe("2026-01-01T00:00:00.000Z");
+  });
+});
+
+describe("unsettledProjectJobsWhere", () => {
+  it("keeps free jobs without a completed event and paid jobs still in the dispute window", () => {
+    const now = new Date("2026-09-08T00:00:00.000Z");
+
+    expect(unsettledProjectJobsWhere(now)).toEqual({
+      OR: [
+        {
+          jobType: JobType.FREE,
+          events: { none: { status: AgentJobStatus.COMPLETED } },
+        },
+        {
+          jobType: JobType.PAID,
+          OR: [
+            { externalDisputeUnlockTime: null },
+            { externalDisputeUnlockTime: { gt: now } },
+          ],
+        },
+      ],
+    });
   });
 });

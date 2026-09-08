@@ -1,13 +1,12 @@
-import { TaskStatus } from "@sokosumi/database";
+import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
 import {
   computeJobStatus,
-  getCompletedAt,
   isJobStatusSettled,
 } from "@sokosumi/database/helpers";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
-import { type AgentPreview, loadAgentPreviewsByIds } from "@/helpers/history";
+import { loadAgentPreviewsByIds } from "@/helpers/history";
 import prisma from "@/lib/db/prisma";
 import type { HistoryItem } from "@/schemas/history.schema";
 import {
@@ -170,30 +169,64 @@ function mapTaskToHistoryItem(task: {
   };
 }
 
-function mapJobToHistoryItem(
-  job: {
-    id: string;
-    name: string | null;
-    updatedAt: Date;
-    projectId: string | null;
-    agentId: string;
-    status: SokosumiJobStatus;
-  },
-  agentPreview: AgentPreview | undefined,
-): HistoryItem {
+export function unsettledProjectJobsWhere(now: Date) {
+  return {
+    OR: [
+      {
+        jobType: JobType.FREE,
+        events: { none: { status: AgentJobStatus.COMPLETED } },
+      },
+      {
+        jobType: JobType.PAID,
+        OR: [
+          { externalDisputeUnlockTime: null },
+          { externalDisputeUnlockTime: { gt: now } },
+        ],
+      },
+    ],
+  };
+}
+
+export function jobAttentionUpdatedAt(job: {
+  updatedAt: Date;
+  purchase?: { updatedAt: Date } | null;
+  events: readonly { createdAt: Date }[];
+}): Date {
+  let latest = job.updatedAt;
+  const purchaseUpdatedAt = job.purchase?.updatedAt;
+  if (purchaseUpdatedAt && purchaseUpdatedAt > latest) {
+    latest = purchaseUpdatedAt;
+  }
+  const eventCreatedAt = job.events[0]?.createdAt;
+  if (eventCreatedAt && eventCreatedAt > latest) {
+    latest = eventCreatedAt;
+  }
+  return latest;
+}
+
+function mapJobToHistoryItem(job: {
+  id: string;
+  name: string | null;
+  updatedAt: Date;
+  projectId: string | null;
+  agentId: string;
+  status: SokosumiJobStatus;
+  purchase?: { updatedAt: Date } | null;
+  events: readonly { createdAt: Date }[];
+}): HistoryItem {
   return {
     kind: "job",
     id: job.id,
     title: job.name?.trim() ? job.name : "Untitled job",
     description: null,
     status: job.status,
-    updatedAt: job.updatedAt.toISOString(),
+    updatedAt: jobAttentionUpdatedAt(job).toISOString(),
     archivedAt: null,
     credits: null,
     projectId: job.projectId,
     agentId: job.agentId,
-    agentName: agentPreview?.name ?? null,
-    agentIcon: agentPreview?.icon ?? null,
+    agentName: null,
+    agentIcon: null,
     owner: null,
   };
 }
@@ -237,6 +270,7 @@ export async function getProjectNeedsAttention(
       where: {
         projectId: params.projectId,
         workspaceId: params.workspaceId,
+        ...unsettledProjectJobsWhere(new Date()),
       },
       select: {
         id: true,
@@ -248,10 +282,10 @@ export async function getProjectNeedsAttention(
           orderBy: {
             createdAt: "desc",
           },
+          take: 1,
           select: {
             status: true,
             createdAt: true,
-            result: true,
             input: {
               select: {
                 id: true,
@@ -263,30 +297,44 @@ export async function getProjectNeedsAttention(
     }),
   ]);
 
-  const agentIds = [...new Set(projectJobs.map((job) => job.agentId))];
-  const agentPreviewById = await loadAgentPreviewsByIds(agentIds, prisma);
-
   const taskItems = attentionTasks.map(mapTaskToHistoryItem);
   const jobItems = projectJobs.flatMap((job) => {
     const status = computeJobStatus(job);
     if (jobNeedsAttentionTier(status) === null) {
       return [];
     }
-    const completedAt = getCompletedAt(job);
+    const completedAt =
+      job.events.find((event) => event.status === AgentJobStatus.COMPLETED)
+        ?.createdAt ?? null;
     if (isJobStatusSettled(job, completedAt)) {
       return [];
     }
-    return [
-      mapJobToHistoryItem(
-        { ...job, status },
-        agentPreviewById.get(job.agentId),
-      ),
-    ];
+    return [mapJobToHistoryItem({ ...job, status })];
   });
+
+  const ranked = rankNeedsAttentionItems([...taskItems, ...jobItems]);
+  const rankedAgentIds = [
+    ...new Set(
+      ranked.flatMap((item) =>
+        item.kind === "job" && item.agentId ? [item.agentId] : [],
+      ),
+    ),
+  ];
+  const agentPreviewById = await loadAgentPreviewsByIds(rankedAgentIds, prisma);
 
   return projectNeedsAttentionSchema.parse({
     taskCount: project._count.tasks,
     jobCount: project._count.jobs,
-    items: rankNeedsAttentionItems([...taskItems, ...jobItems]),
+    items: ranked.map((item) => {
+      if (item.kind !== "job" || !item.agentId) {
+        return item;
+      }
+      const preview = agentPreviewById.get(item.agentId);
+      return {
+        ...item,
+        agentName: preview?.name ?? null,
+        agentIcon: preview?.icon ?? null,
+      };
+    }),
   });
 }
