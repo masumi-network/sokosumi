@@ -10,7 +10,6 @@ import {
   makeUserTasksChannelName,
   SokosumiJobStatus,
 } from "@sokosumi/utils";
-
 import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
 
 import {
@@ -19,6 +18,7 @@ import {
   chatRoomMessagePublishBody,
 } from "./ably-message-size";
 import { getRestClient } from "./client";
+import { getNotificationChannelEnvironment } from "./notification-channel-environment";
 
 interface JobStatusData {
   jobId: string;
@@ -189,7 +189,12 @@ export async function publishNotificationEvent({
   push = false,
 }: PublishNotificationEventInput) {
   const client = getRestClient();
-  const channel = client.channels.get(makeUserNotificationsChannelName(userId));
+  const channel = client.channels.get(
+    makeUserNotificationsChannelName(
+      userId,
+      getNotificationChannelEnvironment(),
+    ),
+  );
   await channel.publish({
     name: "notification_created",
     data: notification,

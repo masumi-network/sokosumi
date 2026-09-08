@@ -9,6 +9,7 @@ export const DEFAULT_CREATE_FORM_VALUES = {
   redirectUris: "",
   includeCoreApi: false,
   includeOfflineAccess: false,
+  isPublic: false,
 };
 
 export const DEFAULT_EDIT_FORM_VALUES = {
@@ -200,11 +201,37 @@ export function createOAuthClientSchema(t: TranslationFunction) {
       }),
     includeCoreApi: z.boolean(),
     includeOfflineAccess: z.boolean(),
+    isPublic: z.boolean(),
   });
 }
 
+/**
+ * True for public PKCE clients (no secret). Better Auth 1.7 derives this from
+ * `token_endpoint_auth_method === "none"`; the legacy `public` flag is kept
+ * as a fallback for rows shaped by older clients.
+ */
+export function isPublicOAuthClient(
+  client:
+    | {
+        token_endpoint_auth_method?: string | null;
+        public?: boolean | null;
+      }
+    | null
+    | undefined,
+): boolean {
+  if (!client) {
+    return false;
+  }
+  if (client.token_endpoint_auth_method === "none") {
+    return true;
+  }
+  return client.public === true;
+}
+
 export function editOAuthClientSchema(t: TranslationFunction) {
-  return createOAuthClientSchema(t);
+  // Client auth method cannot change after creation, so edit keeps the
+  // create shape minus the immutable client-type flag.
+  return createOAuthClientSchema(t).omit({ isPublic: true });
 }
 
 export { parseRedirectUris };

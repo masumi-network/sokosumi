@@ -196,17 +196,3 @@ export function driveFileTypeFamily(
 export function driveFileTypeFamilyRank(family: DriveFileTypeFamily): number {
   return DRIVE_FILE_TYPE_FAMILIES.indexOf(family);
 }
-
-export function compareDriveFileTypeFamily(
-  leftName: string,
-  rightName: string,
-  leftMime?: string | null,
-  rightMime?: string | null,
-): number {
-  const left = driveFileTypeFamily(leftName, leftMime);
-  const right = driveFileTypeFamily(rightName, rightMime);
-  if (left !== right) {
-    return driveFileTypeFamilyRank(left) - driveFileTypeFamilyRank(right);
-  }
-  return 0;
-}

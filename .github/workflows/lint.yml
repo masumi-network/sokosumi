@@ -6,8 +6,36 @@ env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
 
 jobs:
+  changes:
+    name: Detect JS changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      js: ${{ steps.filter.outputs.js }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Detect JS-relevant changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # 'every' is required: with the default 'some', the '!' exclusion
+          # patterns below would not exclude anything.
+          predicate-quantifier: "every"
+          filters: |
+            js:
+              - "**"
+              - "!apps/apple/**"
+              - "!docs/**"
+              - "!**/*.md"
+
   biome:
     name: Biome
+    needs: changes
+    if: needs.changes.outputs.js == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,6 +51,8 @@ jobs:
 
   typecheck:
     name: Typecheck
+    needs: changes
+    if: needs.changes.outputs.js == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read

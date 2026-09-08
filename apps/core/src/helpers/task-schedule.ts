@@ -392,26 +392,6 @@ export function* iterateTaskScheduleOccurrences(
   }
 }
 
-export function projectTaskScheduleOccurrences(
-  taskId: string,
-  metadata: TaskScheduleMetadata,
-  nextRunAt: Date,
-  from: Date,
-  to: Date,
-  maxOccurrences = Number.POSITIVE_INFINITY,
-): TaskScheduleOccurrenceProjection[] {
-  return Array.from(
-    iterateTaskScheduleOccurrences(
-      taskId,
-      metadata,
-      nextRunAt,
-      from,
-      to,
-      maxOccurrences,
-    ),
-  );
-}
-
 export function validateScheduleInput(input: TaskScheduleInput): void {
   if (input.mode === "once") {
     const runAt = new Date(input.runAt);
@@ -473,21 +453,6 @@ export function validateScheduleInput(input: TaskScheduleInput): void {
       );
     }
   }
-}
-
-export function isRecurringScheduleEnded(
-  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
-  now: Date,
-): boolean {
-  if (metadata.endsMode === "on" && metadata.endsOn) {
-    return now >= new Date(metadata.endsOn);
-  }
-
-  if (metadata.endsMode === "after") {
-    return hasReachedTaskScheduleReleaseTarget(metadata);
-  }
-
-  return false;
 }
 
 export function isDueRunPastScheduleEnd(
