@@ -226,102 +226,102 @@ export function ProjectBrandCard({
           <h2 className="text-muted-foreground/60 text-xs font-medium">
             {t("brand")}
           </h2>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="gap-1.5 text-xs">
-              {generation.isRunning ? (
-                <Loader2 className="size-3 animate-spin" aria-hidden />
-              ) : designMd ? (
-                <span
-                  className="bg-semantic-success size-1.5 rounded-full"
-                  aria-hidden
-                />
-              ) : null}
-              {generation.isRunning
-                ? t("brandCard.generating")
-                : designMd
-                  ? t("brandCard.ready")
-                  : t("brandCard.notSet")}
-            </Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  aria-label={t("brandCard.moreActions")}
-                >
-                  <MoreHorizontal className="size-4" aria-hidden />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  disabled={!hasWebsite || menuBusy}
-                  onSelect={() => {
-                    handleGenerate();
-                  }}
-                >
-                  {generation.isRunning ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <RefreshCw className="size-4" aria-hidden />
-                  )}
-                  {t("brandCard.generate")}
-                </DropdownMenuItem>
-                {designMd ? (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <a
-                        href={designMd.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <ExternalLink className="size-4" aria-hidden />
-                        {t("brandCard.open")}
-                      </a>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href={`/projects/${projectId}/design-md/edit`}>
-                        <FileText className="size-4" aria-hidden />
-                        {t("brandCard.edit")}
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      disabled={menuBusy}
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        setIsRemoveDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                      {t("brandCard.remove")}
-                    </DropdownMenuItem>
-                  </>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label={t("brandCard.moreActions")}
+              >
+                <MoreHorizontal className="size-4" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={!hasWebsite || menuBusy}
+                onSelect={() => {
+                  handleGenerate();
+                }}
+              >
+                {generation.isRunning ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
                 ) : (
+                  <RefreshCw className="size-4" aria-hidden />
+                )}
+                {t("brandCard.generate")}
+              </DropdownMenuItem>
+              {designMd ? (
+                <>
+                  <DropdownMenuItem asChild>
+                    <a
+                      href={designMd.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="size-4" aria-hidden />
+                      {t("brandCard.open")}
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/projects/${projectId}/design-md/edit`}>
+                      <FileText className="size-4" aria-hidden />
+                      {t("brandCard.edit")}
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem
+                    variant="destructive"
                     disabled={menuBusy}
-                    onSelect={() => {
-                      setShowUpload(true);
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      setIsRemoveDialogOpen(true);
                     }}
                   >
-                    <Upload className="size-4" aria-hidden />
-                    {t("brandCard.upload")}
+                    <Trash2 className="size-4" aria-hidden />
+                    {t("brandCard.remove")}
                   </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                </>
+              ) : (
+                <DropdownMenuItem
+                  disabled={menuBusy}
+                  onSelect={() => {
+                    setShowUpload(true);
+                  }}
+                >
+                  <Upload className="size-4" aria-hidden />
+                  {t("brandCard.upload")}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <div className="flex min-w-0 items-center gap-3">
-          <ProjectAvatar name={projectName} logo={logo} className="size-10" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{projectName}</p>
-            <p className="text-muted-foreground mt-0.5 truncate text-xs">
-              DESIGN.md
-            </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <ProjectAvatar name={projectName} logo={logo} className="size-10" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{projectName}</p>
+              <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                DESIGN.md
+              </p>
+            </div>
           </div>
+          <Badge variant="outline" className="shrink-0 gap-1.5 text-xs">
+            {generation.isRunning ? (
+              <Loader2 className="size-3 animate-spin" aria-hidden />
+            ) : designMd ? (
+              <span
+                className="bg-semantic-success size-1.5 rounded-full"
+                aria-hidden
+              />
+            ) : null}
+            {generation.isRunning
+              ? t("brandCard.generating")
+              : designMd
+                ? t("brandCard.ready")
+                : t("brandCard.notSet")}
+          </Badge>
         </div>
 
         {!hasWebsite ? (

@@ -162,17 +162,45 @@ describe("ProjectDetailPage", () => {
     );
     expect(layoutGrid).toBeTruthy();
 
-    const mainColumn = screen
+    const introColumn = screen
       .getByRole("heading", { name: "Launch plan" })
       .closest(".space-y-8");
     const aside = screen.getByTestId("brand-card").closest("aside");
-    expect(mainColumn).toBeTruthy();
+    const needsAttentionColumn = screen
+      .getByTestId("needs-attention-section")
+      .closest(".space-y-8");
+    expect(introColumn).toBeTruthy();
     expect(aside).toBeTruthy();
+    expect(needsAttentionColumn).toBeTruthy();
     expect(aside?.contains(screen.getByTestId("memory-stat"))).toBe(true);
+    expect(aside?.contains(screen.getByTestId("brand-card"))).toBe(true);
+    expect(aside?.contains(screen.getByTestId("needs-attention-section"))).toBe(
+      false,
+    );
+    expect(introColumn?.contains(screen.getByTestId("brand-card"))).toBe(false);
     expect(
-      mainColumn?.contains(screen.getByTestId("needs-attention-section")),
+      needsAttentionColumn?.contains(
+        screen.getByTestId("needs-attention-section"),
+      ),
     ).toBe(true);
-    expect(mainColumn?.contains(screen.getByTestId("brand-card"))).toBe(false);
+    expect(
+      introColumn?.contains(screen.getByTestId("needs-attention-section")),
+    ).toBe(false);
+
+    const briefingHeading = screen.getByRole("heading", {
+      name: "App.Projects.Detail.briefing",
+    });
+    const brandCard = screen.getByTestId("brand-card");
+    const needsAttention = screen.getByTestId("needs-attention-section");
+    expect(
+      briefingHeading.compareDocumentPosition(brandCard) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      brandCard.compareDocumentPosition(needsAttention) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
     expect(layoutGrid?.className).not.toContain("order-");
     expect(layoutGrid?.className).not.toContain("xl:grid-cols-3");
     expect(layoutGrid?.className).not.toContain("xl:col-span-2");
@@ -195,7 +223,7 @@ describe("ProjectDetailPage", () => {
     );
     expect(workspaceSection?.className).not.toContain("px-4");
     expect(workspaceSection?.className).not.toContain("md:px-0");
-    expect(mainColumn?.contains(workspaceSection!)).toBe(true);
+    expect(needsAttentionColumn?.contains(workspaceSection!)).toBe(true);
     expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
       6,
     );
@@ -266,9 +294,9 @@ describe("ProjectDetailPage", () => {
     );
     const latestUpdate = screen.getByTestId("project-latest-update");
     const briefing = screen.getByTestId("project-briefing");
-    const mainColumn = latestHeading.closest(".space-y-8");
-    expect(mainColumn?.contains(latestUpdate)).toBe(true);
-    expect(mainColumn?.contains(briefing)).toBe(true);
+    const introColumn = latestHeading.closest(".space-y-8");
+    expect(introColumn?.contains(latestUpdate)).toBe(true);
+    expect(introColumn?.contains(briefing)).toBe(true);
     expect(screen.getByText(/Shipped/)).toBeInTheDocument();
   });
 });

@@ -134,7 +134,9 @@ describe("ProjectBrandCard", () => {
     const card = screen.getByTestId("project-brand-card");
     expect(card.className).not.toContain("bg-muted/30");
     expect(card.className).not.toMatch(/\bborder\b/);
-    expect(screen.getByRole("heading", { name: "Brand" })).toBeInTheDocument();
+    const brandHeading = screen.getByRole("heading", { name: "Brand" });
+    expect(brandHeading).toBeInTheDocument();
+    expect(brandHeading.parentElement?.textContent).not.toContain("Ready");
     expect(screen.getByText("Ready")).toBeInTheDocument();
 
     await openBrandMenu(user);

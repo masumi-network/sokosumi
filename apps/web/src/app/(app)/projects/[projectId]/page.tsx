@@ -110,7 +110,25 @@ export default async function ProjectDetailPage({
               showMoreLabel={t("showMore")}
               showLessLabel={t("showLess")}
             />
+          </div>
 
+          <aside className="min-w-0 space-y-8">
+            <ProjectBrandCard
+              projectId={project.id}
+              projectName={project.name}
+              logo={project.logo}
+              websiteUrl={project.websiteUrl}
+            />
+            <ProjectMemoryRow
+              projectId={project.id}
+              contextMd={project.contextMd}
+              contextMdUpdating={project.contextMdUpdating}
+              memoryEnabled={project.memoryEnabled}
+              memoryModel={project.memoryModel}
+            />
+          </aside>
+
+          <div className="min-w-0 space-y-8">
             <ProjectNeedsAttentionSection
               projectId={project.id}
               taskCount={attention.taskCount}
@@ -183,22 +201,6 @@ export default async function ProjectDetailPage({
               />
             </section>
           </div>
-
-          <aside className="min-w-0 space-y-8">
-            <ProjectBrandCard
-              projectId={project.id}
-              projectName={project.name}
-              logo={project.logo}
-              websiteUrl={project.websiteUrl}
-            />
-            <ProjectMemoryRow
-              projectId={project.id}
-              contextMd={project.contextMd}
-              contextMdUpdating={project.contextMdUpdating}
-              memoryEnabled={project.memoryEnabled}
-              memoryModel={project.memoryModel}
-            />
-          </aside>
         </div>
       </ProjectBrandProvider>
     </div>
