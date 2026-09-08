@@ -27,7 +27,12 @@ jobs:
             apple:
               - "apps/apple/**"
 
-  xcodebuild:
+  # Shared CI signing note: the project carries a developer team for local
+  # runs, but CI holds no Apple certificates — so every xcodebuild invocation
+  # below overrides it with ad-hoc signing (`DEVELOPMENT_TEAM=`
+  # `CODE_SIGN_IDENTITY=-`, see SOK-973). `-skipPackagePluginValidation`: no
+  # interactive user to trust the OpenAPIGenerator plugin in CI.
+  build:
     name: Xcode build
     needs: changes
     if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
@@ -45,13 +50,25 @@ jobs:
         run: xcodebuild -version && swift --version
 
       - name: Build Sokosumi for macOS
-        # -skipPackagePluginValidation: no interactive user to trust the OpenAPIGenerator plugin in CI.
-        # Ad-hoc signing: the project stays team-less so devs' local teams never
-        # leak into CI, which holds no Apple certificates (see SOK-973).
         run: xcodebuild -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build
 
+  test:
+    name: Xcode test
+    needs: [changes, build]
+    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Select Xcode 26 toolchain
+        # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+
+      - name: Show Xcode version
+        run: xcodebuild -version && swift --version
+
       - name: Test Sokosumi app target
-        # Same ad-hoc signing as the build step above.
         run: xcodebuild test -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -only-testing:SokosumiTests
 
       - name: Test Swift packages
