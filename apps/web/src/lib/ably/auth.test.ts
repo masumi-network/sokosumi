@@ -77,9 +77,10 @@ describe("createAuthTokenRequest", () => {
       text: async () => "unauthorized",
     });
 
-    await expect(createAuthTokenRequest()).rejects.toThrow(
-      /Core Ably token mint failed \(401\)/,
-    );
+    await expect(createAuthTokenRequest()).rejects.toMatchObject({
+      status: 401,
+      message: "Core Ably token mint failed (401): unauthorized",
+    });
   });
 
   it("throws when Core omits data", async () => {
