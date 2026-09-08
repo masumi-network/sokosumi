@@ -5,10 +5,44 @@ import {
   makeChatRoomChannelName,
   makeOrgPresenceChannelName,
   makeUserChatControlChannelName,
+  makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel";
+
+describe("makeUserNotificationsChannelName", () => {
+  it("keeps the existing channel outside Vercel previews", () => {
+    expect(
+      makeUserNotificationsChannelName("user_123", {
+        network: "Mainnet",
+        vercelEnv: "production",
+        vercelGitCommitRef: "main",
+      }),
+    ).toBe("notifications:all:user_user_123");
+  });
+
+  it("isolates a preview by network and exact branch ref", () => {
+    expect(
+      makeUserNotificationsChannelName("user_123", {
+        network: "Mainnet",
+        vercelEnv: "preview",
+        vercelGitCommitRef: "fix/push%urls",
+      }),
+    ).toBe(
+      "notifications:preview:mainnet:branch_fix%2Fpush%25urls:user_user_123",
+    );
+  });
+
+  it("refuses an unscoped preview channel", () => {
+    expect(() =>
+      makeUserNotificationsChannelName("user_123", {
+        network: "Mainnet",
+        vercelEnv: "preview",
+      }),
+    ).toThrow("Preview notification channels require a Git branch ref");
+  });
+});
 
 describe("makeUserTasksChannelName", () => {
   it("builds a user-scoped tasks channel", () => {

@@ -1,5 +1,6 @@
 import * as z from "zod";
 
+import { getEnvPublicConfig } from "@/config/env.public";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { notificationEventDataSchema } from "@/lib/ably/schema";
 
@@ -15,6 +16,21 @@ import { getBrowserNotificationPermission } from "./browser-notification";
  * the second is a no-op.
  */
 export const NOTIFICATION_SERVICE_WORKER_URL = "/ably-push-sw.js";
+
+/** Gives the static worker the stable app URL through its own script URL. */
+export function getNotificationServiceWorkerUrl(): string {
+  const env = getEnvPublicConfig();
+  const appUrl =
+    env.NEXT_PUBLIC_VERCEL_ENV === "preview"
+      ? env.NEXT_PUBLIC_VERCEL_BRANCH_URL
+      : env.NEXT_PUBLIC_VERCEL_ENV === "production"
+        ? env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
+        : undefined;
+
+  return appUrl
+    ? `${NOTIFICATION_SERVICE_WORKER_URL}?appUrl=${encodeURIComponent(appUrl)}`
+    : NOTIFICATION_SERVICE_WORKER_URL;
+}
 
 /**
  * Icon on every banner. The worker carries its own copy for pushes, and a
@@ -112,7 +128,7 @@ export function isPushSupported(): boolean {
 async function register(): Promise<ServiceWorkerRegistration | null> {
   try {
     const registration = await navigator.serviceWorker.register(
-      NOTIFICATION_SERVICE_WORKER_URL,
+      getNotificationServiceWorkerUrl(),
     );
     // A registration that is installing cannot show anything yet. Awaited
     // rather than returned: a returned promise settles after the `try` is

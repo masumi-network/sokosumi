@@ -1,6 +1,5 @@
 "use client";
 
-import { makeUserNotificationsChannelName } from "@sokosumi/utils";
 import type * as Ably from "ably";
 import { useChannel } from "ably/react";
 import { useCallback } from "react";
@@ -9,6 +8,7 @@ import {
   type NotificationEventData,
   notificationEventDataSchema,
 } from "@/lib/ably";
+import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
 
 const NOTIFICATION_CREATED_EVENT_NAME = "notification_created";
 
@@ -41,7 +41,7 @@ export function useNotificationRealtime({
   );
 
   const { channel } = useChannel(
-    makeUserNotificationsChannelName(userId),
+    makeCurrentUserNotificationsChannelName(userId),
     NOTIFICATION_CREATED_EVENT_NAME,
     handleMessage,
   );

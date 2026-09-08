@@ -11,10 +11,17 @@ import {
   publishTaskEventData,
 } from "./publish";
 
-const { publishMock, getMock } = vi.hoisted(() => ({
+const { envMock, publishMock, getMock } = vi.hoisted(() => ({
+  envMock: {
+    NETWORK: "Mainnet",
+    VERCEL_ENV: "production" as "production" | "preview",
+    VERCEL_GIT_COMMIT_REF: "main" as string | undefined,
+  },
   publishMock: vi.fn(),
   getMock: vi.fn(),
 }));
+
+vi.mock("@/config/env", () => ({ getEnv: () => envMock }));
 
 vi.mock("./client", () => ({
   getRestClient: () => ({
@@ -87,6 +94,9 @@ describe("publishNotificationEvent", () => {
     // cannot pass on a stale call from a test declared above this block.
     publishMock.mockClear();
     getMock.mockClear();
+    envMock.NETWORK = "Mainnet";
+    envMock.VERCEL_ENV = "production";
+    envMock.VERCEL_GIT_COMMIT_REF = "main";
   });
 
   it("publishes notification event to the user channel", async () => {
@@ -100,6 +110,21 @@ describe("publishNotificationEvent", () => {
       name: "notification_created",
       data: notification,
     });
+  });
+
+  it("publishes a preview notification only to its branch channel", async () => {
+    envMock.VERCEL_ENV = "preview";
+    envMock.VERCEL_GIT_COMMIT_REF = "fix/push-urls";
+
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification,
+      push: true,
+    });
+
+    expect(getMock).toHaveBeenCalledWith(
+      "notifications:preview:mainnet:branch_fix%2Fpush-urls:user_user_123",
+    );
   });
 
   it("carries no push extras unless push is requested", async () => {
