@@ -7,9 +7,9 @@ final class TestClock: @unchecked Sendable {
 }
 
 struct RefreshTests {
-  private func configuration() -> OAuthConfiguration {
-    OAuthConfiguration(
-      issuerBaseURL: URL(string: "https://core.example/auth")!,
+  private func configuration() throws -> OAuthConfiguration {
+    try OAuthConfiguration(
+      issuerBaseURL: #require(URL(string: "https://core.example/auth")),
       clientID: "mac-public-client"
     )
   }
@@ -19,7 +19,7 @@ struct RefreshTests {
     transport: StubTokenTransport,
     accessToken: String = "access-1",
     refreshToken: String? = "refresh-1",
-    expiresIn: TimeInterval = 7_200
+    expiresIn: TimeInterval = 7200
   ) async throws {
     var json = "{\"access_token\":\"\(accessToken)\",\"token_type\":\"Bearer\",\"expires_in\":\(Int(expiresIn))"
     if let refreshToken {
@@ -28,7 +28,7 @@ struct RefreshTests {
     json += "}"
     transport.response = .success(status: 200, json: json)
     try await session.signIn(
-      callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )
@@ -37,7 +37,7 @@ struct RefreshTests {
   @Test func validAccessTokenUsesCacheWithoutNetwork() async throws {
     let transport = StubTokenTransport(response: .failure(UnreachableError()))
     let clock = TestClock()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport,
@@ -57,14 +57,14 @@ struct RefreshTests {
     ))
     let clock = TestClock()
     let store = InMemoryTokenStore()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: store,
       transport: transport,
       now: { clock.now }
     )
     try await signIn(session: session, transport: transport)
-    clock.now = clock.now.addingTimeInterval(8_000)
+    clock.now = clock.now.addingTimeInterval(8000)
     transport.response = .success(
       status: 200,
       json: "{\"access_token\":\"access-2\",\"token_type\":\"Bearer\",\"expires_in\":7200,\"refresh_token\":\"refresh-2\"}"
@@ -86,14 +86,14 @@ struct RefreshTests {
     let transport = StubTokenTransport(response: .failure(UnreachableError()))
     let clock = TestClock()
     let store = InMemoryTokenStore()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: store,
       transport: transport,
       now: { clock.now }
     )
     try await signIn(session: session, transport: transport)
-    clock.now = clock.now.addingTimeInterval(8_000)
+    clock.now = clock.now.addingTimeInterval(8000)
     transport.response = .failure(UnreachableError())
 
     await #expect(throws: UnreachableError.self) {
@@ -108,14 +108,14 @@ struct RefreshTests {
     let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
     let clock = TestClock()
     let store = InMemoryTokenStore()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: store,
       transport: transport,
       now: { clock.now }
     )
     try await signIn(session: session, transport: transport)
-    clock.now = clock.now.addingTimeInterval(8_000)
+    clock.now = clock.now.addingTimeInterval(8000)
     for (status, code) in [(400, "invalid_client"), (401, "invalid_token")] {
       transport.response = .success(
         status: status,
@@ -140,14 +140,14 @@ struct RefreshTests {
     ))
     let clock = TestClock()
     let store = InMemoryTokenStore()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: store,
       transport: transport,
       now: { clock.now }
     )
     try await signIn(session: session, transport: transport)
-    clock.now = clock.now.addingTimeInterval(8_000)
+    clock.now = clock.now.addingTimeInterval(8000)
     transport.response = .success(
       status: 400,
       json: "{\"error\":\"invalid_grant\",\"error_description\":\"Refresh revoked\"}"
@@ -166,14 +166,14 @@ struct RefreshTests {
       json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":100}"
     ))
     let clock = TestClock()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport,
       now: { clock.now }
     )
     try await signIn(session: session, transport: transport, refreshToken: nil, expiresIn: 100)
-    clock.now = clock.now.addingTimeInterval(1_000)
+    clock.now = clock.now.addingTimeInterval(1000)
 
     await #expect(throws: OAuthError.needsSignIn) {
       try await session.validAccessToken()

@@ -72,7 +72,7 @@ public actor OAuthSession {
       (name: "code", value: code),
       (name: "redirect_uri", value: OAuthConfiguration.redirectURI),
       (name: "client_id", value: configuration.clientID),
-      (name: "code_verifier", value: codeVerifier),
+      (name: "code_verifier", value: codeVerifier)
     ])
     try store.save(payload.tokens(now: now()))
   }
@@ -105,7 +105,7 @@ public actor OAuthSession {
       let payload = try await postToken(fields: [
         (name: "grant_type", value: "refresh_token"),
         (name: "refresh_token", value: refreshToken),
-        (name: "client_id", value: configuration.clientID),
+        (name: "client_id", value: configuration.clientID)
       ])
       // Some providers rotate without returning a new refresh token.
       var next = payload.tokens(now: now())

@@ -11,7 +11,7 @@ public enum WorkspaceSelection: Hashable, Sendable {
   public var organizationId: String? {
     switch self {
     case .personal: nil
-    case .organization(let id, _): id
+    case let .organization(id, _): id
     }
   }
 
@@ -19,7 +19,7 @@ public enum WorkspaceSelection: Hashable, Sendable {
   public var organizationSlug: String? {
     switch self {
     case .personal: nil
-    case .organization(_, let slug): slug
+    case let .organization(_, slug): slug
     }
   }
 }
@@ -33,7 +33,10 @@ public struct InitialWorkspaceState: Sendable {
   /// Session user: id excludes yourself from Direct names, name/email feed
   /// the sidebar "me" section and Settings.
   public var currentUser: Components.Schemas.User
-  public var currentUserId: String { currentUser.id }
+  public var currentUserId: String {
+    currentUser.id
+  }
+
   /// Local default: personal when present, else the first organization.
   public var defaultSelection: WorkspaceSelection
 }

@@ -10,7 +10,7 @@ public struct BearerAuthMiddleware: ClientMiddleware {
   private let tokenProvider: @Sendable () async throws -> String?
 
   public init(session: OAuthSession) {
-    self.tokenProvider = {
+    tokenProvider = {
       do {
         return try await session.validAccessToken()
       } catch OAuthError.needsSignIn {
@@ -26,7 +26,7 @@ public struct BearerAuthMiddleware: ClientMiddleware {
     _ request: HTTPRequest,
     body: HTTPBody?,
     baseURL: URL,
-    operationID: String,
+    operationID _: String,
     next: @Sendable (HTTPRequest, HTTPBody?, URL) async throws -> (HTTPResponse, HTTPBody?)
   ) async throws -> (HTTPResponse, HTTPBody?) {
     var request = request
