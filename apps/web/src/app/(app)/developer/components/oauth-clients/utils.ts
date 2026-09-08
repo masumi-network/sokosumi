@@ -9,6 +9,7 @@ export const DEFAULT_CREATE_FORM_VALUES = {
   redirectUris: "",
   includeCoreApi: false,
   includeOfflineAccess: false,
+  isPublic: false,
 };
 
 export const DEFAULT_EDIT_FORM_VALUES = {
@@ -18,60 +19,112 @@ export const DEFAULT_EDIT_FORM_VALUES = {
   includeOfflineAccess: false,
 };
 
-/** Schemes Better Auth's SafeUrlSchema rejects. */
+export type OAuthApplicationType = "web" | "native";
+
+/** Schemes Better Auth rejects for any redirect URI. */
 const DANGEROUS_URL_SCHEMES = ["javascript:", "data:", "vbscript:"];
 
-/**
- * Loopback hosts where HTTP is allowed (Better Auth SafeUrlSchema /
- * isLoopbackHost): IPv4 127.0.0.0/8, IPv6 ::1, localhost, *.localhost.
- */
-function isLoopbackHost(host: string): boolean {
-  const normalized = host.trim().toLowerCase().replace(/\.+$/, "");
-  if (!normalized) {
+const FORBIDDEN_NATIVE_REDIRECT_SCHEMES = new Set([
+  "file:",
+  "ftp:",
+  "mailto:",
+  "javascript:",
+  "data:",
+  "vbscript:",
+]);
+
+const REVERSE_DOMAIN_PRIVATE_USE_SCHEME =
+  /^[a-z](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i;
+
+function isLoopbackIpHostname(hostname: string): boolean {
+  let normalized = hostname.trim().toLowerCase();
+  if (normalized.startsWith("[") && normalized.endsWith("]")) {
+    normalized = normalized.slice(1, -1);
+  }
+  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") {
+    return true;
+  }
+
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(normalized);
+  if (!ipv4) {
     return false;
   }
 
-  // Strip port for host:port forms (not bare IPv6 which has multiple colons).
-  let hostname = normalized;
-  if (hostname.startsWith("[")) {
-    const end = hostname.indexOf("]");
-    hostname = end === -1 ? hostname : hostname.slice(1, end);
-  } else {
-    const firstColon = hostname.indexOf(":");
-    if (firstColon !== -1 && hostname.indexOf(":", firstColon + 1) === -1) {
-      hostname = hostname.slice(0, firstColon);
-    }
-  }
+  const octets = [ipv4[1], ipv4[2], ipv4[3], ipv4[4]].map(Number);
+  return octets.every((n) => n >= 0 && n <= 255) && octets[0] === 127;
+}
 
-  if (hostname === "localhost" || hostname.endsWith(".localhost")) {
-    return true;
-  }
+function isWebRedirectLoopback(hostname: string): boolean {
+  return hostname === "localhost" || isLoopbackIpHostname(hostname);
+}
 
-  if (hostname === "::1" || hostname === "0:0:0:0:0:0:0:1") {
-    return true;
+function getRawHttpHostname(redirectUri: string): string | null {
+  const authority = /^http:\/\/([^/?#]*)/i.exec(redirectUri)?.[1];
+  if (!authority) {
+    return null;
   }
-
-  // IPv4 127.0.0.0/8
-  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
-  if (ipv4) {
-    const a = Number(ipv4[1]);
-    const b = Number(ipv4[2]);
-    const c = Number(ipv4[3]);
-    const d = Number(ipv4[4]);
-    if ([a, b, c, d].every((n) => n >= 0 && n <= 255) && a === 127) {
-      return true;
-    }
+  const hostAndPort = authority.slice(authority.lastIndexOf("@") + 1);
+  if (hostAndPort.startsWith("[")) {
+    const bracketEnd = hostAndPort.indexOf("]");
+    return bracketEnd < 0
+      ? null
+      : hostAndPort.slice(0, bracketEnd + 1).toLowerCase();
   }
+  return (hostAndPort.split(":")[0] ?? "").toLowerCase();
+}
 
-  return false;
+function isAllowedNativeHttpLoopback(redirectUri: string): boolean {
+  const rawHttpHostname = getRawHttpHostname(redirectUri);
+  return (
+    rawHttpHostname === "localhost" ||
+    rawHttpHostname === "127.0.0.1" ||
+    rawHttpHostname === "[::1]"
+  );
 }
 
 /**
- * Aligns with Better Auth `SafeUrlSchema` (client-side UX only; server enforces
- * the real schema): parseable URL, no dangerous schemes, no fragment, HTTPS
- * unless loopback HTTP, custom app schemes allowed.
+ * RFC 8252 §7.1 private-use redirect: reverse-domain scheme, no authority
+ * (`com.example.app:/callback`, not `myapp://callback`).
  */
-export function isSafeRedirectUri(uri: string): boolean {
+function isReverseDomainPrivateUseRedirectUri(uri: URL): boolean {
+  const schemeSpecificPart = uri.href.slice(uri.protocol.length);
+  return (
+    uri.protocol !== "http:" &&
+    uri.protocol !== "https:" &&
+    uri.host.length === 0 &&
+    schemeSpecificPart.startsWith("/") &&
+    !schemeSpecificPart.startsWith("//") &&
+    REVERSE_DOMAIN_PRIVATE_USE_SCHEME.test(uri.protocol.slice(0, -1))
+  );
+}
+
+/**
+ * Web clients are HTTPS-only. Anything else (loopback HTTP or a private-use
+ * scheme) must register as native — Better Auth defaults omitted type to web.
+ */
+export function inferOAuthApplicationType(
+  uris: string[],
+): OAuthApplicationType {
+  for (const uri of uris) {
+    try {
+      if (new URL(uri).protocol !== "https:") {
+        return "native";
+      }
+    } catch {
+      return "native";
+    }
+  }
+  return "web";
+}
+
+/**
+ * Mirrors Better Auth `validateClientRedirectUri` (oauth-provider register.ts).
+ * SafeUrlSchema is only the first gate; create-client then applies web vs native.
+ */
+export function isSafeRedirectUri(
+  uri: string,
+  applicationType: OAuthApplicationType = inferOAuthApplicationType([uri]),
+): boolean {
   let url: URL;
   try {
     url = new URL(uri);
@@ -83,17 +136,38 @@ export function isSafeRedirectUri(uri: string): boolean {
     return false;
   }
 
-  // RFC 6749 §3.1.2 — no fragment component.
-  if (uri.includes("#") || url.hash.length > 0) {
+  if (
+    uri.includes("#") ||
+    url.hash.length > 0 ||
+    url.username.length > 0 ||
+    url.password.length > 0
+  ) {
     return false;
   }
 
-  if (url.protocol === "http:" && !isLoopbackHost(url.host)) {
+  if (/^localhost\.+$/i.test(url.hostname)) {
     return false;
   }
 
-  // https:, loopback http:, and custom schemes (e.g. myapp:) are allowed.
-  return true;
+  const isHttp = url.protocol === "http:";
+  const isHttps = url.protocol === "https:";
+  const isRedirectLoopback = isWebRedirectLoopback(url.hostname);
+
+  if (applicationType === "web") {
+    return isHttps && !isRedirectLoopback;
+  }
+
+  if (isHttps) {
+    return !isRedirectLoopback;
+  }
+  if (isHttp) {
+    return isAllowedNativeHttpLoopback(uri);
+  }
+
+  return (
+    !FORBIDDEN_NATIVE_REDIRECT_SCHEMES.has(url.protocol) &&
+    isReverseDomainPrivateUseRedirectUri(url)
+  );
 }
 
 function parseRedirectUris(value: string): string[] {
@@ -108,7 +182,8 @@ function areRedirectUrisValid(value: string): boolean {
   if (uris.length === 0) {
     return false;
   }
-  return uris.every((uri) => isSafeRedirectUri(uri));
+  const applicationType = inferOAuthApplicationType(uris);
+  return uris.every((uri) => isSafeRedirectUri(uri, applicationType));
 }
 
 export function createOAuthClientSchema(t: TranslationFunction) {
@@ -126,11 +201,37 @@ export function createOAuthClientSchema(t: TranslationFunction) {
       }),
     includeCoreApi: z.boolean(),
     includeOfflineAccess: z.boolean(),
+    isPublic: z.boolean(),
   });
 }
 
+/**
+ * True for public PKCE clients (no secret). Better Auth 1.7 derives this from
+ * `token_endpoint_auth_method === "none"`; the legacy `public` flag is kept
+ * as a fallback for rows shaped by older clients.
+ */
+export function isPublicOAuthClient(
+  client:
+    | {
+        token_endpoint_auth_method?: string | null;
+        public?: boolean | null;
+      }
+    | null
+    | undefined,
+): boolean {
+  if (!client) {
+    return false;
+  }
+  if (client.token_endpoint_auth_method === "none") {
+    return true;
+  }
+  return client.public === true;
+}
+
 export function editOAuthClientSchema(t: TranslationFunction) {
-  return createOAuthClientSchema(t);
+  // Client auth method cannot change after creation, so edit keeps the
+  // create shape minus the immutable client-type flag.
+  return createOAuthClientSchema(t).omit({ isPublic: true });
 }
 
 export { parseRedirectUris };

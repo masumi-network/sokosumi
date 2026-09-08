@@ -21,6 +21,7 @@ sokosumi/
 ├── apps/
 │   ├── web/                   # Next.js web app — live tree `src/`
 │   ├── core/                  # Hono API — live tree `src/`
+│   ├── apple/                 # Native macOS + iOS — Xcode (outside turbo and Biome)
 │   └── cli/                   # Developer CLI — VISION.md only until specced
 ├── packages/
 │   ├── database/              # @sokosumi/database — `src/` + `prisma/`; exports in package.json
@@ -91,7 +92,7 @@ sokosumi/
 
 #### Biome Configuration
 
-The monorepo uses a shared Biome configuration at the repo root (`biome.jsonc`). Each app and package that Biome should cover also has a `biome.json` with `"extends": "//"` so nested projects inherit that root config (see [Biome: big projects / monorepos](https://biomejs.dev/guides/big-projects/)).
+The monorepo uses a shared Biome configuration at the repo root (`biome.jsonc`). Each app and package that Biome should cover also has a `biome.json` with `"extends": "//"` so nested projects inherit that root config (see [Biome: big projects / monorepos](https://biomejs.dev/guides/big-projects/)). `apps/apple` is excluded there (`!apps/apple/**`); do not add a nested Biome config for Swift.
 
 `@biomejs/biome` is a **root-only** `devDependency`. Root-level and workspace scripts all invoke `biome …` the same way; `pnpm run` puts `node_modules/.bin` on `PATH`, so the hoisted `@biomejs/biome` binary is used for full-repo commands (`pnpm check`, `pnpm lint`, `pnpm format`, …) and for per-package scripts without duplicating the dependency in each workspace package.
 
@@ -310,11 +311,15 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 
 ## Agent skills
 
-First-party skills are authored in `skills/<name>/`. `.agents/skills/<name>` is a symlink to that tree (`.claude/skills` already symlinks to `.agents`). Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](apps/web/AGENTS.md) and the Jakub skills under [`.agents/skills/better-ui/`](.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
+First-party skills are authored in `skills/<name>/`. `.agents/skills/<name>` is a symlink to that tree (`.claude/skills` already symlinks to `.agents`). Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](apps/web/AGENTS.md) and the Jakub skills under [`.agents/skills/better-ui/`](.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
 
 ### Evlog (Core only)
 
 Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](./apps/core/AGENTS.md) (the `<!-- evlog:start -->` block plus Sokosumi constraints). Skills are under `apps/core/.agents/skills/` (`review-logging-patterns`, `build-audit-logs`, `analyze-logs`). Do not add `evlog/next` to Web. Do not run `evlog agents` at the repo root.
+
+### Apple (apps/apple only)
+
+Native SwiftUI work uses `swiftui-expert-skill` (from `avdlee/swiftui-agent-skill`), installed app-scoped under `apps/apple/.agents/skills/` — never the repo root. Load it when writing, reviewing, or refactoring SwiftUI for macOS/iOS. Install or update with `apps/apple` as cwd: `npx skills add https://github.com/avdlee/swiftui-agent-skill -s swiftui-expert-skill -y`. The repo's second skill, `update-swiftui-apis`, is intentionally not installed (skill maintenance; requires Sosumi MCP).
 
 ### Ask Matt
 

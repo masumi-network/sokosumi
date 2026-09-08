@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { listPendingChatRoomInvitationsAction } from "@/app/chat/actions";
 import type {
@@ -19,7 +19,8 @@ import {
 } from "./organization-chat-list.actions";
 import {
   applyRoomReadOverlays,
-  forgetRoomRead,
+  beginRoomAttentionRefresh,
+  reconcileRoomAttention,
   rememberRoomRead,
 } from "./room-read-overlay";
 
@@ -88,6 +89,7 @@ export function useOrganizationChatRooms({
   paintOnly,
 }: UseOrganizationChatRoomsOptions) {
   const hasOrganization = Boolean(organizationId);
+  const latestAppliedRefreshRef = useRef(0);
   const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
   const [pendingRows, setPendingRows] = useState(pendingInvitations);
@@ -118,6 +120,7 @@ export function useOrganizationChatRooms({
    * appearing twice.
    */
   const upsertRoomToTop = useCallback((room: ChatRoom) => {
+    latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
     setRoomRows((current) => {
       const without = current.filter((row) => row.id !== room.id);
       return applyRoomReadOverlays([room, ...without]);
@@ -128,12 +131,12 @@ export function useOrganizationChatRooms({
   /**
    * Swap one room in the live list for a newer copy of itself.
    *
-   * A room the reader just marked unread drops its read overlay first, so the
-   * overlay cannot immediately paint the room read again.
+   * Mark unread retains the new attention for a later remount with stale
+   * props. The action caller owns its pending operation and rollback.
    */
   const replaceRoom = useCallback((updated: ChatRoom) => {
     if (updated.markedUnread) {
-      forgetRoomRead(updated.id);
+      rememberRoomRead(updated);
     }
     setRoomRows((current) =>
       applyRoomReadOverlays(
@@ -143,9 +146,14 @@ export function useOrganizationChatRooms({
   }, []);
 
   /** Replace the whole live list with a freshly fetched one. */
-  const replaceAllRooms = useCallback((rooms: ChatRoom[]) => {
-    setRoomRows(applyRoomReadOverlays(rooms));
-  }, []);
+  const replaceAllRooms = useCallback(
+    (rooms: ChatRoom[], requestRevision: number) => {
+      if (requestRevision < latestAppliedRefreshRef.current) return;
+      latestAppliedRefreshRef.current = requestRevision;
+      setRoomRows(reconcileRoomAttention(rooms, requestRevision));
+    },
+    [],
+  );
 
   /**
    * Write the collections one refresh returned, skipping the calls that failed.
@@ -154,9 +162,16 @@ export function useOrganizationChatRooms({
    * were, or a reader watches a section they can still see go empty.
    */
   const applySidebarRoomData = useCallback(
-    ([activeResult, archivedResult, pendingResult]: SidebarRoomData) => {
+    (
+      [activeResult, archivedResult, pendingResult]: SidebarRoomData,
+      requestRevision: number,
+    ) => {
+      if (requestRevision < latestAppliedRefreshRef.current) return;
+      if (activeResult.ok || archivedResult.ok || pendingResult.ok) {
+        latestAppliedRefreshRef.current = requestRevision;
+      }
       if (activeResult.ok) {
-        replaceAllRooms(activeResult.value.rooms);
+        replaceAllRooms(activeResult.value.rooms, requestRevision);
       }
       if (archivedResult.ok) {
         setArchivedRows(archivedResult.value.rooms);
@@ -176,15 +191,16 @@ export function useOrganizationChatRooms({
     let cancelled = false;
 
     const refreshRooms = async () => {
+      const requestRevision = beginRoomAttentionRefresh();
       const data = await fetchSidebarRoomData(hasOrganization);
-      if (cancelled) {
+      if (cancelled || requestRevision < latestAppliedRefreshRef.current) {
         return;
       }
-      applySidebarRoomData(data);
+      applySidebarRoomData(data, requestRevision);
     };
 
     // Mobile sheet remounts the list with stale RSC props; refresh immediately
-    // so overlays can drop once Core confirms the mark-read.
+    // so Core can replace attention from earlier visits and other tabs.
     void refreshRooms();
 
     const intervalId = window.setInterval(
@@ -220,16 +236,17 @@ export function useOrganizationChatRooms({
 
       setRoomRows((current) =>
         applyRoomReadOverlays(
-          current.map((room) =>
-            room.id === detail.roomId
-              ? (detail.room ?? {
-                  ...room,
-                  unreadCount: 0,
-                  unreadMentionCount: 0,
-                  markedUnread: false,
-                })
-              : room,
-          ),
+          current.map((room) => {
+            if (room.id !== detail.roomId) return room;
+            const updated = detail.room ?? {
+              ...room,
+              unreadCount: 0,
+              unreadMentionCount: 0,
+              markedUnread: false,
+            };
+            if (!detail.room) rememberRoomRead(updated);
+            return updated;
+          }),
         ),
       );
     };
@@ -269,11 +286,12 @@ export function useOrganizationChatRooms({
         return;
       }
 
+      const requestRevision = beginRoomAttentionRefresh();
       void fetchSidebarRoomData(hasOrganization).then((data) => {
-        if (cancelled) {
+        if (cancelled || requestRevision < latestAppliedRefreshRef.current) {
           return;
         }
-        applySidebarRoomData(data);
+        applySidebarRoomData(data, requestRevision);
       });
     };
 

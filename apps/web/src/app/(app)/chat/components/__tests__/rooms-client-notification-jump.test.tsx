@@ -160,7 +160,13 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
   })),
 }));
 
-vi.mock("@/components/chat/room-read-overlay", () => ({
+// Only the two writes are stubbed. `useRoomReadAttention` reads the rest of
+// this module on every room update, and the overlay maths it does there is
+// not what any test in this file is about.
+vi.mock("@/components/chat/room-read-overlay", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/components/chat/room-read-overlay")
+  >()),
   rememberRoomRead: vi.fn(),
   forgetRoomRead: vi.fn(),
 }));

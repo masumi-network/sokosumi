@@ -604,33 +604,6 @@ export async function cancelParkedTasksForGrant(
   return canceledCount;
 }
 
-export function isBaselineCoworkerTaskAccess(params: {
-  actorCoworkerId: string;
-  actorVendorId: string;
-  task: {
-    assigneeId: string | null;
-    status: string;
-    assignee?: { vendorId: string } | null;
-  };
-}): boolean {
-  if (params.task.status === TaskStatus.DRAFT) {
-    return false;
-  }
-
-  if (params.task.assigneeId === params.actorCoworkerId) {
-    return true;
-  }
-
-  if (
-    params.task.assigneeId &&
-    params.task.assignee?.vendorId === params.actorVendorId
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
 export function buildCoworkerTaskListAccessFilter(params: {
   coworkerId: string;
   vendorId: string;

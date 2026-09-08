@@ -16,10 +16,10 @@ import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
   getChatRoomPinnedMessageCounts,
-  getChatRoomUnreadCounts,
   mapChatRoom,
   requireChatRoomUserAccess,
 } from "../../helpers";
+import { getChatRoomUnreadCounts } from "../../room-unread";
 
 const paramsSchema = z.object({
   id: z

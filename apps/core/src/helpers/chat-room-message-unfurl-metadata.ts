@@ -2,28 +2,6 @@ import type { ChatRoomMessageUnfurl } from "@/schemas/chat-room.schema";
 
 export const REMOVED_UNFURL_URLS_METADATA_KEY = "removedUnfurlUrls";
 
-/**
- * Replace `metadata.unfurls` from the latest scrape while preserving
- * quote / membership / other keys. Empty scrape removes the unfurls key.
- */
-export function mergeUnfurlsIntoMessageMetadata(
-  existing: unknown,
-  unfurls: readonly ChatRoomMessageUnfurl[],
-): Record<string, unknown> | null {
-  const base =
-    existing && typeof existing === "object" && !Array.isArray(existing)
-      ? { ...(existing as Record<string, unknown>) }
-      : {};
-
-  if (unfurls.length === 0) {
-    delete base.unfurls;
-  } else {
-    base.unfurls = [...unfurls];
-  }
-
-  return Object.keys(base).length > 0 ? base : null;
-}
-
 export function readRemovedUnfurlUrlsFromMetadata(
   metadata: Record<string, unknown> | null,
 ): string[] {

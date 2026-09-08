@@ -19,8 +19,10 @@ import {
 } from "@/components/chat/membership-visible-rooms-store";
 import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
 import {
+  beginRoomAttentionChange,
   clearRoomReadOverlays,
   rememberRoomRead,
+  settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
 
 import { useChatTabUnreadPresence } from "./use-chat-tab-unread-presence";
@@ -186,6 +188,135 @@ describe("useChatTabUnreadPresence", () => {
       );
     });
 
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
+  });
+});
+
+describe("authoritative tab attention", () => {
+  beforeEach(() => {
+    mockPathname = "/chat";
+    clearRoomReadOverlays();
+    clearMembershipVisibleRoomsSnapshot();
+    listRoomsMock.mockReset();
+  });
+
+  it("applies successful polls that take longer than the polling interval", async () => {
+    vi.useFakeTimers();
+    const responseDelayMs = 16_000;
+    listRoomsMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(
+            () =>
+              resolve({
+                ok: true,
+                value: {
+                  rooms: [room({ id: "slow-room", unreadCount: 4 })],
+                  nextCursor: null,
+                },
+              }),
+            responseDelayMs,
+          );
+        }),
+    );
+    const { unmount } = render(<Harness />);
+    try {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+      expect(listRoomsMock).toHaveBeenCalledTimes(5);
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      );
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows remote Mark unread at the same timestamp despite a local read snapshot", async () => {
+    const readRoom = room({ id: "a" });
+    rememberRoomRead(readRoom);
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [{ ...readRoom, markedUnread: true }], nextCursor: null },
+    });
+    render(<Harness />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      ),
+    );
+  });
+
+  it("clears the dot after remote Thread Look without changing room activity", async () => {
+    const unread = room({ id: "a", unreadCount: 2 });
+    rememberRoomRead(unread);
+    publishMembershipVisibleRooms([unread], "org-1", "user-1");
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [{ ...unread, unreadCount: 0 }], nextCursor: null },
+    });
+    render(<Harness />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no"),
+    );
+  });
+
+  it("does not let an earlier refresh clear a newer unread dot", async () => {
+    const older =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof listOrganizationChatRoomsAction>>
+      >();
+    const newer =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof listOrganizationChatRoomsAction>>
+      >();
+    listRoomsMock
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
+    render(<Harness />);
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await act(async () =>
+      newer.resolve({
+        ok: true,
+        value: { rooms: [room({ id: "a", unreadCount: 1 })], nextCursor: null },
+      }),
+    );
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+    await act(async () =>
+      older.resolve({
+        ok: true,
+        value: { rooms: [room({ id: "a" })], nextCursor: null },
+      }),
+    );
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
+  });
+
+  it("protects a local read completed during a tab refresh", async () => {
+    const response =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof listOrganizationChatRoomsAction>>
+      >();
+    listRoomsMock.mockReturnValue(response.promise);
+    render(<Harness />);
+    const readRoom = room({ id: "a" });
+    const token = beginRoomAttentionChange(readRoom);
+    settleRoomAttentionChange(readRoom.id, token, readRoom);
+
+    await act(async () =>
+      response.resolve({
+        ok: true,
+        value: { rooms: [{ ...readRoom, unreadCount: 1 }], nextCursor: null },
+      }),
+    );
     expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "no");
   });
 });

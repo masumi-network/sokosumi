@@ -2,12 +2,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   answerShowsNotificationsQuery,
+  getNotificationServiceWorkerUrl,
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
   NOTIFICATION_SERVICE_WORKER_URL,
   SHOWS_NOTIFICATIONS_QUERY,
   subscribeNotificationClicks,
 } from "@/lib/utils/notification-service-worker";
+
+const envMock = vi.hoisted(() => ({
+  NEXT_PUBLIC_VERCEL_ENV: undefined as
+    | "production"
+    | "preview"
+    | "development"
+    | undefined,
+  NEXT_PUBLIC_VERCEL_BRANCH_URL: undefined as string | undefined,
+  NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL: undefined as string | undefined,
+}));
+
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => envMock,
+}));
 
 const TARGET = {
   id: "notification-1",
@@ -59,6 +74,34 @@ afterEach(() => {
     configurable: true,
     writable: true,
     value: originalNotification,
+  });
+});
+
+beforeEach(() => {
+  envMock.NEXT_PUBLIC_VERCEL_ENV = undefined;
+  envMock.NEXT_PUBLIC_VERCEL_BRANCH_URL = undefined;
+  envMock.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL = undefined;
+});
+
+describe("getNotificationServiceWorkerUrl", () => {
+  it("passes the stable branch URL to a preview worker", () => {
+    envMock.NEXT_PUBLIC_VERCEL_ENV = "preview";
+    envMock.NEXT_PUBLIC_VERCEL_BRANCH_URL =
+      "https://sokosumi-app-mainnet-git-fix.preview.sokosumi.com";
+
+    expect(getNotificationServiceWorkerUrl()).toBe(
+      "/ably-push-sw.js?appUrl=https%3A%2F%2Fsokosumi-app-mainnet-git-fix.preview.sokosumi.com",
+    );
+  });
+
+  it("passes the canonical project URL to a production worker", () => {
+    envMock.NEXT_PUBLIC_VERCEL_ENV = "production";
+    envMock.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL =
+      "https://app.sokosumi.com";
+
+    expect(getNotificationServiceWorkerUrl()).toBe(
+      "/ably-push-sw.js?appUrl=https%3A%2F%2Fapp.sokosumi.com",
+    );
   });
 });
 

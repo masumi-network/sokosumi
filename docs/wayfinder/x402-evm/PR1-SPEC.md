@@ -3,7 +3,7 @@
 > **Status:** approved (ticket 007) and **upgraded by the ticket-011 answers**
 > — all seven node questions resolved from upstream `main` source
 > ([NODE-QUESTIONS.md](NODE-QUESTIONS.md) `## Answers`); nothing external
-> gates the build, and the deployed nodes already run the x402 surface. Every decision here traces to a closed ticket — links inline.
+> gates the build, and the deployed nodes already run the x402 surface.
 > Substrate: [ADR 0001](../../adr/0001-x402-evm-payment-rail.md).
 >
 > **Amended 2026-08-28 for masumi ADR 0016.** The payment node removed

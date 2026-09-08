@@ -9,7 +9,7 @@ import {
 import {
   buildRoomMentionPrompt,
   type RoomContextMessage,
-} from "@/services/chat-room-coworker-dispatch.service";
+} from "@/services/chat-room-mention-context";
 
 /** Metadata key for a thread-scoped remote conversation (not room.providerConversationId). */
 export const THREAD_PROVIDER_CONVERSATION_ID_KEY =

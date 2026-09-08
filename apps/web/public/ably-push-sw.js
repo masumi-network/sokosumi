@@ -455,6 +455,24 @@ self.addEventListener("push", (event) => {
 /** Mirrors NOTIFICATION_CLICK_MESSAGE in the app. */
 const CLICK_MESSAGE_TYPE = "sokosumi:notification-click";
 
+function readConfiguredAppOrigin() {
+  try {
+    const configuredUrl = new URL(self.location.href).searchParams.get(
+      "appUrl",
+    );
+    if (!configuredUrl) {
+      return null;
+    }
+
+    const url = new URL(configuredUrl);
+    return url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+const CONFIGURED_APP_ORIGIN = readConfiguredAppOrigin();
+
 /**
  * The first open tab that can act on a click. A tab showing a share link or
  * the sign-in page cannot, and focusing one of those would drop the click in
@@ -506,7 +524,7 @@ async function focusRoutingClient(client) {
  */
 async function openAppWindow() {
   try {
-    await self.clients.openWindow("/");
+    await self.clients.openWindow(CONFIGURED_APP_ORIGIN || "/");
   } catch (error) {
     console.error("Could not open a window for a notification click", error);
   }
@@ -525,6 +543,14 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     (async () => {
+      if (
+        CONFIGURED_APP_ORIGIN &&
+        CONFIGURED_APP_ORIGIN !== self.location.origin
+      ) {
+        await openAppWindow();
+        return;
+      }
+
       // A failed look at the open tabs reads as no tabs, not as a failed
       // click. Left to reject it would carry off the whole handler, and the
       // banner is closed by here: the reader would get no window and no word

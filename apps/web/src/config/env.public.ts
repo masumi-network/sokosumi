@@ -1,6 +1,14 @@
 /* eslint-disable no-restricted-properties */
 import * as z from "zod";
 
+const optionalVercelUrlSchema = z
+  .string()
+  .transform((value) =>
+    value.startsWith("https://") ? value : `https://${value}`,
+  )
+  .pipe(z.url())
+  .optional();
+
 const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID: z.string().optional(),
   NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: z.string().optional(),
@@ -28,6 +36,8 @@ const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_VERCEL_ENV: z
     .enum(["production", "preview", "development"])
     .optional(),
+  NEXT_PUBLIC_VERCEL_BRANCH_URL: optionalVercelUrlSchema,
+  NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL: optionalVercelUrlSchema,
   NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: z.string().optional(),
   NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD: z.coerce
     .number()
@@ -58,6 +68,9 @@ function validateEnv() {
     NEXT_PUBLIC_CORE_APP_BASE_URL: process.env.NEXT_PUBLIC_CORE_APP_BASE_URL,
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
     NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV,
+    NEXT_PUBLIC_VERCEL_BRANCH_URL: process.env.NEXT_PUBLIC_VERCEL_BRANCH_URL,
+    NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL:
+      process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL,
     NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF:
       process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF,
     NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD:

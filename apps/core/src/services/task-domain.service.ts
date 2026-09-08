@@ -11,6 +11,7 @@ import {
   hasAssigneeValue,
   isAgentOnlyTaskStatus,
   isTaskEditableStatus,
+  type TaskScheduleMetadata,
 } from "@sokosumi/utils";
 
 import {
@@ -51,8 +52,16 @@ export interface CreateTaskDomainInput {
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
-  status: typeof TaskStatus.DRAFT | typeof TaskStatus.READY;
+  assigneeAuthorization?: TaskAssigner;
+  status:
+    | typeof TaskStatus.DRAFT
+    | typeof TaskStatus.QUEUED
+    | typeof TaskStatus.READY;
   channel?: Channel;
+  schedule?: {
+    metadata: TaskScheduleMetadata;
+    nextRunAt: Date;
+  };
 }
 
 export interface UpdateTaskDomainInput {
@@ -144,6 +153,7 @@ async function requireTaskReferences(
     assigneeUserId?: string | null;
     workspaceId: string;
     actor: TaskDomainActor;
+    assigneeAuthorization?: TaskAssigner;
   },
   tx: Prisma.TransactionClient,
 ): Promise<void> {
@@ -153,7 +163,7 @@ async function requireTaskReferences(
       input.assigneeId,
       input.workspaceId,
       tx,
-      taskAssigner(input.actor),
+      input.assigneeAuthorization ?? taskAssigner(input.actor),
     );
   }
   if (
@@ -305,8 +315,8 @@ export async function createTaskForActor(
       status,
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
-      metadata: null,
-      nextRunAt: null,
+      metadata: input.schedule ? JSON.stringify(input.schedule.metadata) : null,
+      nextRunAt: input.schedule?.nextRunAt ?? null,
       events: {
         create: {
           status,

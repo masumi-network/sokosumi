@@ -5,6 +5,7 @@ export {
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  type NotificationChannelEnvironment,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel.js";
@@ -29,6 +30,7 @@ export type {
   SessionRecord,
   SessionUser,
 } from "./better-auth-types.js";
+export { CALENDAR_BETA_ORGANIZATION_SLUG } from "./calendar-beta.js";
 export {
   CALENDAR_CLIENT_VERSION,
   CALENDAR_CLIENT_VERSION_HEADER,

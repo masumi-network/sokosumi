@@ -5,8 +5,8 @@ import {
   TaskScheduleOccurrenceState,
   TaskStatus,
 } from "@sokosumi/database";
-import { isNmkrEmail } from "@sokosumi/utils";
 import { requireCoworkerCapability } from "@/helpers/access-control";
+import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
@@ -59,6 +59,7 @@ const route = createRoute({
           {
             id: "v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
             taskId: "tsk_123",
+            canEditSchedule: true,
             taskName: "Prepare release notes",
             taskStatus: "QUEUED",
             taskAssigneeId: null,
@@ -99,6 +100,7 @@ interface CalendarCursor {
 
 export interface WorkspaceCalendarReadQuery {
   assigneeId?: string;
+  assigneeUserId?: string;
   from: Date;
   to: Date;
   cursor: CalendarCursor | null;
@@ -110,6 +112,7 @@ export interface WorkspaceCalendarReadQuery {
 
 export interface WorkspaceCalendarReadOptions {
   projectId?: string;
+  sourceId?: string;
   taskWhere?: Prisma.TaskWhereInput;
 }
 
@@ -204,6 +207,7 @@ export function parseWorkspaceCalendarQuery(
   const { from, to } = validateRange(query.from, query.to);
   return {
     assigneeId: query.assigneeId,
+    assigneeUserId: query.assigneeUserId,
     from,
     to,
     cursor: query.cursor ? decodeCursor(query.cursor) : null,
@@ -220,22 +224,52 @@ function isPersistedOccurrenceCursor(
   return cursor !== null && z.uuid().safeParse(cursor.id).success;
 }
 
+function getNonProjectSourceFilter(
+  workspaceId: string,
+  sourceId: string | undefined,
+): Prisma.TaskScheduleOccurrenceWhereInput {
+  if (!sourceId) {
+    return {};
+  }
+
+  if (sourceId === `workspace:${workspaceId}`) {
+    return { sourceType: CalendarSourceType.WORKSPACE };
+  }
+
+  if (sourceId === `legacy-unknown:${workspaceId}`) {
+    return { sourceType: CalendarSourceType.LEGACY_UNKNOWN };
+  }
+
+  throw notFound("Calendar source not found");
+}
+
 export async function readWorkspaceCalendar(
   workspaceId: string,
   userId: string,
   query: WorkspaceCalendarReadQuery,
   options: WorkspaceCalendarReadOptions = {},
 ) {
+  if (options.projectId && options.sourceId) {
+    throw badRequest("projectId and sourceId cannot be combined");
+  }
+
   const { cursor, from, to } = query;
   const maxCandidates = query.limit + 1;
+  const sourceFilter = getNonProjectSourceFilter(workspaceId, options.sourceId);
   const taskFilters: Prisma.TaskWhereInput[] = [
     { archivedAt: null },
     ...(options.taskWhere ? [options.taskWhere] : []),
-    ...(query.scope === "owned" || query.assigneeId || query.status
+    ...(query.scope === "owned" ||
+    query.assigneeId ||
+    query.assigneeUserId ||
+    query.status
       ? [
           {
             ...(query.scope === "owned" ? { ownerId: userId } : {}),
             ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
+            ...(query.assigneeUserId
+              ? { assigneeUserId: query.assigneeUserId }
+              : {}),
             ...(query.status ? { status: query.status } : {}),
           },
         ]
@@ -276,6 +310,7 @@ export async function readWorkspaceCalendar(
     : null;
   const persistedOccurrenceBaseWhere = {
     sourceWorkspaceId: workspaceId,
+    ...sourceFilter,
     ...(options.projectId
       ? {
           sourceProjectId: options.projectId,
@@ -320,16 +355,20 @@ export async function readWorkspaceCalendar(
           select: {
             id: true,
             name: true,
+            ownerId: true,
             status: true,
             assigneeId: true,
+            assigneeUserId: true,
           },
         },
         releasedTask: {
           select: {
             id: true,
             name: true,
+            ownerId: true,
             status: true,
             assigneeId: true,
+            assigneeUserId: true,
           },
         },
       },
@@ -351,9 +390,13 @@ export async function readWorkspaceCalendar(
       return workspaceCalendarItemSchema.parse({
         id: occurrence.id,
         taskId: task.id,
+        canEditSchedule:
+          occurrence.state !== TaskScheduleOccurrenceState.RELEASED &&
+          task.ownerId === userId,
         taskName: task.name,
         taskStatus: task.status,
         taskAssigneeId: task.assigneeId,
+        taskAssigneeUserId: task.assigneeUserId,
         scheduledAt: occurrence.effectiveScheduledAt.toISOString(),
         originalScheduledAt:
           occurrence.originalScheduledAt?.toISOString() ?? null,
@@ -388,13 +431,7 @@ export async function readWorkspaceCalendar(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
-    const user = await prisma.user.findUnique({
-      where: { id: userContext.userId },
-      select: { email: true },
-    });
-    if (!isNmkrEmail(user?.email)) {
-      throw forbidden("Calendar is only available to NMKR users");
-    }
+    await requireCalendarBetaAccess(userContext.userId, prisma);
     const { id: workspaceId } = c.req.valid("param");
     if (userContext.source === "context") {
       const activeWorkspace = requireWorkspaceContext(c.var.workspaceContext);
@@ -425,6 +462,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("You do not have access to this workspace");
     }
 
+    const project = query.projectId
+      ? await prisma.project.findFirst({
+          where: { id: query.projectId, workspaceId },
+          select: { id: true },
+        })
+      : null;
+    if (query.projectId && !project) {
+      throw notFound("Project not found");
+    }
+
     const taskWhere = await getCalendarTaskWhere(
       c.var.authContext,
       workspaceId,
@@ -433,7 +480,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceId,
       userContext.userId,
       calendarQuery,
-      { taskWhere },
+      { projectId: project?.id, sourceId: query.sourceId, taskWhere },
     );
 
     return ok(c, items, pagination);

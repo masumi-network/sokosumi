@@ -85,6 +85,17 @@ describe("taskScheduleValidationService", () => {
       shouldContinue: () => true,
     });
 
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          owner: {
+            members: {
+              some: { organization: { slug: "utxo" } },
+            },
+          },
+        }),
+      }),
+    );
     expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({

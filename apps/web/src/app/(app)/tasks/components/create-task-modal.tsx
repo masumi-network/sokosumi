@@ -15,9 +15,14 @@ import { toast } from "sonner";
 import { loadCreateTaskModalData } from "@/app/tasks/actions";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
-import { TaskForm, type TaskFormInitialDesignMdAttachment } from "./task-form";
+import {
+  TaskForm,
+  type TaskFormCreateHandler,
+  type TaskFormInitialDesignMdAttachment,
+} from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 
 // --- Context ---
@@ -27,11 +32,16 @@ interface CreateTaskModalContextType {
   assigneeOverrideId: string | null;
   projectOverrideId: string | null;
   promptOverride: string | null;
+  scheduleOverride: TaskScheduleSelection | null;
   formInstanceKey: number;
   handleOpen: () => void;
   /** Open the modal with an assignee preselected (and optionally a prefilled
    *  prompt), so the picker step is skipped. */
   handleOpenWith: (assigneeId: string, prompt?: string) => void;
+  handleOpenWithDefaults: (defaults: {
+    projectId?: string | null;
+    schedule?: TaskScheduleSelection;
+  }) => void;
   handleClose: () => void;
   clearPromptOverride: () => void;
 }
@@ -41,9 +51,11 @@ const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
   assigneeOverrideId: null,
   projectOverrideId: null,
   promptOverride: null,
+  scheduleOverride: null,
   formInstanceKey: 0,
   handleOpen: () => {},
   handleOpenWith: () => {},
+  handleOpenWithDefaults: () => {},
   handleClose: () => {},
   clearPromptOverride: () => {},
 });
@@ -83,12 +95,15 @@ export function CreateTaskModalProvider({
   const [promptOverride, setPromptOverride] = useState<string | null>(() =>
     initialOpen && initialPrompt ? initialPrompt : null,
   );
+  const [scheduleOverride, setScheduleOverride] =
+    useState<TaskScheduleSelection | null>(null);
   const [formInstanceKey, setFormInstanceKey] = useState(0);
 
   const handleOpen = useCallback(() => {
     setAssigneeOverrideId(null);
     setProjectOverrideId(initialProjectId || null);
     setPromptOverride(null);
+    setScheduleOverride(null);
     setFormInstanceKey((key) => key + 1);
     setOpen(true);
   }, [initialProjectId]);
@@ -98,6 +113,27 @@ export function CreateTaskModalProvider({
       setAssigneeOverrideId(assigneeId || null);
       setProjectOverrideId(initialProjectId || null);
       setPromptOverride(prompt ?? null);
+      setScheduleOverride(null);
+      setFormInstanceKey((key) => key + 1);
+      setOpen(true);
+    },
+    [initialProjectId],
+  );
+
+  const handleOpenWithDefaults = useCallback(
+    ({
+      projectId,
+      schedule,
+    }: {
+      projectId?: string | null;
+      schedule?: TaskScheduleSelection;
+    }) => {
+      setAssigneeOverrideId(null);
+      setProjectOverrideId(
+        projectId === undefined ? initialProjectId || null : projectId,
+      );
+      setPromptOverride(null);
+      setScheduleOverride(schedule ?? null);
       setFormInstanceKey((key) => key + 1);
       setOpen(true);
     },
@@ -119,9 +155,11 @@ export function CreateTaskModalProvider({
         assigneeOverrideId,
         projectOverrideId,
         promptOverride,
+        scheduleOverride,
         formInstanceKey,
         handleOpen,
         handleOpenWith,
+        handleOpenWithDefaults,
         handleClose,
         clearPromptOverride,
       }}
@@ -137,19 +175,23 @@ interface CreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
   /** Omit to hide the project picker (e.g. when opened from the agents page). */
   projectOptions?: ProjectFilterOption[];
+  lockProjectSelection?: boolean;
   defaultProjectId?: string | null;
   agentNameById?: Map<string, string>;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   initialCreateTaskOpen?: boolean;
+  onCreateTask?: TaskFormCreateHandler;
 }
 
 export function CreateTaskModal({
   coworkerOptions,
   projectOptions,
+  lockProjectSelection = false,
   defaultProjectId = null,
   agentNameById: initialAgentNameById,
   initialDesignMdAttachment: initialDesignMdAttachmentProp = null,
   initialCreateTaskOpen = false,
+  onCreateTask,
 }: CreateTaskModalProps) {
   const {
     open,
@@ -157,6 +199,7 @@ export function CreateTaskModal({
     assigneeOverrideId,
     projectOverrideId,
     promptOverride,
+    scheduleOverride,
     formInstanceKey,
     clearPromptOverride,
   } = useCreateTaskModal();
@@ -325,13 +368,16 @@ export function CreateTaskModal({
         }}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
+        lockProjectSelection={lockProjectSelection}
         agentNameById={agentNameById}
         initialDesignMdAttachment={initialDesignMdAttachment}
         initialValues={{
           ...(assigneeOverrideId ? { assigneeId: assigneeOverrideId } : {}),
           ...(promptOverride ? { description: promptOverride } : {}),
           projectId: selectedProjectId,
+          ...(scheduleOverride ? { schedule: scheduleOverride } : {}),
         }}
+        onCreateTask={onCreateTask}
         onCancel={handleDismiss}
         onSubmittingChange={setIsDismissDisabled}
         onCreatedChange={setIsCreated}

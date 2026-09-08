@@ -321,7 +321,7 @@ A user of a Thread who authored the parent, has a remaining reply in that Thread
 _Avoid_: Follower, subscriber, treating Look (opened it) as participation
 
 **Room unread**:
-The count of unseen messages that page the user in this room: non-self top-level messages after Room last-read, plus non-self replies in Threads where the user is a Participant (including coworker replies). Replies from before the user joined the room do not count. Drives sidebar **bold**. Not the mention badge.
+The count of unseen messages that page the user in this room: non-self top-level messages after Room last-read, plus non-self replies in Threads where the user is a Participant (including coworker replies). Replies from before the user joined the room do not count. Drives sidebar **bold**, and an optional numeric affordance a reader opts in to (`showRoomUnreadCount`, off by default, [ADR-0027](docs/adr/0027-room-unread-count-is-a-reader-opt-in.md)). Not the mention badge.
 _Avoid_: Attention, attentionReplyCount, counting lurker thread replies, a separate Threads badge, using the mention badge as the message unread count
 
 **Unread thread**:

@@ -108,9 +108,5 @@ export async function handleCustomerCreatedEvent(
       });
       break;
     }
-    default: {
-      console.log(`Unknown customer type ${metadata?.customerType}`);
-      break;
-    }
   }
 }

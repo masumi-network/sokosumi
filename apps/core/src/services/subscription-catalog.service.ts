@@ -156,10 +156,6 @@ async function loadCatalog(): Promise<SubscriptionCatalog> {
   };
 }
 
-export function invalidateSubscriptionCatalogCache(): void {
-  catalogCache = null;
-}
-
 /**
  * Resolves the full self-serve subscription catalog from Stripe, caching the
  * result for the process lifetime (a failed load is not cached and is retried

@@ -81,6 +81,8 @@ vi.mock("@vercel/functions", () => ({
 
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: vi.fn(),
+}));
+vi.mock("@/services/chat-room-mention-state", () => ({
   listStaleSentChatRoomMentionIds: vi.fn().mockResolvedValue([]),
 }));
 

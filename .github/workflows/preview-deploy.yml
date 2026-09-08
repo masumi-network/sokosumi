@@ -5,6 +5,14 @@ on:
     types: [created]
   pull_request:
     types: [opened]
+    # Previews only build web/core and their workspace package dependencies;
+    # docs-only (and similar) PRs never start this workflow. Keep in sync with
+    # PREVIEW_RELEVANT_PREFIXES in scripts/ci/vercel-deploy.mjs (the /deploy
+    # comment flow enforces the same prefixes via the PR files API).
+    paths:
+      - "apps/web/**"
+      - "apps/core/**"
+      - "packages/**"
 
 permissions:
   contents: read

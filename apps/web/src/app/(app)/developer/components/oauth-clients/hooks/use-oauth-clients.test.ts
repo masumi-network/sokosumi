@@ -217,6 +217,136 @@ describe("useOAuthClients", () => {
     });
   });
 
+  it("registers native application_type for private-use redirect URIs", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_native",
+        client_secret: "secret",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "Mac App",
+        redirectUris: ["com.sokosumi.app:/oauth/signin"],
+        includeCoreApi: true,
+        includeOfflineAccess: true,
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      redirect_uris: ["com.sokosumi.app:/oauth/signin"],
+      client_name: "Mac App",
+      scope: "openid sokosumi:api offline_access",
+      grant_types: ["authorization_code", "refresh_token"],
+      application_type: "native",
+    });
+  });
+
+  it("registers native application_type for loopback HTTP redirect URIs", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_loopback",
+        client_secret: "secret",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "Local App",
+        redirectUris: ["http://127.0.0.1:8080/callback"],
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      redirect_uris: ["http://127.0.0.1:8080/callback"],
+      client_name: "Local App",
+      scope: "openid",
+      grant_types: ["authorization_code"],
+      application_type: "native",
+    });
+  });
+
+  it("registers a public PKCE client without a secret", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_public",
+        client_secret: null,
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    let createResult: Awaited<ReturnType<typeof result.current.create>>;
+    await act(async () => {
+      createResult = await result.current.create({
+        name: "Mac App",
+        redirectUris: ["com.sokosumi.app:/oauth/signin"],
+        includeCoreApi: true,
+        includeOfflineAccess: true,
+        isPublic: true,
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      redirect_uris: ["com.sokosumi.app:/oauth/signin"],
+      client_name: "Mac App",
+      scope: "openid sokosumi:api offline_access",
+      grant_types: ["authorization_code", "refresh_token"],
+      application_type: "native",
+      token_endpoint_auth_method: "none",
+    });
+    expect(createResult!.success).toBe(true);
+    expect(createResult!.data?.clientId).toBe("client_public");
+    expect(createResult!.data?.clientSecret).toBeNull();
+  });
+
+  it("omits token_endpoint_auth_method for confidential clients", async () => {
+    createClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_conf",
+        client_secret: "secret",
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "Web App",
+        redirectUris: ["https://example.com/cb"],
+        isPublic: false,
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      redirect_uris: ["https://example.com/cb"],
+      client_name: "Web App",
+      scope: "openid",
+      grant_types: ["authorization_code"],
+    });
+  });
+
   it("updates a client with the Better Auth payload shape", async () => {
     updateClientMock.mockResolvedValue({
       data: {
@@ -250,6 +380,39 @@ describe("useOAuthClients", () => {
       },
     });
     expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("updates native application_type for private-use redirect URIs", async () => {
+    updateClientMock.mockResolvedValue({
+      data: {
+        client_id: "client_1",
+        client_name: "Mac App",
+        redirect_uris: ["com.sokosumi.app:/oauth/signin"],
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "Mac App",
+        redirectUris: ["com.sokosumi.app:/oauth/signin"],
+      });
+    });
+
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "Mac App",
+        redirect_uris: ["com.sokosumi.app:/oauth/signin"],
+        application_type: "native",
+      },
+    });
   });
 
   it("updates a client with Core API scope when includeCoreApi is true", async () => {

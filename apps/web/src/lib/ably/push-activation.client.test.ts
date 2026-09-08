@@ -7,6 +7,17 @@ const deactivateMock = vi.fn();
 const unsubscribeMock = vi.fn();
 const getSubscriptionMock = vi.fn();
 const getNotificationServiceWorkerMock = vi.fn();
+const getChannelMock = vi.fn();
+
+const envMock = {
+  NEXT_PUBLIC_NETWORK: "Mainnet" as const,
+  NEXT_PUBLIC_VERCEL_ENV: "production" as "production" | "preview",
+  NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "main" as string | undefined,
+};
+
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => envMock,
+}));
 
 const calls: string[] = [];
 
@@ -30,18 +41,21 @@ vi.mock("./realtime-singleton.client", () => ({
         },
       },
       channels: {
-        get: () => ({
-          push: {
-            subscribeDevice: () => {
-              calls.push("subscribeDevice");
-              return subscribeDeviceMock();
+        get: (...args: unknown[]) => {
+          getChannelMock(...args);
+          return {
+            push: {
+              subscribeDevice: () => {
+                calls.push("subscribeDevice");
+                return subscribeDeviceMock();
+              },
+              unsubscribeDevice: () => {
+                calls.push("unsubscribeDevice");
+                return unsubscribeDeviceMock();
+              },
             },
-            unsubscribeDevice: () => {
-              calls.push("unsubscribeDevice");
-              return unsubscribeDeviceMock();
-            },
-          },
-        }),
+          };
+        },
       },
     };
   },
@@ -74,6 +88,8 @@ describe("deactivatePush", () => {
       },
     });
     hasWebPushSubscriptionMock.mockResolvedValue(true);
+    envMock.NEXT_PUBLIC_VERCEL_ENV = "production";
+    envMock.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF = "main";
     getNotificationServiceWorkerMock.mockResolvedValue({
       pushManager: { getSubscription: getSubscriptionMock },
     });
@@ -254,6 +270,17 @@ describe("activatePush", () => {
     await activatePush("user_1");
 
     expect(calls).toEqual(["activate", "subscribeDevice"]);
+  });
+
+  it("binds a preview device only to its branch channel", async () => {
+    envMock.NEXT_PUBLIC_VERCEL_ENV = "preview";
+    envMock.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF = "fix/push-urls";
+
+    await activatePush("user_1");
+
+    expect(getChannelMock).toHaveBeenCalledWith(
+      "notifications:preview:mainnet:branch_fix%2Fpush-urls:user_user_1",
+    );
   });
 
   it("does not bind the channel when activation fails", async () => {

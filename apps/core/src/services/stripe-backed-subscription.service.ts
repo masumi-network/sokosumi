@@ -35,7 +35,7 @@ export async function reconcileActiveStripeBackedSubscription(
 
   const settledAt = new Date();
   await prisma.$transaction(async (tx) => {
-    const result = await tx.subscription.updateMany({
+    await tx.subscription.updateMany({
       where: {
         id: {
           not: localSubscription.id,
@@ -53,12 +53,6 @@ export async function reconcileActiveStripeBackedSubscription(
         status: "canceled",
       },
     });
-
-    if (result.count > 0) {
-      console.log(
-        `✅ Closed ${result.count} local free subscription(s) for reference ${localSubscription.referenceId} after Stripe subscription ${localSubscription.stripeSubscriptionId} became ${localSubscription.status}`,
-      );
-    }
 
     const organization = await tx.organization.findUnique({
       where: { id: localSubscription.referenceId },

@@ -73,6 +73,7 @@ import type {
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
+  PostTasksScheduledData,
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
@@ -341,6 +342,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
+  postTasksScheduled as corePostTasksScheduled,
   postUsersByIdCoworkerAccessByAccessIdApprove as corePostUsersByIdCoworkerAccessByAccessIdApprove,
   postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
@@ -362,6 +364,7 @@ import {
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
+  putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
   putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -3241,6 +3244,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function createScheduledTask(
+    body: NonNullable<PostTasksScheduledData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksScheduled({
+          client,
+          body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to create scheduled task",
+    );
+  }
+
   async function createTaskEvent(
     id: string,
     body: {
@@ -3359,6 +3378,24 @@ export function createCoreClient(getClient: GetCoreClient) {
             transformTaskResponseEnvelope(data),
         }),
       "Failed to save task schedule",
+    );
+  }
+
+  async function putTaskCalendarSchedule(
+    id: string,
+    body: PutTaskScheduleRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutTasksByIdCalendarSchedule({
+          client,
+          path: { id },
+          body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to save Calendar task schedule",
     );
   }
 
@@ -4871,6 +4908,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     createOrganizationLogoUploadSession,
     createVendorLogoUploadSession,
     createTask,
+    createScheduledTask,
     createTaskFileUploadSession,
     createTaskLink,
     createTaskEvent,
@@ -5081,6 +5119,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasksSummary,
     patchTask,
     putJobShare,
+    putTaskCalendarSchedule,
     putTaskSchedule,
     putTaskShare,
     unassignOrganizationSeat,

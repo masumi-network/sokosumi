@@ -99,6 +99,7 @@ function loadServiceWorker({
   windows = [],
   matchAllThrows = false,
   openWindowThrows = false,
+  appUrl,
   locale,
   browserLanguages,
 }: {
@@ -106,6 +107,7 @@ function loadServiceWorker({
   windows?: WindowClientStub[];
   matchAllThrows?: boolean;
   openWindowThrows?: boolean;
+  appUrl?: string;
   locale?: string;
   browserLanguages?: string[];
 }) {
@@ -119,12 +121,23 @@ function loadServiceWorker({
   // browser would have carried on.
   const reported = vi.fn();
   const warned = vi.fn();
+  const workerUrl = new URL(
+    NOTIFICATION_SERVICE_WORKER_URL,
+    "https://deployment-hash.preview.sokosumi.com",
+  );
+  if (appUrl) {
+    workerUrl.searchParams.set("appUrl", appUrl);
+  }
 
   const self = {
     addEventListener: (type: string, handler: (event: unknown) => void) => {
       listeners.set(type, handler);
     },
     skipWaiting,
+    location: {
+      href: workerUrl.href,
+      origin: workerUrl.origin,
+    },
     ...(locale
       ? { cookieStore: { get: async () => ({ value: locale }) } }
       : {}),
@@ -185,6 +198,7 @@ function loadServiceWorker({
           },
         };
       },
+      URL,
     }),
   );
 
@@ -492,6 +506,22 @@ describe("ably-push-sw notificationclick", () => {
     await worker.dispatchNotificationClick(MENTION_TARGET);
 
     expect(worker.openedWindows).toEqual(["/"]);
+  });
+
+  it("opens the stable branch URL instead of a hashed preview origin", async () => {
+    const focus = vi.fn().mockResolvedValue(undefined);
+    const branchUrl =
+      "https://sokosumi-app-mainnet-git-fix.preview.sokosumi.com";
+    const worker = loadServiceWorker({
+      isChromium: true,
+      appUrl: branchUrl,
+      windows: [appPage({ focused: false, focus })],
+    });
+
+    await worker.dispatchNotificationClick(MENTION_TARGET);
+
+    expect(focus).not.toHaveBeenCalled();
+    expect(worker.openedWindows).toEqual([branchUrl]);
   });
 
   /**

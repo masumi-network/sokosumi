@@ -85,6 +85,7 @@ const tx = {
   chatRoom: {
     findFirst: roomFindFirstMock,
     findFirstOrThrow: roomFindFirstOrThrowMock,
+    update: vi.fn(),
   },
   chatRoomUserMember: {
     findUnique: userMemberFindUniqueMock,

@@ -37,6 +37,10 @@ vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
+vi.mock("@/helpers/calendar-beta-access", () => ({
+  requireCalendarBetaAccess: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,

@@ -20,6 +20,7 @@ const {
   createCoworkerConversationMock,
   getSokosumiProviderMock,
   transactionUpdateManyMock,
+  transactionRoomUpdateMock,
   coworkerMemberFindUniqueMock,
   workspaceFindUniqueMock,
   coworkerFindFirstMock,
@@ -39,6 +40,7 @@ const {
   createCoworkerConversationMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
   transactionUpdateManyMock: vi.fn(),
+  transactionRoomUpdateMock: vi.fn(),
   coworkerMemberFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
@@ -59,7 +61,12 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: messageFindFirstMock,
       create: createMock,
       update: updateMessageMock,
+      updateMany: async (args: unknown) => {
+        await updateMessageMock(args);
+        return { count: 1 };
+      },
       delete: deleteMock,
+      deleteMany: deleteMock,
     },
     chatRoomCoworkerMember: {
       findUnique: coworkerMemberFindUniqueMock,
@@ -86,7 +93,7 @@ vi.mock("@/lib/db/prisma", () => ({
           update: updateMock,
         },
         chatRoomCoworkerMember: { findUnique: coworkerMemberFindUniqueMock },
-        chatRoom: { update: vi.fn() },
+        chatRoom: { update: transactionRoomUpdateMock },
       }),
     ),
   },
@@ -110,15 +117,11 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
 
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 
+import { dispatchChatRoomMention } from "./chat-room-coworker-dispatch.service";
 import {
-  buildRoomMentionPrompt,
-  dispatchChatRoomMention,
-  listStaleSentChatRoomMentionIds,
-  ROOM_COWORKER_CHUNK_MS,
   ROOM_COWORKER_STREAM_TIMEOUT,
-  ROOM_COWORKER_TOTAL_MS,
   ROOM_SENT_STALE_MS,
-} from "./chat-room-coworker-dispatch.service";
+} from "./chat-room-mention-state";
 
 const publishRealtimeMock = vi.mocked(publishChatRoomMessageRealtimeById);
 
@@ -214,112 +217,43 @@ beforeEach(() => {
   });
 });
 
-describe("room coworker stream timeout budgets", () => {
-  it("omits firstChunkMs so silent think is bounded only by totalMs", () => {
-    expect(ROOM_COWORKER_STREAM_TIMEOUT).toEqual({
-      totalMs: ROOM_COWORKER_TOTAL_MS,
-      chunkMs: ROOM_COWORKER_CHUNK_MS,
-    });
-    expect(ROOM_COWORKER_STREAM_TIMEOUT).not.toHaveProperty("firstChunkMs");
-    expect(ROOM_COWORKER_CHUNK_MS).toBe(90_000);
-    expect(ROOM_COWORKER_TOTAL_MS).toBe(240_000);
-    expect(ROOM_COWORKER_TOTAL_MS).toBeGreaterThan(ROOM_COWORKER_CHUNK_MS);
-    expect(ROOM_SENT_STALE_MS).toBeGreaterThan(ROOM_COWORKER_TOTAL_MS);
-  });
-});
-
-describe("buildRoomMentionPrompt", () => {
-  it("returns the bare mention block when there is no context", () => {
-    const prompt = buildRoomMentionPrompt({
-      roomName: "general",
-      senderName: "Patrick",
-      content: "@hannah what's up?",
-      isThreadReply: false,
-      contextMessages: [],
-    });
-
-    expect(prompt).toBe(
-      "Patrick mentioned you in #general:\n\n@hannah what's up?",
-    );
-  });
-
-  it("prefixes recent messages with a CONTEXT block, oldest first", () => {
-    const prompt = buildRoomMentionPrompt({
-      roomName: "general",
-      senderName: "Patrick",
-      content: "@hannah summarize this",
-      isThreadReply: false,
-      contextMessages: [
-        { senderName: "Andreas", isCoworker: false, content: "First message" },
-        { senderName: "Hannah", isCoworker: true, content: "Second\nmessage" },
-      ],
-    });
-
-    expect(prompt).toBe(
-      [
-        "CONTEXT (last 2 messages in #general):",
-        "- Andreas: First message",
-        "- Hannah (AI coworker): Second message",
-        "",
-        "Patrick mentioned you in #general:",
-        "",
-        "@hannah summarize this",
-      ].join("\n"),
-    );
-  });
-
-  it("labels soko bot senders as personal assistants, not unnamed humans", () => {
-    const prompt = buildRoomMentionPrompt({
-      roomName: "general",
-      senderName: "Patrick",
-      content: "@soko pick this up",
-      isThreadReply: false,
-      contextMessages: [
-        {
-          senderName: "Soko Bot",
-          isCoworker: false,
-          isSokoBot: true,
-          content: "I already replied",
-        },
-      ],
-    });
-
-    expect(prompt).toContain(
-      "- Soko Bot (personal assistant): I already replied",
-    );
-  });
-
-  it("labels thread replies instead of claiming a mention", () => {
-    const prompt = buildRoomMentionPrompt({
-      roomName: "general",
-      senderName: "Patrick",
-      content: "sounds good, go ahead",
-      isThreadReply: true,
-      contextMessages: [],
-    });
-
-    expect(prompt).toBe(
-      "Patrick replied to a thread you are part of in #general:\n\nsounds good, go ahead",
-    );
-  });
-
-  it("truncates oversized context messages", () => {
-    const prompt = buildRoomMentionPrompt({
-      roomName: "general",
-      senderName: "Patrick",
-      content: "@hannah tldr?",
-      isThreadReply: false,
-      contextMessages: [
-        { senderName: "Andreas", isCoworker: false, content: "x".repeat(800) },
-      ],
-    });
-
-    expect(prompt).toContain(`- Andreas: ${"x".repeat(500)}…`);
-    expect(prompt).not.toContain("x".repeat(501));
-  });
-});
-
 describe("dispatchChatRoomMention claim", () => {
+  it("ends the Thought shell when provider setup loses to cancellation", async () => {
+    findUniqueMock
+      .mockResolvedValueOnce(pendingMention())
+      .mockResolvedValueOnce({ status: "failed" });
+    updateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+    await dispatchChatRoomMention(MENTION_ID);
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(updateMessageMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: "reply_1" }),
+      data: {
+        content: "",
+        metadata: {
+          in_reply_to_message_id: "msg_1",
+          mention_id: MENTION_ID,
+          mention_failed: true,
+        },
+      },
+    });
+  });
+
+  it("stops late provider setup without advancing a completed mention", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+    await dispatchChatRoomMention(MENTION_ID);
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID, status: "sent" },
+      data: { providerConversationId: "provider_conv_1" },
+    });
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(transactionUpdateManyMock).not.toHaveBeenCalled();
+  });
+
   it("exits without provider work when claim loses (updateMany count 0)", async () => {
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 0 });
@@ -401,7 +335,7 @@ describe("dispatchChatRoomMention claim", () => {
     );
     expect(updateMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "reply_1" },
+        where: expect.objectContaining({ id: "reply_1" }),
         data: expect.objectContaining({
           content: "Hello back",
           metadata: expect.objectContaining({
@@ -490,7 +424,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(updateMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "reply_1" },
+        where: expect.objectContaining({ id: "reply_1" }),
         data: expect.objectContaining({
           metadata: expect.objectContaining({ mention_failed: true }),
         }),
@@ -548,7 +482,7 @@ describe("dispatchChatRoomMention claim", () => {
     expect(streamTextMock).not.toHaveBeenCalled();
     expect(createMock).toHaveBeenCalled();
     expect(updateMessageMock).toHaveBeenCalledWith({
-      where: { id: "reply_1" },
+      where: expect.objectContaining({ id: "reply_1" }),
       data: {
         content: "",
         metadata: {
@@ -576,7 +510,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(createMock).not.toHaveBeenCalled();
     expect(updateMessageMock).toHaveBeenCalledWith({
-      where: { id: "reply_existing" },
+      where: expect.objectContaining({ id: "reply_existing" }),
       data: {
         content: "",
         metadata: {
@@ -702,7 +636,7 @@ describe("dispatchChatRoomMention claim", () => {
     expect(streamTextMock).not.toHaveBeenCalled();
     expect(createMock).toHaveBeenCalled();
     expect(updateMessageMock).toHaveBeenCalledWith({
-      where: { id: "reply_1" },
+      where: expect.objectContaining({ id: "reply_1" }),
       data: {
         content: "",
         metadata: {
@@ -795,7 +729,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     expect(createMock).toHaveBeenCalled();
     expect(updateMock).toHaveBeenCalledWith({
-      where: { id: MENTION_ID },
+      where: { id: MENTION_ID, status: { not: "responded" } },
       data: { responseMessageId: "reply_1" },
     });
   });
@@ -837,7 +771,11 @@ describe("dispatchChatRoomMention claim", () => {
     );
     expect(updateMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "reply_1" },
+        where: {
+          id: "reply_1",
+          content: "",
+          mentionResponseFor: { status: { in: ["pending", "sent"] } },
+        },
         data: expect.objectContaining({
           metadata: expect.objectContaining({
             streaming: true,
@@ -853,12 +791,20 @@ describe("dispatchChatRoomMention claim", () => {
     );
     expect(publishRealtimeMock).toHaveBeenCalledWith("reply_1", "create");
     expect(updateMock).toHaveBeenCalledWith({
-      where: { id: MENTION_ID },
+      where: { id: MENTION_ID, status: { not: "responded" } },
       data: { responseMessageId: "reply_1" },
+    });
+    // The placeholder counts toward unreadCount, so the room updatedAt must
+    // move with it or the sidebar read overlay keeps the room painted read.
+    // Two bumps: one with the placeholder create, one with the finalize.
+    expect(transactionRoomUpdateMock).toHaveBeenCalledTimes(2);
+    expect(transactionRoomUpdateMock).toHaveBeenCalledWith({
+      where: { id: "room_1" },
+      data: { updatedAt: expect.any(Date) },
     });
     expect(updateMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "reply_1" },
+        where: expect.objectContaining({ id: "reply_1" }),
         data: expect.objectContaining({
           content: "Hello back",
           metadata: expect.objectContaining({
@@ -916,7 +862,7 @@ describe("dispatchChatRoomMention claim", () => {
     expect(deleteMock).not.toHaveBeenCalled();
     expect(publishRealtimeMock).not.toHaveBeenCalledWith("reply_1", "delete");
     expect(updateMessageMock).toHaveBeenCalledWith({
-      where: { id: "reply_1" },
+      where: expect.objectContaining({ id: "reply_1" }),
       data: {
         content: "",
         metadata: {
@@ -964,7 +910,7 @@ describe("dispatchChatRoomMention claim", () => {
     expect(deleteMock).not.toHaveBeenCalled();
     expect(publishRealtimeMock).not.toHaveBeenCalledWith("reply_1", "delete");
     expect(updateMessageMock).toHaveBeenCalledWith({
-      where: { id: "reply_1" },
+      where: expect.objectContaining({ id: "reply_1" }),
       data: {
         content: "",
         metadata: {
@@ -1011,7 +957,7 @@ describe("dispatchChatRoomMention claim", () => {
     expect(deleteMock).not.toHaveBeenCalled();
     expect(publishRealtimeMock).not.toHaveBeenCalledWith("reply_1", "delete");
     expect(updateMessageMock).toHaveBeenCalledWith({
-      where: { id: "reply_1" },
+      where: expect.objectContaining({ id: "reply_1" }),
       data: {
         content: "",
         metadata: {
@@ -1180,28 +1126,5 @@ describe("coworker mention chat log fields", () => {
     await dispatchChatRoomMention(MENTION_ID);
 
     expect(capturedChatEvents).toHaveLength(0);
-  });
-});
-
-describe("listStaleSentChatRoomMentionIds", () => {
-  it("queries unfinished mentions older than the stale window for the room", async () => {
-    findManyMentionMock.mockResolvedValue([{ id: MENTION_ID }]);
-    const now = new Date("2025-06-01T12:00:00.000Z");
-
-    const ids = await listStaleSentChatRoomMentionIds("room_1", { now });
-
-    expect(ids).toEqual([MENTION_ID]);
-    expect(findManyMentionMock).toHaveBeenCalledWith({
-      where: {
-        // Pending too: a row written but never handed to the dispatcher is
-        // stranded otherwise, because nothing else retries it.
-        status: { in: ["pending", "sent"] },
-        updatedAt: { lt: new Date(now.getTime() - ROOM_SENT_STALE_MS) },
-        message: { roomId: "room_1" },
-      },
-      select: { id: true },
-      orderBy: { updatedAt: "asc" },
-      take: 10,
-    });
   });
 });
