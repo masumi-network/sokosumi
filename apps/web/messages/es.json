@@ -3967,6 +3967,7 @@
         "deviceDisabledSuccess": "Notificaciones push desactivadas en este navegador",
         "pushEnabledSuccess": "Notificaciones push activadas",
         "pushEnabledOtherDevicesSuccess": "Notificaciones push activadas en tus otros dispositivos",
+        "previewPushConfirmation": "Esta es una vista previa de la rama {branch}. Las notificaciones push activadas aquí abren {origin}. ¿Continuar?",
         "pushError": "No se pudieron desactivar las notificaciones push en este navegador. Inténtalo de nuevo.",
         "pushEnableError": "No se pudieron activar las notificaciones push en este navegador. Permite las notificaciones para este sitio en la configuración del navegador e inténtalo de nuevo.",
         "loading": "Guardando configuración...",

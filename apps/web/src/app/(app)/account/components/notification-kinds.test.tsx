@@ -35,6 +35,16 @@ let jobEmails = true;
 let marketing = false;
 let session: { user: { id: string } } | null = { user: { id: "user_1" } };
 let sessionPending = false;
+let vercelEnv: "production" | "preview" = "production";
+let vercelGitCommitRef: string | undefined = "main";
+
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => ({
+    NEXT_PUBLIC_NETWORK: "Mainnet",
+    NEXT_PUBLIC_VERCEL_ENV: vercelEnv,
+    NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: vercelGitCommitRef,
+  }),
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
@@ -398,6 +408,8 @@ describe("NotificationKinds", () => {
     finishEmailWrite = () => {};
     session = { user: { id: "user_1" } };
     sessionPending = false;
+    vercelEnv = "production";
+    vercelGitCommitRef = "main";
     current = MATRIX;
     // Echoing the write back matters: a mock that always answers with the
     // original matrix would undo every optimistic paint, and a control that
@@ -1948,6 +1960,47 @@ describe("NotificationKinds", () => {
       expect(setDeviceEnabled).toHaveBeenCalledWith(true);
     });
     expect(setAccountEnabled).not.toHaveBeenCalled();
+  });
+
+  it("requires fresh confirmation for every preview activation attempt", async () => {
+    vercelEnv = "preview";
+    vercelGitCommitRef = "fix/push-urls";
+    isDeviceEnabled = false;
+    const confirm = vi.fn().mockReturnValue(false);
+    Object.defineProperty(window, "confirm", {
+      configurable: true,
+      value: confirm,
+    });
+    renderKinds();
+
+    await toggle("kindSystem", "channelPush");
+    await toggle("kindSystem", "channelPush");
+
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(confirm).toHaveBeenCalledWith(
+      `previewPushConfirmation fix/push-urls ${window.location.origin}`,
+    );
+    expect(setDeviceEnabled).not.toHaveBeenCalled();
+    expect(patchMyPreferences).not.toHaveBeenCalled();
+  });
+
+  it("confirms before a legacy preview device joins the branch channel", async () => {
+    vercelEnv = "preview";
+    vercelGitCommitRef = "fix/push-urls";
+    isAccountEnabled = false;
+    isDeviceEnabled = true;
+    const confirm = vi.fn().mockReturnValue(false);
+    Object.defineProperty(window, "confirm", {
+      configurable: true,
+      value: confirm,
+    });
+    renderKinds();
+
+    await toggle("kindSystem", "channelPush");
+
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(setAccountEnabled).not.toHaveBeenCalled();
+    expect(patchMyPreferences).not.toHaveBeenCalled();
   });
 
   /**

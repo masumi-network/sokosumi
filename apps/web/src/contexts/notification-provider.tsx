@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  isBrowserOnlyNotification,
-  makeUserNotificationsChannelName,
-} from "@sokosumi/utils";
+import { isBrowserOnlyNotification } from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
 import {
   createContext,
@@ -19,6 +16,7 @@ import { NotificationToastListener } from "@/app/components/notification-toast-l
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { NotificationEventData } from "@/lib/ably";
+import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
@@ -505,7 +503,9 @@ export function NotificationProvider({
     <NotificationContext value={value}>
       {children}
       <LazyAblyProvider>
-        <ChannelProvider channelName={makeUserNotificationsChannelName(userId)}>
+        <ChannelProvider
+          channelName={makeCurrentUserNotificationsChannelName(userId)}
+        >
           <NotificationRealtimeBridge
             userId={userId}
             onNotification={handleNotificationEvent}

@@ -51,6 +51,9 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_NETWORK: process.env.NETWORK,
     NEXT_PUBLIC_CORE_APP_BASE_URL: browserCoreApiBaseUrl,
     NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV,
+    NEXT_PUBLIC_VERCEL_BRANCH_URL: process.env.VERCEL_BRANCH_URL,
+    NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL:
+      process.env.VERCEL_PROJECT_PRODUCTION_URL,
     NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: process.env.VERCEL_GIT_COMMIT_REF,
   },
   reactCompiler: true,

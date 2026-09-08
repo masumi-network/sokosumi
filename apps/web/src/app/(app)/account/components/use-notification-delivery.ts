@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { getEnvPublicConfig } from "@/config/env.public";
 import { usePushPreference } from "@/lib/ably/use-push-preference";
 import { useSession } from "@/lib/auth/auth.client";
 import { preferencesBrowserClient } from "@/lib/clients/core.preferences.browser.client";
@@ -222,13 +223,31 @@ export function useNotificationDelivery(): NotificationDelivery {
    * that holds no subscription subscribes here, under the same press. Without
    * that, the cells would sit on and this browser would never push again.
    */
-  async function activatePushIfNeeded() {
+  async function activatePushIfNeeded(): Promise<boolean> {
     // One push write at a time, across every row. The busy flag the rows hold
     // is per kind, so two kinds can ask within one write of each other: the
     // second would read the same stale answer as the first, subscribe on top
     // of it, and release the shared row while the first is still running.
     if (push.isSaving || !push.canToggleAccount) {
-      return;
+      return true;
+    }
+
+    const env = getEnvPublicConfig();
+    const needsDeviceActivation =
+      (!push.isAccountEnabled || !push.isDeviceEnabled) &&
+      push.isSupported === true &&
+      !push.isBlocked;
+    if (
+      env.NEXT_PUBLIC_VERCEL_ENV === "preview" &&
+      needsDeviceActivation &&
+      !window.confirm(
+        t("previewPushConfirmation", {
+          branch: env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF ?? "preview",
+          origin: window.location.origin,
+        }),
+      )
+    ) {
+      return false;
     }
 
     try {
@@ -236,12 +255,12 @@ export function useNotificationDelivery(): NotificationDelivery {
         // `canToggleDevice` carries the rest of the answer: a session, a
         // browser that can subscribe, and consent already on.
         if (push.isDeviceEnabled || !push.canToggleDevice) {
-          return;
+          return true;
         }
 
         await push.setDeviceEnabled(true);
         toast.success(t("pushEnabledSuccess"));
-        return;
+        return true;
       }
 
       const subscribedHere = await push.setAccountEnabled(true);
@@ -250,6 +269,7 @@ export function useNotificationDelivery(): NotificationDelivery {
           ? t("pushEnabledSuccess")
           : t("pushEnabledOtherDevicesSuccess"),
       );
+      return true;
     } catch (error) {
       // A refused prompt lands here as well, and reads as a failure on
       // purpose: the reader asked this browser for a push and will not get
@@ -260,6 +280,7 @@ export function useNotificationDelivery(): NotificationDelivery {
       // page is the opposite press, where that advice would be wrong.
       console.error("Failed to activate push from a delivery control", error);
       toast.error(t("pushEnableError"));
+      return true;
     }
   }
 
@@ -339,7 +360,9 @@ export function useNotificationDelivery(): NotificationDelivery {
 
     try {
       if (asksForPush) {
-        await activatePushIfNeeded();
+        if (!(await activatePushIfNeeded())) {
+          return;
+        }
       }
 
       // Painted after the consent, never before it. Recording the consent
@@ -444,7 +467,9 @@ export function useNotificationDelivery(): NotificationDelivery {
     pushBlock,
     pushWanted,
     pushSaving: push.isSaving,
-    activatePush: activatePushIfNeeded,
+    activatePush: async () => {
+      await activatePushIfNeeded();
+    },
     // Only while a push is actually arriving here. A row for a browser
     // nothing is trying to reach answers a question nobody asked, and every
     // other state of this browser is what the banner is for: it says a push

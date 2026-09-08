@@ -3,7 +3,7 @@
 import Ably from "ably";
 import Push from "ably/push";
 
-import { NOTIFICATION_SERVICE_WORKER_URL } from "@/lib/utils/notification-service-worker";
+import { getNotificationServiceWorkerUrl } from "@/lib/utils/notification-service-worker";
 
 import { getOrCreateAblyClientInstanceId } from "./ably-client-instance-id";
 import {
@@ -66,7 +66,7 @@ export function getAblyRealtimeClient(): Ably.Realtime {
     // `loadPushActivation` for the account page), so the SDK stays out of
     // the bundles that never use it.
     plugins: { Push },
-    pushServiceWorkerUrl: NOTIFICATION_SERVICE_WORKER_URL,
+    pushServiceWorkerUrl: getNotificationServiceWorkerUrl(),
   });
   setGlobalAblyRealtimeClient(realtimeClient);
   return realtimeClient;
