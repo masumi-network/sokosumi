@@ -35,12 +35,52 @@ describe("getNotificationHref", () => {
     ).toBe("/tasks/task-1");
   });
 
-  it("deep-links CHAT notifications to the room", () => {
+  it("deep-links CHAT notifications to the message", () => {
     expect(
       getNotificationHref({
         kind: "CHAT",
         referenceId: "room-1",
         metadata: { messageId: "msg-1", workspaceId: "ws-1" },
+      }),
+    ).toBe("/chat/rooms/room-1?message=msg-1");
+  });
+
+  it("deep-links CHAT notifications to the room when no message is named", () => {
+    expect(
+      getNotificationHref({
+        kind: "CHAT",
+        referenceId: "room-1",
+        metadata: { workspaceId: "ws-1" },
+      }),
+    ).toBe("/chat/rooms/room-1");
+  });
+
+  it("ignores a CHAT messageId that is not a string", () => {
+    expect(
+      getNotificationHref({
+        kind: "CHAT",
+        referenceId: "room-1",
+        metadata: { messageId: 7 },
+      }),
+    ).toBe("/chat/rooms/room-1");
+  });
+
+  it("deep-links CHAT notifications to the room when the message is blank", () => {
+    expect(
+      getNotificationHref({
+        kind: "CHAT",
+        referenceId: "room-1",
+        metadata: { messageId: "" },
+      }),
+    ).toBe("/chat/rooms/room-1");
+  });
+
+  it("deep-links CHAT notifications to the room when the message is spaces", () => {
+    expect(
+      getNotificationHref({
+        kind: "CHAT",
+        referenceId: "room-1",
+        metadata: { messageId: "   " },
       }),
     ).toBe("/chat/rooms/room-1");
   });
@@ -53,6 +93,28 @@ describe("getNotificationHref", () => {
         metadata: null,
       }),
     ).toBe("/chat/rooms/room%2Fwith%20spaces");
+  });
+
+  it("encodes the messageId in CHAT deep links", () => {
+    expect(
+      getNotificationHref({
+        kind: "CHAT",
+        referenceId: "room-1",
+        metadata: { messageId: "msg/1 2" },
+      }),
+    ).toBe("/chat/rooms/room-1?message=msg%2F1%202");
+  });
+
+  it("trims a padded messageId rather than encoding the padding", () => {
+    // Padding survives to the room otherwise, as %20 either side of the id,
+    // and the room looks for a message that cannot exist.
+    expect(
+      getNotificationHref({
+        kind: "CHAT",
+        referenceId: "room-1",
+        metadata: { messageId: "  msg-1  " },
+      }),
+    ).toBe("/chat/rooms/room-1?message=msg-1");
   });
 
   it("deep-links pending vendor grant SYSTEM to personal review", () => {

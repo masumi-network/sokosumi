@@ -18,6 +18,11 @@ export const betterAuthUserAdditionalFields = {
     required: false,
     defaultValue: true,
   },
+  showRoomUnreadCount: {
+    type: "boolean",
+    required: false,
+    defaultValue: false,
+  },
   logo: {
     type: "string",
     required: false,

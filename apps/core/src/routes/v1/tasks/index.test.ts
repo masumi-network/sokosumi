@@ -48,7 +48,7 @@ function resolveSchema(
 function getJsonRequestSchema(
   doc: ReturnType<typeof tasksRouter.getOpenAPI31Document>,
   path: string,
-  method: "patch" | "put",
+  method: "patch" | "post" | "put",
 ) {
   const operation = doc.paths?.[path]?.[method];
   const requestBody = operation?.requestBody;
@@ -150,6 +150,27 @@ describe("tasks routes OpenAPI query contract", () => {
 
     expect(doc.paths?.["/{id}/share"]?.put?.responses).toHaveProperty("200");
     expect(doc.paths?.["/{id}/share"]?.delete?.responses).toHaveProperty("200");
+  });
+
+  it("exposes the atomic scheduled Task creation command", () => {
+    const doc = tasksRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Tasks API",
+        version: "1.0.0",
+      },
+    });
+
+    const requestSchema = getJsonRequestSchema(doc, "/scheduled", "post") as {
+      properties?: Record<string, unknown>;
+    } | null;
+    const responses = doc.paths?.["/scheduled"]?.post?.responses;
+
+    expect(requestSchema?.properties).toHaveProperty("operationId");
+    expect(requestSchema?.properties).toHaveProperty("source");
+    expect(requestSchema?.properties).toHaveProperty("schedule");
+    expect(responses).toHaveProperty("201");
+    expect(responses).toHaveProperty("409");
   });
 
   it("keeps task patch metadata-only and exposes a dedicated workspace update route", () => {

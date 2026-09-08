@@ -63,7 +63,7 @@ const ORG_ID = "org_1";
 
 const tx = {
   user: { findUnique: userFindUniqueMock },
-  chatRoom: { findUnique: roomFindUniqueMock },
+  chatRoom: { findUnique: roomFindUniqueMock, update: vi.fn() },
   chatRoomGuestInvitation: {
     findUnique: invitationFindUniqueMock,
     updateMany: invitationUpdateManyMock,

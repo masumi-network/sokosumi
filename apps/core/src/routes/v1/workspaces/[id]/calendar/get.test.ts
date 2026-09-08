@@ -11,22 +11,24 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 const {
   coworkerFindFirstMock,
+  memberFindFirstMock,
+  projectFindFirstMock,
   taskFindManyMock,
   taskFindFirstMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
-  userFindUniqueMock,
   vendorGrantFindUniqueMock,
   resolveWorkspaceForContextMock,
   workspaceFindUniqueMock,
   resolveMemberOrganizationByIdMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
+  projectFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -58,12 +60,13 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworker: { findFirst: coworkerFindFirstMock },
+    member: { findFirst: memberFindFirstMock },
+    project: { findFirst: projectFindFirstMock },
     task: { findFirst: taskFindFirstMock, findMany: taskFindManyMock },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
-    user: { findUnique: userFindUniqueMock },
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
     workspace: { findUnique: workspaceFindUniqueMock },
   },
@@ -135,6 +138,7 @@ function createLedgerOccurrence(overrides: Record<string, unknown> = {}) {
     seriesTask: {
       id: "tsk_history",
       name: "Released task",
+      ownerId: "user_123",
       status: TaskStatus.QUEUED,
       assigneeId: null,
     },
@@ -159,10 +163,13 @@ describe("GET /workspaces/{id}/calendar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     coworkerFindFirstMock.mockResolvedValue({ id: "coworker_123" });
+    projectFindFirstMock.mockResolvedValue({
+      id: "22222222-2222-7222-8222-222222222222",
+    });
     taskFindManyMock.mockReset();
     taskScheduleOccurrenceCountMock.mockReset();
     taskScheduleOccurrenceFindManyMock.mockReset();
-    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
+    memberFindFirstMock.mockResolvedValue({ id: "member_123" });
     vendorGrantFindUniqueMock.mockResolvedValue(null);
     resolveWorkspaceForContextMock.mockResolvedValue({ id: WORKSPACE_ID });
     taskFindFirstMock.mockResolvedValue(null);
@@ -190,6 +197,7 @@ describe("GET /workspaces/{id}/calendar", () => {
           id: "00000000-0000-7000-8000-000000000001",
           taskId: "tsk_history",
           taskName: "Released task",
+          canEditSchedule: false,
           taskStatus: "QUEUED",
           taskAssigneeId: null,
           scheduledAt: "2026-06-03T09:00:00.000Z",
@@ -217,8 +225,61 @@ describe("GET /workspaces/{id}/calendar", () => {
     expect(taskFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("rejects non-NMKR users before reading calendar data", async () => {
-    userFindUniqueMock.mockResolvedValue({ email: "ada@example.com" });
+  it("marks calendar items owned by another user as read-only", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createLedgerOccurrence({
+        seriesTask: {
+          id: "tsk_other",
+          name: "Another user's task",
+          ownerId: "user_456",
+          status: TaskStatus.QUEUED,
+          assigneeId: null,
+        },
+      }),
+    ]);
+
+    const { items } = await readWorkspaceCalendar(WORKSPACE_ID, "user_123", {
+      from: new Date(FROM),
+      scope: "workspace",
+      to: new Date(TO),
+      cursor: null,
+      requestedCursor: null,
+      limit: 20,
+    });
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        taskId: "tsk_other",
+        canEditSchedule: false,
+      }),
+    ]);
+  });
+
+  it("marks an owner planned occurrence as editable", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createLedgerOccurrence({ state: TaskScheduleOccurrenceState.PLANNED }),
+    ]);
+
+    const { items } = await readWorkspaceCalendar(WORKSPACE_ID, "user_123", {
+      from: new Date(FROM),
+      scope: "workspace",
+      to: new Date(TO),
+      cursor: null,
+      requestedCursor: null,
+      limit: 20,
+    });
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        taskId: "tsk_history",
+        canEditSchedule: true,
+        state: "PLANNED",
+      }),
+    ]);
+  });
+
+  it("rejects users outside the Calendar beta before reading calendar data", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
 
     const response = await requestCalendar(createApp());
 
@@ -284,6 +345,91 @@ describe("GET /workspaces/{id}/calendar", () => {
         sourceType: CalendarSourceType.PROJECT,
       }),
     });
+  });
+
+  it("filters workspace Calendar results to the requested Project source", async () => {
+    const projectId = "22222222-2222-7222-8222-222222222222";
+
+    const response = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&projectId=${projectId}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(projectFindFirstMock).toHaveBeenCalledWith({
+      where: { id: projectId, workspaceId: WORKSPACE_ID },
+      select: { id: true },
+    });
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sourceProjectId: projectId,
+          sourceType: CalendarSourceType.PROJECT,
+        }),
+      }),
+    );
+    expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        sourceProjectId: projectId,
+        sourceType: CalendarSourceType.PROJECT,
+      }),
+    });
+  });
+
+  it("filters workspace Calendar results to the requested legacy source", async () => {
+    const sourceId = `legacy-unknown:${WORKSPACE_ID}`;
+
+    const response = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&sourceId=${sourceId}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskScheduleOccurrenceFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sourceType: CalendarSourceType.LEGACY_UNKNOWN,
+        }),
+      }),
+    );
+    expect(taskScheduleOccurrenceCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        sourceType: CalendarSourceType.LEGACY_UNKNOWN,
+      }),
+    });
+  });
+
+  it("rejects a source outside the requested workspace", async () => {
+    const response = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&sourceId=workspace:33333333-3333-7333-8333-333333333333`,
+    );
+
+    expect(response.status).toBe(404);
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects requests that combine Project and source filters", async () => {
+    const response = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&projectId=22222222-2222-7222-8222-222222222222&sourceId=workspace:${WORKSPACE_ID}`,
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Project outside the workspace", async () => {
+    const projectId = "22222222-2222-7222-8222-222222222222";
+    projectFindFirstMock.mockResolvedValue(null);
+
+    const response = await requestCalendar(
+      createApp(),
+      `from=${FROM}&to=${TO}&projectId=${projectId}`,
+    );
+
+    expect(response.status).toBe(404);
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
   it("filters planned and released occurrences by owner, coworker, and status", async () => {

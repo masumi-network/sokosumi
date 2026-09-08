@@ -144,6 +144,11 @@ function membershipMetadata(
 /**
  * Persist one ChatRoomMessage per channel membership change in `tx`.
  * No-ops for non-channels and empty change lists. Callers publish after commit.
+ *
+ * Bumps the room's `updatedAt` with the messages: these rows count toward
+ * `unreadCount`, and the web read overlay drops only when the room row's
+ * `updatedAt` moves past the mark-read snapshot. Without the bump the sidebar
+ * repaints the room read and its unread never bolds.
  */
 export async function recordChannelMembershipStatus(
   tx: Prisma.TransactionClient,
@@ -167,6 +172,10 @@ export async function recordChannelMembershipStatus(
     });
     messages.push(message);
   }
+  await tx.chatRoom.update({
+    where: { id: args.roomId },
+    data: { updatedAt: new Date() },
+  });
   return messages;
 }
 

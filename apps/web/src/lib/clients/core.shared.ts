@@ -73,6 +73,7 @@ import type {
   PostTasksByIdFilesData,
   PostTasksByIdLinksData,
   PostTasksData,
+  PostTasksScheduledData,
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
@@ -172,6 +173,7 @@ import {
   getChatsRoomsByIdInvitations as coreGetChatsRoomsByIdInvitations,
   getChatsRoomsByIdInviteLinks as coreGetChatsRoomsByIdInviteLinks,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
+  getChatsRoomsByIdMessagesByMessageId as coreGetChatsRoomsByIdMessagesByMessageId,
   getChatsRoomsByIdPinnedMessages as coreGetChatsRoomsByIdPinnedMessages,
   getChatsRoomsByIdThreads as coreGetChatsRoomsByIdThreads,
   getChatsRoomsByIdThreadsByParentMessageId as coreGetChatsRoomsByIdThreadsByParentMessageId,
@@ -340,6 +342,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
+  postTasksScheduled as corePostTasksScheduled,
   postUsersByIdCoworkerAccessByAccessIdApprove as corePostUsersByIdCoworkerAccessByAccessIdApprove,
   postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
@@ -361,6 +364,7 @@ import {
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
+  putTasksByIdCalendarSchedule as corePutTasksByIdCalendarSchedule,
   putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -979,6 +983,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch unread thread count",
+    );
+  }
+
+  async function getChatRoomMessage(id: string, messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdMessagesByMessageId({
+          client,
+          path: { id, messageId },
+          cache: "no-store",
+        }),
+      "Failed to fetch message",
     );
   }
 
@@ -3227,6 +3244,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function createScheduledTask(
+    body: NonNullable<PostTasksScheduledData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksScheduled({
+          client,
+          body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to create scheduled task",
+    );
+  }
+
   async function createTaskEvent(
     id: string,
     body: {
@@ -3345,6 +3378,24 @@ export function createCoreClient(getClient: GetCoreClient) {
             transformTaskResponseEnvelope(data),
         }),
       "Failed to save task schedule",
+    );
+  }
+
+  async function putTaskCalendarSchedule(
+    id: string,
+    body: PutTaskScheduleRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutTasksByIdCalendarSchedule({
+          client,
+          path: { id },
+          body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to save Calendar task schedule",
     );
   }
 
@@ -4857,6 +4908,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     createOrganizationLogoUploadSession,
     createVendorLogoUploadSession,
     createTask,
+    createScheduledTask,
     createTaskFileUploadSession,
     createTaskLink,
     createTaskEvent,
@@ -4872,6 +4924,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoom,
     getChatRoomInvitations,
     getChatRoomMessages,
+    getChatRoomMessage,
     getChatRoomThread,
     getChatRoomThreadMessages,
     getChatRoomThreads,
@@ -5066,6 +5119,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasksSummary,
     patchTask,
     putJobShare,
+    putTaskCalendarSchedule,
     putTaskSchedule,
     putTaskShare,
     unassignOrganizationSeat,

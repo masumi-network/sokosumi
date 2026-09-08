@@ -37,10 +37,16 @@ export function canApproveVendorGrants(params: {
   return role === "owner" || role === "admin";
 }
 
+/**
+ * Where a reader reviews a vendor's request for workspace access.
+ *
+ * Always a destination. A grant with no organization is a personal one, and
+ * the account page is where those are reviewed.
+ */
 export function buildVendorGrantReviewHref(params: {
   organizationId: string | null;
   organizationSlug?: string | null;
-}): string | null {
+}): string {
   if (params.organizationId === null) {
     return "/account#vendor-workspace-access";
   }

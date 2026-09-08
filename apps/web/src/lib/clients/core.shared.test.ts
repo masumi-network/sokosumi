@@ -3,6 +3,8 @@ import { createCoreClient } from "@/lib/clients/core.shared";
 import {
   deleteAdminInvoice as coreDeleteAdminInvoice,
   getCoworkers as coreGetCoworkers,
+  postTasksScheduled as corePostTasksScheduled,
+  type PostTasksScheduledResponse,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
@@ -13,6 +15,7 @@ vi.mock("@/lib/clients/generated/core", async (importOriginal) => {
     ...actual,
     deleteAdminInvoice: vi.fn(),
     getCoworkers: vi.fn(),
+    postTasksScheduled: vi.fn(),
   };
 });
 
@@ -45,5 +48,58 @@ describe("createCoreClient owned coworkers", () => {
       query: { scope: "owned" },
       cache: "no-store",
     });
+  });
+});
+
+describe("createCoreClient scheduled tasks", () => {
+  it("creates scheduled tasks and transforms their Task response", async () => {
+    const taskResponse = {
+      id: "task-1",
+      createdAt: "2026-08-20T09:00:00.000Z",
+      updatedAt: "2026-08-20T09:00:00.000Z",
+      nextRunAt: "2026-08-21T09:00:00.000Z",
+      events: [],
+      jobs: [],
+      share: null,
+      links: [],
+    };
+    vi.mocked(corePostTasksScheduled).mockImplementation(async (options) => {
+      const data = await options?.responseTransformer?.({
+        data: taskResponse,
+        meta: {
+          requestId: "req-1",
+          timestamp: "2026-08-20T09:00:00.000Z",
+        },
+      });
+
+      return {
+        data: data as PostTasksScheduledResponse,
+        response: { ok: true, status: 201 } as Response,
+      };
+    });
+    const body = {
+      operationId: "123e4567-e89b-42d3-a456-426614174000",
+      source: { type: "workspace" as const },
+      name: "Scheduled task",
+      assigneeId: "coworker-1",
+      schedule: {
+        mode: "recurring" as const,
+        expr: "0 9 * * *",
+        timezone: "UTC",
+      },
+    };
+    const core = createCoreClient(async () => ({}) as Client);
+
+    const result = await core.createScheduledTask(body);
+
+    expect(corePostTasksScheduled).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client: {},
+        body,
+        responseTransformer: expect.any(Function),
+      }),
+    );
+    expect(result.data.createdAt).toEqual(new Date("2026-08-20T09:00:00.000Z"));
+    expect(result.data.nextRunAt).toEqual(new Date("2026-08-21T09:00:00.000Z"));
   });
 });

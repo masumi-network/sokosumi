@@ -43,6 +43,11 @@ const requestBodySchema = z
         "Whether the user wants OS banners while Sokosumi is closed (push)",
       example: false,
     }),
+    showRoomUnreadCount: z.boolean().optional().openapi({
+      description:
+        "Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery",
+      example: false,
+    }),
     notificationPreferences: z
       .array(notificationPreferenceSchema)
       // One write per cell, inside one transaction, so the body cannot ask for
@@ -60,6 +65,7 @@ const requestBodySchema = z
         data.marketingOptIn !== undefined ||
         data.notificationsOptIn !== undefined ||
         data.pushOptIn !== undefined ||
+        data.showRoomUnreadCount !== undefined ||
         (data.notificationPreferences !== undefined &&
           data.notificationPreferences.length > 0)
       );
@@ -70,6 +76,7 @@ const requestBodySchema = z
         "marketingOptIn",
         "notificationsOptIn",
         "pushOptIn",
+        "showRoomUnreadCount",
         "notificationPreferences",
       ],
     },
@@ -133,6 +140,9 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       }),
       ...(body.pushOptIn !== undefined && {
         pushOptIn: body.pushOptIn,
+      }),
+      ...(body.showRoomUnreadCount !== undefined && {
+        showRoomUnreadCount: body.showRoomUnreadCount,
       }),
     };
 

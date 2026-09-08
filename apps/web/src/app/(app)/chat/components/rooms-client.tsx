@@ -22,10 +22,8 @@ import {
   type ChatComposeSokoBot,
   deleteRoomMessageAction,
   editRoomMessageAction,
-  getRoomThreadAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
-  markThreadReadAction,
   pinRoomMessageAction,
   removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
@@ -47,6 +45,9 @@ import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
+import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
+import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
+import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import {
@@ -93,11 +94,6 @@ import {
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
-import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
-import {
-  performRoomSearchJump,
-  waitForSearchJumpPaint,
-} from "@/app/chat/utils/room-search-jump";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
@@ -108,17 +104,11 @@ import {
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
-import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
-import {
-  forgetRoomRead,
-  rememberRoomRead,
-} from "@/components/chat/room-read-overlay";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
@@ -196,17 +186,6 @@ import {
 } from "./room-shell-layout";
 import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { ThreadPanel } from "./thread-panel";
-
-function dispatchOrganizationChatRoomRead(
-  roomId: string,
-  room: ChatRoom,
-): void {
-  window.dispatchEvent(
-    new CustomEvent("organization-chat-room-read", {
-      detail: { room, roomId },
-    }),
-  );
-}
 
 interface RoomsClientProps {
   /** Null in personal workspace. */
@@ -763,16 +742,11 @@ export function RoomsClient({
     }
     scrollToBottom();
   }, [messagesPending, scrollToBottom]);
-  const readMarkerRef = useRef<string | null>(null);
-  const roomReadGenerationByRoomIdRef = useRef(new Map<string, number>());
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
   // handlers must not merge into messagesState after the selection moved.
   const selectedRoomIdRef = useRef(selectedRoomId);
   selectedRoomIdRef.current = selectedRoomId;
-  const syncRoomAttentionAfterThreadLookRef = useRef<
-    (roomId: string) => Promise<void>
-  >(async () => {});
 
   // Classic outbound uses pending shells + a queue; composer stays unlocked.
   // Stream rooms still pass isCoworkerStreaming into isSending* props below.
@@ -1243,22 +1217,6 @@ export function RoomsClient({
             message,
           });
         });
-        // Look first, then room re-sync — mark-read effect can race if it
-        // runs before look lands; open path uses the same order.
-        // Use the ref (not openThreadParentId) so this []-deps handler stays
-        // current, and narrow null before calling markThreadReadAction.
-        const openParentId = threadParentMessageIdRef.current;
-        const roomId = message.roomId;
-        if (openParentId != null && message.parentMessageId === openParentId) {
-          void markThreadReadAction(roomId, openParentId).then(
-            async (result) => {
-              if (!result.ok) {
-                return;
-              }
-              await syncRoomAttentionAfterThreadLookRef.current(roomId);
-            },
-          );
-        }
       }
     },
     [],
@@ -1310,15 +1268,20 @@ export function RoomsClient({
     );
   }, [streamOverlayMessages, threadParentMessage]);
 
-  const displayThreadMessages = useMemo(() => {
-    // Defense: parent is rendered above the divider — never as a reply row.
+  const persistedThreadMessages = useMemo(() => {
+    // Defense: parent is rendered above the divider, never as a reply row.
     const parentId = threadParentMessage?.id;
-    const replies =
-      parentId == null
-        ? threadMessages
-        : threadMessages.filter((message) => message.id !== parentId);
-    return mergeMessagesWithStreamOverlay(replies, threadStreamOverlayMessages);
-  }, [threadMessages, threadStreamOverlayMessages, threadParentMessage?.id]);
+    return parentId == null
+      ? threadMessages
+      : threadMessages.filter((message) => message.id !== parentId);
+  }, [threadMessages, threadParentMessage?.id]);
+
+  const displayThreadMessages = useMemo(() => {
+    return mergeMessagesWithStreamOverlay(
+      persistedThreadMessages,
+      threadStreamOverlayMessages,
+    );
+  }, [persistedThreadMessages, threadStreamOverlayMessages]);
 
   // Draft coworker DM stashes text then navigates — auto-stream once room opens.
   // Keep sessionStorage until stream actually starts so Strict Mode remount
@@ -1581,81 +1544,16 @@ export function RoomsClient({
     selectedRoomId,
   ]);
 
-  const latestTopLevelMessageId = displayMessages.at(-1)?.id ?? null;
-  const latestOpenThreadMessageId = displayThreadMessages.at(-1)?.id ?? null;
-  const openThreadParentId = threadParentMessage?.id ?? null;
-  const selectedRoomReadId = selectedRoom?.id ?? null;
-
-  useEffect(() => {
-    if (!selectedRoomReadId || !selectedRoom) {
-      return;
-    }
-    // Skip while pending/failed so empty-room hydrate can still advance
-    // last-read (same marker as the pending empty transcript).
-    if (messagesPending || effectiveMessageLoadFailed) {
-      return;
-    }
-
-    // Include open-thread activity: thread replies count toward room unread
-    // via look baseline, but top-level-only markers never re-fired mark-read.
-    const marker = roomReadAttentionMarker({
-      roomId: selectedRoomReadId,
-      latestTopLevelMessageId,
-      openThreadParentId,
-      latestOpenThreadMessageId,
+  const { markThreadRead, syncRoomAttentionAfterThreadLook } =
+    useRoomReadAttention({
+      room: selectedRoom,
+      messagesPending,
+      messageLoadFailed: effectiveMessageLoadFailed,
+      messages: topLevelRoomMessages,
+      openThreadParentId: threadParentMessage?.id ?? null,
+      threadMessages: persistedThreadMessages,
+      isThreadLoading,
     });
-    if (readMarkerRef.current === marker) {
-      return;
-    }
-    readMarkerRef.current = marker;
-
-    const roomId = selectedRoomReadId;
-    const unreadBeforeMarkRead = selectedRoom;
-    const optimisticRoom = {
-      ...selectedRoom,
-      unreadCount: 0,
-      unreadMentionCount: 0,
-      markedUnread: false,
-    };
-    const generation =
-      (roomReadGenerationByRoomIdRef.current.get(roomId) ?? 0) + 1;
-    roomReadGenerationByRoomIdRef.current.set(roomId, generation);
-
-    rememberRoomRead(optimisticRoom);
-    dispatchOrganizationChatRoomRead(roomId, optimisticRoom);
-
-    function restoreUnread(): void {
-      forgetRoomRead(roomId);
-      dispatchOrganizationChatRoomRead(roomId, unreadBeforeMarkRead);
-    }
-
-    markOrganizationChatRoomReadAction(roomId)
-      .then((result) => {
-        if (roomReadGenerationByRoomIdRef.current.get(roomId) !== generation) {
-          return;
-        }
-        if (!result.ok) {
-          restoreUnread();
-          return;
-        }
-        rememberRoomRead(result.value);
-        dispatchOrganizationChatRoomRead(roomId, result.value);
-      })
-      .catch(() => {
-        if (roomReadGenerationByRoomIdRef.current.get(roomId) !== generation) {
-          return;
-        }
-        restoreUnread();
-      });
-  }, [
-    effectiveMessageLoadFailed,
-    latestOpenThreadMessageId,
-    latestTopLevelMessageId,
-    messagesPending,
-    openThreadParentId,
-    selectedRoom,
-    selectedRoomReadId,
-  ]);
 
   const hasPendingRoomCoworkerMention = useMemo(
     () => hasPendingCoworkerMention(topLevelRoomMessages),
@@ -1982,17 +1880,6 @@ export function RoomsClient({
     );
   }
 
-  async function syncRoomAttentionAfterThreadLook(roomId: string) {
-    const roomResult = await markOrganizationChatRoomReadAction(roomId);
-    if (!roomResult.ok) {
-      return;
-    }
-    rememberRoomRead(roomResult.value);
-    dispatchOrganizationChatRoomRead(roomId, roomResult.value);
-  }
-  syncRoomAttentionAfterThreadLookRef.current =
-    syncRoomAttentionAfterThreadLook;
-
   async function handleOpenThreadFromMessage(
     parentMessage: ChatRoomMessage,
   ): Promise<boolean> {
@@ -2000,71 +1887,6 @@ export function RoomsClient({
     setThreadListOpen(false);
     setRosterOpen(false);
     return loadThreadMessages(parentMessage);
-  }
-
-  async function handleSearchJump(hit: ChatRoomMessage) {
-    const roomId = selectedRoom?.id;
-    if (!roomId) {
-      return;
-    }
-    await performRoomSearchJump(hit, {
-      holdOffBottom: () => {
-        suppressStickToBottom();
-        setSearchHoldOffBottom(true);
-      },
-      releaseHoldOffBottom: () => {
-        releaseStickToBottomSuppress();
-        setSearchHoldOffBottom(false);
-      },
-      highlight: highlightRoomMessageElement,
-      afterRender: waitForSearchJumpPaint,
-      loadAroundInRoom: async (aroundId) => {
-        const result = await listRoomMessagesAction(roomId, {
-          around: aroundId,
-        });
-        if (!result.ok) {
-          toast.error(result.error.message);
-          return false;
-        }
-        if (!isStillSelectedRoom(roomId)) {
-          return false;
-        }
-        historicalTimelineRef.current = true;
-        setMessagesState(result.value.messages);
-        setOlderNextCursor(result.value.nextCursor);
-        return true;
-      },
-      findLoadedParent: (parentId) =>
-        topLevelRoomMessages.find((message) => message.id === parentId) ??
-        (threadParentMessage?.id === parentId
-          ? threadParentMessage
-          : undefined),
-      loadParent: async (parentId) => {
-        const result = await getRoomThreadAction(roomId, parentId);
-        if (!result.ok) {
-          toast.error(result.error.message);
-          return null;
-        }
-        return result.value.parentMessage;
-      },
-      openThread: handleOpenThreadFromMessage,
-      loadAroundInThread: async (parentId, aroundId) => {
-        const result = await listThreadMessagesAction(roomId, parentId, {
-          around: aroundId,
-        });
-        if (!result.ok) {
-          toast.error(result.error.message);
-          return false;
-        }
-        if (!isStillSelectedRoom(roomId)) {
-          return false;
-        }
-        historicalThreadRef.current = true;
-        setThreadMessages(result.value.messages);
-        setThreadOlderNextCursor(result.value.nextCursor);
-        return true;
-      },
-    });
   }
 
   async function handleOpenThreadFromList(
@@ -2151,39 +1973,37 @@ export function RoomsClient({
     applyPinnedMutation(message.id, !alreadyPinned);
   }
 
-  async function handleJumpToPinnedMessage(messageId: string) {
-    const roomId = selectedRoom?.id;
-    if (!roomId) {
-      return;
-    }
-    if (highlightRoomMessageElement(messageId)) {
-      return;
-    }
-    suppressStickToBottom();
-    setSearchHoldOffBottom(true);
-    const result = await listRoomMessagesAction(roomId, {
-      around: messageId,
+  const { handleSearchJump, handleJumpToMessage, invalidateJump } =
+    useRoomMessageJumps({
+      roomId: selectedRoom?.id ?? null,
+      topLevelRoomMessages,
+      threadParentMessage,
+      isStillSelectedRoom,
+      suppressStickToBottom,
+      releaseStickToBottomSuppress,
+      setSearchHoldOffBottom,
+      setMessagesState,
+      setOlderNextCursor,
+      historicalTimelineRef,
+      historicalThreadRef,
+      setThreadMessages,
+      setThreadOlderNextCursor,
+      handleOpenThreadFromMessage,
     });
-    if (!result.ok) {
-      toast.error(result.error.message);
-      releaseStickToBottomSuppress();
-      setSearchHoldOffBottom(false);
-      return;
-    }
-    if (!isStillSelectedRoom(roomId)) {
-      releaseStickToBottomSuppress();
-      setSearchHoldOffBottom(false);
-      return;
-    }
-    setMessagesState((current) =>
-      mergeRoomMessages(current, result.value.messages),
-    );
-    setOlderNextCursor(result.value.nextCursor);
-    await waitForSearchJumpPaint();
-    highlightRoomMessageElement(messageId);
-    releaseStickToBottomSuppress();
-    setSearchHoldOffBottom(false);
-  }
+
+  useRoomNotificationDeepLink({
+    invalidateJump,
+    roomId: selectedRoom?.id ?? null,
+    ready: !messagesPending,
+    pathname,
+    searchParams,
+    replace: router.replace,
+    highlight: highlightRoomMessageElement,
+    isStillSelectedRoom,
+    jumpInRoom: handleJumpToMessage,
+    jumpInThread: (hit) =>
+      handleSearchJump(hit, { quietWhenThreadIsGone: true }),
+  });
 
   async function loadThreadMessages(
     parentMessage: ChatRoomMessage,
@@ -2206,27 +2026,28 @@ export function RoomsClient({
     try {
       // Look state first, then room mark-read so dual-baseline unreadCount
       // already excludes this thread when the sidebar event lands.
-      const markResult = await markThreadReadAction(roomId, parentMessage.id);
-      if (markResult.ok) {
-        await syncRoomAttentionAfterThreadLook(roomId);
-      }
+      const markedRead = await markThreadRead(roomId, parentMessage.id);
       if (generation !== threadLoadGenerationRef.current) {
-        return markResult.ok;
+        return markedRead;
       }
       const result = await listThreadMessagesAction(roomId, parentMessage.id);
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return markResult.ok;
-      }
+      // Checked before the error is shown, like every other load a jump
+      // makes. The generation check above this request cannot stand in for
+      // it: the reader can leave while the request itself is in flight, and
+      // then the failure belongs to a room that is no longer on screen.
       if (
         !isStillSelectedRoom(roomId) ||
         generation !== threadLoadGenerationRef.current
       ) {
-        return markResult.ok;
+        return markedRead;
+      }
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return markedRead;
       }
       setThreadMessages(result.value.messages);
       setThreadOlderNextCursor(result.value.nextCursor);
-      return markResult.ok;
+      return markedRead;
     } finally {
       if (generation === threadLoadGenerationRef.current) {
         setIsThreadLoading(false);
@@ -3235,7 +3056,7 @@ export function RoomsClient({
                   setPinnedOpen(false);
                 }}
                 onJump={(messageId) => {
-                  void handleJumpToPinnedMessage(messageId);
+                  void handleJumpToMessage(messageId);
                 }}
                 onUnpin={async (messageId) => {
                   const result = await unpinRoomMessageAction(

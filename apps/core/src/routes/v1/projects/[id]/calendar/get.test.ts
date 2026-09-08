@@ -11,20 +11,20 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 const {
   coworkerFindFirstMock,
+  memberFindFirstMock,
   projectFindFirstMock,
   taskFindFirstMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
-  userFindUniqueMock,
   vendorGrantFindUniqueMock,
   resolveWorkspaceForContextMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskScheduleOccurrenceCountMock: vi.fn(),
   taskScheduleOccurrenceFindManyMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
 }));
@@ -54,13 +54,13 @@ vi.mock(
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     coworker: { findFirst: coworkerFindFirstMock },
+    member: { findFirst: memberFindFirstMock },
     project: { findFirst: projectFindFirstMock },
     task: { findFirst: taskFindFirstMock },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
     },
-    user: { findUnique: userFindUniqueMock },
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
   },
 }));
@@ -139,7 +139,7 @@ describe("GET /projects/{id}/calendar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
-    userFindUniqueMock.mockResolvedValue({ email: "ada@nmkr.io" });
+    memberFindFirstMock.mockResolvedValue({ id: "member_123" });
     taskScheduleOccurrenceCountMock.mockResolvedValue(1);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([createOccurrence()]);
     coworkerFindFirstMock.mockResolvedValue({ id: "coworker_123" });
@@ -173,6 +173,17 @@ describe("GET /projects/{id}/calendar", () => {
         }),
       }),
     );
+  });
+
+  it("rejects users outside the Calendar beta before reading the Project", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
+
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}`,
+    );
+
+    expect(response.status).toBe(403);
+    expect(projectFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns calendar items for a closed Project", async () => {
@@ -240,6 +251,39 @@ describe("GET /projects/{id}/calendar", () => {
             }),
           ]),
         }),
+      ]),
+    );
+  });
+
+  it("rejects a projectId query because the route Project is always authoritative", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&projectId=33333333-3333-7333-8333-333333333333`,
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a sourceId query because the route Project is always authoritative", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/calendar?from=${FROM}&to=${TO}&sourceId=workspace:${WORKSPACE_ID}`,
+    );
+
+    expect(response.status).toBe(422);
+    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("does not advertise projectId as a Project Calendar query parameter", () => {
+    const document = createApp().getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: { title: "Projects API", version: "1.0.0" },
+    });
+    const parameters = document.paths?.["/{id}/calendar"]?.get?.parameters;
+
+    expect(parameters).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "projectId", in: "query" }),
+        expect.objectContaining({ name: "sourceId", in: "query" }),
       ]),
     );
   });

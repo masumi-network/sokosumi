@@ -43,6 +43,7 @@ const PREFERENCES = {
   marketingOptIn: true,
   notificationsOptIn: false,
   pushOptIn: false,
+  showRoomUnreadCount: false,
   notificationPreferences: [] as {
     category: string;
     channel: string;
@@ -55,6 +56,7 @@ const PREFERENCE_FLAGS = {
   marketingOptIn: PREFERENCES.marketingOptIn,
   notificationsOptIn: PREFERENCES.notificationsOptIn,
   pushOptIn: PREFERENCES.pushOptIn,
+  showRoomUnreadCount: PREFERENCES.showRoomUnreadCount,
 };
 
 const SESSION_USER: AuthenticationContext = {
@@ -148,6 +150,7 @@ describe("user preferences routes", () => {
         marketingOptIn: true,
         notificationsOptIn: true,
         pushOptIn: true,
+        showRoomUnreadCount: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -174,6 +177,7 @@ describe("user preferences routes", () => {
         marketingOptIn: true,
         notificationsOptIn: true,
         pushOptIn: true,
+        showRoomUnreadCount: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -190,6 +194,61 @@ describe("user preferences routes", () => {
     const data = userUpdateMock.mock.calls[0]?.[0].data;
     expect(data).not.toHaveProperty("marketingOptIn");
     expect(data).not.toHaveProperty("notificationsOptIn");
+  });
+
+  it("writes showRoomUnreadCount on PATCH and returns the stored value", async () => {
+    userUpdateMock.mockResolvedValue({
+      ...PREFERENCES,
+      showRoomUnreadCount: true,
+    });
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request(
+      patchRequest("/me/preferences", { showRoomUnreadCount: true }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.showRoomUnreadCount).toBe(true);
+    expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({
+      showRoomUnreadCount: true,
+    });
+  });
+
+  // The count is a display preference. A reader who turns it on must not have
+  // changed a single thing about what Sokosumi sends them.
+  it("touches no delivery preference when only showRoomUnreadCount is sent", async () => {
+    userUpdateMock.mockResolvedValue({
+      ...PREFERENCES,
+      showRoomUnreadCount: true,
+    });
+    const app = createPreferencesApp(SESSION_USER);
+
+    await app.request(
+      patchRequest("/me/preferences", { showRoomUnreadCount: true }),
+    );
+
+    const data = userUpdateMock.mock.calls[0]?.[0].data;
+    expect(data).not.toHaveProperty("marketingOptIn");
+    expect(data).not.toHaveProperty("notificationsOptIn");
+    expect(data).not.toHaveProperty("pushOptIn");
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts showRoomUnreadCount as the only field a write names", async () => {
+    userUpdateMock.mockResolvedValue({
+      ...PREFERENCES,
+      showRoomUnreadCount: false,
+    });
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request(
+      patchRequest("/me/preferences", { showRoomUnreadCount: false }),
+    );
+
+    // The route refuses a body that names nothing; the new field has to count
+    // as something, or turning the setting off would 400.
+    expect(response.status).toBe(200);
   });
 
   it("returns every matrix cell on GET, with the reader's choices applied", async () => {

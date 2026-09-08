@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import {
+  clearRoomReadOverlays,
   forgetRoomRead,
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
@@ -125,10 +126,35 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
   })),
 }));
 
-vi.mock("@/components/chat/room-read-overlay", () => ({
-  rememberRoomRead: vi.fn(),
-  forgetRoomRead: vi.fn(),
-}));
+vi.mock("@/components/chat/room-read-overlay", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/components/chat/room-read-overlay")
+    >();
+  const rememberRoomRead = vi.fn();
+  const forgetRoomRead = vi.fn();
+  return {
+    ...actual,
+    rememberRoomRead,
+    forgetRoomRead,
+    beginRoomAttentionChange: (room: ChatRoom, previousRoom?: ChatRoom) => {
+      rememberRoomRead(room);
+      return actual.beginRoomAttentionChange(room, previousRoom);
+    },
+    settleRoomAttentionChange: (
+      roomId: string,
+      token: number,
+      room: ChatRoom | null,
+    ) => {
+      const accepted = actual.settleRoomAttentionChange(roomId, token, room);
+      if (accepted) {
+        if (room) rememberRoomRead(room);
+        else forgetRoomRead(roomId);
+      }
+      return accepted;
+    },
+  };
+});
 
 vi.mock("../room-file-drop-zone", () => ({
   RoomFileDropZone: ({ children }: { children: ReactNode }) => (
@@ -294,6 +320,7 @@ const baseProps = {
 
 describe("RoomsClient progressive history (real composer + list skeleton)", () => {
   beforeEach(() => {
+    clearRoomReadOverlays();
     vi.mocked(markOrganizationChatRoomReadAction).mockReset();
     vi.mocked(markOrganizationChatRoomReadAction).mockImplementation(
       async (roomId: string) => ({
@@ -828,6 +855,7 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
 
 describe("RoomsClient progressive roster (header + composer without members)", () => {
   beforeEach(() => {
+    clearRoomReadOverlays();
     mockIsMobileMedia.mockReturnValue(false);
     mockHeaderRoomSlotHost.mockReturnValue(null);
   });
