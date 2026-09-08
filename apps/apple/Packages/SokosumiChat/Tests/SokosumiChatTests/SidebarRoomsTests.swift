@@ -53,7 +53,7 @@ struct SidebarRoomsTests {
       makeRoom(id: "g1", name: "guest-room", myAccess: .guest),
       // Guest access always reads as External (checked before kind,
       // mirroring web), even for a Direct.
-      makeRoom(id: "d2", name: "Guest Peer", kind: .direct, myAccess: .guest),
+      makeRoom(id: "d2", name: "Guest Peer", kind: .direct, myAccess: .guest)
     ]
     let partitioned = partitionRoomsForSidebar(rooms)
     #expect(partitioned.channels.map(\.id) == ["c1"])
@@ -66,7 +66,7 @@ struct SidebarRoomsTests {
       makeRoom(id: "muted", name: "muted", unreadCount: 9, mutedAt: baseDate),
       makeRoom(id: "plain", name: "plain", updatedAt: baseDate),
       makeRoom(id: "starred", name: "starred", starredAt: baseDate, updatedAt: baseDate.addingTimeInterval(-1000)),
-      makeRoom(id: "active", name: "active", updatedAt: baseDate.addingTimeInterval(1000)),
+      makeRoom(id: "active", name: "active", updatedAt: baseDate.addingTimeInterval(1000))
     ]
     let partitioned = partitionRoomsForSidebar(rooms)
     #expect(partitioned.channels.map(\.id) == ["starred", "active", "plain", "muted"])
@@ -97,7 +97,7 @@ struct SidebarRoomsTests {
         makePeer(id: "a", name: "Ann"),
         makePeer(id: "b", name: "Bob"),
         makePeer(id: "c", name: "Cat"),
-        makePeer(id: "d", name: "Dan"),
+        makePeer(id: "d", name: "Dan")
       ]
     )
     #expect(roomDisplayName(room, currentUserId: "me") == "Ann, Bob, Cat and 1 more")

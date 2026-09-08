@@ -10,7 +10,10 @@ import OpenAPIRuntime
 /// schema requires the key and its validation hook answers 422. Only this
 /// operation's empty-object body is rewritten; everything else passes
 /// through untouched.
-public struct ExplicitNullPreferredOrganizationMiddleware: ClientMiddleware {
+///
+/// The length carries the contract (explicit-null rewrite scoped to
+/// preferred-organization).
+public struct ExplicitNullPreferredOrganizationMiddleware: ClientMiddleware { // swiftlint:disable:this type_name
   private static let operationID = "put/users/{id}/preferred-organization"
 
   public init() {}
@@ -27,15 +30,17 @@ public struct ExplicitNullPreferredOrganizationMiddleware: ClientMiddleware {
     }
     // Collect once, then always rebuild. Passing the original body after
     // collecting empties a non-replayable stream (org switch would PUT {}).
+    var request = request
     let bytes = try await Array(collecting: body, upTo: 1_000_000)
-    let outgoing: HTTPBody
-    if let json = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
-      json.isEmpty
-    {
-      outgoing = HTTPBody(#"{"organizationId":null}"#)
+    let outgoingBytes: [UInt8] = if let json = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
+                                    json.isEmpty {
+      Array(#"{"organizationId":null}"#.utf8)
     } else {
-      outgoing = HTTPBody(bytes)
+      bytes
     }
-    return try await next(request, outgoing, baseURL)
+    // OpenAPI stamps Content-Length from the pre-rewrite body (`{}`). URLSession
+    // uploadTask then streams the longer JSON and the connection drops (-1005).
+    request.headerFields[.contentLength] = String(outgoingBytes.count)
+    return try await next(request, HTTPBody(outgoingBytes), baseURL)
   }
 }

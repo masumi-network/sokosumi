@@ -3,9 +3,9 @@ import SokosumiAuth
 import Testing
 
 struct SignInTests {
-  private func configuration() -> OAuthConfiguration {
-    OAuthConfiguration(
-      issuerBaseURL: URL(string: "https://core.example/auth")!,
+  private func configuration() throws -> OAuthConfiguration {
+    try OAuthConfiguration(
+      issuerBaseURL: #require(URL(string: "https://core.example/auth")),
       clientID: "mac-public-client"
     )
   }
@@ -16,10 +16,10 @@ struct SignInTests {
       json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":7200,\"refresh_token\":\"refresh-1\",\"scope\":\"openid sokosumi:api offline_access\"}"
     ))
     let store = InMemoryTokenStore()
-    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+    let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
 
     try await session.signIn(
-      callbackURL: URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=state-123")!,
+      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=state-123")),
       expectedState: "state-123",
       codeVerifier: "verifier-abc"
     )
@@ -48,13 +48,13 @@ struct SignInTests {
     struct SaveFailed: Error {}
     let store = InMemoryTokenStore()
     store.saveError = SaveFailed()
-    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+    let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
 
     // The exchange succeeded but the session must not report signed in:
     // a relaunch would ask for sign-in again.
     await #expect(throws: SaveFailed.self) {
       try await session.signIn(
-        callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
         expectedState: "s",
         codeVerifier: "v"
       )
@@ -64,7 +64,7 @@ struct SignInTests {
 
   @Test func signInRejectsCallbackWithWrongPath() async throws {
     let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport
@@ -72,7 +72,7 @@ struct SignInTests {
 
     await #expect(throws: OAuthError.invalidCallbackURL) {
       try await session.signIn(
-        callbackURL: URL(string: "com.sokosumi.app:/other?code=auth-code-1&state=state-123")!,
+        callbackURL: #require(URL(string: "com.sokosumi.app:/other?code=auth-code-1&state=state-123")),
         expectedState: "state-123",
         codeVerifier: "verifier-abc"
       )
@@ -83,7 +83,7 @@ struct SignInTests {
 
   @Test func signInRejectsMismatchedStateWithoutCallingCore() async throws {
     let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport
@@ -91,7 +91,7 @@ struct SignInTests {
 
     await #expect(throws: OAuthError.stateMismatch) {
       try await session.signIn(
-        callbackURL: URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=other")!,
+        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=other")),
         expectedState: "state-123",
         codeVerifier: "verifier-abc"
       )
@@ -105,7 +105,7 @@ struct SignInTests {
       status: 400,
       json: "{\"error\":\"invalid_grant\",\"error_description\":\"Code expired\"}"
     ))
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport
@@ -113,7 +113,7 @@ struct SignInTests {
 
     await #expect(throws: OAuthError.tokenExchangeFailed(status: 400, message: "Code expired", code: "invalid_grant")) {
       try await session.signIn(
-        callbackURL: URL(string: "com.sokosumi.app:/auth?code=stale&state=state-123")!,
+        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=stale&state=state-123")),
         expectedState: "state-123",
         codeVerifier: "verifier-abc"
       )
@@ -127,9 +127,9 @@ struct SignInTests {
       json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":7200,\"refresh_token\":\"refresh-1\"}"
     ))
     let store = FailingClearStore()
-    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+    let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
     try await session.signIn(
-      callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )
@@ -145,9 +145,9 @@ struct SignInTests {
       json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":7200}"
     ))
     let store = InMemoryTokenStore()
-    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+    let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
     try await session.signIn(
-      callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )

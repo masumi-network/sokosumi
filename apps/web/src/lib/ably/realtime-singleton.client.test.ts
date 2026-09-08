@@ -178,6 +178,30 @@ describe("getAblyRealtimeClient", () => {
     expect(consoleErrorMock).toHaveBeenCalled();
   });
 
+  it("does not let a retired client's late 401 close its replacement", async () => {
+    let rejectOldAuth: ((value: Response) => void) | undefined;
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          rejectOldAuth = resolve;
+        }),
+    );
+    getAblyRealtimeClient();
+    const oldAuth = invokeAuthCallback();
+
+    fetchMock.mockResolvedValueOnce(
+      new Response("Unauthorized", { status: 401 }),
+    );
+    await invokeAuthCallback();
+    const replacement = getAblyRealtimeClient();
+    const replacementClose = RealtimeMock.mock.instances[1]?.close;
+    rejectOldAuth?.(new Response("Unauthorized", { status: 401 }));
+    await oldAuth;
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(replacement);
+    expect(replacementClose).not.toHaveBeenCalled();
+  });
+
   it("recreates a client after a 401 so a later remount can reconnect", async () => {
     fetchMock.mockResolvedValue({
       ok: false,

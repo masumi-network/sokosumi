@@ -1,0 +1,26 @@
+# SwiftFormat config for the Apple clients. Format from apps/apple:
+# `swiftformat .`; check without writing: `swiftformat --lint .`.
+# CI enforces the lint check (see apple.yml).
+#
+# The tree uses 2-space indent (matching the repo's Biome style); the rest
+# is SwiftFormat defaults, pinned here so a default change fails loudly in
+# review instead of silently reformatting the tree.
+--swift-version 6.2
+--indent 2
+--tabwidth 2
+--semicolons never
+--trailing-commas never
+--self remove
+
+# SwiftPM build output and fetched dependencies, when present locally.
+--exclude Packages/*/.build
+
+# Test function names are author-chosen symbols (`swift test --filter`
+# workflows match on them); never rewrite them into sentences.
+--disable swiftTestingTestCaseNames
+
+# Multiline-statement braces stay on the same line: SwiftLint's
+# `opening_brace` requires it (and so does the Kodeco guide), while
+# SwiftFormat's wrapMultilineStatementBraces would force them onto their
+# own line. The two tools cannot both pass — SwiftLint wins.
+--disable wrapMultilineStatementBraces

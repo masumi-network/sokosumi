@@ -1,0 +1,6 @@
+# Mintfile for the Apple clients: exact pins for Swift tooling.
+# Xcode stays outside turbo and Biome, so Swift tools install via Mint
+# (itself via Homebrew) instead of pnpm. Install from apps/apple:
+# `mint bootstrap`. CI runs the same command (see apple.yml).
+realm/SwiftLint@0.65.1
+nicklockwood/SwiftFormat@0.63.0

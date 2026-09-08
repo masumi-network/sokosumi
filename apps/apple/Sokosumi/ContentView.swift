@@ -41,7 +41,7 @@ struct ContentView: View {
         Text("Set the SOKOSUMI_OAUTH_CLIENT_ID environment variable (or the SokosumiOAuthClientID Info.plist key) to the public OAuth client from SOK-970, then relaunch.")
           .font(.callout)
           .foregroundStyle(.secondary)
-      case .signedOut(let message):
+      case let .signedOut(message):
         Text("Sokosumi")
           .font(.title)
         if let message {
@@ -69,7 +69,7 @@ struct ContentView: View {
       ProgressView("Loading workspaces…")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { workspaces.startIfNeeded(auth: auth) }
-    case .blocked(let gate):
+    case let .blocked(gate):
       VStack(spacing: 8) {
         Text("Finish setup on the web")
           .font(.headline)
@@ -86,7 +86,7 @@ struct ContentView: View {
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-    case .failed(let message):
+    case let .failed(message):
       VStack(spacing: 8) {
         Text(message)
           .foregroundStyle(.secondary)
@@ -106,53 +106,53 @@ struct ContentView: View {
         VStack(spacing: 0) {
           List(selection: $selectedRoomId) {
             workspaceMenu
-          if workspaces.roomsLoading && workspaces.rooms.isEmpty {
-            ProgressView("Loading rooms…")
-          } else if workspaces.rooms.isEmpty {
-            Text("No rooms yet.")
-              .foregroundStyle(.secondary)
-          } else {
-            // Channels section only for organization workspaces, mirroring web.
-            if workspaces.selection?.workspace.organizationId != nil {
-              Section("Channels") {
-                if partitioned.channels.isEmpty {
-                  Text("No channels yet.")
+            if workspaces.roomsLoading, workspaces.rooms.isEmpty {
+              ProgressView("Loading rooms…")
+            } else if workspaces.rooms.isEmpty {
+              Text("No rooms yet.")
+                .foregroundStyle(.secondary)
+            } else {
+              // Channels section only for organization workspaces, mirroring web.
+              if workspaces.selection?.workspace.organizationId != nil {
+                Section("Channels") {
+                  if partitioned.channels.isEmpty {
+                    Text("No channels yet.")
+                      .foregroundStyle(.secondary)
+                  }
+                  ForEach(partitioned.channels, id: \.id) { room in
+                    roomRow(room, icon: "number")
+                  }
+                }
+              }
+              Section("Direct messages") {
+                if partitioned.directMessages.isEmpty {
+                  Text("No direct messages yet.")
                     .foregroundStyle(.secondary)
                 }
-                ForEach(partitioned.channels, id: \.id) { room in
-                  roomRow(room, icon: "number")
+                ForEach(partitioned.directMessages, id: \.id) { room in
+                  roomRow(room, icon: "person")
                 }
               }
-            }
-            Section("Direct messages") {
-              if partitioned.directMessages.isEmpty {
-                Text("No direct messages yet.")
-                  .foregroundStyle(.secondary)
-              }
-              ForEach(partitioned.directMessages, id: \.id) { room in
-                roomRow(room, icon: "person")
-              }
-            }
-            if !partitioned.external.isEmpty {
-              Section("External") {
-                ForEach(partitioned.external, id: \.id) { room in
-                  roomRow(room, icon: "building.2")
+              if !partitioned.external.isEmpty {
+                Section("External") {
+                  ForEach(partitioned.external, id: \.id) { room in
+                    roomRow(room, icon: "building.2")
+                  }
                 }
               }
             }
           }
-        }
-        .listStyle(.sidebar)
-        if let switchError = workspaces.switchError {
-          Text(switchError)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-        }
-        Divider()
-        meSection
+          .listStyle(.sidebar)
+          if let switchError = workspaces.switchError {
+            Text(switchError)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.horizontal, 8)
+              .padding(.vertical, 4)
+          }
+          Divider()
+          meSection
         }
         .navigationSplitViewColumnWidth(min: 220, ideal: 260)
       } detail: {
@@ -182,7 +182,6 @@ struct ContentView: View {
   }
 
   /// Workspace switcher pinned to the top of the sidebar.
-  @ViewBuilder
   private var workspaceMenu: some View {
     Menu {
       ForEach(workspaces.options) { option in
@@ -232,7 +231,6 @@ struct ContentView: View {
 
   /// "Me" section pinned to the bottom of the sidebar: account menu with
   /// Settings and Sign out.
-  @ViewBuilder
   private var meSection: some View {
     Menu {
       Button("Settings…") {
@@ -317,7 +315,12 @@ struct ContentView: View {
 }
 
 private struct PreviewTokenStore: TokenStore {
-  func load() -> OAuthTokens? { nil }
-  func save(_ tokens: OAuthTokens) throws {}
-  func clear() -> Bool { true }
+  func load() -> OAuthTokens? {
+    nil
+  }
+
+  func save(_: OAuthTokens) throws {}
+  func clear() -> Bool {
+    true
+  }
 }
