@@ -1552,6 +1552,7 @@
         "scopeOwned": "Meine Tasks",
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
+        "humanLabel": "Mensch",
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Entwurf",
@@ -6065,6 +6066,26 @@
         "WORKSPACE": "Workspace",
         "PROJECT": "Projekt",
         "LEGACY_UNKNOWN": "Legacy-Quelle"
+      },
+      "event": {
+        "accessibleName": "{task}, {source}",
+        "editSchedule": "Zeitplan bearbeiten",
+        "openTask": "Task öffnen"
+      },
+      "create": {
+        "title": "Task planen"
+      },
+      "edit": {
+        "title": "Zeitplan bearbeiten",
+        "description": "Aendere den Zeitplan fuer {name}.",
+        "loadError": "Dieser Task konnte nicht geladen werden. Bitte versuche es erneut.",
+        "saveError": "Dieser Zeitplan konnte nicht gespeichert werden. Bitte versuche es erneut.",
+        "clearError": "Dieser Zeitplan konnte nicht entfernt werden. Bitte versuche es erneut.",
+        "clearPending": "Zeitplan wird entfernt…",
+        "clearTitle": "Zeitplan entfernen?",
+        "clearDescription": "Dieser Task wird nicht mehr nach einem Zeitplan ausgeführt.",
+        "clearCancel": "Abbrechen",
+        "clearConfirm": "Zeitplan entfernen"
       },
       "accuracy": {
         "inferred": "Abgeleitete Quelle",
