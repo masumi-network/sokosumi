@@ -25,7 +25,7 @@ const route = createRoute({
   method: "put",
   path: "/preferred-organization",
   description:
-    "Set the user's preferred organization workspace (path `me` for the session user, or a user id the caller may access). Pass a null `organizationId` to switch to the personal workspace — refused when the personal workspace is missing. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.",
+    'Set the user\'s preferred organization workspace (path `me` for the session user, or a user id the caller may access). Send `{"organizationId":null}` to switch to personal — refused when the personal workspace is missing. Omitting the key (`{}`) is 422, not a personal switch. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.',
   tags: ["Users"],
   request: {
     params,
@@ -56,6 +56,9 @@ const route = createRoute({
     ),
     404: jsonErrorResponse(
       "Not Found - User not found, or personal workspace is missing",
+    ),
+    422: jsonErrorResponse(
+      "Unprocessable Entity - organizationId key required; send null for personal",
     ),
     500: jsonErrorResponse("Internal Server Error"),
   },
