@@ -181,7 +181,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await rewriteChatNotificationPreviews({
       roomId: message.roomId,
       messageId: message.id,
-      content: "",
     });
 
     if (unpinned) {

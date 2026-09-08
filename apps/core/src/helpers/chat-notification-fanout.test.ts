@@ -13,6 +13,8 @@ const {
   notificationUpdateManyMock,
   notificationFindUniqueMock,
   captureExceptionMock,
+  transactionMock,
+  queryRawMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
@@ -25,6 +27,8 @@ const {
   notificationUpdateManyMock: vi.fn(),
   notificationFindUniqueMock: vi.fn(),
   captureExceptionMock: vi.fn(),
+  transactionMock: vi.fn(),
+  queryRawMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -36,6 +40,7 @@ vi.mock("@/helpers/notifications", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: transactionMock,
     workspace: {
       findUnique: workspaceFindUniqueMock,
     },
@@ -57,6 +62,8 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
+
+import prisma from "@/lib/db/prisma";
 
 import {
   fanOutChatNotifications,
@@ -94,6 +101,18 @@ function messageSays(content: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  queryRawMock.mockResolvedValue([]);
+  transactionMock.mockImplementation(async (callback) =>
+    callback({
+      $queryRaw: queryRawMock,
+      chatRoomMessage: { findUnique: messageFindUniqueMock },
+      notification: {
+        findMany: notificationFindManyMock,
+        updateMany: notificationUpdateManyMock,
+        findUnique: notificationFindUniqueMock,
+      },
+    }),
+  );
   createNotificationMock.mockResolvedValue({ created: true });
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
   membershipFindManyMock.mockResolvedValue([]);
@@ -332,7 +351,7 @@ describe("fanOutChatNotifications", () => {
   it("takes the text back when the message is deleted while it wrote", async () => {
     messageFindUniqueMock
       .mockResolvedValueOnce({ deletedAt: null, content: "door code 4417" })
-      .mockResolvedValueOnce({ deletedAt: new Date(), content: "" });
+      .mockResolvedValue({ deletedAt: new Date(), content: "" });
     notificationFindManyMock.mockResolvedValue([
       storedRow({
         authorName: "Patrick",
@@ -356,6 +375,7 @@ describe("fanOutChatNotifications", () => {
         metadata: { contains: `"messageId":"${MESSAGE_ID}"` },
       },
       select: { id: true, messageParams: true, metadata: true },
+      orderBy: { id: "asc" },
     });
     expect(paramsWrittenTo(0)).toEqual({
       authorName: "Patrick",
@@ -366,7 +386,7 @@ describe("fanOutChatNotifications", () => {
   it("writes what the message now says when it is edited while it wrote", async () => {
     messageFindUniqueMock
       .mockResolvedValueOnce({ deletedAt: null, content: "meet at five" })
-      .mockResolvedValueOnce({ deletedAt: null, content: "meet at **six**" });
+      .mockResolvedValue({ deletedAt: null, content: "meet at **six**" });
     notificationFindManyMock.mockResolvedValue([
       storedRow({
         authorName: "Patrick",
@@ -393,7 +413,7 @@ describe("fanOutChatNotifications", () => {
     const order: string[] = [];
     messageFindUniqueMock
       .mockResolvedValueOnce({ deletedAt: null, content: "door code 4417" })
-      .mockResolvedValueOnce({ deletedAt: new Date(), content: "" });
+      .mockResolvedValue({ deletedAt: new Date(), content: "" });
     notificationFindManyMock.mockImplementation(async () => {
       await new Promise((resolve) => setTimeout(resolve, 5));
       order.push("rewrite");
@@ -698,10 +718,10 @@ describe("rewriteChatNotificationPreviews", () => {
   it("takes the text off the row when the message is deleted", async () => {
     notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(paramsWrittenTo(0)).toEqual({
@@ -715,10 +735,10 @@ describe("rewriteChatNotificationPreviews", () => {
       storedRow({ ...BASE, isGroup: true, count: 4 }),
     ]);
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(paramsWrittenTo(0)).toEqual({
@@ -732,10 +752,10 @@ describe("rewriteChatNotificationPreviews", () => {
   it("puts what the message now says on the row when it is edited", async () => {
     notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
 
+    messageSays("meet at **six**");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "meet at **six**",
     });
 
     expect(paramsWrittenTo(0)).toEqual({
@@ -754,10 +774,10 @@ describe("rewriteChatNotificationPreviews", () => {
       storedRow({ authorName: "Ada", roomName: "general" }),
     ]);
 
+    messageSays("meet at six");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "meet at six",
     });
 
     expect(notificationUpdateManyMock).not.toHaveBeenCalled();
@@ -772,10 +792,10 @@ describe("rewriteChatNotificationPreviews", () => {
       storedRow(BASE, "550e8400-e29b-41d4-a716-4466554400ff"),
     ]);
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationUpdateManyMock).not.toHaveBeenCalled();
@@ -789,10 +809,10 @@ describe("rewriteChatNotificationPreviews", () => {
     const row = storedRow(BASE);
     notificationFindManyMock.mockResolvedValue([row]);
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationUpdateManyMock).toHaveBeenCalledWith(
@@ -812,10 +832,10 @@ describe("rewriteChatNotificationPreviews", () => {
       { ...storedRow({ ...BASE, authorName: "Ben" }), id: "notification_2" },
     ]);
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(2);
@@ -835,10 +855,10 @@ describe("rewriteChatNotificationPreviews", () => {
       { ...storedRow(BASE), id: "n_2" },
     ]);
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
@@ -860,10 +880,10 @@ describe("rewriteChatNotificationPreviews", () => {
       { ...storedRow(BASE), id: "n_2" },
     ]);
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
@@ -875,10 +895,10 @@ describe("rewriteChatNotificationPreviews", () => {
   });
 
   it("looks only at the chat rows of the room the message is in", async () => {
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationFindManyMock).toHaveBeenCalledWith(
@@ -914,10 +934,10 @@ describe("rewriteChatNotificationPreviews", () => {
       .mockResolvedValueOnce({ count: 1 });
     notificationFindUniqueMock.mockResolvedValue(storedRow(edited));
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationFindUniqueMock).toHaveBeenCalledWith({
@@ -949,10 +969,10 @@ describe("rewriteChatNotificationPreviews", () => {
       storedRow(BASE, "550e8400-e29b-41d4-a716-446655440009"),
     );
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
@@ -964,10 +984,10 @@ describe("rewriteChatNotificationPreviews", () => {
     notificationUpdateManyMock.mockResolvedValue({ count: 1 });
     notificationFindUniqueMock.mockResolvedValue(storedRow(BASE));
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
@@ -984,10 +1004,10 @@ describe("rewriteChatNotificationPreviews", () => {
       storedRow({ authorName: "Ada", roomName: "general" }),
     );
 
+    messageSays("meet at six");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "meet at six",
     });
 
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
@@ -999,10 +1019,10 @@ describe("rewriteChatNotificationPreviews", () => {
     notificationUpdateManyMock.mockResolvedValue({ count: 0 });
     notificationFindUniqueMock.mockResolvedValue(storedRow(BASE));
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(3);
@@ -1014,10 +1034,10 @@ describe("rewriteChatNotificationPreviews", () => {
     notificationUpdateManyMock.mockResolvedValue({ count: 0 });
     notificationFindUniqueMock.mockResolvedValue(null);
 
+    messageSays("");
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
 
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
@@ -1030,7 +1050,6 @@ describe("rewriteChatNotificationPreviews", () => {
       rewriteChatNotificationPreviews({
         roomId: ROOM_ID,
         messageId: MESSAGE_ID,
-        content: "",
       }),
     ).resolves.toBeUndefined();
 
@@ -1045,10 +1064,93 @@ describe("rewriteChatNotificationPreviews", () => {
       rewriteChatNotificationPreviews({
         roomId: ROOM_ID,
         messageId: MESSAGE_ID,
-        content: "",
       }),
     ).resolves.toBeUndefined();
 
     expect(captureExceptionMock).toHaveBeenCalled();
+  });
+});
+
+describe("preview rewrite ordering", () => {
+  it("keeps the latest committed edit when an older request resumes", async () => {
+    let row = storedRow({ messagePreview: "original" });
+    notificationFindManyMock.mockImplementation(async () => [{ ...row }]);
+    notificationUpdateManyMock.mockImplementation(async ({ where, data }) => {
+      if (where.messageParams !== row.messageParams) return { count: 0 };
+      row = { ...row, messageParams: data.messageParams };
+      return { count: 1 };
+    });
+    messageSays("latest edit B");
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+    // Edit A resumes after its realtime publication. Its old body is not input.
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+    expect(JSON.parse(row.messageParams).messagePreview).toBe("latest edit B");
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("reads the current message only after acquiring its lock", async () => {
+    const locked = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    queryRawMock.mockImplementationOnce(async () => {
+      locked.resolve();
+      await release.promise;
+      messageSays("edit committed while waiting");
+      return [];
+    });
+    notificationFindManyMock.mockResolvedValue([
+      storedRow({ messagePreview: "old" }),
+    ]);
+    const rewrite = rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+    await locked.promise;
+    expect(messageFindUniqueMock).not.toHaveBeenCalled();
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
+    release.resolve();
+    await rewrite;
+    expect(paramsWrittenTo(0)).toEqual({
+      messagePreview: "edit committed while waiting",
+    });
+    const [sql, ...values] = queryRawMock.mock.calls[0];
+    expect(sql.join("?")).toContain("FOR UPDATE");
+    expect(values).toEqual([MESSAGE_ID, ROOM_ID]);
+    expect(messageFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: MESSAGE_ID, roomId: ROOM_ID },
+      select: { content: true, deletedAt: true },
+    });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([null, { content: "old body", deletedAt: new Date() }])(
+    "clears surviving text when the source is gone or deleted: %j",
+    async (message) => {
+      messageFindUniqueMock.mockResolvedValue(message);
+      notificationFindManyMock.mockResolvedValue([
+        storedRow({ messagePreview: "old" }),
+      ]);
+      await rewriteChatNotificationPreviews({
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+      });
+      expect(paramsWrittenTo(0)).toEqual({});
+    },
+  );
+
+  it("reports a failed lock without writing notification rows", async () => {
+    const error = new Error("lock failed");
+    queryRawMock.mockRejectedValueOnce(error);
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(error, expect.anything());
   });
 });

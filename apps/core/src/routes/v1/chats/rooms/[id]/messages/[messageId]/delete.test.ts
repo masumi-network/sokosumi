@@ -192,7 +192,6 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     expect(rewriteChatNotificationPreviewsMock).toHaveBeenCalledWith({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
   });
 
@@ -211,7 +210,6 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     expect(rewriteChatNotificationPreviewsMock).toHaveBeenCalledWith({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
   });
 
@@ -232,7 +230,6 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     expect(rewriteChatNotificationPreviewsMock).toHaveBeenCalledWith({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "",
     });
   });
 

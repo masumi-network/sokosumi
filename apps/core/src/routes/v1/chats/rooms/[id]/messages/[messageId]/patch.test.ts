@@ -207,7 +207,6 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     expect(rewriteChatNotificationPreviewsMock).toHaveBeenCalledWith({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "hello fixed",
     });
   });
 
@@ -229,7 +228,6 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     expect(rewriteChatNotificationPreviewsMock).toHaveBeenCalledWith({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
-      content: "hello fixed",
     });
   });
 
