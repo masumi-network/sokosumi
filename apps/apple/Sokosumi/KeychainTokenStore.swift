@@ -15,10 +15,10 @@ struct KeychainTokenStore: TokenStore {
       kSecAttrService as String: service,
       kSecAttrAccount as String: account,
       kSecReturnData as String: true,
-      kSecMatchLimit as String: kSecMatchLimitOne,
+      kSecMatchLimit as String: kSecMatchLimitOne
     ]
     guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-      let data = item as? Data
+          let data = item as? Data
     else {
       return nil
     }
@@ -32,17 +32,16 @@ struct KeychainTokenStore: TokenStore {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
-      kSecAttrAccount as String: account,
+      kSecAttrAccount as String: account
     ]
     let attributes: [String: Any] = [
       kSecValueData as String: data,
-      kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+      kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
     ]
-    let status: OSStatus
-    if SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess {
-      status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+    let status: OSStatus = if SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess {
+      SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
     } else {
-      status = SecItemAdd((query.merging(attributes) { _, new in new }) as CFDictionary, nil)
+      SecItemAdd((query.merging(attributes) { _, new in new }) as CFDictionary, nil)
     }
     guard status == errSecSuccess else {
       throw TokenStoreError.writeFailed
@@ -54,7 +53,7 @@ struct KeychainTokenStore: TokenStore {
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
-      kSecAttrAccount as String: account,
+      kSecAttrAccount as String: account
     ]
     let status = SecItemDelete(query as CFDictionary)
     // Absent already counts as deleted (idempotent sign-out). Any other

@@ -2,19 +2,23 @@ import CoreAPI
 import Foundation
 import HTTPTypes
 import OpenAPIRuntime
+@testable import Sokosumi
 import SokosumiAuth
 import SokosumiChat
 import Testing
-
-@testable import Sokosumi
 
 private let timestamp = "2026-01-01T00:00:00.000Z"
 
 private struct MemoryTokenStore: TokenStore {
   var tokens: OAuthTokens?
-  func load() -> OAuthTokens? { tokens }
-  func save(_ tokens: OAuthTokens) throws {}
-  func clear() -> Bool { true }
+  func load() -> OAuthTokens? {
+    tokens
+  }
+
+  func save(_: OAuthTokens) throws {}
+  func clear() -> Bool {
+    true
+  }
 }
 
 /// Counts `load()` calls: proves `AuthState.init` never reads the store
@@ -27,8 +31,11 @@ private final class LoadCountingStore: TokenStore, @unchecked Sendable {
     loadCalls += 1
     return tokens
   }
-  func save(_ tokens: OAuthTokens) throws {}
-  func clear() -> Bool { true }
+
+  func save(_: OAuthTokens) throws {}
+  func clear() -> Bool {
+    true
+  }
 }
 
 private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
@@ -40,9 +47,9 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
   }
 
   func send(
-    _ request: HTTPRequest,
-    body: HTTPBody?,
-    baseURL: URL,
+    _: HTTPRequest,
+    body _: HTTPBody?,
+    baseURL _: URL,
     operationID: String
   ) async throws -> (HTTPResponse, HTTPBody?) {
     operationIDs.append(operationID)
@@ -58,12 +65,12 @@ private func accessBody(gate: String, personal: Bool = true) -> String {
 }
 
 private let orgsBody = """
-  {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-  """
+{"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+"""
 
 private let userBody = """
-  {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-  """
+{"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+"""
 
 private func roomsBody(names: [String]) -> String {
   let rooms = names.enumerated().map { index, name in
@@ -72,15 +79,16 @@ private func roomsBody(names: [String]) -> String {
     """
   }.joined(separator: ",")
   return """
-    {"data":[\(rooms)],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(names.count),"nextCursor":null}}}
-    """
+  {"data":[\(rooms)],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(names.count),"nextCursor":null}}}
+  """
 }
 
+/// One fixture bundle per test; a struct would churn every call site.
 private func ephemeralState(
   _ responses: [(Int, String)]
-) -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) {
+) throws -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) { // swiftlint:disable:this large_tuple
   let transport = ScriptedTransport(responses)
-  let client = Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
+  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
   let suite = "sokosumi-workspace-state-tests.\(UUID().uuidString)"
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
@@ -98,11 +106,11 @@ struct WorkspaceStateTests {
   }
 
   @Test func reloadReadySelectsPersonalDefaultAndLoadsRooms() async throws {
-    let (state, auth, transport, _) = ephemeralState([
+    let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
-      (200, roomsBody(names: ["general"])),
+      (200, roomsBody(names: ["general"]))
     ])
     await state.reload(auth: auth)
     #expect(state.phase == .ready)
@@ -113,7 +121,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func reloadBlockedGateLoadsNoRooms() async throws {
-    let (state, auth, transport, _) = ephemeralState([(200, accessBody(gate: "identity-onboarding", personal: false))])
+    let (state, auth, transport, _) = try ephemeralState([(200, accessBody(gate: "identity-onboarding", personal: false))])
     await state.reload(auth: auth)
     #expect(state.phase == .blocked(gate: .identityOnboarding))
     #expect(state.rooms.isEmpty)
@@ -121,7 +129,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchSuccessCommitsSelectionAndRooms() async throws {
-    let (state, auth, transport, _) = ephemeralState([
+    let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -129,7 +137,7 @@ struct WorkspaceStateTests {
       (200, """
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """),
-      (200, roomsBody(names: ["launch"])),
+      (200, roomsBody(names: ["launch"]))
     ])
     await state.reload(auth: auth)
     let org = try #require(state.options.first { $0.id == "org_1" })
@@ -140,14 +148,14 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchFailureKeepsOldSelectionAndRooms() async throws {
-    let (state, auth, _, _) = ephemeralState([
+    let (state, auth, _, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
       (500, """
       {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
-      """),
+      """)
     ])
     await state.reload(auth: auth)
     let org = try #require(state.options.first { $0.id == "org_1" })
@@ -159,7 +167,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func selectWhileLoadingIgnoresSecondSwitch() async throws {
-    let (state, auth, transport, _) = ephemeralState([
+    let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -167,14 +175,14 @@ struct WorkspaceStateTests {
       (200, """
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """),
-      (200, roomsBody(names: ["launch"])),
+      (200, roomsBody(names: ["launch"]))
     ])
     await state.reload(auth: auth)
     let org = try #require(state.options.first { $0.id == "org_1" })
     let personal = try #require(state.options.first { $0.id == "personal" })
     state.select(org, auth: auth)
     state.select(personal, auth: auth)
-    for _ in 0..<1_000 where state.roomsLoading {
+    for _ in 0 ..< 1000 where state.roomsLoading {
       await Task.yield()
     }
     #expect(state.selectionId == "org_1")
@@ -183,7 +191,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func resetClearsEverything() async throws {
-    let (state, auth, _, defaults) = ephemeralState([
+    let (state, auth, _, defaults) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -191,7 +199,7 @@ struct WorkspaceStateTests {
       (200, """
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """),
-      (200, roomsBody(names: ["launch"])),
+      (200, roomsBody(names: ["launch"]))
     ])
     await state.reload(auth: auth)
     let org = try #require(state.options.first { $0.id == "org_1" })
@@ -208,7 +216,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchRoomsListFailureRestoresPreviousPreference() async throws {
-    let (state, auth, transport, _) = ephemeralState([
+    let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -221,7 +229,7 @@ struct WorkspaceStateTests {
       """),
       (200, """
       {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      """)
     ])
     await state.reload(auth: auth)
     let org = try #require(state.options.first { $0.id == "org_1" })
@@ -232,7 +240,7 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.suffix(3) == [
       "put/users/{id}/preferred-organization",
       "get/chats/rooms",
-      "put/users/{id}/preferred-organization",
+      "put/users/{id}/preferred-organization"
     ])
   }
 }

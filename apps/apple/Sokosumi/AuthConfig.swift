@@ -17,7 +17,7 @@ enum AuthConfig {
   }
 
   static func makeConfiguration() -> OAuthConfiguration? {
-    guard let clientID = clientID, !clientID.isEmpty else {
+    guard let clientID, !clientID.isEmpty else {
       return nil
     }
     return OAuthConfiguration(
@@ -31,8 +31,7 @@ enum AuthConfig {
       return env
     }
     if let plist = Bundle.main.object(forInfoDictionaryKey: "SokosumiOAuthClientID") as? String,
-      !plist.isEmpty
-    {
+       !plist.isEmpty {
       return plist
     }
     return nil

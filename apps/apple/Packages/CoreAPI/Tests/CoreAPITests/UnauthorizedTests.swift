@@ -9,15 +9,15 @@ struct UnauthorizedTests {
     let transport = RecordingTransport(
       status: 401,
       body: """
-        {"error":"Unauthorized","message":"Invalid, expired or missing session","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/v1/users/me","method":"GET"}}
-        """
+      {"error":"Unauthorized","message":"Invalid, expired or missing session","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/v1/users/me","method":"GET"}}
+      """
     )
-    let client = Client.connecting(
-      to: URL(string: "https://core.example/v1")!,
+    let client = try Client.connecting(
+      to: #require(URL(string: "https://core.example/v1")),
       transport: transport
     )
     let response = try await client.getUsersId(path: .init(id: "me"))
-    guard case .unauthorized(let unauthorized) = response else {
+    guard case let .unauthorized(unauthorized) = response else {
       Issue.record("expected 401, got \(response)")
       return
     }
@@ -43,15 +43,15 @@ private final class RecordingTransport: ClientTransport, @unchecked Sendable {
 
   func send(
     _ request: HTTPRequest,
-    body: HTTPBody?,
-    baseURL: URL,
+    body _: HTTPBody?,
+    baseURL _: URL,
     operationID: String
   ) async throws -> (HTTPResponse, HTTPBody?) {
     lastRequest = request
     lastOperationID = operationID
     return (
       HTTPResponse(status: HTTPResponse.Status(code: status)),
-      HTTPBody(self.body)
+      HTTPBody(body)
     )
   }
 }
