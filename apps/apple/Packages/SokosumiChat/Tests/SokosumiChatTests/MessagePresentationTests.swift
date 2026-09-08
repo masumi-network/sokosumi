@@ -72,11 +72,13 @@ struct MessagePresentationTests {
     let messages = try await fetchTestMessages([
       testMessageJSON(id: ada, content: "", sender: senderAda(), membership: "{\"action\":\"joined\",\"subject\":{\"type\":\"user\",\"id\":\"user_2\",\"name\":\"Ada\"}}"),
       testMessageJSON(id: bob, content: "", sender: senderAda(), membership: "{\"action\":\"left\",\"subject\":{\"type\":\"coworker\",\"id\":\"cw_1\",\"name\":\"Helper\"}}"),
-      testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440206", content: "plain", sender: senderAda())
+      testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440206", content: "", sender: senderAda(), membership: "{\"action\":\"joined\",\"subject\":{\"type\":\"sokoBot\",\"id\":\"bot_1\",\"name\":\"Soko\"}}"),
+      testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440207", content: "plain", sender: senderAda())
     ])
     #expect(membershipStatusText(messages[0]) == "Ada joined")
     #expect(membershipStatusText(messages[1]) == "Helper left")
-    #expect(membershipStatusText(messages[2]) == nil)
+    #expect(membershipStatusText(messages[2]) == "Soko joined")
+    #expect(membershipStatusText(messages[3]) == nil)
   }
 
   @Test func initialsFallback() {

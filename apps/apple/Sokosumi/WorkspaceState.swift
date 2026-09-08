@@ -150,7 +150,8 @@ final class WorkspaceState: ObservableObject {
 
   /// Open a room's transcript: history first, mark-read after it resolves
   /// (ADR 0026). The sidebar entry is replaced with the POST-read DTO so
-  /// unread chrome matches Core.
+  /// unread chrome matches Core. A failed read keeps the resolved history
+  /// on screen and leaves unread chrome unchanged.
   func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
     transcriptGeneration += 1
     let generation = transcriptGeneration
@@ -180,17 +181,27 @@ final class WorkspaceState: ObservableObject {
       return
     }
     do {
-      let opened = try await service.openRoom(
+      let page = try await service.listMessages(
         client: client,
         roomId: room.id,
         organizationSlug: selection?.workspace.organizationSlug
       )
       guard generation == transcriptGeneration else { return }
-      transcriptMessages = opened.messages
-      transcriptCursor = opened.nextCursor
-      transcriptHasMore = opened.nextCursor != nil
-      if let index = rooms.firstIndex(where: { $0.id == opened.room.id }) {
-        rooms[index] = opened.room
+      // History resolved: paint it before the read so a failed read keeps
+      // the transcript on screen instead of discarding it.
+      transcriptMessages = page.messages
+      transcriptCursor = page.nextCursor
+      transcriptHasMore = page.nextCursor != nil
+      // The read is only for the room still selected now: a stale open must
+      // not mark the previous room read after the user moved on.
+      let updated = try await service.markRoomRead(
+        client: client,
+        roomId: room.id,
+        organizationSlug: selection?.workspace.organizationSlug
+      )
+      guard generation == transcriptGeneration else { return }
+      if let index = rooms.firstIndex(where: { $0.id == updated.id }) {
+        rooms[index] = updated
       }
     } catch let error as ChatServiceError {
       guard generation == transcriptGeneration else { return }
@@ -277,6 +288,7 @@ final class WorkspaceState: ObservableObject {
     phase = .loading
     rooms = []
     switchError = nil
+    selectedRoomId = nil
     clearTranscript()
     guard let client = resolveClient(auth: auth) else {
       phase = .failed(message: "Sign-in is not configured.")
@@ -318,7 +330,10 @@ final class WorkspaceState: ObservableObject {
 
   func switchRooms(auth: AuthState, option: WorkspaceOption) async {
     roomsLoading = true
-    clearTranscript()
+    // Bump the generation without wiping the pane: a failed switch keeps
+    // showing the retained room's transcript instead of loading forever.
+    // Success replaces it via ensureRoomSelection -> openRoom.
+    transcriptGeneration += 1
     defer { roomsLoading = false }
     guard let client = resolveClient(auth: auth) else {
       switchError = "Sign-in is not configured."

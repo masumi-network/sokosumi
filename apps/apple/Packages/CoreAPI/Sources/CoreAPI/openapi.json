@@ -1722,11 +1722,11 @@
           {
             "schema": {
               "type": "string",
-              "description": "Cursor for pagination (ID of the last item from previous page)",
-              "example": "cmi4gmksz000104l8wps8p7fp"
+              "description": "Cursor for pagination (ID of the last message from previous page)",
+              "example": "550e8400-e29b-41d4-a716-446655440002"
             },
             "required": false,
-            "description": "Cursor for pagination (ID of the last item from previous page)",
+            "description": "Cursor for pagination (ID of the last message from previous page)",
             "name": "cursor",
             "in": "query"
           },

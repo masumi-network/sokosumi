@@ -61,44 +61,8 @@ struct RoomTranscriptTests {
     #expect(page.nextCursor == nil)
   }
 
-  @Test func openRoomMarksReadAfterHistory() async throws {
-    let transport = TestTransport([
-      (200, testMessagesPageBody(
-        messages: [testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440103", content: "hi", sender: testUserSender(name: "Ada", email: "ada@example.com"))],
-        nextCursor: nil
-      )),
-      (200, readBody(unreadCount: 0))
-    ])
-    let opened = try await ChatService().openRoom(
-      client: makeTestClient(transport), roomId: roomId, organizationSlug: nil
-    )
-    #expect(transport.requests.map(\.operationID) == [
-      "get/chats/rooms/{id}/messages",
-      "post/chats/rooms/{id}/read"
-    ])
-    #expect(opened.messages.map(\.content) == ["hi"])
-    // Unread chrome must match the returned DTO, not a local zero.
-    #expect(opened.room.unreadCount == 0)
-    #expect(opened.room.id == roomId)
-  }
-
-  @Test func failedHistoryDoesNotMarkRead() async throws {
-    let transport = TestTransport([
-      (500, """
-      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(testTimestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomId)/messages","method":"GET"}}
-      """)
-    ])
-    do {
-      _ = try await ChatService().openRoom(
-        client: makeTestClient(transport), roomId: roomId, organizationSlug: nil
-      )
-      Issue.record("expected history failure")
-    } catch let error as ChatServiceError {
-      #expect(String(describing: error).contains("500"))
-    }
-    #expect(transport.requests.map(\.operationID) == ["get/chats/rooms/{id}/messages"])
-  }
-
+  /// History-then-read ordering lives in WorkspaceState (generation-checked);
+  /// the app tests assert the op order and the no-read-on-failed-history gate.
   @Test func markReadReturnsUpdatedRoomDTO() async throws {
     let transport = TestTransport([(200, readBody(unreadCount: 2))])
     let room = try await ChatService().markRoomRead(

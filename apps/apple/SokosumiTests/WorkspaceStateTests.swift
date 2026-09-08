@@ -269,7 +269,10 @@ struct WorkspaceStateTests {
       (200, orgsBody),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
-      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [transcriptMessage(
+        id: "550e8400-e29b-41d4-a716-446655440037",
+        content: "kept"
+      )], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
       (200, """
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
@@ -289,6 +292,10 @@ struct WorkspaceStateTests {
     #expect(state.rooms.map(\.name) == ["general"])
     #expect(state.phase == .ready)
     #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
+    // The retained room keeps its transcript instead of loading forever.
+    #expect(state.transcriptRoomId == "550e8400-e29b-41d4-a716-446655440000")
+    #expect(state.transcriptMessages.map(\.content) == ["kept"])
+    #expect(state.transcriptError == nil)
     #expect(transport.operationIDs.suffix(3) == [
       "put/users/{id}/preferred-organization",
       "get/chats/rooms",
@@ -412,6 +419,34 @@ struct WorkspaceStateTests {
     #expect(SavedRoomSelection(defaults: defaults).load() == secondID)
     #expect(state.transcriptRoomId == secondID)
     #expect(state.transcriptMessages.map(\.content) == ["hi"])
+  }
+
+  @Test func failedReadKeepsResolvedHistory() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440035"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, unreadRoomsBody(id: roomID, unread: 2)),
+      (200, transcriptPageBody(messages: [transcriptMessage(
+        id: "550e8400-e29b-41d4-a716-446655440036",
+        content: "visible"
+      )], nextCursor: nil)),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/read","method":"POST"}}
+      """)
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    // History resolved before the read failed: it stays on screen with a
+    // banner, and unread chrome is untouched (no DTO to apply).
+    #expect(state.transcriptMessages.map(\.content) == ["visible"])
+    #expect(state.transcriptError != nil)
+    #expect(state.rooms.first?.unreadCount == 2)
+    #expect(transport.operationIDs.suffix(2) == [
+      "get/chats/rooms/{id}/messages",
+      "post/chats/rooms/{id}/read"
+    ])
   }
 
   @Test func failedOlderPageKeepsResolvedHistory() async throws {

@@ -6,28 +6,6 @@ import OpenAPIRuntime
 /// the Mac tracer pages the same transcript as the browser.
 private let roomHistoryLimit = 100
 
-/// Open-room result for SOK-974 (Mac tracer).
-///
-/// `messages` is history in reading order (oldest first, newest at the
-/// bottom) and `room` is the POST-read DTO — unread chrome must match it,
-/// including leftover thread unread (ADR 0013). `nextCursor` is nil when
-/// history is complete.
-public struct OpenedRoom: Sendable {
-  public var messages: [Components.Schemas.ChatRoomMessage]
-  public var nextCursor: String?
-  public var room: Components.Schemas.ChatRoom
-
-  public init(
-    messages: [Components.Schemas.ChatRoomMessage],
-    nextCursor: String?,
-    room: Components.Schemas.ChatRoom
-  ) {
-    self.messages = messages
-    self.nextCursor = nextCursor
-    self.room = room
-  }
-}
-
 /// Display name for a transcript row sender, mirroring `roomDisplayName`'s
 /// human rule (name, else email). Plain text only — no mention chips.
 public func messageSenderName(_ sender: Components.Schemas.ChatRoomMessageSender) -> String {
@@ -107,18 +85,5 @@ public extension ChatService {
     case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
-  }
-
-  /// Open a room: history first, mark-read only after it resolves
-  /// (ADR 0026). A failed history load throws before any read POST, so
-  /// unread chrome is left unchanged.
-  func openRoom(
-    client: Client,
-    roomId: String,
-    organizationSlug: String?
-  ) async throws -> OpenedRoom {
-    let page = try await listMessages(client: client, roomId: roomId, organizationSlug: organizationSlug)
-    let room = try await markRoomRead(client: client, roomId: roomId, organizationSlug: organizationSlug)
-    return .init(messages: page.messages, nextCursor: page.nextCursor, room: room)
   }
 }

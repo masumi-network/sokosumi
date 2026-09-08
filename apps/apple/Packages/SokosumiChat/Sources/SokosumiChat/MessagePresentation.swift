@@ -71,11 +71,15 @@ public func daySeparatorLabel(
   let startOfToday = calendar.startOfDay(for: now)
   let startOfDate = calendar.startOfDay(for: date)
   let daysDiff = calendar.dateComponents([.day], from: startOfDate, to: startOfToday).day ?? 0
+  // Web renders fixed English strings with Latin digits regardless of the
+  // device locale; Gregorian pins the year for non-Gregorian calendars.
+  // The timezone stays the caller's so day boundaries remain local.
+  var gregorian = Calendar(identifier: .gregorian)
+  gregorian.timeZone = calendar.timeZone
   let formatter = DateFormatter()
-  formatter.calendar = calendar
+  formatter.calendar = gregorian
+  formatter.locale = Locale(identifier: "en_US_POSIX")
   if daysDiff < 7 {
-    // Web hardcodes the English weekday array; match it exactly.
-    formatter.locale = Locale(identifier: "en_US_POSIX")
     formatter.dateFormat = "EEEE"
   } else {
     formatter.dateFormat = "dd/MM/yyyy"
@@ -88,14 +92,13 @@ public func daySeparatorLabel(
 /// membership row.
 public func membershipStatusText(_ message: Components.Schemas.ChatRoomMessage) -> String? {
   guard let membership = message.membership else { return nil }
-  let name: String
-  switch membership.subject {
+  let name: String = switch membership.subject {
   case let .case1(user):
-    name = user.name
+    user.name
   case let .case2(coworker):
-    name = coworker.name
-  default:
-    return nil
+    coworker.name
+  case let .case3(bot):
+    bot.name
   }
   switch membership.action {
   case .joined:
