@@ -825,7 +825,11 @@ export async function getRoomThreadAction(
   try {
     const thread = await chatRoomService.getThread(roomId, parentMessageId);
     if (!thread) {
-      return roomFail("Could not load thread.");
+      // Settled, not broken: Core answers 404 for a thread whose parent was
+      // deleted, that has no replies left, or that the reader cannot see. The
+      // code separates that from a request that failed, so a caller can stay
+      // quiet about the first and complain about the second.
+      return roomFail("Could not load thread.", CommonErrorCode.NOT_FOUND);
     }
     return roomOk(thread);
   } catch (error) {

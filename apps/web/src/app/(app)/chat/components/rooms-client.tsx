@@ -120,7 +120,6 @@ import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
@@ -134,6 +133,7 @@ import {
 import { applyChatRoomMessagePatch } from "@/lib/ably/apply-chat-room-message-patch";
 import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -2064,7 +2064,14 @@ export function RoomsClient({
           return null;
         }
         if (!result.ok) {
-          toast.error(result.error.message);
+          // A thread that is simply not there is the answer, not a fault. It
+          // happens on the notification path whenever the reply's parent has
+          // been deleted, and telling the reader the thread failed to load is
+          // the loud second failure this jump exists to avoid. They are left
+          // in the room the notification already opened.
+          if (result.error.code !== CommonErrorCode.NOT_FOUND) {
+            toast.error(result.error.message);
+          }
           return null;
         }
         return result.value.parentMessage;

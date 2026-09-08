@@ -856,4 +856,36 @@ describe("RoomsClient notification deep link", () => {
       expect(toast.error).not.toHaveBeenCalled();
     });
   });
+  it("says nothing when the reply's thread is no longer there", async () => {
+    mockSearch.current = "message=msg-reply";
+    vi.mocked(getRoomMessageAction).mockResolvedValue({
+      ok: true as const,
+      value: {
+        ...sampleMessage("reply body", "msg-reply"),
+        parentMessageId: "msg-parent",
+      },
+    });
+    // Core answers 404 for a thread whose parent has been deleted, and the
+    // action reports that as NOT_FOUND rather than as a failure.
+    vi.mocked(getRoomThreadAction).mockResolvedValue({
+      ok: false as const,
+      error: { code: "NOT_FOUND", message: "Could not load thread." },
+    });
+
+    render(<RoomsClient {...baseProps} messagesPromise={settledMessages()} />);
+
+    await waitFor(() => {
+      expect(getRoomThreadAction).toHaveBeenCalledWith(
+        "room-channel",
+        "msg-parent",
+      );
+    });
+
+    // The reader followed a notification to a reply under a deleted parent.
+    // They are left in the room it opened, which is the whole point of not
+    // jumping to a message the server will not give up. An error about the
+    // thread failing to load is the loud second failure this avoids.
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("thread-panel")).toBeNull();
+  });
 });
