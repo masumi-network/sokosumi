@@ -7,8 +7,8 @@ export interface RoomMessageJumpDeps {
   loadAround: (messageId: string) => Promise<boolean>;
   /**
    * Settle after the window is merged, before the highlight scrolls to it.
-   * Takes no message id so the caller waits for the room to stop moving
-   * rather than returning the moment the target exists. The stick-to-bottom
+   * Takes no message id so the caller waits a fixed few frames rather than
+   * returning the moment the target exists. The stick-to-bottom
    * observer has to see the whole growth while the hold is still on, or it
    * re-pins the view to the newest message and undoes the jump.
    */

@@ -47,11 +47,13 @@ export async function waitForSearchJumpPaint(
  * Every other way out of the try releases it: a target the jump reached
  * without a window, whether it was on screen from the start or became visible
  * when the thread opened; a path that gives up first; and the `catch`. The
- * `catch` is the one that is not about whether a window loaded. `afterRender`
- * and `highlight` run after one has been, so a rejection there releases a hold
- * the successful path would have kept. A room holding off the bottom for a
- * jump that never finished stops following new messages, and the reader cannot
- * re-arm it by scrolling.
+ * `catch` is the one that is not about whether a window loaded. Two of the
+ * pairs it covers, the highlight and the paint wait that follow
+ * `loadAroundInThread` and `loadAroundInRoom`, run after one has been, so a
+ * rejection from those releases a hold the successful path would have kept.
+ * A room holding off the bottom for a jump that never finished stops
+ * following new messages until the flag is cleared, which a room switch
+ * does.
  *
  * A rejection from one of the loads is a transport failure rather than a
  * refusal: those actions report a server-side error by returning one. The

@@ -717,6 +717,7 @@ export function RoomsClient({
   // "No replies yet" blink. Generation invalidates in-flight opens/closes.
   const [isThreadLoading, setIsThreadLoading] = useState(false);
   const threadLoadGenerationRef = useRef(0);
+  const jumpGenerationRef = useRef(0);
   const composeSurfaceEpoch = selectedRoomId ?? "";
   const [syncedComposeSurfaceEpoch, setSyncedComposeSurfaceEpoch] =
     useState(composeSurfaceEpoch);
@@ -2004,6 +2005,22 @@ export function RoomsClient({
     return loadThreadMessages(parentMessage);
   }
 
+  /**
+   * Claim the room's one scroll position for a jump, and hand back the test
+   * for whether it still owns it.
+   *
+   * Two jumps can be in flight at once: a reader clearing notifications
+   * clicks a second one while the first is still loading its window. Both
+   * carry the same room, so `isStillSelectedRoom` cannot tell them apart.
+   * Without this the slower request wins the scroll, and its release drops
+   * the hold the other one is relying on.
+   */
+  function startJump(): () => boolean {
+    jumpGenerationRef.current += 1;
+    const generation = jumpGenerationRef.current;
+    return () => generation === jumpGenerationRef.current;
+  }
+
   async function handleSearchJump(
     hit: ChatRoomMessage,
     options?: {
@@ -2021,11 +2038,13 @@ export function RoomsClient({
     if (!roomId) {
       return;
     }
+    const isNewestJump = startJump();
     await performRoomSearchJump(hit, {
       holdOffBottom: () => {
         // Guarded like the release below, and it has to be: the two must
-        // agree. A hold taken for a room the reader has left is never
-        // released, and the room they moved to stops following new messages.
+        // agree. A hold taken for a room the reader has left is not released
+        // by this jump, so the room they moved to stops following new
+        // messages until the flag is cleared, which a room switch does.
         if (!isStillSelectedRoom(roomId)) {
           return;
         }
@@ -2035,20 +2054,23 @@ export function RoomsClient({
       releaseHoldOffBottom: () => {
         // Reached from a notification for a thread reply, which arrives after
         // a read and a thread load, so the reader can have moved on. Releasing
-        // then would drop the hold the room they moved to is relying on.
-        if (!isStillSelectedRoom(roomId)) {
+        // then would drop the hold the room they moved to is relying on, and
+        // so would releasing on behalf of a jump a later click has replaced.
+        if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
           return;
         }
         releaseStickToBottomSuppress();
         setSearchHoldOffBottom(false);
       },
-      highlight: highlightRoomMessageElement,
+      // Guarded because a superseded jump reaching this would scroll the
+      // reader off the message a later click has already put them on.
+      highlight: (id) => isNewestJump() && highlightRoomMessageElement(id),
       afterRender: waitForSearchJumpPaint,
       loadAroundInRoom: async (aroundId) => {
         const result = await listRoomMessagesAction(roomId, {
           around: aroundId,
         });
-        if (!isStillSelectedRoom(roomId)) {
+        if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
           return false;
         }
         if (!result.ok) {
@@ -2071,17 +2093,24 @@ export function RoomsClient({
         // makes: once the reader has moved on, neither the result nor a
         // complaint about it belongs on the room they moved to. This one also
         // guards state, because `loadThreadMessages` opens the panel before
-        // its first await, too early to check for itself.
-        if (!isStillSelectedRoom(roomId)) {
+        // its first await, too early to check for itself. A superseded jump
+        // stops here for the same reason: opening its thread would put the
+        // wrong parent over the one a later click is opening.
+        if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
           return null;
         }
         if (!result.ok) {
           // A thread that is simply not there is the answer, not a fault, and
           // on the notification path saying so is the loud second failure
           // this jump exists to avoid: the reader is left in the room the
-          // notification already opened. It happens when the reply's parent
-          // has been deleted and is not already in the loaded timeline, which
-          // is the case `findLoadedParent` above cannot short-circuit.
+          // notification already opened.
+          //
+          // It happens whenever the thread Core would return is gone. The
+          // parent may be deleted, or the reply itself may be deleted with no
+          // live reply left to keep the thread addressable: the aggregate
+          // requires both `parent."deletedAt" IS NULL` and one surviving
+          // reply. Either way the parent was not in the loaded timeline, or
+          // `findLoadedParent` above would have short-circuited this.
           const quiet =
             options?.quietWhenThreadIsGone === true &&
             result.error.code === CommonErrorCode.NOT_FOUND;
@@ -2097,7 +2126,7 @@ export function RoomsClient({
         const result = await listThreadMessagesAction(roomId, parentId, {
           around: aroundId,
         });
-        if (!isStillSelectedRoom(roomId)) {
+        if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
           return false;
         }
         if (!result.ok) {
@@ -2206,8 +2235,13 @@ export function RoomsClient({
     if (!roomId) {
       return;
     }
+    const isNewestJump = startJump();
     await performRoomMessageJump(messageId, {
-      highlight: highlightRoomMessageElement,
+      // Guarded because this runs twice: once on entry, where this jump is
+      // always the newest, and once after the window loads, where it may not
+      // be. Scrolling then would drag the reader off the message a later
+      // click has already put them on.
+      highlight: (id) => isNewestJump() && highlightRoomMessageElement(id),
       holdOffBottom: () => {
         // Guarded like the release below, and for the same reason. A
         // notification jump reaches this after reading the message, so the
@@ -2223,7 +2257,12 @@ export function RoomsClient({
         // The hold is one flag for the whole client, so a jump abandoned
         // because the reader moved on must not release the hold the room they
         // moved to is relying on. Switching rooms clears it anyway.
-        if (!isStillSelectedRoom(roomId)) {
+        //
+        // A superseded jump must not release it either. Its `finally` runs
+        // while a later jump is still loading, and the room would re-pin to
+        // the newest message. The newest jump always passes this, so the
+        // hold is still released by whoever holds it last.
+        if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
           return;
         }
         releaseStickToBottomSuppress();
@@ -2233,7 +2272,7 @@ export function RoomsClient({
         const result = await listRoomMessagesAction(roomId, {
           around: aroundId,
         });
-        if (!isStillSelectedRoom(roomId)) {
+        if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
           return false;
         }
         if (!result.ok) {
@@ -2243,10 +2282,10 @@ export function RoomsClient({
         // Deliberately not marked historical. The window is merged, not
         // swapped in, so the head is still on screen and the room still reads
         // as live. Marking it would make that a lie: while the flag is on
-        // every refetch is dropped, and so is every realtime message for an
-        // id the timeline does not already hold, which is every new message.
-        // It is cleared only by sending a message, switching rooms, or a
-        // reload. It would
+        // every refetch's merge is dropped, and so is every realtime message
+        // for an id the timeline does not already hold, which is every new
+        // message. It is cleared only by sending a message, switching rooms,
+        // or a reload. It would
         // also freeze `olderNextCursor` at this window's oldest row, so Load
         // older would walk further into the past and never fill the gap
         // between the window and the head.

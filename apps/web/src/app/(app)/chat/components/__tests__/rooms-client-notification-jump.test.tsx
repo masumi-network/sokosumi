@@ -362,8 +362,8 @@ function settledMessages(messages: ChatRoomMessage[] = []) {
 /**
  * The wiring between the URL and the jump, which the helper unit tests cannot
  * see. Several of the defects review found in this feature lived here rather
- * than in the helpers, because a helper is only ever driven by dependencies a
- * test wrote.
+ * than in the helpers, because a helper's own unit test only ever drives it
+ * with dependencies that test wrote.
  */
 describe("RoomsClient notification deep link", () => {
   beforeEach(() => {
@@ -736,10 +736,11 @@ describe("RoomsClient notification deep link", () => {
   /**
    * Every load a jump makes checks the room before it reports a failure, so
    * an error raised for a room the reader has left never lands on the room
-   * they moved to. Each of these holds one request open, moves the reader,
-   * then fails it.
+   * they moved to. Each of these holds one request open and moves the reader
+   * before settling it. Three fail it and expect nothing to be said; the
+   * fourth succeeds it and expects the hold to be left alone.
    */
-  describe("a failure for a room the reader has left", () => {
+  describe("a request settling for a room the reader has left", () => {
     const serverError = {
       ok: false as const,
       error: { code: "INTERNAL_ERROR", message: "Server error" },
@@ -952,6 +953,67 @@ describe("RoomsClient notification deep link", () => {
       expect(toast.error).not.toHaveBeenCalled();
     });
   });
+  it("does not scroll back to a notification a later click replaced", async () => {
+    // Two bell rows for the same room, clicked in quick succession. Both
+    // windows are in flight and the first one clicked comes back last. The
+    // room guards cannot separate them: both jumps carry the same room.
+    mockSearch.current = "message=msg-1";
+    vi.mocked(getRoomMessageAction).mockImplementation(
+      async (_roomId, messageId) => ({
+        ok: true as const,
+        value: sampleMessage(`${messageId} body`, messageId),
+      }),
+    );
+
+    const windows = new Map<string, (messages: ChatRoomMessage[]) => void>();
+    vi.mocked(listRoomMessagesAction).mockImplementation(
+      (_roomId, options) =>
+        new Promise((resolve) => {
+          windows.set(String(options?.around), (messages) => {
+            resolve({
+              ok: true as const,
+              value: { messages, nextCursor: null },
+            });
+          });
+        }),
+    );
+
+    const { rerender } = render(
+      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
+    );
+    await waitFor(() => {
+      expect(windows.has("msg-1")).toBe(true);
+    });
+
+    mockSearch.current = "message=msg-2";
+    rerender(
+      <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
+    );
+    await waitFor(() => {
+      expect(windows.has("msg-2")).toBe(true);
+    });
+
+    await act(async () => {
+      windows.get("msg-2")?.([sampleMessage("second window", "msg-2")]);
+    });
+    // The newest jump owns the hold and is the one that gives it back.
+    await waitFor(() => {
+      expect(mockReleaseStickToBottomSuppress).toHaveBeenCalledOnce();
+    });
+
+    await act(async () => {
+      windows.get("msg-1")?.([sampleMessage("first window", "msg-1")]);
+    });
+
+    // The reader clicked the second notification last, so the second window
+    // is the one they get. Merging the first would move the room under them.
+    expect(screen.getByText("second window")).toBeInTheDocument();
+    expect(screen.queryByText("first window")).toBeNull();
+    // The replaced jump must not release either, or a hold the newest jump
+    // is still relying on goes with it.
+    expect(mockReleaseStickToBottomSuppress).toHaveBeenCalledOnce();
+  });
+
   it("still reports a missing thread to the reader who searched for it", async () => {
     // The same `loadParent` serves the search panel, which closes the moment
     // a hit is clicked. Staying quiet there would leave that click looking

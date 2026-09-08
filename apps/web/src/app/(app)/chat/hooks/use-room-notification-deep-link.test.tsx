@@ -142,6 +142,59 @@ describe("useRoomNotificationDeepLink", () => {
     expect(props.jumpInRoom).toHaveBeenCalledExactlyOnceWith("msg-2");
   });
 
+  it("still lands a jump the reader started before a detour to another room", async () => {
+    // A jump started for another room says nothing about this one. Suppressing
+    // on a single counter would drop this jump on the floor, and the URL
+    // parameter has already been spent, so nothing would start it again.
+    const resolvers = new Map<string, () => void>();
+    vi.mocked(getRoomMessageAction).mockImplementation(
+      (_roomId, messageId) =>
+        new Promise((resolve) => {
+          resolvers.set(messageId, () => {
+            resolve({ ok: true as const, value: message({ id: messageId }) });
+          });
+        }),
+    );
+
+    const props = params();
+    const { rerender } = render(<Harness {...props} />);
+    await waitFor(() => {
+      expect(resolvers.has("msg-1")).toBe(true);
+    });
+
+    rerender(
+      <Harness
+        {...props}
+        roomId="room-2"
+        pathname="/chat/rooms/room-2"
+        searchParams={
+          new URLSearchParams(
+            "message=msg-2",
+          ) as unknown as ReadonlyURLSearchParams
+        }
+      />,
+    );
+    await waitFor(() => {
+      expect(resolvers.has("msg-2")).toBe(true);
+    });
+
+    // Back on the first room, with nothing left on its URL to re-trigger it.
+    rerender(
+      <Harness
+        {...props}
+        searchParams={
+          new URLSearchParams("") as unknown as ReadonlyURLSearchParams
+        }
+      />,
+    );
+
+    await act(async () => {
+      resolvers.get("msg-1")?.();
+    });
+
+    expect(props.jumpInRoom).toHaveBeenCalledExactlyOnceWith("msg-1");
+  });
+
   it("spends the message from the URL so Back does not jump again", async () => {
     const props = params();
 

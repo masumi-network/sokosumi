@@ -39,15 +39,21 @@ export interface RoomNotificationJumpDeps {
  * producer of this status is a reader who has since moved to another room,
  * where stopping is just as right: the answer is no longer theirs.
  *
- * A soft delete is not this case. It comes back as its tombstone with a 200,
- * and the reader lands on it. A refusal means the room was archived, or they
+ * A soft delete is not this case. It comes back as its tombstone with a 200.
+ * A top-level one is landed on. A reply is landed on only while its thread
+ * still holds a live reply, because the thread it needs to open is built from
+ * those. A refusal means the room was archived, or they
  * are no longer a member of it or of the organization behind it, or the id
  * names nothing in that room, which is where a hard delete lands. Being left
  * in the room is the useful answer to all of those.
  *
  * A lookup that merely failed is different. The message is probably still
  * there, so the room jump is worth trying: it loads its own window and may
- * well succeed, and if it does not, its error is one the reader can act on.
+ * well land it. What it cannot do is tell a reply apart from a top-level
+ * message, because that is what the failed lookup was for. Core re-centres an
+ * `around` request for a reply on its parent, so the window loads, the
+ * highlight finds nothing, and the reader is left in the room without a
+ * word. That is the same place a refusal leaves them.
  */
 export async function performRoomNotificationJump(
   messageId: string,
