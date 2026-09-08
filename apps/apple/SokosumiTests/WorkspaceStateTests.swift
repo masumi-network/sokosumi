@@ -443,6 +443,43 @@ struct WorkspaceStateTests {
     #expect(state.transcriptMessages.map(\.content) == ["hi"])
   }
 
+  @Test func changingRoomDropsPendingOutbound() async throws {
+    let firstID = "550e8400-e29b-41d4-a716-446655440000"
+    let secondID = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general", "random"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: firstID, unread: 0)),
+      // POST is paused before it consumes a stub, so the room switch
+      // takes the next responses. 201 is leftover for the released POST.
+      (200, transcriptPageBody(messages: [transcriptMessage(
+        id: "550e8400-e29b-41d4-a716-446655440040",
+        content: "hi"
+      )], nextCursor: nil)),
+      (200, roomReadBody(id: secondID, unread: 0)),
+      (201, createdMessageBody(id: "550e8400-e29b-41d4-a716-446655440505", roomId: firstID, content: "hello"))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    transport.pausePOST = true
+    state.sendMessage("hello", auth: auth)
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/messages") {
+      await Task.yield()
+    }
+    #expect(state.outboundShells.count == 1)
+    state.selectRoom(secondID, auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.outboundShells.isEmpty)
+    #expect(!state.outboundInFlight)
+    transport.releasePOST()
+    await waitForOutboundIdle(state)
+    #expect(state.outboundShells.isEmpty)
+    #expect(state.transcriptRoomId == secondID)
+  }
+
   @Test func failedReadKeepsResolvedHistory() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440035"
     let (state, auth, transport, _) = try ephemeralState([
@@ -618,6 +655,43 @@ struct WorkspaceStateTests {
     await waitForOutboundIdle(state)
     #expect(state.displayedTranscript.map(\.content) == ["first"])
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 1)
+  }
+
+  @Test func failedSwitchDuringSendSettlesOutboundAndFreesSlot() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let confirmedID = "550e8400-e29b-41d4-a716-446655440504"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 0)),
+      // POST is paused before it consumes a response, so the switch PUT
+      // takes the next stub. 500 then 201 is the in-flight order.
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      """),
+      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "hello"))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    transport.pausePOST = true
+    state.sendMessage("hello", auth: auth)
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/messages") {
+      await Task.yield()
+    }
+    #expect(state.outboundInFlight)
+    #expect(state.outboundShells[0].status == .pending)
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    await state.switchRooms(auth: auth, option: org)
+    #expect(state.selectionId == "personal")
+    #expect(state.switchError != nil)
+    transport.releasePOST()
+    await waitForOutboundIdle(state)
+    #expect(!state.outboundInFlight)
+    #expect(state.outboundShells.isEmpty)
+    #expect(state.transcriptMessages.map(\.id) == [confirmedID])
   }
 }
 

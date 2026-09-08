@@ -16,10 +16,6 @@ struct TranscriptView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
   @State private var draft = ""
-  /// Eager `VStack` realizes the load-older control on first layout, so
-  /// `onAppear` would pull every older page. Require a trip away from the
-  /// top (the bottom-anchored open) before auto-loading.
-  @State private var transcriptWasAwayFromTop = false
 
   let roomId: String
 
@@ -40,9 +36,6 @@ struct TranscriptView: View {
       transcriptBody
       Divider()
       composer
-    }
-    .onChange(of: roomId) { _, _ in
-      transcriptWasAwayFromTop = false
     }
   }
 
@@ -106,6 +99,7 @@ struct TranscriptView: View {
                 message: message,
                 isContinuation: isMessageContinuation(previous: previous, current: message),
                 outbound: outbound,
+                retryDisabled: workspaces.outboundInFlight,
                 onRetry: outbound.map { shell in
                   { workspaces.retryOutbound(clientTurnId: shell.clientTurnId, auth: auth) }
                 },
@@ -119,26 +113,12 @@ struct TranscriptView: View {
       }
       .padding(.horizontal, 12)
       .padding(.vertical, 8)
-      .background {
-        GeometryReader { geometry in
-          Color.clear.preference(
-            key: TranscriptScrollMinYKey.self,
-            value: geometry.frame(in: .named("transcript")).minY
-          )
-        }
-      }
     }
-    .coordinateSpace(.named("transcript"))
     .defaultScrollAnchor(.bottom)
-    .onPreferenceChange(TranscriptScrollMinYKey.self, perform: handleTranscriptMinY)
-  }
-
-  private func handleTranscriptMinY(_ minY: CGFloat) {
-    guard minY.isFinite, abs(minY) < 100_000 else { return }
-    if minY < -80 {
-      transcriptWasAwayFromTop = true
-    }
-    if transcriptWasAwayFromTop, minY > -40 {
+    .onScrollGeometryChange(for: Bool.self) { geometry in
+      geometry.visibleRect.minY < 40
+    } action: { wasNearTop, isNearTop in
+      guard !wasNearTop, isNearTop, workspaces.transcriptError == nil else { return }
       workspaces.loadOlderMessages(auth: auth)
     }
   }
@@ -197,13 +177,6 @@ struct TranscriptView: View {
   }
 }
 
-private struct TranscriptScrollMinYKey: PreferenceKey {
-  static var defaultValue: CGFloat = .greatestFiniteMagnitude
-  static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-    value = nextValue()
-  }
-}
-
 /// Centered day pill ("Today", "Yesterday", weekday, dd/mm/yyyy),
 /// like web `DaySeparator`.
 struct DaySeparatorRow: View {
@@ -250,6 +223,7 @@ struct MessageRow: View {
   let message: Components.Schemas.ChatRoomMessage
   let isContinuation: Bool
   let outbound: OutboundShell?
+  let retryDisabled: Bool
   let onRetry: (() -> Void)?
   let onRemove: (() -> Void)?
 
@@ -301,6 +275,7 @@ struct MessageRow: View {
           HStack(spacing: 12) {
             if let onRetry {
               Button("Retry", action: onRetry)
+                .disabled(retryDisabled)
             }
             if let onRemove {
               Button("Remove", role: .destructive, action: onRemove)
@@ -393,6 +368,7 @@ struct MessageRow: View {
         message: previewMessage(id: "m1", content: "Morning all — the tracer renders web-style rows now.", name: "Ada", minutesAfterNoon: 0),
         isContinuation: false,
         outbound: nil,
+        retryDisabled: false,
         onRetry: nil,
         onRemove: nil
       )
@@ -400,6 +376,7 @@ struct MessageRow: View {
         message: previewMessage(id: "m2", content: "Same burst, so no second header.", name: "Ada", minutesAfterNoon: 1),
         isContinuation: true,
         outbound: nil,
+        retryDisabled: false,
         onRetry: nil,
         onRemove: nil
       )
@@ -407,6 +384,7 @@ struct MessageRow: View {
         message: previewMessage(id: "m3", content: "Edited after the fact.", name: "Ada", minutesAfterNoon: 30, edited: true),
         isContinuation: false,
         outbound: nil,
+        retryDisabled: false,
         onRetry: nil,
         onRemove: nil
       )

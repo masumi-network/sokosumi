@@ -1,5 +1,6 @@
 import CoreAPI
 import Foundation
+import OpenAPIRuntime
 
 /// Local-only row id: `pending:{clientTurnId}`. Never a server message id.
 public let outboundLocalIdPrefix = "pending:"
@@ -89,7 +90,8 @@ public func displayedTranscript(
 }
 
 public func chatRoomMessage(from shell: OutboundShell) -> Components.Schemas.ChatRoomMessage {
-  .init(
+  let turnId = try? OpenAPIValueContainer(unvalidatedValue: shell.clientTurnId)
+  return .init(
     id: shell.id,
     roomId: shell.roomId,
     parentMessageId: nil,
@@ -102,7 +104,7 @@ public func chatRoomMessage(from shell: OutboundShell) -> Components.Schemas.Cha
     reactions: [],
     threadReplyCount: 0,
     threadLastReplyAt: nil,
-    metadata: nil,
+    metadata: turnId.map { .init(additionalProperties: ["client_message_id": $0]) },
     quote: nil,
     membership: nil,
     unfurls: nil

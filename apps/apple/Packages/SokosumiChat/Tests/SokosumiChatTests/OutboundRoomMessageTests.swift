@@ -47,6 +47,7 @@ struct OutboundRoomMessageTests {
     #expect(displayed.map(\.content) == ["earlier", "hello"])
     #expect(isOutboundLocalMessage(displayed[1]))
     #expect(displayed[1].id == outboundLocalMessageId(turnA))
+    #expect(displayed[1].metadata?.additionalProperties["client_message_id"]?.value as? String == turnA)
 
     let result = confirmOutbound(
       messages: history,
@@ -61,6 +62,25 @@ struct OutboundRoomMessageTests {
       confirmedId
     ])
     #expect(!isOutboundLocalMessage(result.messages[1]))
+  }
+
+  @Test func confirmOutboundReplacesExistingServerRow() async throws {
+    let pending = shell(turn: turnA)
+    let confirmed = try await fetchTestMessages([
+      testMessageJSON(
+        id: confirmedId,
+        content: "hello",
+        sender: testUserSender(name: "Me", email: "me@example.com")
+      )
+    ])[0]
+    let result = confirmOutbound(
+      messages: [confirmed],
+      shells: [pending],
+      confirmed: confirmed,
+      clientTurnId: turnA
+    )
+    #expect(result.shells.isEmpty)
+    #expect(result.messages.map(\.id) == [confirmedId])
   }
 
   @Test func unresolvedShellStaysAfterConfirmedBlock() async throws {
