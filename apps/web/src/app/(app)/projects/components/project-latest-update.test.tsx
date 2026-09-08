@@ -49,6 +49,7 @@ describe("ProjectLatestUpdate", () => {
 
     const toggle = screen.getByRole("button", { name: "Show more" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle.className).toContain("text-primary");
     await user.click(toggle);
     expect(screen.getByRole("button", { name: "Show less" })).toHaveAttribute(
       "aria-expanded",
