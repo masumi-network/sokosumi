@@ -32,6 +32,7 @@ const TARGET = {
   metadata: { chatRoomId: "room-1" },
 };
 const getNotificationServiceWorker = vi.fn(() => Promise.resolve({}));
+const closeNotificationGroup = vi.fn((_tag: string) => Promise.resolve());
 const clickHandlerRef = {
   current: null as ((target: typeof TARGET) => void) | null,
 };
@@ -50,6 +51,7 @@ vi.mock("@/lib/utils/notification-service-worker", async (importOriginal) => ({
   >()),
   answerShowsNotificationsQuery: (showsNotifications: () => boolean) =>
     answerShowsNotificationsQuery(showsNotifications),
+  closeNotificationGroup: (tag: string) => closeNotificationGroup(tag),
   getNotificationServiceWorker: () => getNotificationServiceWorker(),
   showNotification: (input: unknown) => showNotification(input),
   subscribeNotificationClicks: (onClick: (target: typeof TARGET) => void) => {
@@ -130,6 +132,7 @@ describe("NotificationToastListener OS banner", () => {
     vi.restoreAllMocks();
     showNotification.mockClear();
     getNotificationServiceWorker.mockClear();
+    closeNotificationGroup.mockClear();
     answerShowsNotificationsQuery.mockClear();
     stopAnswering.mockClear();
     handleNotificationNavigation.mockClear();
@@ -138,19 +141,57 @@ describe("NotificationToastListener OS banner", () => {
   });
 
   /**
-   * A banner interrupts because a message arrived, so it says that message.
-   * The worker renders the same event for a tab that was closed and knows
-   * nothing of counts, so a counted line here would be a second answer to one
-   * arrival for whoever happened to have the tab open.
+   * One banner holds the whole room and each arrival replaces the one before,
+   * so the banner speaks for every message waiting there. Core counts them,
+   * because the worker renders the same banner for a closed app and can query
+   * nothing.
    */
-  it("asks for the arrival rather than the room's count", async () => {
+  it("says how many messages are waiting in the room", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      messageParams: { roomName: "Design" },
+      groupCount: 5,
+    });
+
+    await vi.waitFor(() => {
+      expect(formatMessage).toHaveBeenCalledWith(NOTIFICATION.messageKey, {
+        roomName: "Design",
+        count: 5,
+      });
+    });
+  });
+
+  /**
+   * The room's count, not the row's. A room's row carries Core's tally of the
+   * messages counted onto that row alone, which reads four messages and a
+   * mention as four.
+   */
+  it("prefers the room's count over the count stored on the row", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      messageParams: { roomName: "Design", count: 4 },
+      groupCount: 5,
+    });
+
+    await vi.waitFor(() => {
+      expect(formatMessage).toHaveBeenCalledWith(NOTIFICATION.messageKey, {
+        roomName: "Design",
+        count: 5,
+      });
+    });
+  });
+
+  /** A Core that predates the count sends none, and the banner names the
+   * arrival, which is what it did before there was a count. */
+  it("names the arrival when no count arrives", async () => {
     emitOnUnfocusedTab();
 
     await vi.waitFor(() => {
       expect(formatMessage).toHaveBeenCalledWith(
         NOTIFICATION.messageKey,
         NOTIFICATION.messageParams,
-        { counted: false },
       );
     });
   });
@@ -174,6 +215,56 @@ describe("NotificationToastListener OS banner", () => {
    * reader's banner choice has to be read here too. Reading it only on the push
    * would leave the banner running for anyone with a tab open.
    */
+  /**
+   * Core republishes a row it has just marked read, which is how a tab learns
+   * the reader read the room somewhere else: in another tab, on another
+   * device, or by opening the room rather than the banner. The banner standing
+   * for that room now describes a state that is gone, so it comes down.
+   */
+  it("closes the room's banner when a row arrives already read", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      isRead: true,
+      readAt: "2026-01-01T00:00:01.000Z",
+      created: false,
+    });
+
+    await vi.waitFor(() => {
+      expect(closeNotificationGroup).toHaveBeenCalledWith(
+        "sokosumi-room:room-1",
+      );
+    });
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
+  /** An arrival is the opposite case: it raises a banner, it does not clear one. */
+  it("closes nothing when the row is still unread", async () => {
+    emitOnUnfocusedTab();
+
+    await vi.waitFor(() => {
+      expect(showNotification).toHaveBeenCalled();
+    });
+    expect(closeNotificationGroup).not.toHaveBeenCalled();
+  });
+
+  /** A read job row closes its own banner, which is the group it is in. */
+  it("closes a non-chat banner by its own row", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      kind: NotificationKind.JOB,
+      referenceId: "job-1",
+      messageKey: "Notifications.Job.completed",
+      isRead: true,
+      readAt: "2026-01-01T00:00:01.000Z",
+    });
+
+    await vi.waitFor(() => {
+      expect(closeNotificationGroup).toHaveBeenCalledWith("notification-1");
+    });
+  });
+
   it("renders no banner when the reader silenced the category's banner", async () => {
     render(<NotificationToastListener userId="user-1" markRead={markRead} />);
     onNotificationRef.current?.({ ...NOTIFICATION, osBanner: false });

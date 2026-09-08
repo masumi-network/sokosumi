@@ -3,6 +3,7 @@ import * as z from "zod";
 import { getEnvPublicConfig } from "@/config/env.public";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { notificationEventDataSchema } from "@/lib/ably/schema";
+import { NotificationKind } from "@/lib/clients/generated/core";
 
 import { getBrowserNotificationPermission } from "./browser-notification";
 
@@ -81,6 +82,42 @@ export function toNotificationTarget(
 ): NotificationTarget {
   const { id, kind, referenceId, messageKey, metadata } = notification;
   return { id, kind, referenceId, messageKey, metadata };
+}
+
+/**
+ * Prefix on a room's banner tag, so a room can never be mistaken for a row.
+ *
+ * Room ids and notification ids come from one generator, so a bare room id
+ * could equal the id of some unrelated notification and silently replace its
+ * banner.
+ */
+const CHAT_GROUP_TAG_PREFIX = "sokosumi-room:";
+
+/**
+ * The banner a Notification belongs to.
+ *
+ * Chat groups by room. A mention, a direct message and the row a room's
+ * messages are counted onto all name the same room, so one conversation holds
+ * one banner and a new arrival replaces the one standing rather than stacking
+ * beside it. That is what a room's counted row already did on its own, by
+ * keeping its id across messages; this gives the other two the same behaviour
+ * and puts all three in the same group.
+ *
+ * Everything else is its own banner. A job and a task each interrupt about a
+ * thing that happened once, and there is no second one to fold into.
+ *
+ * The push service worker mirrors this rule, because it renders the banner for
+ * a closed app and cannot import from here. The two must agree, or the same
+ * conversation gets one banner from an open tab and another from a push.
+ */
+export function notificationGroupTag(
+  target: Pick<NotificationTarget, "id" | "kind" | "referenceId">,
+): string {
+  if (target.kind !== NotificationKind.CHAT || !target.referenceId) {
+    return target.id;
+  }
+
+  return `${CHAT_GROUP_TAG_PREFIX}${target.referenceId}`;
 }
 
 const showsNotificationsQuerySchema = z.object({
@@ -197,12 +234,42 @@ export async function hasWebPushSubscription(): Promise<boolean> {
 }
 
 /**
+ * Take down every banner in one group.
+ *
+ * Called when the reader has read what the group was about, so the banners
+ * stop describing a state that no longer exists. The tag is the filter, so a
+ * room the reader has not read keeps its banner.
+ *
+ * Reads the registration rather than making one: a reader who never turned
+ * notifications on has no banners to close, and closing them must not be what
+ * installs a worker for them.
+ *
+ * Never throws. A browser that will not list its banners leaves them standing,
+ * which is where they already were.
+ */
+export async function closeNotificationGroup(tag: string): Promise<void> {
+  const registration = await getExistingNotificationServiceWorker();
+  if (!registration) {
+    return;
+  }
+
+  try {
+    for (const banner of await registration.getNotifications({ tag })) {
+      banner.close();
+    }
+  } catch (error) {
+    console.error("Failed to close the notification group", error);
+  }
+}
+
+/**
  * Shows an OS banner through the worker. Callers must gate with
  * `shouldShowBrowserNotification` first.
  *
- * `tag` is the notification id, so the banner a push renders for the same
- * notification replaces this one in place instead of stacking beside it.
- * Returns false when nothing was shown.
+ * `tag` is the banner's group, so a push for the same conversation replaces
+ * this one in place instead of stacking beside it. Replacing is why the line
+ * carries the room's count: the banner this one takes the place of is the
+ * only record those messages arrived. Returns false when nothing was shown.
  */
 export async function showNotification({
   title,
@@ -221,7 +288,7 @@ export async function showNotification({
   try {
     await registration.showNotification(title, {
       body,
-      tag: target.id,
+      tag: notificationGroupTag(target),
       icon: NOTIFICATION_ICON_PATH,
       data: target,
     });

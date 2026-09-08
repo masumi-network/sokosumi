@@ -12,11 +12,17 @@ import {
   createNotification,
   deletePendingCoworkerAccessNotifications,
   deletePendingVendorGrantNotifications,
+  publishNotificationRow,
 } from "./notifications";
 
-const { publishNotificationEventMock, userFindUniqueMock } = vi.hoisted(() => ({
+const {
+  publishNotificationEventMock,
+  userFindUniqueMock,
+  notificationFindManyMock,
+} = vi.hoisted(() => ({
   publishNotificationEventMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
+  notificationFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
@@ -27,6 +33,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: {
       findUnique: userFindUniqueMock,
+    },
+    notification: {
+      findMany: notificationFindManyMock,
     },
   },
 }));
@@ -622,5 +631,155 @@ describe("deletePendingCoworkerAccessNotifications", () => {
         kind: NotificationKind.SYSTEM,
       },
     });
+  });
+});
+
+/**
+ * How many messages are waiting for the reader in a room, sent with every
+ * chat notification so a banner standing for the whole room can say so.
+ *
+ * The banner replaces the one before it, and the service worker can query
+ * nothing, so the number has to arrive with the payload (ADR-0023).
+ */
+describe("chat room arrival count", () => {
+  beforeEach(() => {
+    userFindUniqueMock.mockReset();
+    userFindUniqueMock.mockResolvedValue({
+      pushOptIn: true,
+      notificationPreferences: [],
+    });
+    publishNotificationEventMock.mockReset();
+    publishNotificationEventMock.mockResolvedValue(undefined);
+    notificationFindManyMock.mockReset();
+    notificationFindManyMock.mockResolvedValue([]);
+  });
+
+  const chatInput: CreateNotificationInput = {
+    ...notificationInput,
+    kind: NotificationKind.CHAT,
+    referenceId: "room_123",
+    eventId: "chat_message_123",
+    messageKey: "Notifications.Chat.mentioned",
+    messageParams: { authorName: "Alice", roomName: "General" },
+    metadata: { roomId: "room_123" },
+  };
+
+  function chatRecord(overrides: Partial<Notification> = {}): Notification {
+    return createNotificationRecord({
+      kind: chatInput.kind,
+      referenceId: chatInput.referenceId,
+      eventId: chatInput.eventId,
+      messageKey: chatInput.messageKey,
+      messageParams: JSON.stringify(chatInput.messageParams),
+      metadata: JSON.stringify(chatInput.metadata),
+      ...overrides,
+    });
+  }
+
+  /** The count the publish carried, or undefined when it carried none. */
+  function publishedGroupCount(): unknown {
+    const call = publishNotificationEventMock.mock.calls.at(-1)?.[0] as
+      | { notification: Record<string, unknown> }
+      | undefined;
+    return call?.notification.groupCount;
+  }
+
+  /**
+   * A room's messages are counted onto one row, so counting rows would read
+   * eleven messages and a mention as two. The row says what it stands for.
+   */
+  it("sums what each unread row in the room stands for", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { messageParams: JSON.stringify({ roomName: "General", count: 4 }) },
+      { messageParams: JSON.stringify({ authorName: "Alice" }) },
+    ]);
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(chatRecord());
+
+    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+
+    expect(publishedGroupCount()).toBe(5);
+    expect(notificationFindManyMock).toHaveBeenCalledWith({
+      where: {
+        userId: chatInput.userId,
+        kind: NotificationKind.CHAT,
+        referenceId: chatInput.referenceId,
+        isRead: false,
+      },
+      select: { messageParams: true },
+    });
+  });
+
+  it("counts a room holding only this arrival as one", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { messageParams: JSON.stringify({ authorName: "Alice" }) },
+    ]);
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(chatRecord());
+
+    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+
+    expect(publishedGroupCount()).toBe(1);
+  });
+
+  /** Params nobody can read still stand for the message that wrote them. */
+  it("counts a row whose params will not parse as one message", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { messageParams: "not json" },
+      { messageParams: JSON.stringify({ count: "many" }) },
+    ]);
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(chatRecord());
+
+    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+
+    expect(publishedGroupCount()).toBe(2);
+  });
+
+  /** Only chat collapses into one banner. A job happened once. */
+  it("sends no count with a notification that is not chat", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(
+      createNotificationRecord(),
+    );
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(publishedGroupCount()).toBeUndefined();
+    expect(notificationFindManyMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A cleared row is published to take a banner down, not to raise one. The
+   * count would be the rooms the reader has left to read, on a row about the
+   * one they just finished.
+   */
+  it("sends no count with a row that is already read", async () => {
+    await publishNotificationRow(
+      chatRecord({ isRead: true, readAt: READ_AT }),
+      { inApp: true, osBanner: false },
+      false,
+    );
+
+    expect(publishedGroupCount()).toBeUndefined();
+    expect(notificationFindManyMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The banner matters more than the number on it. A failed count must not
+   * cost the reader the interruption itself.
+   */
+  it("still publishes when the arrivals cannot be counted", async () => {
+    notificationFindManyMock.mockRejectedValue(new Error("database gone"));
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(chatRecord());
+
+    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+
+    expect(publishNotificationEventMock).toHaveBeenCalledTimes(1);
+    expect(publishedGroupCount()).toBeUndefined();
   });
 });

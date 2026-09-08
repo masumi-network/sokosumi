@@ -91,6 +91,82 @@ export async function resolveDelivery(
   }
 }
 
+/** What one row stands for: the messages counted onto it, or itself. */
+function arrivalsOn(messageParams: string): number {
+  try {
+    const stored: unknown = JSON.parse(messageParams);
+    const count =
+      typeof stored === "object" && stored !== null && "count" in stored
+        ? (stored as { count: unknown }).count
+        : undefined;
+
+    return typeof count === "number" && Number.isInteger(count) && count >= 1
+      ? count
+      : 1;
+  } catch {
+    // Params nobody can read still belong to the message that wrote them.
+    return 1;
+  }
+}
+
+/**
+ * How many messages are waiting for this reader in this room.
+ *
+ * A chat banner holds the whole room and each arrival replaces the one
+ * standing, so the banner has to say how many it stands for. The push service
+ * worker can query nothing (ADR-0023), so the number travels with the payload
+ * rather than being worked out where it is shown.
+ *
+ * Summed over the rows rather than counted: a room's messages are counted onto
+ * one row, so counting rows would read four messages and a mention as two.
+ *
+ * Undefined for everything else. A job and a task each happened once, and a
+ * row published because it went read is taking a banner down rather than
+ * raising one, so a count of what is still waiting would belong to no banner.
+ *
+ * Never throws. The interruption matters more than the number on it, so a
+ * failed count costs the banner its count and nothing else.
+ */
+async function chatRoomArrivals(
+  notification: Notification,
+): Promise<number | undefined> {
+  if (
+    notification.kind !== NotificationKind.CHAT ||
+    !notification.referenceId ||
+    notification.isRead
+  ) {
+    return undefined;
+  }
+
+  try {
+    const waiting = await prisma.notification.findMany({
+      where: {
+        userId: notification.userId,
+        kind: NotificationKind.CHAT,
+        referenceId: notification.referenceId,
+        isRead: false,
+      },
+      select: { messageParams: true },
+    });
+
+    return waiting.reduce(
+      (total, row) => total + arrivalsOn(row.messageParams),
+      0,
+    );
+  } catch (error) {
+    console.error("Failed to count the room's unread notifications:", error);
+    Sentry.captureException(error, {
+      extra: {
+        userId: notification.userId,
+        referenceId: notification.referenceId,
+        errorType: "chat-room-arrival-count",
+      },
+    });
+
+    return undefined;
+  }
+}
+
 /**
  * Tell the reader's open tabs about a row, and raise the OS banner.
  *
@@ -110,6 +186,8 @@ export async function publishNotificationRow(
   created = true,
 ): Promise<void> {
   try {
+    const groupCount = await chatRoomArrivals(notification);
+
     await publishNotificationEvent({
       push: delivery.osBanner,
       userId: notification.userId,
@@ -130,6 +208,7 @@ export async function publishNotificationRow(
         inApp: notification.inApp,
         osBanner: delivery.osBanner,
         created,
+        ...(groupCount !== undefined && { groupCount }),
       },
     });
   } catch (error) {

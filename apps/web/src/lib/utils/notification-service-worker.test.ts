@@ -6,6 +6,7 @@ import {
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
   NOTIFICATION_SERVICE_WORKER_URL,
+  notificationGroupTag,
   SHOWS_NOTIFICATIONS_QUERY,
   subscribeNotificationClicks,
 } from "@/lib/utils/notification-service-worker";
@@ -110,7 +111,7 @@ describe("showNotification", () => {
     stubPermission("granted");
   });
 
-  it("shows through the registration, tagged and keyed by notification id", async () => {
+  it("shows through the registration, tagged by the banner's group", async () => {
     const showNotificationSpy = vi.fn().mockResolvedValue(undefined);
     const register = vi.fn().mockResolvedValue({
       active: {},
@@ -130,7 +131,7 @@ describe("showNotification", () => {
     expect(register).toHaveBeenCalledWith(NOTIFICATION_SERVICE_WORKER_URL);
     expect(showNotificationSpy).toHaveBeenCalledWith("Sokosumi", {
       body: "Ada mentioned you",
-      tag: "notification-1",
+      tag: "sokosumi-room:room-1",
       icon: NOTIFICATION_ICON_PATH,
       data: TARGET,
     });
@@ -377,5 +378,144 @@ describe("answerShowsNotificationsQuery", () => {
 
     stop();
     expect(listeners.size).toBe(0);
+  });
+});
+
+describe("notificationGroupTag", () => {
+  it("groups a chat notification by its room", () => {
+    expect(notificationGroupTag(TARGET)).toContain("room-1");
+  });
+
+  /**
+   * The rule is not given the message key, so a mention, a direct message and
+   * a room's counted row cannot be told apart here. That is the grouping: one
+   * room, one banner, whichever of the three arrived.
+   */
+  it("gives two chat notifications in one room the same tag", () => {
+    expect(notificationGroupTag({ ...TARGET, id: "notification-2" })).toBe(
+      notificationGroupTag(TARGET),
+    );
+  });
+
+  it("gives two rooms different tags", () => {
+    expect(
+      notificationGroupTag({
+        ...TARGET,
+        id: "notification-2",
+        referenceId: "room-2",
+      }),
+    ).not.toBe(notificationGroupTag(TARGET));
+  });
+
+  /** A room id and a notification id come from one generator, so a bare room
+   * id could collide with the row tag a job banner carries. */
+  it("cannot collide with the row tag of a notification named after a room", () => {
+    expect(
+      notificationGroupTag({
+        id: "room-1",
+        kind: "JOB",
+        referenceId: "job-1",
+      }),
+    ).not.toBe(notificationGroupTag(TARGET));
+  });
+
+  it("gives a non-chat notification a tag of its own", () => {
+    const job = {
+      id: "notification-9",
+      kind: "JOB",
+      referenceId: "job-1",
+    } as const;
+
+    expect(notificationGroupTag(job)).toBe("notification-9");
+    expect(notificationGroupTag({ ...job, id: "notification-10" })).not.toBe(
+      notificationGroupTag(job),
+    );
+  });
+
+  /** Without a room there is no group, and one banner per row is the state
+   * this replaced rather than a worse one. */
+  it("falls back to the row when a chat notification names no room", () => {
+    expect(notificationGroupTag({ ...TARGET, referenceId: "" })).toBe(
+      "notification-1",
+    );
+  });
+});
+
+describe("closeNotificationGroup", () => {
+  function stubBanners(banners: { close: () => void }[]) {
+    const getNotifications = vi.fn().mockResolvedValue(banners);
+    stubServiceWorker({
+      register: vi.fn(),
+      getRegistration: vi.fn().mockResolvedValue({ getNotifications }),
+    });
+    return getNotifications;
+  }
+
+  it("closes every banner the group holds", async () => {
+    const first = { close: vi.fn() };
+    const second = { close: vi.fn() };
+    const getNotifications = stubBanners([first, second]);
+
+    const module = await importFresh();
+    await module.closeNotificationGroup("sokosumi-room:room-1");
+
+    expect(getNotifications).toHaveBeenCalledWith({
+      tag: "sokosumi-room:room-1",
+    });
+    expect(first.close).toHaveBeenCalledTimes(1);
+    expect(second.close).toHaveBeenCalledTimes(1);
+  });
+
+  /** The tag is the filter, so a group with nothing standing closes nothing
+   * rather than reaching for another room's banner. */
+  it("closes nothing when the group holds no banner", async () => {
+    const getNotifications = stubBanners([]);
+
+    const module = await importFresh();
+    await expect(
+      module.closeNotificationGroup("sokosumi-room:room-2"),
+    ).resolves.toBeUndefined();
+    expect(getNotifications).toHaveBeenCalledWith({
+      tag: "sokosumi-room:room-2",
+    });
+  });
+
+  /** Reading a room must not install a worker for a reader who never turned
+   * notifications on. */
+  it("does not register a worker", async () => {
+    const register = vi.fn();
+    stubServiceWorker({
+      register,
+      getRegistration: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const module = await importFresh();
+    await module.closeNotificationGroup("sokosumi-room:room-1");
+
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it("survives a browser that cannot list its banners", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    stubServiceWorker({
+      register: vi.fn(),
+      getRegistration: vi.fn().mockResolvedValue({
+        getNotifications: vi.fn().mockRejectedValue(new Error("nope")),
+      }),
+    });
+
+    const module = await importFresh();
+    await expect(
+      module.closeNotificationGroup("sokosumi-room:room-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("does nothing when the browser has no service worker support", async () => {
+    stubServiceWorker(undefined);
+
+    const module = await importFresh();
+    await expect(
+      module.closeNotificationGroup("sokosumi-room:room-1"),
+    ).resolves.toBeUndefined();
   });
 });

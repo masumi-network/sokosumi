@@ -73,6 +73,17 @@ interface NotificationEventData {
    * badge, which is right for a new row and one too many for this one.
    */
   created: boolean;
+  /**
+   * How many messages are waiting for the reader in this room.
+   *
+   * Chat only, and only on a row that is still unread. One OS banner holds a
+   * whole room and each arrival replaces the one standing, so the banner says
+   * how many it stands for; the push service worker can query nothing, so the
+   * number has to arrive with the payload (ADR-0023).
+   *
+   * Absent on everything else, and the reader shows the single-message line.
+   */
+  groupCount?: number;
 }
 
 interface PublishNotificationEventInput {
@@ -100,6 +111,9 @@ interface NotificationPushData
   messageParams: string;
   /** Omitted, not null, when the notification carries no metadata. */
   metadata?: string;
+  /** Decimal, because push data is a string-to-string map. Omitted when the
+   * notification carries no count. */
+  groupCount?: string;
 }
 
 /**
@@ -149,6 +163,9 @@ function toNotificationPushData(
     ),
     ...(notification.metadata !== null && {
       metadata: JSON.stringify(notification.metadata),
+    }),
+    ...(notification.groupCount !== undefined && {
+      groupCount: String(notification.groupCount),
     }),
   };
 }

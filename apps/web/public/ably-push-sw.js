@@ -81,6 +81,7 @@ const MESSAGES = {
       "The schedule for {taskName} was removed after review",
     "Notifications.Chat.mentioned": "{authorName} mentioned you in {roomName}",
     "Notifications.Chat.directMessage": "{authorName} sent you a message",
+    "Notifications.Chat.directMessages": "{count} messages from {authorName}",
     "Notifications.Chat.roomMessage": "{authorName} wrote in {roomName}",
     "Notifications.Chat.roomMessages": "{count} messages in {roomName}",
     "Notifications.Chat.roomMessageGroup":
@@ -123,6 +124,7 @@ const MESSAGES = {
       "{authorName} hat dich in {roomName} erwähnt",
     "Notifications.Chat.directMessage":
       "{authorName} hat dir eine Nachricht gesendet",
+    "Notifications.Chat.directMessages": "{count} Nachrichten von {authorName}",
     "Notifications.Chat.roomMessage":
       "{authorName} hat in {roomName} geschrieben",
     "Notifications.Chat.roomMessages": "{count} Nachrichten in {roomName}",
@@ -161,6 +163,7 @@ const MESSAGES = {
       "Se eliminó la programación de {taskName} después de revisarla",
     "Notifications.Chat.mentioned": "{authorName} te mencionó en {roomName}",
     "Notifications.Chat.directMessage": "{authorName} te envió un mensaje",
+    "Notifications.Chat.directMessages": "{count} mensajes de {authorName}",
     "Notifications.Chat.roomMessage": "{authorName} escribió en {roomName}",
     "Notifications.Chat.roomMessages": "{count} mensajes en {roomName}",
     "Notifications.Chat.roomMessageGroup":
@@ -190,6 +193,83 @@ const ICON_PATH = "/images/app-icons/apple-icon-180.png";
  * one tag for all of them keeps a replay replacing rather than stacking.
  */
 const GENERIC_TAG = "sokosumi-notification";
+
+/** Mirrors CHAT_GROUP_TAG_PREFIX in the app. */
+const CHAT_GROUP_TAG_PREFIX = "sokosumi-room:";
+
+/**
+ * The banner a notification belongs to, mirroring `notificationGroupTag` in
+ * the app.
+ *
+ * Chat groups by room, so a conversation holds one banner and a new arrival
+ * replaces the one standing. Everything else keeps a banner of its own.
+ *
+ * The app renders a banner for an open tab through this same registration, so
+ * the two rules have to agree. If they drift, one conversation gets a banner
+ * from the tab and a second from the push.
+ */
+function groupTag(target) {
+  if (target.kind !== "CHAT" || !target.referenceId) {
+    return target.id;
+  }
+
+  return `${CHAT_GROUP_TAG_PREFIX}${target.referenceId}`;
+}
+
+/** Mirrors the chat message keys in @sokosumi/utils. */
+const CHAT_MENTION_KEY = "Notifications.Chat.mentioned";
+const CHAT_DIRECT_MESSAGE_KEY = "Notifications.Chat.directMessage";
+const CHAT_DIRECT_MESSAGES_KEY = "Notifications.Chat.directMessages";
+const CHAT_ROOM_MESSAGE_KEY = "Notifications.Chat.roomMessage";
+const CHAT_ROOM_MESSAGES_KEY = "Notifications.Chat.roomMessages";
+const CHAT_ROOM_MESSAGE_GROUP_KEY = "Notifications.Chat.roomMessageGroup";
+const CHAT_ROOM_MESSAGES_GROUP_KEY = "Notifications.Chat.roomMessagesGroup";
+
+/**
+ * The key a chat notification reads under once its banner stands for several
+ * messages, mirroring `countedMessageKey` in `lib/utils/notification-message`.
+ *
+ * Core stores one key per message, and the banner holds the room, so the line
+ * for the group is picked here. The two rules have to agree: an open tab and
+ * a push render the same room through the same registration, and a reader
+ * whose tab was open would otherwise read a different line.
+ */
+function countedMessageKey(messageKey, params, count) {
+  const group = params.isGroup === true;
+
+  if (!(Number.isInteger(count) && count > 1)) {
+    return messageKey === CHAT_ROOM_MESSAGE_KEY && group
+      ? CHAT_ROOM_MESSAGE_GROUP_KEY
+      : messageKey;
+  }
+
+  if (messageKey === CHAT_DIRECT_MESSAGE_KEY) {
+    return CHAT_DIRECT_MESSAGES_KEY;
+  }
+
+  if (messageKey === CHAT_MENTION_KEY || messageKey === CHAT_ROOM_MESSAGE_KEY) {
+    return group ? CHAT_ROOM_MESSAGES_GROUP_KEY : CHAT_ROOM_MESSAGES_KEY;
+  }
+
+  return messageKey;
+}
+
+/**
+ * How many messages are waiting for the reader in this room, as Core counted
+ * them. Decimal, because push data is a string-to-string map (ADR-0023).
+ *
+ * Undefined for everything but an unread chat notification, and for a payload
+ * a Core that predates the count wrote. The banner then names the arrival.
+ */
+function groupCountOn(raw) {
+  if (typeof raw !== "string" || raw === "") {
+    return undefined;
+  }
+
+  const parsed = Number(raw);
+
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : undefined;
+}
 
 /**
  * The locale the reader chose in the app, when this browser exposes cookies to
@@ -309,16 +389,18 @@ function buildTarget(pushData) {
 /** The rendered message, or undefined when the payload names no known key. */
 async function buildBody(pushData) {
   const messages = MESSAGES[await resolveLocale()];
+  const params = parseParams(pushData.messageParams);
+  // The room's count where Core sent one, the row's own params otherwise. The
+  // app renders the same banner for an open tab off the same number.
+  const count = groupCountOn(pushData.groupCount) ?? params.count;
+  const messageKey = countedMessageKey(pushData.messageKey, params, count);
   // `hasOwn`, so a payload naming "constructor" cannot reach a prototype
   // member and throw. A push that throws shows no banner at all.
-  if (!Object.hasOwn(messages, pushData.messageKey)) {
+  if (!Object.hasOwn(messages, messageKey)) {
     return undefined;
   }
 
-  return interpolate(
-    messages[pushData.messageKey],
-    parseParams(pushData.messageParams),
-  );
+  return interpolate(messages[messageKey], { ...params, count });
 }
 
 /** Mirrors SHOWS_NOTIFICATIONS_QUERY in the app. */
@@ -423,7 +505,7 @@ async function showPushNotification(data) {
 
   await self.registration.showNotification(APP_TITLE, {
     body: await buildBody(pushData),
-    tag: target ? target.id : GENERIC_TAG,
+    tag: target ? groupTag(target) : GENERIC_TAG,
     icon: ICON_PATH,
     data: target,
   });
