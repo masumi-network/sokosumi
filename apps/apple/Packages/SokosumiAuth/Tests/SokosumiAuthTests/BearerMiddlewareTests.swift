@@ -5,9 +5,9 @@ import SokosumiAuth
 import Testing
 
 struct BearerMiddlewareTests {
-  private func configuration() -> OAuthConfiguration {
-    OAuthConfiguration(
-      issuerBaseURL: URL(string: "https://core.example/auth")!,
+  private func configuration() throws -> OAuthConfiguration {
+    try OAuthConfiguration(
+      issuerBaseURL: #require(URL(string: "https://core.example/auth")),
       clientID: "mac-public-client"
     )
   }
@@ -20,9 +20,9 @@ struct BearerMiddlewareTests {
       status: 200,
       json: "{\"access_token\":\"\(accessToken)\",\"token_type\":\"Bearer\",\"expires_in\":7200,\"refresh_token\":\"refresh-1\"}"
     ))
-    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+    let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
     try await session.signIn(
-      callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )
@@ -48,7 +48,7 @@ struct BearerMiddlewareTests {
   @Test func propagatesTokenErrorsWithoutCallingCore() async throws {
     let clock = TestClock()
     let transport = StubTokenTransport(response: .failure(UnreachableError()))
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport,

@@ -104,6 +104,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Select Xcode 26 toolchain
+        # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+
+      - name: Show Xcode version
+        run: xcodebuild -version && swift --version
+
       - name: Install Mint
         run: brew install mint
 

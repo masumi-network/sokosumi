@@ -3,9 +3,9 @@ import SokosumiAuth
 import Testing
 
 struct SignInTests {
-  private func configuration() -> OAuthConfiguration {
-    OAuthConfiguration(
-      issuerBaseURL: URL(string: "https://core.example/auth")!,
+  private func configuration() throws -> OAuthConfiguration {
+    try OAuthConfiguration(
+      issuerBaseURL: #require(URL(string: "https://core.example/auth")),
       clientID: "mac-public-client"
     )
   }
@@ -16,7 +16,7 @@ struct SignInTests {
       json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":7200,\"refresh_token\":\"refresh-1\",\"scope\":\"openid sokosumi:api offline_access\"}"
     ))
     let store = InMemoryTokenStore()
-    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+    let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
 
     try await session.signIn(
       callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=state-123")),
@@ -48,7 +48,7 @@ struct SignInTests {
     struct SaveFailed: Error {}
     let store = InMemoryTokenStore()
     store.saveError = SaveFailed()
-    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+    let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
 
     // The exchange succeeded but the session must not report signed in:
     // a relaunch would ask for sign-in again.
@@ -64,7 +64,7 @@ struct SignInTests {
 
   @Test func signInRejectsCallbackWithWrongPath() async throws {
     let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport
@@ -83,7 +83,7 @@ struct SignInTests {
 
   @Test func signInRejectsMismatchedStateWithoutCallingCore() async throws {
     let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport
@@ -105,7 +105,7 @@ struct SignInTests {
       status: 400,
       json: "{\"error\":\"invalid_grant\",\"error_description\":\"Code expired\"}"
     ))
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport
@@ -127,7 +127,7 @@ struct SignInTests {
       json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":7200,\"refresh_token\":\"refresh-1\"}"
     ))
     let store = FailingClearStore()
-    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+    let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
     try await session.signIn(
       callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
       expectedState: "s",
@@ -145,7 +145,7 @@ struct SignInTests {
       json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":7200}"
     ))
     let store = InMemoryTokenStore()
-    let session = OAuthSession(configuration: configuration(), store: store, transport: transport)
+    let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
     try await session.signIn(
       callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
       expectedState: "s",

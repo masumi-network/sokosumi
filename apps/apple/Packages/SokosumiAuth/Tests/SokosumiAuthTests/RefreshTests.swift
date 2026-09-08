@@ -7,9 +7,9 @@ final class TestClock: @unchecked Sendable {
 }
 
 struct RefreshTests {
-  private func configuration() -> OAuthConfiguration {
-    OAuthConfiguration(
-      issuerBaseURL: URL(string: "https://core.example/auth")!,
+  private func configuration() throws -> OAuthConfiguration {
+    try OAuthConfiguration(
+      issuerBaseURL: #require(URL(string: "https://core.example/auth")),
       clientID: "mac-public-client"
     )
   }
@@ -28,7 +28,7 @@ struct RefreshTests {
     json += "}"
     transport.response = .success(status: 200, json: json)
     try await session.signIn(
-      callbackURL: URL(string: "com.sokosumi.app:/auth?code=c&state=s")!,
+      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )
@@ -37,7 +37,7 @@ struct RefreshTests {
   @Test func validAccessTokenUsesCacheWithoutNetwork() async throws {
     let transport = StubTokenTransport(response: .failure(UnreachableError()))
     let clock = TestClock()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport,
@@ -57,7 +57,7 @@ struct RefreshTests {
     ))
     let clock = TestClock()
     let store = InMemoryTokenStore()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: store,
       transport: transport,
@@ -86,7 +86,7 @@ struct RefreshTests {
     let transport = StubTokenTransport(response: .failure(UnreachableError()))
     let clock = TestClock()
     let store = InMemoryTokenStore()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: store,
       transport: transport,
@@ -108,7 +108,7 @@ struct RefreshTests {
     let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
     let clock = TestClock()
     let store = InMemoryTokenStore()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: store,
       transport: transport,
@@ -140,7 +140,7 @@ struct RefreshTests {
     ))
     let clock = TestClock()
     let store = InMemoryTokenStore()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: store,
       transport: transport,
@@ -166,7 +166,7 @@ struct RefreshTests {
       json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":100}"
     ))
     let clock = TestClock()
-    let session = OAuthSession(
+    let session = try OAuthSession(
       configuration: configuration(),
       store: InMemoryTokenStore(),
       transport: transport,

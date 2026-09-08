@@ -86,9 +86,9 @@ private func roomsBody(names: [String]) -> String {
 /// One fixture bundle per test; a struct would churn every call site.
 private func ephemeralState(
   _ responses: [(Int, String)]
-) -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) { // swiftlint:disable:this large_tuple
+) throws -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) { // swiftlint:disable:this large_tuple
   let transport = ScriptedTransport(responses)
-  let client = Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
+  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
   let suite = "sokosumi-workspace-state-tests.\(UUID().uuidString)"
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
@@ -105,8 +105,8 @@ struct WorkspaceStateTests {
     #expect(store.loadCalls == 0)
   }
 
-  @Test func reloadReadySelectsPersonalDefaultAndLoadsRooms() async {
-    let (state, auth, transport, _) = ephemeralState([
+  @Test func reloadReadySelectsPersonalDefaultAndLoadsRooms() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -120,8 +120,8 @@ struct WorkspaceStateTests {
     #expect(!transport.operationIDs.contains(where: { $0.hasPrefix("put/") }))
   }
 
-  @Test func reloadBlockedGateLoadsNoRooms() async {
-    let (state, auth, transport, _) = ephemeralState([(200, accessBody(gate: "identity-onboarding", personal: false))])
+  @Test func reloadBlockedGateLoadsNoRooms() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(200, accessBody(gate: "identity-onboarding", personal: false))])
     await state.reload(auth: auth)
     #expect(state.phase == .blocked(gate: .identityOnboarding))
     #expect(state.rooms.isEmpty)
@@ -129,7 +129,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchSuccessCommitsSelectionAndRooms() async throws {
-    let (state, auth, transport, _) = ephemeralState([
+    let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -148,7 +148,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchFailureKeepsOldSelectionAndRooms() async throws {
-    let (state, auth, _, _) = ephemeralState([
+    let (state, auth, _, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -167,7 +167,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func selectWhileLoadingIgnoresSecondSwitch() async throws {
-    let (state, auth, transport, _) = ephemeralState([
+    let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -191,7 +191,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func resetClearsEverything() async throws {
-    let (state, auth, _, defaults) = ephemeralState([
+    let (state, auth, _, defaults) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -216,7 +216,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchRoomsListFailureRestoresPreviousPreference() async throws {
-    let (state, auth, transport, _) = ephemeralState([
+    let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),

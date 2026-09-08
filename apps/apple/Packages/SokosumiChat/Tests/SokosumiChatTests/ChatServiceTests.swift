@@ -75,8 +75,8 @@ private func requestQuery(_ request: HTTPRequest) -> String {
   return String(path[path.index(after: qIndex)...])
 }
 
-private func makeClient(_ transport: ScriptedTransport) -> Client {
-  Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
+private func makeClient(_ transport: ScriptedTransport) throws -> Client {
+  try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
 }
 
 struct ChatServiceTests {
