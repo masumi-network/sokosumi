@@ -1,6 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { NotificationKind } from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
 
 import { notificationFeedWhere } from "@/helpers/notification-feed";
+import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -48,6 +51,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
 
+    // A room's counted row reaches this feed, so clearing everything clears
+    // rooms too and leaves their banners standing. Read the rows first: after
+    // the write nothing tells them from the rows that were read already.
+    const clearedRoomRows = await prisma.notification.findMany({
+      where: {
+        userId: userContext.userId,
+        isRead: false,
+        ...notificationFeedWhere([NotificationKind.CHAT]),
+      },
+      select: { id: true },
+    });
+
     const result = await prisma.notification.updateMany({
       where: {
         userId: userContext.userId,
@@ -59,6 +74,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         readAt: new Date(),
       },
     });
+
+    // Scheduled rather than awaited, for the same reason the single-row route
+    // schedules it: a failed publish must not cost the reader the read.
+    waitUntil(
+      publishClearedNotifications(clearedRoomRows.map((row) => row.id)),
+    );
 
     return ok(c, responseSchema.parse({ count: result.count }));
   });

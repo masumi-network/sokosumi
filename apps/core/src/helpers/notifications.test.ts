@@ -12,6 +12,7 @@ import {
   createNotification,
   deletePendingCoworkerAccessNotifications,
   deletePendingVendorGrantNotifications,
+  publishClearedNotifications,
   publishNotificationRow,
 } from "./notifications";
 
@@ -40,8 +41,12 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+const { captureExceptionMock } = vi.hoisted(() => ({
+  captureExceptionMock: vi.fn(),
+}));
+
 vi.mock("@sentry/node", () => ({
-  captureException: vi.fn(),
+  captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
 const CREATED_AT = new Date("2026-06-18T09:00:00.000Z");
@@ -781,5 +786,83 @@ describe("chat room arrival count", () => {
 
     expect(publishNotificationEventMock).toHaveBeenCalledTimes(1);
     expect(publishedGroupCount()).toBeUndefined();
+  });
+});
+
+/**
+ * How a banner and a bell learn that rows they stand for are finished with.
+ *
+ * Three callers, one word: the room-read route clears a whole room, and the
+ * Notification Center clears one row or every row it lists. A reader's open
+ * tabs act on the row itself rather than on an id, because a tab holding it
+ * replaces what it holds and a tab that never loaded it can tell it from a
+ * new arrival.
+ */
+describe("publishClearedNotifications", () => {
+  beforeEach(() => {
+    publishNotificationEventMock.mockReset();
+    publishNotificationEventMock.mockResolvedValue(undefined);
+    notificationFindManyMock.mockReset();
+    captureExceptionMock.mockReset();
+    userFindUniqueMock.mockReset();
+    userFindUniqueMock.mockResolvedValue({
+      pushOptIn: true,
+      notificationPreferences: [],
+    });
+  });
+
+  /**
+   * None of them raises a banner: nothing arrived, one stopped waiting. The
+   * `created` flag is false, so no tab counts the row towards the badge a
+   * second time, and each row carries its own in-app answer.
+   */
+  it("publishes each cleared row, raising no banner", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      createNotificationRecord({
+        id: "notification_1",
+        isRead: true,
+        readAt: READ_AT,
+      }),
+      createNotificationRecord({
+        id: "notification_2",
+        isRead: true,
+        readAt: READ_AT,
+        inApp: false,
+      }),
+    ]);
+
+    await publishClearedNotifications(["notification_1", "notification_2"]);
+
+    expect(publishNotificationEventMock).toHaveBeenCalledTimes(2);
+    expect(publishNotificationEventMock.mock.calls[0]?.[0]).toMatchObject({
+      push: false,
+      notification: { id: "notification_1", inApp: true, created: false },
+    });
+    expect(publishNotificationEventMock.mock.calls[1]?.[0]).toMatchObject({
+      push: false,
+      notification: { id: "notification_2", inApp: false, created: false },
+    });
+  });
+
+  it("reads nothing and publishes nothing for an empty list", async () => {
+    await publishClearedNotifications([]);
+
+    expect(notificationFindManyMock).not.toHaveBeenCalled();
+    expect(publishNotificationEventMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * This runs after the reader has been answered, so a failed read must not
+   * leave a rejected promise behind it. The rows come back on the next fetch,
+   * so the cost is a bell that lags and a banner the reader dismisses.
+   */
+  it("swallows a failed read rather than rejecting behind the response", async () => {
+    notificationFindManyMock.mockRejectedValue(new Error("db down"));
+
+    await expect(
+      publishClearedNotifications(["notification_1"]),
+    ).resolves.toBeUndefined();
+    expect(publishNotificationEventMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 });

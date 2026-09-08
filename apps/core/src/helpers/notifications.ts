@@ -225,6 +225,59 @@ export async function publishNotificationRow(
 }
 
 /**
+ * Tell the reader's open tabs that these rows are read.
+ *
+ * The row is published rather than a bare id, because a tab holding it
+ * replaces what it holds and a tab that never loaded it can tell a row it
+ * already counted from a new one. Rows the app never shows are published too
+ * and dropped by the reader, which is cheaper than asking here which surface
+ * each one belongs to.
+ *
+ * This is how a banner learns it is stale. A chat banner stands for a room,
+ * and the reader can finish with that room by opening it, by reading it on
+ * another device, or by marking its row read in the Notification Center; the
+ * cleared row is the one word every open tab gets in all three cases.
+ *
+ * Never throws, and meant for `waitUntil`: the reader has already been
+ * answered by the time it runs, so a failure must not reject behind them. The
+ * rows come back on the next fetch, so the cost of losing it is a bell that
+ * lags until then and a banner that stands until the reader dismisses it.
+ *
+ * Each row is published to the reader named on it, so the caller owns the
+ * scoping: pass ids it has already established belong to the reader it
+ * answered.
+ */
+export async function publishClearedNotifications(
+  ids: string[],
+): Promise<void> {
+  if (ids.length === 0) {
+    return;
+  }
+
+  try {
+    const cleared = await prisma.notification.findMany({
+      where: { id: { in: ids } },
+    });
+
+    for (const notification of cleared) {
+      // No banner: nothing arrived. This says one stopped waiting.
+      await publishNotificationRow(
+        notification,
+        { inApp: notification.inApp, osBanner: false },
+        false,
+      );
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        notificationIds: ids,
+        errorType: "publish-cleared-notifications",
+      },
+    });
+  }
+}
+
+/**
  * Internal helper to create an append-only notification feed item.
  *
  * eventId references a jobEvent or taskEvent row depending on kind.
