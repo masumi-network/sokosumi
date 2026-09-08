@@ -318,6 +318,9 @@ describe("WorkspaceCalendar", () => {
       "workspace-calendar-theme",
       "overflow-x-auto",
       "rounded-xl",
+      "ring-1",
+      "ring-border",
+      "ring-inset",
     );
   });
 
