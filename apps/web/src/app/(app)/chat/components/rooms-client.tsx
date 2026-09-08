@@ -94,6 +94,10 @@ import {
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import {
+  createRoomJumpState,
+  startRoomJump,
+} from "@/app/chat/utils/room-jump-hold";
 import { performRoomMessageJump } from "@/app/chat/utils/room-message-jump";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
 import {
@@ -717,7 +721,7 @@ export function RoomsClient({
   // "No replies yet" blink. Generation invalidates in-flight opens/closes.
   const [isThreadLoading, setIsThreadLoading] = useState(false);
   const threadLoadGenerationRef = useRef(0);
-  const jumpGenerationRef = useRef(0);
+  const jumpStateRef = useRef(createRoomJumpState());
   const composeSurfaceEpoch = selectedRoomId ?? "";
   const [syncedComposeSurfaceEpoch, setSyncedComposeSurfaceEpoch] =
     useState(composeSurfaceEpoch);
@@ -2005,22 +2009,6 @@ export function RoomsClient({
     return loadThreadMessages(parentMessage);
   }
 
-  /**
-   * Claim the room's one scroll position for a jump, and hand back the test
-   * for whether it still owns it.
-   *
-   * Two jumps can be in flight at once: a reader clearing notifications
-   * clicks a second one while the first is still loading its window. Both
-   * carry the same room, so `isStillSelectedRoom` cannot tell them apart.
-   * Without this the slower request wins the scroll, and its release drops
-   * the hold the other one is relying on.
-   */
-  function startJump(): () => boolean {
-    jumpGenerationRef.current += 1;
-    const generation = jumpGenerationRef.current;
-    return () => generation === jumpGenerationRef.current;
-  }
-
   async function handleSearchJump(
     hit: ChatRoomMessage,
     options?: {
@@ -2038,30 +2026,23 @@ export function RoomsClient({
     if (!roomId) {
       return;
     }
-    const isNewestJump = startJump();
+    const { isNewestJump, holdOffBottom, releaseHoldOffBottom } = startRoomJump(
+      jumpStateRef.current,
+      {
+        isStillSelectedRoom: () => isStillSelectedRoom(roomId),
+        hold: () => {
+          suppressStickToBottom();
+          setSearchHoldOffBottom(true);
+        },
+        release: () => {
+          releaseStickToBottomSuppress();
+          setSearchHoldOffBottom(false);
+        },
+      },
+    );
     await performRoomSearchJump(hit, {
-      holdOffBottom: () => {
-        // Guarded like the release below, and it has to be: the two must
-        // agree. A hold taken for a room the reader has left is not released
-        // by this jump, so the room they moved to stops following new
-        // messages until the flag is cleared, which a room switch does.
-        if (!isStillSelectedRoom(roomId)) {
-          return;
-        }
-        suppressStickToBottom();
-        setSearchHoldOffBottom(true);
-      },
-      releaseHoldOffBottom: () => {
-        // Reached from a notification for a thread reply, which arrives after
-        // a read and a thread load, so the reader can have moved on. Releasing
-        // then would drop the hold the room they moved to is relying on, and
-        // so would releasing on behalf of a jump a later click has replaced.
-        if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
-          return;
-        }
-        releaseStickToBottomSuppress();
-        setSearchHoldOffBottom(false);
-      },
+      holdOffBottom,
+      releaseHoldOffBottom,
       // Guarded because a superseded jump reaching this would scroll the
       // reader off the message a later click has already put them on.
       highlight: (id) => isNewestJump() && highlightRoomMessageElement(id),
@@ -2109,8 +2090,9 @@ export function RoomsClient({
           // parent may be deleted, or the reply itself may be deleted with no
           // live reply left to keep the thread addressable: the aggregate
           // requires both `parent."deletedAt" IS NULL` and one surviving
-          // reply. Either way the parent was not in the loaded timeline, or
-          // `findLoadedParent` above would have short-circuited this.
+          // reply. Either way the parent was neither in the loaded timeline
+          // nor the open thread's, or `findLoadedParent` above would have
+          // short-circuited this.
           const quiet =
             options?.quietWhenThreadIsGone === true &&
             result.error.code === CommonErrorCode.NOT_FOUND;
@@ -2235,39 +2217,28 @@ export function RoomsClient({
     if (!roomId) {
       return;
     }
-    const isNewestJump = startJump();
+    const { isNewestJump, holdOffBottom, releaseHoldOffBottom } = startRoomJump(
+      jumpStateRef.current,
+      {
+        isStillSelectedRoom: () => isStillSelectedRoom(roomId),
+        hold: () => {
+          suppressStickToBottom();
+          setSearchHoldOffBottom(true);
+        },
+        release: () => {
+          releaseStickToBottomSuppress();
+          setSearchHoldOffBottom(false);
+        },
+      },
+    );
     await performRoomMessageJump(messageId, {
       // Guarded because this runs twice: once on entry, where this jump is
       // always the newest, and once after the window loads, where it may not
       // be. Scrolling then would drag the reader off the message a later
       // click has already put them on.
       highlight: (id) => isNewestJump() && highlightRoomMessageElement(id),
-      holdOffBottom: () => {
-        // Guarded like the release below, and for the same reason. A
-        // notification jump reaches this after reading the message, so the
-        // reader can have moved on by now, and a hold taken on the room they
-        // moved to would never be released.
-        if (!isStillSelectedRoom(roomId)) {
-          return;
-        }
-        suppressStickToBottom();
-        setSearchHoldOffBottom(true);
-      },
-      releaseHoldOffBottom: () => {
-        // The hold is one flag for the whole client, so a jump abandoned
-        // because the reader moved on must not release the hold the room they
-        // moved to is relying on. Switching rooms clears it anyway.
-        //
-        // A superseded jump must not release it either. Its `finally` runs
-        // while a later jump is still loading, and the room would re-pin to
-        // the newest message. The newest jump always passes this, so the
-        // hold is still released by whoever holds it last.
-        if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
-          return;
-        }
-        releaseStickToBottomSuppress();
-        setSearchHoldOffBottom(false);
-      },
+      holdOffBottom,
+      releaseHoldOffBottom,
       loadAround: async (aroundId) => {
         const result = await listRoomMessagesAction(roomId, {
           around: aroundId,
