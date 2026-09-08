@@ -10,7 +10,9 @@ import { notificationFeedWhere } from "@/helpers/notification-feed";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
+import mountDeleteNotification from "./[id]/delete";
 import mountMarkNotificationRead from "./[id]/read/patch";
+import mountClearNotifications from "./delete";
 import mountMarkAllRead from "./read-all/patch";
 import mountGetUnreadCount from "./unread-count/get";
 
@@ -26,6 +28,8 @@ const {
   publishClearedNotificationsMock,
   waitUntilPromises,
   notificationCountMock,
+  notificationDeleteManyMock,
+  notificationFindFirstMock,
   notificationFindManyMock,
   notificationFindUniqueMock,
   notificationUpdateManyMock,
@@ -37,6 +41,8 @@ const {
   publishClearedNotificationsMock: vi.fn(),
   waitUntilPromises: [] as Promise<unknown>[],
   notificationCountMock: vi.fn(),
+  notificationDeleteManyMock: vi.fn(),
+  notificationFindFirstMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   notificationFindUniqueMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
@@ -62,6 +68,8 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     notification: {
       count: notificationCountMock,
+      deleteMany: notificationDeleteManyMock,
+      findFirst: notificationFindFirstMock,
       findMany: notificationFindManyMock,
       findUnique: notificationFindUniqueMock,
       update: notificationUpdateMock,
@@ -526,5 +534,101 @@ describe("GET /notifications/unread-count", () => {
         },
       },
     });
+  });
+});
+
+describe("DELETE /notifications/{id}", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationDeleteManyMock.mockResolvedValue({ count: 1 });
+  });
+
+  it("deletes an owned notification and returns the row it removed", async () => {
+    const existing = createNotificationRow();
+    notificationFindFirstMock.mockResolvedValue(existing);
+
+    const app = createApp(mountDeleteNotification);
+    const response = await app.request("http://localhost/notif_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(notificationDeleteManyMock).toHaveBeenCalledWith({
+      where: { id: "notif_123", userId: "user_123" },
+    });
+
+    const body = (await response.json()) as {
+      data: { id: string; isRead: boolean };
+    };
+    expect(body.data.id).toBe("notif_123");
+    expect(body.data.isRead).toBe(false);
+  });
+
+  it("returns 404 when the notification does not exist", async () => {
+    notificationFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp(mountDeleteNotification);
+    const response = await app.request("http://localhost/notif_missing", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(404);
+    expect(notificationDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 and deletes nothing for another user's notification", async () => {
+    // The row is looked up by id and reader together, so another reader's
+    // row reads as missing rather than as forbidden.
+    notificationFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp(mountDeleteNotification);
+    const response = await app.request("http://localhost/notif_other", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(404);
+    expect(notificationFindFirstMock).toHaveBeenCalledWith({
+      where: { id: "notif_other", userId: "user_123" },
+    });
+    expect(notificationDeleteManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /notifications", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationDeleteManyMock.mockResolvedValue({ count: 4 });
+  });
+
+  it("deletes every notification-center row for the authenticated user", async () => {
+    const app = createApp(mountClearNotifications);
+    const response = await app.request("http://localhost/", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(notificationDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_123",
+        ...notificationFeedWhere(),
+      },
+    });
+
+    const body = (await response.json()) as { data: { count: number } };
+    expect(body.data.count).toBe(4);
+  });
+
+  it("reports zero when the notification center is already empty", async () => {
+    notificationDeleteManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(mountClearNotifications);
+    const response = await app.request("http://localhost/", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as { data: { count: number } };
+    expect(body.data.count).toBe(0);
   });
 });
