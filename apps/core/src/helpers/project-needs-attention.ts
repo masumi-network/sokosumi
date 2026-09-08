@@ -187,6 +187,25 @@ export function unsettledProjectJobsWhere(now: Date) {
   };
 }
 
+// ponytail: candidate window by Job.updatedAt. True top-5-by-tier needs a persisted status. Ceiling: 50 unsettled jobs per detail load.
+export const PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT = 50;
+
+export function unsettledProjectJobsQuery(params: {
+  projectId: string;
+  workspaceId: string;
+  now: Date;
+}) {
+  return {
+    where: {
+      projectId: params.projectId,
+      workspaceId: params.workspaceId,
+      ...unsettledProjectJobsWhere(params.now),
+    },
+    orderBy: [{ updatedAt: "desc" as const }, { id: "desc" as const }],
+    take: PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT,
+  };
+}
+
 export function jobAttentionUpdatedAt(job: {
   updatedAt: Date;
   purchase?: { updatedAt: Date } | null;
@@ -267,11 +286,11 @@ export async function getProjectNeedsAttention(
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     }),
     prisma.job.findMany({
-      where: {
+      ...unsettledProjectJobsQuery({
         projectId: params.projectId,
         workspaceId: params.workspaceId,
-        ...unsettledProjectJobsWhere(new Date()),
-      },
+        now: new Date(),
+      }),
       select: {
         id: true,
         name: true,
