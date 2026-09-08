@@ -2525,7 +2525,7 @@ export const putJobsByIdWorkspace = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * List in-app notification-center items for the interactive session user with cursor pagination. CHAT kind is excluded (browser OS alerts + room attention only).
+ * List in-app notification-center items for the interactive session user with cursor pagination. CHAT kind is excluded except for room messages, which the reader asked to be told about and the feed is the only surface that keeps.
  */
 export const getNotifications = <ThrowOnError extends boolean = false>(options?: Options<GetNotificationsData, ThrowOnError>): RequestResult<GetNotificationsResponses, GetNotificationsErrors, ThrowOnError> => (options?.client ?? client).get<GetNotificationsResponses, GetNotificationsErrors, ThrowOnError>({
     responseTransformer: getNotificationsResponseTransformer,
@@ -2534,7 +2534,7 @@ export const getNotifications = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * Get the count of unread in-app notification-center items for the interactive session user. CHAT kind is excluded.
+ * Get the count of unread in-app notification-center items for the interactive session user. CHAT kind is excluded except for room messages.
  */
 export const getNotificationsUnreadCount = <ThrowOnError extends boolean = false>(options?: Options<GetNotificationsUnreadCountData, ThrowOnError>): RequestResult<GetNotificationsUnreadCountResponses, GetNotificationsUnreadCountErrors, ThrowOnError> => (options?.client ?? client).get<GetNotificationsUnreadCountResponses, GetNotificationsUnreadCountErrors, ThrowOnError>({
     responseTransformer: getNotificationsUnreadCountResponseTransformer,
@@ -2552,7 +2552,7 @@ export const patchNotificationsByIdRead = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Mark all in-app notification-center items as read for the interactive session user. CHAT kind is excluded so room attention stays until the room is read.
+ * Mark all in-app notification-center items as read for the interactive session user. CHAT kind is excluded except for room messages, so a mention stays until its room is read.
  */
 export const patchNotificationsReadAll = <ThrowOnError extends boolean = false>(options?: Options<PatchNotificationsReadAllData, ThrowOnError>): RequestResult<PatchNotificationsReadAllResponses, PatchNotificationsReadAllErrors, ThrowOnError> => (options?.client ?? client).patch<PatchNotificationsReadAllResponses, PatchNotificationsReadAllErrors, ThrowOnError>({
     responseTransformer: patchNotificationsReadAllResponseTransformer,
