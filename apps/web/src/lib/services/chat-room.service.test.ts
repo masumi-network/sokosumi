@@ -553,6 +553,23 @@ describe("chatRoomService.getMessage", () => {
     ).resolves.toBeNull();
   });
 
+  it("reads a 403 as no message too", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    getChatRoomMessageMock.mockRejectedValue(
+      new CoreApiRequestError("Forbidden", { status: 403 }),
+    );
+
+    const { chatRoomService } = await import("./chat-room.service");
+
+    // The membership gate answers 403, not 404, when a reader's room
+    // membership outlived the organization membership behind it. Treating
+    // that as a failure would send the caller back to the room with the same
+    // id, through the same gate, for the loud second failure it is avoiding.
+    await expect(
+      chatRoomService.getMessage("room-1", "msg-1"),
+    ).resolves.toBeNull();
+  });
+
   it("lets any other failure through", async () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     getChatRoomMessageMock.mockRejectedValue(
