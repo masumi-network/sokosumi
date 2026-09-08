@@ -10,7 +10,10 @@ import {
   uploadProjectContextMdFile,
 } from "@/lib/project-files-blob";
 import { isProjectMemoryConfigured } from "@/lib/project-memory-config";
-import { refreshProjectLatestUpdate } from "./project-latest-update";
+import {
+  latestUpdateWindowFor,
+  refreshProjectLatestUpdate,
+} from "./project-latest-update";
 
 const MEMORY_LOCK_TTL_MS = 5 * 60 * 1000;
 const MEMORY_GENERATION_TIMEOUT_MS = 60_000;
@@ -115,11 +118,16 @@ function formatPromptData(value: string, maxChars?: number): string {
   );
 }
 
+function taskCompletionTime(task: ProjectMemoryTask): Date {
+  return (
+    task.events.find((event) => event.status === TaskStatus.COMPLETED)
+      ?.createdAt ?? task.updatedAt
+  );
+}
+
 function formatTaskForPrompt(task: ProjectMemoryTask): string {
   const chronologicalEvents = [...task.events].reverse();
-  const completedAt = task.events.find(
-    (event) => event.status === TaskStatus.COMPLETED,
-  )?.createdAt;
+  const completedAt = taskCompletionTime(task);
   const files =
     task.files
       .map((file) => formatPromptData(file.name, MAX_NAME_CHARS))
@@ -146,7 +154,7 @@ function formatTaskForPrompt(task: ProjectMemoryTask): string {
     task.assignee?.name || "Unassigned",
     MAX_NAME_CHARS,
   )}</assignee>
-<completion_time>${(completedAt ?? task.updatedAt).toISOString()}</completion_time>
+<completion_time>${completedAt.toISOString()}</completion_time>
 <files>${files}</files>
 <events>
 ${events}
@@ -301,11 +309,12 @@ async function refreshProjectMemoryIteration({
       };
     }
 
+    const completedTasks = [triggeringTask, ...recentCompletedTasks];
     const prompt = buildProjectMemoryPrompt({
       projectName: project.name,
       briefing: project.briefing,
       currentContextMd: project.contextMd,
-      completedTasks: [triggeringTask, ...recentCompletedTasks],
+      completedTasks,
     });
     const generation = await generateText({
       model: env.PROJECT_MEMORY_MODEL,
@@ -355,12 +364,14 @@ async function refreshProjectMemoryIteration({
       };
     }
 
+    const { windowStart } = latestUpdateWindowFor(lockStartedAt);
     await refreshProjectLatestUpdate({
       projectId,
       projectName: project.name,
       briefing: project.briefing,
       contextMd,
-      completedWorkXml: [triggeringTask, ...recentCompletedTasks]
+      completedWorkXml: completedTasks
+        .filter((task) => taskCompletionTime(task) >= windowStart)
         .map(formatTaskForPrompt)
         .join("\n\n"),
       lockStartedAt,

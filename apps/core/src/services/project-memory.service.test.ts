@@ -122,6 +122,7 @@ describe("projectMemoryService", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -433,6 +434,66 @@ Reached technical founders.`;
         latestUpdateMdUpdatedAt: expect.any(Date),
       },
     });
+  });
+
+  it("keeps older completions in memory but excludes them from the seven-day report", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-07T18:20:00.000Z"));
+
+    const inWindowTask = {
+      ...completedTask,
+      name: "In-window launch report",
+      updatedAt: new Date("2026-09-07T17:00:00.000Z"),
+      events: [
+        {
+          ...completedTask.events[0],
+          createdAt: new Date("2026-09-07T17:00:00.000Z"),
+        },
+      ],
+    };
+    const staleTask = {
+      ...completedTask,
+      id: "task_stale",
+      name: "Old completed task",
+      updatedAt: new Date("2026-08-20T10:00:00.000Z"),
+      events: [
+        {
+          ...completedTask.events[0],
+          id: "event_stale",
+          createdAt: new Date("2026-08-20T10:00:00.000Z"),
+        },
+      ],
+    };
+    taskFindFirstMock.mockImplementation(
+      (args: { select?: Record<string, boolean> }) =>
+        args.select && Object.keys(args.select).length === 1
+          ? null
+          : inWindowTask,
+    );
+    taskFindManyMock.mockResolvedValue([staleTask]);
+    generateTextMock
+      .mockResolvedValueOnce({ text: "# Updated\nNew decision" })
+      .mockResolvedValueOnce({
+        text: `# Weekly Activity Report
+
+Date window: 2026-09-01 to 2026-09-07
+
+## TL;DR
+
+Shipped the launch report.`,
+      });
+
+    await projectMemoryService.refreshAfterTaskCompleted({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    });
+
+    const memoryPrompt = generateTextMock.mock.calls[0]?.[0].prompt as string;
+    const reportPrompt = generateTextMock.mock.calls[1]?.[0].prompt as string;
+    expect(memoryPrompt).toContain("Old completed task");
+    expect(memoryPrompt).toContain("In-window launch report");
+    expect(reportPrompt).toContain("In-window launch report");
+    expect(reportPrompt).not.toContain("Old completed task");
   });
 
   it("keeps memory and leaves the previous report when TL;DR is missing", async () => {
