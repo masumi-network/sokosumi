@@ -79,13 +79,15 @@ describe("performRoomNotificationJump", () => {
 
   it("leaves the reader in the room when the message cannot be read", async () => {
     const d = deps({
-      loadMessage: vi.fn(async () => ({ status: "gone" }) as const),
+      loadMessage: vi.fn(async () => ({ status: "notReadable" }) as const),
     });
 
     await performRoomNotificationJump("msg-1", d);
 
     // Asking the room to scroll to an id the server just refused fails again,
     // and that second failure is the one the reader sees as an error toast.
+    // A deleted message does not come through here: it is a tombstone, and a
+    // 200.
     expect(d.jumpInRoom).not.toHaveBeenCalled();
     expect(d.jumpInThread).not.toHaveBeenCalled();
   });

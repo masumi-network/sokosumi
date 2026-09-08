@@ -67,16 +67,19 @@ export function useRoomNotificationDeepLink({
         // loading. Answering for a room they have left would open a thread
         // from the old room over the new one.
         if (!isStillSelectedRoom(roomId)) {
-          return { status: "gone" };
+          return { status: "notReadable" };
         }
         if (!result.ok) {
           return { status: "unavailable" };
         }
-        // Core answers a message it cannot find with a 404, which the service
-        // reads as no message rather than as a failure.
+        // Core answers with a 404 when the reader cannot read the message:
+        // the room is archived, they are not a member of it, or the id names
+        // nothing in it. The service reads that as no message rather than as
+        // a failure. A deleted message is not one of these; it comes back as
+        // a tombstone.
         return result.value
           ? { status: "found", message: result.value }
-          : { status: "gone" };
+          : { status: "notReadable" };
       },
       jumpInRoom,
       jumpInThread,

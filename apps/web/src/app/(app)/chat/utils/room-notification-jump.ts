@@ -1,12 +1,13 @@
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 /**
- * What a lookup found. A message that is gone and a lookup that failed are
- * different answers: the first is settled, the second may still come good.
+ * What a lookup found. A message the reader cannot read and a lookup that
+ * failed are different answers: the first is settled, the second may still
+ * come good.
  */
 export type RoomNotificationLookup =
   | { status: "found"; message: ChatRoomMessage }
-  | { status: "gone" }
+  | { status: "notReadable" }
   | { status: "unavailable" };
 
 export interface RoomNotificationJumpDeps {
@@ -28,11 +29,15 @@ export interface RoomNotificationJumpDeps {
  * The read is skipped when the message is already on screen, which is the
  * common case for a room the reader is looking at.
  *
- * A message that is gone leaves the reader in the room, which the
+ * A message the reader cannot read leaves them in the room, which the
  * notification's own link already opened. Asking the room to scroll to an id
- * the server has just said nothing about would fail a second time, and loudly:
- * that second failure is what the reader would see, as an error about a
- * message somebody else deleted.
+ * the server has just refused would fail a second time, and loudly, and that
+ * second failure is what the reader would see.
+ *
+ * Deletion is not this case. A soft-deleted message comes back as its
+ * tombstone with a 200, and the reader lands on it. A refusal means the room
+ * was archived, or they are no longer a member of it, or the id names nothing
+ * in that room. Landing them in the room is the useful answer to all three.
  *
  * A lookup that merely failed is different. The message is probably still
  * there, so the room jump is worth trying: it loads its own window and may
@@ -48,7 +53,7 @@ export async function performRoomNotificationJump(
 
   const lookup = await deps.loadMessage(messageId);
 
-  if (lookup.status === "gone") {
+  if (lookup.status === "notReadable") {
     return;
   }
 

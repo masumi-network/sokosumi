@@ -394,8 +394,10 @@ export const chatRoomService = (() => {
       const response = await coreClient.getChatRoomMessage(roomId, messageId);
       return response.data;
     } catch (error) {
-      // A message deleted from under a notification, or one in a room the
-      // reader has left. Null, so the caller can still open the room.
+      // The reader cannot read this message: the room is archived, they are
+      // no longer a member of it, or the id names nothing in it. Null, so the
+      // caller can still open the room. Not deletion, which comes back as a
+      // tombstone with a 200.
       if (error instanceof CoreApiRequestError && error.status === 404) {
         return null;
       }

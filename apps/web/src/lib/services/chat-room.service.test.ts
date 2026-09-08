@@ -545,9 +545,9 @@ describe("chatRoomService.getMessage", () => {
 
     const { chatRoomService } = await import("./chat-room.service");
 
-    // This null is what tells a notification the message is gone rather than
-    // unreachable, which is what stops it complaining about a message
-    // somebody else deleted.
+    // This null is what tells a notification the message cannot be read
+    // rather than that the request failed, so it leaves the reader in the
+    // room instead of asking it to scroll to an id Core has just refused.
     await expect(
       chatRoomService.getMessage("room-1", "msg-1"),
     ).resolves.toBeNull();
