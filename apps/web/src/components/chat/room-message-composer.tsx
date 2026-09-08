@@ -25,11 +25,11 @@ const POINTER_SUBMIT_CLICK_GUARD_MS = 400;
  * Shared editor footprint for live composer + Instant room loading shell.
  *
  * Line height is pinned after the font size on purpose. withEditableTextSize
- * appends `text-base md:text-sm` last, and tailwind-merge drops any
- * `leading-*` that sits before it, so the font size would otherwise own the
- * line box: 1.5rem below `md`, 1.25rem from `md` up. That leaves the caret,
- * which fills the whole line box, hanging below the descender of the text it
- * sits next to. Pinning a tighter line box keeps the caret close to the glyphs.
+ * appends EDITABLE_TEXT_SIZE_CLASSNAME last, and tailwind-merge drops any
+ * `leading-*` that sits before a font size, so the size seam would otherwise
+ * own the line box: 1.5rem below `md`, 1.25rem from `md` up. That leaves the
+ * caret, which fills the whole line box, hanging below the descender of the
+ * text beside it. A tighter line box keeps the caret close to the glyphs.
  *
  * Vertical padding is symmetric at each breakpoint and adds up with the line to
  * the same 3rem box, so empty, placeholder, and first keystroke share it:
