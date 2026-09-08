@@ -1,4 +1,10 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -19,6 +25,13 @@ const { mockReplace, mockSearch } = vi.hoisted(() => ({
   mockSearch: { current: "" },
 }));
 
+// The search panel is a stub, so a hit has to be handed to it. Set it and the
+// stub renders one clickable result; leave it null and the panel is empty, as
+// every test that is not about search wants it.
+const { mockSearchHit } = vi.hoisted(() => ({
+  mockSearchHit: { current: null as ChatRoomMessage | null },
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -35,7 +48,22 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
-  RoomSearchPanel: () => null,
+  RoomSearchPanel: ({
+    onJumpToMessage,
+  }: {
+    onJumpToMessage: (hit: ChatRoomMessage) => void;
+  }) => {
+    const hit = mockSearchHit.current;
+    return hit ? (
+      <button
+        type="button"
+        data-testid="search-hit"
+        onClick={() => {
+          onJumpToMessage(hit);
+        }}
+      />
+    ) : null;
+  },
 }));
 
 vi.mock("@/app/chat/components/unread-threads-panel", () => ({
@@ -331,6 +359,7 @@ describe("RoomsClient notification deep link", () => {
   beforeEach(() => {
     mockSearch.current = "";
     mockReplace.mockReset();
+    mockSearchHit.current = null;
     vi.mocked(getRoomMessageAction).mockReset();
     vi.mocked(getRoomThreadAction).mockReset();
     vi.mocked(listRoomMessagesAction).mockReset();
@@ -856,6 +885,31 @@ describe("RoomsClient notification deep link", () => {
       expect(toast.error).not.toHaveBeenCalled();
     });
   });
+  it("still reports a missing thread to the reader who searched for it", async () => {
+    // The same `loadParent` serves the search panel, which closes the moment
+    // a hit is clicked. Staying quiet there would leave that click looking
+    // ignored, so the silence belongs to the notification path alone.
+    mockSearchHit.current = {
+      ...sampleMessage("reply body", "msg-reply"),
+      parentMessageId: "msg-parent",
+    };
+    vi.mocked(getRoomThreadAction).mockResolvedValue({
+      ok: false as const,
+      error: { code: "NOT_FOUND", message: "Could not load thread." },
+    });
+
+    render(<RoomsClient {...baseProps} messagesPromise={settledMessages()} />);
+
+    const hit = await screen.findByTestId("search-hit");
+    await act(async () => {
+      fireEvent.click(hit);
+    });
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Could not load thread.");
+    });
+  });
+
   it("says nothing when the reply's thread is no longer there", async () => {
     mockSearch.current = "message=msg-reply";
     vi.mocked(getRoomMessageAction).mockResolvedValue({

@@ -2004,7 +2004,19 @@ export function RoomsClient({
     return loadThreadMessages(parentMessage);
   }
 
-  async function handleSearchJump(hit: ChatRoomMessage) {
+  async function handleSearchJump(
+    hit: ChatRoomMessage,
+    options?: {
+      /**
+       * Say nothing when the reply's thread is no longer there. Wanted on the
+       * notification path, where the reader already has the room the
+       * notification opened and a missing thread is a settled answer rather
+       * than a fault. The search panel wants the opposite: it closes on the
+       * click, so silence would leave that click looking ignored.
+       */
+      quietWhenThreadIsGone?: boolean;
+    },
+  ) {
     const roomId = selectedRoom?.id;
     if (!roomId) {
       return;
@@ -2064,12 +2076,16 @@ export function RoomsClient({
           return null;
         }
         if (!result.ok) {
-          // A thread that is simply not there is the answer, not a fault. It
-          // happens on the notification path whenever the reply's parent has
-          // been deleted, and telling the reader the thread failed to load is
-          // the loud second failure this jump exists to avoid. They are left
-          // in the room the notification already opened.
-          if (result.error.code !== CommonErrorCode.NOT_FOUND) {
+          // A thread that is simply not there is the answer, not a fault, and
+          // on the notification path saying so is the loud second failure
+          // this jump exists to avoid: the reader is left in the room the
+          // notification already opened. It happens when the reply's parent
+          // has been deleted and is not already in the loaded timeline, which
+          // is the case `findLoadedParent` above cannot short-circuit.
+          const quiet =
+            options?.quietWhenThreadIsGone === true &&
+            result.error.code === CommonErrorCode.NOT_FOUND;
+          if (!quiet) {
             toast.error(result.error.message);
           }
           return null;
@@ -2256,7 +2272,8 @@ export function RoomsClient({
     highlight: highlightRoomMessageElement,
     isStillSelectedRoom,
     jumpInRoom: handleJumpToMessage,
-    jumpInThread: handleSearchJump,
+    jumpInThread: (hit) =>
+      handleSearchJump(hit, { quietWhenThreadIsGone: true }),
   });
 
   async function loadThreadMessages(
