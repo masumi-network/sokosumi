@@ -129,7 +129,7 @@ final class WorkspaceState: ObservableObject {
     } catch let error as ChatServiceError {
       handleServiceError(error, auth: auth, signedOutMessage: "Signed out.")
     } catch {
-      NSLog("Sokosumi workspace load failed: %{public}@", String(describing: error))
+      NSLog("Sokosumi workspace load failed: %@", String(describing: error))
       phase = .failed(message: friendlyMessage(for: error))
     }
   }
@@ -153,7 +153,7 @@ final class WorkspaceState: ObservableObject {
     } catch let error as ChatServiceError {
       handleServiceError(error, auth: auth, signedOutMessage: nil, keepReady: true)
     } catch {
-      NSLog("Sokosumi workspace switch failed: %{public}@", String(describing: error))
+      NSLog("Sokosumi workspace switch failed: %@", String(describing: error))
       switchError = friendlyMessage(for: error)
     }
   }

@@ -184,6 +184,9 @@ struct ChatServiceTests {
     let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
     #expect(json.keys.contains("organizationId"))
     #expect(json["organizationId"] is NSNull)
+    // URLSession uploadTask uses this header: a stale length vs the rewritten
+    // body is a protocol error and surfaces as NSURLError -1005.
+    #expect(transport.requests[0].request.headerFields[.contentLength] == "\(body.count)")
   }
 
   @Test func organizationPreferredOrganizationKeepsId() async throws {
