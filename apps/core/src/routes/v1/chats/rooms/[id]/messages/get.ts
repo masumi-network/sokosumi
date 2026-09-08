@@ -43,6 +43,16 @@ const paramsSchema = z.object({
 });
 
 const querySchema = cursorPaginationQuerySchema.extend({
+  // Message cursors are message UUIDs, not the shared schema's CUID example.
+  cursor: z
+    .string()
+    .optional()
+    .openapi({
+      param: { name: "cursor", in: "query" },
+      description:
+        "Cursor for pagination (ID of the last message from previous page)",
+      example: "550e8400-e29b-41d4-a716-446655440002",
+    }),
   q: z
     .string()
     .trim()

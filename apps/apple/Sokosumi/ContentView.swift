@@ -8,7 +8,6 @@ struct ContentView: View {
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openSettings) private var openSettings
-  @State private var selectedRoomId: String?
 
   var body: some View {
     Group {
@@ -24,7 +23,6 @@ struct ContentView: View {
         workspaces.startIfNeeded(auth: auth)
       } else {
         workspaces.reset()
-        selectedRoomId = nil
       }
     }
   }
@@ -105,7 +103,10 @@ struct ContentView: View {
       let partitioned = partitionRoomsForSidebar(workspaces.rooms)
       NavigationSplitView {
         VStack(spacing: 0) {
-          List(selection: $selectedRoomId) {
+          List(selection: Binding(
+            get: { workspaces.selectedRoomId },
+            set: { workspaces.selectRoom($0, auth: auth) }
+          )) {
             workspaceMenu
             if workspaces.roomsLoading, workspaces.rooms.isEmpty {
               ProgressView("Loading rooms…")
@@ -157,22 +158,13 @@ struct ContentView: View {
         }
         .navigationSplitViewColumnWidth(min: 220, ideal: 260)
       } detail: {
-        if let selected = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
-          VStack {
-            Text(roomDisplayName(selected, currentUserId: workspaces.currentUserId))
-              .font(.headline)
-            Text("Transcript lands in the next ticket.")
-              .font(.caption)
-              .foregroundStyle(.tertiary)
-          }
+        if let selectedRoomId = workspaces.selectedRoomId,
+           workspaces.rooms.contains(where: { $0.id == selectedRoomId }) {
+          TranscriptView(roomId: selectedRoomId)
         } else {
-          VStack {
-            Text("Pick a room to read it.")
-              .foregroundStyle(.secondary)
-            Text("Transcript lands in the next ticket.")
-              .font(.caption)
-              .foregroundStyle(.tertiary)
-          }
+          Text("Pick a room to read it.")
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
       }
     }

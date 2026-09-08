@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 import OpenAPIRuntime
 
-/// UI-free workspace + rooms flow for SOK-973 (Mac tracer).
+/// UI-free workspace + rooms + transcript flow (SOK-973, SOK-974).
 ///
 /// Rules from `MAC-TRACER.md`: only `ready` continues into chat; personal
 /// omits `X-Organization-Slug` while organizations send it; rooms walk Core
@@ -216,7 +216,7 @@ public struct ChatService: Sendable {
 
   /// Best-effort short message for undocumented statuses: Core's `{message}`
   /// when the body parses, otherwise just the rejection.
-  private func unprocessableError(
+  func unprocessableError(
     statusCode: Int,
     payload: OpenAPIRuntime.UndocumentedPayload
   ) async -> ChatServiceError {
