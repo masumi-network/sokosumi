@@ -13,10 +13,10 @@ final class WorkspaceState: ObservableObject {
   struct WorkspaceOption: Identifiable, Hashable {
     var id: String
     var title: String
-    /// Nil selects personal (org header omitted); set sends the slug.
-    var slug: String?
-    /// Nil selects personal; set is PUT as the preferred organization.
-    var organizationId: String?
+    /// Single source for the org header + preference PUT: personal omits
+    /// the header and PUTs null, an organization sends both. Constructed
+    /// whole, so a half-filled option (id without slug) is unrepresentable.
+    var workspace: WorkspaceSelection
   }
 
   enum Phase: Equatable {
@@ -71,8 +71,8 @@ final class WorkspaceState: ObservableObject {
 
   func select(_ option: WorkspaceOption, auth: AuthState) {
     guard option.id != selectionId else { return }
-    selectionId = option.id
-    savedSelection.save(option.id)
+    // Header + rooms commit together after the switch succeeds, so a
+    // failed PUT never leaves the new header over the old rooms.
     Task { await switchRooms(auth: auth, option: option) }
   }
 
@@ -98,16 +98,16 @@ final class WorkspaceState: ObservableObject {
       }
       var built: [WorkspaceOption] = []
       if initial.access.hasPersonalWorkspace {
-        built.append(.init(id: "personal", title: "Personal", slug: nil, organizationId: nil))
+        built.append(.init(id: "personal", title: "Personal", workspace: .personal))
       }
       built.append(
         contentsOf: initial.organizations.map {
-          .init(id: $0.id, title: $0.name, slug: $0.slug, organizationId: $0.id)
+          .init(id: $0.id, title: $0.name, workspace: .organization(id: $0.id, slug: $0.slug))
         }
       )
       options = built
       let selection = initial.defaultSelection
-      selectionId = built.first { $0.organizationId == selection.organizationId }?.id
+      selectionId = built.first { $0.workspace == selection }?.id
       phase = .ready
       roomsLoading = true
       defer { roomsLoading = false }
@@ -127,14 +127,10 @@ final class WorkspaceState: ObservableObject {
       phase = .failed(message: "Sign-in is not configured.")
       return
     }
-    let selection: WorkspaceSelection =
-      if let id = option.organizationId, let slug = option.slug {
-        .organization(id: id, slug: slug)
-      } else {
-        .personal
-      }
     do {
-      rooms = try await service.switchWorkspace(client: client, selection: selection)
+      rooms = try await service.switchWorkspace(client: client, selection: option.workspace)
+      selectionId = option.id
+      savedSelection.save(option.id)
     } catch let error as ChatServiceError {
       handleServiceError(error, auth: auth, signedOutMessage: nil)
     } catch {

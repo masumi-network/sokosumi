@@ -113,7 +113,7 @@ struct ContentView: View {
               .foregroundStyle(.secondary)
           } else {
             // Channels section only for organization workspaces, mirroring web.
-            if workspaces.selection?.organizationId != nil {
+            if workspaces.selection?.workspace.organizationId != nil {
               Section("Channels") {
                 if partitioned.channels.isEmpty {
                   Text("No channels yet.")
