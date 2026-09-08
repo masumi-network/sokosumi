@@ -156,22 +156,24 @@ struct ContentView: View {
         }
         .navigationSplitViewColumnWidth(min: 220, ideal: 260)
       } detail: {
-        if let selected = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
-          VStack {
-            Text(roomDisplayName(selected, currentUserId: workspaces.currentUserId))
-              .font(.headline)
-            Text("Transcript lands in the next ticket.")
-              .font(.caption)
-              .foregroundStyle(.tertiary)
-          }
+        if let selectedRoomId, workspaces.rooms.contains(where: { $0.id == selectedRoomId }) {
+          TranscriptView(roomId: selectedRoomId)
         } else {
-          VStack {
-            Text("Pick a room to read it.")
-              .foregroundStyle(.secondary)
-            Text("Transcript lands in the next ticket.")
-              .font(.caption)
-              .foregroundStyle(.tertiary)
-          }
+          Text("Pick a room to read it.")
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+      }
+      .onChange(of: selectedRoomId) { _, newID in
+        if let newID, let room = workspaces.rooms.first(where: { $0.id == newID }) {
+          workspaces.openRoom(room, auth: auth)
+        } else {
+          workspaces.clearTranscript()
+        }
+      }
+      .onChange(of: workspaces.rooms.map(\.id)) { _, ids in
+        if let selectedRoomId, !ids.contains(selectedRoomId) {
+          self.selectedRoomId = nil
         }
       }
     }

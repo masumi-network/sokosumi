@@ -3,11 +3,13 @@ import CoreAPI
 import Foundation
 import SokosumiChat
 
-/// Thin UI state for the SOK-973 workspace + rooms sidebar.
+/// Thin UI state for the workspace + rooms sidebar (SOK-973) and the room
+/// transcript (SOK-974).
 ///
 /// Behavior lives in `SokosumiChat.ChatService` (UI-free, tested); this
-/// object only holds the current selection/rooms for SwiftUI and forwards
-/// failures: 401 signs out via `AuthState`, other gates surface as text.
+/// object only holds the current selection/rooms/transcript for SwiftUI and
+/// forwards failures: 401 signs out via `AuthState`, other gates surface as
+/// text.
 @MainActor
 final class WorkspaceState: ObservableObject {
   struct WorkspaceOption: Identifiable, Hashable {
@@ -38,6 +40,20 @@ final class WorkspaceState: ObservableObject {
   @Published private(set) var currentUserName = ""
   @Published private(set) var currentUserEmail = ""
   @Published private(set) var currentUserImageURL: String?
+  /// Room the transcript pane shows. Nil clears the pane.
+  @Published private(set) var transcriptRoomId: String?
+  @Published private(set) var transcriptMessages: [Components.Schemas.ChatRoomMessage] = []
+  @Published private(set) var transcriptHasMore = false
+  @Published private(set) var transcriptLoading = false
+  @Published private(set) var transcriptLoadingOlder = false
+  /// Failure text. Shown full-pane when there is no history, as a banner
+  /// above loaded history otherwise — a failed older page never wipes
+  /// what already resolved.
+  @Published private(set) var transcriptError: String?
+
+  private var transcriptCursor: String?
+  /// Bumps on every open/clear so a slow room cannot paint over a newer one.
+  private var transcriptGeneration = 0
 
   private let service = ChatService()
   private let savedSelection: SavedWorkspaceSelection
@@ -81,7 +97,136 @@ final class WorkspaceState: ObservableObject {
     currentUserName = ""
     currentUserEmail = ""
     currentUserImageURL = nil
+    clearTranscript()
     savedSelection.clear()
+  }
+
+  /// Forget the transcript without touching rooms or selection.
+  func clearTranscript() {
+    transcriptGeneration += 1
+    transcriptRoomId = nil
+    transcriptMessages = []
+    transcriptCursor = nil
+    transcriptHasMore = false
+    transcriptLoading = false
+    transcriptLoadingOlder = false
+    transcriptError = nil
+  }
+
+  /// Open a room's transcript: history first, mark-read after it resolves
+  /// (ADR 0026). The sidebar entry is replaced with the POST-read DTO so
+  /// unread chrome matches Core.
+  func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+    transcriptGeneration += 1
+    let generation = transcriptGeneration
+    transcriptRoomId = room.id
+    transcriptMessages = []
+    transcriptCursor = nil
+    transcriptHasMore = false
+    transcriptError = nil
+    transcriptLoading = true
+    Task { await loadTranscript(auth: auth, room: room, generation: generation) }
+  }
+
+  func loadTranscript(
+    auth: AuthState,
+    room: Components.Schemas.ChatRoom,
+    generation: Int
+  ) async {
+    defer {
+      if generation == transcriptGeneration {
+        transcriptLoading = false
+      }
+    }
+    guard let client = resolveClient(auth: auth) else {
+      if generation == transcriptGeneration {
+        transcriptError = "Sign-in is not configured."
+      }
+      return
+    }
+    do {
+      let opened = try await service.openRoom(
+        client: client,
+        roomId: room.id,
+        organizationSlug: selection?.workspace.organizationSlug
+      )
+      guard generation == transcriptGeneration else { return }
+      transcriptMessages = opened.messages
+      transcriptCursor = opened.nextCursor
+      transcriptHasMore = opened.nextCursor != nil
+      if let index = rooms.firstIndex(where: { $0.id == opened.room.id }) {
+        rooms[index] = opened.room
+      }
+    } catch let error as ChatServiceError {
+      guard generation == transcriptGeneration else { return }
+      transcriptError = transcriptFailureMessage(error, auth: auth)
+    } catch {
+      guard generation == transcriptGeneration else { return }
+      NSLog("Sokosumi transcript load failed: %@", String(describing: error))
+      transcriptError = friendlyMessage(for: error)
+    }
+  }
+
+  /// Older history page for scroll-up. Prepends; never marks read and never
+  /// clears resolved history on failure.
+  func loadOlderMessages(auth: AuthState) {
+    guard let roomId = transcriptRoomId, transcriptHasMore,
+          !transcriptLoading, !transcriptLoadingOlder,
+          let cursor = transcriptCursor
+    else { return }
+    transcriptLoadingOlder = true
+    let generation = transcriptGeneration
+    Task {
+      await loadOlder(auth: auth, roomId: roomId, cursor: cursor, generation: generation)
+    }
+  }
+
+  func loadOlder(auth: AuthState, roomId: String, cursor: String, generation: Int) async {
+    defer {
+      if generation == transcriptGeneration {
+        transcriptLoadingOlder = false
+      }
+    }
+    guard let client = resolveClient(auth: auth) else {
+      if generation == transcriptGeneration {
+        transcriptError = "Sign-in is not configured."
+      }
+      return
+    }
+    do {
+      let page = try await service.listMessages(
+        client: client,
+        roomId: roomId,
+        cursor: cursor,
+        organizationSlug: selection?.workspace.organizationSlug
+      )
+      guard generation == transcriptGeneration else { return }
+      transcriptMessages = page.messages + transcriptMessages
+      transcriptCursor = page.nextCursor
+      transcriptHasMore = page.nextCursor != nil
+      transcriptError = nil
+    } catch let error as ChatServiceError {
+      guard generation == transcriptGeneration else { return }
+      transcriptError = transcriptFailureMessage(error, auth: auth)
+    } catch {
+      guard generation == transcriptGeneration else { return }
+      NSLog("Sokosumi older messages load failed: %@", String(describing: error))
+      transcriptError = friendlyMessage(for: error)
+    }
+  }
+
+  /// Maps a transcript failure to UI text. A 401 signs out (nil message —
+  /// the auth card takes over); everything else becomes window-safe text.
+  private func transcriptFailureMessage(_ error: ChatServiceError, auth: AuthState) -> String? {
+    switch error {
+    case let .unauthorized(message):
+      auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
+      return nil
+    case let .unprocessable(statusCode, message):
+      return "Core rejected the request (\(statusCode)): \(message)"
+    case .blocked, .unexpectedResponse:
+      return "Couldn't complete the request. Try again."
+    }
   }
 
   func select(_ option: WorkspaceOption, auth: AuthState) {
@@ -97,6 +242,7 @@ final class WorkspaceState: ObservableObject {
     phase = .loading
     rooms = []
     switchError = nil
+    clearTranscript()
     guard let client = resolveClient(auth: auth) else {
       phase = .failed(message: "Sign-in is not configured.")
       return
@@ -136,6 +282,7 @@ final class WorkspaceState: ObservableObject {
 
   func switchRooms(auth: AuthState, option: WorkspaceOption) async {
     roomsLoading = true
+    clearTranscript()
     defer { roomsLoading = false }
     guard let client = resolveClient(auth: auth) else {
       switchError = "Sign-in is not configured."

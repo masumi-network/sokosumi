@@ -243,4 +243,86 @@ struct WorkspaceStateTests {
       "put/users/{id}/preferred-organization"
     ])
   }
+
+  @Test func openRoomReplacesListUnreadWithReadDTO() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440030"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, unreadRoomsBody(id: roomID, unread: 3)),
+      (200, transcriptPageBody(messages: [transcriptMessage(
+        id: "550e8400-e29b-41d4-a716-446655440031",
+        content: "hello"
+      )], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 0))
+    ])
+    await state.reload(auth: auth)
+    let room = try #require(state.rooms.first)
+    #expect(room.unreadCount == 3)
+    state.openRoom(room, auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
+    #expect(state.transcriptRoomId == roomID)
+    #expect(state.transcriptMessages.map(\.content) == ["hello"])
+    #expect(state.transcriptError == nil)
+    // Sidebar unread follows the POST-read DTO, not a local zero.
+    #expect(state.rooms.first?.unreadCount == 0)
+    #expect(transport.operationIDs.suffix(2) == [
+      "get/chats/rooms/{id}/messages",
+      "post/chats/rooms/{id}/read"
+    ])
+  }
+
+  @Test func failedTranscriptKeepsListUnread() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440032"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, unreadRoomsBody(id: roomID, unread: 3)),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/messages","method":"GET"}}
+      """)
+    ])
+    await state.reload(auth: auth)
+    let room = try #require(state.rooms.first)
+    state.openRoom(room, auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
+    #expect(state.transcriptMessages.isEmpty)
+    #expect(state.transcriptError != nil)
+    #expect(state.rooms.first?.unreadCount == 3)
+    #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/read"))
+  }
+}
+
+private func unreadRoomsBody(id: String, unread: Int) -> String {
+  """
+  {"data":[{"id":"\(id)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":1,"nextCursor":null}}}
+  """
+}
+
+private func transcriptMessage(id: String, content: String) -> String {
+  """
+  {"id":"\(id)","roomId":"550e8400-e29b-41d4-a716-446655440030","parentMessageId":null,"content":"\(content)","createdAt":"\(timestamp)","deletedAt":null,"editedAt":null,"sender":{"type":"user","user":{"id":"user_2","name":"Ada","email":"ada@example.com","presence":"offline"}},"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":null,"quote":null,"membership":null,"unfurls":null}
+  """
+}
+
+private func transcriptPageBody(messages: [String], nextCursor: String?) -> String {
+  let cursorJSON = nextCursor.map { "\"\($0)\"" } ?? "null"
+  return """
+  {"data":[\(messages.joined(separator: ","))],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(messages.count),"nextCursor":\(cursorJSON)}}}
+  """
+}
+
+private func roomReadBody(id: String, unread: Int) -> String {
+  let room = """
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  """
+  return """
+  {"data":\(room),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+  """
 }
