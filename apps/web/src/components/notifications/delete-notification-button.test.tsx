@@ -31,6 +31,7 @@ function renderButton() {
   return render(
     <DeleteNotificationButton
       notificationId="notification-1"
+      isRead={false}
       notificationMessage="Research Agent completed Market Analysis"
     />,
   );
@@ -55,7 +56,9 @@ describe("DeleteNotificationButton", () => {
     );
 
     await waitFor(() => {
-      expect(deleteNotificationMock).toHaveBeenCalledWith("notification-1");
+      expect(deleteNotificationMock).toHaveBeenCalledWith("notification-1", {
+        isRead: false,
+      });
     });
     expect(toast.error).not.toHaveBeenCalled();
   });

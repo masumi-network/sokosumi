@@ -2,7 +2,7 @@
 
 import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ClearNotificationsDialog } from "@/components/notifications/clear-notifications-dialog";
 import {
   DropdownMenu,
@@ -27,6 +27,7 @@ export function HeaderNotificationBell() {
   const t = useTranslations("Components.NotificationCenter");
   const { unreadCount } = useNotifications();
   const { notice } = useAccountNotice();
+  const bellRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
@@ -68,6 +69,7 @@ export function HeaderNotificationBell() {
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
               <button
+                ref={bellRef}
                 type="button"
                 className="hover:bg-muted relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors"
                 aria-label={ariaLabel}
@@ -114,6 +116,10 @@ export function HeaderNotificationBell() {
       </DropdownMenu>
       <ClearNotificationsDialog
         open={isClearDialogOpen}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          bellRef.current?.focus();
+        }}
         onOpenChange={setIsClearDialogOpen}
       />
     </>

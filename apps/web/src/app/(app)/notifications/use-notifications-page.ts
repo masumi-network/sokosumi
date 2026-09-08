@@ -166,7 +166,8 @@ export function useNotificationsPage() {
                 deletion.kind === "clear" ? false : confirmed.current.hasMore,
             };
             if (deletion.kind === "clear") {
-              hasLoaded.current = true;
+              // Rows arriving during clear may also have been deleted by Core.
+              hasLoaded.current = false;
               setHasFetchError(false);
             }
           }

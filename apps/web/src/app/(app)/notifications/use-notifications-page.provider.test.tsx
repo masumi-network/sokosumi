@@ -6,6 +6,7 @@ import {
   NotificationProvider,
   useNotifications,
 } from "@/contexts/notification-provider";
+import type { NotificationEventData } from "@/lib/ably";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 
 import { useNotificationsPage } from "./use-notifications-page";
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   count: vi.fn(),
   delete: vi.fn(),
   clear: vi.fn(),
+  realtime: undefined as undefined | ((event: NotificationEventData) => void),
 }));
 vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
   notificationsBrowserClient: {
@@ -24,7 +26,21 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
     deleteNotifications: mocks.clear,
   },
 }));
-vi.mock("@/contexts/lazy-ably-provider", () => ({ default: () => null }));
+vi.mock("@/contexts/lazy-ably-provider", () => ({
+  default: ({ children }: { children: ReactNode }) => children,
+}));
+vi.mock("ably/react", () => ({
+  ChannelProvider: ({ children }: { children: ReactNode }) => children,
+}));
+vi.mock("@/lib/ably/use-notification-realtime", () => ({
+  useNotificationRealtime: ({
+    onNotification,
+  }: {
+    onNotification: (event: NotificationEventData) => void;
+  }) => {
+    mocks.realtime = onNotification;
+  },
+}));
 vi.mock("@/app/components/notification-toast-listener", () => ({
   NotificationToastListener: () => null,
 }));
@@ -132,3 +148,60 @@ it("keeps a deleted page-only row gone when another deletion fails", async () =>
   expect(result.current.provider.unreadCount).toBe(1);
   error.mockRestore();
 });
+
+it.each([false, true])(
+  "reconciles a notification arriving during clear (survives: %s)",
+  async (survives) => {
+    const { result } = renderHook(usePageAndProvider, { wrapper });
+    await waitFor(() =>
+      expect(result.current.page.notifications).toHaveLength(2),
+    );
+    let complete!: () => void;
+    mocks.clear.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          complete = resolve;
+        }),
+    );
+    let operation!: Promise<void>;
+    act(() => {
+      operation = result.current.provider.clearNotifications();
+    });
+    const newer = notification("during-clear");
+    act(() => {
+      mocks.realtime?.({
+        ...newer,
+        messageParams: newer.messageParams ?? {},
+        createdAt: newer.createdAt.toISOString(),
+        readAt: null,
+        inApp: true,
+        osBanner: true,
+        created: true,
+      });
+    });
+    await waitFor(() =>
+      expect(result.current.page.notifications.map((row) => row.id)).toEqual([
+        newer.id,
+      ]),
+    );
+    mocks.get.mockResolvedValue({
+      data: survives ? [newer] : [],
+      meta: { pagination: { nextCursor: null } },
+    });
+    mocks.count.mockResolvedValue({ data: { count: survives ? 1 : 0 } });
+    await act(async () => {
+      complete();
+      await operation;
+    });
+    await waitFor(() =>
+      expect(
+        result.current.provider.notifications.map((row) => row.id),
+      ).toEqual(survives ? [newer.id] : []),
+    );
+    await waitFor(() =>
+      expect(result.current.page.notifications.map((row) => row.id)).toEqual(
+        survives ? [newer.id] : [],
+      ),
+    );
+  },
+);

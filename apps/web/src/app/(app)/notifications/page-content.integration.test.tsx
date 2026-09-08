@@ -4,7 +4,9 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { NotificationDeletionEvent } from "@/contexts/notification-provider";
@@ -56,9 +58,6 @@ vi.mock("@/lib/utils/notification-message", () => ({
 }));
 vi.mock("@/lib/utils/notification-time", () => ({
   useNotificationTimeFormatter: () => () => "today",
-}));
-vi.mock("@/components/notifications/clear-notifications-dialog", () => ({
-  ClearNotificationsDialog: () => null,
 }));
 
 function notification(id: string): NotificationItem {
@@ -218,6 +217,7 @@ describe("notification page deletions", () => {
   it("rejects the initial page response when the bell clears before it arrives", async () => {
     const pending = deferred<ReturnType<typeof response>>();
     mocks.notifications = [notification("first")];
+    mocks.get.mockResolvedValue(response([]));
     mocks.get.mockReturnValueOnce(pending.promise);
     render(<NotificationsPageContent userId="user" />);
     await screen.findByText("first");
@@ -261,10 +261,49 @@ describe("notification page deletions", () => {
     render(<NotificationsPageContent userId="user" />);
     await screen.findByText("first");
     await waitFor(() => expect(error).toHaveBeenCalled());
+    mocks.get.mockResolvedValue(response([]));
     emit({ operationId: 1, phase: "start", kind: "clear" });
     emit({ operationId: 1, phase: "success", kind: "clear" });
-    expect(screen.getByText("emptyState")).toBeInTheDocument();
+    expect(await screen.findByText("emptyState")).toBeInTheDocument();
     expect(screen.queryByText("fetchError")).not.toBeInTheDocument();
     error.mockRestore();
+  });
+
+  it("restores focus to the page clear button after cancel", async () => {
+    await mount();
+    const user = userEvent.setup();
+    const opener = screen.getByRole("button", { name: "clearAll" });
+    await user.click(opener);
+    await user.click(screen.getByRole("button", { name: "cancel" }));
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
+
+  it("focuses the page when a successful clear removes its opener", async () => {
+    const { container } = await mount();
+    const user = userEvent.setup();
+    mocks.get.mockResolvedValue(response([]));
+    mocks.clear.mockImplementation(async () => {
+      listener?.({ operationId: 1, phase: "start", kind: "clear" });
+      listener?.({ operationId: 1, phase: "success", kind: "clear" });
+    });
+    await user.click(screen.getByRole("button", { name: "clearAll" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "clearAll",
+      }),
+    );
+    await waitFor(() => expect(container.firstElementChild).toHaveFocus());
+    expect(
+      screen.queryByRole("button", { name: "clearAll" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("passes an older unread row's read state to deletion", async () => {
+    const older = { ...notification("older"), isRead: false, readAt: null };
+    await mount([notification("first"), older]);
+    const user = userEvent.setup();
+    // The translation mock returns the same delete label for each row.
+    await user.click(screen.getAllByRole("button", { name: "delete" })[1]);
+    expect(mocks.delete).toHaveBeenCalledWith("older", { isRead: false });
   });
 });

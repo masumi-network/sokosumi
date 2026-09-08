@@ -99,6 +99,7 @@ export function NotificationItem({
   const deleteControl = (
     <DeleteNotificationMenuItem
       notificationId={notification.id}
+      isRead={notification.isRead}
       notificationMessage={message}
     />
   );

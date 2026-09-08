@@ -8,6 +8,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 interface DeleteNotificationMenuItemProps {
   notificationId: string;
+  isRead: boolean;
   /** The row's own message, so a column of controls says what each removes. */
   notificationMessage: string;
 }
@@ -20,10 +21,11 @@ interface DeleteNotificationMenuItemProps {
  */
 export function DeleteNotificationMenuItem({
   notificationId,
+  isRead,
   notificationMessage,
 }: DeleteNotificationMenuItemProps) {
   const t = useTranslations("Components.NotificationCenter");
-  const { requestDelete } = useDeleteNotification(notificationId);
+  const { requestDelete } = useDeleteNotification(notificationId, isRead);
 
   return (
     <DropdownMenuItem

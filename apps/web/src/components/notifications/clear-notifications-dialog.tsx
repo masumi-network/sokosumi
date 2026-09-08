@@ -18,6 +18,7 @@ import { useNotifications } from "@/contexts/notification-provider";
 
 interface ClearNotificationsDialogProps {
   open: boolean;
+  onCloseAutoFocus: (event: Event) => void;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -29,6 +30,7 @@ interface ClearNotificationsDialogProps {
  */
 export function ClearNotificationsDialog({
   open,
+  onCloseAutoFocus,
   onOpenChange,
 }: ClearNotificationsDialogProps) {
   const t = useTranslations("Components.NotificationCenter");
@@ -55,7 +57,7 @@ export function ClearNotificationsDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{t("clearAllConfirmTitle")}</AlertDialogTitle>
           <AlertDialogDescription>

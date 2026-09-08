@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 
 interface DeleteNotificationButtonProps {
   notificationId: string;
+  isRead: boolean;
   /** The row's own message, so a column of controls says what each removes. */
   notificationMessage: string;
 }
@@ -16,10 +17,11 @@ interface DeleteNotificationButtonProps {
 /** The control that removes one notification for good, on the page. */
 export function DeleteNotificationButton({
   notificationId,
+  isRead,
   notificationMessage,
 }: DeleteNotificationButtonProps) {
   const t = useTranslations("Components.NotificationCenter");
-  const { requestDelete } = useDeleteNotification(notificationId);
+  const { requestDelete } = useDeleteNotification(notificationId, isRead);
 
   function handleClick(event: MouseEvent<HTMLButtonElement>): void {
     // The row underneath opens the notification. Deleting is not opening.

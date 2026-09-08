@@ -3,7 +3,7 @@
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
@@ -97,6 +97,8 @@ export function NotificationsPageContent({
     string | null
   >(null);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  const clearButtonRef = useRef<HTMLButtonElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network/navigation
@@ -146,7 +148,7 @@ export function NotificationsPageContent({
   };
 
   return (
-    <div className="flex flex-col gap-5 pb-4">
+    <div ref={pageRef} tabIndex={-1} className="flex flex-col gap-5 pb-4">
       {notice !== null ? <AccountNoticeRow /> : null}
       <NotificationBrowserPermissionPrimer variant="page" />
       {unreadCount > 0 || notifications.length > 0 ? (
@@ -157,6 +159,7 @@ export function NotificationsPageContent({
               variant="outline"
               size="sm"
               className="self-start"
+              ref={clearButtonRef}
               onClick={() => setIsClearDialogOpen(true)}
             >
               {tCenter("clearAll")}
@@ -237,6 +240,10 @@ export function NotificationsPageContent({
       ) : null}
       <ClearNotificationsDialog
         open={isClearDialogOpen}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          (clearButtonRef.current ?? pageRef.current)?.focus();
+        }}
         onOpenChange={setIsClearDialogOpen}
       />
     </div>
@@ -327,6 +334,7 @@ function NotificationRow({
   const deleteControl = (
     <DeleteNotificationButton
       notificationId={notification.id}
+      isRead={notification.isRead}
       notificationMessage={message}
     />
   );

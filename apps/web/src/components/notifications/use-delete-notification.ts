@@ -16,17 +16,17 @@ import { useNotifications } from "@/contexts/notification-provider";
  * There is no pending state: both surfaces drop the row before the request
  * goes out, so the control is gone by the time an answer arrives.
  */
-export function useDeleteNotification(notificationId: string) {
+export function useDeleteNotification(notificationId: string, isRead: boolean) {
   const t = useTranslations("Components.NotificationCenter");
   const { deleteNotification } = useNotifications();
 
   const requestDelete = useCallback(async (): Promise<void> => {
     try {
-      await deleteNotification(notificationId);
+      await deleteNotification(notificationId, { isRead });
     } catch {
       toast.error(t("deleteError"));
     }
-  }, [deleteNotification, notificationId, t]);
+  }, [deleteNotification, notificationId, isRead, t]);
 
   return { requestDelete };
 }
