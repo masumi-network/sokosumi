@@ -135,13 +135,22 @@ public struct ChatService: Sendable {
   }
 
   /// Explicit user switch only: persist the preference, then reload rooms
-  /// under the new workspace.
+  /// under the new workspace. If rooms fail after a successful PUT, restore
+  /// `previous` so Core does not keep a preference the UI never committed.
   public func switchWorkspace(
     client: Client,
-    selection: WorkspaceSelection
+    selection: WorkspaceSelection,
+    previous: WorkspaceSelection? = nil
   ) async throws -> [Components.Schemas.ChatRoom] {
     try await setPreferredOrganization(client: client, organizationId: selection.organizationId)
-    return try await listRooms(client: client, organizationSlug: selection.organizationSlug)
+    do {
+      return try await listRooms(client: client, organizationSlug: selection.organizationSlug)
+    } catch {
+      if let previous {
+        try? await setPreferredOrganization(client: client, organizationId: previous.organizationId)
+      }
+      throw error
+    }
   }
 
   /// Gate first: anything other than `ready` throws `.blocked` without

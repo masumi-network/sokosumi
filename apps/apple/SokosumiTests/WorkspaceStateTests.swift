@@ -76,14 +76,17 @@ private func roomsBody(names: [String]) -> String {
     """
 }
 
-private func ephemeralState(_ responses: [(Int, String)]) -> (WorkspaceState, AuthState, ScriptedTransport) {
+private func ephemeralState(
+  _ responses: [(Int, String)]
+) -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) {
   let transport = ScriptedTransport(responses)
   let client = Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
-  let defaults = UserDefaults(suiteName: "sokosumi-workspace-state-tests")!
-  defaults.removePersistentDomain(forName: "sokosumi-workspace-state-tests")
+  let suite = "sokosumi-workspace-state-tests.\(UUID().uuidString)"
+  let defaults = UserDefaults(suiteName: suite)!
+  defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(savedSelection: SavedWorkspaceSelection(defaults: defaults))
   state.clientResolver = { client }
-  return (state, AuthState(store: MemoryTokenStore()), transport)
+  return (state, AuthState(store: MemoryTokenStore()), transport, defaults)
 }
 
 struct WorkspaceStateTests {
@@ -95,7 +98,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func reloadReadySelectsPersonalDefaultAndLoadsRooms() async throws {
-    let (state, auth, transport) = ephemeralState([
+    let (state, auth, transport, _) = ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -110,7 +113,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func reloadBlockedGateLoadsNoRooms() async throws {
-    let (state, auth, transport) = ephemeralState([(200, accessBody(gate: "identity-onboarding", personal: false))])
+    let (state, auth, transport, _) = ephemeralState([(200, accessBody(gate: "identity-onboarding", personal: false))])
     await state.reload(auth: auth)
     #expect(state.phase == .blocked(gate: .identityOnboarding))
     #expect(state.rooms.isEmpty)
@@ -118,7 +121,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchSuccessCommitsSelectionAndRooms() async throws {
-    let (state, auth, transport) = ephemeralState([
+    let (state, auth, transport, _) = ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -137,7 +140,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func switchFailureKeepsOldSelectionAndRooms() async throws {
-    let (state, auth, _) = ephemeralState([
+    let (state, auth, _, _) = ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -156,7 +159,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func selectWhileLoadingIgnoresSecondSwitch() async throws {
-    let (state, auth, transport) = ephemeralState([
+    let (state, auth, transport, _) = ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -180,8 +183,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func resetClearsEverything() async throws {
-    let defaults = UserDefaults(suiteName: "sokosumi-workspace-state-tests")!
-    let (state, auth, _) = ephemeralState([
+    let (state, auth, _, defaults) = ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
@@ -203,5 +205,34 @@ struct WorkspaceStateTests {
     #expect(state.currentUserName.isEmpty)
     #expect(state.switchError == nil)
     #expect(SavedWorkspaceSelection(defaults: defaults).load() == nil)
+  }
+
+  @Test func switchRoomsListFailureRestoresPreviousPreference() async throws {
+    let (state, auth, transport, _) = ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general"])),
+      (200, """
+      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+      """),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms","method":"GET"}}
+      """),
+      (200, """
+      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+      """),
+    ])
+    await state.reload(auth: auth)
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    await state.switchRooms(auth: auth, option: org)
+    #expect(state.selectionId == "personal")
+    #expect(state.rooms.map(\.name) == ["general"])
+    #expect(state.phase == .ready)
+    #expect(transport.operationIDs.suffix(3) == [
+      "put/users/{id}/preferred-organization",
+      "get/chats/rooms",
+      "put/users/{id}/preferred-organization",
+    ])
   }
 }

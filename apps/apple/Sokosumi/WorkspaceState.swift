@@ -142,7 +142,11 @@ final class WorkspaceState: ObservableObject {
       return
     }
     do {
-      rooms = try await service.switchWorkspace(client: client, selection: option.workspace)
+      rooms = try await service.switchWorkspace(
+        client: client,
+        selection: option.workspace,
+        previous: selection?.workspace ?? .personal
+      )
       selectionId = option.id
       savedSelection.save(option.id)
       switchError = nil

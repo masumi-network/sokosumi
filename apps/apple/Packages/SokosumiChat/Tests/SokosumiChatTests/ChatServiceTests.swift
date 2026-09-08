@@ -292,6 +292,45 @@ struct ChatServiceTests {
     #expect(rooms.map(\.name) == ["launch"])
   }
 
+  @Test func switchWorkspaceRestoresPreviousPreferenceWhenRoomsFail() async throws {
+    let transport = ScriptedTransport([
+      (200, """
+      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+      """),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms","method":"GET"}}
+      """),
+      (200, """
+      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+      """),
+    ])
+    let client = Client.connecting(
+      to: URL(string: "https://core.example/v1")!,
+      transport: transport,
+      middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
+    )
+    do {
+      _ = try await ChatService().switchWorkspace(
+        client: client,
+        selection: .organization(id: "org_1", slug: "acme"),
+        previous: .personal
+      )
+      Issue.record("expected rooms failure")
+    } catch let error as ChatServiceError {
+      let message = String(describing: error)
+      #expect(message.contains("500"))
+      #expect(message.contains("boom"))
+    }
+    #expect(transport.requests.map(\.operationID) == [
+      "put/users/{id}/preferred-organization",
+      "get/chats/rooms",
+      "put/users/{id}/preferred-organization",
+    ])
+    let rollback = try #require(transport.bodies.last)
+    let json = try #require(JSONSerialization.jsonObject(with: rollback) as? [String: Any])
+    #expect(json["organizationId"] is NSNull)
+  }
+
   @Test func switchToPersonalSendsExplicitNull() async throws {
     let transport = ScriptedTransport([
       (200, """

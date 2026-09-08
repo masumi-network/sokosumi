@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Detect Apple-relevant changes
         id: filter
@@ -29,6 +31,7 @@ jobs:
           filters: |
             apple:
               - "apps/apple/**"
+              - ".github/workflows/apple.yml"
 
   # Shared CI signing note: the project carries a developer team for local
   # runs, but CI holds no Apple certificates — so every xcodebuild invocation
@@ -46,6 +49,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
@@ -67,6 +72,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Select Xcode 26 toolchain
         # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
