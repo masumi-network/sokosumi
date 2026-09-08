@@ -8,6 +8,7 @@ const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
 const listCoworkersMock = vi.fn();
+const listTaskAssigneeMemberOptionsMock = vi.fn();
 const workspaceCalendarMock = vi.fn();
 const calendarCreateTaskModalMock = vi.fn();
 const createTaskModalProviderMock = vi.fn();
@@ -66,6 +67,11 @@ vi.mock("@/lib/services/coworker.service", () => ({
   },
 }));
 
+vi.mock("@/app/tasks/utils/task-assignee-members", () => ({
+  listTaskAssigneeMemberOptions: (organizationId: string | null) =>
+    listTaskAssigneeMemberOptionsMock(organizationId),
+}));
+
 vi.mock("@/lib/services/project.service", () => ({
   projectService: {
     getProjectById: (projectId: string) => getProjectByIdMock(projectId),
@@ -114,6 +120,7 @@ describe("ProjectCalendarPage", () => {
       },
     ]);
     listCoworkersMock.mockResolvedValue([]);
+    listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
   });
 
   it("does not load Project data outside the Calendar beta", async () => {
@@ -227,6 +234,44 @@ describe("ProjectCalendarPage", () => {
       sources: Array<{ isSchedulable: boolean }>;
     };
     expect(calendarProps.sources[0]?.isSchedulable).toBe(false);
+  });
+
+  it("includes workspace members in the project calendar assignee options", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+      user: { email: "ada@example.com" },
+    });
+    listTaskAssigneeMemberOptionsMock.mockResolvedValue([
+      {
+        id: "user-1",
+        kind: "user",
+        name: "Alice",
+        slug: "alice@example.com",
+        image: "",
+        vendor: {
+          id: "workspace-members",
+          name: "Members",
+          slug: "workspace-members",
+          logos: { light: null, dark: null },
+        },
+      },
+    ]);
+
+    render(
+      await ProjectCalendarPage({
+        params: Promise.resolve({ projectId: PROJECT.id }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    expect(listTaskAssigneeMemberOptionsMock).toHaveBeenCalledWith("org-1");
+    expect(calendarCreateTaskModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkerOptions: expect.arrayContaining([
+          expect.objectContaining({ id: "user-1", kind: "user" }),
+        ]),
+      }),
+    );
   });
 
   it("still renders the Project Calendar when Calendar sources fail to load", async () => {

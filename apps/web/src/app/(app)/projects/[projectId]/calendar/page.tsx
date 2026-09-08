@@ -7,6 +7,7 @@ import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar"
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { getSession } from "@/lib/auth/auth.server";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { TaskStatus } from "@/lib/clients/generated/core";
@@ -54,7 +55,7 @@ export default async function ProjectCalendarPage({
   const initialDate = resolveCalendarDate(date, now);
   const latestCalendarDate = getLatestCalendarDate(now);
   const range = getCalendarRange(initialDate);
-  const [{ items, pagination }, sources, coworkers, t, locale] =
+  const [{ items, pagination }, sources, coworkers, memberOptions, t, locale] =
     await Promise.all([
       projectService.getProjectCalendar(project.id, {
         ...range,
@@ -65,12 +66,15 @@ export default async function ProjectCalendarPage({
       }),
       taskService.getWorkspaceCalendarSources().catch(() => []),
       coworkerService.listCoworkers().catch(() => []),
+      listTaskAssigneeMemberOptions(
+        session?.session?.activeOrganizationId ?? null,
+      ),
       getTranslations("App.Projects.Detail"),
       getLocale(),
     ]);
   const sourceId = `project:${project.id}`;
   const projectSource = sources.find((source) => source.sourceId === sourceId);
-  const coworkerOptions = getCoworkerOptions(coworkers);
+  const coworkerOptions = [...memberOptions, ...getCoworkerOptions(coworkers)];
   const projectOptions = [
     {
       id: project.id,
