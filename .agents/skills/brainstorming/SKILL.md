@@ -97,7 +97,7 @@ your path and complete them in order.
 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
 5. **Present design** — in sections scaled to their complexity, get user approval after each section
-6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+6. **Write design doc** — record architecture decisions in `docs/adr/` (see `docs/agents/domain.md`); track tickets in Linear. Do not write under `docs/superpowers/`.
 7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
 8. **User reviews written spec** — ask user to review the spec file before proceeding
 9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
@@ -203,7 +203,7 @@ is the whole process.
 
 **Documentation:**
 
-- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+- Write architecture decisions that belong in-repo to `docs/adr/` (`NNNN-slug.md`; see `docs/agents/domain.md`). Track work in Linear (`docs/agents/issue-tracker.md`). Do not write specs under `docs/superpowers/`.
   - (User preferences for spec location override this default)
 - Use elements-of-style:writing-clearly-and-concisely skill if available
 - Commit the design document to git

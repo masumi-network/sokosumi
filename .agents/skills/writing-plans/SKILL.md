@@ -15,7 +15,7 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** If working in an isolated worktree, it should have been created via the `superpowers:using-git-worktrees` skill at execution time.
 
-**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+**Do not write plans under `docs/superpowers/`.** Track work in Linear (team Sokosumi, key `SOK`; see `docs/agents/issue-tracker.md`). Architecture decisions that belong in-repo go in `docs/adr/` (see `docs/agents/domain.md`).
 - (User preferences for plan location override this default)
 
 ## Scope Check
@@ -154,7 +154,7 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 After saving the plan, offer execution choice:
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+**"Plan complete. Track the work in Linear; do not save it under `docs/superpowers/`. Two execution options:**
 
 **1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
 
