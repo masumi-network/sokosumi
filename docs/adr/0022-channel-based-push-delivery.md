@@ -16,6 +16,7 @@ For the record, an earlier draft of this ADR feared that the per-tab `clientId` 
 
 - Push filtering (opt-out, per-kind muting) happens at publish time in Core: skip or shape `extras.push` per user preference. It is user-level, not per-delivery.
 - Preview realtime events and new preview device subscriptions stay on their network and Git branch. A preview without `VERCEL_GIT_COMMIT_REF` fails instead of joining the production channel.
+- Preview isolation assumes the preview Web app reaches the same-branch preview Core, which mints the token. Both sides then feed the shared helper the same network, `VERCEL_ENV`, and `VERCEL_GIT_COMMIT_REF`, so the granted capability and the subscribed channel match. When a preview Web instead reaches a non-preview Core, the token grants only `notifications:all:user_{userId}`, the preview channel subscription fails, and no production events leak.
 - Preview device activation requires a fresh browser confirmation. The app stores no confirmation choice.
 - Notification clicks use the stable Vercel branch URL on previews and the project production URL on production. Local development keeps the current origin.
 - Existing preview devices can remain subscribed to the production channel. They keep receiving production pushes until the user disables push or clears the site's data. This compatibility limit was accepted for the migration. New preview activations use only the preview channel.
