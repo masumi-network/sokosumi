@@ -81,13 +81,14 @@ const MESSAGES = {
       "The schedule for {taskName} was removed after review",
     "Notifications.Chat.mentioned": "{authorName} mentioned you in {roomName}",
     "Notifications.Chat.directMessage": "{authorName} sent you a message",
-    "Notifications.Chat.roomMessage": "{authorName} wrote in {roomName}",
-    "Notifications.Chat.roomMessages": "{count} messages in {roomName}",
+    "Notifications.Chat.roomMessage":
+      "{authorName} wrote in channel {roomName}",
+    "Notifications.Chat.roomMessages": "{count} messages in channel {roomName}",
     "Notifications.Chat.roomMessageGroup":
       "{authorName} wrote in group {roomName}",
     "Notifications.Chat.roomMessagesGroup":
       "{count} messages in group {roomName}",
-    "Notifications.Chat.roomMessageTitle": "{authorName} in {roomName}",
+    "Notifications.Chat.roomMessageTitle": "{authorName} in channel {roomName}",
     "Notifications.Chat.roomMessageGroupTitle":
       "{authorName} in group {roomName}",
     "notifications.vendorGrant.pending":
@@ -127,13 +128,14 @@ const MESSAGES = {
     "Notifications.Chat.directMessage":
       "{authorName} hat dir eine Nachricht gesendet",
     "Notifications.Chat.roomMessage":
-      "{authorName} hat in {roomName} geschrieben",
-    "Notifications.Chat.roomMessages": "{count} Nachrichten in {roomName}",
+      "{authorName} hat im Kanal {roomName} geschrieben",
+    "Notifications.Chat.roomMessages":
+      "{count} Nachrichten im Kanal {roomName}",
     "Notifications.Chat.roomMessageGroup":
       "{authorName} hat in der Gruppe {roomName} geschrieben",
     "Notifications.Chat.roomMessagesGroup":
       "{count} Nachrichten in der Gruppe {roomName}",
-    "Notifications.Chat.roomMessageTitle": "{authorName} in {roomName}",
+    "Notifications.Chat.roomMessageTitle": "{authorName} im Kanal {roomName}",
     "Notifications.Chat.roomMessageGroupTitle":
       "{authorName} in der Gruppe {roomName}",
     "notifications.vendorGrant.pending":
@@ -167,13 +169,16 @@ const MESSAGES = {
       "Se eliminó la programación de {taskName} después de revisarla",
     "Notifications.Chat.mentioned": "{authorName} te mencionó en {roomName}",
     "Notifications.Chat.directMessage": "{authorName} te envió un mensaje",
-    "Notifications.Chat.roomMessage": "{authorName} escribió en {roomName}",
-    "Notifications.Chat.roomMessages": "{count} mensajes en {roomName}",
+    "Notifications.Chat.roomMessage":
+      "{authorName} escribió en el canal {roomName}",
+    "Notifications.Chat.roomMessages":
+      "{count} mensajes en el canal {roomName}",
     "Notifications.Chat.roomMessageGroup":
       "{authorName} escribió en el grupo {roomName}",
     "Notifications.Chat.roomMessagesGroup":
       "{count} mensajes en el grupo {roomName}",
-    "Notifications.Chat.roomMessageTitle": "{authorName} en {roomName}",
+    "Notifications.Chat.roomMessageTitle":
+      "{authorName} en el canal {roomName}",
     "Notifications.Chat.roomMessageGroupTitle":
       "{authorName} en el grupo {roomName}",
     "notifications.vendorGrant.pending":

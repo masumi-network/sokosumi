@@ -6360,11 +6360,11 @@
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",
         "directMessage": "{authorName} sent you a message",
-        "roomMessage": "{authorName} wrote in {roomName}",
-        "roomMessages": "{count} messages in {roomName}",
+        "roomMessage": "{authorName} wrote in channel {roomName}",
+        "roomMessages": "{count} messages in channel {roomName}",
         "roomMessageGroup": "{authorName} wrote in group {roomName}",
         "roomMessagesGroup": "{count} messages in group {roomName}",
-        "roomMessageTitle": "{authorName} in {roomName}",
+        "roomMessageTitle": "{authorName} in channel {roomName}",
         "roomMessageGroupTitle": "{authorName} in group {roomName}"
       }
     }

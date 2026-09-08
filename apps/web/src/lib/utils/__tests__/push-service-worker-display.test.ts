@@ -345,7 +345,7 @@ describe("ably-push-sw display", () => {
       }),
     });
 
-    expect(worker.shown[0]?.title).toBe("Ada in Design");
+    expect(worker.shown[0]?.title).toBe("Ada in channel Design");
     expect(worker.shown[0]?.options.body).toBe(
       "can you look at the login flow",
     );
@@ -396,7 +396,7 @@ describe("ably-push-sw display", () => {
       }),
     });
 
-    expect(worker.shown[0]?.title).toBe("Ada in Design");
+    expect(worker.shown[0]?.title).toBe("Ada im Kanal Design");
     expect(worker.shown[1]?.title).toBe("Ada in der Gruppe Ada, Ben, Cara");
   });
 
@@ -468,7 +468,7 @@ describe("ably-push-sw display", () => {
     async (messagePreview) => {
       const worker = loadServiceWorker({ isChromium: true });
       for (const [messageKey, title, isGroup] of [
-        ["Notifications.Chat.roomMessage", "Ada in Design", false],
+        ["Notifications.Chat.roomMessage", "Ada in channel Design", false],
         ["Notifications.Chat.roomMessage", "Ada in group Design", true],
         ["Notifications.Chat.directMessage", "Ada", false],
         ["Notifications.Chat.mentioned", "Ada mentioned you in Design", false],
