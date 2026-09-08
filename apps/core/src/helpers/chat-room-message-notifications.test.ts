@@ -32,6 +32,13 @@ vi.mock("@/lib/db/prisma", () => ({
     user: { findMany: userFindManyMock },
     // The fan-out looks for a row to count onto before it writes one.
     notification: { findFirst: notificationFindFirstMock },
+    // It reads the message too, so a body deleted while it ran is not
+    // written back onto the notifications.
+    chatRoomMessage: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue({ deletedAt: null, content: "ship it" }),
+    },
   },
 }));
 

@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { NotificationKind } from "@sokosumi/database";
+import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { buildChatMessagePreview } from "@sokosumi/utils";
 
 import type { CreateNotificationInput } from "@/helpers/notifications";
@@ -8,6 +8,7 @@ import {
   publishNotificationRow,
   resolveDelivery,
 } from "@/helpers/notifications";
+import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
 export interface FanOutChatNotificationsParams {
@@ -253,9 +254,21 @@ export async function fanOutChatNotifications(
     workspaceId = workspace?.id ?? null;
   }
 
+  // This runs after the response, so a reader can delete the message before
+  // it lands. The delete takes the text off the rows that exist by then, and
+  // writing the preview now would put it back with nothing left to take it
+  // off again. Read by primary key, next to the reads above.
+  const message = await prisma.chatRoomMessage.findUnique({
+    where: { id: params.messageId },
+    select: { deletedAt: true },
+  });
+
   // Built once rather than per reader: every recipient of one message is shown
   // the same preview, and the rule reads the whole body to get there.
-  const messagePreview = buildChatMessagePreview(params.content);
+  const messagePreview =
+    message === null || message.deletedAt !== null
+      ? ""
+      : buildChatMessagePreview(params.content);
 
   for (const userId of notifyUserIds) {
     const input: CreateNotificationInput = {
@@ -295,5 +308,210 @@ export async function fanOutChatNotifications(
         },
       });
     }
+  }
+
+  if (!messagePreview) {
+    return;
+  }
+
+  // The read above is one moment and the loop is another. A delete or an edit
+  // landing between them takes the text off the rows that exist by then and
+  // leaves it on every row written after. This fan-out is the last writer of
+  // those rows, so it is the one that has to look again.
+  const current = await prisma.chatRoomMessage.findUnique({
+    where: { id: params.messageId },
+    select: { content: true, deletedAt: true },
+  });
+  const saysNow =
+    current === null || current.deletedAt !== null ? "" : current.content;
+
+  if (saysNow === params.content) {
+    return;
+  }
+
+  await rewriteChatNotificationPreviews({
+    roomId: params.roomId,
+    messageId: params.messageId,
+  });
+}
+
+/** A row's stored params, or null when the row cannot be read. */
+function paramsOn(messageParams: string): Record<string, unknown> | null {
+  try {
+    const stored: unknown = JSON.parse(messageParams);
+
+    return typeof stored === "object" && stored !== null
+      ? (stored as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * How many times one row is read again after losing its guarded write.
+ *
+ * A write loses to another writer landing on the same row between the read
+ * and the write: another message counting onto it, or the other of an edit
+ * and a delete of this same message. The next attempt reads what the winner
+ * wrote and decides on that. Three is well past what one room can produce,
+ * and matches the bound the counting path uses.
+ */
+const REWRITE_ATTEMPTS = 3;
+
+/** A notification row, as much of it as a rewrite reads. */
+interface RewritableRow {
+  id: string;
+  messageParams: string;
+  metadata: string | null;
+}
+
+/**
+ * Put this message's preview on one row, or take it off.
+ *
+ * The write names the params it read, so it lands only while the row still
+ * carries what this rewrite decided about. Losing that race is not a failure:
+ * the row moved, so read it again and decide on what it says now. Giving up
+ * instead would leave a deleted message's text on the row whenever an edit of
+ * the same message wrote between this rewrite's read and its write.
+ */
+async function rewriteRow(
+  row: RewritableRow,
+  messageId: string,
+  preview: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  let current = row;
+
+  for (let attempt = 0; attempt < REWRITE_ATTEMPTS; attempt += 1) {
+    if (messageIdOn(current.metadata) !== messageId) {
+      return;
+    }
+
+    // One unreadable row must not cost every other recipient their wipe, the
+    // same way `countOn` and `messageIdOn` read a row above. A row carrying
+    // no preview is left alone: this takes text back or brings it up to date,
+    // and never puts text somewhere it was not.
+    const stored = paramsOn(current.messageParams);
+    if (typeof stored?.messagePreview !== "string") {
+      return;
+    }
+
+    const { messagePreview: _previous, ...rest } = stored;
+    const written = await tx.notification.updateMany({
+      where: { id: current.id, messageParams: current.messageParams },
+      data: {
+        messageParams: JSON.stringify(
+          preview ? { ...rest, messagePreview: preview } : rest,
+        ),
+      },
+    });
+
+    if (written.count > 0) {
+      return;
+    }
+
+    const reread = await tx.notification.findUnique({
+      where: { id: current.id },
+      select: { id: true, messageParams: true, metadata: true },
+    });
+
+    if (reread === null) {
+      return;
+    }
+
+    current = reread;
+  }
+}
+
+interface PreviewMessageSource {
+  roomId: string;
+  messageId: string;
+}
+
+const PREVIEW_TRANSACTION_ATTEMPTS = 3;
+
+/** Lock and reread the message for one recipient, including on each retry. */
+async function rewriteRowFromMessage(
+  row: RewritableRow,
+  source: PreviewMessageSource,
+): Promise<void> {
+  for (let attempt = 0; attempt < PREVIEW_TRANSACTION_ATTEMPTS; attempt += 1) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Keep this lock until this recipient's copy is updated. Separate
+        // transactions prevent a slow room-wide sweep from rolling back all rows.
+        await tx.$queryRaw`
+          SELECT "id" FROM "chat_room_message"
+          WHERE "id" = ${source.messageId}::uuid
+            AND "roomId" = ${source.roomId}::uuid
+          FOR UPDATE
+        `;
+        const message = await tx.chatRoomMessage.findUnique({
+          where: { id: source.messageId, roomId: source.roomId },
+          select: { content: true, deletedAt: true },
+        });
+        const preview = buildChatMessagePreview(
+          message === null || message.deletedAt !== null ? "" : message.content,
+        );
+        await rewriteRow(row, source.messageId, preview, tx);
+      });
+      return;
+    } catch (error) {
+      const transactionExpired =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2028";
+      if (
+        attempt + 1 === PREVIEW_TRANSACTION_ATTEMPTS ||
+        (!transactionExpired && !isPrismaTransactionConflict(error))
+      ) {
+        throw error;
+      }
+    }
+  }
+}
+
+/**
+ * Refresh existing previews from the stored message, one recipient at a time.
+ * A failed recipient is reported without undoing or skipping other recipients.
+ * Rows without a preview stay without one.
+ */
+export async function rewriteChatNotificationPreviews(
+  params: PreviewMessageSource,
+): Promise<void> {
+  try {
+    // Counted rows reference their latest message in metadata, not eventId.
+    // This snapshot only selects candidates; each guarded write checks the row.
+    const rows = await prisma.notification.findMany({
+      where: {
+        kind: NotificationKind.CHAT,
+        referenceId: params.roomId,
+        metadata: { contains: `"messageId":"${params.messageId}"` },
+      },
+      select: { id: true, messageParams: true, metadata: true },
+      orderBy: { id: "asc" },
+    });
+    for (const row of rows) {
+      try {
+        await rewriteRowFromMessage(row, params);
+      } catch (error) {
+        Sentry.captureException(error, {
+          extra: {
+            ...params,
+            notificationId: row.id,
+            notificationType: "chat_notification_preview_rewrite",
+          },
+        });
+      }
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        ...params,
+        notificationType: "chat_notification_preview_rewrite",
+      },
+    });
   }
 }

@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
+import { rewriteChatNotificationPreviews } from "@/helpers/chat-notification-fanout";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -124,6 +125,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await publishChatRoomMessageRealtime(message, "update");
 
     if (contentChanged) {
+      // The row would otherwise keep what the message used to say. The ids
+      // come off the row: a uuid the caller wrote in capitals still matches
+      // the message, and would match no notification.
+      await rewriteChatNotificationPreviews({
+        roomId: message.roomId,
+        messageId: message.id,
+      });
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
     }
 
