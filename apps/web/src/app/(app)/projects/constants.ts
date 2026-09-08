@@ -26,9 +26,9 @@ export const PROJECTS_DETAIL_SHELL_CLASS =
 export const PROJECTS_DETAIL_TOP_CLASS = "w-full";
 
 /**
- * Workspace modules (`modules.title`): mobile px-4 horizontal pad.
+ * Workspace modules (`modules.title`): stacks heading + tiles in the overview grid.
  */
-export const PROJECTS_DETAIL_WORKSPACE_CLASS = "mt-6 space-y-3 px-4 md:px-0";
+export const PROJECTS_DETAIL_WORKSPACE_CLASS = "space-y-3";
 
 /**
  * Shared list card min-height for Instant skeleton, loaded list, and empty state
@@ -45,12 +45,8 @@ export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
-/**
- * Detail overview list box (Tasks / Jobs). Same fill/radius/border as browse,
- * but no `-mx-*`: detail shell already cancels main p-4 and top is full-bleed.
- */
 export const PROJECTS_DETAIL_LIST_LAYOUT_CLASS =
-  "bg-muted/30 border-border/50 overflow-hidden rounded-none border-0 md:rounded-xl md:border";
+  "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
 /**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.

@@ -51,4 +51,4 @@ The same binary will cover listing, Hire, and Job for Agent developers. That wor
 
 - End-user Task assignment in the product UI. That is Sokosumi web, not this CLI.
 - Replacing Core, the Masumi registry, or `/developer`.
-- A native or mobile client. Separate effort.
+- A native or mobile client. Separate effort — Apple lives in [`apps/apple`](../apple/VISION.md).

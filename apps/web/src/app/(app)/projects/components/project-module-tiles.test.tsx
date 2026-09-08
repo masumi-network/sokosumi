@@ -39,6 +39,12 @@ describe("ProjectModuleTiles", () => {
       />,
     );
 
+    expect(container.firstElementChild?.className).toContain("grid-cols-2");
+    expect(container.firstElementChild?.className).toContain("md:grid-cols-4");
+    expect(container.firstElementChild?.className).not.toContain(
+      "xl:grid-cols-7",
+    );
+
     const headings = [...container.querySelectorAll("h3")].map(
       (heading) => heading.textContent,
     );
