@@ -16,6 +16,10 @@ struct TranscriptView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
   @State private var draft = ""
+  /// Eager `VStack` realizes the load-older control on first layout, so
+  /// `onAppear` would pull every older page. Require a trip away from the
+  /// top (the bottom-anchored open) before auto-loading.
+  @State private var transcriptWasAwayFromTop = false
 
   let roomId: String
 
@@ -36,6 +40,9 @@ struct TranscriptView: View {
       transcriptBody
       Divider()
       composer
+    }
+    .onChange(of: roomId) { _, _ in
+      transcriptWasAwayFromTop = false
     }
   }
 
@@ -61,12 +68,11 @@ struct TranscriptView: View {
   }
 
   private var messageList: some View {
-    // Bottom-anchored at layout level: ScrollViewReader.scrollTo races the
-    // lazy stack (the last row may not exist yet when it fires) and leaves
-    // the room parked at the top. The anchor also holds position when older
-    // pages prepend above.
+    // Eager stack so the bottom anchor has real last-row geometry on first
+    // paint. LazyVStack estimated a tall empty clip; scrolling up realized
+    // rows and the blank collapsed. First page is 100 messages.
     ScrollView {
-      LazyVStack(alignment: .leading, spacing: 0) {
+      VStack(alignment: .leading, spacing: 0) {
         if workspaces.transcriptHasMore {
           Button("Load older messages") {
             workspaces.loadOlderMessages(auth: auth)
@@ -74,9 +80,6 @@ struct TranscriptView: View {
           .buttonStyle(.link)
           .frame(maxWidth: .infinity)
           .padding(.vertical, 8)
-          .onAppear {
-            workspaces.loadOlderMessages(auth: auth)
-          }
         }
         if workspaces.transcriptLoadingOlder {
           ProgressView()
@@ -89,32 +92,55 @@ struct TranscriptView: View {
         let messages = workspaces.displayedTranscript
         ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
           let previous = index > 0 ? messages[index - 1] : nil
-          if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
-            DaySeparatorRow(label: label)
-          }
-          if let status = membershipStatusText(message) {
-            MembershipStatusRow(text: status)
-          } else {
-            let outbound = workspaces.outboundShells.first { $0.id == message.id }
-            MessageRow(
-              message: message,
-              isContinuation: isMessageContinuation(previous: previous, current: message),
-              outbound: outbound,
-              onRetry: outbound.map { shell in
-                { workspaces.retryOutbound(clientTurnId: shell.clientTurnId, auth: auth) }
-              },
-              onRemove: outbound.map { shell in
-                { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
-              }
-            )
-            .id(message.id)
+          // Unary row: a top-level if (day pill) plus the bubble made the
+          // lazy path reserve blank slots. One container per message id.
+          VStack(alignment: .leading, spacing: 0) {
+            if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
+              DaySeparatorRow(label: label)
+            }
+            if let status = membershipStatusText(message) {
+              MembershipStatusRow(text: status)
+            } else {
+              let outbound = workspaces.outboundShells.first { $0.id == message.id }
+              MessageRow(
+                message: message,
+                isContinuation: isMessageContinuation(previous: previous, current: message),
+                outbound: outbound,
+                onRetry: outbound.map { shell in
+                  { workspaces.retryOutbound(clientTurnId: shell.clientTurnId, auth: auth) }
+                },
+                onRemove: outbound.map { shell in
+                  { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
+                }
+              )
+            }
           }
         }
       }
       .padding(.horizontal, 12)
       .padding(.vertical, 8)
+      .background {
+        GeometryReader { geometry in
+          Color.clear.preference(
+            key: TranscriptScrollMinYKey.self,
+            value: geometry.frame(in: .named("transcript")).minY
+          )
+        }
+      }
     }
+    .coordinateSpace(.named("transcript"))
     .defaultScrollAnchor(.bottom)
+    .onPreferenceChange(TranscriptScrollMinYKey.self, perform: handleTranscriptMinY)
+  }
+
+  private func handleTranscriptMinY(_ minY: CGFloat) {
+    guard minY.isFinite, abs(minY) < 100_000 else { return }
+    if minY < -80 {
+      transcriptWasAwayFromTop = true
+    }
+    if transcriptWasAwayFromTop, minY > -40 {
+      workspaces.loadOlderMessages(auth: auth)
+    }
   }
 
   private func transcriptError(_ error: String, retryOlder: Bool) -> some View {
@@ -168,6 +194,13 @@ struct TranscriptView: View {
     let content = draft
     draft = ""
     workspaces.sendMessage(content, auth: auth)
+  }
+}
+
+private struct TranscriptScrollMinYKey: PreferenceKey {
+  static var defaultValue: CGFloat = .greatestFiniteMagnitude
+  static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+    value = nextValue()
   }
 }
 
