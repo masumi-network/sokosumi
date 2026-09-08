@@ -654,10 +654,16 @@ describe("WorkspaceCalendar editing", () => {
     const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
       schedule: TaskScheduleSelection;
     };
-    expect(schedule.schedule.oneTimeLocalIso).not.toBe("2026-09-08T18:00");
+    expect(schedule.schedule).toEqual({
+      mode: "once",
+      oneTimeLocalIso: "2026-09-08T18:06",
+      timezone: "Europe/Prague",
+    });
+
+    vi.advanceTimersByTime(2 * 60 * 1000);
     expect(selectionToApiBody(schedule.schedule)).toEqual({
       mode: "once",
-      runAt: expect.any(Date),
+      runAt: new Date("2026-09-08T16:06:00.000Z"),
     });
   });
 
@@ -682,10 +688,10 @@ describe("WorkspaceCalendar editing", () => {
     const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
       schedule: TaskScheduleSelection;
     };
-    expect(schedule.schedule.oneTimeLocalIso).not.toBe("2026-09-08T00:00");
+    expect(schedule.schedule.oneTimeLocalIso).toBe("2026-09-08T18:06");
     expect(selectionToApiBody(schedule.schedule)).toEqual({
       mode: "once",
-      runAt: expect.any(Date),
+      runAt: new Date("2026-09-08T16:06:00.000Z"),
     });
   });
 
@@ -765,10 +771,10 @@ describe("WorkspaceCalendar editing", () => {
     const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
       schedule: TaskScheduleSelection;
     };
-    expect(schedule.schedule.oneTimeLocalIso).not.toBe("2026-09-08T12:00");
+    expect(schedule.schedule.oneTimeLocalIso).toBe("2026-09-08T18:06");
     expect(selectionToApiBody(schedule.schedule)).toEqual({
       mode: "once",
-      runAt: expect.any(Date),
+      runAt: new Date("2026-09-08T16:06:00.000Z"),
     });
   });
 

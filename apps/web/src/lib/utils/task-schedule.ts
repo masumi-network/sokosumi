@@ -360,26 +360,41 @@ export function selectionToApiBody(
   return null;
 }
 
-const ONCE_SCHEDULE_LEAD_MS = 60_000;
+const ONCE_SCHEDULE_LEAD_MS = 5 * 60 * 1000;
+const ONCE_SCHEDULE_RETRY_MS = 60_000;
+const ONCE_SCHEDULE_MAX_ATTEMPTS = 5;
+
+function isSchedulableOnce(oneTimeLocalIso: string, timezone: string): boolean {
+  return Boolean(
+    selectionToApiBody({
+      mode: "once",
+      timezone,
+      oneTimeLocalIso,
+    }),
+  );
+}
 
 export function schedulableOnceLocalIso(
   oneTimeLocalIso: string,
   timezone: string,
 ): string {
-  if (
-    selectionToApiBody({
-      mode: "once",
-      timezone,
-      oneTimeLocalIso,
-    })
-  ) {
+  if (isSchedulableOnce(oneTimeLocalIso, timezone)) {
     return oneTimeLocalIso;
   }
 
-  return utcToDateTimeLocalInTimezone(
-    new Date(Date.now() + ONCE_SCHEDULE_LEAD_MS),
-    timezone,
-  );
+  let leadMs = ONCE_SCHEDULE_LEAD_MS;
+  for (let attempt = 0; attempt < ONCE_SCHEDULE_MAX_ATTEMPTS; attempt++) {
+    const candidate = utcToDateTimeLocalInTimezone(
+      new Date(Date.now() + leadMs),
+      timezone,
+    );
+    if (isSchedulableOnce(candidate, timezone)) {
+      return candidate;
+    }
+    leadMs += ONCE_SCHEDULE_RETRY_MS;
+  }
+
+  return utcToDateTimeLocalInTimezone(new Date(Date.now() + leadMs), timezone);
 }
 
 export function isValidCronExpression(expr: string, timezone: string): boolean {
