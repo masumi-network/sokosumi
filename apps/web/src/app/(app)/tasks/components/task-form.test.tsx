@@ -368,8 +368,7 @@ describe("TaskForm", () => {
     }
   });
 
-  it("opens task scheduling outside the Calendar beta", async () => {
-    const user = userEvent.setup();
+  it("hides scheduling controls outside the Calendar beta", () => {
     calendarBetaAccessMock.enabled = false;
 
     render(
@@ -384,11 +383,9 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: baseLabels.openSchedule }),
-    );
-
-    expect(screen.getByText("timezone")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: baseLabels.openSchedule }),
+    ).not.toBeInTheDocument();
   });
 
   function getHiddenFileInput(container: HTMLElement): HTMLInputElement {
@@ -1543,7 +1540,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        initialValues={{ assigneeId: "coworker-2" }}
+        initialValues={{ projectId: undefined, assigneeId: "coworker-2" }}
         onCreateTask={onCreateTask}
         onSuccess={vi.fn()}
       />,
@@ -1608,7 +1605,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        initialValues={{ assigneeId: "coworker-2" }}
+        initialValues={{ projectId: undefined, assigneeId: "coworker-2" }}
         onCreateTask={onCreateTask}
         onSuccess={vi.fn()}
       />,

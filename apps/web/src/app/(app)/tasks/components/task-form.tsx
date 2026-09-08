@@ -53,6 +53,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCalendarBetaAccess } from "@/contexts/calendar-beta-access-context";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -218,7 +219,7 @@ export function TaskForm({
   initialDesignMdAttachment,
   projectOptions,
   lockProjectSelection = false,
-  defaultProjectId,
+  defaultProjectId = null,
   variant = "page",
   onCancel,
   onSuccess,
@@ -230,6 +231,7 @@ export function TaskForm({
   onCreatedChange,
 }: TaskFormProps) {
   const router = useRouter();
+  const calendarBetaEnabled = useCalendarBetaAccess();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
@@ -243,7 +245,7 @@ export function TaskForm({
   // `undefined` means the caller made no choice yet (Calendar slot creation on
   // an unfiltered Workspace Calendar); `null` is an explicit "no project".
   const initialProjectId =
-    initialValues?.projectId !== undefined
+    initialValues && "projectId" in initialValues
       ? initialValues.projectId
       : defaultProjectId;
   const [projectId, setProjectId] = useState<string | null | undefined>(
@@ -544,7 +546,11 @@ export function TaskForm({
   const handleSave = useCallback(
     async (overrideStatus?: TaskStatus) => {
       if (isSaveDisabled || (useWizard && step === 1)) return;
-      if (shouldShowProjectSelect && projectId === undefined) {
+      if (
+        shouldShowProjectSelect &&
+        projectId === undefined &&
+        labels.projectRequired
+      ) {
         setIsProjectMissing(true);
         return;
       }
@@ -1116,7 +1122,11 @@ export function TaskForm({
                     projectCreateNamed={labels.projectCreateNamed}
                     onCreateProject={handleCreateProject}
                     invalid={isProjectMissing}
-                    describedBy={isProjectMissing ? projectErrorId : undefined}
+                    describedBy={
+                      isProjectMissing && labels.projectRequired
+                        ? projectErrorId
+                        : undefined
+                    }
                   />
                   {isProjectMissing && labels.projectRequired ? (
                     <p id={projectErrorId} className="text-destructive text-xs">
@@ -1283,7 +1293,7 @@ export function TaskForm({
           ) : null}
         </div>
 
-        {showTaskStep ? (
+        {showTaskStep && calendarBetaEnabled ? (
           <TaskScheduleModal
             open={isScheduleModalOpen}
             onOpenChange={setIsScheduleModalOpen}
@@ -1319,17 +1329,19 @@ export function TaskForm({
             <div className="flex items-center gap-3 sm:ml-auto">
               {mode === "create" ? (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={createdTask !== null || !isSchedulableAssignee}
-                    aria-label={labels.openSchedule}
-                    aria-pressed={hasSchedule}
-                    onClick={() => setIsScheduleModalOpen(true)}
-                  >
-                    <CalendarClock className="size-4" aria-hidden />
-                  </Button>
+                  {calendarBetaEnabled ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      disabled={createdTask !== null || !isSchedulableAssignee}
+                      aria-label={labels.openSchedule}
+                      aria-pressed={hasSchedule}
+                      onClick={() => setIsScheduleModalOpen(true)}
+                    >
+                      <CalendarClock className="size-4" aria-hidden />
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="outline"
@@ -1376,17 +1388,19 @@ export function TaskForm({
                 </>
               ) : (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={createdTask !== null || !isSchedulableAssignee}
-                    aria-label={labels.openSchedule}
-                    aria-pressed={hasSchedule}
-                    onClick={() => setIsScheduleModalOpen(true)}
-                  >
-                    <CalendarClock className="size-4" aria-hidden />
-                  </Button>
+                  {calendarBetaEnabled ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      disabled={createdTask !== null || !isSchedulableAssignee}
+                      aria-label={labels.openSchedule}
+                      aria-pressed={hasSchedule}
+                      onClick={() => setIsScheduleModalOpen(true)}
+                    >
+                      <CalendarClock className="size-4" aria-hidden />
+                    </Button>
+                  ) : null}
                   {shouldShowEditToggle ? (
                     <Button
                       type="button"

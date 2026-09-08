@@ -180,7 +180,7 @@ describe("PUT /tasks/{id}/schedule", () => {
     );
   });
 
-  it("allows task scheduling outside the Calendar beta", async () => {
+  it("returns 403 outside the Calendar beta", async () => {
     memberFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp().request(
@@ -195,8 +195,8 @@ describe("PUT /tasks/{id}/schedule", () => {
       },
     );
 
-    expect(response.status).toBe(200);
-    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(response.status).toBe(403);
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the member has no assigned organization seat", async () => {
