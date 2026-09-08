@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  getHistoryItemHref,
   HistoryListItem,
   type HistoryListItemLabels,
 } from "@/app/history/components/history-list-item";
+import { getHistoryItemHref } from "@/app/history/utils/history-item-href";
 import { getHistoryRowSubtitle } from "@/app/history/utils/history-row-subtitle";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { HistoryItem } from "@/lib/services/history.service";

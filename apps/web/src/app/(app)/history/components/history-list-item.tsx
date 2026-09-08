@@ -6,16 +6,16 @@ import {
   HistoryOwnerAvatar,
 } from "@/app/history/components/history-meta";
 import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
+import { getHistoryItemHref } from "@/app/history/utils/history-item-href";
 import { getHistoryRowSubtitle } from "@/app/history/utils/history-row-subtitle";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
-import { NotificationKind, TaskStatus } from "@/lib/clients/generated/core";
+import { TaskStatus } from "@/lib/clients/generated/core";
 import type { HistoryItem } from "@/lib/services/history.service";
 import type { SokosumiJobStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
-import { getNotificationHref } from "@/lib/utils/notification-href";
 
 export interface HistoryListItemLabels {
   credit: string;
@@ -148,14 +148,6 @@ function HistoryListItemContent({
 
 export function isArchivedHistoryItem(item: HistoryItem): boolean {
   return item.archivedAt != null;
-}
-
-export function getHistoryItemHref(item: HistoryItem): string {
-  return getNotificationHref({
-    kind: item.kind.toUpperCase() as NotificationKind,
-    referenceId: item.id,
-    metadata: item.kind === "job" ? { agentId: item.agentId } : null,
-  });
 }
 
 export function HistoryTypeColumn({

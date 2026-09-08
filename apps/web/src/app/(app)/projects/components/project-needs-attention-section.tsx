@@ -1,9 +1,7 @@
 import Link from "next/link";
 
-import {
-  getHistoryItemHref,
-  HistoryTypeColumn,
-} from "@/app/history/components/history-list-item";
+import { HistoryTypeColumn } from "@/app/history/components/history-list-item";
+import { getHistoryItemHref } from "@/app/history/utils/history-item-href";
 import { ProjectResourceCountPills } from "@/app/projects/components/project-resource-count-pills";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
@@ -104,7 +102,7 @@ function ProjectNeedsAttentionRow({
   item: HistoryItem;
   labels: ProjectNeedsAttentionLabels;
 }) {
-  const href = getHistoryItemHref(item) ?? "/tasks";
+  const href = getHistoryItemHref(item);
 
   return (
     <li>
