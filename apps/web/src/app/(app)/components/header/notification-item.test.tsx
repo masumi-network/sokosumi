@@ -184,7 +184,10 @@ describe("NotificationItem delete", () => {
     await user.click(await screen.findByRole("menuitem", { name: /^delete/ }));
 
     await waitFor(() => {
-      expect(deleteNotificationMock).toHaveBeenCalledWith("notification-job-1");
+      expect(deleteNotificationMock).toHaveBeenCalledWith(
+        "notification-job-1",
+        { isRead: false },
+      );
     });
     expect(onClick).not.toHaveBeenCalled();
   });

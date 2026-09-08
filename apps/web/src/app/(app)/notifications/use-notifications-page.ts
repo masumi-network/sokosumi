@@ -50,9 +50,12 @@ export function useNotificationsPage() {
   const [page, setPage] = useState({ ...confirmed.current, isMutating: false });
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const fetchGeneration = useRef(0);
   const fetchInFlight = useRef(false);
   const hasLoaded = useRef(false);
+  const previousProviderRows = useRef(providerNotifications);
+  const providerUpdatesDuringFetch = useRef(new Set<string>());
 
   const publish = useCallback(() => {
     const hiddenIds = new Set(deletedIds.current);
@@ -86,6 +89,8 @@ export function useNotificationsPage() {
       if (fetchInFlight.current || pending.current.size > 0) return;
       fetchInFlight.current = true;
       const generation = ++fetchGeneration.current;
+      const providerUpdates = new Set<string>();
+      providerUpdatesDuringFetch.current = providerUpdates;
       setIsLoading(true);
       try {
         const response = await notificationsBrowserClient.getNotifications({
@@ -93,9 +98,12 @@ export function useNotificationsPage() {
           cursor: nextCursor ?? undefined,
         });
         if (generation !== fetchGeneration.current) return;
-        const rows = response.data.filter(
-          (item) => !deletedIds.current.has(item.id),
-        );
+        const rows = mergeProviderNotifications(
+          response.data,
+          confirmed.current.notifications.filter((row) =>
+            providerUpdates.has(row.id),
+          ),
+        ).filter((item) => !deletedIds.current.has(item.id));
         const existingIds = new Set(
           confirmed.current.notifications.map((item) => item.id),
         );
@@ -179,11 +187,28 @@ export function useNotificationsPage() {
           (!hasLoaded.current ||
             (confirmed.current.hasMore && confirmed.current.cursor === null))
         ) {
-          void fetchNotifications();
+          setRefreshVersion((version) => version + 1);
         }
       }),
-    [fetchNotifications, publish, subscribeToDeletion],
+    [publish, subscribeToDeletion],
   );
+
+  useEffect(() => {
+    if (fetchInFlight.current) {
+      const previousById = new Map(
+        previousProviderRows.current.map((row) => [row.id, row]),
+      );
+      for (const row of providerNotifications) {
+        if (previousById.get(row.id) !== row) {
+          providerUpdatesDuringFetch.current.add(row.id);
+        }
+      }
+    }
+    previousProviderRows.current = providerNotifications;
+    setNotifications((current) =>
+      mergeProviderNotifications(current, providerNotifications),
+    );
+  }, [providerNotifications, setNotifications]);
 
   useEffect(() => {
     void fetchNotifications();
@@ -191,13 +216,7 @@ export function useNotificationsPage() {
       fetchGeneration.current += 1;
       fetchInFlight.current = false;
     };
-  }, [fetchNotifications]);
-
-  useEffect(() => {
-    setNotifications((current) =>
-      mergeProviderNotifications(current, providerNotifications),
-    );
-  }, [providerNotifications, setNotifications]);
+  }, [fetchNotifications, refreshVersion]);
 
   return {
     ...page,

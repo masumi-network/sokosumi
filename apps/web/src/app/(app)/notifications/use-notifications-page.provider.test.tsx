@@ -205,3 +205,113 @@ it.each([false, true])(
     );
   },
 );
+
+it.each([1, 2, 11])(
+  "retains %i new notifications in order during post-clear page reconciliation",
+  async (count) => {
+    const { result } = renderHook(usePageAndProvider, { wrapper });
+    await waitFor(() =>
+      expect(result.current.page.notifications).toHaveLength(2),
+    );
+    let completePage!: (value: {
+      data: NotificationItem[];
+      meta: { pagination: { nextCursor: null } };
+    }) => void;
+    const pageResponse = new Promise((resolve) => {
+      completePage = resolve;
+    });
+    mocks.clear.mockResolvedValue(undefined);
+    mocks.get.mockImplementation(({ limit }: { limit: number }) =>
+      limit === 20
+        ? pageResponse
+        : Promise.resolve({
+            data: [],
+            meta: { pagination: { nextCursor: null } },
+          }),
+    );
+    mocks.count.mockResolvedValue({ data: { count: 0 } });
+    await act(async () => {
+      await result.current.provider.clearNotifications();
+    });
+    const ids: string[] = [];
+    for (let index = 0; index < count; index++) {
+      const newer = notification(`after-clear-${index}`);
+      newer.createdAt = new Date(Date.UTC(2026, 8, 8) + index);
+      ids.unshift(newer.id);
+      act(() => {
+        mocks.realtime?.({
+          ...newer,
+          messageParams: newer.messageParams ?? {},
+          createdAt: newer.createdAt.toISOString(),
+          readAt: null,
+          inApp: true,
+          osBanner: true,
+          created: true,
+        });
+      });
+      await waitFor(() =>
+        expect(result.current.page.notifications.map((row) => row.id)).toEqual(
+          ids,
+        ),
+      );
+    }
+    await act(async () => {
+      completePage({ data: [], meta: { pagination: { nextCursor: null } } });
+    });
+    expect(result.current.provider.notifications.map((row) => row.id)).toEqual(
+      ids.slice(0, 10),
+    );
+    expect(result.current.page.notifications.map((row) => row.id)).toEqual(ids);
+  },
+);
+
+it("does not preserve a clear ghost when its event shares the clear completion batch", async () => {
+  const { result } = renderHook(usePageAndProvider, { wrapper });
+  await waitFor(() =>
+    expect(result.current.page.notifications).toHaveLength(2),
+  );
+  let finishClear!: () => void;
+  mocks.clear.mockReturnValue(
+    new Promise<void>((resolve) => {
+      finishClear = resolve;
+    }),
+  );
+  let operation!: Promise<void>;
+  act(() => {
+    operation = result.current.provider.clearNotifications();
+  });
+  let finishPage!: (value: unknown) => void;
+  let finishProvider!: (value: unknown) => void;
+  const pageResult = new Promise((resolve) => {
+    finishPage = resolve;
+  });
+  const providerResult = new Promise((resolve) => {
+    finishProvider = resolve;
+  });
+  mocks.get.mockImplementation(({ limit }: { limit: number }) =>
+    limit === 20 ? pageResult : providerResult,
+  );
+  mocks.count.mockResolvedValue({ data: { count: 0 } });
+  const ghost = notification("same-batch-ghost");
+  await act(async () => {
+    mocks.realtime?.({
+      ...ghost,
+      messageParams: {},
+      createdAt: ghost.createdAt.toISOString(),
+      readAt: null,
+      inApp: true,
+      osBanner: true,
+      created: true,
+    });
+    finishClear();
+    await operation;
+  });
+  await act(async () => {
+    finishProvider({ data: [], meta: { pagination: { nextCursor: null } } });
+  });
+  expect(result.current.provider.notifications).toHaveLength(0);
+  await act(async () => {
+    finishPage({ data: [], meta: { pagination: { nextCursor: null } } });
+  });
+  expect(result.current.page.notifications).toHaveLength(0);
+});
