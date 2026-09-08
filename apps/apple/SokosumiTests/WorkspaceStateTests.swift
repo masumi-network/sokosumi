@@ -17,6 +17,20 @@ private struct MemoryTokenStore: TokenStore {
   func clear() -> Bool { true }
 }
 
+/// Counts `load()` calls: proves `AuthState.init` never reads the store
+/// under a test runner (the host app must not touch the login Keychain —
+/// a fresh ad-hoc signature pops a system prompt on every test launch).
+private final class LoadCountingStore: TokenStore, @unchecked Sendable {
+  var tokens: OAuthTokens?
+  private(set) var loadCalls = 0
+  func load() -> OAuthTokens? {
+    loadCalls += 1
+    return tokens
+  }
+  func save(_ tokens: OAuthTokens) throws {}
+  func clear() -> Bool { true }
+}
+
 private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
   private(set) var operationIDs: [String] = []
   private var responses: [(Int, String)]
@@ -73,6 +87,13 @@ private func ephemeralState(_ responses: [(Int, String)]) -> (WorkspaceState, Au
 }
 
 struct WorkspaceStateTests {
+  @Test func authInitSkipsTokenStoreRestoreUnderTestRunner() {
+    let store = LoadCountingStore()
+    store.tokens = OAuthTokens(accessToken: "stored", refreshToken: nil, expiresAt: Date(), scope: nil)
+    _ = AuthState(store: store)
+    #expect(store.loadCalls == 0)
+  }
+
   @Test func reloadReadySelectsPersonalDefaultAndLoadsRooms() async throws {
     let (state, auth, transport) = ephemeralState([
       (200, accessBody(gate: "ready")),
