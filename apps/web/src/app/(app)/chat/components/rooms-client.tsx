@@ -22,7 +22,6 @@ import {
   type ChatComposeSokoBot,
   deleteRoomMessageAction,
   editRoomMessageAction,
-  getRoomThreadAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
   pinRoomMessageAction,
@@ -46,6 +45,8 @@ import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
+import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
+import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
@@ -93,10 +94,6 @@ import {
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
-import {
-  performRoomSearchJump,
-  waitForSearchJumpPaint,
-} from "@/app/chat/utils/room-search-jump";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
@@ -112,7 +109,6 @@ import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
@@ -1893,71 +1889,6 @@ export function RoomsClient({
     return loadThreadMessages(parentMessage);
   }
 
-  async function handleSearchJump(hit: ChatRoomMessage) {
-    const roomId = selectedRoom?.id;
-    if (!roomId) {
-      return;
-    }
-    await performRoomSearchJump(hit, {
-      holdOffBottom: () => {
-        suppressStickToBottom();
-        setSearchHoldOffBottom(true);
-      },
-      releaseHoldOffBottom: () => {
-        releaseStickToBottomSuppress();
-        setSearchHoldOffBottom(false);
-      },
-      highlight: highlightRoomMessageElement,
-      afterRender: waitForSearchJumpPaint,
-      loadAroundInRoom: async (aroundId) => {
-        const result = await listRoomMessagesAction(roomId, {
-          around: aroundId,
-        });
-        if (!result.ok) {
-          toast.error(result.error.message);
-          return false;
-        }
-        if (!isStillSelectedRoom(roomId)) {
-          return false;
-        }
-        historicalTimelineRef.current = true;
-        setMessagesState(result.value.messages);
-        setOlderNextCursor(result.value.nextCursor);
-        return true;
-      },
-      findLoadedParent: (parentId) =>
-        topLevelRoomMessages.find((message) => message.id === parentId) ??
-        (threadParentMessage?.id === parentId
-          ? threadParentMessage
-          : undefined),
-      loadParent: async (parentId) => {
-        const result = await getRoomThreadAction(roomId, parentId);
-        if (!result.ok) {
-          toast.error(result.error.message);
-          return null;
-        }
-        return result.value.parentMessage;
-      },
-      openThread: handleOpenThreadFromMessage,
-      loadAroundInThread: async (parentId, aroundId) => {
-        const result = await listThreadMessagesAction(roomId, parentId, {
-          around: aroundId,
-        });
-        if (!result.ok) {
-          toast.error(result.error.message);
-          return false;
-        }
-        if (!isStillSelectedRoom(roomId)) {
-          return false;
-        }
-        historicalThreadRef.current = true;
-        setThreadMessages(result.value.messages);
-        setThreadOlderNextCursor(result.value.nextCursor);
-        return true;
-      },
-    });
-  }
-
   async function handleOpenThreadFromList(
     parentMessage: ChatRoomMessage,
   ): Promise<boolean> {
@@ -2042,39 +1973,37 @@ export function RoomsClient({
     applyPinnedMutation(message.id, !alreadyPinned);
   }
 
-  async function handleJumpToPinnedMessage(messageId: string) {
-    const roomId = selectedRoom?.id;
-    if (!roomId) {
-      return;
-    }
-    if (highlightRoomMessageElement(messageId)) {
-      return;
-    }
-    suppressStickToBottom();
-    setSearchHoldOffBottom(true);
-    const result = await listRoomMessagesAction(roomId, {
-      around: messageId,
+  const { handleSearchJump, handleJumpToMessage, invalidateJump } =
+    useRoomMessageJumps({
+      roomId: selectedRoom?.id ?? null,
+      topLevelRoomMessages,
+      threadParentMessage,
+      isStillSelectedRoom,
+      suppressStickToBottom,
+      releaseStickToBottomSuppress,
+      setSearchHoldOffBottom,
+      setMessagesState,
+      setOlderNextCursor,
+      historicalTimelineRef,
+      historicalThreadRef,
+      setThreadMessages,
+      setThreadOlderNextCursor,
+      handleOpenThreadFromMessage,
     });
-    if (!result.ok) {
-      toast.error(result.error.message);
-      releaseStickToBottomSuppress();
-      setSearchHoldOffBottom(false);
-      return;
-    }
-    if (!isStillSelectedRoom(roomId)) {
-      releaseStickToBottomSuppress();
-      setSearchHoldOffBottom(false);
-      return;
-    }
-    setMessagesState((current) =>
-      mergeRoomMessages(current, result.value.messages),
-    );
-    setOlderNextCursor(result.value.nextCursor);
-    await waitForSearchJumpPaint();
-    highlightRoomMessageElement(messageId);
-    releaseStickToBottomSuppress();
-    setSearchHoldOffBottom(false);
-  }
+
+  useRoomNotificationDeepLink({
+    invalidateJump,
+    roomId: selectedRoom?.id ?? null,
+    ready: !messagesPending,
+    pathname,
+    searchParams,
+    replace: router.replace,
+    highlight: highlightRoomMessageElement,
+    isStillSelectedRoom,
+    jumpInRoom: handleJumpToMessage,
+    jumpInThread: (hit) =>
+      handleSearchJump(hit, { quietWhenThreadIsGone: true }),
+  });
 
   async function loadThreadMessages(
     parentMessage: ChatRoomMessage,
@@ -2102,14 +2031,18 @@ export function RoomsClient({
         return markedRead;
       }
       const result = await listThreadMessagesAction(roomId, parentMessage.id);
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return markedRead;
-      }
+      // Checked before the error is shown, like every other load a jump
+      // makes. The generation check above this request cannot stand in for
+      // it: the reader can leave while the request itself is in flight, and
+      // then the failure belongs to a room that is no longer on screen.
       if (
         !isStillSelectedRoom(roomId) ||
         generation !== threadLoadGenerationRef.current
       ) {
+        return markedRead;
+      }
+      if (!result.ok) {
+        toast.error(result.error.message);
         return markedRead;
       }
       setThreadMessages(result.value.messages);
@@ -3123,7 +3056,7 @@ export function RoomsClient({
                   setPinnedOpen(false);
                 }}
                 onJump={(messageId) => {
-                  void handleJumpToPinnedMessage(messageId);
+                  void handleJumpToMessage(messageId);
                 }}
                 onUnpin={async (messageId) => {
                   const result = await unpinRoomMessageAction(
