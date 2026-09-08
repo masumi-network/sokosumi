@@ -7,6 +7,22 @@ export function chatRoomHref(roomId: string): string {
 }
 
 /**
+ * Asks a room to open its edit dialog, on the room's own URL.
+ *
+ * The channel row's overflow menu sits in the app sidebar, which carries the
+ * room and nothing else: no org roster, no coworkers, no membership role. The
+ * dialog needs all three, and the room shell already loads them, so the row
+ * sends the reader to the room and the room opens the dialog. Read once and
+ * taken back off the URL, the same way `message` is.
+ */
+export const CHAT_EDIT_CHANNEL_PARAM = "edit";
+
+/** In-app href for a channel, with its edit dialog asked to open. */
+export function chatRoomEditHref(roomId: string): string {
+  return `${chatRoomHref(roomId)}?${CHAT_EDIT_CHANNEL_PARAM}=1`;
+}
+
+/**
  * Next.js BFF for room-keyed Core chat stream APIs.
  *
  * - `GET ${CHAT_API_PATH}?roomId=…` → Core `/v1/chats/rooms/{roomId}/stream/messages`
