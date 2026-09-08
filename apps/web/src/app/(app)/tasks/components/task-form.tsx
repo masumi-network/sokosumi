@@ -668,7 +668,11 @@ export function TaskForm({
         router.push(`/tasks/${taskId}`);
       } catch (error) {
         console.error("Failed to save task", error);
-        toast.error("Failed to save task");
+        toast.error(
+          error instanceof Error && error.message === "Invalid schedule"
+            ? tSchedule("errors.futureDateTime")
+            : "Failed to save task",
+        );
       } finally {
         setIsSubmitting(false);
         setIsSubmittingDraft(false);
@@ -704,6 +708,7 @@ export function TaskForm({
       labels.statusDraft,
       labels.statusQueued,
       labels.statusReady,
+      tSchedule,
     ],
   );
 

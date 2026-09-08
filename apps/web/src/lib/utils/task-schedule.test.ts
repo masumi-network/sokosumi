@@ -4,6 +4,7 @@ import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
 import {
   hasTaskScheduleChanged,
   metadataToSelection,
+  schedulableOnceLocalIso,
   selectionToApiBody,
 } from "@/lib/utils/task-schedule";
 
@@ -295,6 +296,63 @@ describe("selectionToApiBody", () => {
         runAt: expect.any(Date),
       });
     }
+  });
+});
+
+describe("schedulableOnceLocalIso", () => {
+  it("keeps a future once-time", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+
+    expect(schedulableOnceLocalIso("2026-09-08T19:00", "Europe/Prague")).toBe(
+      "2026-09-08T19:00",
+    );
+  });
+
+  it("snaps a past Prague slot to five minutes from now", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+
+    expect(schedulableOnceLocalIso("2026-09-08T18:00", "Europe/Prague")).toBe(
+      "2026-09-08T18:06",
+    );
+  });
+
+  it("keeps the snapped time schedulable after two minutes", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+
+    const snapped = schedulableOnceLocalIso(
+      "2026-09-08T18:00",
+      "Europe/Prague",
+    );
+    vi.advanceTimersByTime(2 * 60 * 1000);
+
+    expect(
+      selectionToApiBody({
+        mode: "once",
+        timezone: "Europe/Prague",
+        oneTimeLocalIso: snapped,
+      }),
+    ).toEqual({
+      mode: "once",
+      runAt: new Date("2026-09-08T16:06:00.000Z"),
+    });
+  });
+
+  it("does not snap a malformed once-time", () => {
+    expect(schedulableOnceLocalIso("not-a-datetime", "UTC")).toBe(
+      "not-a-datetime",
+    );
+  });
+
+  it("does not snap or throw for an invalid timezone", () => {
+    expect(() =>
+      schedulableOnceLocalIso("2026-09-08T18:00", "Not/AZone"),
+    ).not.toThrow();
+    expect(schedulableOnceLocalIso("2026-09-08T18:00", "Not/AZone")).toBe(
+      "2026-09-08T18:00",
+    );
   });
 });
 

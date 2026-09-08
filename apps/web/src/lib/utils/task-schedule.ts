@@ -382,6 +382,14 @@ export function schedulableOnceLocalIso(
     return oneTimeLocalIso;
   }
 
+  if (
+    !isValidTimezone(timezone) ||
+    !isValidCalendarDateTime(oneTimeLocalIso) ||
+    !zonedDateTimeLocalToUtc(oneTimeLocalIso, timezone)
+  ) {
+    return oneTimeLocalIso;
+  }
+
   let leadMs = ONCE_SCHEDULE_LEAD_MS;
   for (let attempt = 0; attempt < ONCE_SCHEDULE_MAX_ATTEMPTS; attempt++) {
     const candidate = utcToDateTimeLocalInTimezone(
