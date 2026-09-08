@@ -54,7 +54,9 @@ jobs:
 
   test:
     name: Xcode test
-    needs: [changes, build]
+    # Same gate as `build` above (and as build.yml/test.yml for the JS
+    # apps): build and test run in parallel, neither waits for the other.
+    needs: changes
     if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: macos-26
     steps:
