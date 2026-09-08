@@ -212,7 +212,7 @@ export function createHttpClient(options: HttpClientOptions): {
 ## Final Verification
 
 - [x] `pnpm --filter sokosumi-cli test`
-- [x] Quote both package test globs; full CLI suite collected 80 tests, including all 12 nested command tests.
+- [x] Quote both package test globs; full CLI suite collected 81 tests, including all 12 nested command tests.
 - [x] `pnpm --filter sokosumi-cli typecheck`
 - [x] `pnpm --filter sokosumi-cli build`
 - [x] `pnpm check`
