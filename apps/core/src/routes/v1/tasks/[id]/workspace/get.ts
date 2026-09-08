@@ -1,12 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { forbidden, notFound } from "@/helpers/error";
+import { requireTaskReadForRouteVars } from "@/helpers/access-control";
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { taskWorkspaceSchema } from "@/schemas/task.schema";
 
 const paramsSchema = z.object({
@@ -45,40 +44,12 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { authContext } = c.var;
-    const userContext = requireUserContext(authContext);
+    await requireAuthorizedUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const task = await prisma.task.findUnique({
-      where: {
-        id,
-        archivedAt: null,
-      },
-      select: {
-        name: true,
-        ownerId: true,
-        workspaceId: true,
-        workspace: {
-          select: {
-            organizationId: true,
-          },
-        },
-      },
+    const task = await requireTaskReadForRouteVars(c.var, id, prisma, {
+      workspace: { select: { organizationId: true } },
     });
-
-    if (!task) {
-      throw notFound("Task not found");
-    }
-
-    if (task.workspace.organizationId) {
-      await resolveMemberOrganizationById({
-        id: task.workspace.organizationId,
-        userId: userContext.userId,
-        tx: prisma,
-      });
-    } else if (task.ownerId !== userContext.userId) {
-      throw forbidden("You do not have access to this task");
-    }
 
     return ok(
       c,
