@@ -120,6 +120,7 @@ export function useOrganizationChatRooms({
    * appearing twice.
    */
   const upsertRoomToTop = useCallback((room: ChatRoom) => {
+    latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
     setRoomRows((current) => {
       const without = current.filter((row) => row.id !== room.id);
       return applyRoomReadOverlays([room, ...without]);

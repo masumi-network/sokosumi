@@ -373,6 +373,38 @@ describe("authoritative sidebar refresh", () => {
     expect(result.current.roomRows.map((room) => room.id)).toEqual(["joined"]);
   });
 
+  it.each(["joined", "updated"])(
+    "keeps a %s room payload when an older poll finishes last",
+    async (change) => {
+      const original = channel("room");
+      const staleRooms = change === "joined" ? [] : [original];
+      const pendingPoll =
+        Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+      listRoomsMock.mockReturnValueOnce(pendingPoll.promise);
+      const { result } = mount({ rooms: staleRooms });
+      const updated = { ...original, name: "New room name" };
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+            detail: { room: updated },
+          }),
+        );
+      });
+      expect(result.current.roomRows).toEqual([updated]);
+
+      await act(async () => pendingPoll.resolve(emptyListResult(staleRooms)));
+      expect(result.current.roomRows).toEqual([updated]);
+
+      const refreshed = { ...updated, name: "Later room name" };
+      listRoomsMock.mockResolvedValue(emptyListResult([refreshed]));
+      await act(async () => {
+        window.dispatchEvent(new Event("focus"));
+      });
+      expect(result.current.roomRows).toEqual([refreshed]);
+    },
+  );
+
   it("protects a read completed while the mount fetch was in flight", async () => {
     const original = channel("room", { unreadCount: 5 });
     const response =
