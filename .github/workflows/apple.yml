@@ -45,4 +45,5 @@ jobs:
         run: xcodebuild -version && swift --version
 
       - name: Build Sokosumi for macOS
-        run: xcodebuild -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' build
+        # -skipPackagePluginValidation: no interactive user to trust the OpenAPIGenerator plugin in CI.
+        run: xcodebuild -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation build
