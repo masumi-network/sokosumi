@@ -138,8 +138,12 @@ export async function publishSokoBotChatProgress(
   if (now - last < PROGRESS_PUBLISH_MIN_INTERVAL_MS) return;
   lastProgressPublishAt.set(turn.chatResponseMessageId, now);
 
-  await prisma.chatRoomMessage.update({
-    where: { id: turn.chatResponseMessageId },
+  const updated = await prisma.chatRoomMessage.updateMany({
+    where: {
+      id: turn.chatResponseMessageId,
+      content: "",
+      mentionResponseFor: { status: { in: ["pending", "sent"] } },
+    },
     data: {
       metadata: {
         in_reply_to_message_id: turn.mention.messageId,
@@ -153,6 +157,7 @@ export async function publishSokoBotChatProgress(
       },
     },
   });
+  if (updated.count === 0) return;
   await publishRealtime(turn.chatResponseMessageId, "update");
 }
 
@@ -299,13 +304,16 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
     turn.status === "COMPLETED" &&
     isSokoBotSilentAnswer(answer);
   if (stayedSilent) {
-    await prisma.$transaction(async (tx) => {
-      await tx.chatRoomMention.updateMany({
+    const finalized = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.chatRoomMention.updateMany({
         where: { id: mention.id, status: { in: ["pending", "sent"] } },
         data: { status: "responded", error: null },
       });
+      if (claimed.count !== 1) return false;
       await tx.chatRoomMessage.delete({ where: { id: responseMessageId } });
+      return true;
     });
+    if (!finalized) return;
     await publishRealtime(responseMessageId, "delete");
     await publishRealtime(mention.messageId, "mention_status");
     return;
@@ -313,12 +321,15 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
   const startedAtMs = (turn.startedAt ?? turn.createdAt).getTime();
   const endedAtMs = (turn.completedAt ?? new Date()).getTime();
 
-  await prisma.$transaction(async (tx) => {
+  const finalized = await prisma.$transaction(async (tx) => {
     if (succeeded) {
-      await tx.chatRoomMention.updateMany({
+      const claimed = await tx.chatRoomMention.updateMany({
         where: { id: mention.id, status: { in: ["pending", "sent"] } },
         data: { status: "responded", error: null },
       });
+      // The transition timestamp is the response's unread clock. Losing or
+      // repeated finalizers must preserve both that clock and the response.
+      if (claimed.count !== 1) return false;
       await tx.chatRoomMessage.update({
         where: { id: responseMessageId },
         data: {
@@ -349,16 +360,17 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
         where: { id: mention.roomId },
         data: { updatedAt: new Date() },
       });
-      return;
+      return true;
     }
     const error =
       turn.status === "CANCELLED"
         ? "Soko Bot turn was cancelled"
         : (turn.errorDetail ?? "Soko Bot could not answer");
-    await tx.chatRoomMention.updateMany({
+    const claimed = await tx.chatRoomMention.updateMany({
       where: { id: mention.id, status: { in: ["pending", "sent"] } },
       data: { status: "failed", error: error.slice(0, 500) },
     });
+    if (claimed.count !== 1) return false;
     await tx.chatRoomMessage.update({
       where: { id: responseMessageId },
       data: {
@@ -371,8 +383,10 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
         },
       },
     });
+    return true;
   });
 
+  if (!finalized) return;
   await publishRealtime(responseMessageId, "update");
   await publishRealtime(mention.messageId, "mention_status");
 }

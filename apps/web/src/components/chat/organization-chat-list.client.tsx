@@ -55,6 +55,7 @@ import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title"
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 import { listOrganizationChatRoomsAction } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
+import { beginRoomAttentionRefresh } from "./room-read-overlay";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
 /** Stable empty default — inline `= []` is a new array every render and
@@ -200,13 +201,14 @@ export function OrganizationChatList({
       toast.success(tExternal("acceptSuccess", { name: invitation.roomName }));
       // Drop pending and upsert rooms in the same tick so External does not
       // unmount between the last invite and the joined guest room.
+      const requestRevision = beginRoomAttentionRefresh();
       const roomsResult = await listOrganizationChatRoomsAction();
       setRespondingInvitation(null);
       setPendingRows((current) =>
         current.filter((row) => row.id !== invitation.id),
       );
       if (roomsResult.ok) {
-        replaceAllRooms(roomsResult.value.rooms);
+        replaceAllRooms(roomsResult.value.rooms, requestRevision);
       }
       router.push(`/chat/rooms/${invitation.roomId}`);
       router.refresh();

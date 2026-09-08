@@ -27,6 +27,11 @@ import {
   unpinOrganizationChatRoomAction,
 } from "@/components/chat/organization-chat-list.actions";
 import { resolveRoomAttention } from "@/components/chat/room-attention";
+import {
+  applyRoomReadOverlays,
+  beginRoomAttentionChange,
+  settleRoomAttentionChange,
+} from "@/components/chat/room-read-overlay";
 import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
 import {
   AlertDialog,
@@ -174,17 +179,39 @@ export function ChatRoomSidebarRow({
     ) => Promise<OrganizationChatListActionResult<ChatRoom>>,
     optimisticRoom?: ChatRoom,
   ) {
+    const attentionToken =
+      action === markOrganizationChatRoomUnreadAction && optimisticRoom
+        ? beginRoomAttentionChange(optimisticRoom, room)
+        : null;
     if (optimisticRoom) {
       onRoomUpdated(optimisticRoom);
     }
-    startTransition(async () => {
-      const result = await action(room.id);
-      if (!result.ok) {
-        onRoomUpdated(room);
-        toast.error(tActions("actionFailed"));
-        return;
+
+    function applyResult(updatedRoom: ChatRoom | null): boolean {
+      if (
+        attentionToken !== null &&
+        !settleRoomAttentionChange(room.id, attentionToken, updatedRoom)
+      ) {
+        return false;
       }
-      onRoomUpdated(result.value);
+      onRoomUpdated(
+        updatedRoom ??
+          (attentionToken === null ? room : applyRoomReadOverlays([room])[0]),
+      );
+      return true;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await action(room.id);
+        if (!result.ok) {
+          if (applyResult(null)) toast.error(tActions("actionFailed"));
+          return;
+        }
+        applyResult(result.value);
+      } catch {
+        if (applyResult(null)) toast.error(tActions("actionFailed"));
+      }
     });
   }
 
