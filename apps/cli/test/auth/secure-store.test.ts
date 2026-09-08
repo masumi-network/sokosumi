@@ -64,6 +64,58 @@ test("TestV28 custom target vault entries stay isolated across similar host name
     target: "custom",
   });
 });
+test("TestV29 custom target vault entries stay isolated in case-insensitive vaults", () => {
+  const entries = new Map<string, string>();
+  const entryFactory = (serviceName: string, accountName: string) => {
+    const key = `${serviceName}\0${accountName}`.toLowerCase();
+    return {
+      getPassword: () => entries.get(key) || null,
+      setPassword: (value: string) => {
+        entries.set(key, value);
+      },
+      deletePassword: () => entries.delete(key),
+    };
+  };
+  const uppercasePathStores = createAuthCredentialStores({
+    targetScope: resolveTargetScope("custom", "https://example.test/A"),
+    clientId: "cli-client",
+    platform: "win32",
+    entryFactory,
+  });
+  const lowercasePathStores = createAuthCredentialStores({
+    targetScope: resolveTargetScope("custom", "https://example.test/a"),
+    clientId: "cli-client",
+    platform: "win32",
+    entryFactory,
+  });
+
+  assert.match(
+    resolveTargetScope("custom", "https://example.test/A"),
+    /^custom-[0-9a-f]+$/u,
+  );
+  assert.notEqual(
+    resolveTargetScope("custom", "https://example.test/A"),
+    resolveTargetScope("custom", "https://example.test/a"),
+  );
+  uppercasePathStores.apiKey.write({
+    apiKey: "uppercase-path-key",
+    target: "custom",
+  });
+  assert.equal(lowercasePathStores.apiKey.read(), null);
+
+  lowercasePathStores.apiKey.write({
+    apiKey: "lowercase-path-key",
+    target: "custom",
+  });
+  assert.deepEqual(uppercasePathStores.apiKey.read(), {
+    apiKey: "uppercase-path-key",
+    target: "custom",
+  });
+  assert.deepEqual(lowercasePathStores.apiKey.read(), {
+    apiKey: "lowercase-path-key",
+    target: "custom",
+  });
+});
 
 test("uses the native macOS credential entry without process arguments", () => {
   let storedPassword: string | null = null;

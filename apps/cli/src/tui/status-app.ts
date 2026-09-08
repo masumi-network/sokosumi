@@ -23,6 +23,8 @@ import {
 } from "../auth/bootstrap.js";
 import {
   type CliTargetConfig,
+  MAINNET_API_URL,
+  PREPROD_API_URL,
   resolveCliConfig,
   resolveTargetScope,
   targetFromUserApiKey,
@@ -146,11 +148,22 @@ function getManagerForConfig(
   });
 }
 
+export function resolveHostedTargetConfig(
+  env: AuthEnvironment,
+  target: HostedTarget,
+): CliTargetConfig {
+  return resolveCliConfig({
+    env,
+    apiUrl: target === "preprod" ? PREPROD_API_URL : MAINNET_API_URL,
+    preprod: target === "preprod",
+  });
+}
+
 function createTargetConfig(
   env: AuthEnvironment,
   target: HostedTarget,
 ): CliTargetConfig {
-  return resolveCliConfig({ env, preprod: target === "preprod" });
+  return resolveHostedTargetConfig(env, target);
 }
 
 function navigationHint({ back = false }: { back?: boolean } = {}) {

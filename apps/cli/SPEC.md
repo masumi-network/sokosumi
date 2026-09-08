@@ -63,6 +63,10 @@ V25: successful loopback OAuth callbacks return no-store HTML that removes code 
 V26: npm `sokosumi` package → bin `sokosumi`; tarball excludes local config & credential values.
 V27: browser launch failure → OAuth login rejects immediately & clears callback timer.
 V28: custom API URL → injective vault scope encoding; distinct canonical URLs → distinct vault entries
+V29: custom vault scope alphabet ∈ lowercase hex; case-insensitive vault names → distinct canonical URLs stay distinct
+V30: explicit API target (flag/env) → precedes API-key target inference
+V31: mainnet/preprod resource request → API-key target matches selected target before bearer
+V32: TUI hosted target selection → explicit selected API URL
 
 ## §T TASKS
 
@@ -87,6 +91,10 @@ T17|x|selector TUI plus signed-in resource views|V20,V18,I
 T18|~|publish npm package `sokosumi`; verify tarball + bin|V26,I
 T19|x|fail browser launch without callback timeout|V27
 T20|x|custom target vault scope → canonical URL encoding|V28
+T21|x|custom vault scope → lowercase hex byte encoding; Windows case-fold test|V29
+T22|x|resource request → preflight API-key target check|V31
+T23|x|configured API target → key-prefix inference precedence|V30
+T24|x|TUI hosted target → explicit API URL override|V32
 
 ## §B BUGS
 
@@ -101,3 +109,7 @@ B7|2026-09-08|successful OAuth callback left one-time code and state in the brow
 B8|2026-09-08|auth login passed raw `--auth-url` over resolved hosted target config, so `--preprod` could launch mainnet auth|V24
 B9|2026-09-08|browser spawn failure resolved before spawn error; callback timer stayed pending until timeout|V27
 B10|2026-09-08|host punctuation collapsed into same custom vault scope ∴ API key could route to wrong host|V28
+B11|2026-09-08|percent-encoded URL scope differed only by case; Windows vault folds names ∴ paths shared credential|V29
+B12|2026-09-08|resource command skipped API-key target validation ∴ mismatched bearer sent to Core target|V31
+B13|2026-09-08|target-coded key overrode configured API URL ∴ request routed to wrong Core|V30
+B14|2026-09-08|TUI Mainnet choice retained preprod API URL ∴ target selection did not switch host|V32

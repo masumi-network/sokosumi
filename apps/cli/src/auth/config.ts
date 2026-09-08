@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 export type CliTarget = "mainnet" | "preprod" | "custom";
 
 export type CliEnvironment = Readonly<Record<string, string | undefined>>;
@@ -43,7 +45,7 @@ export function resolveTargetFromApiUrl(apiUrl: string): CliTarget {
 
 export function resolveTargetScope(target: CliTarget, apiUrl: string): string {
   if (target !== "custom") return target;
-  return `custom-${encodeURIComponent(canonicalApiUrl(apiUrl))}`;
+  return `custom-${Buffer.from(canonicalApiUrl(apiUrl), "utf8").toString("hex")}`;
 }
 
 export function targetFromUserApiKey(

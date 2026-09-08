@@ -59,6 +59,47 @@ test("dispatches auth login and emits token-free JSON", async () => {
   assert.deepEqual(JSON.parse(output.join("")), result);
   assert.doesNotMatch(output.join(""), /access-token|refresh-token/);
 });
+test("configured API URL wins over target-coded API-key inference", async () => {
+  let selectedApiUrl: string | undefined;
+  let selectedTarget: string | undefined;
+  await runCli([], {
+    env: {
+      SOKOSUMI_API_URL: "https://api.example.test",
+      SOKOSUMI_API_KEY: "soko_preprod_secret",
+    },
+    authManager: createTestAuthManager(),
+    tuiFn: async ({ config }) => {
+      selectedApiUrl = config?.apiUrl;
+      selectedTarget = config?.target;
+      return { tui: true };
+    },
+  });
+
+  assert.equal(selectedApiUrl, "https://api.example.test");
+  assert.equal(selectedTarget, "custom");
+});
+
+test("resource commands reject mismatched target API keys before Core requests", async () => {
+  let requested = false;
+  await assert.rejects(
+    runCli(["--preprod", "agents", "list", "--json"], {
+      env: { SOKOSUMI_API_KEY: "soko_mainnet_secret" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>() => {
+          requested = true;
+          return {} as T;
+        },
+        post: async <T>() => ({}) as T,
+        patch: async <T>() => ({}) as T,
+        delete: async <T>() => ({}) as T,
+      },
+      stdout: { write: () => undefined },
+    }),
+    /API key belongs to mainnet, but the selected target is preprod/,
+  );
+  assert.equal(requested, false);
+});
 
 test("TestV24 preprod auth ignores a hosted mainnet auth URL flag", async () => {
   let loginRequest: BrowserLoginOptions | undefined;

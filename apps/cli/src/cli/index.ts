@@ -10,6 +10,7 @@ import {
   type AuthManager,
   getAuthManager,
 } from "../auth/auth-manager.js";
+import { resolveInitialAuth } from "../auth/bootstrap.js";
 import {
   type CliTargetConfig,
   MAINNET_API_URL,
@@ -245,6 +246,13 @@ const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
 ]);
 
 const BOOLEAN_OPTIONS = new Set(["create-api-key", "with-api-key", "details"]);
+const CORE_COMMAND_SECTIONS = new Set([
+  "discover",
+  "agents",
+  "coworkers",
+  "tasks",
+  "jobs",
+]);
 export function parseArgv(argv: string[]): {
   positionals: string[];
   options: CliOptions;
@@ -334,9 +342,10 @@ function resolveCommandConfig(
     explicitApiUrl ||
     (options.preprod
       ? PREPROD_API_URL
-      : detectedApiKeyTarget === "preprod"
-        ? PREPROD_API_URL
-        : env.SOKOSUMI_API_URL || MAINNET_API_URL);
+      : env.SOKOSUMI_API_URL ||
+        (detectedApiKeyTarget === "preprod"
+          ? PREPROD_API_URL
+          : MAINNET_API_URL));
   return resolveCliConfig({
     env,
     apiUrl,
@@ -421,6 +430,13 @@ export async function runCli(
   const [section, command, positionalId, ...rest] = positionals;
   if (rest.length > 0) {
     throw new Error(`Unexpected argument: ${rest[0]}`);
+  }
+  if (CORE_COMMAND_SECTIONS.has(section)) {
+    await resolveInitialAuth({
+      authManager: getManager(config, env, dependencies.authManager),
+      config,
+      environment: env,
+    });
   }
   if (section === "discover" && command === undefined) {
     await runDiscoverCommand({
