@@ -61,59 +61,52 @@ struct TranscriptView: View {
   }
 
   private var messageList: some View {
-    ScrollViewReader { proxy in
-      ScrollView {
-        LazyVStack(alignment: .leading, spacing: 0) {
-          if workspaces.transcriptHasMore {
-            Button("Load older messages") {
-              workspaces.loadOlderMessages(auth: auth)
-            }
-            .buttonStyle(.link)
+    // Bottom-anchored at layout level: ScrollViewReader.scrollTo races the
+    // lazy stack (the last row may not exist yet when it fires) and leaves
+    // the room parked at the top. The anchor also holds position when older
+    // pages prepend above.
+    ScrollView {
+      LazyVStack(alignment: .leading, spacing: 0) {
+        if workspaces.transcriptHasMore {
+          Button("Load older messages") {
+            workspaces.loadOlderMessages(auth: auth)
+          }
+          .buttonStyle(.link)
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, 8)
+          .onAppear {
+            workspaces.loadOlderMessages(auth: auth)
+          }
+        }
+        if workspaces.transcriptLoadingOlder {
+          ProgressView()
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .onAppear {
-              workspaces.loadOlderMessages(auth: auth)
-            }
+            .padding(.vertical, 4)
+        }
+        if let error = workspaces.transcriptError {
+          inlineError(error)
+        }
+        let messages = workspaces.transcriptMessages
+        ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+          let previous = index > 0 ? messages[index - 1] : nil
+          if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
+            DaySeparatorRow(label: label)
           }
-          if workspaces.transcriptLoadingOlder {
-            ProgressView()
-              .frame(maxWidth: .infinity)
-              .padding(.vertical, 4)
-          }
-          if let error = workspaces.transcriptError {
-            inlineError(error)
-          }
-          let messages = workspaces.transcriptMessages
-          ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
-            let previous = index > 0 ? messages[index - 1] : nil
-            if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
-              DaySeparatorRow(label: label)
-            }
-            if let status = membershipStatusText(message) {
-              MembershipStatusRow(text: status)
-            } else {
-              MessageRow(
-                message: message,
-                isContinuation: isMessageContinuation(previous: previous, current: message)
-              )
-              .id(message.id)
-            }
+          if let status = membershipStatusText(message) {
+            MembershipStatusRow(text: status)
+          } else {
+            MessageRow(
+              message: message,
+              isContinuation: isMessageContinuation(previous: previous, current: message)
+            )
+            .id(message.id)
           }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
       }
-      .onAppear {
-        if let lastID = workspaces.transcriptMessages.last?.id {
-          proxy.scrollTo(lastID, anchor: .bottom)
-        }
-      }
-      .onChange(of: workspaces.transcriptMessages.last?.id) { _, newID in
-        if let newID {
-          proxy.scrollTo(newID, anchor: .bottom)
-        }
-      }
+      .padding(.horizontal, 12)
+      .padding(.vertical, 8)
     }
+    .defaultScrollAnchor(.bottom)
   }
 
   private func transcriptError(_ error: String, retryOlder: Bool) -> some View {
