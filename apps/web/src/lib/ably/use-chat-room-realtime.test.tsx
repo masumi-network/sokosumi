@@ -1,30 +1,43 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { authorizeMock, getMock, channelsByName, ablyClient } = vi.hoisted(
-  () => {
-    const authorize = vi.fn();
-    const get = vi.fn();
-    return {
-      authorizeMock: authorize,
-      getMock: get,
-      channelsByName: new Map<
-        string,
-        {
-          name: string;
-          subscribe: ReturnType<typeof vi.fn>;
-          unsubscribe: ReturnType<typeof vi.fn>;
-          detach: ReturnType<typeof vi.fn>;
-        }
-      >(),
-      // Stable client identity — new object each useAbly() would full-reset attach.
-      ablyClient: {
-        auth: { authorize },
-        channels: { get },
+const {
+  authorizeMock,
+  getMock,
+  channelsByName,
+  ablyClient,
+  connectedListeners,
+} = vi.hoisted(() => {
+  const authorize = vi.fn();
+  const get = vi.fn();
+  const connectedListeners = new Set<() => void>();
+  return {
+    connectedListeners,
+    authorizeMock: authorize,
+    getMock: get,
+    channelsByName: new Map<
+      string,
+      {
+        name: string;
+        subscribe: ReturnType<typeof vi.fn>;
+        unsubscribe: ReturnType<typeof vi.fn>;
+        detach: ReturnType<typeof vi.fn>;
+      }
+    >(),
+    // Stable client identity — new object each useAbly() would full-reset attach.
+    ablyClient: {
+      connection: {
+        state: "connected",
+        on: (_event: string, listener: () => void) =>
+          connectedListeners.add(listener),
+        off: (_event: string, listener: () => void) =>
+          connectedListeners.delete(listener),
       },
-    };
-  },
-);
+      auth: { authorize },
+      channels: { get },
+    },
+  };
+});
 
 vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
@@ -70,6 +83,8 @@ describe("useChatRoomRealtime", () => {
     authorizeMock.mockReset();
     getMock.mockReset();
     channelsByName.clear();
+    connectedListeners.clear();
+    ablyClient.connection.state = "connected";
     authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
     getMock.mockImplementation((name: string) => channelFor(name));
     vi.useRealTimers();
@@ -135,6 +150,127 @@ describe("useChatRoomRealtime", () => {
     expect(getMock).toHaveBeenCalledWith("chat_control:user_user_1");
     expect(getMock).not.toHaveBeenCalledWith("chat_rooms:room_room-a");
   });
+
+  it.each(["connected", "online"])(
+    "retries a failed room sync on %s without a focus event",
+    async (event) => {
+      const onError = vi.fn();
+      authorizeMock.mockRejectedValueOnce(
+        new Error("token temporarily unavailable"),
+      );
+      const { unmount } = renderHook(() =>
+        useChatRoomRealtime({
+          roomIds: ["room-a"],
+          currentUserId: "user_1",
+          onError,
+        }),
+      );
+      await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        if (event === "connected") {
+          for (const listener of connectedListeners) listener();
+        } else {
+          window.dispatchEvent(new Event("online"));
+        }
+      });
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        for (const listener of connectedListeners) listener();
+        window.dispatchEvent(new Event("online"));
+      });
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+      unmount();
+      expect(connectedListeners.size).toBe(0);
+    },
+  );
+
+  it("retries transient auth failure while the socket remains connected, then stops retrying", async () => {
+    vi.useFakeTimers();
+    authorizeMock.mockRejectedValueOnce(
+      new Error("token temporarily unavailable"),
+    );
+    const { unmount } = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+    expect(authorizeMock).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
+  it("does not retry a closed client on a timer", async () => {
+    vi.useFakeTimers();
+    ablyClient.connection.state = "closed";
+    authorizeMock.mockRejectedValue(new Error("session is gone"));
+    const { unmount } = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it("cancels pending auth retries on unmount", async () => {
+    vi.useFakeTimers();
+    authorizeMock.mockRejectedValue(new Error("token temporarily unavailable"));
+    const { unmount } = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    unmount();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["closing", "closed", "failed"])(
+    "does not let a scheduled retry reopen a client that becomes %s",
+    async (state) => {
+      vi.useFakeTimers();
+      authorizeMock.mockRejectedValue(
+        new Error("token temporarily unavailable"),
+      );
+      const { unmount } = renderHook(() =>
+        useChatRoomRealtime({
+          roomIds: ["room-a"],
+          currentUserId: "user_1",
+        }),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      ablyClient.connection.state = state;
+      await act(async () => {
+        window.dispatchEvent(new Event("online"));
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+      unmount();
+    },
+  );
 
   it("on membership change, only detaches removed and subscribes added rooms", async () => {
     authorizeMock.mockResolvedValue(
