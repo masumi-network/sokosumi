@@ -257,7 +257,7 @@ function CalendarEvent({
             source: sourceName,
             task: item.taskName,
           })}
-          className="bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2"
+          className="bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2"
           type="button"
         >
           <SourceMarker decorative source={source} sourceName={sourceName} />
@@ -869,6 +869,8 @@ export function WorkspaceCalendar({
             options: sources.map((source) => ({
               value: source.sourceId,
               label: source.displayName,
+              avatarLabel: source.displayName,
+              image: source.logoUrl,
             })),
             onChange: handleSourceChange,
           },

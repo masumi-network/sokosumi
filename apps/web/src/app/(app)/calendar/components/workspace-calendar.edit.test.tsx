@@ -477,6 +477,7 @@ describe("WorkspaceCalendar editing", () => {
       "motion-safe:ease-out",
     );
     expect(event).toHaveClass(
+      "cursor-pointer",
       "hover:bg-primary/20",
       "focus-visible:bg-primary/20",
       "motion-safe:transition-colors",

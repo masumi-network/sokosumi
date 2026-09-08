@@ -425,7 +425,12 @@ describe("WorkspaceCalendar", () => {
       sections: Array<{
         id: string;
         onChange: (value: string | null) => void;
-        options?: Array<{ label: string; value: string }>;
+        options?: Array<{
+          avatarLabel: string;
+          image: string | null;
+          label: string;
+          value: string;
+        }>;
       }>;
     };
     expect(props.sections.map((section) => section.id)).toEqual([
@@ -439,9 +444,24 @@ describe("WorkspaceCalendar", () => {
     expect(
       props.sections.find((section) => section.id === "source")?.options,
     ).toEqual([
-      { label: "Ada's workspace", value: "workspace:workspace-1" },
-      { label: "Release planning", value: "project:project-1" },
-      { label: "Imported calendar", value: "legacy:calendar-1" },
+      {
+        avatarLabel: "Ada's workspace",
+        image: null,
+        label: "Ada's workspace",
+        value: "workspace:workspace-1",
+      },
+      {
+        avatarLabel: "Release planning",
+        image: "https://example.com/release-planning.png",
+        label: "Release planning",
+        value: "project:project-1",
+      },
+      {
+        avatarLabel: "Imported calendar",
+        image: null,
+        label: "Imported calendar",
+        value: "legacy:calendar-1",
+      },
     ]);
 
     props.sections.find((section) => section.id === "scope")?.onChange("owned");
