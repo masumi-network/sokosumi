@@ -36,6 +36,7 @@ type NotificationDeletionListener = (event: NotificationDeletionEvent) => void;
 interface PendingDeletion {
   event: NotificationDeletionEvent;
   coveredByClear?: boolean;
+  isRead?: boolean;
   initialIds?: Set<string>;
   createdIds?: Set<string>;
   newerState?: NotificationState;
@@ -63,7 +64,10 @@ interface NotificationContextValue {
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
   /** Delete one notification for good, in Core and in local feed state. */
-  deleteNotification: (id: string) => Promise<void>;
+  deleteNotification: (
+    id: string,
+    options?: { isRead: boolean },
+  ) => Promise<void>;
   /** Delete every notification-center row for good, in Core and locally. */
   clearNotifications: () => Promise<void>;
   subscribeToDeletion: (listener: NotificationDeletionListener) => () => void;
@@ -171,6 +175,7 @@ export function NotificationProvider({
   const deletionListeners = useRef(new Set<NotificationDeletionListener>());
   const nextDeletionId = useRef(0);
   const deletedIds = useRef(new Set<string>());
+  const clearGeneration = useRef(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
   const fetchGenerationRef = useRef(0);
@@ -178,22 +183,44 @@ export function NotificationProvider({
   const refreshAfterDeletion = useRef(false);
 
   const publishState = useCallback(() => {
-    let visible =
-      [...pendingDeletions.current.values()].find(
-        (pending) => pending.event.kind === "clear",
-      )?.newerState ?? confirmedState.current;
-    for (const { event } of pendingDeletions.current.values()) {
-      if (event.kind === "delete")
-        visible = notificationReducer(visible, {
-          type: "remove",
-          id: event.id,
-        });
+    const pendingClear = [...pendingDeletions.current.values()].find(
+      (pending) => pending.event.kind === "clear",
+    );
+    let visible = pendingClear?.newerState ?? confirmedState.current;
+    for (const pending of pendingDeletions.current.values()) {
+      const { event } = pending;
+      if (event.kind !== "delete" || pending.coveredByClear) continue;
+      if (pendingClear && !pendingClear.createdIds?.has(event.id)) continue;
+      const held = visible.notifications.some((row) => row.id === event.id);
+      visible = notificationReducer(visible, {
+        type: !held && pending.isRead === false ? "unread_deleted" : "remove",
+        id: event.id,
+      });
     }
     setState(visible);
   }, []);
 
   const dispatch = useCallback(
     (action: NotificationAction) => {
+      for (const pending of pendingDeletions.current.values()) {
+        if (pending.event.kind !== "delete") continue;
+        const id = pending.event.id;
+        if (action.type === "mark_all_read") pending.isRead = true;
+        if (action.type === "mark_read_success" && action.id === id)
+          pending.isRead = action.updated.isRead;
+        if (
+          action.type === "mark_read_optimistic" &&
+          action.id === id &&
+          confirmedState.current.notifications.some((row) => row.id === id)
+        )
+          pending.isRead = true;
+        if (
+          action.type === "realtime" &&
+          action.notification.id === id &&
+          confirmedState.current.notifications.some((row) => row.id === id)
+        )
+          pending.isRead = action.notification.isRead;
+      }
       confirmedState.current = notificationReducer(
         confirmedState.current,
         action,
@@ -311,6 +338,7 @@ export function NotificationProvider({
 
   const markRead = useCallback(
     async (id: string) => {
+      const generation = clearGeneration.current;
       // Optimistic update paints before the network round-trip, which keeps
       // notification clicks from blocking Interaction to Next Paint.
       dispatch({ type: "mark_read_optimistic", id });
@@ -321,7 +349,11 @@ export function NotificationProvider({
           { id },
         );
 
-        if (deletedIds.current.has(id)) return;
+        if (
+          deletedIds.current.has(id) ||
+          generation !== clearGeneration.current
+        )
+          return;
         dispatch({
           type: "mark_read_success",
           id,
@@ -337,7 +369,7 @@ export function NotificationProvider({
   );
 
   const deleteNotification = useCallback(
-    async (id: string) => {
+    async (id: string, options?: { isRead: boolean }) => {
       if (
         [...pendingDeletions.current.values()].some(
           ({ event }) => event.kind === "delete" && event.id === id,
@@ -350,7 +382,12 @@ export function NotificationProvider({
         kind: "delete",
         id,
       };
-      const pending: PendingDeletion = { event };
+      const pending: PendingDeletion = {
+        event,
+        isRead:
+          confirmedState.current.notifications.find((row) => row.id === id)
+            ?.isRead ?? options?.isRead,
+      };
       pendingDeletions.current.set(event.operationId, pending);
       emitDeletion(event);
       dismissNotificationToast(id);
@@ -360,15 +397,15 @@ export function NotificationProvider({
           id,
         });
         deletedIds.current.add(id);
+        pendingDeletions.current.delete(event.operationId);
         if (!pending.coveredByClear) {
           const held = confirmedState.current.notifications.some(
             (notification) => notification.id === id,
           );
           dispatch({ type: "remove", id });
-          if (!held && !response.data.isRead)
+          if (!held && !(pending.isRead ?? response.data.isRead))
             dispatch({ type: "unread_deleted", id });
         }
-        pendingDeletions.current.delete(event.operationId);
         emitDeletion({ ...event, phase: "success" });
       } catch (error) {
         pendingDeletions.current.delete(event.operationId);
@@ -414,6 +451,7 @@ export function NotificationProvider({
 
     try {
       await notificationsBrowserClient.deleteNotifications();
+      ++clearGeneration.current;
       for (const id of pendingClear.initialIds ?? [])
         deletedIds.current.add(id);
       for (const pending of pendingDeletions.current.values()) {

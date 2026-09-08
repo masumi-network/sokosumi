@@ -8,6 +8,8 @@ import {
 } from "@/contexts/notification-provider";
 
 const getNotificationsMock = vi.fn();
+const patchNotificationReadMock = vi.fn();
+const patchNotificationsReadAllMock = vi.fn();
 const deleteNotificationMock = vi.fn();
 const deleteNotificationsMock = vi.fn();
 const getNotificationsUnreadCountMock = vi.fn();
@@ -22,8 +24,10 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
     getNotifications: (...args: unknown[]) => getNotificationsMock(...args),
     getNotificationsUnreadCount: (...args: unknown[]) =>
       getNotificationsUnreadCountMock(...args),
-    patchNotificationRead: vi.fn(),
-    patchNotificationsReadAll: vi.fn(),
+    patchNotificationRead: (...args: unknown[]) =>
+      patchNotificationReadMock(...args),
+    patchNotificationsReadAll: (...args: unknown[]) =>
+      patchNotificationsReadAllMock(...args),
     deleteNotification: (...args: unknown[]) => deleteNotificationMock(...args),
     deleteNotifications: (...args: unknown[]) =>
       deleteNotificationsMock(...args),
@@ -110,6 +114,8 @@ function NotificationConsumer() {
 describe("NotificationProvider island", () => {
   beforeEach(() => {
     getNotificationsMock.mockReset();
+    patchNotificationReadMock.mockReset();
+    patchNotificationsReadAllMock.mockReset();
     getNotificationsUnreadCountMock.mockReset();
     useNotificationRealtimeMock.mockReset();
     lazyAblyProviderMock.mockReset();
@@ -364,6 +370,8 @@ describe("NotificationProvider deleting", () => {
 
   beforeEach(() => {
     getNotificationsMock.mockReset();
+    patchNotificationReadMock.mockReset();
+    patchNotificationsReadAllMock.mockReset();
     getNotificationsUnreadCountMock.mockReset();
     deleteNotificationMock.mockReset();
     deleteNotificationsMock.mockReset();
@@ -825,5 +833,203 @@ describe("NotificationProvider deleting", () => {
     });
     expect(currentNotifications.unreadCount).toBe(10);
     consoleError.mockRestore();
+  });
+  it("ignores a pre-clear read response for an older row outside the provider window", async () => {
+    await renderLoaded();
+    let finishRead!: (value: { data: typeof READ_ROW }) => void;
+    patchNotificationReadMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishRead = resolve;
+      }),
+    );
+    let pendingRead!: Promise<void>;
+    await act(async () => {
+      pendingRead = currentNotifications.markRead("older-unheld");
+    });
+    getNotificationsMock.mockResolvedValue({ data: [] });
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+    await act(async () => {
+      await currentNotifications.clearNotifications();
+    });
+    await deliverRealtime("new-after-clear");
+    await act(async () => {
+      finishRead({ data: { ...READ_ROW, id: "older-unheld" } });
+      await pendingRead;
+    });
+    expect(currentNotifications.notifications.map((row) => row.id)).toEqual([
+      "new-after-clear",
+    ]);
+    expect(currentNotifications.unreadCount).toBe(1);
+  });
+
+  it("optimistically counts an older unread deletion once and restores it on failure", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+    await renderLoaded();
+    let rejectDelete!: (error: Error) => void;
+    deleteNotificationMock.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectDelete = reject;
+      }),
+    );
+    let pendingDelete!: Promise<void>;
+    await act(async () => {
+      pendingDelete = currentNotifications
+        .deleteNotification("older-unheld", { isRead: false })
+        .catch(() => {});
+      await currentNotifications.deleteNotification("older-unheld", {
+        isRead: false,
+      });
+    });
+    expect(deleteNotificationMock).toHaveBeenCalledTimes(1);
+    expect(currentNotifications.unreadCount).toBe(1);
+    getNotificationsMock.mockRejectedValue(new Error("offline"));
+    await act(async () => {
+      rejectDelete(new Error("offline"));
+      await pendingDelete;
+    });
+    expect(currentNotifications.unreadCount).toBe(2);
+    consoleError.mockRestore();
+  });
+
+  it("keeps the optimistic count when an older unread deletion succeeds", async () => {
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+    await renderLoaded();
+    let finishDelete!: (value: { data: typeof UNREAD_ROW }) => void;
+    deleteNotificationMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishDelete = resolve;
+      }),
+    );
+    let pendingDelete!: Promise<void>;
+    await act(async () => {
+      pendingDelete = currentNotifications.deleteNotification("older-unheld", {
+        isRead: false,
+      });
+    });
+    expect(currentNotifications.unreadCount).toBe(1);
+    await act(async () => {
+      finishDelete({ data: { ...UNREAD_ROW, id: "older-unheld" } });
+      await pendingDelete;
+    });
+    expect(currentNotifications.unreadCount).toBe(1);
+  });
+
+  it("does not charge a pending older deletion against rows arriving after mark all read", async () => {
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+    await renderLoaded();
+    let finishDelete!: (value: { data: typeof READ_ROW }) => void;
+    deleteNotificationMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishDelete = resolve;
+      }),
+    );
+    let pendingDelete!: Promise<void>;
+    await act(async () => {
+      pendingDelete = currentNotifications.deleteNotification("older-unheld", {
+        isRead: false,
+      });
+    });
+    await act(async () => {
+      await currentNotifications.markAllRead();
+    });
+    await deliverRealtime("new-after-read-all");
+    expect(currentNotifications.unreadCount).toBe(1);
+    await act(async () => {
+      finishDelete({ data: { ...READ_ROW, id: "older-unheld" } });
+      await pendingDelete;
+    });
+    expect(currentNotifications.unreadCount).toBe(1);
+  });
+
+  it("does not charge a pending older deletion against rows arriving after clear", async () => {
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+    await renderLoaded();
+    let finishDelete!: (value: { data: typeof UNREAD_ROW }) => void;
+    deleteNotificationMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishDelete = resolve;
+      }),
+    );
+    let pendingDelete!: Promise<void>;
+    await act(async () => {
+      pendingDelete = currentNotifications.deleteNotification("older-unheld", {
+        isRead: false,
+      });
+    });
+    await act(async () => {
+      await currentNotifications.clearNotifications();
+    });
+    await deliverRealtime("new-after-clear");
+    expect(currentNotifications.unreadCount).toBe(1);
+    getNotificationsMock.mockResolvedValue({
+      data: [{ ...UNREAD_ROW, id: "new-after-clear" }],
+    });
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    await act(async () => {
+      finishDelete({ data: { ...UNREAD_ROW, id: "older-unheld" } });
+      await pendingDelete;
+    });
+    expect(currentNotifications.unreadCount).toBe(1);
+  });
+
+  it("applies an older read response when the overlapping clear fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+    await renderLoaded();
+    let finishRead!: (value: { data: typeof READ_ROW }) => void;
+    patchNotificationReadMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishRead = resolve;
+      }),
+    );
+    let pendingRead!: Promise<void>;
+    await act(async () => {
+      pendingRead = currentNotifications.markRead("older-unheld");
+    });
+    deleteNotificationsMock.mockRejectedValue(new Error("offline"));
+    getNotificationsMock.mockRejectedValue(new Error("offline"));
+    await act(async () => {
+      await currentNotifications.clearNotifications().catch(() => {});
+    });
+    await act(async () => {
+      finishRead({ data: { ...READ_ROW, id: "older-unheld" } });
+      await pendingRead;
+    });
+    expect(currentNotifications.unreadCount).toBe(1);
+    consoleError.mockRestore();
+  });
+
+  it("does not count a read response and a pending older deletion twice", async () => {
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+    await renderLoaded();
+    let finishDelete!: (value: { data: typeof READ_ROW }) => void;
+    deleteNotificationMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishDelete = resolve;
+      }),
+    );
+    let pendingDelete!: Promise<void>;
+    await act(async () => {
+      pendingDelete = currentNotifications.deleteNotification("older-unheld", {
+        isRead: false,
+      });
+    });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...READ_ROW, id: "older-unheld" },
+    });
+    await act(async () => {
+      await currentNotifications.markRead("older-unheld");
+    });
+    expect(currentNotifications.unreadCount).toBe(1);
+    await act(async () => {
+      finishDelete({ data: { ...READ_ROW, id: "older-unheld" } });
+      await pendingDelete;
+    });
+    expect(currentNotifications.unreadCount).toBe(1);
   });
 });
