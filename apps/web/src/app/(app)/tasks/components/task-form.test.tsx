@@ -286,6 +286,8 @@ const baseLabels = {
   descriptionPlaceholder: "Description",
   projectLabel: "Project",
   projectNone: "No project",
+  projectPlaceholder: "Select workspace or project",
+  projectRequired: "Select the workspace or a project first.",
   projectSearchPlaceholder: "Search projects...",
   projectEmptyResults: "No projects found.",
   projectCreate: "Create project...",
@@ -1520,6 +1522,110 @@ describe("TaskForm", () => {
     ).not.toBeInTheDocument();
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(onCreateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "project-1" }),
+    );
+  });
+
+  it("blocks creation while no project selection was made", async () => {
+    const user = userEvent.setup();
+    const onCreateTask = vi
+      .fn()
+      .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ projectId: undefined, assigneeId: "coworker-2" }}
+        onCreateTask={onCreateTask}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const projectSelect = screen.getByRole("combobox", { name: "Project" });
+    expect(projectSelect).toHaveTextContent(baseLabels.projectPlaceholder);
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(onCreateTask).not.toHaveBeenCalled();
+    const error = screen.getByText(baseLabels.projectRequired);
+    expect(projectSelect).toHaveAttribute("aria-invalid", "true");
+    expect(projectSelect).toHaveAttribute("aria-describedby", error.id);
+    expect(projectSelect).toHaveFocus();
+  });
+
+  it("creates against an explicitly selected workspace", async () => {
+    const user = userEvent.setup();
+    const onCreateTask = vi
+      .fn()
+      .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ projectId: null, assigneeId: "coworker-2" }}
+        onCreateTask={onCreateTask}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const projectSelect = screen.getByRole("combobox", { name: "Project" });
+    expect(projectSelect).toHaveTextContent(baseLabels.projectNone);
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(onCreateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: null }),
+    );
+    expect(projectSelect).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("clears the project error once a selection is made", async () => {
+    const user = userEvent.setup();
+    const onCreateTask = vi
+      .fn()
+      .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ projectId: undefined, assigneeId: "coworker-2" }}
+        onCreateTask={onCreateTask}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    const projectSelect = screen.getByRole("combobox", { name: "Project" });
+    await user.click(projectSelect);
+    await user.click(screen.getByText("Alpha Project"));
+
+    expect(
+      screen.queryByText(baseLabels.projectRequired),
+    ).not.toBeInTheDocument();
+    expect(projectSelect).not.toHaveAttribute("aria-invalid");
+
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
     expect(onCreateTask).toHaveBeenCalledWith(

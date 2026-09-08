@@ -16,6 +16,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -98,6 +99,8 @@ export interface TaskFormLabels {
   projectEmptyResults: string;
   projectCreate?: string;
   projectCreateNamed?: string;
+  projectPlaceholder?: string;
+  projectRequired?: string;
   coworker: string;
   coworkerDescription: string;
   chooseAgent?: string;
@@ -237,8 +240,23 @@ export function TaskForm({
   const [name, setName] = useState(initialValues?.name ?? "");
   const initialDescription = initialValues?.description ?? "";
   const [description, setDescription] = useState(initialDescription);
-  const initialProjectId = initialValues?.projectId ?? defaultProjectId ?? null;
-  const [projectId, setProjectId] = useState<string | null>(initialProjectId);
+  // `undefined` means the caller made no choice yet (Calendar slot creation on
+  // an unfiltered Workspace Calendar); `null` is an explicit "no project".
+  const initialProjectId =
+    initialValues && "projectId" in initialValues
+      ? initialValues.projectId
+      : defaultProjectId;
+  const [projectId, setProjectId] = useState<string | null | undefined>(
+    initialProjectId,
+  );
+  const [isProjectMissing, setIsProjectMissing] = useState(false);
+  const projectSelectRef = useRef<HTMLButtonElement>(null);
+  const projectErrorId = useId();
+  useLayoutEffect(() => {
+    if (isProjectMissing) {
+      projectSelectRef.current?.focus();
+    }
+  }, [isProjectMissing]);
   const [contextSelection, setContextSelection] =
     useState<TaskContextAttachmentsSelection>(() =>
       getDefaultTaskContextSelection(
@@ -387,6 +405,7 @@ export function TaskForm({
   const handleProjectChange = useCallback(
     (nextProjectId: string | null, nextProject?: ProjectFilterOption) => {
       setProjectId(nextProjectId);
+      setIsProjectMissing(false);
       const project =
         nextProject ??
         (nextProjectId
@@ -525,6 +544,14 @@ export function TaskForm({
   const handleSave = useCallback(
     async (overrideStatus?: TaskStatus) => {
       if (isSaveDisabled || (useWizard && step === 1)) return;
+      if (
+        shouldShowProjectSelect &&
+        projectId === undefined &&
+        labels.projectRequired
+      ) {
+        setIsProjectMissing(true);
+        return;
+      }
       if (overrideStatus && overrideStatus === TaskStatus.DRAFT) {
         setIsSubmittingDraft(true);
       } else {
@@ -661,6 +688,7 @@ export function TaskForm({
       initialValues?.assigneeUserId,
       projectId,
       hasProjectSelection,
+      shouldShowProjectSelect,
       originalStatus,
       router,
       status,
@@ -1079,17 +1107,30 @@ export function TaskForm({
                 <div className="space-y-2">
                   <Label>{labels.projectLabel}</Label>
                   <TaskProjectSelect
+                    ref={projectSelectRef}
                     projectOptions={localProjectOptions}
                     value={projectId}
                     onChange={handleProjectChange}
                     projectLabel={labels.projectLabel}
                     noneLabel={labels.projectNone}
+                    placeholder={labels.projectPlaceholder}
                     searchPlaceholder={labels.projectSearchPlaceholder}
                     emptyResults={labels.projectEmptyResults}
                     projectCreate={labels.projectCreate}
                     projectCreateNamed={labels.projectCreateNamed}
                     onCreateProject={handleCreateProject}
+                    invalid={isProjectMissing}
+                    describedBy={
+                      isProjectMissing && labels.projectRequired
+                        ? projectErrorId
+                        : undefined
+                    }
                   />
+                  {isProjectMissing && labels.projectRequired ? (
+                    <p id={projectErrorId} className="text-destructive text-xs">
+                      {labels.projectRequired}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
 

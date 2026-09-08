@@ -202,7 +202,7 @@ describe("WorkspaceCalendar accessibility", () => {
     await user.click(screen.getByRole("button", { name: "create.title" }));
 
     expect(openCreateTaskModalMock).toHaveBeenCalledWith({
-      projectId: null,
+      projectId: undefined,
       schedule: {
         mode: "once",
         oneTimeLocalIso: "2030-01-02T12:00",
