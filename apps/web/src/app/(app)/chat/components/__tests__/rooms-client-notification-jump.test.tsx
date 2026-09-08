@@ -33,8 +33,8 @@ const { mockSearchHit } = vi.hoisted(() => ({
 }));
 
 // Stable across renders on purpose. A fresh `vi.fn()` per render cannot show
-// which room a hold was taken or released for, which is the one thing the
-// guards on those two calls exist to get right.
+// which room a hold was taken for, or which jump gave it back, and those are
+// the two things the guards on these calls exist to get right.
 const { mockSuppressStickToBottom, mockReleaseStickToBottomSuppress } =
   vi.hoisted(() => ({
     mockSuppressStickToBottom: vi.fn(),
@@ -192,9 +192,14 @@ vi.mock("../room-session-composer", () => ({
   },
 }));
 
+// Carries `data-message-id` because that is what the highlight looks for.
+// Without it every highlight in this file silently returns false, and no test
+// can tell a jump that landed from one that only fetched.
 vi.mock("../room-message-row", () => ({
   ChatMessageRow: ({ message }: { message: ChatRoomMessage }) => (
-    <div data-testid="chat-message-row">{message.content}</div>
+    <div data-testid="chat-message-row" data-message-id={message.id}>
+      {message.content}
+    </div>
   ),
 }));
 
@@ -842,6 +847,41 @@ describe("RoomsClient notification deep link", () => {
       );
     });
 
+    it("says nothing when a search hit's own window fails", async () => {
+      // The search panel's room window is a separate load from the
+      // notification path's, with its own guard to get in the right order.
+      mockSearchHit.current = sampleMessage("hit body", "msg-hit");
+
+      let failWindow = (): void => {};
+      vi.mocked(listRoomMessagesAction).mockReturnValue(
+        new Promise((resolve) => {
+          failWindow = () => resolve(serverError);
+        }),
+      );
+
+      const { rerender } = render(
+        <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
+      );
+
+      const hit = await screen.findByTestId("search-hit");
+      await act(async () => {
+        fireEvent.click(hit);
+      });
+      await waitFor(() => {
+        expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
+          around: "msg-hit",
+        });
+      });
+
+      leaveRoom(rerender);
+      await act(async () => {
+        failWindow();
+        await Promise.resolve();
+      });
+
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
     it("says nothing when the thread's replies fail to load", async () => {
       const parent = sampleMessage("parent body", "msg-parent");
       mockSearch.current = "message=msg-reply";
@@ -1036,6 +1076,29 @@ describe("RoomsClient notification deep link", () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Could not load thread.");
+    });
+  });
+
+  it("still complains when the reply's thread fails to load", async () => {
+    // Only a thread that is not there is settled. A thread that failed is a
+    // fault, and the reader is the one who can retry it.
+    mockSearch.current = "message=msg-reply";
+    vi.mocked(getRoomMessageAction).mockResolvedValue({
+      ok: true as const,
+      value: {
+        ...sampleMessage("reply body", "msg-reply"),
+        parentMessageId: "msg-parent",
+      },
+    });
+    vi.mocked(getRoomThreadAction).mockResolvedValue({
+      ok: false as const,
+      error: { code: "INTERNAL_ERROR", message: "Server error" },
+    });
+
+    render(<RoomsClient {...baseProps} messagesPromise={settledMessages()} />);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Server error");
     });
   });
 
