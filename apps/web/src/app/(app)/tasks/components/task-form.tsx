@@ -52,7 +52,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCalendarBetaAccess } from "@/contexts/calendar-beta-access-context";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -228,7 +227,6 @@ export function TaskForm({
   onCreatedChange,
 }: TaskFormProps) {
   const router = useRouter();
-  const calendarBetaEnabled = useCalendarBetaAccess();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
@@ -1252,7 +1250,7 @@ export function TaskForm({
           ) : null}
         </div>
 
-        {showTaskStep && calendarBetaEnabled ? (
+        {showTaskStep ? (
           <TaskScheduleModal
             open={isScheduleModalOpen}
             onOpenChange={setIsScheduleModalOpen}
@@ -1288,19 +1286,17 @@ export function TaskForm({
             <div className="flex items-center gap-3 sm:ml-auto">
               {mode === "create" ? (
                 <>
-                  {calendarBetaEnabled ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      disabled={createdTask !== null || !isSchedulableAssignee}
-                      aria-label={labels.openSchedule}
-                      aria-pressed={hasSchedule}
-                      onClick={() => setIsScheduleModalOpen(true)}
-                    >
-                      <CalendarClock className="size-4" aria-hidden />
-                    </Button>
-                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={createdTask !== null || !isSchedulableAssignee}
+                    aria-label={labels.openSchedule}
+                    aria-pressed={hasSchedule}
+                    onClick={() => setIsScheduleModalOpen(true)}
+                  >
+                    <CalendarClock className="size-4" aria-hidden />
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -1347,19 +1343,17 @@ export function TaskForm({
                 </>
               ) : (
                 <>
-                  {calendarBetaEnabled ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      disabled={createdTask !== null || !isSchedulableAssignee}
-                      aria-label={labels.openSchedule}
-                      aria-pressed={hasSchedule}
-                      onClick={() => setIsScheduleModalOpen(true)}
-                    >
-                      <CalendarClock className="size-4" aria-hidden />
-                    </Button>
-                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={createdTask !== null || !isSchedulableAssignee}
+                    aria-label={labels.openSchedule}
+                    aria-pressed={hasSchedule}
+                    onClick={() => setIsScheduleModalOpen(true)}
+                  >
+                    <CalendarClock className="size-4" aria-hidden />
+                  </Button>
                   {shouldShowEditToggle ? (
                     <Button
                       type="button"
