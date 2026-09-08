@@ -9,6 +9,7 @@ sokosumi/
 ├── apps/
 │   ├── web/         # Next.js 16 web app (TypeScript, Tailwind, Shadcn UI)
 │   ├── core/        # Hono API — owns all Postgres/Prisma access
+│   ├── apple/       # Native macOS + iOS — Xcode (outside turbo and Biome)
 │   └── cli/         # Developer CLI — VISION.md only until specced
 ├── packages/
 │   ├── database/    # @sokosumi/database — Prisma client, helpers, repositories
