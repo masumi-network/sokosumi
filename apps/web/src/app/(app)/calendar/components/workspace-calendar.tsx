@@ -334,7 +334,7 @@ function CalendarView({
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!canCreate || view === "agenda" || event.pointerType === "touch") {
+    if (!canCreate || view !== "week" || event.pointerType === "touch") {
       hideSlotHighlight();
       return;
     }
@@ -347,26 +347,23 @@ function CalendarView({
         element instanceof HTMLElement &&
         element.matches('[role="gridcell"][data-date]'),
     );
-    const timeSlot =
-      view === "week"
-        ? elements.find(
-            (element): element is HTMLElement =>
-              element instanceof HTMLElement && element.matches("[data-time]"),
-          )
-        : undefined;
+    const timeSlot = elements.find(
+      (element): element is HTMLElement =>
+        element instanceof HTMLElement && element.matches("[data-time]"),
+    );
     const highlight = slotHighlightRef.current;
-    if (!dayCell || (view === "week" && !timeSlot) || !highlight) {
+    if (!dayCell || !timeSlot || !highlight) {
       hideSlotHighlight();
       return;
     }
 
     const calendarBounds = event.currentTarget.getBoundingClientRect();
     const dayBounds = dayCell.getBoundingClientRect();
-    const verticalBounds = timeSlot?.getBoundingClientRect() ?? dayBounds;
+    const verticalBounds = timeSlot.getBoundingClientRect();
     highlight.style.height = `${verticalBounds.height}px`;
-    highlight.style.left = `${dayBounds.left - calendarBounds.left + event.currentTarget.scrollLeft}px`;
+    highlight.style.left = `${dayBounds.left - calendarBounds.left - event.currentTarget.clientLeft + event.currentTarget.scrollLeft}px`;
     highlight.style.opacity = "1";
-    highlight.style.top = `${verticalBounds.top - calendarBounds.top + event.currentTarget.scrollTop}px`;
+    highlight.style.top = `${verticalBounds.top - calendarBounds.top - event.currentTarget.clientTop + event.currentTarget.scrollTop}px`;
     highlight.style.width = `${dayBounds.width}px`;
   }
 
@@ -382,6 +379,11 @@ function CalendarView({
     >
       <FullCalendar
         borderless
+        dayCellClass={
+          canCreate && view === "month"
+            ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
+            : undefined
+        }
         key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
         plugins={[
           classicTheme,
@@ -424,7 +426,7 @@ function CalendarView({
           onDateClick(dateInfo.date);
         }}
       />
-      {canCreate && view !== "agenda" ? (
+      {canCreate && view === "week" ? (
         <div
           aria-hidden
           className="pointer-events-none absolute z-10 bg-primary-quaternary opacity-0 ring-1 ring-primary-tertiary ring-inset motion-safe:transition-opacity motion-safe:duration-150 motion-safe:ease-out"

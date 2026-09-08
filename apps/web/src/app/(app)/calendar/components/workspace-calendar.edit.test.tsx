@@ -19,6 +19,7 @@ import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 interface FullCalendarProps {
   borderless?: boolean;
   dateClick?: (info: { date: Date }) => void;
+  dayCellClass?: string;
   editable?: boolean;
   eventContent?: (info: { event: { id: string; title: string } }) => ReactNode;
   events?: Array<{ id: string; title: string }>;
@@ -383,6 +384,20 @@ describe("WorkspaceCalendar editing", () => {
     expect(props.plugins).toContain(interactionPluginMock);
   });
 
+  it("colors the actual month cell on hover without an overlay", () => {
+    renderCalendar();
+
+    const calendar = screen.getAllByTestId("calendar-month")[0];
+    const props = fullCalendarMock.mock.calls[0]?.[0] as FullCalendarProps;
+    expect(props.dayCellClass).toContain("hover:bg-primary-quaternary");
+    expect(props.dayCellClass).toContain("motion-safe:transition-colors");
+    expect(props.dayCellClass).toContain("motion-safe:duration-150");
+    expect(props.dayCellClass).toContain("motion-safe:ease-out");
+    expect(
+      within(calendar).queryByTestId("calendar-slot-highlight"),
+    ).not.toBeInTheDocument();
+  });
+
   it("eases the hovered week slot and event highlight, then clears it", async () => {
     const user = userEvent.setup();
     render(
@@ -420,6 +435,10 @@ describe("WorkspaceCalendar editing", () => {
       y: 100,
       toJSON: () => ({}),
     });
+    Object.defineProperties(calendar, {
+      clientLeft: { configurable: true, value: 1 },
+      clientTop: { configurable: true, value: 1 },
+    });
     vi.spyOn(dayCell, "getBoundingClientRect").mockReturnValue({
       bottom: 720,
       height: 600,
@@ -447,9 +466,9 @@ describe("WorkspaceCalendar editing", () => {
 
     expect(highlight).toHaveStyle({
       height: "20px",
-      left: "100px",
+      left: "99px",
       opacity: "1",
-      top: "120px",
+      top: "119px",
       width: "100px",
     });
     expect(highlight).toHaveClass(
