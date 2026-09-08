@@ -41,7 +41,7 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 
 - Swift package tests run via `swift test --package-path Packages/<name>`; app-target tests via `xcodebuild test -only-testing:SokosumiTests`.
 - Fake Core HTTP at the OpenAPI `ClientTransport` boundary. Do not test SwiftUI layout, Keychain, or `ASWebAuthenticationSession` as the required suite.
-- Apple CI (`.github/workflows/apple.yml`) runs build + tests in parallel on `macos-26`, gated to ready-for-review PRs touching `apps/apple/**` (or manual dispatch). Lint/format is a separate job with the same gate.
+- Apple CI (`.github/workflows/apple.yml`) runs build + tests in parallel on `macos-26` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. Lint/format is a separate job with the same gate.
 
 ## App-Specific Gotchas
 

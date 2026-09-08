@@ -14,7 +14,7 @@ Human-review baseline is the [Kodeco Swift style guide](https://github.com/kodec
 
 - Formatting: `apps/apple/.swiftformat` (`mint run swiftformat .` to apply, `mint run swiftformat --lint .` to check)
 - Lint: `apps/apple/.swiftlint.yml` (`mint run swiftlint lint --strict`)
-- Both run from `apps/apple/` via Mint pins in `Mintfile`; both run as a blocking CI job on ready-for-review PRs touching `apps/apple/**`
+- Both run from `apps/apple/` via Mint pins in `Mintfile`; both run as a blocking CI job on PRs touching `apps/apple/**`
 
 **Deliberate deviations from the Kodeco guide:**
 
