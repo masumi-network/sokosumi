@@ -13,6 +13,8 @@ export interface CreateOAuthClientFormData {
   includeCoreApi: boolean;
   /** When true, client may request `offline_access` and use refresh tokens. */
   includeOfflineAccess: boolean;
+  /** When true, register as a public PKCE client with no secret. */
+  isPublic: boolean;
 }
 
 export interface EditOAuthClientFormData {
@@ -29,6 +31,8 @@ export interface CreateOAuthClientRequest {
   includeCoreApi?: boolean;
   /** When true, register with `offline_access` + `refresh_token` grant. */
   includeOfflineAccess?: boolean;
+  /** When true, register as a public PKCE client (`token_endpoint_auth_method: none`). */
+  isPublic?: boolean;
 }
 
 export interface CreateOAuthClientResult {

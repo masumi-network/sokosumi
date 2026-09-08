@@ -39,6 +39,7 @@ import type {
 import {
   DEFAULT_EDIT_FORM_VALUES,
   editOAuthClientSchema,
+  isPublicOAuthClient,
   parseRedirectUris,
 } from "./utils";
 
@@ -114,6 +115,17 @@ export function EditOAuthClientDialog({
                 </p>
                 <p className="text-muted-foreground mt-1 font-mono text-xs break-all">
                   {client.client_id}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium">
+                  {t("EditDialog.clientTypeLabel")}
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  {isPublicOAuthClient(client)
+                    ? t("EditDialog.clientTypePublic")
+                    : t("EditDialog.clientTypeConfidential")}
                 </p>
               </div>
 

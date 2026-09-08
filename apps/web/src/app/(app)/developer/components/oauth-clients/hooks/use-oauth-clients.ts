@@ -65,6 +65,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
       try {
         const includeCoreApi = data.includeCoreApi ?? false;
         const includeOfflineAccess = data.includeOfflineAccess ?? false;
+        const isPublic = data.isPublic ?? false;
         const applicationType = inferOAuthApplicationType(data.redirectUris);
         const result = await authClient.oauth2.createClient({
           redirect_uris: data.redirectUris,
@@ -77,6 +78,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
           ...(applicationType === "native"
             ? { application_type: "native" as const }
             : {}),
+          ...(isPublic ? { token_endpoint_auth_method: "none" as const } : {}),
         });
 
         if (result.error) {

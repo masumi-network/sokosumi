@@ -63,12 +63,6 @@ const reportedPricingMisconfigurations = new Set<string>();
 // exists to close (its own header doc names the scenario).
 let hasReportedHostileClassifierFailure = false;
 
-/** Test-only: clears the once-per-process report dedupe between tests. */
-export function resetX402PricingMisconfigurationReports(): void {
-  reportedPricingMisconfigurations.clear();
-  hasReportedHostileClassifierFailure = false;
-}
-
 /**
  * Best-effort dedupe key. BOTH arms can throw for hostile-enough values —
  * `String(error)` on a ToPrimitive failure, the Error arm on a throwing

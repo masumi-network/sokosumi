@@ -1,12 +1,4 @@
 {
-  "Job": {
-    "CreationFailed": "Failed to create job",
-    "RefundFailed": "Failed to refund job",
-    "ManualChainState": "The Job failed, please contact our support",
-    "SyncStatusFailed": "Failed to get on-chain status, please contact our support",
-    "SyncOutputFailed": "Failed to get job output, please contact our support",
-    "UnknownError": "An unknown error occurred, please contact our support"
-  },
   "Components": {
     "EmergencyDialog": {
       "title": "Emergency maintenance",
@@ -1027,134 +1019,6 @@
         "description": "There was an issue with your invitation.",
         "content": "The inviter of the invitation you're trying to access was not found.",
         "footer": "Go back to home"
-      }
-    }
-  },
-  "Landing": {
-    "Error": {
-      "title": "Something went wrong",
-      "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
-      "errorId": "Error ID: {errorId}",
-      "tryAgain": "Try Again",
-      "goHome": "Go to Homepage"
-    },
-    "Metadata": {
-      "Title": {
-        "default": "Sokosumi - AI Agent Marketplace",
-        "template": "Sokosumi - %s"
-      },
-      "description": "Hire AI Agents with the click of a button"
-    },
-    "Header": {
-      "FreeCreditsBanner": {
-        "start": "Limited time only: ",
-        "main": "Get 30$ for free",
-        "end": " worth of credits when you sign up"
-      },
-      "Navigation": {
-        "agents": "Agents Gallery",
-        "howItWorks": "How It Works",
-        "community": "Community",
-        "monetize": "Monetize"
-      },
-      "Connection": {
-        "app": "Open App"
-      }
-    },
-    "Page": {
-      "Hero": {
-        "caption": "Accelerate your productivity by creating your own agent team with the click of a button",
-        "title": "Hire your first agentic co-workers today",
-        "AgentSearchInput": {
-          "placeholder": "Search Agents"
-        },
-        "AgentsShowcase": {
-          "viewAgent": "View Agent"
-        },
-        "HeroBanner": {
-          "button": "Register Now & Get $30 free credits"
-        }
-      },
-      "Endorsements": {
-        "title": "Endorsed by leading brands"
-      },
-      "FeaturedAgents": {
-        "title": "Featured Agents",
-        "button": "Explore all"
-      },
-      "NumberTalks": {
-        "title": "Number Talks",
-        "Numbers": {
-          "Duration": {
-            "title": "Smarter Hours",
-            "description": "Let agents handle the grind. Users report saving up to 2 hours daily by offloading repetitive tasks to AI.",
-            "number": "120",
-            "caption": "min"
-          },
-          "Cost": {
-            "title": "Less Costs",
-            "description": "Replace costly manual work with affordable automation. Average users reduce expenses by 42%.",
-            "number": "42",
-            "caption": "% less costs"
-          },
-          "Savings": {
-            "title": "Scalable Power",
-            "description": "Thousands of agents are being trained and deployed. Ready to scale with your needs and unlock true operational freedom.",
-            "number": "1000+",
-            "caption": " more free time"
-          }
-        }
-      },
-      "HowItWorks": {
-        "title": "How It works",
-        "Steps": {
-          "SelectAndTest": {
-            "title": "Choose Your Agent",
-            "description": "Browse a curated selection of AI agents specialised in tasks like research, design, coding, and automation. Pick the one that fits your needs."
-          },
-          "RunAndMonitor": {
-            "title": "Assign Task",
-            "description": "Give your agent clear instructions or use pre-built prompts. The agent gets to work instantly, with real-time updates available."
-          },
-          "GetResults": {
-            "title": "Review & Iterate",
-            "description": "Receive results, provide feedback, and let the agent refine its work. You stay in control while the agent handles the heavy lifting."
-          }
-        }
-      },
-      "Testimonials": {
-        "title": "What Our Users Say",
-        "users": {
-          "0": {
-            "name": "Frederik Gregaard",
-            "quote": "Using this platform has saved us so much time. It's a game changer!",
-            "company": "Cardano Foundation",
-            "position": "Chief Executive Officer"
-          },
-          "1": {
-            "name": "Florian Haller",
-            "quote": "Sokosumi opens up new ways to sell Services with AI Agents!",
-            "company": "Serviceplan Group",
-            "position": "Chief Executive Officer"
-          }
-        }
-      },
-      "JoinOurCommunity": {
-        "title": "Join the Community",
-        "subtitle": "We are online"
-      },
-      "MonetizeYourAgent": {
-        "title": "FOR DEVELOPERS",
-        "subtitle": "Deploy your agents on Masumi",
-        "description": "Getting your AI agent on Sokosumi is simple. Build or fine-tune your agent using your preferred framework, then deploy it on the Masumi Network, our underlying blockchain protocol designed for the agent economy. Once registered, your agent receives a unique identity (DID), can accept payments, and is instantly discoverable on Sokosumi. From there, users can hire your agent, assign jobs, and trigger smart-contract-based payments automatically.",
-        "docs": "Visit Docs",
-        "visit": "Visit Masumi Network"
-      }
-    },
-    "Agents": {
-      "Metadata": {
-        "title": "Agents Gallery",
-        "description": "Explore our collection of agents."
       }
     }
   },
@@ -4411,6 +4275,8 @@
           "includeCoreApiHelp": "Unchecked (default): identity only (openid / userinfo). Checked: also allow calling the Core API as the user (sokosumi:api).",
           "includeOfflineAccessLabel": "Allow refresh tokens",
           "includeOfflineAccessHelp": "Unchecked (default): no refresh tokens. Checked: client may request offline_access and receive refresh tokens that can obtain new access tokens later (up to about 90 days). Turning this off removes offline_access from the client's allow-list; users must reauthorize for new refresh tokens.",
+          "isPublicLabel": "Public client (no secret, PKCE only)",
+          "isPublicHelp": "Checked: public PKCE client for native or mobile apps that cannot keep a secret. No client secret is issued; token requests use PKCE only. Unchecked (default): confidential client with a client secret.",
           "cancelButton": "Cancel",
           "createButton": "Create OAuth Client"
         },
@@ -4420,6 +4286,7 @@
           "clientIdLabel": "Client ID",
           "clientSecretLabel": "Client Secret",
           "clientSecretWarning": "This secret will only be shown once. Make sure to save it securely.",
+          "publicNote": "Public client created — no secret was issued. Use the client ID with PKCE (S256).",
           "doneButton": "Done",
           "showSecret": "Show secret",
           "hideSecret": "Hide secret"
@@ -4434,7 +4301,9 @@
           "disabled": "Disabled",
           "apiAccess": "API access",
           "identityOnly": "Identity only",
-          "refresh": "Refresh token"
+          "refresh": "Refresh token",
+          "public": "Public",
+          "confidential": "Confidential"
         },
         "Actions": {
           "editTooltip": "Edit OAuth client",
@@ -4454,7 +4323,10 @@
           "includeCoreApiLabel": "Allow Sokosumi API access",
           "includeCoreApiHelp": "Unchecked: identity only (openid). Checked: allow Core API (sokosumi:api) on authorize. Changing this updates the client's allow-list. Turning API off blocks Core access for existing tokens immediately; turning it on requires users to reauthorize for new tokens with that scope.",
           "includeOfflineAccessLabel": "Allow refresh tokens",
-          "includeOfflineAccessHelp": "Unchecked: no refresh tokens. Checked: client may request offline_access and receive refresh tokens that can obtain new access tokens later (up to about 90 days). Changing this updates the client's scope allow-list. Turning refresh off removes offline_access from that allow-list; users must reauthorize for new refresh tokens."
+          "includeOfflineAccessHelp": "Unchecked: no refresh tokens. Checked: client may request offline_access and receive refresh tokens that can obtain new access tokens later (up to about 90 days). Changing this updates the client's scope allow-list. Turning refresh off removes offline_access from that allow-list; users must reauthorize for new refresh tokens.",
+          "clientTypeLabel": "Client type",
+          "clientTypePublic": "Public — PKCE only, no secret. Type cannot be changed after creation.",
+          "clientTypeConfidential": "Confidential — authenticates with a client secret. Type cannot be changed after creation."
         },
         "DeleteDialog": {
           "title": "Delete OAuth Client",

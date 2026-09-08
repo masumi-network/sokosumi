@@ -119,41 +119,6 @@ export const openrouterClient = (() => {
       });
     },
 
-    async generateChatTitle(firstPrompt: string): Promise<string | null> {
-      if (!defaultOpenrouter) {
-        return null;
-      }
-
-      const trimmed = firstPrompt.trim().slice(0, 2000);
-      if (!trimmed) {
-        return null;
-      }
-
-      const instructions = `Generate a very short chat title from the user's first message. Rules:
-        - Maximum 50 characters (including spaces and punctuation)
-        - Language: Match the input
-        - Format: Single phrase or sentence fragment, no quotes
-        - Output: Title only, no other text
-      `;
-      const userPrompt = `First message: ${trimmed}`;
-
-      const text = await generateOpenRouterText(defaultOpenrouter, {
-        abortSignal: AbortSignal.timeout(NAME_GENERATION_TIMEOUT_MS),
-        instructions,
-        prompt: userPrompt,
-        temperature: 0.5,
-        maxOutputTokens: 40,
-        failureLogLabel: "chat title generation",
-      });
-
-      if (!text) {
-        return null;
-      }
-
-      const title = text.trim().slice(0, 50);
-      return title || null;
-    },
-
     async generateAgentSummary(
       description: string,
       options?: OpenRouterRequestOptions,

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createOAuthClientSchema,
   inferOAuthApplicationType,
+  isPublicOAuthClient,
   isSafeRedirectUri,
   parseRedirectUris,
 } from "./utils";
@@ -93,6 +94,7 @@ describe("createOAuthClientSchema", () => {
       redirectUris: "https://example.com/callback",
       includeCoreApi: false,
       includeOfflineAccess: false,
+      isPublic: false,
     });
     expect(result.success).toBe(true);
   });
@@ -103,6 +105,7 @@ describe("createOAuthClientSchema", () => {
       redirectUris: "https://example.com/callback",
       includeCoreApi: false,
       includeOfflineAccess: false,
+      isPublic: false,
     });
     expect(result.success).toBe(false);
   });
@@ -113,6 +116,7 @@ describe("createOAuthClientSchema", () => {
       redirectUris: "https://example.com/callback",
       includeCoreApi: false,
       includeOfflineAccess: false,
+      isPublic: false,
     });
     expect(result.success).toBe(false);
   });
@@ -123,6 +127,7 @@ describe("createOAuthClientSchema", () => {
       redirectUris: "https://example.com/callback",
       includeCoreApi: true,
       includeOfflineAccess: false,
+      isPublic: false,
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -138,6 +143,7 @@ describe("createOAuthClientSchema", () => {
       redirectUris: "not-a-url",
       includeCoreApi: false,
       includeOfflineAccess: false,
+      isPublic: false,
     });
     expect(result.success).toBe(false);
   });
@@ -148,6 +154,7 @@ describe("createOAuthClientSchema", () => {
       redirectUris: "http://example.com/callback",
       includeCoreApi: false,
       includeOfflineAccess: false,
+      isPublic: false,
     });
     expect(result.success).toBe(false);
   });
@@ -167,6 +174,7 @@ describe("createOAuthClientSchema", () => {
       redirectUris: "com.sokosumi.app:/oauth/signin",
       includeCoreApi: true,
       includeOfflineAccess: true,
+      isPublic: true,
     });
     expect(result.success).toBe(true);
   });
@@ -177,6 +185,7 @@ describe("createOAuthClientSchema", () => {
       redirectUris: "sokosumi://oauth/signin",
       includeCoreApi: true,
       includeOfflineAccess: true,
+      isPublic: true,
     });
     expect(result.success).toBe(false);
   });
@@ -187,6 +196,7 @@ describe("createOAuthClientSchema", () => {
       redirectUris: "com.sokosumi.app://auth",
       includeCoreApi: true,
       includeOfflineAccess: true,
+      isPublic: true,
     });
     expect(result.success).toBe(false);
   });
@@ -198,6 +208,7 @@ describe("createOAuthClientSchema", () => {
         "https://example.com/callback\ncom.sokosumi.app:/oauth/signin",
       includeCoreApi: true,
       includeOfflineAccess: true,
+      isPublic: false,
     });
     expect(result.success).toBe(true);
   });
@@ -208,6 +219,17 @@ describe("createOAuthClientSchema", () => {
       redirectUris: "https://example.com/callback\ncom.sokosumi.app://auth",
       includeCoreApi: true,
       includeOfflineAccess: true,
+      isPublic: false,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing isPublic", () => {
+    const result = schema.safeParse({
+      name: "My App",
+      redirectUris: "https://example.com/callback",
+      includeCoreApi: false,
+      includeOfflineAccess: false,
     });
     expect(result.success).toBe(false);
   });
@@ -233,5 +255,29 @@ describe("inferOAuthApplicationType", () => {
         "com.sokosumi.app:/oauth/signin",
       ]),
     ).toBe("native");
+  });
+});
+
+describe("isPublicOAuthClient", () => {
+  it("returns true for token_endpoint_auth_method none", () => {
+    expect(isPublicOAuthClient({ token_endpoint_auth_method: "none" })).toBe(
+      true,
+    );
+  });
+
+  it("returns false for confidential auth methods", () => {
+    expect(
+      isPublicOAuthClient({
+        token_endpoint_auth_method: "client_secret_basic",
+      }),
+    ).toBe(false);
+    expect(isPublicOAuthClient({})).toBe(false);
+    expect(isPublicOAuthClient(null)).toBe(false);
+    expect(isPublicOAuthClient(undefined)).toBe(false);
+  });
+
+  it("falls back to the legacy public flag", () => {
+    expect(isPublicOAuthClient({ public: true })).toBe(true);
+    expect(isPublicOAuthClient({ public: false })).toBe(false);
   });
 });
