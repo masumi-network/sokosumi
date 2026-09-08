@@ -3,6 +3,12 @@ import AuthenticationServices
 import Combine
 import CoreAPI
 import SokosumiAuth
+import SokosumiChat
+
+/// True when this process hosts a test run (`xcodebuild test`, Xcode ⌘U):
+/// the runner injects XCTest into the host app, so its classes resolve.
+/// No import needed — `NSClassFromString` just yields nil in a normal launch.
+private var isRunningTests: Bool { NSClassFromString("XCTestCase") != nil }
 
 /// Presentation anchor for the system-browser sign-in sheet.
 private final class SignInPresentationContext: NSObject, ASWebAuthenticationPresentationContextProviding {
@@ -47,8 +53,15 @@ final class AuthState: ObservableObject {
     self.configuration = configuration
     self.session = AuthConfig.makeSession(store: store, configuration: configuration)
     // Synchronous launch restore: Keychain tokens exist → signed in, no prompt.
-    // Expiry/refresh resolves lazily on the first Core call.
-    self.status = store.load() == nil ? .signedOut(message: nil) : .signedIn
+    // Expiry/refresh resolves lazily on the first Core call. Skipped under a
+    // test runner: the host app launches to host the test bundle, and a fresh
+    // ad-hoc signature never matches the stored item's ACL — so every test
+    // launch would pop a Keychain prompt (and depend on login state).
+    if isRunningTests {
+      self.status = .signedOut(message: nil)
+    } else {
+      self.status = store.load() == nil ? .signedOut(message: nil) : .signedIn
+    }
   }
 
   var isSignedIn: Bool {
@@ -120,7 +133,10 @@ final class AuthState: ObservableObject {
     }
     return Client.connecting(
       to: CoreSettings.baseURL,
-      middlewares: [BearerAuthMiddleware(session: session)]
+      middlewares: [
+        BearerAuthMiddleware(session: session),
+        ExplicitNullPreferredOrganizationMiddleware(),
+      ]
     )
   }
 

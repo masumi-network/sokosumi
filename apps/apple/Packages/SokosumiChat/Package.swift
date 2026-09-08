@@ -3,38 +3,36 @@
 import PackageDescription
 
 let package = Package(
-  name: "CoreAPI",
+  name: "SokosumiChat",
   platforms: [
     .macOS(.v14),
     .iOS(.v17),
   ],
   products: [
-    .library(name: "CoreAPI", targets: ["CoreAPI"]),
+    .library(name: "SokosumiChat", targets: ["SokosumiChat"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/apple/swift-openapi-generator", from: "1.10.3"),
+    .package(path: "../CoreAPI"),
     .package(url: "https://github.com/apple/swift-openapi-runtime", from: "1.8.2"),
-    .package(url: "https://github.com/apple/swift-openapi-urlsession", from: "1.1.0"),
-    // Generated sources `import HTTPTypes` directly: needs a declared
-    // dependency since Xcode links each product against declared deps only.
+    // Direct `import HTTPTypes` needs a declared dependency: SwiftPM links
+    // the transitive closure, but Xcode links each product against its
+    // declared deps only (SOK-973: `xcodebuild test` proved it).
     .package(url: "https://github.com/apple/swift-http-types", from: "1.8.0"),
   ],
   targets: [
     .target(
-      name: "CoreAPI",
+      name: "SokosumiChat",
       dependencies: [
+        .product(name: "CoreAPI", package: "CoreAPI"),
         .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
-        .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
         .product(name: "HTTPTypes", package: "swift-http-types"),
-      ],
-      plugins: [
-        .plugin(name: "OpenAPIGenerator", package: "swift-openapi-generator"),
       ]
     ),
     .testTarget(
-      name: "CoreAPITests",
+      name: "SokosumiChatTests",
       dependencies: [
-        "CoreAPI",
+        "SokosumiChat",
+        .product(name: "CoreAPI", package: "CoreAPI"),
         .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
         .product(name: "HTTPTypes", package: "swift-http-types"),
       ]
