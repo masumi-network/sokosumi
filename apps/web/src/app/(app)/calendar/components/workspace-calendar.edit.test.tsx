@@ -9,12 +9,13 @@ import {
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ComponentProps, isValidElement, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
+import { selectionToApiBody } from "@/lib/utils/task-schedule";
 
 interface FullCalendarProps {
   borderless?: boolean;
@@ -80,6 +81,30 @@ vi.mock("@fullcalendar/react", () => ({
           }
         >
           empty calendar slot
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.dateClick?.({ date: new Date("2026-09-08T16:00:00.000Z") })
+          }
+        >
+          past hour calendar slot
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.dateClick?.({ date: new Date("2026-09-07T22:00:00.000Z") })
+          }
+        >
+          past midnight calendar slot
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.dateClick?.({ date: new Date("2026-09-08T17:00:00.000Z") })
+          }
+        >
+          future hour calendar slot
         </button>
         {props.events?.map((event) => (
           <div key={event.id}>
@@ -209,9 +234,14 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   },
 }));
 
-vi.mock("@/lib/utils/task-schedule", () => ({
-  metadataToSelection: metadataToSelectionMock,
-}));
+vi.mock("@/lib/utils/task-schedule", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/utils/task-schedule")>();
+  return {
+    ...actual,
+    metadataToSelection: metadataToSelectionMock,
+  };
+});
 
 import { WorkspaceCalendar } from "./workspace-calendar";
 
@@ -372,6 +402,10 @@ describe("WorkspaceCalendar editing", () => {
       data: [],
       meta: { pagination: { nextCursor: null } },
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("configures FullCalendar date clicks with the interaction plugin", () => {
@@ -599,6 +633,90 @@ describe("WorkspaceCalendar editing", () => {
     });
   });
 
+  it("opens create with a schedulable once-time when the clicked hour is already past", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=Europe%2FPrague">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2026-09-08"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "past hour calendar slot" })[0],
+    );
+
+    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
+      schedule: TaskScheduleSelection;
+    };
+    expect(schedule.schedule.oneTimeLocalIso).not.toBe("2026-09-08T18:00");
+    expect(selectionToApiBody(schedule.schedule)).toEqual({
+      mode: "once",
+      runAt: expect.any(Date),
+    });
+  });
+
+  it("opens create with a schedulable once-time when month midnight is already past", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=Europe%2FPrague">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2026-09-08"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "past midnight calendar slot" })[0],
+    );
+
+    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
+      schedule: TaskScheduleSelection;
+    };
+    expect(schedule.schedule.oneTimeLocalIso).not.toBe("2026-09-08T00:00");
+    expect(selectionToApiBody(schedule.schedule)).toEqual({
+      mode: "once",
+      runAt: expect.any(Date),
+    });
+  });
+
+  it("keeps a future clicked hour as the seeded once-time", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=Europe%2FPrague">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2026-09-08"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "future hour calendar slot" })[0],
+    );
+
+    expect(openCreateTaskModalMock).toHaveBeenCalledWith({
+      projectId: undefined,
+      schedule: {
+        mode: "once",
+        oneTimeLocalIso: "2026-09-08T19:00",
+        timezone: "Europe/Prague",
+      },
+    });
+  });
+
   it("opens calendar scheduling for the visible calendar date", async () => {
     const user = userEvent.setup();
     render(
@@ -625,6 +743,32 @@ describe("WorkspaceCalendar editing", () => {
         oneTimeLocalIso: "2030-01-02T12:00",
         timezone: "Pacific/Kiritimati",
       },
+    });
+  });
+
+  it("opens agenda create with a schedulable once-time when noon is already past", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=Europe%2FPrague&view=agenda">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2026-09-08"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "create.title" }));
+
+    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
+      schedule: TaskScheduleSelection;
+    };
+    expect(schedule.schedule.oneTimeLocalIso).not.toBe("2026-09-08T12:00");
+    expect(selectionToApiBody(schedule.schedule)).toEqual({
+      mode: "once",
+      runAt: expect.any(Date),
     });
   });
 

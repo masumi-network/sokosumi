@@ -164,6 +164,43 @@ describe("selectionToApiBody", () => {
     ).toBeNull();
   });
 
+  it("rejects Prague calendar seeds that are already past at submit time", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+
+    expect(
+      selectionToApiBody({
+        mode: "once",
+        timezone: "Europe/Prague",
+        oneTimeLocalIso: "2026-09-08T00:00",
+      }),
+    ).toBeNull();
+    expect(
+      selectionToApiBody({
+        mode: "once",
+        timezone: "Europe/Prague",
+        oneTimeLocalIso: "2026-09-08T12:00",
+      }),
+    ).toBeNull();
+    expect(
+      selectionToApiBody({
+        mode: "once",
+        timezone: "Europe/Prague",
+        oneTimeLocalIso: "2026-09-08T18:00",
+      }),
+    ).toBeNull();
+    expect(
+      selectionToApiBody({
+        mode: "once",
+        timezone: "Europe/Prague",
+        oneTimeLocalIso: "2026-09-08T19:00",
+      }),
+    ).toEqual({
+      mode: "once",
+      runAt: new Date("2026-09-08T17:00:00.000Z"),
+    });
+  });
+
   it("rejects recurring end dates in the past", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-24T12:00:00.000Z"));
