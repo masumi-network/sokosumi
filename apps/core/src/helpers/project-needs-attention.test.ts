@@ -4,12 +4,16 @@ import { describe, expect, it } from "vitest";
 
 import type { HistoryItem } from "@/schemas/history.schema";
 
+import { PROJECT_NEEDS_ATTENTION_LIMIT } from "@/schemas/project.schema";
+
 import {
   compareNeedsAttention,
   jobAttentionUpdatedAt,
   jobNeedsAttentionTier,
+  PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT,
   rankNeedsAttentionItems,
   taskNeedsAttentionTier,
+  unsettledProjectJobsQuery,
   unsettledProjectJobsWhere,
 } from "./project-needs-attention";
 
@@ -230,6 +234,26 @@ describe("unsettledProjectJobsWhere", () => {
           ],
         },
       ],
+    });
+  });
+});
+
+describe("unsettledProjectJobsQuery", () => {
+  it("caps unsettled job candidates and keeps the settlement filter", () => {
+    const now = new Date("2026-09-08T00:00:00.000Z");
+    const query = unsettledProjectJobsQuery({
+      projectId: "project-1",
+      workspaceId: "workspace-1",
+      now,
+    });
+
+    expect(query.take).toBe(PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT);
+    expect(query.take).toBeGreaterThanOrEqual(PROJECT_NEEDS_ATTENTION_LIMIT);
+    expect(query.orderBy).toEqual([{ updatedAt: "desc" }, { id: "desc" }]);
+    expect(query.where).toEqual({
+      projectId: "project-1",
+      workspaceId: "workspace-1",
+      ...unsettledProjectJobsWhere(now),
     });
   });
 });
