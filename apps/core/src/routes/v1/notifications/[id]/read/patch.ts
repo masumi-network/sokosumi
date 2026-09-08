@@ -4,6 +4,7 @@ import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
 import { forbidden, notFound } from "@/helpers/error";
+import { mapNotificationToItem } from "@/helpers/notification-item";
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -114,25 +115,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(publishClearedNotifications([updated.id]));
     }
 
-    const result = {
-      id: updated.id,
-      userId: updated.userId,
-      kind: updated.kind,
-      referenceId: updated.referenceId,
-      eventId: updated.eventId,
-      messageKey: updated.messageKey,
-      messageParams: JSON.parse(updated.messageParams) as Record<
-        string,
-        unknown
-      >,
-      metadata: updated.metadata
-        ? (JSON.parse(updated.metadata) as Record<string, unknown>)
-        : null,
-      isRead: updated.isRead,
-      readAt: updated.readAt,
-      createdAt: updated.createdAt,
-    };
-
-    return ok(c, notificationItemSchema.parse(result));
+    return ok(c, notificationItemSchema.parse(mapNotificationToItem(updated)));
   });
 }
