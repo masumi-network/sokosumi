@@ -3,7 +3,6 @@ import { TaskStatus } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
-import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -67,7 +66,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const userContext = requireOwnerUserContext(authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
     const schedule = getTaskScheduleInput(body);

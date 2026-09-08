@@ -368,7 +368,8 @@ describe("TaskForm", () => {
     }
   });
 
-  it("hides scheduling controls outside the Calendar beta", () => {
+  it("opens task scheduling outside the Calendar beta", async () => {
+    const user = userEvent.setup();
     calendarBetaAccessMock.enabled = false;
 
     render(
@@ -383,9 +384,11 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(
-      screen.queryByRole("button", { name: baseLabels.openSchedule }),
-    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: baseLabels.openSchedule }),
+    );
+
+    expect(screen.getByText("timezone")).toBeInTheDocument();
   });
 
   function getHiddenFileInput(container: HTMLElement): HTMLInputElement {
