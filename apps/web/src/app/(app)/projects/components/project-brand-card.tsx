@@ -186,13 +186,14 @@ export function ProjectBrandCard({
   const { designMd, generation, setDesignMd } = useProjectBrandDashboard();
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isRemoving, startRemoveTransition] = useTransition();
   const owner = useMemo(
     () => ({ type: "project" as const, projectId }),
     [projectId],
   );
   const hasWebsite = Boolean(websiteUrl);
-  const menuBusy = generation.isRunning || isRemoving;
+  const menuBusy = generation.isRunning || isRemoving || isUploading;
 
   function handleGenerate() {
     if (!websiteUrl) return;
@@ -339,6 +340,7 @@ export function ProjectBrandCard({
             owner={owner}
             variant="compact"
             disabled={menuBusy}
+            onUploadingChange={setIsUploading}
             onSaved={(uploadedDesignMd) => {
               setDesignMd({
                 extractionId: uploadedDesignMd.extractionId,
