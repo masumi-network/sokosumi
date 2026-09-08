@@ -404,7 +404,7 @@ describe("RoomsClient notification deep link", () => {
     });
   });
 
-  it("leaves a message that is gone alone, rather than asking for it again", async () => {
+  it("leaves a message Core will not give up alone, rather than asking again", async () => {
     mockSearch.current = "message=msg-1";
     vi.mocked(getRoomMessageAction).mockResolvedValue({
       ok: true as const,

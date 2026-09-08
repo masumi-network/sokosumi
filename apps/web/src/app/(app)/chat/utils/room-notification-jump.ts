@@ -1,9 +1,12 @@
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 /**
- * What a lookup found. A message the reader cannot read and a lookup that
- * failed are different answers: the first is settled, the second may still
- * come good.
+ * What a lookup found. `notReadable` and `unavailable` are different answers:
+ * the first is settled, the second may still come good.
+ *
+ * `notReadable` covers both settled ways there is nothing to act on. Core
+ * refused the message, or the reader moved to another room while it was being
+ * read, which makes the answer theirs no longer.
  */
 export type RoomNotificationLookup =
   | { status: "found"; message: ChatRoomMessage }
@@ -34,10 +37,11 @@ export interface RoomNotificationJumpDeps {
  * the server has just refused would fail a second time, and loudly, and that
  * second failure is what the reader would see.
  *
- * Deletion is not this case. A soft-deleted message comes back as its
- * tombstone with a 200, and the reader lands on it. A refusal means the room
- * was archived, or they are no longer a member of it, or the id names nothing
- * in that room. Landing them in the room is the useful answer to all three.
+ * Ordinary deletion is not this case. A soft-deleted message comes back as
+ * its tombstone with a 200, and the reader lands on it. A refusal means the
+ * room was archived, or they are no longer a member of it, or the id names
+ * nothing in that room, which includes a message hard-deleted with its room.
+ * Landing them in the room is the useful answer to all of those.
  *
  * A lookup that merely failed is different. The message is probably still
  * there, so the room jump is worth trying: it loads its own window and may

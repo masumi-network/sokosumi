@@ -86,8 +86,9 @@ describe("performRoomNotificationJump", () => {
 
     // Asking the room to scroll to an id the server just refused fails again,
     // and that second failure is the one the reader sees as an error toast.
-    // A deleted message does not come through here: it is a tombstone, and a
-    // 200.
+    // A message deleted in the room does not come through here: it comes
+    // back as a tombstone, with a 200. One that went with its room does,
+    // because the id then names nothing.
     expect(d.jumpInRoom).not.toHaveBeenCalled();
     expect(d.jumpInThread).not.toHaveBeenCalled();
   });
