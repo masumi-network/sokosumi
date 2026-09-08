@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { NotificationKind } from "@sokosumi/database";
+import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
 import { notificationFeedWhere } from "@/helpers/notification-feed";
@@ -51,19 +52,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
 
-    // A room's counted row reaches this feed, so clearing everything clears
-    // rooms too and leaves their banners standing. Read the rows first: after
-    // the write nothing tells them from the rows that were read already.
-    const clearedRoomRows = await prisma.notification.findMany({
-      where: {
-        userId: userContext.userId,
-        isRead: false,
-        ...notificationFeedWhere([NotificationKind.CHAT]),
-      },
-      select: { id: true },
-    });
-
-    const result = await prisma.notification.updateMany({
+    // Return the changed rows so arrivals during this request also get a
+    // clear event if this write marks them read.
+    const clearedRows = await prisma.notification.updateManyAndReturn({
       where: {
         userId: userContext.userId,
         isRead: false,
@@ -73,14 +64,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         isRead: true,
         readAt: new Date(),
       },
+      select: { id: true, kind: true, messageKey: true },
     });
+
+    const clearedRoomIds = clearedRows
+      .filter(
+        (row) =>
+          row.kind === NotificationKind.CHAT &&
+          row.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+      )
+      .map((row) => row.id);
 
     // Scheduled rather than awaited, for the same reason the single-row route
     // schedules it: a failed publish must not cost the reader the read.
-    waitUntil(
-      publishClearedNotifications(clearedRoomRows.map((row) => row.id)),
-    );
+    waitUntil(publishClearedNotifications(clearedRoomIds));
 
-    return ok(c, responseSchema.parse({ count: result.count }));
+    return ok(c, responseSchema.parse({ count: clearedRows.length }));
   });
 }

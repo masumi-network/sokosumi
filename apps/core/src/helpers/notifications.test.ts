@@ -695,8 +695,16 @@ describe("chat room arrival count", () => {
    */
   it("sums what each unread row in the room stands for", async () => {
     notificationFindManyMock.mockResolvedValue([
-      { messageParams: JSON.stringify({ roomName: "General", count: 4 }) },
-      { messageParams: JSON.stringify({ authorName: "Alice" }) },
+      {
+        inApp: true,
+        metadata: null,
+        messageParams: JSON.stringify({ roomName: "General", count: 4 }),
+      },
+      {
+        inApp: true,
+        metadata: null,
+        messageParams: JSON.stringify({ authorName: "Alice" }),
+      },
     ]);
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());
@@ -711,13 +719,17 @@ describe("chat room arrival count", () => {
         referenceId: chatInput.referenceId,
         isRead: false,
       },
-      select: { messageParams: true },
+      select: { messageParams: true, inApp: true, metadata: true },
     });
   });
 
   it("counts a room holding only this arrival as one", async () => {
     notificationFindManyMock.mockResolvedValue([
-      { messageParams: JSON.stringify({ authorName: "Alice" }) },
+      {
+        inApp: true,
+        metadata: null,
+        messageParams: JSON.stringify({ authorName: "Alice" }),
+      },
     ]);
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());
@@ -730,8 +742,12 @@ describe("chat room arrival count", () => {
   /** Params nobody can read still stand for the message that wrote them. */
   it("counts a row whose params will not parse as one message", async () => {
     notificationFindManyMock.mockResolvedValue([
-      { messageParams: "not json" },
-      { messageParams: JSON.stringify({ count: "many" }) },
+      { inApp: true, metadata: null, messageParams: "not json" },
+      {
+        inApp: true,
+        metadata: null,
+        messageParams: JSON.stringify({ count: "many" }),
+      },
     ]);
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());
@@ -739,6 +755,29 @@ describe("chat room arrival count", () => {
     await createNotification(chatInput, prismaMock as unknown as typeof prisma);
 
     expect(publishedGroupCount()).toBe(2);
+  });
+
+  it.each([null, "{}", '{"osBannerEligible":"true"}', "invalid json"])(
+    "omits an uncertain count when a hidden row has metadata %s",
+    async (metadata) => {
+      notificationFindManyMock.mockResolvedValue([
+        chatRecord(),
+        chatRecord({ inApp: false, metadata }),
+      ]);
+      await publishNotificationRow(chatRecord(), {
+        inApp: true,
+        osBanner: true,
+      });
+      expect(publishNotificationEventMock).toHaveBeenCalledTimes(1);
+      expect(publishedGroupCount()).toBeUndefined();
+    },
+  );
+
+  it("omits the count when a concurrent read leaves no unread rows", async () => {
+    notificationFindManyMock.mockResolvedValue([]);
+    await publishNotificationRow(chatRecord(), { inApp: true, osBanner: true });
+    expect(publishNotificationEventMock).toHaveBeenCalledTimes(1);
+    expect(publishedGroupCount()).toBeUndefined();
   });
 
   /** Only chat collapses into one banner. A job happened once. */

@@ -146,13 +146,32 @@ async function chatRoomArrivals(
         referenceId: notification.referenceId,
         isRead: false,
       },
-      select: { messageParams: true },
+      select: { messageParams: true, inApp: true, metadata: true },
     });
 
-    return waiting.reduce(
-      (total, row) => total + arrivalsOn(row.messageParams),
-      0,
-    );
+    let count = 0;
+    for (const row of waiting) {
+      if (!row.inApp) {
+        const metadata: unknown = row.metadata
+          ? JSON.parse(row.metadata)
+          : null;
+        // Hidden rows can be banner-only or fully silenced. Old rows do not
+        // record that choice, so their combined count cannot be recovered.
+        if (
+          typeof metadata !== "object" ||
+          metadata === null ||
+          !("osBannerEligible" in metadata) ||
+          typeof metadata.osBannerEligible !== "boolean"
+        ) {
+          return undefined;
+        }
+        if (!metadata.osBannerEligible) {
+          continue;
+        }
+      }
+      count += arrivalsOn(row.messageParams);
+    }
+    return count > 0 ? count : undefined;
   } catch (error) {
     console.error("Failed to count the room's unread notifications:", error);
     Sentry.captureException(error, {
@@ -304,6 +323,13 @@ export async function createNotification(
   };
 
   const delivery = await resolveDelivery(input);
+  // Preserve the delivery decision for hidden chat rows. A silenced mention
+  // remains stored for idempotency, but a room row can represent its message
+  // too. Current preferences cannot tell whether that old mention arrived.
+  const metadata =
+    input.kind === NotificationKind.CHAT && !delivery.inApp
+      ? { ...input.metadata, osBannerEligible: delivery.osBanner }
+      : input.metadata;
 
   try {
     const notification = await prisma.notification.create({
@@ -311,9 +337,9 @@ export async function createNotification(
         ...uniqueKey,
         messageParams: JSON.stringify(input.messageParams),
         metadata:
-          input.metadata === undefined || input.metadata === null
+          metadata === undefined || metadata === null
             ? null
-            : JSON.stringify(input.metadata),
+            : JSON.stringify(metadata),
         inApp: delivery.inApp,
       },
     });

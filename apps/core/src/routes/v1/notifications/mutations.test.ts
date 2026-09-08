@@ -29,6 +29,7 @@ const {
   notificationFindManyMock,
   notificationFindUniqueMock,
   notificationUpdateManyMock,
+  notificationUpdateManyAndReturnMock,
   notificationUpdateMock,
   vendorGrantFindManyMock,
   coworkerWorkspaceAccessFindManyMock,
@@ -39,6 +40,7 @@ const {
   notificationFindManyMock: vi.fn(),
   notificationFindUniqueMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
+  notificationUpdateManyAndReturnMock: vi.fn(),
   notificationUpdateMock: vi.fn(),
   vendorGrantFindManyMock: vi.fn(),
   coworkerWorkspaceAccessFindManyMock: vi.fn(),
@@ -64,6 +66,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: notificationFindUniqueMock,
       update: notificationUpdateMock,
       updateMany: notificationUpdateManyMock,
+      updateManyAndReturn: notificationUpdateManyAndReturnMock,
     },
     vendorGrant: {
       findMany: vendorGrantFindManyMock,
@@ -325,6 +328,11 @@ describe("PATCH /notifications/read-all", () => {
     waitUntilPromises.length = 0;
     notificationFindManyMock.mockResolvedValue([]);
     notificationUpdateManyMock.mockResolvedValue({ count: 3 });
+    notificationUpdateManyAndReturnMock.mockResolvedValue(
+      ["notif_1", "notif_2", "notif_3"].map((id) =>
+        createNotificationRow({ id }),
+      ),
+    );
   });
 
   it("marks all unread notifications for the authenticated user", async () => {
@@ -334,7 +342,7 @@ describe("PATCH /notifications/read-all", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+    expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith({
       where: {
         userId: "user_123",
         isRead: false,
@@ -344,44 +352,98 @@ describe("PATCH /notifications/read-all", () => {
         isRead: true,
         readAt: expect.any(Date),
       },
+      select: { id: true, kind: true, messageKey: true },
     });
 
     const body = (await response.json()) as { data: { count: number } };
     expect(body.data.count).toBe(3);
   });
 
-  /**
-   * Mark-all-read reaches a room's counted row as well, so it takes a room's
-   * banner with it. The rows are read before the write, because afterwards
-   * nothing tells them apart from the rows that were already read.
-   */
-  it("tells the reader's tabs which room rows it cleared", async () => {
-    notificationFindManyMock.mockResolvedValue([
-      { id: "notif_1" },
-      { id: "notif_2" },
+  it("publishes every room row changed when a notification arrives before the update", async () => {
+    const rows = [
+      {
+        id: "notif_existing",
+        kind: NotificationKind.CHAT,
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        isRead: false,
+      },
+    ];
+    notificationFindManyMock.mockImplementation(async () =>
+      rows.filter((row) => !row.isRead).map((row) => ({ ...row })),
+    );
+
+    function markRowsRead() {
+      rows.push({
+        id: "notif_arriving",
+        kind: NotificationKind.CHAT,
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        isRead: false,
+      });
+      const updatedRows = rows.filter((row) => !row.isRead);
+      for (const row of updatedRows) {
+        row.isRead = true;
+      }
+      return updatedRows;
+    }
+
+    notificationUpdateManyMock.mockImplementation(async () => ({
+      count: markRowsRead().length,
+    }));
+    notificationUpdateManyAndReturnMock.mockImplementation(async () =>
+      markRowsRead(),
+    );
+
+    const app = createApp(mountMarkAllRead);
+    const response = await app.request("http://localhost/read-all", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: { count: number } };
+    expect(body.data.count).toBe(2);
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith(
+      rows.filter((row) => row.isRead).map((row) => row.id),
+    );
+  });
+
+  it("publishes only room rows among the notifications it cleared", async () => {
+    notificationUpdateManyAndReturnMock.mockResolvedValue([
+      createNotificationRow({
+        id: "notif_room",
+        kind: NotificationKind.CHAT,
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+      }),
+      createNotificationRow({ id: "notif_job" }),
     ]);
 
     const app = createApp(mountMarkAllRead);
-    await app.request("http://localhost/read-all", { method: "PATCH" });
+    const response = await app.request("http://localhost/read-all", {
+      method: "PATCH",
+    });
     await Promise.all(waitUntilPromises);
 
-    expect(notificationFindManyMock).toHaveBeenCalledWith({
-      where: {
-        userId: "user_123",
-        isRead: false,
-        ...notificationFeedWhere([NotificationKind.CHAT]),
-      },
-      select: { id: true },
-    });
+    expect(response.status).toBe(200);
     expect(publishClearedNotificationsMock).toHaveBeenCalledWith([
-      "notif_1",
-      "notif_2",
+      "notif_room",
     ]);
-    // Read first or the rows are indistinguishable: after the write they look
-    // exactly like the rows the reader had already read.
-    expect(notificationFindManyMock.mock.invocationCallOrder[0]).toBeLessThan(
-      notificationUpdateManyMock.mock.invocationCallOrder[0] as number,
-    );
+    const body = (await response.json()) as { data: { count: number } };
+    expect(body.data.count).toBe(2);
+  });
+
+  it("returns zero when no notifications changed", async () => {
+    notificationUpdateManyAndReturnMock.mockResolvedValue([]);
+
+    const app = createApp(mountMarkAllRead);
+    const response = await app.request("http://localhost/read-all", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: { count: number } };
+    expect(body.data.count).toBe(0);
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith([]);
   });
 });
 
