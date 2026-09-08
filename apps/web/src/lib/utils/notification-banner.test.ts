@@ -80,30 +80,38 @@ describe("buildNotificationBannerContent", () => {
     ).toEqual({ title: "Ada", body: "are you free?" });
   });
 
-  /**
-   * "Ada" on its own says less than "Ada sent you a message", and the second
-   * line is the only place left to say it.
-   */
-  it("keeps the app name and the line when the message left no text", () => {
-    const line = {
-      title: APP_TITLE,
-      body: `rendered:${CHAT_ROOM_MESSAGE_MESSAGE_KEY}`,
-    };
-
-    expect(
-      content(CHAT_ROOM_MESSAGE_MESSAGE_KEY, {
-        authorName: "Ada",
-        roomName: "Design",
-      }),
-    ).toEqual(line);
-    expect(
-      content(CHAT_ROOM_MESSAGE_MESSAGE_KEY, {
-        authorName: "Ada",
-        roomName: "Design",
-        messagePreview: "",
-      }),
-    ).toEqual(line);
-  });
+  it.each([undefined, "", 12, null])(
+    "keeps chat titles without preview text (%s)",
+    (messagePreview) => {
+      for (const [messageKey, title, isGroup] of [
+        [
+          CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+          `rendered:${CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY}`,
+          false,
+        ],
+        [
+          CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+          `rendered:${CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY}`,
+          true,
+        ],
+        [CHAT_DIRECT_MESSAGE_MESSAGE_KEY, "Ada", false],
+        [
+          CHAT_MENTION_MESSAGE_KEY,
+          `rendered:${CHAT_MENTION_MESSAGE_KEY}`,
+          false,
+        ],
+      ] as const) {
+        expect(
+          content(messageKey, {
+            authorName: "Ada",
+            roomName: "Design",
+            isGroup,
+            messagePreview,
+          }),
+        ).toEqual({ title, body: "" });
+      }
+    },
+  );
 
   /**
    * Every chat title names the author, so a blank name would put an empty
@@ -169,18 +177,5 @@ describe("buildNotificationBannerContent", () => {
         messagePreview: "done",
       }),
     ).toEqual(line);
-  });
-
-  it("ignores a preview that is not text", () => {
-    expect(
-      content(CHAT_ROOM_MESSAGE_MESSAGE_KEY, {
-        authorName: "Ada",
-        roomName: "Design",
-        messagePreview: 12,
-      }),
-    ).toEqual({
-      title: APP_TITLE,
-      body: `rendered:${CHAT_ROOM_MESSAGE_MESSAGE_KEY}`,
-    });
   });
 });

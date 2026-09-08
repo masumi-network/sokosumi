@@ -236,6 +236,27 @@ describe("NotificationToastListener OS banner", () => {
     });
   });
 
+  it.each([undefined, "", 12, null])(
+    "passes a title-only banner without preview text (%s)",
+    async (messagePreview) => {
+      render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+      onNotificationRef.current?.({
+        ...NOTIFICATION,
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        messageParams: {
+          authorName: "Ada",
+          roomName: "Design",
+          messagePreview,
+        },
+      });
+      await vi.waitFor(() => {
+        expect(showNotification).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "message", body: "" }),
+        );
+      });
+    },
+  );
+
   /**
    * Only a chat message carries text of its own. Every other kind keeps the
    * app name, because its line is longer than a title is shown.

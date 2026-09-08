@@ -463,51 +463,31 @@ describe("ably-push-sw display", () => {
     expect(worker.shown[0]?.title).toBe("Sokosumi");
   });
 
-  /** The preview arrives as JSON, so it is only a string by convention. */
-  it("ignores a preview that is not text", async () => {
-    const worker = loadServiceWorker({ isChromium: true });
-
-    await worker.dispatchPush({
-      ...MENTION_PUSH,
-      messageKey: "Notifications.Chat.roomMessage",
-      messageParams: JSON.stringify({
-        authorName: "Ada",
-        roomName: "Design",
-        messagePreview: 12,
-      }),
-    });
-
-    expect(worker.shown[0]?.title).toBe("Sokosumi");
-    expect(worker.shown[0]?.options.body).toBe("Ada wrote in Design");
-  });
-
-  /** Mirrors the app: a name on its own says less than the line does. */
-  it("keeps the app name and the line when the message left no text", async () => {
-    const worker = loadServiceWorker({ isChromium: true });
-
-    await worker.dispatchPush({
-      ...MENTION_PUSH,
-      messageKey: "Notifications.Chat.roomMessage",
-      messageParams: JSON.stringify({
-        authorName: "Ada",
-        roomName: "Design",
-      }),
-    });
-    await worker.dispatchPush({
-      ...MENTION_PUSH,
-      messageKey: "Notifications.Chat.roomMessage",
-      messageParams: JSON.stringify({
-        authorName: "Ada",
-        roomName: "Design",
-        messagePreview: "",
-      }),
-    });
-
-    for (const shown of worker.shown) {
-      expect(shown.title).toBe("Sokosumi");
-      expect(shown.options.body).toBe("Ada wrote in Design");
-    }
-  });
+  it.each([undefined, "", 12, null])(
+    "keeps chat titles without preview text (%s)",
+    async (messagePreview) => {
+      const worker = loadServiceWorker({ isChromium: true });
+      for (const [messageKey, title, isGroup] of [
+        ["Notifications.Chat.roomMessage", "Ada in Design", false],
+        ["Notifications.Chat.roomMessage", "Ada in group Design", true],
+        ["Notifications.Chat.directMessage", "Ada", false],
+        ["Notifications.Chat.mentioned", "Ada mentioned you in Design", false],
+      ] as const) {
+        await worker.dispatchPush({
+          ...MENTION_PUSH,
+          messageKey,
+          messageParams: JSON.stringify({
+            authorName: "Ada",
+            roomName: "Design",
+            isGroup,
+            messagePreview,
+          }),
+        });
+        expect(worker.shown.at(-1)?.title).toBe(title);
+        expect(worker.shown.at(-1)?.options.body).toBe("");
+      }
+    },
+  );
 
   /**
    * A title is cut shorter than a body on most platforms, and a task name is

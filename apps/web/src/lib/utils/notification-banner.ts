@@ -66,9 +66,8 @@ function chatTitle(
  * judge the message from.
  *
  * Every other kind keeps the app name and its line, because a title is cut
- * shorter than a body on most platforms and a task name is long. So does a
- * chat message with no text to show: "Ada" alone says less than "Ada sent you
- * a message", and the second line is the only place left to say it.
+ * shorter than a body on most platforms and a task name is long. Chat
+ * messages without preview text keep their chat title and have no body.
  *
  * The push service worker renders a closed tab's banner and cannot import this
  * (it ships as a plain script), so it carries the same rule. The two are held
@@ -82,11 +81,9 @@ export function buildNotificationBannerContent({
 }: NotificationBannerInput): NotificationBannerContent {
   const preview = messageParams.messagePreview;
 
-  if (typeof preview === "string" && preview) {
-    const title = chatTitle(messageKey, messageParams, translate);
-    if (title !== null) {
-      return { title, body: preview };
-    }
+  const title = chatTitle(messageKey, messageParams, translate);
+  if (title !== null) {
+    return { title, body: typeof preview === "string" ? preview : "" };
   }
 
   return { title: appTitle, body: translate(messageKey) };

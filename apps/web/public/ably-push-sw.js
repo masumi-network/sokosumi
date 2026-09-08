@@ -377,19 +377,17 @@ function chatTitle(messages, messageKey, params) {
  *
  * Mirrors `buildNotificationBannerContent` in the app: a chat message is
  * titled with who wrote and where, and the message itself goes underneath.
- * Every other kind keeps the app name and its line, and so does a chat message
- * with no text to show.
+ * Every other kind keeps the app name and its line. Chat messages without
+ * preview text keep their chat title and have no body.
  */
 async function buildBanner(pushData) {
   const messages = MESSAGES[await resolveLocale()];
   const params = parseParams(pushData.messageParams);
   const preview = params.messagePreview;
 
-  if (typeof preview === "string" && preview) {
-    const title = chatTitle(messages, pushData.messageKey, params);
-    if (title !== undefined) {
-      return { title, body: preview };
-    }
+  const title = chatTitle(messages, pushData.messageKey, params);
+  if (title !== undefined) {
+    return { title, body: typeof preview === "string" ? preview : "" };
   }
 
   return {
