@@ -58,17 +58,6 @@ afterEach(() => {
   cleanup();
 });
 
-vi.mock("uuid", () => ({
-  __esModule: true,
-  parse: () => new Array(16).fill(0),
-  stringify: () => "00000000-0000-0000-0000-000000000000",
-  v1: () => "mock-uuid-v1",
-  v3: () => "mock-uuid-v3",
-  v4: () => "mock-uuid-v4",
-  v5: () => "mock-uuid-v5",
-  validate: () => true,
-}));
-
 // `@lobehub/icons` (ModelIcon) does ESM directory-imports of `@lobehub/fluent-emoji`
 // that Node's native ESM loader can't resolve under vitest, breaking collection of
 // any test whose graph reaches it (e.g. via AgentSpotlight). It's a purely
