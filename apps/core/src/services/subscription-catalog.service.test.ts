@@ -179,19 +179,15 @@ describe("subscription-catalog.service", () => {
     expect(catalog.starter.credits).toBe(1750);
   });
 
-  it("invalidates the cached catalog on demand", async () => {
+  it("caches successful loads for the process lifetime", async () => {
     mockProducts();
 
-    const { getSubscriptionCatalog, invalidateSubscriptionCatalogCache } =
-      await import("./subscription-catalog.service");
+    const { getSubscriptionCatalog } = await import(
+      "./subscription-catalog.service"
+    );
 
     await getSubscriptionCatalog();
     await getSubscriptionCatalog();
     expect(retrieveProductWithDefaultPriceMock).toHaveBeenCalledTimes(3);
-
-    invalidateSubscriptionCatalogCache();
-
-    await getSubscriptionCatalog();
-    expect(retrieveProductWithDefaultPriceMock).toHaveBeenCalledTimes(6);
   });
 });
