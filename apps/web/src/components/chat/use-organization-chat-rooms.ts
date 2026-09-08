@@ -2,21 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { listPendingChatRoomInvitationsAction } from "@/app/chat/actions";
 import type {
   ChatRoom,
   ChatRoomInvitation,
 } from "@/lib/clients/generated/core";
 
+import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
 import { publishMembershipVisibleRooms } from "./membership-visible-rooms-store";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "./organization-chat-events";
-import {
-  listOrganizationArchivedChatRoomsAction,
-  listOrganizationChatRoomsAction,
-} from "./organization-chat-list.actions";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionRefresh,
@@ -25,30 +21,6 @@ import {
 } from "./room-read-overlay";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
-
-/**
- * Fetch the three sidebar collections in one round trip.
- *
- * Without an organization there are no archived rooms to ask for, so that leg
- * resolves empty rather than calling Core.
- */
-async function fetchSidebarRoomData(hasOrganization: boolean) {
-  return Promise.all([
-    listOrganizationChatRoomsAction(),
-    hasOrganization
-      ? listOrganizationArchivedChatRoomsAction()
-      : Promise.resolve({
-          ok: true as const,
-          value: {
-            rooms: [] as ChatRoom[],
-            nextCursor: null as string | null,
-          },
-        }),
-    listPendingChatRoomInvitationsAction(),
-  ]);
-}
-
-type SidebarRoomData = Awaited<ReturnType<typeof fetchSidebarRoomData>>;
 
 interface UseOrganizationChatRoomsOptions {
   rooms: ChatRoom[];
@@ -90,6 +62,8 @@ export function useOrganizationChatRooms({
 }: UseOrganizationChatRoomsOptions) {
   const hasOrganization = Boolean(organizationId);
   const latestAppliedRefreshRef = useRef(0);
+  const latestArchivedRefreshRef = useRef(0);
+  const latestInvitationsRefreshRef = useRef(0);
   const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
   const [pendingRows, setPendingRows] = useState(pendingInvitations);
@@ -121,6 +95,7 @@ export function useOrganizationChatRooms({
    */
   const upsertRoomToTop = useCallback((room: ChatRoom) => {
     latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
+    latestArchivedRefreshRef.current = latestAppliedRefreshRef.current;
     setRoomRows((current) => {
       const without = current.filter((row) => row.id !== room.id);
       return applyRoomReadOverlays([room, ...without]);
@@ -155,32 +130,44 @@ export function useOrganizationChatRooms({
     [],
   );
 
-  /**
-   * Write the collections one refresh returned, skipping the calls that failed.
-   *
-   * A half-failed refresh must leave the sections it could not reach as they
-   * were, or a reader watches a section they can still see go empty.
-   */
-  const applySidebarRoomData = useCallback(
-    (
-      [activeResult, archivedResult, pendingResult]: SidebarRoomData,
-      requestRevision: number,
-    ) => {
-      if (requestRevision < latestAppliedRefreshRef.current) return;
-      if (activeResult.ok || archivedResult.ok || pendingResult.ok) {
-        latestAppliedRefreshRef.current = requestRevision;
+  /** Each collection can recover without waiting for another collection. */
+  const refreshRooms = useCallback(
+    (isCancelled: () => boolean) => {
+      const requestRevision = beginRoomAttentionRefresh();
+      void fetchSidebarRoomCollection("active")
+        .then((page) => {
+          if (!isCancelled() && page)
+            replaceAllRooms(page.rooms, requestRevision);
+        })
+        .catch(() => {});
+      if (hasOrganization) {
+        void fetchSidebarRoomCollection("archived")
+          .then((page) => {
+            if (
+              isCancelled() ||
+              !page ||
+              requestRevision < latestArchivedRefreshRef.current
+            )
+              return;
+            latestArchivedRefreshRef.current = requestRevision;
+            setArchivedRows(page.rooms);
+          })
+          .catch(() => {});
       }
-      if (activeResult.ok) {
-        replaceAllRooms(activeResult.value.rooms, requestRevision);
-      }
-      if (archivedResult.ok) {
-        setArchivedRows(archivedResult.value.rooms);
-      }
-      if (pendingResult.ok) {
-        setPendingRows(pendingResult.value);
-      }
+      void fetchSidebarRoomCollection("invitations")
+        .then((invitations) => {
+          if (
+            isCancelled() ||
+            !invitations ||
+            requestRevision < latestInvitationsRefreshRef.current
+          )
+            return;
+          latestInvitationsRefreshRef.current = requestRevision;
+          setPendingRows(invitations);
+        })
+        .catch(() => {});
     },
-    [replaceAllRooms],
+    [hasOrganization, replaceAllRooms],
   );
 
   useEffect(() => {
@@ -190,31 +177,21 @@ export function useOrganizationChatRooms({
 
     let cancelled = false;
 
-    const refreshRooms = async () => {
-      const requestRevision = beginRoomAttentionRefresh();
-      const data = await fetchSidebarRoomData(hasOrganization);
-      if (cancelled || requestRevision < latestAppliedRefreshRef.current) {
-        return;
-      }
-      applySidebarRoomData(data, requestRevision);
-    };
+    const refresh = () => refreshRooms(() => cancelled);
 
     // Mobile sheet remounts the list with stale RSC props; refresh immediately
     // so Core can replace attention from earlier visits and other tabs.
-    void refreshRooms();
+    refresh();
 
-    const intervalId = window.setInterval(
-      refreshRooms,
-      ORGANIZATION_CHAT_POLL_MS,
-    );
-    window.addEventListener("focus", refreshRooms);
+    const intervalId = window.setInterval(refresh, ORGANIZATION_CHAT_POLL_MS);
+    window.addEventListener("focus", refresh);
 
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshRooms);
+      window.removeEventListener("focus", refresh);
     };
-  }, [applySidebarRoomData, hasOrganization, organizationId, paintOnly]);
+  }, [currentUserId, organizationId, paintOnly, refreshRooms]);
 
   useEffect(() => {
     if (paintOnly) {
@@ -269,6 +246,8 @@ export function useOrganizationChatRooms({
         .detail;
       const removedRoomId = detail?.removedRoomId;
       if (removedRoomId) {
+        latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
+        latestArchivedRefreshRef.current = latestAppliedRefreshRef.current;
         setRoomRows((current) =>
           applyRoomReadOverlays(
             current.filter((row) => row.id !== removedRoomId),
@@ -286,13 +265,7 @@ export function useOrganizationChatRooms({
         return;
       }
 
-      const requestRevision = beginRoomAttentionRefresh();
-      void fetchSidebarRoomData(hasOrganization).then((data) => {
-        if (cancelled || requestRevision < latestAppliedRefreshRef.current) {
-          return;
-        }
-        applySidebarRoomData(data, requestRevision);
-      });
+      refreshRooms(() => cancelled);
     };
 
     window.addEventListener(
@@ -306,7 +279,7 @@ export function useOrganizationChatRooms({
         handleRoomsChanged,
       );
     };
-  }, [applySidebarRoomData, hasOrganization, paintOnly, upsertRoomToTop]);
+  }, [currentUserId, organizationId, paintOnly, refreshRooms, upsertRoomToTop]);
 
   useEffect(() => {
     if (paintOnly) {
