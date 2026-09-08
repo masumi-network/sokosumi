@@ -1,4 +1,5 @@
 import CoreAPI
+import ImageIO
 import SokosumiAuth
 import SokosumiChat
 import SwiftUI
@@ -374,25 +375,30 @@ private struct CircleAvatar: View {
   let name: String
   var size: CGFloat = DirectRoomAvatarStack.faceSize
 
+  @Environment(\.displayScale) private var displayScale
+  @State private var cgImage: CGImage?
+
   var body: some View {
     fill
       .frame(width: size, height: size)
+      .compositingGroup()
       .clipShape(Circle())
+      .task(id: "\(imageURL ?? "")-\(size)-\(displayScale)") {
+        cgImage = await loadAvatarCGImage(
+          urlString: imageURL,
+          pointSize: size,
+          scale: displayScale
+        )
+      }
   }
 
   @ViewBuilder
   private var fill: some View {
-    if let urlString = imageURL, let url = URL(string: urlString) {
-      AsyncImage(url: url) { phase in
-        switch phase {
-        case let .success(image):
-          image
-            .resizable()
-            .scaledToFill()
-        default:
-          initialsView
-        }
-      }
+    if let cgImage {
+      Image(decorative: cgImage, scale: displayScale)
+        .resizable()
+        .interpolation(.high)
+        .scaledToFill()
     } else {
       initialsView
     }
@@ -406,6 +412,40 @@ private struct CircleAvatar: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .background(Circle().fill(Color.accentColor))
   }
+}
+
+/// Decode a thumbnail at `pointSize * scale` pixels so 20pt faces stay
+/// sharp on Retina. `AsyncImage` tags the bitmap as 1x and looks soft.
+private func loadAvatarCGImage(
+  urlString: String?,
+  pointSize: CGFloat,
+  scale: CGFloat
+) async -> CGImage? {
+  guard let urlString, let url = URL(string: urlString) else { return nil }
+  guard let (data, response) = try? await URLSession.shared.data(from: url) else {
+    return nil
+  }
+  if let http = response as? HTTPURLResponse, !(200 ..< 300).contains(http.statusCode) {
+    return nil
+  }
+  let maxPixel = max(pointSize * scale, 1)
+  return await Task.detached(priority: .utility) {
+    avatarThumbnail(data: data, maxPixel: maxPixel)
+  }.value
+}
+
+private func avatarThumbnail(data: Data, maxPixel: CGFloat) -> CGImage? {
+  let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
+  guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions as CFDictionary) else {
+    return nil
+  }
+  let options: [CFString: Any] = [
+    kCGImageSourceCreateThumbnailFromImageAlways: true,
+    kCGImageSourceCreateThumbnailWithTransform: true,
+    kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+    kCGImageSourceShouldCacheImmediately: true
+  ]
+  return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
 }
 
 private func avatarInitials(from name: String) -> String {
