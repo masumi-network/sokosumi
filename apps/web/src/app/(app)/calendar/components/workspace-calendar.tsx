@@ -257,7 +257,7 @@ function CalendarEvent({
             source: sourceName,
             task: item.taskName,
           })}
-          className="bg-primary/10 text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium"
+          className="bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2"
           type="button"
         >
           <SourceMarker decorative source={source} sourceName={sourceName} />
@@ -329,18 +329,12 @@ function CalendarView({
 
   function hideSlotHighlight() {
     if (slotHighlightRef.current) {
-      slotHighlightRef.current.style.display = "none";
+      slotHighlightRef.current.style.opacity = "0";
     }
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    if (
-      !canCreate ||
-      view === "agenda" ||
-      event.pointerType === "touch" ||
-      (event.target instanceof Element &&
-        event.target.closest("a, button, [role='button']"))
-    ) {
+    if (!canCreate || view === "agenda" || event.pointerType === "touch") {
       hideSlotHighlight();
       return;
     }
@@ -369,9 +363,9 @@ function CalendarView({
     const calendarBounds = event.currentTarget.getBoundingClientRect();
     const dayBounds = dayCell.getBoundingClientRect();
     const verticalBounds = timeSlot?.getBoundingClientRect() ?? dayBounds;
-    highlight.style.display = "block";
     highlight.style.height = `${verticalBounds.height}px`;
     highlight.style.left = `${dayBounds.left - calendarBounds.left + event.currentTarget.scrollLeft}px`;
+    highlight.style.opacity = "1";
     highlight.style.top = `${verticalBounds.top - calendarBounds.top + event.currentTarget.scrollTop}px`;
     highlight.style.width = `${dayBounds.width}px`;
   }
@@ -432,10 +426,10 @@ function CalendarView({
       {canCreate && view !== "agenda" ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute z-10 bg-primary-quaternary ring-1 ring-primary-tertiary ring-inset"
+          className="pointer-events-none absolute z-10 bg-primary-quaternary opacity-0 ring-1 ring-primary-tertiary ring-inset motion-safe:transition-opacity motion-safe:duration-150 motion-safe:ease-out"
           data-testid="calendar-slot-highlight"
           ref={slotHighlightRef}
-          style={{ display: "none" }}
+          style={{ opacity: 0 }}
         />
       ) : null}
     </div>

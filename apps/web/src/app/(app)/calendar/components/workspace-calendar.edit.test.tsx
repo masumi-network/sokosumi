@@ -381,7 +381,7 @@ describe("WorkspaceCalendar editing", () => {
     expect(props.plugins).toContain(interactionPluginMock);
   });
 
-  it("highlights only the hovered week slot and clears it on click", async () => {
+  it("eases the hovered week slot and event highlight, then clears it", async () => {
     const user = userEvent.setup();
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&view=week">
@@ -399,6 +399,9 @@ describe("WorkspaceCalendar editing", () => {
     const timeSlot = within(calendar).getByTestId("hover-time-slot");
     const hoverTarget = within(calendar).getByTestId("hover-target");
     const highlight = within(calendar).getByTestId("calendar-slot-highlight");
+    const event = within(calendar).getByRole("button", {
+      name: "Prepare release notes, Release planning",
+    });
 
     Object.defineProperty(document, "elementsFromPoint", {
       configurable: true,
@@ -441,22 +444,35 @@ describe("WorkspaceCalendar editing", () => {
     fireEvent.pointerMove(hoverTarget, { clientX: 175, clientY: 225 });
 
     expect(highlight).toHaveStyle({
-      display: "block",
       height: "20px",
       left: "100px",
+      opacity: "1",
       top: "120px",
       width: "100px",
     });
+    expect(highlight).toHaveClass(
+      "motion-safe:transition-opacity",
+      "motion-safe:duration-150",
+      "motion-safe:ease-out",
+    );
+    expect(event).toHaveClass(
+      "hover:bg-primary/20",
+      "focus-visible:bg-primary/20",
+      "motion-safe:transition-colors",
+      "motion-safe:duration-150",
+      "motion-safe:ease-out",
+    );
 
     fireEvent.pointerLeave(calendar);
-    expect(highlight).toHaveStyle({ display: "none" });
+    expect(highlight).toHaveStyle({ opacity: "0" });
 
-    fireEvent.pointerMove(hoverTarget, { clientX: 175, clientY: 225 });
+    fireEvent.pointerMove(event, { clientX: 175, clientY: 225 });
+    expect(highlight).toHaveStyle({ opacity: "1" });
 
     await user.click(
       within(calendar).getByRole("button", { name: "empty calendar slot" }),
     );
-    expect(highlight).toHaveStyle({ display: "none" });
+    expect(highlight).toHaveStyle({ opacity: "0" });
   });
 
   it("does not render a slot highlight for an unschedulable calendar", () => {
