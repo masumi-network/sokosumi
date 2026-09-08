@@ -92,15 +92,8 @@ function mergeStringContentWhenNoTextLikeParts(
  *
  * String `content` is merged ahead of structured items when those items omit
  * any text-like part (attachment-only arrays).
- *
- * @param stringContent - `"synthetic-text-part"` wraps string `content` for
- *   downstream normalization (e.g. `extractMessageText`). `"omit"` skips
- *   string promotion so persistable UI metadata does not mirror plain strings.
  */
-function readMessagePartItems(
-  message: Record<string, unknown>,
-  stringContent: "synthetic-text-part" | "omit",
-): unknown[] {
+function readRawMessagePartItems(message: Record<string, unknown>): unknown[] {
   const content = "content" in message ? message.content : undefined;
   const parts = "parts" in message ? message.parts : undefined;
 
@@ -114,7 +107,7 @@ function readMessagePartItems(
     return mergeStringContentWhenNoTextLikeParts(parts, content);
   }
 
-  if (stringContent === "synthetic-text-part" && typeof content === "string") {
+  if (typeof content === "string") {
     return [{ type: "text", text: content }];
   }
 
@@ -127,16 +120,6 @@ function readMessagePartItems(
   }
 
   return [];
-}
-
-function readRawMessagePartItems(message: Record<string, unknown>): unknown[] {
-  return readMessagePartItems(message, "synthetic-text-part");
-}
-
-function readPersistableUiPartItems(
-  message: Record<string, unknown>,
-): unknown[] {
-  return readMessagePartItems(message, "omit");
 }
 
 function normalizeTextPart(
@@ -284,86 +267,6 @@ export function extractMessageText(message: Record<string, unknown>): string {
     })
     .filter(Boolean)
     .join("");
-}
-
-export function extractPersistableUiParts(
-  message: Record<string, unknown>,
-): PersistedChatUiPart[] {
-  return readPersistableUiPartItems(message)
-    .map((part) => normalizePersistedChatUiPart(part))
-    .filter((part): part is PersistedChatUiPart => part !== null);
-}
-
-export function hasModelVisibleMessageContent(
-  message: Record<string, unknown>,
-): boolean {
-  if (extractMessageText(message).trim().length > 0) {
-    return true;
-  }
-
-  return extractPersistableUiParts(message).some((part) => {
-    if (part.type === "file") {
-      return true;
-    }
-
-    return part.text.trim().length > 0;
-  });
-}
-
-function buildTitleSourceFromFilePart(part: PersistedChatUiFilePart): string {
-  const filename = part.filename?.trim();
-  if (filename) {
-    return filename;
-  }
-
-  if (part.mediaType.toLowerCase().startsWith("image/")) {
-    return "Image message";
-  }
-
-  try {
-    const url = new URL(part.url);
-    const lastPathSegment = url.pathname.split("/").filter(Boolean).pop();
-    return lastPathSegment && lastPathSegment.length > 0
-      ? lastPathSegment
-      : url.hostname;
-  } catch {
-    return "File message";
-  }
-}
-
-export function buildMessageTitleSource(
-  message: Record<string, unknown>,
-): string | null {
-  const extractedText = extractMessageText(message).trim();
-  if (extractedText.length > 0) {
-    return extractedText;
-  }
-
-  for (const uiPart of extractPersistableUiParts(message)) {
-    if (uiPart.type === "file") {
-      return buildTitleSourceFromFilePart(uiPart);
-    }
-
-    const partText = uiPart.text.trim();
-    if (partText.length > 0) {
-      return partText;
-    }
-  }
-
-  return null;
-}
-
-/** Reasoning segments from structured `content` / `parts` (for persisting `metadata.reasoning`). */
-export function extractReasoningPartsFromMessage(
-  message: Record<string, unknown>,
-): PersistedChatUiReasoningPart[] {
-  return readRawMessagePartItems(message)
-    .map((part) =>
-      part && typeof part === "object"
-        ? normalizeReasoningPart(part as Record<string, unknown>)
-        : null,
-    )
-    .filter((part): part is PersistedChatUiReasoningPart => part !== null);
 }
 
 export function extractUiMessageParts(

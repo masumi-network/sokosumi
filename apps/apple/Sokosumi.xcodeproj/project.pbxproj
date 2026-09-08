@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		E172F750304F3FBD00C517E4 /* CoreAPI in Frameworks */ = {isa = PBXBuildFile; productRef = E172F751304F3FBD00C517E4 /* CoreAPI */; };
+		E172F755304F3FBD00C517E4 /* SokosumiAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E172F754304F3FBD00C517E4 /* SokosumiAuth */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E172F750304F3FBD00C517E4 /* CoreAPI in Frameworks */,
+				E172F755304F3FBD00C517E4 /* SokosumiAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +73,7 @@
 			name = Sokosumi;
 			packageProductDependencies = (
 				E172F751304F3FBD00C517E4 /* CoreAPI */,
+				E172F754304F3FBD00C517E4 /* SokosumiAuth */,
 			);
 			productName = Sokosumi;
 			productReference = E172F721304F3FBC00C517E4 /* Sokosumi.app */;
@@ -102,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				E172F752304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/CoreAPI" */,
+				E172F753304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiAuth" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E172F722304F3FBC00C517E4 /* Products */;
@@ -264,10 +268,8 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Sokosumi;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sokosumi-Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -300,10 +302,8 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Sokosumi;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sokosumi-Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -352,6 +352,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/CoreAPI;
 		};
+		E172F753304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiAuth" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SokosumiAuth;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -359,6 +363,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E172F752304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/CoreAPI" */;
 			productName = CoreAPI;
+		};
+		E172F754304F3FBD00C517E4 /* SokosumiAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E172F753304F3FBD00C517E4 /* XCLocalSwiftPackageReference "Packages/SokosumiAuth" */;
+			productName = SokosumiAuth;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
