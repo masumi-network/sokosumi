@@ -334,6 +334,10 @@ describe("RoomsClient notification deep link", () => {
     vi.mocked(getRoomMessageAction).mockReset();
     vi.mocked(getRoomThreadAction).mockReset();
     vi.mocked(listRoomMessagesAction).mockReset();
+    // Reset too, so a test cannot be satisfied by an earlier test's call.
+    vi.mocked(listThreadMessagesAction).mockReset();
+    vi.mocked(markThreadReadAction).mockReset();
+    vi.mocked(toast.error).mockReset();
     vi.mocked(listRoomMessagesAction).mockResolvedValue({
       ok: true as const,
       value: { messages: [], nextCursor: null },
