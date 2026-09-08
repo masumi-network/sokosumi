@@ -100,6 +100,15 @@ private func ephemeralState(
   return (state, AuthState(store: MemoryTokenStore()), transport, defaults)
 }
 
+/// Settles the fire-and-forget transcript tasks `openRoom` / `loadOlder`
+/// spawn, so stubbed responses are consumed in order. Every load in these
+/// tests must be followed by one before the next load or op assertion.
+private func waitForTranscriptIdle(_ state: WorkspaceState) async {
+  for _ in 0 ..< 1000 where state.transcriptLoading || state.transcriptLoadingOlder {
+    await Task.yield()
+  }
+}
+
 struct WorkspaceStateTests {
   @Test func authInitSkipsTokenStoreRestoreUnderTestRunner() {
     let store = LoadCountingStore()
@@ -152,14 +161,10 @@ struct WorkspaceStateTests {
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0, name: "launch"))
     ])
     await state.reload(auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(auth: auth, option: org)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     #expect(state.selectionId == "org_1")
     #expect(state.rooms.map(\.name) == ["launch"])
     #expect(transport.operationIDs.suffix(4) == [
@@ -185,9 +190,7 @@ struct WorkspaceStateTests {
       """)
     ])
     await state.reload(auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(auth: auth, option: org)
     #expect(state.selectionId == "personal")
@@ -213,9 +216,7 @@ struct WorkspaceStateTests {
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0, name: "launch"))
     ])
     await state.reload(auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     let org = try #require(state.options.first { $0.id == "org_1" })
     let personal = try #require(state.options.first { $0.id == "personal" })
     state.select(org, auth: auth)
@@ -223,9 +224,7 @@ struct WorkspaceStateTests {
     for _ in 0 ..< 1000 where state.roomsLoading {
       await Task.yield()
     }
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     #expect(state.selectionId == "org_1")
     #expect(state.rooms.map(\.name) == ["launch"])
     #expect(transport.operationIDs.filter { $0.hasPrefix("put/") }.count == 1)
@@ -247,9 +246,7 @@ struct WorkspaceStateTests {
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0))
     ])
     await state.reload(auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(auth: auth, option: org)
     #expect(SavedWorkspaceSelection(defaults: defaults).load() == "org_1")
@@ -285,9 +282,7 @@ struct WorkspaceStateTests {
       """)
     ])
     await state.reload(auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(auth: auth, option: org)
     #expect(state.selectionId == "personal")
@@ -317,17 +312,13 @@ struct WorkspaceStateTests {
       (200, roomReadBody(id: roomID, unread: 0))
     ])
     await state.reload(auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     // Launch auto-opens the first room, preserving its unread from the DTO.
     #expect(state.selectedRoomId == roomID)
     #expect(state.rooms.first?.unreadCount == 3)
     let room = try #require(state.rooms.first)
     state.openRoom(room, auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     #expect(state.transcriptRoomId == roomID)
     #expect(state.transcriptMessages.map(\.content) == ["hello"])
     #expect(state.transcriptError == nil)
@@ -353,17 +344,13 @@ struct WorkspaceStateTests {
       historyFailure
     ])
     await state.reload(auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     // Launch auto-open fails the same way: error shown, unread kept.
     #expect(state.selectedRoomId == roomID)
     #expect(state.rooms.first?.unreadCount == 3)
     let room = try #require(state.rooms.first)
     state.openRoom(room, auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     #expect(state.transcriptMessages.isEmpty)
     #expect(state.transcriptError != nil)
     #expect(state.rooms.first?.unreadCount == 3)
@@ -418,17 +405,41 @@ struct WorkspaceStateTests {
       (200, roomReadBody(id: secondID, unread: 0))
     ])
     await state.reload(auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     state.selectRoom(secondID, auth: auth)
-    for _ in 0 ..< 1000 where state.transcriptLoading {
-      await Task.yield()
-    }
+    await waitForTranscriptIdle(state)
     #expect(state.selectedRoomId == secondID)
     #expect(SavedRoomSelection(defaults: defaults).load() == secondID)
     #expect(state.transcriptRoomId == secondID)
     #expect(state.transcriptMessages.map(\.content) == ["hi"])
+  }
+
+  @Test func failedOlderPageKeepsResolvedHistory() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440033"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, unreadRoomsBody(id: roomID, unread: 1)),
+      (200, transcriptPageBody(messages: [transcriptMessage(
+        id: "550e8400-e29b-41d4-a716-446655440034",
+        content: "newest"
+      )], nextCursor: "cursor-1")),
+      (200, roomReadBody(id: roomID, unread: 0)),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/messages","method":"GET"}}
+      """)
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptHasMore)
+    state.loadOlderMessages(auth: auth)
+    await waitForTranscriptIdle(state)
+    // Resolved history stays; the failure surfaces as a banner instead.
+    #expect(state.transcriptMessages.map(\.content) == ["newest"])
+    #expect(state.transcriptError != nil)
+    #expect(state.transcriptHasMore)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
 }
 

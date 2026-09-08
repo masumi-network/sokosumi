@@ -120,14 +120,12 @@ final class WorkspaceState: ObservableObject {
 
   private func applyRoomSelection(_ id: String?, auth: AuthState) {
     selectedRoomId = id
-    if let id {
-      savedRoom.save(id)
-    }
-    if let room = rooms.first(where: { $0.id == id }) {
-      openRoom(room, auth: auth)
-    } else {
+    guard let id, let room = rooms.first(where: { $0.id == id }) else {
       clearTranscript()
+      return
     }
+    savedRoom.save(id)
+    openRoom(room, auth: auth)
   }
 
   /// Keep a room selected whenever rooms exist: the saved room when it is
