@@ -55,25 +55,32 @@ vi.mock("@/components/design-md", () => ({
   DESIGN_MD_TRANSLATION_NAMESPACE: "App.DesignMd",
   DesignMdUploadTrigger: ({
     onSaved,
+    onUploadingChange,
   }: {
     onSaved?: (value: {
       extractionId: string | null;
       previewUrl: string | null;
       url: string;
     }) => void;
+    onUploadingChange?: (isUploading: boolean) => void;
   }) => (
-    <button
-      type="button"
-      onClick={() =>
-        onSaved?.({
-          extractionId: null,
-          previewUrl: null,
-          url: "https://blob.example/uploaded/DESIGN.md",
-        })
-      }
-    >
-      Upload existing
-    </button>
+    <>
+      <button type="button" onClick={() => onUploadingChange?.(true)}>
+        Start upload
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onSaved?.({
+            extractionId: null,
+            previewUrl: null,
+            url: "https://blob.example/uploaded/DESIGN.md",
+          })
+        }
+      >
+        Upload existing
+      </button>
+    </>
   ),
   useDesignMdGeneration: () => ({
     errorMessage: null,
@@ -242,5 +249,19 @@ describe("ProjectBrandCard", () => {
         "Add a project website before generating brand context.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("blocks generate while a DESIGN.md upload is in flight", async () => {
+    const user = userEvent.setup();
+    renderBrandDashboard({ designMd: null });
+
+    await openBrandMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: /Upload/ }));
+    await user.click(screen.getByRole("button", { name: "Start upload" }));
+
+    await openBrandMenu(user);
+    expect(
+      screen.getByRole("menuitem", { name: /Generate from website/ }),
+    ).toHaveAttribute("data-disabled");
   });
 });
