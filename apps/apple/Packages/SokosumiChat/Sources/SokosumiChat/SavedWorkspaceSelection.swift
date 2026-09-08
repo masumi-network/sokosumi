@@ -4,9 +4,8 @@ import Foundation
 /// Persists the selected workspace across launches (per Mac, via
 /// UserDefaults). There is no Core GET for the preference, so the server
 /// value can't be read back — the local id wins when it still exists,
-/// otherwise the default applies. A stale id from another account simply
-/// misses and falls back.
-/// Not Sendable (`UserDefaults` isn't): only touch from the main actor.
+/// otherwise the default applies. Sign-out must `clear()` so a shared Mac
+/// does not hand the next account the previous user's workspace.
 public struct SavedWorkspaceSelection {
   private let defaults: UserDefaults
   private let key = "sokosumi.selectedWorkspaceId"

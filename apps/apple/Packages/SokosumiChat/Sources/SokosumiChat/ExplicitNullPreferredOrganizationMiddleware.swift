@@ -22,15 +22,20 @@ public struct ExplicitNullPreferredOrganizationMiddleware: ClientMiddleware {
     operationID: String,
     next: @Sendable (HTTPRequest, HTTPBody?, URL) async throws -> (HTTPResponse, HTTPBody?)
   ) async throws -> (HTTPResponse, HTTPBody?) {
-    guard operationID == Self.operationID,
-      let body,
-      let bytes = try? await Array(collecting: body, upTo: 1_000_000),
-      let json = try? JSONSerialization.jsonObject(with: Data(bytes)),
-      let dict = json as? [String: Any],
-      dict.isEmpty
-    else {
+    guard operationID == Self.operationID, let body else {
       return try await next(request, body, baseURL)
     }
-    return try await next(request, HTTPBody(#"{"organizationId":null}"#), baseURL)
+    // Collect once, then always rebuild. Passing the original body after
+    // collecting empties a non-replayable stream (org switch would PUT {}).
+    let bytes = try await Array(collecting: body, upTo: 1_000_000)
+    let outgoing: HTTPBody
+    if let json = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
+      json.isEmpty
+    {
+      outgoing = HTTPBody(#"{"organizationId":null}"#)
+    } else {
+      outgoing = HTTPBody(bytes)
+    }
+    return try await next(request, outgoing, baseURL)
   }
 }

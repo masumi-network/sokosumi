@@ -151,25 +151,57 @@ struct WorkspaceStateTests {
     await state.switchRooms(auth: auth, option: org)
     #expect(state.selectionId == "personal")
     #expect(state.rooms.map(\.name) == ["general"])
-    if case .failed = state.phase {
-    } else {
-      Issue.record("expected failed phase, got \(state.phase)")
+    #expect(state.phase == .ready)
+    #expect(state.switchError != nil)
+  }
+
+  @Test func selectWhileLoadingIgnoresSecondSwitch() async throws {
+    let (state, auth, transport) = ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general"])),
+      (200, """
+      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+      """),
+      (200, roomsBody(names: ["launch"])),
+    ])
+    await state.reload(auth: auth)
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    let personal = try #require(state.options.first { $0.id == "personal" })
+    state.select(org, auth: auth)
+    state.select(personal, auth: auth)
+    for _ in 0..<1_000 where state.roomsLoading {
+      await Task.yield()
     }
+    #expect(state.selectionId == "org_1")
+    #expect(state.rooms.map(\.name) == ["launch"])
+    #expect(transport.operationIDs.filter { $0.hasPrefix("put/") }.count == 1)
   }
 
   @Test func resetClearsEverything() async throws {
+    let defaults = UserDefaults(suiteName: "sokosumi-workspace-state-tests")!
     let (state, auth, _) = ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
+      (200, """
+      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+      """),
+      (200, roomsBody(names: ["launch"])),
     ])
     await state.reload(auth: auth)
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    await state.switchRooms(auth: auth, option: org)
+    #expect(SavedWorkspaceSelection(defaults: defaults).load() == "org_1")
     #expect(state.phase == .ready)
     state.reset()
     #expect(state.phase == .idle)
     #expect(state.selectionId == nil)
     #expect(state.rooms.isEmpty)
     #expect(state.currentUserName.isEmpty)
+    #expect(state.switchError == nil)
+    #expect(SavedWorkspaceSelection(defaults: defaults).load() == nil)
   }
 }

@@ -70,6 +70,11 @@ private func orgSlugHeader(_ request: HTTPRequest) -> String? {
   return request.headerFields[name]
 }
 
+private func requestQuery(_ request: HTTPRequest) -> String {
+  guard let path = request.path, let qIndex = path.firstIndex(of: "?") else { return "" }
+  return String(path[path.index(after: qIndex)...])
+}
+
 private func makeClient(_ transport: ScriptedTransport) -> Client {
   Client.connecting(to: URL(string: "https://core.example/v1")!, transport: transport)
 }
@@ -143,6 +148,8 @@ struct ChatServiceTests {
     #expect(rooms[1].unreadMentionCount == 3)
     #expect(transport.requests.count == 2)
     #expect(transport.requests.allSatisfy { orgSlugHeader($0.request) == "acme" })
+    #expect(requestQuery(transport.requests[0].request).contains("cursor=") == false)
+    #expect(requestQuery(transport.requests[1].request).contains("cursor=cursor-2"))
   }
 
   @Test func fetchOrganizationsReturnsList() async throws {
@@ -196,6 +203,21 @@ struct ChatServiceTests {
     let body = try #require(transport.bodies.first)
     let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
     #expect(json["organizationId"] as? String == "org_1")
+  }
+
+  @Test func documented500SurfacesFriendlyMessage() async throws {
+    let transport = ScriptedTransport([(500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      """)])
+    do {
+      try await ChatService().setPreferredOrganization(client: makeClient(transport), organizationId: "org_1")
+      Issue.record("expected an error")
+    } catch let error as ChatServiceError {
+      let message = String(describing: error)
+      #expect(message.contains("500"))
+      #expect(message.contains("boom"))
+      #expect(!message.contains("headerFields"))
+    }
   }
 
   @Test func undocumented422SurfacesFriendlyMessage() async throws {
