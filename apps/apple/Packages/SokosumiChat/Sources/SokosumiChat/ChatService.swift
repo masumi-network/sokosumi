@@ -25,10 +25,14 @@ public struct ChatService: Sendable {
       return try ok.body.json.data
     case .unauthorized(let unauthorized):
       throw ChatServiceError.unauthorized(try unauthorized.body.json.message)
+    case .forbidden(let forbidden):
+      throw ChatServiceError.unprocessable(statusCode: 403, message: try forbidden.body.json.message)
+    case .notFound(let notFound):
+      throw ChatServiceError.unprocessable(statusCode: 404, message: try notFound.body.json.message)
+    case .internalServerError(let serverError):
+      throw ChatServiceError.unprocessable(statusCode: 500, message: try serverError.body.json.message)
     case .undocumented(let statusCode, let payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
-    default:
-      throw ChatServiceError.unexpectedResponse(String(describing: response))
     }
   }
 
@@ -42,10 +46,14 @@ public struct ChatService: Sendable {
       return try ok.body.json.data
     case .unauthorized(let unauthorized):
       throw ChatServiceError.unauthorized(try unauthorized.body.json.message)
+    case .forbidden(let forbidden):
+      throw ChatServiceError.unprocessable(statusCode: 403, message: try forbidden.body.json.message)
+    case .notFound(let notFound):
+      throw ChatServiceError.unprocessable(statusCode: 404, message: try notFound.body.json.message)
+    case .internalServerError(let serverError):
+      throw ChatServiceError.unprocessable(statusCode: 500, message: try serverError.body.json.message)
     case .undocumented(let statusCode, let payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
-    default:
-      throw ChatServiceError.unexpectedResponse(String(describing: response))
     }
   }
 
@@ -65,10 +73,16 @@ public struct ChatService: Sendable {
       return
     case .unauthorized(let unauthorized):
       throw ChatServiceError.unauthorized(try unauthorized.body.json.message)
+    case .badRequest(let badRequest):
+      throw ChatServiceError.unprocessable(statusCode: 400, message: try badRequest.body.json.message)
+    case .forbidden(let forbidden):
+      throw ChatServiceError.unprocessable(statusCode: 403, message: try forbidden.body.json.message)
+    case .notFound(let notFound):
+      throw ChatServiceError.unprocessable(statusCode: 404, message: try notFound.body.json.message)
+    case .internalServerError(let serverError):
+      throw ChatServiceError.unprocessable(statusCode: 500, message: try serverError.body.json.message)
     case .undocumented(let statusCode, let payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
-    default:
-      throw ChatServiceError.unexpectedResponse(String(describing: response))
     }
   }
 
@@ -81,10 +95,14 @@ public struct ChatService: Sendable {
       return try ok.body.json.data
     case .unauthorized(let unauthorized):
       throw ChatServiceError.unauthorized(try unauthorized.body.json.message)
+    case .forbidden(let forbidden):
+      throw ChatServiceError.unprocessable(statusCode: 403, message: try forbidden.body.json.message)
+    case .notFound(let notFound):
+      throw ChatServiceError.unprocessable(statusCode: 404, message: try notFound.body.json.message)
+    case .internalServerError(let serverError):
+      throw ChatServiceError.unprocessable(statusCode: 500, message: try serverError.body.json.message)
     case .undocumented(let statusCode, let payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
-    default:
-      throw ChatServiceError.unexpectedResponse(String(describing: response))
     }
   }
 
@@ -172,10 +190,16 @@ public struct ChatService: Sendable {
         cursor = next
       case .unauthorized(let unauthorized):
         throw ChatServiceError.unauthorized(try unauthorized.body.json.message)
+      case .badRequest(let badRequest):
+        throw ChatServiceError.unprocessable(statusCode: 400, message: try badRequest.body.json.message)
+      case .forbidden(let forbidden):
+        throw ChatServiceError.unprocessable(statusCode: 403, message: try forbidden.body.json.message)
+      case .notFound(let notFound):
+        throw ChatServiceError.unprocessable(statusCode: 404, message: try notFound.body.json.message)
+      case .internalServerError(let serverError):
+        throw ChatServiceError.unprocessable(statusCode: 500, message: try serverError.body.json.message)
       case .undocumented(let statusCode, let payload):
         throw await unprocessableError(statusCode: statusCode, payload: payload)
-      default:
-        throw ChatServiceError.unexpectedResponse(String(describing: response))
       }
     }
     return rooms

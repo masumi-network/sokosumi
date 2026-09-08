@@ -108,12 +108,14 @@ struct SidebarRoomsTests {
     #expect(roomDisplayName(room, currentUserId: "me") == "general")
   }
 
-  @Test func attentionBadgesMentionsOnlyAndSuppressesMutedAndSelected() {
+  @Test func attentionBadgesMentionsOnlyAndSuppressesMutedNotSelected() {
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 0) == .init(bold: true, badgeCount: 0))
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 2) == .init(bold: true, badgeCount: 2))
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true) == .init(bold: true, badgeCount: 0))
     #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2, isMuted: true) == .init(bold: false, badgeCount: 0))
-    #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2, isSelected: true) == .init(bold: false, badgeCount: 0))
+    // Selection is not a read event (ADR 0026). List highlight must not
+    // clear leftover unread — this slice has no history-resolved mark-read.
+    #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2) == .init(bold: true, badgeCount: 2))
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0) == .init(bold: false, badgeCount: 0))
   }
 }

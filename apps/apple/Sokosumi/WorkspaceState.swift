@@ -32,6 +32,8 @@ final class WorkspaceState: ObservableObject {
   @Published private(set) var selectionId: String?
   @Published private(set) var rooms: [Components.Schemas.ChatRoom] = []
   @Published private(set) var roomsLoading = false
+  /// Switch/list failure while already `.ready`. Nil means the sidebar is fine.
+  @Published private(set) var switchError: String?
   @Published private(set) var currentUserId = ""
   @Published private(set) var currentUserName = ""
   @Published private(set) var currentUserEmail = ""
@@ -74,22 +76,27 @@ final class WorkspaceState: ObservableObject {
     selectionId = nil
     rooms = []
     roomsLoading = false
+    switchError = nil
     currentUserId = ""
     currentUserName = ""
     currentUserEmail = ""
     currentUserImageURL = nil
+    savedSelection.clear()
   }
 
   func select(_ option: WorkspaceOption, auth: AuthState) {
     guard option.id != selectionId else { return }
+    guard !roomsLoading else { return }
     // Header + rooms commit together after the switch succeeds, so a
     // failed PUT never leaves the new header over the old rooms.
+    roomsLoading = true
     Task { await switchRooms(auth: auth, option: option) }
   }
 
   func reload(auth: AuthState) async {
     phase = .loading
     rooms = []
+    switchError = nil
     guard let client = resolveClient(auth: auth) else {
       phase = .failed(message: "Sign-in is not configured.")
       return
@@ -103,10 +110,6 @@ final class WorkspaceState: ObservableObject {
       currentUserName = initial.currentUser.name
       currentUserEmail = initial.currentUser.email
       currentUserImageURL = initial.currentUser.image
-      guard initial.access.gate == .ready else {
-        phase = .blocked(gate: initial.access.gate)
-        return
-      }
       var built: [WorkspaceOption] = []
       if initial.access.hasPersonalWorkspace {
         built.append(.init(id: "personal", title: "Personal", workspace: .personal))
@@ -135,22 +138,28 @@ final class WorkspaceState: ObservableObject {
     roomsLoading = true
     defer { roomsLoading = false }
     guard let client = resolveClient(auth: auth) else {
-      phase = .failed(message: "Sign-in is not configured.")
+      switchError = "Sign-in is not configured."
       return
     }
     do {
       rooms = try await service.switchWorkspace(client: client, selection: option.workspace)
       selectionId = option.id
       savedSelection.save(option.id)
+      switchError = nil
     } catch let error as ChatServiceError {
-      handleServiceError(error, auth: auth, signedOutMessage: nil)
+      handleServiceError(error, auth: auth, signedOutMessage: nil, keepReady: true)
     } catch {
       NSLog("Sokosumi workspace switch failed: %{public}@", String(describing: error))
-      phase = .failed(message: friendlyMessage(for: error))
+      switchError = friendlyMessage(for: error)
     }
   }
 
-  private func handleServiceError(_ error: ChatServiceError, auth: AuthState, signedOutMessage: String?) {
+  private func handleServiceError(
+    _ error: ChatServiceError,
+    auth: AuthState,
+    signedOutMessage: String?,
+    keepReady: Bool = false
+  ) {
     switch error {
     case .blocked(let gate):
       phase = .blocked(gate: gate)
@@ -160,9 +169,19 @@ final class WorkspaceState: ObservableObject {
         phase = .failed(message: signedOutMessage)
       }
     case .unprocessable(let statusCode, let message):
-      phase = .failed(message: "Core rejected the request (\(statusCode)): \(message)")
-    case .unexpectedResponse(let response):
-      phase = .failed(message: "Unexpected Core response: \(response)")
+      let text = "Core rejected the request (\(statusCode)): \(message)"
+      if keepReady {
+        switchError = text
+      } else {
+        phase = .failed(message: text)
+      }
+    case .unexpectedResponse:
+      let text = "Couldn't complete the request. Try again."
+      if keepReady {
+        switchError = text
+      } else {
+        phase = .failed(message: text)
+      }
     }
   }
 }

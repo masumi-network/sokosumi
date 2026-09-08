@@ -143,6 +143,14 @@ struct ContentView: View {
           }
         }
         .listStyle(.sidebar)
+        if let switchError = workspaces.switchError {
+          Text(switchError)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+        }
         Divider()
         meSection
         }
@@ -209,10 +217,9 @@ struct ContentView: View {
       unreadCount: room.unreadCount,
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
-      isMuted: room.mutedAt != nil,
-      isSelected: room.id == selectedRoomId
+      isMuted: room.mutedAt != nil
     )
-    let label = Label {
+    return Label {
       Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
         .fontWeight(attention.bold ? .bold : .regular)
     } icon: {
@@ -220,10 +227,7 @@ struct ContentView: View {
         .foregroundStyle(.secondary)
     }
     .tag(room.id)
-    if attention.badgeCount > 0 {
-      return AnyView(label.badge(attention.badgeCount))
-    }
-    return AnyView(label)
+    .badge(attention.badgeCount)
   }
 
   /// "Me" section pinned to the bottom of the sidebar: account menu with
