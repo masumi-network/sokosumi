@@ -6361,10 +6361,12 @@
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
         "directMessage": "{authorName} hat dir eine Nachricht gesendet",
         "directMessages": "{count} Nachrichten von {authorName}",
-        "roomMessage": "{authorName} hat in {roomName} geschrieben",
-        "roomMessages": "{count} Nachrichten in {roomName}",
+        "roomMessage": "{authorName} hat im Kanal {roomName} geschrieben",
+        "roomMessages": "{count} Nachrichten im Kanal {roomName}",
         "roomMessageGroup": "{authorName} hat in der Gruppe {roomName} geschrieben",
-        "roomMessagesGroup": "{count} Nachrichten in der Gruppe {roomName}"
+        "roomMessagesGroup": "{count} Nachrichten in der Gruppe {roomName}",
+        "roomMessageTitle": "{authorName} im Kanal {roomName}",
+        "roomMessageGroupTitle": "{authorName} in der Gruppe {roomName}"
       }
     }
   },

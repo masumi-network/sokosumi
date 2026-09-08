@@ -25,6 +25,13 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomUserMember: {
       findMany: membershipFindManyMock,
     },
+    // The fan-out reads the message before it builds a preview, so a body
+    // deleted while it ran is not written back onto the notifications.
+    chatRoomMessage: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue({ deletedAt: null, content: "ship it" }),
+    },
   },
 }));
 
@@ -111,6 +118,7 @@ describe("emitChatDirectMessageNotifications", () => {
       roomName: "Alice",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       recipientUserIds: [PEER_ID, OTHER_ID],
@@ -134,6 +142,7 @@ describe("emitChatDirectMessageNotifications", () => {
       messageParams: {
         authorName: "Patrick",
         roomName: "Alice",
+        messagePreview: "ship it",
       },
       metadata: {
         messageId: MESSAGE_ID,
@@ -150,6 +159,7 @@ describe("emitChatDirectMessageNotifications", () => {
       roomName: "Alice",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       recipientUserIds: [PEER_ID, OTHER_ID],
@@ -167,6 +177,7 @@ describe("emitChatDirectMessageNotifications", () => {
       roomName: "Hannah",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: null,
       authorName: "Hannah",
       recipientUserIds: [PEER_ID],
@@ -179,6 +190,7 @@ describe("emitChatDirectMessageNotifications", () => {
         messageParams: {
           authorName: "Hannah",
           roomName: "Hannah",
+          messagePreview: "ship it",
         },
       }),
     );
@@ -190,6 +202,7 @@ describe("emitChatDirectMessageNotifications", () => {
       roomName: "Alice",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       recipientUserIds: [AUTHOR_ID],
@@ -208,6 +221,7 @@ describe("emitChatDirectMessageNotifications", () => {
         roomName: "Alice",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
+        content: "ship it",
         authorUserId: AUTHOR_ID,
         authorName: "Patrick",
         recipientUserIds: [PEER_ID, OTHER_ID],

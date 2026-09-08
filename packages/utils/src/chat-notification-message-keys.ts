@@ -41,3 +41,17 @@ export const CHAT_ROOM_MESSAGES_GROUP_MESSAGE_KEY =
 /** Several messages from the one person a direct room is with. */
 export const CHAT_DIRECT_MESSAGES_MESSAGE_KEY =
   "Notifications.Chat.directMessages";
+
+// The keys web titles a banner with, which Core never stores. A banner shows
+// the message itself, so the line that names the author and the room moves up
+// into the title and the words go underneath. The title is shorter than the
+// feed line because the operating system already prints the app name beside
+// it, and a title truncates before a body does.
+
+/** One message, titled with who wrote and where. */
+export const CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY =
+  "Notifications.Chat.roomMessageTitle";
+
+/** One message, in a room whose name is the list of who is in it. */
+export const CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY =
+  "Notifications.Chat.roomMessageGroupTitle";

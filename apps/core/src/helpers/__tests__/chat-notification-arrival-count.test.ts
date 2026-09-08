@@ -22,6 +22,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: { findUnique: async () => reader, findMany: async () => [reader] },
     chatRoomUserMember: { findMany: async () => [] },
+    chatRoomMessage: {
+      findUnique: async () => ({ content: "hello", deletedAt: null }),
+    },
     notification: {
       findFirst: async ({ where }: { where: Partial<Notification> }) =>
         rows.find((row) => matches(row, where)) ?? null,
@@ -74,6 +77,7 @@ async function emit(messageId: string, mentioned = true) {
     roomName: "General",
     organizationId: null,
     messageId,
+    content: "hello",
     authorUserId: "author",
     authorName: "Ada",
     mentionedUserIds: mentioned ? ["reader"] : [],

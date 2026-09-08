@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
-import { EditChannelDialog } from "../edit-channel-dialog";
+import { ShellOwnedEditChannelDialog } from "./edit-channel-dialog-harness";
 
 const { updateRoomActionMock } = vi.hoisted(() => ({
   updateRoomActionMock: vi.fn(),
@@ -130,7 +130,7 @@ describe("EditChannelDialog host roster payload", () => {
     const user = userEvent.setup();
 
     render(
-      <EditChannelDialog
+      <ShellOwnedEditChannelDialog
         channel={externalChannel()}
         members={[hostMember()]}
         coworkers={[soupie()]}
@@ -144,7 +144,7 @@ describe("EditChannelDialog host roster payload", () => {
         <button type="button" aria-label="editChannel">
           edit
         </button>
-      </EditChannelDialog>,
+      </ShellOwnedEditChannelDialog>,
     );
 
     await user.click(screen.getByRole("button", { name: "editChannel" }));
@@ -170,7 +170,7 @@ describe("EditChannelDialog host roster payload", () => {
     const user = userEvent.setup();
 
     render(
-      <EditChannelDialog
+      <ShellOwnedEditChannelDialog
         channel={externalChannel()}
         members={[hostMember()]}
         coworkers={[soupie()]}
@@ -184,7 +184,7 @@ describe("EditChannelDialog host roster payload", () => {
         <button type="button" aria-label="editChannel">
           edit
         </button>
-      </EditChannelDialog>,
+      </ShellOwnedEditChannelDialog>,
     );
 
     await user.click(screen.getByRole("button", { name: "editChannel" }));

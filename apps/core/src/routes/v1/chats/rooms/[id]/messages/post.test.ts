@@ -293,6 +293,7 @@ function coworkerOnlyDirectRoom() {
 
 function createdMessage(
   overrides: Partial<{
+    content: string;
     senderUserId: string | null;
     senderCoworkerId: string | null;
     senderSokoBotId: string | null;
@@ -314,7 +315,7 @@ function createdMessage(
     senderUserId: overrides.senderUserId ?? null,
     senderCoworkerId: overrides.senderCoworkerId ?? null,
     senderSokoBotId: overrides.senderSokoBotId ?? null,
-    content: "hello",
+    content: overrides.content ?? "hello",
     metadata: overrides.metadata ?? null,
     createdAt: new Date("2025-01-02T00:00:00.000Z"),
     editedAt: null,
@@ -465,7 +466,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
       });
       membershipFindManyMock.mockResolvedValue([{ userId: ALICE_ID }]);
       messageCreateMock.mockResolvedValue(
-        createdMessage({ senderCoworkerId: COWORKER_ID }),
+        createdMessage({
+          content: "you were assigned a task",
+          senderCoworkerId: COWORKER_ID,
+        }),
       );
 
       const app = createApp(coworkerAuthContext);
@@ -485,6 +489,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         roomName: "Hannah",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
+        content: "you were assigned a task",
         authorUserId: null,
         authorName: "Hannah",
         recipientUserIds: [ALICE_ID],
@@ -549,7 +554,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
         organizationId: "org_1",
       });
       messageCreateMock.mockResolvedValue(
-        createdMessage({ senderCoworkerId: COWORKER_ID }),
+        createdMessage({
+          content: "hello channel",
+          senderCoworkerId: COWORKER_ID,
+        }),
       );
 
       const app = createApp(coworkerAuthContext);
@@ -568,6 +576,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         roomKind: "channel",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
+        content: "hello channel",
         authorUserId: null,
         authorName: "Hannah",
       });
@@ -680,7 +689,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
       messageCreateMock.mockResolvedValue(
-        createdMessage({ senderUserId: USER_ID }),
+        createdMessage({ senderUserId: USER_ID, content: "hello @alice" }),
       );
 
       const app = createApp(userAuthContext);
@@ -696,6 +705,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
           roomId: ROOM_ID,
           roomKind: "channel",
           authorUserId: USER_ID,
+          // The body itself, because the preview is built from it downstream.
+          content: "hello @alice",
           memberUserIds: [USER_ID, ALICE_ID, BOB_ID],
           mentionedUserIds: [ALICE_ID],
         }),
@@ -891,6 +902,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       );
       messageCreateMock.mockResolvedValue(
         createdMessage({
+          content: `@${COWORKER_ID}:hannah hey @user_alice:alice`,
           senderUserId: USER_ID,
           mentionsAsSource: [
             {
@@ -934,6 +946,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         roomName: "general",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
+        content: `@${COWORKER_ID}:hannah hey @user_alice:alice`,
         authorUserId: USER_ID,
         authorName: "Patrick",
         mentionedUserIds: [ALICE_ID],
@@ -983,7 +996,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
       messageCreateMock.mockResolvedValue(
-        createdMessage({ senderUserId: USER_ID }),
+        createdMessage({
+          content: "hey, are you free?",
+          senderUserId: USER_ID,
+        }),
       );
 
       const app = createApp(userAuthContext);
@@ -1000,6 +1016,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         roomName: "Alice",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
+        content: "hey, are you free?",
         authorUserId: USER_ID,
         authorName: "Patrick",
         recipientUserIds: [ALICE_ID],
@@ -1153,7 +1170,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
       messageCreateMock.mockResolvedValue(
-        createdMessage({ senderUserId: USER_ID }),
+        createdMessage({
+          content: "**@all:all** please look",
+          senderUserId: USER_ID,
+        }),
       );
 
       const app = createApp(userAuthContext);
@@ -1179,6 +1199,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         roomName: "general",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
+        content: "**@all:all** please look",
         authorUserId: USER_ID,
         authorName: "Patrick",
         mentionedUserIds: expect.arrayContaining([ALICE_ID, BOB_ID]),

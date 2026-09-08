@@ -129,7 +129,7 @@ final class WorkspaceState: ObservableObject {
     } catch let error as ChatServiceError {
       handleServiceError(error, auth: auth, signedOutMessage: "Signed out.")
     } catch {
-      NSLog("Sokosumi workspace load failed: %{public}@", String(describing: error))
+      NSLog("Sokosumi workspace load failed: %@", String(describing: error))
       phase = .failed(message: friendlyMessage(for: error))
     }
   }
@@ -153,7 +153,7 @@ final class WorkspaceState: ObservableObject {
     } catch let error as ChatServiceError {
       handleServiceError(error, auth: auth, signedOutMessage: nil, keepReady: true)
     } catch {
-      NSLog("Sokosumi workspace switch failed: %{public}@", String(describing: error))
+      NSLog("Sokosumi workspace switch failed: %@", String(describing: error))
       switchError = friendlyMessage(for: error)
     }
   }
@@ -165,14 +165,14 @@ final class WorkspaceState: ObservableObject {
     keepReady: Bool = false
   ) {
     switch error {
-    case .blocked(let gate):
+    case let .blocked(gate):
       phase = .blocked(gate: gate)
-    case .unauthorized(let message):
+    case let .unauthorized(message):
       auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
       if let signedOutMessage {
         phase = .failed(message: signedOutMessage)
       }
-    case .unprocessable(let statusCode, let message):
+    case let .unprocessable(statusCode, message):
       let text = "Core rejected the request (\(statusCode)): \(message)"
       if keepReady {
         switchError = text

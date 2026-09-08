@@ -60,7 +60,9 @@ public func roomDisplayName(
 
 private func compareNameThenId(_ lhs: (String, String), _ rhs: (String, String)) -> Bool {
   let byName = lhs.0.localizedCompare(rhs.0)
-  if byName != .orderedSame { return byName == .orderedAscending }
+  if byName != .orderedSame {
+    return byName == .orderedAscending
+  }
   return lhs.1 < rhs.1
 }
 
@@ -88,9 +90,8 @@ public func partitionRoomsForSidebar(
   var external: [Components.Schemas.ChatRoom] = []
   for room in rooms {
     if room.kind == .channel,
-      let discoverability = room.discoverability,
-      discoverability == .external || discoverability == .matched
-    {
+       let discoverability = room.discoverability,
+       discoverability == .external || discoverability == .matched {
       external.append(room)
       continue
     }
@@ -120,15 +121,20 @@ public func compareRoomsByRecentActivity(
   _ rhs: Components.Schemas.ChatRoom
 ) -> Bool {
   let byMuted = mutedRank(lhs.mutedAt) - mutedRank(rhs.mutedAt)
-  if byMuted != 0 { return byMuted < 0 }
+  if byMuted != 0 {
+    return byMuted < 0
+  }
   let lhsPinned = lhs.starredAt != nil
   let rhsPinned = rhs.starredAt != nil
-  if lhsPinned != rhsPinned { return lhsPinned }
+  if lhsPinned != rhsPinned {
+    return lhsPinned
+  }
   let byDiscoverability = discoverabilityRank(lhs.discoverability) - discoverabilityRank(rhs.discoverability)
-  if byDiscoverability != 0 { return byDiscoverability < 0 }
+  if byDiscoverability != 0 {
+    return byDiscoverability < 0
+  }
   if lhsPinned, let lhsStarred = lhs.starredAt, let rhsStarred = rhs.starredAt,
-    lhsStarred != rhsStarred
-  {
+     lhsStarred != rhsStarred {
     return lhsStarred < rhsStarred
   }
   if lhs.updatedAt != rhs.updatedAt {

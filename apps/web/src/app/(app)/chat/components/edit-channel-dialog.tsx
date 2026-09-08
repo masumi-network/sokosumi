@@ -79,6 +79,8 @@ export function EditChannelDialog({
   canLeave,
   canInviteGuests = false,
   membersLoadFailed = false,
+  open,
+  onOpenChange: setOpen,
   children,
 }: {
   channel: ChatRoom;
@@ -100,13 +102,19 @@ export function EditChannelDialog({
    */
   canInviteGuests?: boolean;
   membersLoadFailed?: boolean;
+  /**
+   * The room shell owns the flag, because the dialog has two ways in: the
+   * title beside the room name, and a channel row's overflow menu, which
+   * cannot click that title and asks for the dialog on the URL instead.
+   */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   /** Single element for DialogTrigger asChild; must accept merged props and ref. */
   children: ReactElement;
 }) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const showGuestInvite =
     canInviteGuests &&
     channelDiscoverability(channel.discoverability) === "external";

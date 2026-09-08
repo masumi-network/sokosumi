@@ -19,6 +19,7 @@ import {
   shouldShowBrowserNotification,
 } from "@/lib/utils/browser-notification";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
+import { buildNotificationBannerContent } from "@/lib/utils/notification-banner";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import type { NotificationTarget } from "@/lib/utils/notification-service-worker";
@@ -191,25 +192,27 @@ export function NotificationToastListener({
         return;
       }
 
-      // The room's count where Core sent one, the row's own params otherwise.
-      // A chat banner holds the whole room and replaces the one standing, so
-      // it speaks for every message waiting there rather than for the arrival
-      // that raised it. Core sends the number because the push service worker
-      // renders the same banner for a closed app and can query nothing.
-      const message = formatMessage(notification.messageKey, {
+      // The combined room count overrides the count on its individual row.
+      const messageParams = {
         ...(notification.messageParams ?? {}),
         ...(notification.groupCount !== undefined && {
           count: notification.groupCount,
         }),
-      });
-
+      };
       if (showBrowser) {
         // The worker is the only thing that renders an OS banner (ADR-0023),
         // so a push carrying this same notification replaces this banner by
         // tag rather than stacking a second one beside it.
+        const banner = buildNotificationBannerContent({
+          messageKey: notification.messageKey,
+          messageParams,
+          appTitle: t("browserNotificationTitle"),
+          translate: (messageKey) => formatMessage(messageKey, messageParams),
+        });
+
         void showNotification({
-          title: t("browserNotificationTitle"),
-          body: message,
+          title: banner.title,
+          body: banner.body,
           target: toNotificationTarget(notification),
         }).then((shown) => {
           if (!shown) {
@@ -221,6 +224,11 @@ export function NotificationToastListener({
         });
         return;
       }
+
+      const message = formatMessage(
+        notification.messageKey,
+        notification.messageParams ?? {},
+      );
 
       toast(
         () => (

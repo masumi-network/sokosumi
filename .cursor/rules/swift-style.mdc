@@ -1,0 +1,24 @@
+---
+description: "Swift style for apps/apple: Kodeco guide as review baseline, SwiftFormat/SwiftLint configs as machine truth"
+globs:
+  - "apps/apple/**/*.swift"
+  - "apps/apple/.swiftlint.yml"
+  - "apps/apple/.swiftformat"
+---
+
+## Swift style (Apple clients)
+
+Human-review baseline is the [Kodeco Swift style guide](https://github.com/kodecocodes/swift-style-guide) (naming per the Swift API Design Guidelines, 2-space indent, no semicolons, omit redundant `self`, golden-path `guard`, comments explain why). It is a baseline, not law — the deviations below win.
+
+**Machine truth lives in the repo and CI enforces it:**
+
+- Formatting: `apps/apple/.swiftformat` (`mint run swiftformat .` to apply, `mint run swiftformat --lint .` to check)
+- Lint: `apps/apple/.swiftlint.yml` (`mint run swiftlint lint --strict`)
+- Both run from `apps/apple/` via Mint pins in `Mintfile`; both run as a blocking CI job on PRs touching `apps/apple/**`
+
+**Deliberate deviations from the Kodeco guide:**
+
+1. The guide is Swift-5-era and written for book/tutorial sample code. Swift 6 wins: strict concurrency (`Sendable`, checked `throws`), the `Testing` framework (`@Test`, `#expect`), and OpenAPI-generator call patterns (`.init(...)` inputs, `Components.Schemas.*`) stay as generated/idiomatic even where the guide is silent.
+2. Length caps are disabled in `.swiftlint.yml`: `line_length`, `type_body_length`, and `file_length`. Package tests carry long inline Core JSON fixtures (wrapping buys nothing; SwiftFormat does not wrap). SwiftUI views (`ContentView`) and fixture-heavy tests (`ChatServiceTests`) exceed the type/file caps; splitting them is out of scope for style enforcement.
+3. Tutorial-sample sections do not apply to this production app: copyright headers, organization/bundle-identifier boilerplate, print-oriented rules.
+4. Do not add an Xcode Run Script build phase for lint (the Kodeco policy targets downloadable book samples). CI is the enforcement point; local runs are manual. Do not copy their `com.raywenderlich.swiftlint.yml` into this repo — ours is tuned to this tree.
