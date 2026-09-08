@@ -680,4 +680,176 @@ describe("RoomsClient notification deep link", () => {
     // room they are looking at now.
     expect(toast.error).not.toHaveBeenCalled();
   });
+  /**
+   * Every load a jump makes checks the room before it reports a failure, so
+   * an error raised for a room the reader has left never lands on the room
+   * they moved to. Each of these holds one request open, moves the reader,
+   * then fails it.
+   */
+  describe("a failure for a room the reader has left", () => {
+    const serverError = {
+      ok: false as const,
+      error: { code: "INTERNAL_ERROR", message: "Server error" },
+    };
+
+    function otherRoom(): ChatRoom {
+      return { ...channelRoom(), id: "room-other" };
+    }
+
+    function leaveRoom(rerender: (ui: React.ReactElement) => void) {
+      mockSearch.current = "";
+      rerender(
+        <RoomsClient
+          {...baseProps}
+          rooms={[channelRoom(), otherRoom()]}
+          selectedRoomId="room-other"
+          messagesPromise={settledMessages()}
+        />,
+      );
+    }
+
+    it("says nothing when the room window fails", async () => {
+      mockSearch.current = "message=msg-1";
+      vi.mocked(getRoomMessageAction).mockResolvedValue({
+        ok: true as const,
+        value: sampleMessage("target", "msg-1"),
+      });
+
+      let failWindow = (): void => {};
+      vi.mocked(listRoomMessagesAction).mockReturnValue(
+        new Promise((resolve) => {
+          failWindow = () => resolve(serverError);
+        }),
+      );
+
+      const { rerender } = render(
+        <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
+      );
+
+      await waitFor(() => {
+        expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
+          around: "msg-1",
+        });
+      });
+
+      leaveRoom(rerender);
+      await act(async () => {
+        failWindow();
+        await Promise.resolve();
+      });
+
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it("says nothing when the thread's replies fail to load", async () => {
+      const parent = sampleMessage("parent body", "msg-parent");
+      mockSearch.current = "message=msg-reply";
+      vi.mocked(getRoomMessageAction).mockResolvedValue({
+        ok: true as const,
+        value: {
+          ...sampleMessage("reply body", "msg-reply"),
+          parentMessageId: "msg-parent",
+        },
+      });
+      vi.mocked(markThreadReadAction).mockResolvedValue({
+        ok: true as const,
+        value: {
+          parentMessageId: "msg-parent",
+          lastReadAt: new Date("2026-07-01T12:02:00.000Z"),
+        },
+      });
+
+      // The parent is already on screen, so the jump opens the thread without
+      // fetching it, and the reply list is the request left in flight.
+      let failReplies = (): void => {};
+      vi.mocked(listThreadMessagesAction).mockReturnValue(
+        new Promise((resolve) => {
+          failReplies = () => resolve(serverError);
+        }),
+      );
+
+      const { rerender } = render(
+        <RoomsClient
+          {...baseProps}
+          messages={[parent]}
+          messagesPromise={settledMessages([parent])}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(listThreadMessagesAction).toHaveBeenCalledWith(
+          "room-channel",
+          "msg-parent",
+        );
+      });
+
+      leaveRoom(rerender);
+      await act(async () => {
+        failReplies();
+        await Promise.resolve();
+      });
+
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it("says nothing when the window inside the thread fails", async () => {
+      const parent = sampleMessage("parent body", "msg-parent");
+      mockSearch.current = "message=msg-reply";
+      vi.mocked(getRoomMessageAction).mockResolvedValue({
+        ok: true as const,
+        value: {
+          ...sampleMessage("reply body", "msg-reply"),
+          parentMessageId: "msg-parent",
+        },
+      });
+      vi.mocked(markThreadReadAction).mockResolvedValue({
+        ok: true as const,
+        value: {
+          parentMessageId: "msg-parent",
+          lastReadAt: new Date("2026-07-01T12:02:00.000Z"),
+        },
+      });
+
+      // The reply list opens empty, so the reply is not on screen and the
+      // jump asks for a window around it. That window is the held request.
+      let failWindow = (): void => {};
+      vi.mocked(listThreadMessagesAction).mockImplementation(
+        async (_roomId, _parentId, options) => {
+          if (!options?.around) {
+            return {
+              ok: true as const,
+              value: { messages: [], nextCursor: null },
+            };
+          }
+          return new Promise((resolve) => {
+            failWindow = () => resolve(serverError);
+          });
+        },
+      );
+
+      const { rerender } = render(
+        <RoomsClient
+          {...baseProps}
+          messages={[parent]}
+          messagesPromise={settledMessages([parent])}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(listThreadMessagesAction).toHaveBeenCalledWith(
+          "room-channel",
+          "msg-parent",
+          { around: "msg-reply" },
+        );
+      });
+
+      leaveRoom(rerender);
+      await act(async () => {
+        failWindow();
+        await Promise.resolve();
+      });
+
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+  });
 });

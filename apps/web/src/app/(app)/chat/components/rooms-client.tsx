@@ -2055,11 +2055,11 @@ export function RoomsClient({
           : undefined),
       loadParent: async (parentId) => {
         const result = await getRoomThreadAction(roomId, parentId);
-        // Every load in this jump checks the room before it reports anything:
-        // once the reader has moved on, neither the result nor a complaint
-        // about it belongs on the room they moved to. This one also guards
-        // state, because `loadThreadMessages` opens the panel before its
-        // first await, too early to check for itself.
+        // Checked before the error is shown, as in the other loads a jump
+        // makes: once the reader has moved on, neither the result nor a
+        // complaint about it belongs on the room they moved to. This one also
+        // guards state, because `loadThreadMessages` opens the panel before
+        // its first await, too early to check for itself.
         if (!isStillSelectedRoom(roomId)) {
           return null;
         }
@@ -2281,14 +2281,18 @@ export function RoomsClient({
         return markResult.ok;
       }
       const result = await listThreadMessagesAction(roomId, parentMessage.id);
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return markResult.ok;
-      }
+      // Checked before the error is shown, like every other load a jump
+      // makes. The generation check above this request cannot stand in for
+      // it: the reader can leave while the request itself is in flight, and
+      // then the failure belongs to a room that is no longer on screen.
       if (
         !isStillSelectedRoom(roomId) ||
         generation !== threadLoadGenerationRef.current
       ) {
+        return markResult.ok;
+      }
+      if (!result.ok) {
+        toast.error(result.error.message);
         return markResult.ok;
       }
       setThreadMessages(result.value.messages);
