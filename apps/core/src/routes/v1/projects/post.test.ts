@@ -97,6 +97,8 @@ describe("POST /projects", () => {
       contextMdModel: null,
       contextMdUpdatingSince: null,
       contextMdVersion: 0,
+      latestUpdateMd: null,
+      latestUpdateMdUpdatedAt: null,
       createdAt: new Date("2026-04-02T12:00:00.000Z"),
       updatedAt: new Date("2026-04-02T12:00:00.000Z"),
     });
@@ -141,6 +143,8 @@ describe("POST /projects", () => {
       contextMdModel: null,
       contextMdUpdatingSince: null,
       contextMdVersion: 0,
+      latestUpdateMd: null,
+      latestUpdateMdUpdatedAt: null,
       createdAt: new Date("2026-04-02T12:00:00.000Z"),
       updatedAt: new Date("2026-04-02T12:00:00.000Z"),
     };
@@ -212,6 +216,8 @@ describe("POST /projects", () => {
       contextMdModel: null,
       contextMdUpdatingSince: null,
       contextMdVersion: 0,
+      latestUpdateMd: null,
+      latestUpdateMdUpdatedAt: null,
       createdAt: new Date("2026-04-02T12:00:00.000Z"),
       updatedAt: new Date("2026-04-02T12:00:00.000Z"),
     });

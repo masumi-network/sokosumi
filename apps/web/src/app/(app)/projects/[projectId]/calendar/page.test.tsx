@@ -116,6 +116,11 @@ describe("ProjectCalendarPage", () => {
     expect(
       screen.getByRole("link", { name: "backToProject" }).className,
     ).not.toContain("hidden");
+    const shell = screen
+      .getByRole("link", { name: "backToProject" })
+      .closest(".max-w-7xl");
+    expect(shell).toHaveClass("mx-auto", "w-full", "max-w-7xl", "py-6");
+    expect(shell).not.toHaveClass("max-w-6xl");
     expect(workspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: PROJECT.id,

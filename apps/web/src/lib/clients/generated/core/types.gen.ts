@@ -4344,6 +4344,11 @@ export type ProjectListItem = Project & {
     jobCount: number;
 };
 
+export type ProjectLatestUpdate = {
+    content: string;
+    updatedAt: Date;
+};
+
 export type ProjectDesignMd = {
     url: string;
     extractionId: string | null;
@@ -4372,6 +4377,10 @@ export type Project = {
     name: string;
     briefing: string | null;
     briefingUrl: string | null;
+    /**
+     * Weekly activity report markdown. Null until a valid report is generated.
+     */
+    latestUpdate: ProjectLatestUpdate | null;
     websiteUrl: string | null;
     logo: string | null;
     /**

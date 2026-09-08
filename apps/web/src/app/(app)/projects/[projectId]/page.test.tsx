@@ -70,6 +70,7 @@ function buildProject() {
     },
     contextMd: null,
     contextMdUpdating: false,
+    latestUpdate: null,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
   };
@@ -123,15 +124,14 @@ describe("ProjectDetailPage", () => {
 
     const { container } = render(html);
     expect(container.firstChild).toHaveClass(
-      "w-[calc(100%+2rem)]",
-      "-mx-4",
+      "mx-auto",
+      "w-full",
+      "max-w-6xl",
       "py-6",
-      "md:mx-0",
-      "md:w-full",
-      "md:px-6",
     );
-    expect(container.firstChild).not.toHaveClass("px-4");
-    expect(container.firstChild).not.toHaveClass("w-full");
+    expect(container.firstChild).not.toHaveClass("-mx-4");
+    expect(container.firstChild).not.toHaveClass("w-[calc(100%+2rem)]");
+    expect(container.firstChild).not.toHaveClass("md:px-6");
     expect(container.querySelector(".max-w-4xl")).toBeNull();
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
@@ -150,19 +150,63 @@ describe("ProjectDetailPage", () => {
         name: "App.Projects.Detail.briefing",
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("project-latest-update"),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
     expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
     expect(screen.getByTestId("needs-attention-section")).toBeInTheDocument();
-    const memory = screen.getByTestId("memory-stat");
+
+    const layoutGrid = container.querySelector(
+      ".xl\\:grid-cols-\\[minmax\\(0\\,1fr\\)_minmax\\(16rem\\,20rem\\)\\]",
+    );
+    expect(layoutGrid).toBeTruthy();
+    expect(layoutGrid?.className).not.toContain("lg:grid-cols-");
+
+    const introColumn = screen
+      .getByRole("heading", { name: "Launch plan" })
+      .closest(".space-y-8");
+    const aside = screen.getByTestId("brand-card").closest("aside");
+    const needsAttentionColumn = screen
+      .getByTestId("needs-attention-section")
+      .closest(".space-y-8");
+    expect(introColumn).toBeTruthy();
+    expect(aside).toBeTruthy();
+    expect(aside?.className).toContain("xl:row-span-2");
+    expect(needsAttentionColumn).toBeTruthy();
+    expect(aside?.contains(screen.getByTestId("memory-stat"))).toBe(true);
+    expect(aside?.contains(screen.getByTestId("brand-card"))).toBe(true);
+    expect(aside?.contains(screen.getByTestId("needs-attention-section"))).toBe(
+      false,
+    );
+    expect(introColumn?.contains(screen.getByTestId("brand-card"))).toBe(false);
+    expect(
+      needsAttentionColumn?.contains(
+        screen.getByTestId("needs-attention-section"),
+      ),
+    ).toBe(true);
+    expect(
+      introColumn?.contains(screen.getByTestId("needs-attention-section")),
+    ).toBe(false);
+
+    const briefingHeading = screen.getByRole("heading", {
+      name: "App.Projects.Detail.briefing",
+    });
+    const brandCard = screen.getByTestId("brand-card");
     const needsAttention = screen.getByTestId("needs-attention-section");
     expect(
-      needsAttention.compareDocumentPosition(memory) &
+      briefingHeading.compareDocumentPosition(brandCard) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(needsAttention.parentElement?.className).toContain("order-4");
-    expect(needsAttention.parentElement?.className).toContain("xl:order-3");
-    expect(memory.parentElement?.className).toContain("order-3");
-    expect(memory.parentElement?.className).toContain("xl:order-4");
+    expect(
+      brandCard.compareDocumentPosition(needsAttention) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    expect(layoutGrid?.className).not.toContain("order-");
+    expect(layoutGrid?.className).not.toContain("xl:grid-cols-3");
+    expect(layoutGrid?.className).not.toContain("xl:col-span-2");
+
     expect(container.innerHTML).not.toContain(
       "bg-muted/30 border-border/50 rounded-none border p-4",
     );
@@ -172,7 +216,7 @@ describe("ProjectDetailPage", () => {
     expect(workspaceHeading).toBeInTheDocument();
     const workspaceSection = workspaceHeading.closest("section");
     expect(workspaceSection?.className).toContain("space-y-3");
-    expect(workspaceSection?.className).toContain("xl:col-span-2");
+    expect(workspaceSection?.className).not.toContain("xl:col-span-2");
     expect(workspaceSection?.querySelector(".grid")?.className).toContain(
       "md:grid-cols-4",
     );
@@ -181,12 +225,7 @@ describe("ProjectDetailPage", () => {
     );
     expect(workspaceSection?.className).not.toContain("px-4");
     expect(workspaceSection?.className).not.toContain("md:px-0");
-    const overviewGrid = workspaceSection?.parentElement;
-    expect(overviewGrid?.className).toContain("grid");
-    expect(overviewGrid?.className).toContain("px-4");
-    expect(overviewGrid?.className).toContain("md:px-0");
-    expect(overviewGrid?.className).toContain("xl:grid-cols-3");
-    expect((container.firstChild as HTMLElement).childElementCount).toBe(1);
+    expect(needsAttentionColumn?.contains(workspaceSection!)).toBe(true);
     expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
       6,
     );
@@ -221,5 +260,45 @@ describe("ProjectDetailPage", () => {
         name: "App.Projects.Detail.modules.calendar.title",
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders Latest update above Briefing when a report exists", async () => {
+    const project = {
+      ...buildProject(),
+      latestUpdate: {
+        content:
+          "# Weekly Activity Report\n\nDate window: 2026-09-01 to 2026-09-07\n\n## TL;DR\n\nShipped.",
+        updatedAt: "2026-09-07T10:00:00.000Z",
+      },
+    };
+    projectServiceMock.getProjectById.mockResolvedValue(project);
+    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
+      taskCount: 0,
+      jobCount: 0,
+      items: [],
+    });
+
+    const { default: ProjectDetailPage } = await import("./page");
+    const html = await ProjectDetailPage({
+      params: Promise.resolve({ projectId: "project-1" }),
+    });
+
+    render(html);
+
+    const latestHeading = screen.getByRole("heading", {
+      name: "App.Projects.Detail.latestUpdate",
+    });
+    const briefingHeading = screen.getByRole("heading", {
+      name: "App.Projects.Detail.briefing",
+    });
+    expect(latestHeading.compareDocumentPosition(briefingHeading)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    const latestUpdate = screen.getByTestId("project-latest-update");
+    const briefing = screen.getByTestId("project-briefing");
+    const introColumn = latestHeading.closest(".space-y-8");
+    expect(introColumn?.contains(latestUpdate)).toBe(true);
+    expect(introColumn?.contains(briefing)).toBe(true);
+    expect(screen.getByText(/Shipped/)).toBeInTheDocument();
   });
 });

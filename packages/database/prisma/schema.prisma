@@ -503,6 +503,8 @@ model Project {
   contextMdModel         String?
   contextMdUpdatingSince DateTime?
   contextMdVersion       Int       @default(0)
+  latestUpdateMd         String?
+  latestUpdateMdUpdatedAt DateTime?
   websiteUrl             String?
   logo                   String?
   designMdUrl            String?
