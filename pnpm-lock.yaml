@@ -381,9 +381,6 @@ importers:
       '@vercel/analytics':
         specifier: 2.0.1
         version: 2.0.1(next@16.3.4(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)(vue@3.5.41(typescript@7.0.2))
-      '@vercel/blob':
-        specifier: 2.8.0
-        version: 2.8.0
       '@vercel/related-projects':
         specifier: 1.1.1
         version: 1.1.1
@@ -558,9 +555,6 @@ importers:
       use-debounce:
         specifier: 10.1.1
         version: 10.1.1(react@19.2.8)
-      uuid:
-        specifier: 14.0.2
-        version: 14.0.2
       zod:
         specifier: 4.5.4
         version: 4.5.4
