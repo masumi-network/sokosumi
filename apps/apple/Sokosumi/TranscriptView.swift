@@ -10,12 +10,12 @@ private let messageTimeFormatter: DateFormatter = {
   return formatter
 }()
 
-/// SOK-974 transcript pane mirroring the web message view: avatar rail with
-/// Slack-style continuation grouping, day separator pills, membership status
-/// rows, and a disabled composer stub (send ships next).
+/// Transcript pane: avatar rail with Slack-style continuation grouping,
+/// day separator pills, membership status rows, and a native composer.
 struct TranscriptView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
+  @State private var draft = ""
 
   let roomId: String
 
@@ -35,7 +35,7 @@ struct TranscriptView: View {
       }
       transcriptBody
       Divider()
-      composerStub
+      composer
     }
   }
 
@@ -44,7 +44,7 @@ struct TranscriptView: View {
     if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {
       ProgressView("Loading messages…")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    } else if workspaces.transcriptMessages.isEmpty {
+    } else if workspaces.displayedTranscript.isEmpty {
       if let error = workspaces.transcriptError {
         transcriptError(error, retryOlder: false)
       } else {
@@ -86,7 +86,7 @@ struct TranscriptView: View {
         if let error = workspaces.transcriptError {
           inlineError(error)
         }
-        let messages = workspaces.transcriptMessages
+        let messages = workspaces.displayedTranscript
         ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
           let previous = index > 0 ? messages[index - 1] : nil
           if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
@@ -95,9 +95,17 @@ struct TranscriptView: View {
           if let status = membershipStatusText(message) {
             MembershipStatusRow(text: status)
           } else {
+            let outbound = workspaces.outboundShells.first { $0.id == message.id }
             MessageRow(
               message: message,
-              isContinuation: isMessageContinuation(previous: previous, current: message)
+              isContinuation: isMessageContinuation(previous: previous, current: message),
+              outbound: outbound,
+              onRetry: outbound.map { shell in
+                { workspaces.retryOutbound(clientTurnId: shell.clientTurnId, auth: auth) }
+              },
+              onRemove: outbound.map { shell in
+                { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
+              }
             )
             .id(message.id)
           }
@@ -137,17 +145,29 @@ struct TranscriptView: View {
     }
   }
 
-  /// Disabled until the send ticket: the transcript must read before it
-  /// writes.
-  private var composerStub: some View {
+  private var canSend: Bool {
+    !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && !workspaces.outboundInFlight
+      && !workspaces.transcriptLoading
+      && workspaces.transcriptRoomId == roomId
+  }
+
+  private var composer: some View {
     HStack {
-      TextField("Message (coming soon)", text: .constant(""))
-        .disabled(true)
+      TextField("Message", text: $draft)
         .textFieldStyle(.roundedBorder)
-      Button("Send") {}
-        .disabled(true)
+        .onSubmit(sendDraft)
+      Button("Send", action: sendDraft)
+        .disabled(!canSend)
     }
     .padding(8)
+  }
+
+  private func sendDraft() {
+    guard canSend else { return }
+    let content = draft
+    draft = ""
+    workspaces.sendMessage(content, auth: auth)
   }
 }
 
@@ -196,6 +216,9 @@ struct MessageRow: View {
 
   let message: Components.Schemas.ChatRoomMessage
   let isContinuation: Bool
+  let outbound: OutboundShell?
+  let onRetry: (() -> Void)?
+  let onRemove: (() -> Void)?
 
   var body: some View {
     HStack(alignment: .top, spacing: 14) {
@@ -235,6 +258,23 @@ struct MessageRow: View {
         } else {
           Text(message.content)
             .textSelection(.enabled)
+        }
+        if let outbound, outbound.status == .failed {
+          if let error = outbound.errorMessage, !error.isEmpty {
+            Text(error)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+          HStack(spacing: 12) {
+            if let onRetry {
+              Button("Retry", action: onRetry)
+            }
+            if let onRemove {
+              Button("Remove", role: .destructive, action: onRemove)
+            }
+          }
+          .buttonStyle(.borderless)
+          .font(.caption)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -318,15 +358,24 @@ struct MessageRow: View {
       DaySeparatorRow(label: "Today")
       MessageRow(
         message: previewMessage(id: "m1", content: "Morning all — the tracer renders web-style rows now.", name: "Ada", minutesAfterNoon: 0),
-        isContinuation: false
+        isContinuation: false,
+        outbound: nil,
+        onRetry: nil,
+        onRemove: nil
       )
       MessageRow(
         message: previewMessage(id: "m2", content: "Same burst, so no second header.", name: "Ada", minutesAfterNoon: 1),
-        isContinuation: true
+        isContinuation: true,
+        outbound: nil,
+        onRetry: nil,
+        onRemove: nil
       )
       MessageRow(
         message: previewMessage(id: "m3", content: "Edited after the fact.", name: "Ada", minutesAfterNoon: 30, edited: true),
-        isContinuation: false
+        isContinuation: false,
+        outbound: nil,
+        onRetry: nil,
+        onRemove: nil
       )
       MembershipStatusRow(text: "Bob joined")
     }

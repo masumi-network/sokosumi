@@ -40,7 +40,10 @@ private final class LoadCountingStore: TokenStore, @unchecked Sendable {
 
 private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
   private(set) var operationIDs: [String] = []
+  private(set) var bodies: [Data] = []
   private var responses: [(Int, String)]
+  var pausePOST = false
+  private var pauseWaiter: CheckedContinuation<Void, Never>?
 
   init(_ responses: [(Int, String)]) {
     self.responses = responses
@@ -48,13 +51,26 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
 
   func send(
     _: HTTPRequest,
-    body _: HTTPBody?,
+    body: HTTPBody?,
     baseURL _: URL,
     operationID: String
   ) async throws -> (HTTPResponse, HTTPBody?) {
     operationIDs.append(operationID)
+    if let body, let bytes = try? await Array(collecting: body, upTo: 1_000_000) {
+      bodies.append(Data(bytes))
+    } else {
+      bodies.append(Data())
+    }
+    if pausePOST, operationID == "post/chats/rooms/{id}/messages" {
+      await withCheckedContinuation { pauseWaiter = $0 }
+    }
     let next = responses.removeFirst()
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
+  }
+
+  func releasePOST() {
+    pauseWaiter?.resume()
+    pauseWaiter = nil
   }
 }
 
@@ -105,6 +121,12 @@ private func ephemeralState(
 /// tests must be followed by one before the next load or op assertion.
 private func waitForTranscriptIdle(_ state: WorkspaceState) async {
   for _ in 0 ..< 1000 where state.transcriptLoading || state.transcriptLoadingOlder {
+    await Task.yield()
+  }
+}
+
+private func waitForOutboundIdle(_ state: WorkspaceState) async {
+  for _ in 0 ..< 1000 where state.outboundInFlight {
     await Task.yield()
   }
 }
@@ -476,6 +498,127 @@ struct WorkspaceStateTests {
     #expect(state.transcriptHasMore)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
+
+  @Test func sendPaintsPendingThenConfirmed() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let confirmedID = "550e8400-e29b-41d4-a716-446655440501"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 0)),
+      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "hello"))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    transport.pausePOST = true
+    state.sendMessage("hello", auth: auth)
+    #expect(state.outboundShells.count == 1)
+    #expect(state.outboundShells[0].status == .pending)
+    #expect(state.displayedTranscript.map(\.content) == ["hello"])
+    #expect(isOutboundLocalMessage(state.displayedTranscript[0]))
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/messages") {
+      await Task.yield()
+    }
+    transport.releasePOST()
+    await waitForOutboundIdle(state)
+    #expect(state.outboundShells.isEmpty)
+    #expect(state.displayedTranscript.map(\.content) == ["hello"])
+    #expect(state.transcriptMessages.map(\.id) == [confirmedID])
+    #expect(transport.operationIDs.last == "post/chats/rooms/{id}/messages")
+  }
+
+  @Test func failedSendRetryReusesTurnAndRemoveDropsShell() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let confirmedID = "550e8400-e29b-41d4-a716-446655440502"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 0)),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/messages","method":"POST"}}
+      """),
+      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "hello"))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    state.sendMessage("hello", auth: auth)
+    await waitForOutboundIdle(state)
+    #expect(state.outboundShells.count == 1)
+    #expect(state.outboundShells[0].status == .failed)
+    #expect(state.displayedTranscript.map(\.content) == ["hello"])
+    let turnId = try #require(state.outboundShells.first?.clientTurnId)
+    state.retryOutbound(clientTurnId: turnId, auth: auth)
+    await waitForOutboundIdle(state)
+    #expect(state.outboundShells.isEmpty)
+    #expect(state.transcriptMessages.map(\.id) == [confirmedID])
+    let posts = zip(transport.operationIDs, transport.bodies).compactMap { id, body -> [String: Any]? in
+      guard id == "post/chats/rooms/{id}/messages" else { return nil }
+      return (try? JSONSerialization.jsonObject(with: body) as? [String: Any]) ?? [:]
+    }
+    #expect(posts.count == 2)
+    #expect(posts[0]["clientMessageId"] as? String == turnId)
+    #expect(posts[1]["clientMessageId"] as? String == turnId)
+    #expect(posts[0]["content"] as? String == "hello")
+    #expect(posts[1]["content"] as? String == "hello")
+  }
+
+  @Test func failedSendRemoveDropsLocalShellOnly() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 0)),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/messages","method":"POST"}}
+      """)
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    state.sendMessage("hello", auth: auth)
+    await waitForOutboundIdle(state)
+    let turnId = try #require(state.outboundShells.first?.clientTurnId)
+    state.removeOutbound(clientTurnId: turnId)
+    #expect(state.outboundShells.isEmpty)
+    #expect(state.displayedTranscript.isEmpty)
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 1)
+  }
+
+  @Test func oneInFlightSendRejectsASecond() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let confirmedID = "550e8400-e29b-41d4-a716-446655440503"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 0)),
+      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "first"))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    transport.pausePOST = true
+    state.sendMessage("first", auth: auth)
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/messages") {
+      await Task.yield()
+    }
+    state.sendMessage("second", auth: auth)
+    #expect(state.outboundShells.count == 1)
+    #expect(state.outboundShells[0].content == "first")
+    transport.releasePOST()
+    await waitForOutboundIdle(state)
+    #expect(state.displayedTranscript.map(\.content) == ["first"])
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 1)
+  }
 }
 
 private func unreadRoomsBody(id: String, unread: Int) -> String {
@@ -494,6 +637,15 @@ private func transcriptPageBody(messages: [String], nextCursor: String?) -> Stri
   let cursorJSON = nextCursor.map { "\"\($0)\"" } ?? "null"
   return """
   {"data":[\(messages.joined(separator: ","))],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(messages.count),"nextCursor":\(cursorJSON)}}}
+  """
+}
+
+private func createdMessageBody(id: String, roomId: String, content: String) -> String {
+  let message = """
+  {"id":"\(id)","roomId":"\(roomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(timestamp)","deletedAt":null,"editedAt":null,"sender":{"type":"user","user":{"id":"user_1","name":"Me","email":"me@example.com","presence":"offline"}},"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":null,"quote":null,"membership":null,"unfurls":null}
+  """
+  return """
+  {"data":\(message),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
   """
 }
 
