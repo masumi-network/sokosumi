@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProjectNeedsAttentionSection } from "@/app/projects/components/project-needs-attention-section";
-import { PROJECTS_DETAIL_LIST_LAYOUT_CLASS } from "@/app/projects/constants";
+import { PROJECTS_BROWSE_LAYOUT_CLASS } from "@/app/projects/constants";
 import {
   type HistoryItem,
   type HistoryJobItem,
@@ -136,10 +136,11 @@ describe("ProjectNeedsAttentionSection", () => {
     const listBox = screen
       .getByTestId("project-needs-attention")
       .querySelector(":scope > div:last-child");
+    // Mobile edge-to-edge bleed out of main p-4 / detail column padding.
     expect(listBox).toHaveClass(
-      ...PROJECTS_DETAIL_LIST_LAYOUT_CLASS.split(/\s+/),
+      ...PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/),
     );
-    expect(listBox).not.toHaveClass("-mx-4", "md:mx-0");
+    expect(listBox).toHaveClass("-mx-4", "md:mx-0");
   });
 
   it("shows empty copy when there are no attention items", () => {
@@ -161,8 +162,8 @@ describe("ProjectNeedsAttentionSection", () => {
       .getByTestId("project-needs-attention")
       .querySelector(":scope > div:last-child");
     expect(listBox).toHaveClass(
-      ...PROJECTS_DETAIL_LIST_LAYOUT_CLASS.split(/\s+/),
+      ...PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/),
     );
-    expect(listBox).not.toHaveClass("-mx-4", "md:mx-0");
+    expect(listBox).toHaveClass("-mx-4", "md:mx-0");
   });
 });
