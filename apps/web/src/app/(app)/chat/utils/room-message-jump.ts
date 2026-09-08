@@ -1,13 +1,20 @@
 export interface RoomMessageJumpDeps {
-  /** True when the message is already rendered, so nothing needs loading. */
+  /**
+   * True when the message is already rendered, so nothing needs loading.
+   * False also when a later jump has replaced this one, which is the caller's
+   * way of saying this jump no longer speaks for the reader.
+   */
   highlight: (messageId: string) => boolean;
   holdOffBottom: () => void;
   releaseHoldOffBottom: () => void;
-  /** False when the window could not be loaded, or the room moved under it. */
+  /**
+   * False when the window could not be loaded, when the room moved under it,
+   * or when a later jump replaced this one.
+   */
   loadAround: (messageId: string) => Promise<boolean>;
   /**
    * Settle after the window is merged, before the highlight scrolls to it.
-   * Takes no message id so the caller waits a fixed few frames rather than
+   * Takes no message id so the caller waits three frames rather than
    * returning the moment the target exists. The stick-to-bottom
    * observer has to see the whole growth while the hold is still on, or it
    * re-pins the view to the newest message and undoes the jump.

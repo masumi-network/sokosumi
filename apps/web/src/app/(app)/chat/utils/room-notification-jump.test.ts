@@ -100,8 +100,8 @@ describe("performRoomNotificationJump", () => {
 
     await performRoomNotificationJump("msg-1", d);
 
-    // The message is probably still there. The room jump loads its own window
-    // and may well land it, and its error is one the reader can act on.
+    // The message is probably still there, so the room jump is worth trying.
+    // It loads its own window and may well land it.
     expect(d.jumpInRoom).toHaveBeenCalledExactlyOnceWith("msg-1");
     expect(d.jumpInThread).not.toHaveBeenCalled();
   });

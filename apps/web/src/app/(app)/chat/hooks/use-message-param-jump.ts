@@ -59,9 +59,9 @@ export function useMessageParamJump({
     }
 
     // Marked before the jump rather than after it. Nothing observable turns
-    // on the order today: `jump` does highlight and replace the URL before
-    // its first await, but none of that re-enters this effect, and the state
-    // it sets lands in a batch. It is written this way so that stays true of
+    // on the order today: `jump` replaces the URL and highlights before its
+    // first await, but none of that re-enters this effect, and the state it
+    // sets lands in a batch. It is written this way so that stays true of
     // whatever `jump` becomes.
     jumpedRef.current = target;
     jump(messageId);

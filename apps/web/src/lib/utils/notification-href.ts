@@ -49,12 +49,14 @@ export function getNotificationHref(
       const messageId = notification.metadata?.messageId;
       // A room notification is about one message in it. Without the message
       // the reader lands at the bottom of the room and scrolls back to find
-      // what they were just told about. Rows written before this shipped
-      // carry no message id and still open the room.
+      // what they were just told about. A row carrying no message id still
+      // opens the room. Core requires a message id on every chat notification
+      // it writes (`chat-notification-fanout.ts`), so this branch answers for
+      // the optional metadata type rather than for a shape that path emits.
       //
-      // Trimmed because the room is the honest destination for a blank id,
-      // and naming a blank one sends the room off to look for a message that
-      // cannot exist.
+      // Trimmed so the room is the destination for a blank id and the URL
+      // carries the id the room will look for. The room trims what it reads
+      // as well, so the two agree and neither has to guess.
       const trimmedMessageId =
         typeof messageId === "string" ? messageId.trim() : "";
       if (trimmedMessageId.length === 0) {

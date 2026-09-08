@@ -39,10 +39,14 @@ export interface RoomNotificationJumpDeps {
  * producer of this status is a reader who has since moved to another room,
  * where stopping is just as right: the answer is no longer theirs.
  *
- * A soft delete is not this case. It comes back as its tombstone with a 200.
- * A top-level one is landed on. A reply is landed on only while its thread
- * still holds a live reply, because the thread it needs to open is built from
- * those. A refusal means the room was archived, or they
+ * A soft delete is not this case. It comes back as its tombstone with a 200,
+ * and a top-level one is landed on. A reply is landed on too, unless its
+ * parent has to be fetched: that read goes through Core's thread aggregate,
+ * which counts only live replies, so a deleted reply that was the last one
+ * leaves no thread to open. A parent already in the loaded timeline is never
+ * fetched, and the reply list it opens does not filter deleted replies, so
+ * the reader lands on the tombstone. A refusal means the room was archived,
+ * or they
  * are no longer a member of it or of the organization behind it, or the id
  * names nothing in that room, which is where a hard delete lands. Being left
  * in the room is the useful answer to all of those.

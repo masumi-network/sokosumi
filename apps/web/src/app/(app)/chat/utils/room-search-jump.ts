@@ -38,11 +38,12 @@ export async function waitForSearchJumpPaint(
 }
 
 /**
- * The hold is kept only where a window was loaded and the jump reached it,
- * which is one path in a thread and one in the room. There the view stays
- * where the jump put it rather than snapping back to the newest message. On
- * both, the highlight is attempted and its answer is not read, so a window
- * that loads but never paints inside `afterRender` keeps the hold as well.
+ * The hold is kept on exactly the two paths where a window was loaded, one
+ * in a thread and one in the room, so the view stays where the jump put it
+ * rather than snapping back to the newest message. Whether the target was
+ * reached does not come into it: the highlight is attempted and its answer is
+ * not read, so a window that loads but never paints inside `afterRender`
+ * keeps the hold as well.
  *
  * Every other way out of the try releases it: a target the jump reached
  * without a window, whether it was on screen from the start or became visible
