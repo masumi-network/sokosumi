@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { getUserJobs } from "@/helpers/job";
 import {
   jsonErrorResponse,
@@ -16,11 +17,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import {
-  isCoworkerAuthContext,
-  isSokoBotAuthContext,
-  requireUserContext,
-} from "@/middleware/auth";
+import { isCoworkerAuthContext, isSokoBotAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
@@ -163,7 +160,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
     const { agentId, projectId, scope, status } = queryParams;

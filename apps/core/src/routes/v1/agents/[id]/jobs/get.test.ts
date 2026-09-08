@@ -12,9 +12,34 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { getUserJobsMock } = vi.hoisted(() => ({
+const { getUserJobsMock, workspaceRepositoryMock } = vi.hoisted(() => ({
   getUserJobsMock: vi.fn(),
+  workspaceRepositoryMock: {
+    resolveWorkspaceForContext: vi.fn(),
+  },
 }));
+
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: workspaceRepositoryMock,
+  };
+});
+
+vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/vendor-grants")>();
+  return {
+    ...actual,
+    getWorkspaceGrant: vi.fn().mockResolvedValue({
+      id: "grant_123",
+      status: "GRANTED",
+      permission: "WORKSPACE",
+    }),
+  };
+});
 
 vi.mock("@/helpers/job", () => ({
   getUserJobs: getUserJobsMock,
@@ -43,6 +68,9 @@ function createApp() {
 describe("GET /agents/{id}/jobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
+      id: "ws_list_agent_jobs",
+    });
     getUserJobsMock.mockResolvedValue({
       jobs: [],
       count: 0,
