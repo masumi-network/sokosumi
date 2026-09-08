@@ -6,7 +6,14 @@ import { describe, it } from "node:test";
 import {
   createGitDeployment,
   deployTargets,
+  GITHUB_PR_FILES_LIMIT,
+  hasPreviewRelevantChanges,
+  isPreviewRelevantPath,
+  isTruncatedFileList,
   isWritePermission,
+  listPullRequestFiles,
+  noPreviewChangesMessage,
+  PREVIEW_RELEVANT_PREFIXES,
   parseDeployComment,
   pickPreviewUrl,
   pollDeploymentUntilSettled,
@@ -348,6 +355,7 @@ describe("runPreviewDeployComment", () => {
         head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99, fork: false } },
         base: { repo: { id: 99 } },
       }),
+      listFiles: async () => [{ filename: "apps/web/app/page.tsx" }],
       createDeployment: async (input) => {
         created.push(input);
         return {
@@ -395,6 +403,7 @@ describe("runPreviewDeployComment", () => {
         head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99, fork: false } },
         base: { repo: { id: 99 } },
       }),
+      listFiles: async () => [{ filename: "packages/utils/src/index.ts" }],
       createDeployment: async (input) => ({
         id: `dpl_${input.target.app}`,
         readyState: "READY",
@@ -441,6 +450,7 @@ describe("runPreviewDeployComment", () => {
             head: { sha: "abc", ref: "feat", repo: { id: 99 } },
             base: { repo: { id: 99 } },
           }),
+          listFiles: async () => [{ filename: "apps/core/src/index.ts" }],
           createDeployment: async () => {
             throw new Error("nope");
           },
@@ -472,6 +482,7 @@ describe("runPreviewDeployComment", () => {
             head: { sha: "abc", ref: "feat", repo: { id: 99 } },
             base: { repo: { id: 99 } },
           }),
+          listFiles: async () => ["apps/web/app/page.tsx"],
           createDeployment: async (input) => ({
             id: `dpl_${input.target.app}`,
             readyState: input.target.app === "core" ? "ERROR" : "READY",
@@ -760,6 +771,7 @@ describe("runPreviewFromGithubEvent", () => {
         head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
         base: { repo: { id: 99 } },
       }),
+      listFiles: async () => [{ filename: "apps/core/src/index.ts" }],
       createDeployment: async (input) => {
         created.push(input);
         return { id: `dpl_${input.target.app}`, readyState: "READY" };
@@ -858,6 +870,354 @@ describe("summarizeCliDeployResult", () => {
     assert.deepEqual(summarizeCliDeployResult({ kind: "ignore" }), {
       kind: "ignore",
     });
+  });
+});
+
+describe("preview change gating", () => {
+  it("matches web, core, and workspace package paths", () => {
+    assert.equal(isPreviewRelevantPath("apps/web/app/page.tsx"), true);
+    assert.equal(isPreviewRelevantPath("apps/core/src/index.ts"), true);
+    assert.equal(
+      isPreviewRelevantPath("packages/database/prisma/schema.prisma"),
+      true,
+    );
+    assert.equal(isPreviewRelevantPath("./packages/utils/src/index.ts"), true);
+  });
+
+  it("ignores docs, scripts, workflows, and repo roots", () => {
+    assert.equal(isPreviewRelevantPath("docs/guide.md"), false);
+    assert.equal(isPreviewRelevantPath("README.md"), false);
+    assert.equal(isPreviewRelevantPath("scripts/ci/vercel-deploy.mjs"), false);
+    assert.equal(
+      isPreviewRelevantPath(".github/workflows/preview-deploy.yml"),
+      false,
+    );
+    assert.equal(isPreviewRelevantPath("apps/apple/x.swift"), false);
+    assert.equal(isPreviewRelevantPath("apps/web"), false);
+    assert.equal(isPreviewRelevantPath(""), false);
+    assert.equal(isPreviewRelevantPath(undefined), false);
+    assert.equal(isPreviewRelevantPath(null), false);
+  });
+
+  it("detects relevant changes in PR file lists", () => {
+    assert.equal(hasPreviewRelevantChanges([]), false);
+    assert.equal(hasPreviewRelevantChanges(undefined), false);
+    assert.equal(
+      hasPreviewRelevantChanges([
+        { filename: "docs/guide.md" },
+        { filename: "README.md" },
+      ]),
+      false,
+    );
+    assert.equal(
+      hasPreviewRelevantChanges([
+        { filename: "docs/guide.md" },
+        { filename: "packages/net/src/index.ts" },
+      ]),
+      true,
+    );
+    assert.equal(hasPreviewRelevantChanges(["apps/core/vercel.json"]), true);
+  });
+
+  it("explains the skip and how to get a preview", () => {
+    const message = noPreviewChangesMessage();
+    assert.match(message, /No preview deployment/);
+    assert.match(message, /apps\/web/);
+    assert.match(message, /apps\/core/);
+    assert.match(message, /packages\//);
+    assert.match(message, /\/deploy <network>/);
+  });
+
+  it("covers the transitive workspace dependencies of web and core", async () => {
+    const packageDir = (name) => {
+      if (name === "web") {
+        return "apps/web";
+      }
+      if (name === "@sokosumi/core") {
+        return "apps/core";
+      }
+      assert.match(name, /^@sokosumi\//);
+      return `packages/${name.slice("@sokosumi/".length)}`;
+    };
+    const readPackage = async (dir) =>
+      JSON.parse(
+        await readFile(path.join(repoRoot, dir, "package.json"), "utf8"),
+      );
+    const seen = new Set(["web", "@sokosumi/core"]);
+    const queue = ["web", "@sokosumi/core"];
+    while (queue.length > 0) {
+      const name = queue.pop();
+      const manifest = await readPackage(packageDir(name));
+      const deps = {
+        ...manifest.dependencies,
+        ...manifest.devDependencies,
+      };
+      for (const [dep, range] of Object.entries(deps)) {
+        if (String(range).includes("workspace") && !seen.has(dep)) {
+          seen.add(dep);
+          queue.push(dep);
+        }
+      }
+    }
+    assert.ok(seen.size > 2);
+    for (const name of seen) {
+      assert.equal(
+        isPreviewRelevantPath(`${packageDir(name)}/package.json`),
+        true,
+        `${name} (${packageDir(name)}) is a web/core dependency but is not preview-relevant`,
+      );
+    }
+  });
+
+  it("keeps the pull_request paths filter in sync with the prefixes", async () => {
+    const workflow = await readFile(
+      path.join(repoRoot, ".github/workflows/preview-deploy.yml"),
+      "utf8",
+    );
+    const triggerSection = workflow.split(/^jobs:/m)[0];
+    assert.match(triggerSection, /pull_request:\s*\n/);
+    assert.match(triggerSection, /paths:\s*\n/);
+    for (const prefix of PREVIEW_RELEVANT_PREFIXES) {
+      assert.ok(
+        triggerSection.includes(`- "${prefix}**"`),
+        `workflow paths filter is missing ${prefix}**`,
+      );
+    }
+    const commentSection = triggerSection.split(/pull_request:/)[0];
+    assert.match(commentSection, /issue_comment:/);
+    assert.doesNotMatch(commentSection, /paths:/);
+  });
+});
+
+describe("listPullRequestFiles", () => {
+  it("returns one page of files without further requests", async () => {
+    const calls = [];
+    const files = await listPullRequestFiles({
+      githubToken: "tok",
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      pullNumber: 12,
+      fetchImpl: async (url) => {
+        calls.push(String(url));
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [{ filename: "docs/guide.md" }],
+        };
+      },
+    });
+    assert.deepEqual(
+      files.map((file) => file.filename),
+      ["docs/guide.md"],
+    );
+    assert.equal(calls.length, 1);
+    const requested = new URL(calls[0]);
+    assert.equal(requested.pathname, "/repos/acme/sokosumi/pulls/12/files");
+  });
+
+  it("follows pagination until a short page", async () => {
+    const calls = [];
+    const files = await listPullRequestFiles({
+      githubToken: "tok",
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      pullNumber: 12,
+      perPage: 2,
+      fetchImpl: async (url) => {
+        calls.push(String(url));
+        const page = Number(new URL(String(url)).searchParams.get("page"));
+        return {
+          ok: true,
+          status: 200,
+          json: async () =>
+            page === 1
+              ? [{ filename: "a.md" }, { filename: "b.md" }]
+              : [{ filename: "apps/web/c.tsx" }],
+        };
+      },
+    });
+    assert.deepEqual(
+      files.map((file) => file.filename),
+      ["a.md", "b.md", "apps/web/c.tsx"],
+    );
+    assert.equal(calls.length, 2);
+  });
+
+  it("returns an empty list when the pull request has no files", async () => {
+    const files = await listPullRequestFiles({
+      githubToken: "tok",
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      pullNumber: 12,
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        json: async () => [],
+      }),
+    });
+    assert.deepEqual(files, []);
+  });
+
+  it("stops paging once the GitHub file cap is reached", async () => {
+    let calls = 0;
+    const files = await listPullRequestFiles({
+      githubToken: "tok",
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      pullNumber: 12,
+      fetchImpl: async () => {
+        calls += 1;
+        return {
+          ok: true,
+          status: 200,
+          json: async () =>
+            Array.from({ length: 100 }, (_, index) => ({
+              filename: `docs/page-${calls}-${index}.md`,
+            })),
+        };
+      },
+    });
+    assert.equal(files.length, GITHUB_PR_FILES_LIMIT);
+    assert.equal(calls, GITHUB_PR_FILES_LIMIT / 100);
+    assert.equal(isTruncatedFileList(files), true);
+  });
+
+  it("flags only capped lists as truncated", () => {
+    assert.equal(isTruncatedFileList([]), false);
+    assert.equal(isTruncatedFileList(undefined), false);
+    assert.equal(isTruncatedFileList([{ filename: "docs/guide.md" }]), false);
+    assert.equal(
+      isTruncatedFileList(
+        Array.from({ length: GITHUB_PR_FILES_LIMIT - 1 }, () => ({
+          filename: "docs/guide.md",
+        })),
+      ),
+      false,
+    );
+    assert.equal(
+      isTruncatedFileList(
+        Array.from({ length: GITHUB_PR_FILES_LIMIT }, () => ({
+          filename: "docs/guide.md",
+        })),
+      ),
+      true,
+    );
+  });
+});
+
+describe("preview skip on /deploy", () => {
+  function baseComment(overrides = {}) {
+    return {
+      commentBody: "/deploy mainnet",
+      isPullRequest: true,
+      commentAuthor: "alice",
+      repoId: 99,
+      readPermission: async () => "write",
+      readPullRequest: async () => ({
+        head: { sha: "abc", ref: "feat", repo: { id: 99 } },
+        base: { repo: { id: 99 } },
+      }),
+      postComment: async () => {},
+      addReaction: async () => {},
+      ...overrides,
+    };
+  }
+
+  it("skips with an explanatory comment when nothing is preview-relevant", async () => {
+    const posted = [];
+    const reactions = [];
+    const created = [];
+    const result = await runPreviewDeployComment(
+      baseComment({
+        listFiles: async () => [
+          { filename: "docs/guide.md" },
+          { filename: "README.md" },
+        ],
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: "dpl", readyState: "READY" };
+        },
+        pollDeployment: async (deployment) => deployment,
+        postComment: async (body) => {
+          posted.push(body);
+        },
+        addReaction: async (content) => {
+          reactions.push(content);
+        },
+      }),
+    );
+    assert.equal(result.kind, "skip");
+    assert.deepEqual(created, []);
+    assert.equal(posted.length, 1);
+    assert.equal(posted[0], noPreviewChangesMessage());
+    assert.deepEqual(reactions, ["eyes"]);
+  });
+
+  it("deploys when at least one package file changed", async () => {
+    const created = [];
+    const result = await runPreviewDeployComment(
+      baseComment({
+        listFiles: async () => [
+          { filename: "docs/guide.md" },
+          { filename: "packages/email/src/index.ts" },
+        ],
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: `dpl_${input.target.app}`, readyState: "READY" };
+        },
+        pollDeployment: async (deployment) => deployment,
+      }),
+    );
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 2);
+  });
+
+  it("deploys conservatively when the file list hits the GitHub cap", async () => {
+    const posted = [];
+    const created = [];
+    const result = await runPreviewDeployComment(
+      baseComment({
+        listFiles: async () =>
+          Array.from({ length: GITHUB_PR_FILES_LIMIT }, (_, index) => ({
+            filename: `docs/page-${index}.md`,
+          })),
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: `dpl_${input.target.app}`, readyState: "READY" };
+        },
+        pollDeployment: async (deployment) => deployment,
+        postComment: async (body) => {
+          posted.push(body);
+        },
+      }),
+    );
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 2);
+    assert.deepEqual(posted, []);
+  });
+
+  it("comments when listing PR files fails", async () => {
+    const posted = [];
+    const reactions = [];
+    await assert.rejects(
+      () =>
+        runPreviewDeployComment(
+          baseComment({
+            listFiles: async () => {
+              throw new Error("rate limited");
+            },
+            postComment: async (body) => {
+              posted.push(body);
+            },
+            addReaction: async (content) => {
+              reactions.push(content);
+            },
+          }),
+        ),
+      /rate limited/,
+    );
+    assert.match(posted[0], /Preview deploy failed: rate limited/);
+    assert.deepEqual(reactions, ["eyes"]);
   });
 });
 

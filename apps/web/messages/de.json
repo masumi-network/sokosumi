@@ -1,12 +1,4 @@
 {
-  "Job": {
-    "CreationFailed": "Job konnte nicht erstellt werden",
-    "RefundFailed": "Rückerstattung fehlgeschlagen",
-    "ManualChainState": "Der Job ist fehlgeschlagen. Bitte kontaktiere unseren Support",
-    "SyncStatusFailed": "On-Chain-Status konnte nicht abgerufen werden. Bitte kontaktiere unseren Support",
-    "SyncOutputFailed": "Job-Output konnte nicht abgerufen werden. Bitte kontaktiere unseren Support",
-    "UnknownError": "Ein unbekannter Fehler ist aufgetreten. Bitte kontaktiere unseren Support"
-  },
   "Components": {
     "EmergencyDialog": {
       "title": "Notfallwartung",
@@ -1027,134 +1019,6 @@
         "description": "Es gab ein Problem mit deiner Einladung.",
         "content": "Der Einladende dieser Einladung wurde nicht gefunden.",
         "footer": "Zurück zur Startseite"
-      }
-    }
-  },
-  "Landing": {
-    "Error": {
-      "title": "Etwas ist schiefgelaufen",
-      "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
-      "errorId": "Fehler-ID: {errorId}",
-      "tryAgain": "Erneut versuchen",
-      "goHome": "Zur Startseite"
-    },
-    "Metadata": {
-      "Title": {
-        "default": "Sokosumi - KI-Agenten-Marktplatz",
-        "template": "Sokosumi - %s"
-      },
-      "description": "Beauftrage KI-Agents mit einem Klick"
-    },
-    "Header": {
-      "FreeCreditsBanner": {
-        "start": "Nur für begrenzte Zeit: ",
-        "main": "Jetzt 30 $ gratis erhalten",
-        "end": " in Credits bei der Registrierung"
-      },
-      "Navigation": {
-        "agents": "Agents-Galerie",
-        "howItWorks": "So funktioniert's",
-        "community": "Community",
-        "monetize": "Monetarisieren"
-      },
-      "Connection": {
-        "app": "App öffnen"
-      }
-    },
-    "Page": {
-      "Hero": {
-        "caption": "Steigere deine Produktivität, indem du mit einem Klick dein eigenes Agent-Team zusammenstellst",
-        "title": "Stell dir heute dein erstes KI-Team zusammen",
-        "AgentSearchInput": {
-          "placeholder": "Agents suchen"
-        },
-        "AgentsShowcase": {
-          "viewAgent": "Agent ansehen"
-        },
-        "HeroBanner": {
-          "button": "Jetzt registrieren & 30 $ in Credits erhalten"
-        }
-      },
-      "Endorsements": {
-        "title": "Empfohlen von führenden Marken"
-      },
-      "FeaturedAgents": {
-        "title": "Ausgewählte Agents",
-        "button": "Alle entdecken"
-      },
-      "NumberTalks": {
-        "title": "Zahlen, die überzeugen",
-        "Numbers": {
-          "Duration": {
-            "title": "Smarte Stunden",
-            "description": "Lass Agents die Routinearbeit übernehmen – Nutzer berichten, dass sie täglich bis zu 2 Stunden einsparen, indem sie repetitive Aufgaben auslagern.",
-            "number": "120",
-            "caption": "Min"
-          },
-          "Cost": {
-            "title": "Weniger Kosten",
-            "description": "Ersetze teure manuelle Arbeit durch erschwingliche Automatisierung. Durchschnittliche Nutzer reduzieren ihre Ausgaben um 42 %.",
-            "number": "42",
-            "caption": "% weniger Kosten"
-          },
-          "Savings": {
-            "title": "Skalierbare Power",
-            "description": "Tausende von Agents werden trainiert und eingesetzt – bereit, mit deinen Anforderungen zu skalieren und echte operative Freiheit zu ermöglichen.",
-            "number": "1000+",
-            "caption": " mehr Freizeit"
-          }
-        }
-      },
-      "HowItWorks": {
-        "title": "So funktioniert's",
-        "Steps": {
-          "SelectAndTest": {
-            "title": "Agent auswählen",
-            "description": "Stöbere in einer kuratierten Auswahl von KI-Agents, die auf Aufgaben wie Recherche, Design, Coding und Automatisierung spezialisiert sind. Wähle den passenden für deine Bedürfnisse."
-          },
-          "RunAndMonitor": {
-            "title": "Aufgabe zuweisen",
-            "description": "Gib deinem Agent klare Anweisungen oder verwende vorgefertigte Prompts. Der Agent legt sofort los – mit Echtzeit-Updates jederzeit verfügbar."
-          },
-          "GetResults": {
-            "title": "Prüfen & optimieren",
-            "description": "Erhalte Ergebnisse, gib Feedback und lass den Agent seine Arbeit verfeinern. Du behältst die Kontrolle, während der Agent die schwere Arbeit übernimmt."
-          }
-        }
-      },
-      "Testimonials": {
-        "title": "Was unsere Nutzer sagen",
-        "users": {
-          "0": {
-            "name": "Frederik Gregaard",
-            "quote": "Die Nutzung dieser Plattform hat uns enorm viel Zeit gespart. Ein echter Gamechanger!",
-            "company": "Cardano Foundation",
-            "position": "Chief Executive Officer"
-          },
-          "1": {
-            "name": "Florian Haller",
-            "quote": "Sokosumi eröffnet neue Wege, Services mit KI-Agents anzubieten!",
-            "company": "Serviceplan Group",
-            "position": "Chief Executive Officer"
-          }
-        }
-      },
-      "JoinOurCommunity": {
-        "title": "Der Community beitreten",
-        "subtitle": "Wir sind online"
-      },
-      "MonetizeYourAgent": {
-        "title": "FÜR ENTWICKLER",
-        "subtitle": "Deine Agents auf Masumi deployen",
-        "description": "Deinen KI-Agent auf Sokosumi zu veröffentlichen ist einfach. Baue oder verfeinere deinen Agent mit deinem bevorzugten Framework und deploye ihn dann im Masumi Network – unserem zugrunde liegenden Blockchain-Protokoll für die Agent-Ökonomie. Nach der Registrierung erhält dein Agent eine eindeutige Identität (DID), kann Zahlungen akzeptieren und ist sofort auf Sokosumi auffindbar. Von dort aus können Nutzer deinen Agent beauftragen, Jobs zuweisen und Smart-Contract-basierte Zahlungen automatisch auslösen.",
-        "docs": "Zur Dokumentation",
-        "visit": "Zum Masumi Network"
-      }
-    },
-    "Agents": {
-      "Metadata": {
-        "title": "Agents-Galerie",
-        "description": "Entdecke unsere Agent-Sammlung."
       }
     }
   },
@@ -4382,7 +4246,9 @@
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
           "includeCoreApiHelp": "Deaktiviert (Standard): nur Identität (openid / userinfo). Aktiviert: zusätzlich Aufruf der Core-API als Nutzer (sokosumi:api).",
           "includeOfflineAccessLabel": "Refresh-Tokens erlauben",
-          "includeOfflineAccessHelp": "Deaktiviert (Standard): keine Refresh-Tokens. Aktiviert: Client darf offline_access anfordern und Refresh-Tokens erhalten, mit denen später neue Access-Tokens geholt werden können (bis etwa 90 Tage). Deaktivieren entfernt offline_access aus der Allow-List des Clients; Nutzer müssen für neue Refresh-Tokens erneut autorisieren."
+          "includeOfflineAccessHelp": "Deaktiviert (Standard): keine Refresh-Tokens. Aktiviert: Client darf offline_access anfordern und Refresh-Tokens erhalten, mit denen später neue Access-Tokens geholt werden können (bis etwa 90 Tage). Deaktivieren entfernt offline_access aus der Allow-List des Clients; Nutzer müssen für neue Refresh-Tokens erneut autorisieren.",
+          "isPublicLabel": "Öffentlicher Client (ohne Secret, nur PKCE)",
+          "isPublicHelp": "Aktiviert: öffentlicher PKCE-Client für native oder mobile Apps, die kein Secret speichern können. Es wird kein Client-Secret ausgestellt; Token-Anfragen nutzen nur PKCE. Deaktiviert (Standard): vertraulicher Client mit Client-Secret."
         },
         "CreatedSuccess": {
           "title": "OAuth-Client erstellt",
@@ -4390,6 +4256,7 @@
           "clientIdLabel": "Client-ID",
           "clientSecretLabel": "Client-Secret",
           "clientSecretWarning": "Dieses Secret wird nur einmal angezeigt. Stelle sicher, dass du es sicher speicherst.",
+          "publicNote": "Öffentlicher Client erstellt — es wurde kein Secret ausgestellt. Nutze die Client-ID mit PKCE (S256).",
           "doneButton": "Fertig",
           "showSecret": "Secret anzeigen",
           "hideSecret": "Secret verbergen"
@@ -4404,7 +4271,9 @@
           "disabled": "Deaktiviert",
           "apiAccess": "API-Zugriff",
           "identityOnly": "Nur Identität",
-          "refresh": "Refresh-Token"
+          "refresh": "Refresh-Token",
+          "public": "Öffentlich",
+          "confidential": "Vertraulich"
         },
         "Actions": {
           "editTooltip": "OAuth-Client bearbeiten",
@@ -4424,7 +4293,10 @@
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
           "includeCoreApiHelp": "Deaktiviert: nur Identität (openid). Aktiviert: Core-API (sokosumi:api) bei der Autorisierung. Änderung aktualisiert die Allow-List des Clients. API aus sperrt Core-Zugriff für bestehende Tokens sofort; API an erfordert erneute Autorisierung für neue Tokens mit diesem Scope.",
           "includeOfflineAccessLabel": "Refresh-Tokens erlauben",
-          "includeOfflineAccessHelp": "Deaktiviert: keine Refresh-Tokens. Aktiviert: Client darf offline_access anfordern und Refresh-Tokens erhalten, mit denen später neue Access-Tokens geholt werden können (bis etwa 90 Tage). Änderung aktualisiert die Scope-Allow-List des Clients. Refresh aus entfernt offline_access aus dieser Allow-List; Nutzer müssen für neue Refresh-Tokens erneut autorisieren."
+          "includeOfflineAccessHelp": "Deaktiviert: keine Refresh-Tokens. Aktiviert: Client darf offline_access anfordern und Refresh-Tokens erhalten, mit denen später neue Access-Tokens geholt werden können (bis etwa 90 Tage). Änderung aktualisiert die Scope-Allow-List des Clients. Refresh aus entfernt offline_access aus dieser Allow-List; Nutzer müssen für neue Refresh-Tokens erneut autorisieren.",
+          "clientTypeLabel": "Client-Typ",
+          "clientTypePublic": "Öffentlich — nur PKCE, ohne Secret. Der Typ kann nach der Erstellung nicht geändert werden.",
+          "clientTypeConfidential": "Vertraulich — authentifiziert sich mit einem Client-Secret. Der Typ kann nach der Erstellung nicht geändert werden."
         },
         "DeleteDialog": {
           "title": "OAuth-Client löschen",
