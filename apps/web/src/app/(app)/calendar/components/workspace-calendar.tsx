@@ -598,24 +598,16 @@ export function WorkspaceCalendar({
     : selectedProjectId
       ? `project:${selectedProjectId}`
       : state.sourceId;
-  const hasSelectedSchedulableWorkspaceSource = sources.some(
-    (source) =>
-      source.sourceId === selectedSourceId &&
-      source.sourceType === "WORKSPACE" &&
-      source.isSchedulable,
+  const selectedSchedulableSource = sources.find(
+    (source) => source.sourceId === selectedSourceId && source.isSchedulable,
   );
   // Tri-state for task creation: a Project id, `null` for an explicit Workspace
   // source, `undefined` when no source is filtered and the user must choose.
   const selectedCreateProjectId =
     lockedProjectId ??
-    (selectedProjectId &&
-    sources.some(
-      (source) =>
-        source.sourceId === `project:${selectedProjectId}` &&
-        source.isSchedulable,
-    )
-      ? selectedProjectId
-      : !selectedProjectId && hasSelectedSchedulableWorkspaceSource
+    (selectedSchedulableSource?.sourceType === "PROJECT"
+      ? (getProjectIdFromSource(selectedSchedulableSource) ?? undefined)
+      : selectedSchedulableSource?.sourceType === "WORKSPACE"
         ? null
         : undefined);
   const canCreate = sources.some(

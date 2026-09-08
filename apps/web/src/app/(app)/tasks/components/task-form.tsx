@@ -252,6 +252,11 @@ export function TaskForm({
   const [isProjectMissing, setIsProjectMissing] = useState(false);
   const projectSelectRef = useRef<HTMLButtonElement>(null);
   const projectErrorId = useId();
+  useLayoutEffect(() => {
+    if (isProjectMissing) {
+      projectSelectRef.current?.focus();
+    }
+  }, [isProjectMissing]);
   const [contextSelection, setContextSelection] =
     useState<TaskContextAttachmentsSelection>(() =>
       getDefaultTaskContextSelection(
@@ -541,7 +546,6 @@ export function TaskForm({
       if (isSaveDisabled || (useWizard && step === 1)) return;
       if (shouldShowProjectSelect && projectId === undefined) {
         setIsProjectMissing(true);
-        projectSelectRef.current?.focus();
         return;
       }
       if (overrideStatus && overrideStatus === TaskStatus.DRAFT) {

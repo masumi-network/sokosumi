@@ -147,6 +147,8 @@ describe("createScheduledTaskInTransaction", () => {
             scheduleOperationId: OPERATION_ID,
             schedulePayload: {
               action: "create_schedule",
+              epochId: expect.any(String),
+              nextRunAt: "2099-09-24T09:00:00.000Z",
               source: { type: "project", projectId: PROJECT_ID },
               schedule: {
                 mode: "once",
@@ -157,6 +159,10 @@ describe("createScheduledTaskInTransaction", () => {
         }),
       }),
       tx,
+    );
+    const createdSchedule = createTaskForActorMock.mock.calls[0]?.[0]?.schedule;
+    expect(createdSchedule.event.schedulePayload.epochId).toBe(
+      createdSchedule.metadata.epochId,
     );
     expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
       tx,

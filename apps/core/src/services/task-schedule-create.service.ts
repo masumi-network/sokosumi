@@ -262,6 +262,8 @@ export async function createScheduledTaskInTransaction(
           scheduleOperationId: input.operationId,
           schedulePayload: {
             action: "create_schedule",
+            epochId: metadata.epochId,
+            nextRunAt: nextRunAt.toISOString(),
             source: input.source,
             schedule: input.schedule,
           },
