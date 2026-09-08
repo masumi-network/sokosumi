@@ -49,3 +49,13 @@ jobs:
         # Ad-hoc signing: the project stays team-less so devs' local teams never
         # leak into CI, which holds no Apple certificates (see SOK-973).
         run: xcodebuild -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build
+
+      - name: Test Sokosumi app target
+        # Same ad-hoc signing as the build step above.
+        run: xcodebuild test -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -only-testing:SokosumiTests
+
+      - name: Test Swift packages
+        run: |
+          for package in apps/apple/Packages/SokosumiChat apps/apple/Packages/SokosumiAuth; do
+            swift test --package-path "$package"
+          done

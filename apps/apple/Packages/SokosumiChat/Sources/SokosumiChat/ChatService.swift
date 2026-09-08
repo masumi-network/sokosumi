@@ -96,8 +96,12 @@ public struct ChatService: Sendable {
     savedWorkspaceId: String? = nil
   ) async throws -> InitialWorkspaceState {
     // Sequential: deterministic against stub transports, and three small
-    // reads are cheap next to the rooms walk that follows.
+    // reads are cheap next to the rooms walk that follows. Gate first:
+    // anything other than `ready` throws `.blocked` without further calls.
     let resolvedAccess = try await fetchAccess(client: client)
+    guard resolvedAccess.gate == .ready else {
+      throw ChatServiceError.blocked(resolvedAccess.gate)
+    }
     let resolvedOrganizations = try await fetchOrganizations(client: client)
     let resolvedUser = try await fetchCurrentUser(client: client)
     return .init(

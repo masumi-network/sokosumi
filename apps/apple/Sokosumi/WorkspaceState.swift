@@ -38,8 +38,19 @@ final class WorkspaceState: ObservableObject {
   @Published private(set) var currentUserImageURL: String?
 
   private let service = ChatService()
-  private let savedSelection = SavedWorkspaceSelection()
+  private let savedSelection: SavedWorkspaceSelection
   private var hasLoaded = false
+
+  init(savedSelection: SavedWorkspaceSelection = SavedWorkspaceSelection()) {
+    self.savedSelection = savedSelection
+  }
+
+  /// Test seam: when set, replaces `auth.coreClient()` as the client source.
+  var clientResolver: (() -> Client?)?
+
+  private func resolveClient(auth: AuthState) -> Client? {
+    clientResolver?() ?? auth.coreClient()
+  }
 
   var selection: WorkspaceOption? {
     options.first { $0.id == selectionId }
@@ -76,10 +87,10 @@ final class WorkspaceState: ObservableObject {
     Task { await switchRooms(auth: auth, option: option) }
   }
 
-  private func reload(auth: AuthState) async {
+  func reload(auth: AuthState) async {
     phase = .loading
     rooms = []
-    guard let client = auth.coreClient() else {
+    guard let client = resolveClient(auth: auth) else {
       phase = .failed(message: "Sign-in is not configured.")
       return
     }
@@ -120,10 +131,10 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
-  private func switchRooms(auth: AuthState, option: WorkspaceOption) async {
+  func switchRooms(auth: AuthState, option: WorkspaceOption) async {
     roomsLoading = true
     defer { roomsLoading = false }
-    guard let client = auth.coreClient() else {
+    guard let client = resolveClient(auth: auth) else {
       phase = .failed(message: "Sign-in is not configured.")
       return
     }
