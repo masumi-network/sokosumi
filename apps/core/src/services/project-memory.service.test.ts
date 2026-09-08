@@ -96,6 +96,12 @@ const completedTask = {
   files: [{ name: "launch-report.pdf" }],
 };
 
+function isFollowUpTaskIdLookup(args: {
+  select?: Record<string, boolean>;
+}): boolean {
+  return args.select?.id === true && args.select.name !== true;
+}
+
 describe("projectMemoryService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -109,9 +115,7 @@ describe("projectMemoryService", () => {
     projectFindUniqueMock.mockResolvedValue(project);
     taskFindFirstMock.mockImplementation(
       (args: { select?: Record<string, boolean> }) =>
-        args.select && Object.keys(args.select).length === 1
-          ? null
-          : completedTask,
+        isFollowUpTaskIdLookup(args) ? null : completedTask,
     );
     taskFindManyMock.mockResolvedValue([]);
     generateTextMock.mockResolvedValue({ text: "# Updated\nNew decision" });
@@ -295,9 +299,7 @@ describe("projectMemoryService", () => {
     };
     taskFindFirstMock.mockImplementation(
       (args: { select?: Record<string, boolean> }) =>
-        args.select && Object.keys(args.select).length === 1
-          ? null
-          : oversizedTask,
+        isFollowUpTaskIdLookup(args) ? null : oversizedTask,
     );
 
     await projectMemoryService.refreshAfterTaskCompleted({
@@ -466,9 +468,7 @@ Reached technical founders.`;
     };
     taskFindFirstMock.mockImplementation(
       (args: { select?: Record<string, boolean> }) =>
-        args.select && Object.keys(args.select).length === 1
-          ? null
-          : inWindowTask,
+        isFollowUpTaskIdLookup(args) ? null : inWindowTask,
     );
     taskFindManyMock.mockResolvedValue([staleTask]);
     generateTextMock
