@@ -56,7 +56,7 @@ export default async function ProjectDetailPage({
         initialDesignMd={project.designMd}
         websiteUrl={project.websiteUrl}
       >
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
+        <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
           <div className="min-w-0 space-y-8">
             <ProjectDetailHeader
               projectName={project.name}
@@ -112,7 +112,7 @@ export default async function ProjectDetailPage({
             />
           </div>
 
-          <aside className="min-w-0 space-y-8">
+          <aside className="min-w-0 space-y-8 xl:row-span-2">
             <ProjectBrandCard
               projectId={project.id}
               projectName={project.name}

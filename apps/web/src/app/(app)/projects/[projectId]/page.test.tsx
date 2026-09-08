@@ -158,9 +158,10 @@ describe("ProjectDetailPage", () => {
     expect(screen.getByTestId("needs-attention-section")).toBeInTheDocument();
 
     const layoutGrid = container.querySelector(
-      ".lg\\:grid-cols-\\[minmax\\(0\\,1fr\\)_minmax\\(16rem\\,20rem\\)\\]",
+      ".xl\\:grid-cols-\\[minmax\\(0\\,1fr\\)_minmax\\(16rem\\,20rem\\)\\]",
     );
     expect(layoutGrid).toBeTruthy();
+    expect(layoutGrid?.className).not.toContain("lg:grid-cols-");
 
     const introColumn = screen
       .getByRole("heading", { name: "Launch plan" })
@@ -171,6 +172,7 @@ describe("ProjectDetailPage", () => {
       .closest(".space-y-8");
     expect(introColumn).toBeTruthy();
     expect(aside).toBeTruthy();
+    expect(aside?.className).toContain("xl:row-span-2");
     expect(needsAttentionColumn).toBeTruthy();
     expect(aside?.contains(screen.getByTestId("memory-stat"))).toBe(true);
     expect(aside?.contains(screen.getByTestId("brand-card"))).toBe(true);

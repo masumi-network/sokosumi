@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
   PROJECTS_BROWSE_LAYOUT_CLASS,
+  PROJECTS_CALENDAR_SHELL_CLASS,
   PROJECTS_DETAIL_SHELL_CLASS,
   PROJECTS_DETAIL_WORKSPACE_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
@@ -65,6 +66,16 @@ describe("projects mobile padding shells", () => {
     expect(shell).not.toContain("md:px-6");
 
     expect(workspace).toEqual(["space-y-3"]);
+  });
+
+  it("calendar shell keeps max-w-7xl so the week canvas is not clipped", () => {
+    const shell = PROJECTS_CALENDAR_SHELL_CLASS.split(/\s+/);
+
+    expect(shell).toContain("mx-auto");
+    expect(shell).toContain("w-full");
+    expect(shell).toContain("max-w-7xl");
+    expect(shell).toContain("py-6");
+    expect(shell).not.toContain("max-w-6xl");
   });
 });
 

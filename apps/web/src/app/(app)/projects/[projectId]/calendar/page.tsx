@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { getLocale, getTranslations } from "next-intl/server";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
-import { PROJECTS_DETAIL_SHELL_CLASS } from "@/app/projects/constants";
+import { PROJECTS_CALENDAR_SHELL_CLASS } from "@/app/projects/constants";
 import { getSession } from "@/lib/auth/auth.server";
 import { isBetaAccessEmail } from "@/lib/beta-access";
 import { TaskStatus } from "@/lib/clients/generated/core";
@@ -66,7 +66,7 @@ export default async function ProjectCalendarPage({
   const sourceId = `project:${project.id}`;
 
   return (
-    <div className={PROJECTS_DETAIL_SHELL_CLASS}>
+    <div className={PROJECTS_CALENDAR_SHELL_CLASS}>
       <ProjectDetailHeader
         backHref={`/projects/${project.id}`}
         backLabel={t("backToProject")}
