@@ -1,7 +1,7 @@
 "use client";
 
 import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
-import { Hash, Loader2, MessageCircle } from "lucide-react";
+import { Hash, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -33,18 +33,14 @@ import {
 } from "@/app/chat/actions";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
-import {
-  PinnedMessagesHeaderButton,
-  PinnedMessagesPanel,
-} from "@/app/chat/components/pinned-messages-panel";
-import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
+import { PinnedMessagesPanel } from "@/app/chat/components/pinned-messages-panel";
 import { ThreadListPanel } from "@/app/chat/components/thread-list-panel";
-import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
+import { useEditChannelParam } from "@/app/chat/hooks/use-edit-channel-param";
 import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
 import { useRoomMessagePolling } from "@/app/chat/hooks/use-room-message-polling";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
@@ -98,14 +94,11 @@ import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
-import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
-import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import {
   getMembershipVisibleRooms,
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
@@ -134,8 +127,6 @@ import type {
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { raceWithTimeout } from "@/lib/utils/race-with-timeout";
-import { getInitials } from "@/lib/utils/text";
-import { EditChannelDialog } from "./edit-channel-dialog";
 import { MembershipStatusRow } from "./membership-status-row";
 import {
   canOpenHumanDirectFromSelectedRoom,
@@ -144,6 +135,7 @@ import {
 } from "./open-direct-with-participant";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
+import { RoomHeaderChrome } from "./room-header-chrome";
 import {
   appendMessage,
   buildRoomAllMentionRecord,
@@ -174,7 +166,7 @@ import {
   type RoomMessagePage,
   RoomMessagesHydrator,
 } from "./room-messages-hydrator";
-import { ROOM_ROSTER_PANEL_ID, RoomRosterPanel } from "./room-roster-panel";
+import { RoomRosterPanel } from "./room-roster-panel";
 import {
   RoomSessionComposer,
   type RoomSessionSendRequest,
@@ -266,230 +258,6 @@ function RoomMessageRealtimeBridge({
   return null;
 }
 
-function RoomParticipantStack({
-  room,
-  rosterOpen,
-  onToggleRoster,
-}: {
-  room: ChatRoom;
-  rosterOpen: boolean;
-  onToggleRoster: () => void;
-}) {
-  const t = useTranslations("App.Channels");
-  const participants = getRoomParticipantPreviews(room);
-  const visibleParticipants = participants.slice(0, 4);
-  const remainingCount = participants.length - visibleParticipants.length;
-
-  if (participants.length === 0) {
-    return null;
-  }
-
-  return (
-    <button
-      type="button"
-      className="flex -space-x-2 cursor-pointer rounded-full outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
-      aria-label={t("RoomRoster.open")}
-      title={t("RoomRoster.open")}
-      aria-expanded={rosterOpen}
-      aria-controls={ROOM_ROSTER_PANEL_ID}
-      data-testid="room-roster-trigger"
-      onClick={onToggleRoster}
-    >
-      {visibleParticipants.map((participant, index) => (
-        <span
-          key={`${participant.kind}-${participant.id}`}
-          className="relative inline-flex size-6 shrink-0 md:size-7"
-          style={{ zIndex: visibleParticipants.length - index }}
-        >
-          <Avatar className="ring-border/60 size-full shadow-xs ring-1">
-            <AvatarImage src={participant.image ?? undefined} alt="" />
-            <AvatarFallback
-              className={cn(
-                "text-[0.625rem]",
-                participant.kind === "coworker" ||
-                  participant.kind === "sokoBot"
-                  ? "bg-primary/10 text-primary"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              {getInitials(participant.name)}
-            </AvatarFallback>
-          </Avatar>
-          <LiveMemberPresenceDot
-            className="absolute -right-0.5 -bottom-0.5"
-            fallback={participant.presence}
-            isCoworker={
-              participant.kind === "coworker" || participant.kind === "sokoBot"
-            }
-            userId={participant.id}
-          />
-        </span>
-      ))}
-      {remainingCount > 0 ? (
-        <span
-          className="bg-muted text-muted-foreground ring-border/60 relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
-          style={{ zIndex: 0 }}
-          aria-hidden
-        >
-          +{remainingCount}
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
-interface RoomHeaderChromeProps {
-  room: ChatRoom;
-  displayName: string;
-  isDirectRoom: boolean;
-  onJumpToMessage: (hit: ChatRoomMessage) => void;
-  threadListOpen: boolean;
-  onToggleThreadList: () => void;
-  pinnedOpen: boolean;
-  onTogglePinned: () => void;
-  rosterOpen: boolean;
-  onToggleRoster: () => void;
-  currentUserId: string;
-  organizationMembers: Member[];
-  coworkers: Coworker[];
-  sokoBots: ChatComposeSokoBot[];
-  canEditMembers: boolean;
-  canManageSettings: boolean;
-  canArchive: boolean;
-  canLeave: boolean;
-  canInviteGuests: boolean;
-  membersLoadFailed: boolean;
-  /** When false, skip avatar stack so title can paint without it. */
-  showParticipants: boolean;
-}
-
-function RoomHeaderChrome({
-  room,
-  displayName,
-  isDirectRoom,
-  onJumpToMessage,
-  threadListOpen,
-  onToggleThreadList,
-  pinnedOpen,
-  onTogglePinned,
-  rosterOpen,
-  onToggleRoster,
-  currentUserId,
-  organizationMembers,
-  coworkers,
-  sokoBots,
-  canEditMembers,
-  canManageSettings,
-  canArchive,
-  canLeave,
-  canInviteGuests,
-  membersLoadFailed,
-  showParticipants,
-}: RoomHeaderChromeProps) {
-  const t = useTranslations("App.Channels");
-  const trimmedTopic = room.topic?.trim() ?? "";
-  const channelTopic = !isDirectRoom && trimmedTopic ? trimmedTopic : null;
-
-  return (
-    <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden md:gap-4">
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2">
-        {isDirectRoom ? (
-          <>
-            <MessageCircle className="text-muted-foreground size-4 shrink-0" />
-            <p
-              className="text-foreground min-w-0 truncate text-sm"
-              data-testid="room-open-title"
-            >
-              {displayName}
-            </p>
-          </>
-        ) : (
-          <>
-            <EditChannelDialog
-              channel={room}
-              members={organizationMembers}
-              coworkers={coworkers}
-              sokoBots={sokoBots}
-              currentUserId={currentUserId}
-              canEditMembers={canEditMembers}
-              canManageSettings={canManageSettings}
-              canArchive={canArchive}
-              canLeave={canLeave}
-              canInviteGuests={canInviteGuests}
-              membersLoadFailed={membersLoadFailed}
-            >
-              <button
-                type="button"
-                className={cn(
-                  "text-foreground [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-accent/50 flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2",
-                  channelTopic && "shrink-0",
-                )}
-                title={t("editChannel")}
-                data-testid="room-open-title"
-              >
-                <ChannelDiscoverabilityIcon
-                  className="text-muted-foreground"
-                  discoverability={room.discoverability}
-                />
-                <span className="min-w-0 truncate">{displayName}</span>
-              </button>
-            </EditChannelDialog>
-            {channelTopic ? (
-              <p
-                className="text-muted-foreground min-w-0 flex-1 truncate text-sm"
-                title={channelTopic}
-                data-testid="room-open-topic"
-              >
-                {channelTopic}
-              </p>
-            ) : null}
-          </>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        <div className="flex items-center">
-          <RoomSearchPanel
-            key={room.id}
-            roomId={room.id}
-            onJumpToMessage={onJumpToMessage}
-            labels={{
-              open: t("RoomSearch.open"),
-              placeholder: t("RoomSearch.placeholder"),
-              idle: t("RoomSearch.idle"),
-              empty: t("RoomSearch.empty"),
-              loading: t("RoomSearch.loading"),
-              error: t("RoomSearch.error"),
-              replyBadge: t("RoomSearch.replyBadge"),
-            }}
-          />
-          {isDirectRoom ? null : (
-            <PinnedMessagesHeaderButton
-              isOpen={pinnedOpen}
-              onToggle={onTogglePinned}
-              openLabel={t("PinnedMessages.open")}
-            />
-          )}
-          <UnreadThreadsPanel
-            key={`unread-threads-${room.id}`}
-            isOpen={threadListOpen}
-            onToggle={onToggleThreadList}
-            labels={{
-              open: t("UnreadThreads.open"),
-            }}
-          />
-        </div>
-        {showParticipants && shouldShowRoomRosterControl(room) ? (
-          <RoomParticipantStack
-            room={room}
-            rosterOpen={rosterOpen}
-            onToggleRoster={onToggleRoster}
-          />
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 export function RoomsClient({
   activeOrganization,
   rooms,
@@ -573,6 +341,7 @@ export function RoomsClient({
   const [syncedRosterPromise, setSyncedRosterPromise] = useState(rosterPromise);
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
+  const [editChannelOpen, setEditChannelOpen] = useState(false);
   const historicalTimelineRef = useRef(false);
   const historicalThreadRef = useRef(false);
   const [searchHoldOffBottom, setSearchHoldOffBottom] = useState(false);
@@ -583,6 +352,9 @@ export function RoomsClient({
     setSyncedHistoryRoomId(selectedRoomId);
     historicalTimelineRef.current = false;
     historicalThreadRef.current = false;
+    // The dialog belongs to the room it was opened for, and must not be
+    // handed to the next one.
+    setEditChannelOpen(false);
     setSearchHoldOffBottom(false);
     if (messagesPromise != null) {
       setMessagesState([]);
@@ -666,6 +438,9 @@ export function RoomsClient({
     });
   }, []);
   const [rosterOpen, setRosterOpen] = useState(false);
+  const handleOpenEditChannel = useCallback(() => {
+    setEditChannelOpen(true);
+  }, []);
   const [threadOpenedFromList, setThreadOpenedFromList] = useState(false);
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
@@ -861,6 +636,11 @@ export function RoomsClient({
   }
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
+  // The dialog goes with the room. Losing the room takes it off screen, and a
+  // reader who is let back in has not asked for it a second time.
+  if (selectedRoom == null && editChannelOpen) {
+    setEditChannelOpen(false);
+  }
 
   useEffect(() => {
     if (!selectedRoom || selectedRoom.kind !== "channel") {
@@ -1810,6 +1590,17 @@ export function RoomsClient({
       handleOpenThreadFromMessage,
     });
 
+  useEditChannelParam({
+    // Channels only, the way the row that asks is. A direct room has no
+    // dialog to open, so it has no ask to read either.
+    roomId: selectedRoom?.kind === "channel" ? selectedRoom.id : null,
+    ready: rosterPromise == null || deferredRoster != null,
+    pathname,
+    searchParams,
+    replace: router.replace,
+    open: handleOpenEditChannel,
+  });
+
   useRoomNotificationDeepLink({
     invalidateJump,
     roomId: selectedRoom?.id ?? null,
@@ -2508,6 +2299,8 @@ export function RoomsClient({
         canLeave={canLeaveSelectedRoom}
         canInviteGuests={canInviteGuestsToSelectedRoom}
         membersLoadFailed={membersLoadFailed}
+        editOpen={editChannelOpen}
+        onEditOpenChange={setEditChannelOpen}
         showParticipants={showHeaderParticipants}
       />
     ) : null;
