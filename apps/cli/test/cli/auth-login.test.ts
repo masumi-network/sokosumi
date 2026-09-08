@@ -191,3 +191,45 @@ test("auth login rejects API keys containing whitespace", async () => {
     /must not contain whitespace/,
   );
 });
+
+test("auth login sends the target-scoped mainnet client ID", async () => {
+  let loginRequest: BrowserLoginOptions | undefined;
+  await runAuthLogin({
+    env: {
+      SOKOSUMI_API_URL: "https://api.sokosumi.com",
+      SOKOSUMI_MAINNET_OAUTH_CLIENT_ID: "mainnet-client",
+    },
+    loginFn: async (request) => {
+      loginRequest = request;
+      return {
+        authToken: "access-token",
+        refreshToken: "refresh-token",
+        expiresAt: "2030-01-01T00:00:00.000Z",
+      };
+    },
+    authManager: {
+      saveCredentials: (credentials) => credentials,
+    },
+    stdout: { write: () => undefined },
+  });
+  assert.equal(loginRequest?.clientId, "mainnet-client");
+});
+
+test("TestV16 hosted OAuth fails before browser launch without a client ID", async () => {
+  let browserLaunched = false;
+  await assert.rejects(
+    runAuthLogin({
+      env: { SOKOSUMI_API_URL: "https://api.sokosumi.com" },
+      loginFn: async () => {
+        browserLaunched = true;
+        throw new Error("browser should not launch");
+      },
+      authManager: {
+        saveCredentials: (credentials) => credentials,
+      },
+      stdout: { write: () => undefined },
+    }),
+    /SOKOSUMI_MAINNET_OAUTH_CLIENT_ID/,
+  );
+  assert.equal(browserLaunched, false);
+});

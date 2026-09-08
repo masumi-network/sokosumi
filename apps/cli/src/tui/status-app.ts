@@ -6,8 +6,11 @@ import {
   useApp,
   useInput,
 } from "ink";
-import React, { useEffect, useRef, useState } from "react";
-
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CoreHttpClient,
+  createCoreHttpClient,
+} from "../api/http-client.js";
 import {
   type AuthEnvironment,
   type AuthManager,
@@ -28,8 +31,9 @@ import { type AuthLoginOptions, runAuthLogin } from "../cli/auth-login.js";
 import {
   COWORKER_FRAMEWORK_PRESETS,
   describeRegisterNextStep,
-  presetForKey,
 } from "../coworker/presets.js";
+import { type ResourceKind, ResourceView } from "./resource-view.js";
+import { SelectInput, type SelectItem } from "./select-input.js";
 
 export interface StatusAppOptions {
   render?: (
@@ -39,6 +43,7 @@ export interface StatusAppOptions {
     waitUntilExit(): Promise<void>;
   };
   authManager?: AuthManager;
+  coreClient?: CoreHttpClient;
   loginFn?: AuthLoginOptions["loginFn"];
   readStdin?: () => string;
   env?: AuthEnvironment;
@@ -52,12 +57,25 @@ type AuthScreen =
   | "oauth-confirm"
   | "api-key-input"
   | "api-key-target"
-  | "register";
+  | "register"
+  | ResourceKind;
 
 type TerminalInput = NodeJS.ReadStream & {
   isTTY?: boolean;
   setRawMode?: (mode: boolean) => TerminalInput;
 };
+function adaptSelectHandler<T>(
+  handler: (value: T) => void,
+): (value: unknown) => void {
+  return (value) => handler(value as T);
+}
+
+type AuthMethod = "oauth" | "api-key";
+type HostedTarget = "mainnet" | "preprod";
+type OAuthConfirm = "sign-in";
+type HomeAction = ResourceKind | "register" | "sign-out";
+
+type SelectorItem<T> = SelectItem<T>;
 
 function readApiKeyFromTerminal(
   input: TerminalInput = process.stdin as TerminalInput,
@@ -73,6 +91,20 @@ function readApiKeyFromTerminal(
 
   return new Promise<string>((resolve, reject) => {
     let value = "";
+    const finish = (
+      kind: "resolve" | "reject",
+      result: string | Error,
+    ): void => {
+      input.off("data", onData);
+      input.setRawMode?.(false);
+      input.pause();
+      output.write("\n");
+      if (kind === "resolve" && typeof result === "string") {
+        resolve(result);
+      } else {
+        reject(result instanceof Error ? result : new Error(String(result)));
+      }
+    };
     const onData = (chunk: Buffer | string) => {
       const inputValue = String(chunk);
       for (const character of inputValue) {
@@ -93,20 +125,6 @@ function readApiKeyFromTerminal(
           continue;
         }
         value += character;
-      }
-    };
-    const finish = (
-      kind: "resolve" | "reject",
-      result: string | Error,
-    ): void => {
-      input.off("data", onData);
-      input.setRawMode?.(false);
-      input.pause();
-      output.write("\n");
-      if (kind === "resolve" && typeof result === "string") {
-        resolve(result);
-      } else {
-        reject(result instanceof Error ? result : new Error(String(result)));
       }
     };
 
@@ -130,19 +148,30 @@ function getManagerForConfig(
 
 function createTargetConfig(
   env: AuthEnvironment,
-  target: "mainnet" | "preprod",
+  target: HostedTarget,
 ): CliTargetConfig {
   return resolveCliConfig({ env, preprod: target === "preprod" });
 }
 
+function navigationHint({ back = false }: { back?: boolean } = {}) {
+  return React.createElement(
+    Text,
+    { dimColor: true },
+    back
+      ? "Use arrows, then Enter · Esc back · q quit"
+      : "Use arrows, then Enter · q quit",
+  );
+}
+
 function StatusApp({
   authManager,
+  coreClient,
   loginFn,
   readStdin,
   env,
   config,
 }: Required<Pick<StatusAppOptions, "authManager" | "env" | "config">> &
-  Pick<StatusAppOptions, "loginFn" | "readStdin">) {
+  Pick<StatusAppOptions, "coreClient" | "loginFn" | "readStdin">) {
   const { exit } = useApp();
   const [authState, setAuthState] = useState<InitialAuthState>({
     authenticated: false,
@@ -156,10 +185,26 @@ function StatusApp({
   const [selectedConfig, setSelectedConfig] = useState(config);
   const [pendingApiKey, setPendingApiKey] = useState<string | null>(null);
   const abortController = useRef<AbortController | null>(null);
-  const activeManager =
-    selectedConfig.apiUrl === config.apiUrl
-      ? authManager
-      : getManagerForConfig(selectedConfig, env);
+  const activeManager = useMemo(
+    () =>
+      selectedConfig.apiUrl === config.apiUrl
+        ? authManager
+        : getManagerForConfig(selectedConfig, env),
+    [authManager, config.apiUrl, env, selectedConfig],
+  );
+
+  const resourceClient = useMemo(() => {
+    if (!coreClient) return undefined;
+    if (selectedConfig.apiUrl === config.apiUrl) return coreClient;
+    return createCoreHttpClient({
+      apiUrl: selectedConfig.apiUrl,
+      authManager: activeManager,
+      authBaseUrl: selectedConfig.authBaseUrl,
+      clientId: selectedConfig.clientId,
+      clientSecret: selectedConfig.clientSecret,
+      environment: env,
+    });
+  }, [activeManager, config.apiUrl, coreClient, env, selectedConfig]);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,7 +250,7 @@ function StatusApp({
     const controller = new AbortController();
     abortController.current = controller;
     setBusy(true);
-    setMessage("Browser opened. Finish sign-in there; waiting for callback…");
+    setMessage("Starting browser sign-in...");
     void runAuthLogin({
       env,
       config: loginConfig,
@@ -261,9 +306,80 @@ function StatusApp({
       .finally(() => setBusy(false));
   };
 
+  const beginApiKeyLogin = () => {
+    const envApiKey = String(env.SOKOSUMI_API_KEY || "").trim();
+    if (envApiKey) {
+      const detectedTarget = targetFromUserApiKey(envApiKey);
+      const nextConfig =
+        detectedTarget === "preprod"
+          ? createTargetConfig(env, "preprod")
+          : detectedTarget === "mainnet"
+            ? createTargetConfig(env, "mainnet")
+            : selectedConfig;
+      setSelectedConfig(nextConfig);
+      startApiKeyLogin(envApiKey, nextConfig);
+      return;
+    }
+
+    setScreen("api-key-input");
+    setBusy(true);
+    setMessage("Paste the user API key, then press Enter.");
+    const inputPromise = readStdin
+      ? Promise.resolve().then(() => readStdin())
+      : readApiKeyFromTerminal();
+    void inputPromise.then(
+      (apiKey) => {
+        setBusy(false);
+        const detectedTarget = targetFromUserApiKey(apiKey);
+        if (detectedTarget) {
+          const nextConfig = createTargetConfig(env, detectedTarget);
+          setSelectedConfig(nextConfig);
+          startApiKeyLogin(apiKey, nextConfig);
+          return;
+        }
+        setPendingApiKey(apiKey);
+        setScreen("api-key-target");
+        setMessage("This key has no target prefix. Choose its target.");
+      },
+      (error: unknown) => {
+        setBusy(false);
+        setMessage(error instanceof Error ? error.message : String(error));
+      },
+    );
+  };
+
   useInput((input, key) => {
-    if (input === "q" || key.escape) {
+    if (input === "q") {
       abortController.current?.abort();
+      exit();
+      return;
+    }
+    if (key.escape && !busy) {
+      if (route === "auth") {
+        if (screen === "oauth-target" || screen === "api-key-target") {
+          setScreen("auth-method");
+          setMessage("");
+          return;
+        }
+        if (screen === "oauth-confirm") {
+          setScreen("oauth-target");
+          setMessage("");
+          return;
+        }
+      }
+      if (route === "signed-in") {
+        if (screen === "register" || screen === "home") {
+          if (screen === "register") {
+            setScreen("home");
+            setMessage("");
+            return;
+          }
+        } else {
+          setScreen("home");
+          setMessage("");
+          return;
+        }
+      }
       exit();
       return;
     }
@@ -271,149 +387,76 @@ function StatusApp({
 
     if (route === "auth") {
       if (screen === "auth-method") {
-        if (input === "o" || input === "1") {
-          setScreen("oauth-target");
-          setMessage("");
-        } else if (input === "a" || input === "2") {
-          const envApiKey = String(env.SOKOSUMI_API_KEY || "").trim();
-          if (envApiKey) {
-            const detectedTarget = targetFromUserApiKey(envApiKey);
-            const nextConfig =
-              detectedTarget === "preprod"
-                ? createTargetConfig(env, "preprod")
-                : detectedTarget === "mainnet"
-                  ? createTargetConfig(env, "mainnet")
-                  : selectedConfig;
-            startApiKeyLogin(envApiKey, nextConfig);
-          } else {
-            setScreen("api-key-input");
-            setBusy(true);
-            setMessage("Paste the user API key, then press Enter.");
-            const inputPromise = readStdin
-              ? Promise.resolve().then(() => readStdin())
-              : readApiKeyFromTerminal();
-            void inputPromise.then(
-              (apiKey) => {
-                setBusy(false);
-                const detectedTarget = targetFromUserApiKey(apiKey);
-                if (detectedTarget) {
-                  const nextConfig = createTargetConfig(env, detectedTarget);
-                  setSelectedConfig(nextConfig);
-                  startApiKeyLogin(apiKey, nextConfig);
-                  return;
-                }
-                setPendingApiKey(apiKey);
-                setScreen("api-key-target");
-                setMessage("Legacy key. Choose its target.");
-              },
-              (error: unknown) => {
-                setBusy(false);
-                setMessage(
-                  error instanceof Error ? error.message : String(error),
-                );
-              },
-            );
-          }
-        }
         return;
       }
       if (screen === "oauth-target") {
-        if (input === "1") {
-          const nextConfig = createTargetConfig(env, "mainnet");
-          setSelectedConfig(nextConfig);
-          setScreen("oauth-confirm");
-          setMessage("");
-        } else if (input === "2") {
-          const nextConfig = createTargetConfig(env, "preprod");
-          setSelectedConfig(nextConfig);
-          setScreen("oauth-confirm");
-          setMessage("");
-        } else if (input === "b") {
-          setScreen("auth-method");
-        }
         return;
       }
       if (screen === "oauth-confirm") {
-        if (input === "b") {
-          setScreen("oauth-target");
-        } else if (input === "o" || input === "1" || key.return) {
-          startOAuthLogin(selectedConfig);
-        }
         return;
       }
       if (screen === "api-key-target") {
-        if (input === "1" || input === "2") {
-          const target = input === "2" ? "preprod" : "mainnet";
-          const nextConfig = createTargetConfig(env, target);
-          setSelectedConfig(nextConfig);
-          setScreen("home");
-          if (pendingApiKey) startApiKeyLogin(pendingApiKey, nextConfig);
-        } else if (input === "b") {
-          setPendingApiKey(null);
-          setScreen("auth-method");
-        }
         return;
       }
       if (screen === "api-key-input") return;
-      if (input === "o" || input === "1") {
-        setScreen("oauth-target");
-      } else if (input === "a" || input === "2") {
-        setScreen("auth-method");
-      }
       return;
     }
 
     if (route !== "signed-in") return;
-    if (screen === "register") {
-      if (input === "b") {
-        setScreen("home");
-        setMessage("");
-        return;
-      }
-      const preset = presetForKey(input);
-      if (preset) setMessage(describeRegisterNextStep(preset));
+    if (
+      screen === "register" ||
+      screen === "home" ||
+      screen === "dashboard" ||
+      screen === "agents" ||
+      screen === "coworkers" ||
+      screen === "tasks" ||
+      screen === "jobs" ||
+      screen === "account"
+    )
       return;
-    }
-    if (input === "r") {
-      setScreen("register");
-      setMessage("");
-      return;
-    }
-    if (input === "x") {
-      activeManager.logout();
-      setAuthState({ authenticated: false, authMethod: null, expiresAt: null });
-      setScreen("auth-method");
-      setMessage("Signed out.");
-    }
   });
 
   if (route === "boot") {
-    return React.createElement(Text, null, "Checking session…");
+    return React.createElement(Text, null, "Checking session...");
   }
 
   if (route === "auth") {
     if (screen === "oauth-target") {
+      const items: SelectorItem<HostedTarget>[] = [
+        { value: "mainnet", label: "Mainnet" },
+        { value: "preprod", label: "Preprod" },
+      ];
       return React.createElement(
         Box,
         { flexDirection: "column" },
         React.createElement(Text, { bold: true }, "Choose OAuth target"),
-        React.createElement(Text, null, "1 mainnet"),
-        React.createElement(Text, null, "2 preprod"),
-        React.createElement(Text, { dimColor: true }, "b back · q quit"),
+        React.createElement(SelectInput, {
+          items,
+          onSelect: adaptSelectHandler<HostedTarget>((target) => {
+            setSelectedConfig(createTargetConfig(env, target));
+            setScreen("oauth-confirm");
+            setMessage("");
+          }),
+        }),
+        navigationHint({ back: true }),
         message ? React.createElement(Text, null, message) : null,
       );
     }
     if (screen === "oauth-confirm") {
+      const items: SelectorItem<OAuthConfirm>[] = [
+        { value: "sign-in", label: "Open browser sign-in" },
+      ];
       return React.createElement(
         Box,
         { flexDirection: "column" },
         React.createElement(Text, { bold: true }, "Open browser sign-in?"),
         React.createElement(Text, null, `Target: ${selectedConfig.target}`),
-        React.createElement(
-          Text,
-          { dimColor: true },
-          "enter or o sign in · b back · q quit",
-        ),
+        React.createElement(SelectInput, {
+          items,
+          onSelect: () => startOAuthLogin(selectedConfig),
+          listen: !busy,
+        }),
+        navigationHint({ back: true }),
         message ? React.createElement(Text, null, message) : null,
       );
     }
@@ -430,39 +473,63 @@ function StatusApp({
         React.createElement(
           Text,
           { dimColor: true },
-          "escape or Ctrl+C cancels · q quits",
+          "Ctrl+C cancels · q quits",
         ),
         message ? React.createElement(Text, null, message) : null,
       );
     }
     if (screen === "api-key-target") {
+      const items: SelectorItem<HostedTarget>[] = [
+        { value: "mainnet", label: "Mainnet" },
+        { value: "preprod", label: "Preprod" },
+      ];
       return React.createElement(
         Box,
         { flexDirection: "column" },
-        React.createElement(
-          Text,
-          { bold: true },
-          "Choose legacy API-key target",
-        ),
-        React.createElement(Text, null, "1 mainnet"),
-        React.createElement(Text, null, "2 preprod"),
-        React.createElement(Text, { dimColor: true }, "b back · q quit"),
+        React.createElement(Text, { bold: true }, "Choose API-key target"),
+        React.createElement(SelectInput, {
+          items,
+          onSelect: adaptSelectHandler<HostedTarget>((target) => {
+            const nextConfig = createTargetConfig(env, target);
+            setSelectedConfig(nextConfig);
+            setScreen("home");
+            if (pendingApiKey) startApiKeyLogin(pendingApiKey, nextConfig);
+            setPendingApiKey(null);
+          }),
+        }),
+        navigationHint({ back: true }),
         message ? React.createElement(Text, null, message) : null,
       );
     }
+    const items: SelectorItem<AuthMethod>[] = [
+      { value: "oauth", label: "Browser OAuth" },
+      { value: "api-key", label: "User API key" },
+    ];
     return React.createElement(
       Box,
       { flexDirection: "column" },
       React.createElement(Text, { bold: true }, "Sokosumi CLI"),
       React.createElement(Text, null, "Choose sign-in method."),
-      React.createElement(Text, null, "o or 1 browser OAuth"),
-      React.createElement(Text, null, "a or 2 user API key"),
-      React.createElement(Text, { dimColor: true }, "q quit"),
+      React.createElement(SelectInput, {
+        items,
+        onSelect: adaptSelectHandler<AuthMethod>((method) => {
+          if (method === "oauth") {
+            setScreen("oauth-target");
+            setMessage("");
+            return;
+          }
+          beginApiKeyLogin();
+        }),
+      }),
+      navigationHint(),
       message ? React.createElement(Text, null, message) : null,
     );
   }
 
   if (route === "signed-in" && screen === "register") {
+    const items: SelectorItem<string>[] = COWORKER_FRAMEWORK_PRESETS.map(
+      (preset) => ({ value: preset.id, label: preset.label }),
+    );
     return React.createElement(
       Box,
       { flexDirection: "column" },
@@ -470,21 +537,49 @@ function StatusApp({
       React.createElement(
         Text,
         { dimColor: true },
-        "Pick the runtime. Chat and Tasks land after it is connected to one workspace.",
+        "Pick the runtime. Chat and Tasks land after it connects to one workspace.",
       ),
-      ...COWORKER_FRAMEWORK_PRESETS.map((preset) =>
-        React.createElement(
-          Text,
-          { key: preset.id },
-          `${preset.key} ${preset.label}`,
-        ),
-      ),
-      React.createElement(Text, { dimColor: true }, "b back · q quit"),
+      React.createElement(SelectInput, {
+        items,
+        onSelect: adaptSelectHandler<string>((presetId) => {
+          const preset = COWORKER_FRAMEWORK_PRESETS.find(
+            (candidate) => candidate.id === presetId,
+          );
+          if (preset) setMessage(describeRegisterNextStep(preset));
+        }),
+        listen: !busy,
+      }),
+      navigationHint({ back: true }),
       message ? React.createElement(Text, null, message) : null,
     );
   }
 
+  if (route === "signed-in" && screen !== "home" && screen !== "register") {
+    return React.createElement(ResourceView, {
+      resource: screen as ResourceKind,
+      coreClient: resourceClient,
+      onBack: () => {
+        setScreen("home");
+        setMessage("");
+      },
+      onNavigate: (resource) => {
+        setScreen(resource);
+        setMessage("");
+      },
+    });
+  }
+
   if (route === "signed-in") {
+    const items: SelectorItem<HomeAction>[] = [
+      { value: "dashboard", label: "Dashboard" },
+      { value: "agents", label: "Agents" },
+      { value: "coworkers", label: "Coworkers" },
+      { value: "tasks", label: "Tasks" },
+      { value: "jobs", label: "Jobs" },
+      { value: "account", label: "Account" },
+      { value: "register", label: "Register a Coworker" },
+      { value: "sign-out", label: "Sign out" },
+    ];
     return React.createElement(
       Box,
       { flexDirection: "column" },
@@ -495,11 +590,31 @@ function StatusApp({
         `Signed in with ${authState.authMethod === "api-key" ? "a user API key" : "browser OAuth"}.`,
       ),
       React.createElement(Text, null, `Target: ${selectedConfig.target}`),
-      React.createElement(
-        Text,
-        { dimColor: true },
-        "r register a Coworker · x sign out · q quit",
-      ),
+      React.createElement(SelectInput, {
+        items,
+        onSelect: adaptSelectHandler<HomeAction>((action) => {
+          if (action === "register") {
+            setScreen("register");
+            setMessage("");
+            return;
+          }
+          if (action !== "sign-out") {
+            setScreen(action);
+            setMessage("");
+            return;
+          }
+          activeManager.logout();
+          setAuthState({
+            authenticated: false,
+            authMethod: null,
+            expiresAt: null,
+          });
+          setScreen("auth-method");
+          setMessage("Signed out.");
+        }),
+        listen: !busy,
+      }),
+      navigationHint(),
       message ? React.createElement(Text, null, message) : null,
     );
   }
@@ -509,11 +624,21 @@ function StatusApp({
     { flexDirection: "column" },
     React.createElement(Text, { bold: true }, "Sokosumi CLI"),
     React.createElement(Text, null, "Not signed in."),
-    React.createElement(
-      Text,
-      { dimColor: true },
-      "o or 1 OAuth · a or 2 API key · q quit",
-    ),
+    React.createElement(SelectInput, {
+      items: [
+        { value: "oauth", label: "Browser OAuth" },
+        { value: "api-key", label: "User API key" },
+      ] satisfies readonly SelectorItem<AuthMethod>[],
+      onSelect: adaptSelectHandler<AuthMethod>((method) => {
+        if (method === "oauth") {
+          setScreen("oauth-target");
+          return;
+        }
+        beginApiKeyLogin();
+      }),
+      listen: !busy,
+    }),
+    navigationHint(),
     message ? React.createElement(Text, null, message) : null,
   );
 }
@@ -521,6 +646,7 @@ function StatusApp({
 export async function renderStatusApp({
   render = defaultRender,
   authManager,
+  coreClient,
   loginFn,
   readStdin,
   env = process.env,
@@ -530,6 +656,7 @@ export async function renderStatusApp({
   const { waitUntilExit } = render(
     React.createElement(StatusApp, {
       authManager: manager,
+      coreClient,
       loginFn,
       readStdin,
       env,

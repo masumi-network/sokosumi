@@ -111,3 +111,56 @@ test("auth status returns stable non-secret JSON", async () => {
   });
   assert.deepEqual(JSON.parse(output.join("")), result);
 });
+
+test("dispatches discover JSON without opening a TUI", async () => {
+  const output: string[] = [];
+  const result = await runCli(["discover", "--json"], {
+    env: { SOKOSUMI_API_URL: "https://api.example.test" },
+    authManager: createTestAuthManager(),
+    coreClient: {
+      get: async <T>() => ({ data: [] }) as T,
+      post: async <T>() => ({ data: null }) as T,
+      patch: async <T>() => ({ data: null }) as T,
+      delete: async <T>() => ({ data: null }) as T,
+    },
+    stdout: { write: (value) => output.push(value) },
+    tuiFn: async () => {
+      throw new Error("TUI should not launch");
+    },
+  });
+  assert.deepEqual(result, {});
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.environment, "custom");
+  assert.ok(parsed.commands.includes("agents list"));
+});
+
+test("dispatches agents list through the injected Core client", async () => {
+  const output: string[] = [];
+  const result = await runCli(["agents", "list", "--json"], {
+    env: {
+      SOKOSUMI_API_URL: "https://api.example.test",
+      SOKOSUMI_AUTH_TOKEN: "token",
+    },
+    authManager: createTestAuthManager(),
+    coreClient: {
+      get: async <T>() =>
+        ({
+          data: [
+            {
+              id: "agent-1",
+              name: "Researcher",
+              description: "Finds facts",
+              status: "ONLINE",
+              tags: [],
+            },
+          ],
+        }) as T,
+      post: async <T>() => ({ data: null }) as T,
+      patch: async <T>() => ({ data: null }) as T,
+      delete: async <T>() => ({ data: null }) as T,
+    },
+    stdout: { write: (value) => output.push(value) },
+  });
+  assert.deepEqual(result, {});
+  assert.equal(JSON.parse(output.join("")).agents[0].id, "agent-1");
+});

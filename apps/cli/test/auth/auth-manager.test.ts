@@ -68,6 +68,35 @@ test("refreshes an expired OAuth session and persists the new token", async () =
   ]);
 });
 
+test("TestV16 hosted refresh does not use an unconfigured fallback client", async () => {
+  let refreshed = false;
+  const manager = new AuthManager({
+    credentialStore: {
+      read: () => ({
+        authToken: "expired-access-token",
+        refreshToken: "refresh-token",
+        expiresAt: "2020-01-01T00:00:00.000Z",
+      }),
+      write: () => {},
+      clear: () => {},
+    },
+    apiKeyStore: emptyApiKeyStore,
+    refreshTokenFn: async () => {
+      refreshed = true;
+      return { authToken: "fresh-access-token" };
+    },
+    environment: {},
+  });
+
+  assert.equal(
+    await manager.getAuthTokenAsync({
+      authBaseUrl: "https://api.sokosumi.com/auth",
+    }),
+    null,
+  );
+  assert.equal(refreshed, false);
+});
+
 test("keeps an API key in memory when no vault is available", () => {
   const manager = new AuthManager({
     credentialStore: {

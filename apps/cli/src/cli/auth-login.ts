@@ -105,6 +105,14 @@ function validateApiKeyTarget(
   }
 }
 
+function requiredOAuthClientIdKey(
+  target: CliTargetConfig["target"],
+): string | null {
+  if (target === "mainnet") return "SOKOSUMI_MAINNET_OAUTH_CLIENT_ID";
+  if (target === "preprod") return "SOKOSUMI_PREPROD_OAUTH_CLIENT_ID";
+  return null;
+}
+
 function defaultReadStdin(): string {
   return readFileSync(0, "utf8");
 }
@@ -188,6 +196,13 @@ export async function runAuthLogin({
     };
     writeResult(stdout, result, json);
     return result;
+  }
+
+  const oauthClientIdKey = requiredOAuthClientIdKey(resolvedConfig.target);
+  if (!resolvedConfig.clientId && oauthClientIdKey) {
+    throw new Error(
+      `OAuth client ID is not configured for ${resolvedConfig.target}. Set ${oauthClientIdKey} or pass --client-id.`,
+    );
   }
 
   const loginRequest: BrowserLoginOptions = {

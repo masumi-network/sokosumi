@@ -219,9 +219,7 @@ export class AuthManager {
 
     const refreshToken = this.credentials?.refreshToken || null;
     const resolvedClientId = String(
-      clientId ||
-        environment.SOKOSUMI_OAUTH_CLIENT_ID ||
-        DEFAULT_OAUTH_CLIENT_ID,
+      clientId || environment.SOKOSUMI_OAUTH_CLIENT_ID || "",
     ).trim();
     if (!refreshToken || !resolvedClientId) return null;
 
