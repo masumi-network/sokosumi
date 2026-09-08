@@ -3,12 +3,12 @@
 import { useRouter } from "next/navigation";
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
-import { getHistoryItemHref } from "@/app/history/components/history-list-item";
 import {
   HistoryMetaTime,
   HistoryOwnerAvatar,
 } from "@/app/history/components/history-meta";
 import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
+import { getHistoryItemHref } from "@/app/history/utils/history-item-href";
 import {
   CommandDialog,
   CommandEmpty,
