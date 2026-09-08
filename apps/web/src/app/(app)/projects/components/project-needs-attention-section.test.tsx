@@ -136,9 +136,7 @@ describe("ProjectNeedsAttentionSection", () => {
     const listBox = screen
       .getByTestId("project-needs-attention")
       .querySelector(":scope > div:last-child");
-    expect(listBox).toHaveClass(
-      ...PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/),
-    );
+    expect(listBox).toHaveClass(...PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/));
     expect(listBox).toHaveClass("-mx-4", "md:mx-0");
   });
 
@@ -160,9 +158,7 @@ describe("ProjectNeedsAttentionSection", () => {
     const listBox = screen
       .getByTestId("project-needs-attention")
       .querySelector(":scope > div:last-child");
-    expect(listBox).toHaveClass(
-      ...PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/),
-    );
+    expect(listBox).toHaveClass(...PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/));
     expect(listBox).toHaveClass("-mx-4", "md:mx-0");
   });
 });
