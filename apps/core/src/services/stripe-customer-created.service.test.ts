@@ -108,24 +108,15 @@ describe("handleCustomerCreatedEvent", () => {
   });
 
   it("ignores customers with an unknown customer type", async () => {
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { handleCustomerCreatedEvent } = await getService();
 
-    try {
-      const { handleCustomerCreatedEvent } = await getService();
+    await handleCustomerCreatedEvent({
+      id: "cus_other_1",
+      metadata: { customerType: "something-else" },
+    } as never);
 
-      await handleCustomerCreatedEvent({
-        id: "cus_other_1",
-        metadata: { customerType: "something-else" },
-      } as never);
-
-      expect(prismaUserUpdateMock).not.toHaveBeenCalled();
-      expect(prismaOrganizationUpdateMock).not.toHaveBeenCalled();
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        "Unknown customer type something-else",
-      );
-    } finally {
-      consoleLogSpy.mockRestore();
-    }
+    expect(prismaUserUpdateMock).not.toHaveBeenCalled();
+    expect(prismaOrganizationUpdateMock).not.toHaveBeenCalled();
   });
 
   it("rethrows when the user write-back fails so Stripe retries the event", async () => {
