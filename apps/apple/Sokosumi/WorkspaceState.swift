@@ -3,11 +3,13 @@ import CoreAPI
 import Foundation
 import SokosumiChat
 
-/// Thin UI state for the SOK-973 workspace + rooms sidebar.
+/// Thin UI state for the workspace + rooms sidebar (SOK-973) and the room
+/// transcript (SOK-974).
 ///
 /// Behavior lives in `SokosumiChat.ChatService` (UI-free, tested); this
-/// object only holds the current selection/rooms for SwiftUI and forwards
-/// failures: 401 signs out via `AuthState`, other gates surface as text.
+/// object only holds the current selection/rooms/transcript for SwiftUI and
+/// forwards failures: 401 signs out via `AuthState`, other gates surface as
+/// text.
 @MainActor
 final class WorkspaceState: ObservableObject {
   struct WorkspaceOption: Identifiable, Hashable {
@@ -32,19 +34,41 @@ final class WorkspaceState: ObservableObject {
   @Published private(set) var selectionId: String?
   @Published private(set) var rooms: [Components.Schemas.ChatRoom] = []
   @Published private(set) var roomsLoading = false
+  /// Selected room. Never left empty while rooms exist: launch and workspace
+  /// switches restore the saved room, else the first room.
+  @Published private(set) var selectedRoomId: String?
   /// Switch/list failure while already `.ready`. Nil means the sidebar is fine.
   @Published private(set) var switchError: String?
   @Published private(set) var currentUserId = ""
   @Published private(set) var currentUserName = ""
   @Published private(set) var currentUserEmail = ""
   @Published private(set) var currentUserImageURL: String?
+  /// Room the transcript pane shows. Nil clears the pane.
+  @Published private(set) var transcriptRoomId: String?
+  @Published private(set) var transcriptMessages: [Components.Schemas.ChatRoomMessage] = []
+  @Published private(set) var transcriptHasMore = false
+  @Published private(set) var transcriptLoading = false
+  @Published private(set) var transcriptLoadingOlder = false
+  /// Failure text. Shown full-pane when there is no history, as a banner
+  /// above loaded history otherwise — a failed older page never wipes
+  /// what already resolved.
+  @Published private(set) var transcriptError: String?
+
+  private var transcriptCursor: String?
+  /// Bumps on every open/clear so a slow room cannot paint over a newer one.
+  private var transcriptGeneration = 0
 
   private let service = ChatService()
   private let savedSelection: SavedWorkspaceSelection
+  private let savedRoom: SavedRoomSelection
   private var hasLoaded = false
 
-  init(savedSelection: SavedWorkspaceSelection = SavedWorkspaceSelection()) {
+  init(
+    savedSelection: SavedWorkspaceSelection = SavedWorkspaceSelection(),
+    savedRoom: SavedRoomSelection = SavedRoomSelection()
+  ) {
     self.savedSelection = savedSelection
+    self.savedRoom = savedRoom
   }
 
   /// Test seam: when set, replaces `auth.coreClient()` as the client source.
@@ -81,7 +105,174 @@ final class WorkspaceState: ObservableObject {
     currentUserName = ""
     currentUserEmail = ""
     currentUserImageURL = nil
+    selectedRoomId = nil
+    clearTranscript()
     savedSelection.clear()
+    savedRoom.clear()
+  }
+
+  /// User picked a room in the sidebar: persist it and open its transcript.
+  /// A nil id only clears the pane; the saved pick survives for relaunch.
+  func selectRoom(_ id: String?, auth: AuthState) {
+    guard id != selectedRoomId else { return }
+    applyRoomSelection(id, auth: auth)
+  }
+
+  private func applyRoomSelection(_ id: String?, auth: AuthState) {
+    selectedRoomId = id
+    guard let id, let room = rooms.first(where: { $0.id == id }) else {
+      clearTranscript()
+      return
+    }
+    savedRoom.save(id)
+    openRoom(room, auth: auth)
+  }
+
+  /// Keep a room selected whenever rooms exist: the saved room when it is
+  /// still listed, else the first room. Runs after every rooms load.
+  private func ensureRoomSelection(auth: AuthState) {
+    let current = selectedRoomId.flatMap { id in rooms.contains(where: { $0.id == id }) ? id : nil }
+    let saved = savedRoom.load().flatMap { id in rooms.contains(where: { $0.id == id }) ? id : nil }
+    applyRoomSelection(current ?? saved ?? rooms.first?.id, auth: auth)
+  }
+
+  /// Forget the transcript without touching rooms or selection.
+  func clearTranscript() {
+    transcriptGeneration += 1
+    transcriptRoomId = nil
+    transcriptMessages = []
+    transcriptCursor = nil
+    transcriptHasMore = false
+    transcriptLoading = false
+    transcriptLoadingOlder = false
+    transcriptError = nil
+  }
+
+  /// Open a room's transcript: history first, mark-read after it resolves
+  /// (ADR 0026). The sidebar entry is replaced with the POST-read DTO so
+  /// unread chrome matches Core. A failed read keeps the resolved history
+  /// on screen and leaves unread chrome unchanged.
+  func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+    transcriptGeneration += 1
+    let generation = transcriptGeneration
+    transcriptRoomId = room.id
+    transcriptMessages = []
+    transcriptCursor = nil
+    transcriptHasMore = false
+    transcriptError = nil
+    transcriptLoading = true
+    Task { await loadTranscript(auth: auth, room: room, generation: generation) }
+  }
+
+  func loadTranscript(
+    auth: AuthState,
+    room: Components.Schemas.ChatRoom,
+    generation: Int
+  ) async {
+    defer {
+      if generation == transcriptGeneration {
+        transcriptLoading = false
+      }
+    }
+    guard let client = resolveClient(auth: auth) else {
+      if generation == transcriptGeneration {
+        transcriptError = "Sign-in is not configured."
+      }
+      return
+    }
+    do {
+      let page = try await service.listMessages(
+        client: client,
+        roomId: room.id,
+        organizationSlug: selection?.workspace.organizationSlug
+      )
+      guard generation == transcriptGeneration else { return }
+      // History resolved: paint it before the read so a failed read keeps
+      // the transcript on screen instead of discarding it.
+      transcriptMessages = page.messages
+      transcriptCursor = page.nextCursor
+      transcriptHasMore = page.nextCursor != nil
+      // The read is only for the room still selected now: a stale open must
+      // not mark the previous room read after the user moved on.
+      let updated = try await service.markRoomRead(
+        client: client,
+        roomId: room.id,
+        organizationSlug: selection?.workspace.organizationSlug
+      )
+      guard generation == transcriptGeneration else { return }
+      if let index = rooms.firstIndex(where: { $0.id == updated.id }) {
+        rooms[index] = updated
+      }
+    } catch let error as ChatServiceError {
+      guard generation == transcriptGeneration else { return }
+      transcriptError = transcriptFailureMessage(error, auth: auth)
+    } catch {
+      guard generation == transcriptGeneration else { return }
+      NSLog("Sokosumi transcript load failed: %@", String(describing: error))
+      transcriptError = friendlyMessage(for: error)
+    }
+  }
+
+  /// Older history page for scroll-up. Prepends; never marks read and never
+  /// clears resolved history on failure.
+  func loadOlderMessages(auth: AuthState) {
+    guard let roomId = transcriptRoomId, transcriptHasMore,
+          !transcriptLoading, !transcriptLoadingOlder,
+          let cursor = transcriptCursor
+    else { return }
+    transcriptLoadingOlder = true
+    let generation = transcriptGeneration
+    Task {
+      await loadOlder(auth: auth, roomId: roomId, cursor: cursor, generation: generation)
+    }
+  }
+
+  func loadOlder(auth: AuthState, roomId: String, cursor: String, generation: Int) async {
+    defer {
+      if generation == transcriptGeneration {
+        transcriptLoadingOlder = false
+      }
+    }
+    guard let client = resolveClient(auth: auth) else {
+      if generation == transcriptGeneration {
+        transcriptError = "Sign-in is not configured."
+      }
+      return
+    }
+    do {
+      let page = try await service.listMessages(
+        client: client,
+        roomId: roomId,
+        cursor: cursor,
+        organizationSlug: selection?.workspace.organizationSlug
+      )
+      guard generation == transcriptGeneration else { return }
+      transcriptMessages = page.messages + transcriptMessages
+      transcriptCursor = page.nextCursor
+      transcriptHasMore = page.nextCursor != nil
+      transcriptError = nil
+    } catch let error as ChatServiceError {
+      guard generation == transcriptGeneration else { return }
+      transcriptError = transcriptFailureMessage(error, auth: auth)
+    } catch {
+      guard generation == transcriptGeneration else { return }
+      NSLog("Sokosumi older messages load failed: %@", String(describing: error))
+      transcriptError = friendlyMessage(for: error)
+    }
+  }
+
+  /// Maps a transcript failure to UI text. A 401 signs out (nil message —
+  /// the auth card takes over); everything else becomes window-safe text.
+  private func transcriptFailureMessage(_ error: ChatServiceError, auth: AuthState) -> String? {
+    switch error {
+    case let .unauthorized(message):
+      auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
+      return nil
+    case let .unprocessable(statusCode, message):
+      return "Core rejected the request (\(statusCode)): \(message)"
+    case .blocked, .unexpectedResponse:
+      return "Couldn't complete the request. Try again."
+    }
   }
 
   func select(_ option: WorkspaceOption, auth: AuthState) {
@@ -97,6 +288,8 @@ final class WorkspaceState: ObservableObject {
     phase = .loading
     rooms = []
     switchError = nil
+    selectedRoomId = nil
+    clearTranscript()
     guard let client = resolveClient(auth: auth) else {
       phase = .failed(message: "Sign-in is not configured.")
       return
@@ -126,16 +319,21 @@ final class WorkspaceState: ObservableObject {
       roomsLoading = true
       defer { roomsLoading = false }
       rooms = try await service.listRooms(client: client, organizationSlug: selection.organizationSlug)
+      ensureRoomSelection(auth: auth)
     } catch let error as ChatServiceError {
       handleServiceError(error, auth: auth, signedOutMessage: "Signed out.")
     } catch {
-      NSLog("Sokosumi workspace load failed: %{public}@", String(describing: error))
+      NSLog("Sokosumi workspace load failed: %@", String(describing: error))
       phase = .failed(message: friendlyMessage(for: error))
     }
   }
 
   func switchRooms(auth: AuthState, option: WorkspaceOption) async {
     roomsLoading = true
+    // Bump the generation without wiping the pane: a failed switch keeps
+    // showing the retained room's transcript instead of loading forever.
+    // Success replaces it via ensureRoomSelection -> openRoom.
+    transcriptGeneration += 1
     defer { roomsLoading = false }
     guard let client = resolveClient(auth: auth) else {
       switchError = "Sign-in is not configured."
@@ -150,10 +348,11 @@ final class WorkspaceState: ObservableObject {
       selectionId = option.id
       savedSelection.save(option.id)
       switchError = nil
+      ensureRoomSelection(auth: auth)
     } catch let error as ChatServiceError {
       handleServiceError(error, auth: auth, signedOutMessage: nil, keepReady: true)
     } catch {
-      NSLog("Sokosumi workspace switch failed: %{public}@", String(describing: error))
+      NSLog("Sokosumi workspace switch failed: %@", String(describing: error))
       switchError = friendlyMessage(for: error)
     }
   }
@@ -165,14 +364,14 @@ final class WorkspaceState: ObservableObject {
     keepReady: Bool = false
   ) {
     switch error {
-    case .blocked(let gate):
+    case let .blocked(gate):
       phase = .blocked(gate: gate)
-    case .unauthorized(let message):
+    case let .unauthorized(message):
       auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
       if let signedOutMessage {
         phase = .failed(message: signedOutMessage)
       }
-    case .unprocessable(let statusCode, let message):
+    case let .unprocessable(statusCode, message):
       let text = "Core rejected the request (\(statusCode)): \(message)"
       if keepReady {
         switchError = text

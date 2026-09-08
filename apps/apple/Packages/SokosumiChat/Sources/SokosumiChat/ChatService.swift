@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 import OpenAPIRuntime
 
-/// UI-free workspace + rooms flow for SOK-973 (Mac tracer).
+/// UI-free workspace + rooms + transcript flow (SOK-973, SOK-974).
 ///
 /// Rules from `MAC-TRACER.md`: only `ready` continues into chat; personal
 /// omits `X-Organization-Slug` while organizations send it; rooms walk Core
@@ -21,17 +21,17 @@ public struct ChatService: Sendable {
       .init(path: .init(id: "me"))
     )
     switch response {
-    case .ok(let ok):
-      return try ok.body.json.data
-    case .unauthorized(let unauthorized):
-      throw ChatServiceError.unauthorized(try unauthorized.body.json.message)
-    case .forbidden(let forbidden):
-      throw ChatServiceError.unprocessable(statusCode: 403, message: try forbidden.body.json.message)
-    case .notFound(let notFound):
-      throw ChatServiceError.unprocessable(statusCode: 404, message: try notFound.body.json.message)
-    case .internalServerError(let serverError):
-      throw ChatServiceError.unprocessable(statusCode: 500, message: try serverError.body.json.message)
-    case .undocumented(let statusCode, let payload):
+    case let .ok(okResponse):
+      return try okResponse.body.json.data
+    case let .unauthorized(unauthorized):
+      throw try ChatServiceError.unauthorized(unauthorized.body.json.message)
+    case let .forbidden(forbidden):
+      throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
+    case let .notFound(notFound):
+      throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+    case let .internalServerError(serverError):
+      throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+    case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
@@ -42,17 +42,17 @@ public struct ChatService: Sendable {
       .init(path: .init(id: "me"))
     )
     switch response {
-    case .ok(let ok):
-      return try ok.body.json.data
-    case .unauthorized(let unauthorized):
-      throw ChatServiceError.unauthorized(try unauthorized.body.json.message)
-    case .forbidden(let forbidden):
-      throw ChatServiceError.unprocessable(statusCode: 403, message: try forbidden.body.json.message)
-    case .notFound(let notFound):
-      throw ChatServiceError.unprocessable(statusCode: 404, message: try notFound.body.json.message)
-    case .internalServerError(let serverError):
-      throw ChatServiceError.unprocessable(statusCode: 500, message: try serverError.body.json.message)
-    case .undocumented(let statusCode, let payload):
+    case let .ok(okResponse):
+      return try okResponse.body.json.data
+    case let .unauthorized(unauthorized):
+      throw try ChatServiceError.unauthorized(unauthorized.body.json.message)
+    case let .forbidden(forbidden):
+      throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
+    case let .notFound(notFound):
+      throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+    case let .internalServerError(serverError):
+      throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+    case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
@@ -71,17 +71,17 @@ public struct ChatService: Sendable {
     switch response {
     case .ok:
       return
-    case .unauthorized(let unauthorized):
-      throw ChatServiceError.unauthorized(try unauthorized.body.json.message)
-    case .badRequest(let badRequest):
-      throw ChatServiceError.unprocessable(statusCode: 400, message: try badRequest.body.json.message)
-    case .forbidden(let forbidden):
-      throw ChatServiceError.unprocessable(statusCode: 403, message: try forbidden.body.json.message)
-    case .notFound(let notFound):
-      throw ChatServiceError.unprocessable(statusCode: 404, message: try notFound.body.json.message)
-    case .internalServerError(let serverError):
-      throw ChatServiceError.unprocessable(statusCode: 500, message: try serverError.body.json.message)
-    case .undocumented(let statusCode, let payload):
+    case let .unauthorized(unauthorized):
+      throw try ChatServiceError.unauthorized(unauthorized.body.json.message)
+    case let .badRequest(badRequest):
+      throw try ChatServiceError.unprocessable(statusCode: 400, message: badRequest.body.json.message)
+    case let .forbidden(forbidden):
+      throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
+    case let .notFound(notFound):
+      throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+    case let .internalServerError(serverError):
+      throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+    case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
@@ -91,17 +91,17 @@ public struct ChatService: Sendable {
   public func fetchCurrentUser(client: Client) async throws -> Components.Schemas.User {
     let response = try await client.getUsersId(.init(path: .init(id: "me")))
     switch response {
-    case .ok(let ok):
-      return try ok.body.json.data
-    case .unauthorized(let unauthorized):
-      throw ChatServiceError.unauthorized(try unauthorized.body.json.message)
-    case .forbidden(let forbidden):
-      throw ChatServiceError.unprocessable(statusCode: 403, message: try forbidden.body.json.message)
-    case .notFound(let notFound):
-      throw ChatServiceError.unprocessable(statusCode: 404, message: try notFound.body.json.message)
-    case .internalServerError(let serverError):
-      throw ChatServiceError.unprocessable(statusCode: 500, message: try serverError.body.json.message)
-    case .undocumented(let statusCode, let payload):
+    case let .ok(okResponse):
+      return try okResponse.body.json.data
+    case let .unauthorized(unauthorized):
+      throw try ChatServiceError.unauthorized(unauthorized.body.json.message)
+    case let .forbidden(forbidden):
+      throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
+    case let .notFound(notFound):
+      throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+    case let .internalServerError(serverError):
+      throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+    case let .undocumented(statusCode, payload):
       throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
@@ -174,7 +174,7 @@ public struct ChatService: Sendable {
   ) async throws -> [Components.Schemas.ChatRoom] {
     var rooms: [Components.Schemas.ChatRoom] = []
     var cursor: String?
-    for _ in 0..<Self.roomListMaxPages {
+    for _ in 0 ..< Self.roomListMaxPages {
       let response = try await client.getChatsRooms(
         .init(
           query: .init(
@@ -186,8 +186,8 @@ public struct ChatService: Sendable {
         )
       )
       switch response {
-      case .ok(let ok):
-        let payload = try ok.body.json
+      case let .ok(okResponse):
+        let payload = try okResponse.body.json
         rooms.append(contentsOf: payload.data)
         let nextCursor = payload.meta.pagination.nextCursor
         if let current = cursor, nextCursor == current {
@@ -197,17 +197,17 @@ public struct ChatService: Sendable {
           return rooms
         }
         cursor = next
-      case .unauthorized(let unauthorized):
-        throw ChatServiceError.unauthorized(try unauthorized.body.json.message)
-      case .badRequest(let badRequest):
-        throw ChatServiceError.unprocessable(statusCode: 400, message: try badRequest.body.json.message)
-      case .forbidden(let forbidden):
-        throw ChatServiceError.unprocessable(statusCode: 403, message: try forbidden.body.json.message)
-      case .notFound(let notFound):
-        throw ChatServiceError.unprocessable(statusCode: 404, message: try notFound.body.json.message)
-      case .internalServerError(let serverError):
-        throw ChatServiceError.unprocessable(statusCode: 500, message: try serverError.body.json.message)
-      case .undocumented(let statusCode, let payload):
+      case let .unauthorized(unauthorized):
+        throw try ChatServiceError.unauthorized(unauthorized.body.json.message)
+      case let .badRequest(badRequest):
+        throw try ChatServiceError.unprocessable(statusCode: 400, message: badRequest.body.json.message)
+      case let .forbidden(forbidden):
+        throw try ChatServiceError.unprocessable(statusCode: 403, message: forbidden.body.json.message)
+      case let .notFound(notFound):
+        throw try ChatServiceError.unprocessable(statusCode: 404, message: notFound.body.json.message)
+      case let .internalServerError(serverError):
+        throw try ChatServiceError.unprocessable(statusCode: 500, message: serverError.body.json.message)
+      case let .undocumented(statusCode, payload):
         throw await unprocessableError(statusCode: statusCode, payload: payload)
       }
     }
@@ -216,16 +216,15 @@ public struct ChatService: Sendable {
 
   /// Best-effort short message for undocumented statuses: Core's `{message}`
   /// when the body parses, otherwise just the rejection.
-  private func unprocessableError(
+  func unprocessableError(
     statusCode: Int,
     payload: OpenAPIRuntime.UndocumentedPayload
   ) async -> ChatServiceError {
     if let body = payload.body,
-      let bytes = try? await Array(collecting: body, upTo: 8_192),
-      let json = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
-      let message = json["message"] as? String,
-      !message.isEmpty
-    {
+       let bytes = try? await Array(collecting: body, upTo: 8192),
+       let json = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
+       let message = json["message"] as? String,
+       !message.isEmpty {
       return .unprocessable(statusCode: statusCode, message: message)
     }
     return .unprocessable(statusCode: statusCode, message: "Core rejected the request.")

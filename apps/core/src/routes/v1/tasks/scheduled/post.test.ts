@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
@@ -127,8 +127,34 @@ function buildMappedTask() {
     status: TaskStatus.QUEUED,
     metadata: null,
     nextRunAt: "2099-09-24T09:00:00.000Z",
+    scheduleRevision: 0,
     credits: 0,
-    events: [],
+    events: [
+      {
+        id: "event_123",
+        taskId: "task_123",
+        createdAt: "2026-09-02T08:00:00.000Z",
+        updatedAt: "2026-09-02T08:00:00.000Z",
+        actor: {
+          type: "user" as const,
+          id: "user_123",
+          user: { id: "user_123", name: "Ada Lovelace", image: null },
+        },
+        channel: "SOKOSUMI" as const,
+        origin: "SOKOSUMI" as const,
+        status: TaskStatus.QUEUED,
+        scheduleKind: TaskScheduleEventKind.CREATED,
+        scheduleOperationId: "123e4567-e89b-42d3-a456-426614174000",
+        schedulePayload: {
+          action: "create_schedule",
+          source: { type: "workspace" },
+          schedule: {
+            mode: "once",
+            runAt: "2099-09-24T09:00:00.000Z",
+          },
+        },
+      },
+    ],
     jobs: [],
     grantResumeStatus: null,
     pendingVendorGrantId: null,
@@ -308,7 +334,26 @@ describe("POST /tasks/scheduled", () => {
       }),
     );
     expect(await response.json()).toMatchObject({
-      data: { id: "task_123", status: TaskStatus.QUEUED },
+      data: {
+        id: "task_123",
+        projectId: null,
+        status: TaskStatus.QUEUED,
+        scheduleRevision: 0,
+        events: [
+          {
+            scheduleKind: TaskScheduleEventKind.CREATED,
+            scheduleOperationId: "123e4567-e89b-42d3-a456-426614174000",
+            schedulePayload: {
+              action: "create_schedule",
+              source: { type: "workspace" },
+              schedule: {
+                mode: "once",
+                runAt: "2099-09-24T09:00:00.000Z",
+              },
+            },
+          },
+        ],
+      },
     });
   });
 
@@ -334,6 +379,9 @@ describe("POST /tasks/scheduled", () => {
 
     expect(response.status).toBe(403);
     expect(resolveTaskNameMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(createScheduledTaskInTransactionMock).not.toHaveBeenCalled();
+    expect(taskFindUniqueOrThrowMock).not.toHaveBeenCalled();
   });
 
   it("returns an idempotent replay before resolving an automatic name", async () => {
@@ -369,6 +417,23 @@ describe("POST /tasks/scheduled", () => {
     expect(response.status).toBe(201);
     expect(resolveTaskNameMock).not.toHaveBeenCalled();
     expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(createScheduledTaskInTransactionMock).not.toHaveBeenCalled();
+    expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith({
+      where: { id: "task_123" },
+      include: expect.any(Object),
+    });
+    expect(await response.json()).toMatchObject({
+      data: {
+        id: "task_123",
+        scheduleRevision: 0,
+        events: [
+          {
+            scheduleKind: TaskScheduleEventKind.CREATED,
+            scheduleOperationId: "123e4567-e89b-42d3-a456-426614174000",
+          },
+        ],
+      },
+    });
   });
 
   it("heals a project briefing before the serializable transaction re-reads it", async () => {

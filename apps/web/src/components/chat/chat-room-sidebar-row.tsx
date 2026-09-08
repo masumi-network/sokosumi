@@ -7,16 +7,23 @@ import {
   Loader2,
   LogOut,
   MessageSquare,
+  Pencil,
   Pin,
   PinOff,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
-import { CHAT_CHATS_LIST_PATH } from "@/app/chat/utils/chat-route-base";
+import {
+  CHAT_CHATS_LIST_PATH,
+  CHAT_EDIT_CHANNEL_PARAM,
+  chatRoomEditHref,
+  chatRoomHref,
+  pathWithSearch,
+} from "@/app/chat/utils/chat-route-base";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   markOrganizationChatRoomUnreadAction,
@@ -55,6 +62,7 @@ import { SheetClose } from "@/components/ui/sheet";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
 /**
  * Trailing controls. Touch: pin/mute then overflow side by side.
@@ -149,16 +157,22 @@ export function ChatRoomSidebarRow({
   dismissSheetOnNavigate = true,
 }: ChatRoomSidebarRowProps) {
   const tActions = useTranslations("App.Channels.Actions");
+  const tChannels = useTranslations("App.Channels");
   const router = useRouter();
+  // The room's own query, not `window.location`, which the App Router writes
+  // in an effect after the commit and so can still name a message the room
+  // has already spent. Re-adding that would send the reader back to it.
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const isPinned = room.starredAt != null;
   const isMuted = room.mutedAt != null;
+  const isChannel = room.kind === "channel";
   // Match rooms-client: guests and matched may always leave; host-org last
   // host keeps Leave hidden when they are the sole `member` access row.
   const canLeave =
-    room.kind === "channel" &&
+    isChannel &&
     (room.myAccess === "guest" ||
       room.discoverability === "matched" ||
       room.userMembers.filter((member) => member.access === "member").length >
@@ -236,6 +250,40 @@ export function ChatRoomSidebarRow({
       router.refresh();
     }
   }
+
+  // The dialog needs the org roster and the reader's role, which this row does
+  // not have and the room already loads. So the row asks the room to open it.
+  const editChannelItem = (
+    <DropdownMenuItem
+      disabled={isPending}
+      onSelect={() => {
+        // Asking the room on screen for its own dialog is not a journey. The
+        // room takes the parameter straight back off the URL, so a pushed
+        // entry would leave Back doing nothing the reader can see. The rest of
+        // that room's query rides along rather than being written over.
+        //
+        // Except the message a notification named, which the room reads once
+        // the same way. The router's query still carries one the room has
+        // spent until that strip commits, and writing it back would leave the
+        // room waiting on a message nobody will spend again, with this ask
+        // stuck behind it. The reader asked for the dialog just now, so a
+        // jump the room has not made yet gives way to it.
+        if (isActive) {
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete(CHAT_MESSAGE_PARAM);
+          params.set(CHAT_EDIT_CHANNEL_PARAM, "1");
+          router.replace(pathWithSearch(chatRoomHref(room.id), params), {
+            scroll: false,
+          });
+          return;
+        }
+        router.push(chatRoomEditHref(room.id));
+      }}
+    >
+      <Pencil className="size-4" aria-hidden />
+      {tChannels("editChannel")}
+    </DropdownMenuItem>
+  );
 
   const roomLink = (
     <Link
@@ -385,19 +433,26 @@ export function ChatRoomSidebarRow({
               )}
               {isMuted ? tActions("unmute") : tActions("mute")}
             </DropdownMenuItem>
-            {canLeave ? (
+            {isChannel ? (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={isPending || isLeaving}
-                  onSelect={() => {
-                    setLeaveConfirmOpen(true);
-                  }}
-                >
-                  <LogOut className="size-4" aria-hidden />
-                  {tActions("leave")}
-                </DropdownMenuItem>
+                {dismissSheetOnNavigate ? (
+                  <SheetClose asChild>{editChannelItem}</SheetClose>
+                ) : (
+                  editChannelItem
+                )}
               </>
+            ) : null}
+            {canLeave ? (
+              <DropdownMenuItem
+                disabled={isPending || isLeaving}
+                onSelect={() => {
+                  setLeaveConfirmOpen(true);
+                }}
+              >
+                <LogOut className="size-4" aria-hidden />
+                {tActions("leave")}
+              </DropdownMenuItem>
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>

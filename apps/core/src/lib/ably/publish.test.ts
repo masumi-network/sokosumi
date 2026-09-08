@@ -1,8 +1,13 @@
 import { NotificationKind } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import {
+  buildChatMessagePreview,
+  CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
+  SokosumiJobStatus,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  MAX_PUSH_PARAM_LENGTH,
   publishChatMembershipRevoked,
   publishChatMembershipRevokedToUsers,
   publishChatRoomMessageEvent,
@@ -157,6 +162,7 @@ describe("publishNotificationEvent", () => {
             kind: notification.kind,
             referenceId: notification.referenceId,
             messageKey: notification.messageKey,
+            createdAt: notification.createdAt,
             messageParams: JSON.stringify(notification.messageParams),
             metadata: JSON.stringify(notification.metadata),
           },
@@ -193,7 +199,7 @@ describe("publishNotificationEvent", () => {
       | undefined;
 
     expect(pushData).toBeDefined();
-    expect(Object.keys(pushData ?? {})).toHaveLength(6);
+    expect(Object.keys(pushData ?? {})).toHaveLength(7);
     for (const value of Object.values(pushData ?? {})) {
       expect(typeof value).toBe("string");
     }
@@ -248,6 +254,43 @@ describe("publishNotificationEvent", () => {
 
     expect([...params.authorName]).toHaveLength(128);
     expect(params.authorName).toBe("\u{1F600}".repeat(128));
+  });
+
+  /**
+   * The preview is cut where it is built, so that the reader gets an ellipsis
+   * saying the message goes on. Cutting it again here would eat that mark and
+   * leave a push that reads as the whole message.
+   */
+  it("carries a preview of the greatest allowed length whole", async () => {
+    const preview = buildChatMessagePreview("a".repeat(500));
+
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification: {
+        ...notification,
+        messageParams: { authorName: "Ada", messagePreview: preview },
+      },
+      push: true,
+    });
+
+    const pushData = publishMock.mock.calls[0]?.[0]?.extras?.push?.data as
+      | Record<string, string>
+      | undefined;
+    const params = JSON.parse(pushData?.messageParams ?? "{}") as {
+      messagePreview: string;
+    };
+
+    expect([...preview]).toHaveLength(CHAT_MESSAGE_PREVIEW_MAX_LENGTH);
+    expect(params.messagePreview).toBe(preview);
+  });
+
+  /**
+   * The two caps live in two packages with nothing to hold them together. The
+   * preview is cut to its own length and then never cut again, which is only
+   * true while the two are equal.
+   */
+  it("cuts the preview at the same length this cap allows", () => {
+    expect(CHAT_MESSAGE_PREVIEW_MAX_LENGTH).toBe(MAX_PUSH_PARAM_LENGTH);
   });
 
   it("omits metadata rather than sending null when there is none", async () => {

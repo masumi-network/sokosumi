@@ -462,6 +462,11 @@ model Notification {
   @@index([userId, isRead])
   @@index([eventId])
   @@index([kind, eventId])
+  /// Reads every notification of one chat room. Chat is the only kind whose
+  /// rows are looked up by what they point at rather than by who they are
+  /// for: editing or deleting a message has to find the copy of it that its
+  /// notifications carry, across every recipient at once.
+  @@index([kind, referenceId])
   @@map("notification")
 }
 
@@ -508,6 +513,8 @@ model Project {
   contextMdModel         String?
   contextMdUpdatingSince DateTime?
   contextMdVersion       Int       @default(0)
+  latestUpdateMd         String?
+  latestUpdateMdUpdatedAt DateTime?
   websiteUrl             String?
   logo                   String?
   designMdUrl            String?

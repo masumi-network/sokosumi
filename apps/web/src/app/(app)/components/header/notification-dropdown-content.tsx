@@ -9,6 +9,7 @@ import { NotificationBrowserPermissionPrimer } from "@/app/components/notificati
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -21,10 +22,13 @@ import { NotificationItem } from "./notification-item";
 
 interface NotificationDropdownContentProps {
   onClose: () => void;
+  /** Asks the bell to confirm clearing, which it owns because this closes. */
+  onClearAll: () => void;
 }
 
 export function NotificationDropdownContent({
   onClose,
+  onClearAll,
 }: NotificationDropdownContentProps) {
   const t = useTranslations("Components.NotificationCenter");
   const tDetail = useTranslations("App.Tasks.Detail");
@@ -157,21 +161,34 @@ export function NotificationDropdownContent({
       {accountNoticeSection}
       <div className="flex items-center justify-between gap-2 px-2 py-1.5">
         <DropdownMenuLabel className="p-0">{t("title")}</DropdownMenuLabel>
-        {unreadCount > 0 ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground h-auto px-2 py-1 text-xs font-normal"
-            onPointerDown={(event) => {
-              event.preventDefault();
-            }}
-            onClick={handleMarkAllRead}
-            disabled={isMarkingAllRead}
-          >
-            {isMarkingAllRead ? t("loading") : t("markAllRead")}
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-1">
+          {unreadCount > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground h-auto px-2 py-1 text-xs font-normal"
+              onPointerDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={handleMarkAllRead}
+              disabled={isMarkingAllRead}
+            >
+              {isMarkingAllRead ? t("loading") : t("markAllRead")}
+            </Button>
+          ) : null}
+          {notifications.length > 0 ? (
+            <DropdownMenuItem
+              className="text-muted-foreground hover:text-foreground h-auto cursor-pointer rounded-md px-2 py-1 text-xs font-normal"
+              onSelect={() => {
+                onClose();
+                onClearAll();
+              }}
+            >
+              {t("clearAll")}
+            </DropdownMenuItem>
+          ) : null}
+        </div>
       </div>
       <DropdownMenuSeparator />
       <NotificationBrowserPermissionPrimer

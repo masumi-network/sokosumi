@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,8 +36,23 @@ vi.mock("@/contexts/account-notice-provider", () => ({
 }));
 
 vi.mock("@/app/components/header/notification-dropdown-content", () => ({
-  NotificationDropdownContent: ({ onClose }: { onClose: () => void }) => (
+  NotificationDropdownContent: ({
+    onClose,
+    onClearAll,
+  }: {
+    onClose: () => void;
+    onClearAll: () => void;
+  }) => (
     <div data-testid="notification-dropdown-content">
+      <button
+        type="button"
+        onClick={() => {
+          onClose();
+          onClearAll();
+        }}
+      >
+        clear-all
+      </button>
       <button type="button" onClick={onClose}>
         close-panel
       </button>
@@ -108,4 +123,16 @@ describe("HeaderNotificationBell", () => {
       screen.getByTestId("notification-dropdown-content"),
     ).toBeInTheDocument();
   });
+});
+
+it("restores focus to the bell after canceling clear", async () => {
+  useNotificationsMock.mockReturnValue({ unreadCount: 0 });
+  useAccountNoticeMock.mockReturnValue({ notice: null });
+  const user = userEvent.setup();
+  render(<HeaderNotificationBell />);
+  const bell = screen.getByRole("button", { name: "Notifications" });
+  await user.click(bell);
+  await user.click(screen.getByRole("button", { name: "clear-all" }));
+  await user.click(screen.getByRole("button", { name: "cancel" }));
+  await waitFor(() => expect(bell).toHaveFocus());
 });

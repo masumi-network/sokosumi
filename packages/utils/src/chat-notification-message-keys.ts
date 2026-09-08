@@ -18,14 +18,13 @@ export const CHAT_DIRECT_MESSAGE_MESSAGE_KEY =
 export const CHAT_ROOM_MESSAGE_MESSAGE_KEY = "Notifications.Chat.roomMessage";
 
 /**
- * The keys web renders a room-message row under, which Core never stores.
+ * The keys web renders a count under, which Core never stores.
  *
- * The stored key is always `CHAT_ROOM_MESSAGE_MESSAGE_KEY`: a banner is about
- * the message that has just arrived, and the push service worker renders the
- * stored key with no view of the row's history. The notification center is the
- * one surface where the row is a line in a list of what happened, so it is the
- * one that reads the row as a count, and as a group of people when the room
- * has no name of its own.
+ * Core stores one key per message. Two surfaces read several messages as one
+ * line: the notification center, where a room's messages are counted onto a
+ * single row, and the OS banner, where a room's chat notifications share a
+ * banner and the newest one says how many it stands for. A room with no name
+ * of its own is named as a group on both.
  */
 
 /** The row once more than one message has landed on it. */
@@ -38,3 +37,21 @@ export const CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY =
 /** Several messages, in a room whose name is the list of who is in it. */
 export const CHAT_ROOM_MESSAGES_GROUP_MESSAGE_KEY =
   "Notifications.Chat.roomMessagesGroup";
+
+/** Several messages from the one person a direct room is with. */
+export const CHAT_DIRECT_MESSAGES_MESSAGE_KEY =
+  "Notifications.Chat.directMessages";
+
+// The keys web titles a banner with, which Core never stores. A banner shows
+// the message itself, so the line that names the author and the room moves up
+// into the title and the words go underneath. The title is shorter than the
+// feed line because the operating system already prints the app name beside
+// it, and a title truncates before a body does.
+
+/** One message, titled with who wrote and where. */
+export const CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY =
+  "Notifications.Chat.roomMessageTitle";
+
+/** One message, in a room whose name is the list of who is in it. */
+export const CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY =
+  "Notifications.Chat.roomMessageGroupTitle";

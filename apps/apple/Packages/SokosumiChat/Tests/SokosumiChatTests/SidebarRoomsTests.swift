@@ -5,8 +5,35 @@ import Testing
 
 private let baseDate = Date(timeIntervalSince1970: 1_700_000_000)
 
-private func makePeer(id: String, name: String) -> Components.Schemas.ChatRoomUserParticipant {
-  .init(id: id, name: name, email: "\(id)@example.com", presence: .online)
+private func makePeer(
+  id: String,
+  name: String,
+  email: String? = nil,
+  image: String? = nil
+) -> Components.Schemas.ChatRoomUserParticipant {
+  .init(
+    id: id,
+    name: name,
+    email: email ?? "\(id)@example.com",
+    image: image,
+    presence: .online
+  )
+}
+
+private func makeCoworker(
+  id: String,
+  name: String,
+  image: String? = nil
+) -> Components.Schemas.ChatRoomCoworkerParticipant {
+  .init(id: id, name: name, slug: id, caption: nil, image: image, presence: .online)
+}
+
+private func makeSokoBot(
+  id: String,
+  name: String,
+  image: String? = nil
+) -> Components.Schemas.ChatRoomSokoBotParticipant {
+  .init(id: id, name: name, caption: nil, image: image, avatarSeed: nil, presence: .online)
 }
 
 private func makeRoom(
@@ -21,7 +48,9 @@ private func makeRoom(
   starredAt: Date? = nil,
   mutedAt: Date? = nil,
   updatedAt: Date = baseDate,
-  peers: [Components.Schemas.ChatRoomUserParticipant] = []
+  peers: [Components.Schemas.ChatRoomUserParticipant] = [],
+  coworkers: [Components.Schemas.ChatRoomCoworkerParticipant] = [],
+  sokoBots: [Components.Schemas.ChatRoomSokoBotParticipant] = []
 ) -> Components.Schemas.ChatRoom {
   .init(
     id: id,
@@ -38,8 +67,8 @@ private func makeRoom(
     markedUnread: markedUnread,
     myAccess: myAccess,
     userMembers: peers,
-    coworkerMembers: [],
-    sokoBotMembers: []
+    coworkerMembers: coworkers,
+    sokoBotMembers: sokoBots
   )
 }
 
@@ -53,7 +82,7 @@ struct SidebarRoomsTests {
       makeRoom(id: "g1", name: "guest-room", myAccess: .guest),
       // Guest access always reads as External (checked before kind,
       // mirroring web), even for a Direct.
-      makeRoom(id: "d2", name: "Guest Peer", kind: .direct, myAccess: .guest),
+      makeRoom(id: "d2", name: "Guest Peer", kind: .direct, myAccess: .guest)
     ]
     let partitioned = partitionRoomsForSidebar(rooms)
     #expect(partitioned.channels.map(\.id) == ["c1"])
@@ -66,7 +95,7 @@ struct SidebarRoomsTests {
       makeRoom(id: "muted", name: "muted", unreadCount: 9, mutedAt: baseDate),
       makeRoom(id: "plain", name: "plain", updatedAt: baseDate),
       makeRoom(id: "starred", name: "starred", starredAt: baseDate, updatedAt: baseDate.addingTimeInterval(-1000)),
-      makeRoom(id: "active", name: "active", updatedAt: baseDate.addingTimeInterval(1000)),
+      makeRoom(id: "active", name: "active", updatedAt: baseDate.addingTimeInterval(1000))
     ]
     let partitioned = partitionRoomsForSidebar(rooms)
     #expect(partitioned.channels.map(\.id) == ["starred", "active", "plain", "muted"])
@@ -97,10 +126,82 @@ struct SidebarRoomsTests {
         makePeer(id: "a", name: "Ann"),
         makePeer(id: "b", name: "Bob"),
         makePeer(id: "c", name: "Cat"),
-        makePeer(id: "d", name: "Dan"),
+        makePeer(id: "d", name: "Dan")
       ]
     )
     #expect(roomDisplayName(room, currentUserId: "me") == "Ann, Bob, Cat and 1 more")
+  }
+
+  @Test func oneToOneDirectAvatarExcludesSelfAndKeepsPeerImage() {
+    let room = makeRoom(
+      id: "d1", name: "Ada", kind: .direct,
+      peers: [
+        makePeer(id: "me", name: "Me", image: "https://example.com/me.png"),
+        makePeer(id: "ada", name: "Ada Lovelace", image: "https://example.com/ada.png")
+      ]
+    )
+    let faces = directRoomAvatarParticipants(room, currentUserId: "me")
+    #expect(faces.map(\.id) == ["ada"])
+    #expect(faces.map(\.name) == ["Ada Lovelace"])
+    #expect(faces.map(\.imageURL) == ["https://example.com/ada.png"])
+  }
+
+  @Test func selfOnlyDirectHasNoAvatarParticipants() {
+    let room = makeRoom(
+      id: "d1", name: "My Name", kind: .direct,
+      peers: [makePeer(id: "me", name: "My Name")]
+    )
+    #expect(directRoomAvatarParticipants(room, currentUserId: "me").isEmpty)
+  }
+
+  @Test func groupDirectAvatarCapsAtThreeInNameOrder() {
+    let room = makeRoom(
+      id: "d1", name: "group", kind: .direct,
+      peers: [
+        makePeer(id: "me", name: "Me"),
+        makePeer(id: "d", name: "Dan"),
+        makePeer(id: "a", name: "Ann"),
+        makePeer(id: "c", name: "Cat"),
+        makePeer(id: "b", name: "Bob")
+      ]
+    )
+    #expect(
+      directRoomAvatarParticipants(room, currentUserId: "me").map(\.id) == ["a", "b", "c"]
+    )
+  }
+
+  @Test func coworkersFollowHumansThenSokoBots() {
+    let room = makeRoom(
+      id: "d1", name: "mixed", kind: .direct,
+      peers: [
+        makePeer(id: "me", name: "Me"),
+        makePeer(id: "ada", name: "Ada")
+      ],
+      coworkers: [makeCoworker(id: "cw-1", name: "Matt", image: "https://example.com/matt.png")],
+      sokoBots: [makeSokoBot(id: "bot-1", name: "Soko Bot")]
+    )
+    let faces = directRoomAvatarParticipants(room, currentUserId: "me")
+    #expect(faces.map(\.id) == ["ada", "cw-1", "bot-1"])
+    #expect(faces.map(\.imageURL) == [nil, "https://example.com/matt.png", nil])
+  }
+
+  @Test func emptyHumanNameUsesEmailForAvatar() {
+    let room = makeRoom(
+      id: "d1", name: "dm", kind: .direct,
+      peers: [
+        makePeer(id: "me", name: "Me"),
+        makePeer(id: "ada", name: "", email: "ada@example.com")
+      ]
+    )
+    #expect(directRoomAvatarParticipants(room, currentUserId: "me").map(\.name) == ["ada@example.com"])
+  }
+
+  @Test func channelHasNoDirectAvatarParticipants() {
+    let room = makeRoom(
+      id: "c1", name: "general",
+      peers: [makePeer(id: "ada", name: "Ada", image: "https://example.com/ada.png")]
+    )
+    #expect(directRoomAvatarParticipants(room, currentUserId: "me").isEmpty)
   }
 
   @Test func channelKeepsStoredName() {

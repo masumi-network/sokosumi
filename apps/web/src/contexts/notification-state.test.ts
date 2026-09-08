@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { notificationReducer } from "@/contexts/notification-provider";
+import { notificationReducer } from "@/contexts/notification-state";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 
 function createNotification(
@@ -56,6 +56,7 @@ describe("notificationReducer", () => {
       { notifications: [staleChat], unreadCount: 1 },
       {
         type: "fetch_success",
+        realtimeIds: new Set(["notification-realtime"]),
         fetched: [job],
         serverUnreadCount: 1,
       },
@@ -134,6 +135,7 @@ describe("notificationReducer", () => {
 
     const afterFetch = notificationReducer(afterRealtime, {
       type: "fetch_success",
+      realtimeIds: new Set(["notification-realtime"]),
       fetched: [fetchedNotification],
       serverUnreadCount: 0,
     });
@@ -261,6 +263,7 @@ describe("notificationReducer", () => {
 
     const afterFetch = notificationReducer(afterRealtime, {
       type: "fetch_success",
+      realtimeIds: new Set(["notification-realtime"]),
       fetched: [],
       serverUnreadCount: 1,
     });
@@ -309,5 +312,34 @@ describe("notificationReducer", () => {
     });
 
     expect(next).toBe(state);
+  });
+  it("keeps an unread realtime change when the fetched row is stale", () => {
+    const current = createNotification();
+    const state = notificationReducer(
+      { notifications: [current], unreadCount: 1 },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set([current.id]),
+        fetched: [{ ...current, isRead: true }],
+        serverUnreadCount: 0,
+      },
+    );
+    expect(state.notifications[0]?.isRead).toBe(false);
+    expect(state.unreadCount).toBe(1);
+  });
+
+  it("keeps the live badge when count already includes a realtime read", () => {
+    const current = createNotification({ isRead: true });
+    const state = notificationReducer(
+      { notifications: [current], unreadCount: 10 },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set([current.id]),
+        fetched: [{ ...current, isRead: false }],
+        serverUnreadCount: 10,
+      },
+    );
+    expect(state.notifications[0]?.isRead).toBe(true);
+    expect(state.unreadCount).toBe(10);
   });
 });

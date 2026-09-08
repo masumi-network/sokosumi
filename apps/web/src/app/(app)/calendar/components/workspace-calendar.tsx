@@ -36,7 +36,12 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useRef, useState } from "react";
+import {
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  useRef,
+  useState,
+} from "react";
 import { Temporal } from "temporal-polyfill";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import {
@@ -88,7 +93,10 @@ import {
 } from "@/lib/schedules/timezones";
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
-import { metadataToSelection } from "@/lib/utils/task-schedule";
+import {
+  metadataToSelection,
+  schedulableOnceLocalIso,
+} from "@/lib/utils/task-schedule";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
@@ -252,7 +260,7 @@ function CalendarEvent({
             source: sourceName,
             task: item.taskName,
           })}
-          className="bg-primary/10 text-foreground flex w-full min-w-0 items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium"
+          className="bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2"
           type="button"
         >
           <SourceMarker decorative source={source} sourceName={sourceName} />
@@ -295,6 +303,7 @@ function CalendarEvent({
 }
 
 function CalendarView({
+  canCreate,
   date,
   items,
   onDateClick,
@@ -304,6 +313,7 @@ function CalendarView({
   timeZone,
   view,
 }: {
+  canCreate: boolean;
   date: Date;
   items: WorkspaceCalendarItem[];
   onDateClick: (date: Date) => void;
@@ -313,19 +323,70 @@ function CalendarView({
   timeZone: string;
   view: (typeof CALENDAR_VIEWS)[number];
 }) {
+  const slotHighlightRef = useRef<HTMLDivElement>(null);
   const pluginView = {
     month: "dayGridMonth",
     week: "timeGridWeek",
     agenda: "listMonth",
   }[view];
 
+  function hideSlotHighlight() {
+    if (slotHighlightRef.current) {
+      slotHighlightRef.current.style.opacity = "0";
+    }
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!canCreate || view !== "week" || event.pointerType === "touch") {
+      hideSlotHighlight();
+      return;
+    }
+
+    const elements = document
+      .elementsFromPoint(event.clientX, event.clientY)
+      .filter((element) => event.currentTarget.contains(element));
+    const dayCell = elements.find(
+      (element): element is HTMLElement =>
+        element instanceof HTMLElement &&
+        element.matches('[role="gridcell"][data-date]'),
+    );
+    const timeSlot = elements.find(
+      (element): element is HTMLElement =>
+        element instanceof HTMLElement && element.matches("[data-time]"),
+    );
+    const highlight = slotHighlightRef.current;
+    if (!dayCell || !timeSlot || !highlight) {
+      hideSlotHighlight();
+      return;
+    }
+
+    const calendarBounds = event.currentTarget.getBoundingClientRect();
+    const dayBounds = dayCell.getBoundingClientRect();
+    const verticalBounds = timeSlot.getBoundingClientRect();
+    highlight.style.height = `${verticalBounds.height}px`;
+    highlight.style.left = `${dayBounds.left - calendarBounds.left - event.currentTarget.clientLeft + event.currentTarget.scrollLeft}px`;
+    highlight.style.opacity = "1";
+    highlight.style.top = `${verticalBounds.top - calendarBounds.top - event.currentTarget.clientTop + event.currentTarget.scrollTop}px`;
+    highlight.style.width = `${dayBounds.width}px`;
+  }
+
   return (
     <div
-      className="workspace-calendar-theme overflow-x-auto"
+      className="workspace-calendar-theme relative overflow-x-auto rounded-xl border border-border bg-background"
+      data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
+      onPointerLeave={hideSlotHighlight}
+      onPointerMove={handlePointerMove}
+      onScrollCapture={hideSlotHighlight}
     >
       <FullCalendar
+        borderless
+        dayCellClass={
+          canCreate && view === "month"
+            ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
+            : undefined
+        }
         key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
         plugins={[
           classicTheme,
@@ -363,8 +424,20 @@ function CalendarView({
             eventInfo.event.title
           );
         }}
-        dateClick={(dateInfo) => onDateClick(dateInfo.date)}
+        dateClick={(dateInfo) => {
+          hideSlotHighlight();
+          onDateClick(dateInfo.date);
+        }}
       />
+      {canCreate && view === "week" ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute z-10 bg-primary-quaternary opacity-0 ring-1 ring-primary-tertiary ring-inset motion-safe:transition-opacity motion-safe:duration-150 motion-safe:ease-out"
+          data-testid="calendar-slot-highlight"
+          ref={slotHighlightRef}
+          style={{ opacity: 0 }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -598,16 +671,18 @@ export function WorkspaceCalendar({
     : selectedProjectId
       ? `project:${selectedProjectId}`
       : state.sourceId;
+  const selectedSchedulableSource = sources.find(
+    (source) => source.sourceId === selectedSourceId && source.isSchedulable,
+  );
+  // Tri-state for task creation: a Project id, `null` for an explicit Workspace
+  // source, `undefined` when no source is filtered and the user must choose.
   const selectedCreateProjectId =
     lockedProjectId ??
-    (selectedProjectId &&
-    sources.some(
-      (source) =>
-        source.sourceId === `project:${selectedProjectId}` &&
-        source.isSchedulable,
-    )
-      ? selectedProjectId
-      : null);
+    (selectedSchedulableSource?.sourceType === "PROJECT"
+      ? (getProjectIdFromSource(selectedSchedulableSource) ?? undefined)
+      : selectedSchedulableSource?.sourceType === "WORKSPACE"
+        ? null
+        : undefined);
   const canCreate = sources.some(
     (source) =>
       source.isSchedulable &&
@@ -681,7 +756,7 @@ export function WorkspaceCalendar({
       projectId: selectedCreateProjectId,
       schedule: {
         mode: "once",
-        oneTimeLocalIso,
+        oneTimeLocalIso: schedulableOnceLocalIso(oneTimeLocalIso, timeZone),
         timezone: timeZone,
       },
     });
@@ -797,6 +872,8 @@ export function WorkspaceCalendar({
             options: sources.map((source) => ({
               value: source.sourceId,
               label: source.displayName,
+              avatarLabel: source.displayName,
+              image: source.logoUrl,
             })),
             onChange: handleSourceChange,
           },
@@ -963,6 +1040,7 @@ export function WorkspaceCalendar({
       <div className="hidden md:block">
         <CalendarView
           key={`desktop-${calendarRenderEpoch}`}
+          canCreate={canCreate}
           date={date}
           items={visibleItems}
           onDateClick={handleDateClick}
@@ -976,6 +1054,7 @@ export function WorkspaceCalendar({
       <div className="md:hidden">
         <CalendarView
           key={`mobile-${calendarRenderEpoch}`}
+          canCreate={canCreate}
           date={date}
           items={visibleItems}
           onDateClick={handleDateClick}

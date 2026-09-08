@@ -1,6 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { NotificationKind } from "@sokosumi/database";
+import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 
 import { forbidden, notFound } from "@/helpers/error";
+import { mapNotificationToItem } from "@/helpers/notification-item";
+import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -92,25 +97,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
 
-    const result = {
-      id: updated.id,
-      userId: updated.userId,
-      kind: updated.kind,
-      referenceId: updated.referenceId,
-      eventId: updated.eventId,
-      messageKey: updated.messageKey,
-      messageParams: JSON.parse(updated.messageParams) as Record<
-        string,
-        unknown
-      >,
-      metadata: updated.metadata
-        ? (JSON.parse(updated.metadata) as Record<string, unknown>)
-        : null,
-      isRead: updated.isRead,
-      readAt: updated.readAt,
-      createdAt: updated.createdAt,
-    };
+    // The counted room row is the one a banner stands for, so it is the only
+    // row whose reading takes a banner down. A mention shares the room's
+    // banner without standing for it, and a job row has a banner of its own
+    // that keeps behaving as it did.
+    //
+    // Published even when the row was already read: the reader is saying they
+    // are done with the room, and a banner can outlive its row on a second
+    // device or through a publish that never arrived.
+    //
+    // Scheduled rather than awaited, so a failed publish costs the reader a
+    // stale banner instead of the read they asked for.
+    if (
+      notification.kind === NotificationKind.CHAT &&
+      notification.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY
+    ) {
+      waitUntil(publishClearedNotifications([updated.id]));
+    }
 
-    return ok(c, notificationItemSchema.parse(result));
+    return ok(c, notificationItemSchema.parse(mapNotificationToItem(updated)));
   });
 }

@@ -2,6 +2,7 @@ import "server-only";
 
 import { headers } from "next/headers";
 
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 import { getCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
 
@@ -40,8 +41,9 @@ export default async function createAuthTokenRequest(options?: {
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(
+    throw new CoreApiRequestError(
       `Core Ably token mint failed (${response.status})${detail ? `: ${detail}` : ""}`,
+      { status: response.status },
     );
   }
 

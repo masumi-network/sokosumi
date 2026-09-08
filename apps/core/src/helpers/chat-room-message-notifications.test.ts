@@ -32,6 +32,13 @@ vi.mock("@/lib/db/prisma", () => ({
     user: { findMany: userFindManyMock },
     // The fan-out looks for a row to count onto before it writes one.
     notification: { findFirst: notificationFindFirstMock },
+    // It reads the message too, so a body deleted while it ran is not
+    // written back onto the notifications.
+    chatRoomMessage: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue({ deletedAt: null, content: "ship it" }),
+    },
   },
 }));
 
@@ -73,6 +80,7 @@ function emit(overrides: Record<string, unknown> = {}) {
     roomKind: "channel",
     organizationId: "org_1",
     messageId: MESSAGE_ID,
+    content: "ship it",
     authorUserId: AUTHOR_ID,
     authorName: "Ada",
     memberUserIds: [AUTHOR_ID, SUBSCRIBER_ID],
@@ -101,7 +109,11 @@ describe("emitChatRoomMessageNotifications", () => {
       referenceId: ROOM_ID,
       eventId: MESSAGE_ID,
       messageKey: "Notifications.Chat.roomMessage",
-      messageParams: { authorName: "Ada", roomName: "general" },
+      messageParams: {
+        authorName: "Ada",
+        roomName: "general",
+        messagePreview: "ship it",
+      },
       metadata: { messageId: MESSAGE_ID, workspaceId: "workspace_1" },
     });
   });

@@ -48,6 +48,19 @@ export const notificationEventDataSchema = z.object({
    * True for an event published by a Core that only ever wrote rows.
    */
   created: z.boolean().default(true),
+  /**
+   * How many messages are waiting for the reader in this room.
+   *
+   * Chat only, and only while the row is unread. One OS banner holds a whole
+   * room and each arrival replaces the one standing, so the banner says how
+   * many it stands for. Core sends it because the push service worker can
+   * query nothing and has to read the same number for a closed app.
+   *
+   * Absent from an event a Core that predates the count published, and from
+   * every kind but chat. The banner then names the arrival, which is what it
+   * did before there was a count.
+   */
+  groupCount: z.number().int().min(1).optional(),
 });
 
 export type NotificationEventData = z.infer<typeof notificationEventDataSchema>;

@@ -5,8 +5,11 @@ interface RoomReadOverlay {
   unreadMentionCount: number;
   markedUnread: boolean;
   revision: number;
-  pendingToken: number | null;
-  rollbackAttention: RoomAttentionFields | null;
+  pending: {
+    token: number;
+    expiresAt: number;
+    rollbackAttention: RoomAttentionFields;
+  } | null;
 }
 
 interface RoomAttentionFields {
@@ -18,6 +21,8 @@ interface RoomAttentionFields {
 }
 
 const overlaysByRoomId = new Map<string, RoomReadOverlay>();
+// A stalled mutation must not suppress authoritative sidebar polls indefinitely.
+const PENDING_ATTENTION_TIMEOUT_MS = 30_000;
 let revision = 0;
 
 function toUpdatedAtMs(updatedAt: string | Date): number {
@@ -28,8 +33,7 @@ function toUpdatedAtMs(updatedAt: string | Date): number {
 function storeAttention(
   room: RoomAttentionFields,
   nextRevision: number,
-  pendingToken: number | null = null,
-  rollbackAttention: RoomAttentionFields | null = null,
+  pending: RoomReadOverlay["pending"] = null,
 ): void {
   overlaysByRoomId.set(room.id, {
     updatedAtMs: toUpdatedAtMs(room.updatedAt),
@@ -37,9 +41,19 @@ function storeAttention(
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
     revision: nextRevision,
-    pendingToken,
-    rollbackAttention,
+    pending,
   });
+}
+
+function getRoomReadOverlay(roomId: string): RoomReadOverlay | undefined {
+  const overlay = overlaysByRoomId.get(roomId);
+  if (overlay?.pending && Date.now() >= overlay.pending.expiresAt) {
+    // Keep the original revision so a fresh poll can replace the rollback.
+    // Removing the pending token also prevents late responses from settling it.
+    storeAttention(overlay.pending.rollbackAttention, overlay.revision);
+    return overlaysByRoomId.get(roomId);
+  }
+  return overlay;
 }
 
 function applyAttention<T extends RoomAttentionFields>(
@@ -56,7 +70,7 @@ function applyAttention<T extends RoomAttentionFields>(
 
 /** Event listeners may repeat an optimistic snapshot without settling it. */
 export function rememberRoomRead(room: RoomAttentionFields): void {
-  const overlay = overlaysByRoomId.get(room.id);
+  const overlay = getRoomReadOverlay(room.id);
   storeAttention(
     {
       ...room,
@@ -66,8 +80,7 @@ export function rememberRoomRead(room: RoomAttentionFields): void {
       ),
     },
     ++revision,
-    overlay?.pendingToken ?? null,
-    overlay?.rollbackAttention ?? null,
+    overlay?.pending ?? null,
   );
 }
 
@@ -77,8 +90,8 @@ export function beginRoomAttentionChange(
 ): number {
   // Overlapping operations share the last settled attention, never an
   // optimistic snapshot from a superseded operation or a remounted caller.
-  const previousOverlay = overlaysByRoomId.get(room.id);
-  const rollbackAttention = previousOverlay?.rollbackAttention ?? {
+  const previousOverlay = getRoomReadOverlay(room.id);
+  const rollbackAttention = previousOverlay?.pending?.rollbackAttention ?? {
     ...applyRoomReadOverlays([previousRoom])[0],
     updatedAt: new Date(
       Math.max(
@@ -88,7 +101,11 @@ export function beginRoomAttentionChange(
     ),
   };
   const token = ++revision;
-  storeAttention(room, token, token, rollbackAttention);
+  storeAttention(room, token, {
+    token,
+    expiresAt: Date.now() + PENDING_ATTENTION_TIMEOUT_MS,
+    rollbackAttention,
+  });
   return token;
 }
 
@@ -98,16 +115,14 @@ export function settleRoomAttentionChange(
   token: number,
   room: RoomAttentionFields | null,
 ): boolean {
-  const overlay = overlaysByRoomId.get(roomId);
-  if (overlay?.pendingToken !== token) {
+  const overlay = getRoomReadOverlay(roomId);
+  if (overlay?.pending?.token !== token) {
     return false;
   }
   if (room) {
     storeAttention(room, ++revision);
-  } else if (overlay.rollbackAttention) {
-    storeAttention(overlay.rollbackAttention, ++revision);
   } else {
-    forgetRoomRead(roomId);
+    storeAttention(overlay.pending.rollbackAttention, ++revision);
   }
   return true;
 }
@@ -134,10 +149,10 @@ export function reconcileRoomAttention<T extends RoomAttentionFields>(
   requestRevision: number,
 ): T[] {
   return rooms.map((room) => {
-    const overlay = overlaysByRoomId.get(room.id);
+    const overlay = getRoomReadOverlay(room.id);
     if (
       overlay &&
-      (overlay.pendingToken !== null || overlay.revision > requestRevision)
+      (overlay.pending !== null || overlay.revision > requestRevision)
     ) {
       return applyAttention(room, overlay);
     }
@@ -151,10 +166,10 @@ export function applyRoomReadOverlays<T extends RoomAttentionFields>(
   rooms: readonly T[],
 ): T[] {
   return rooms.map((room) => {
-    const overlay = overlaysByRoomId.get(room.id);
+    const overlay = getRoomReadOverlay(room.id);
     if (
       !overlay ||
-      (overlay.pendingToken === null &&
+      (overlay.pending === null &&
         toUpdatedAtMs(room.updatedAt) > overlay.updatedAtMs)
     ) {
       return room;

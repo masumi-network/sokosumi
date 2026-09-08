@@ -3,19 +3,20 @@
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { NotificationsListSkeleton } from "@/app/notifications/components/notifications-loading-view";
+import { ClearNotificationsDialog } from "@/components/notifications/clear-notifications-dialog";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
+import { DeleteNotificationButton } from "@/components/notifications/delete-notification-button";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { useSession } from "@/lib/auth/auth.client";
-import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
@@ -23,6 +24,11 @@ import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
 import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
+
+import {
+  removeNotificationLocally,
+  useNotificationsPage,
+} from "./use-notifications-page";
 
 interface NotificationsPageContentProps {
   userId: string;
@@ -63,21 +69,6 @@ function markAllNotificationsReadLocally(
   return changed ? next : notifications;
 }
 
-export function mergeProviderNotifications(
-  current: NotificationItem[],
-  provider: NotificationItem[],
-): NotificationItem[] {
-  if (provider.length === 0) {
-    return current;
-  }
-
-  const providerIds = new Set(provider.map((notification) => notification.id));
-  return [
-    ...provider,
-    ...current.filter((notification) => !providerIds.has(notification.id)),
-  ];
-}
-
 export function NotificationsPageContent({
   userId: _userId,
 }: NotificationsPageContentProps) {
@@ -89,85 +80,25 @@ export function NotificationsPageContent({
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const { notice } = useAccountNotice();
-  const {
-    markRead,
-    markAllRead,
-    notifications: providerNotifications,
-    unreadCount,
-  } = useNotifications();
+  const { markRead, markAllRead, unreadCount } = useNotifications();
   const router = useRouter();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    notifications,
+    setNotifications,
+    isLoading,
+    hasMore,
+    cursor,
+    hasFetchError,
+    isMutating,
+    fetchNotifications,
+  } = useNotificationsPage();
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const [pendingNotificationId, setPendingNotificationId] = useState<
     string | null
   >(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasFetchError, setHasFetchError] = useState(false);
-  const fetchInFlightRef = useRef(false);
-  const fetchGenerationRef = useRef(0);
-
-  const fetchNotifications = useCallback(async (nextCursor?: string | null) => {
-    if (fetchInFlightRef.current) {
-      return;
-    }
-
-    fetchInFlightRef.current = true;
-    const generation = ++fetchGenerationRef.current;
-    const isInitialLoad = nextCursor == null;
-
-    try {
-      setIsLoading(true);
-      const response = await notificationsBrowserClient.getNotifications({
-        limit: 20,
-        cursor: nextCursor ?? undefined,
-      });
-
-      if (generation !== fetchGenerationRef.current) {
-        return;
-      }
-
-      setNotifications((prev) => {
-        if (!nextCursor) {
-          return response.data;
-        }
-
-        const existingIds = new Set(
-          prev.map((notification) => notification.id),
-        );
-        const newItems = response.data.filter(
-          (notification) => !existingIds.has(notification.id),
-        );
-
-        return [...prev, ...newItems];
-      });
-      const paginationMeta = response.meta.pagination;
-      setHasMore(paginationMeta.nextCursor !== null);
-      setCursor(paginationMeta.nextCursor);
-      setHasFetchError(false);
-    } catch (error) {
-      console.error("Failed to fetch notifications:", error);
-      if (generation === fetchGenerationRef.current && isInitialLoad) {
-        setHasFetchError(true);
-      }
-    } finally {
-      if (generation === fetchGenerationRef.current) {
-        setIsLoading(false);
-        fetchInFlightRef.current = false;
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchNotifications();
-  }, [fetchNotifications]);
-
-  useEffect(() => {
-    setNotifications((current) =>
-      mergeProviderNotifications(current, providerNotifications),
-    );
-  }, [providerNotifications]);
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  const clearButtonRef = useRef<HTMLButtonElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network/navigation
@@ -217,20 +148,34 @@ export function NotificationsPageContent({
   };
 
   return (
-    <div className="flex flex-col gap-5 pb-4">
+    <div ref={pageRef} tabIndex={-1} className="flex flex-col gap-5 pb-4">
       {notice !== null ? <AccountNoticeRow /> : null}
       <NotificationBrowserPermissionPrimer variant="page" />
-      {unreadCount > 0 ? (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            size="sm"
-            className="self-start"
-            onClick={handleMarkAllRead}
-            disabled={isMarkingAllRead}
-          >
-            {isMarkingAllRead ? tCenter("loading") : tCenter("markAllRead")}
-          </Button>
+      {unreadCount > 0 || notifications.length > 0 ? (
+        <div className="flex justify-end gap-2">
+          {notifications.length > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              ref={clearButtonRef}
+              onClick={() => setIsClearDialogOpen(true)}
+            >
+              {tCenter("clearAll")}
+            </Button>
+          ) : null}
+          {unreadCount > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              className="self-start"
+              onClick={handleMarkAllRead}
+              disabled={isMarkingAllRead}
+            >
+              {isMarkingAllRead ? tCenter("loading") : tCenter("markAllRead")}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
@@ -273,7 +218,7 @@ export function NotificationsPageContent({
                   onClick={handleNotificationClick}
                   onAccessRequestAccepted={(notificationId) => {
                     setNotifications((prev) =>
-                      prev.filter((item) => item.id !== notificationId),
+                      removeNotificationLocally(prev, notificationId),
                     );
                   }}
                 />
@@ -285,7 +230,7 @@ export function NotificationsPageContent({
               <Button
                 variant="outline"
                 onClick={handleLoadMore}
-                disabled={isLoading}
+                disabled={isLoading || isMutating}
               >
                 {isLoading ? tCenter("loading") : tCenter("loadMore")}
               </Button>
@@ -293,6 +238,14 @@ export function NotificationsPageContent({
           ) : null}
         </>
       ) : null}
+      <ClearNotificationsDialog
+        open={isClearDialogOpen}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          (clearButtonRef.current ?? pageRef.current)?.focus();
+        }}
+        onOpenChange={setIsClearDialogOpen}
+      />
     </div>
   );
 }
@@ -320,7 +273,7 @@ function NotificationRow({
   const showPendingAccessActions =
     showVendorGrantActions || showCoworkerAccessActions;
   const rowClassName = cn(
-    "hover:bg-accent flex w-full p-4 text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
+    "hover:bg-accent flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     !notification.isRead && "bg-accent/50",
     isPending && "bg-accent opacity-80",
     showPendingAccessActions ? "cursor-default" : "cursor-pointer",
@@ -376,17 +329,36 @@ function NotificationRow({
     </div>
   );
 
+  // The delete control sits beside the row rather than inside it, because the
+  // row itself is the button that opens the notification.
+  const deleteControl = (
+    <DeleteNotificationButton
+      notificationId={notification.id}
+      isRead={notification.isRead}
+      notificationMessage={message}
+    />
+  );
+
   if (showPendingAccessActions) {
-    return <div className={rowClassName}>{body}</div>;
+    return (
+      <div className={rowClassName}>
+        <div className="flex min-w-0 flex-1 p-4">{body}</div>
+        <div className="p-3">{deleteControl}</div>
+      </div>
+    );
   }
 
+  // The padding lives on the button, so the whole row stays one click target.
   return (
-    <button
-      type="button"
-      className={rowClassName}
-      onClick={() => onClick(notification)}
-    >
-      {body}
-    </button>
+    <div className={rowClassName}>
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 cursor-pointer p-4 text-left"
+        onClick={() => onClick(notification)}
+      >
+        {body}
+      </button>
+      <div className="p-3">{deleteControl}</div>
+    </div>
   );
 }

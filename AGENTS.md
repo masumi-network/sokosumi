@@ -1,6 +1,6 @@
 # Sokosumi Agent Guidelines
 
-> **Purpose**: This document provides comprehensive guidelines for AI agents working on the **Sokosumi monorepo** (apps, shared packages, tooling). It is not app-specific. For scoped guidance, see [`apps/web/AGENTS.md`](./apps/web/AGENTS.md), [`apps/core/AGENTS.md`](./apps/core/AGENTS.md), [`packages/database/AGENTS.md`](./packages/database/AGENTS.md), [`packages/masumi/AGENTS.md`](./packages/masumi/AGENTS.md), and [`packages/email/AGENTS.md`](./packages/email/AGENTS.md).
+> **Purpose**: This document provides comprehensive guidelines for AI agents working on the **Sokosumi monorepo** (apps, shared packages, tooling). It is not app-specific. For scoped guidance, see [`apps/web/AGENTS.md`](./apps/web/AGENTS.md), [`apps/core/AGENTS.md`](./apps/core/AGENTS.md), [`apps/apple/AGENTS.md`](./apps/apple/AGENTS.md), [`packages/database/AGENTS.md`](./packages/database/AGENTS.md), [`packages/masumi/AGENTS.md`](./packages/masumi/AGENTS.md), and [`packages/email/AGENTS.md`](./packages/email/AGENTS.md).
 
 ## Tech Stack & Architecture
 
@@ -14,7 +14,7 @@
 
 ## Project Layout
 
-The live trees are the directories below. Package **exports** (not a cached file list) are the entry points — see each `package.json`. Scoped contracts: [`apps/web/AGENTS.md`](./apps/web/AGENTS.md), [`apps/core/AGENTS.md`](./apps/core/AGENTS.md), [`packages/database/AGENTS.md`](./packages/database/AGENTS.md), [`packages/masumi/AGENTS.md`](./packages/masumi/AGENTS.md), [`packages/email/AGENTS.md`](./packages/email/AGENTS.md).
+The live trees are the directories below. Package **exports** (not a cached file list) are the entry points — see each `package.json`. Scoped contracts: [`apps/web/AGENTS.md`](./apps/web/AGENTS.md), [`apps/core/AGENTS.md`](./apps/core/AGENTS.md), [`apps/apple/AGENTS.md`](./apps/apple/AGENTS.md), [`packages/database/AGENTS.md`](./packages/database/AGENTS.md), [`packages/masumi/AGENTS.md`](./packages/masumi/AGENTS.md), [`packages/email/AGENTS.md`](./packages/email/AGENTS.md).
 
 ```
 sokosumi/

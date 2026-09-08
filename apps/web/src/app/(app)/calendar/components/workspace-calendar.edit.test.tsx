@@ -9,15 +9,18 @@ import {
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ComponentProps, isValidElement, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
+import { selectionToApiBody } from "@/lib/utils/task-schedule";
 
 interface FullCalendarProps {
+  borderless?: boolean;
   dateClick?: (info: { date: Date }) => void;
+  dayCellClass?: string;
   editable?: boolean;
   eventContent?: (info: { event: { id: string; title: string } }) => ReactNode;
   events?: Array<{ id: string; title: string }>;
@@ -63,6 +66,14 @@ vi.mock("@fullcalendar/react", () => ({
     fullCalendarMock(props);
     return (
       <div>
+        <div
+          data-date="2030-01-02"
+          data-testid="hover-day-cell"
+          role="gridcell"
+        >
+          <span data-testid="hover-target">hover target</span>
+        </div>
+        <div data-time="09:00:00" data-testid="hover-time-slot" />
         <button
           type="button"
           onClick={() =>
@@ -70,6 +81,30 @@ vi.mock("@fullcalendar/react", () => ({
           }
         >
           empty calendar slot
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.dateClick?.({ date: new Date("2026-09-08T16:00:00.000Z") })
+          }
+        >
+          past hour calendar slot
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.dateClick?.({ date: new Date("2026-09-07T22:00:00.000Z") })
+          }
+        >
+          past midnight calendar slot
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.dateClick?.({ date: new Date("2026-09-08T17:00:00.000Z") })
+          }
+        >
+          future hour calendar slot
         </button>
         {props.events?.map((event) => (
           <div key={event.id}>
@@ -199,9 +234,14 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   },
 }));
 
-vi.mock("@/lib/utils/task-schedule", () => ({
-  metadataToSelection: metadataToSelectionMock,
-}));
+vi.mock("@/lib/utils/task-schedule", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/utils/task-schedule")>();
+  return {
+    ...actual,
+    metadataToSelection: metadataToSelectionMock,
+  };
+});
 
 import { WorkspaceCalendar } from "./workspace-calendar";
 
@@ -364,13 +404,146 @@ describe("WorkspaceCalendar editing", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("configures FullCalendar date clicks with the interaction plugin", () => {
     renderCalendar();
 
     const props = fullCalendarMock.mock.calls[0]?.[0] as FullCalendarProps;
+    expect(props.borderless).toBe(true);
     expect(props.dateClick).toEqual(expect.any(Function));
     expect(props.editable).toBe(false);
     expect(props.plugins).toContain(interactionPluginMock);
+  });
+
+  it("colors the actual month cell on hover without an overlay", () => {
+    renderCalendar();
+
+    const calendar = screen.getAllByTestId("calendar-month")[0];
+    const props = fullCalendarMock.mock.calls[0]?.[0] as FullCalendarProps;
+    expect(props.dayCellClass).toContain("hover:bg-primary-quaternary");
+    expect(props.dayCellClass).toContain("motion-safe:transition-colors");
+    expect(props.dayCellClass).toContain("motion-safe:duration-150");
+    expect(props.dayCellClass).toContain("motion-safe:ease-out");
+    expect(
+      within(calendar).queryByTestId("calendar-slot-highlight"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("eases the hovered week slot and event highlight, then clears it", async () => {
+    const user = userEvent.setup();
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC&view=week">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2030-01-02"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    const calendar = screen.getAllByTestId("calendar-week")[0];
+    const dayCell = within(calendar).getByTestId("hover-day-cell");
+    const timeSlot = within(calendar).getByTestId("hover-time-slot");
+    const hoverTarget = within(calendar).getByTestId("hover-target");
+    const highlight = within(calendar).getByTestId("calendar-slot-highlight");
+    const event = within(calendar).getByRole("button", {
+      name: "Prepare release notes, Release planning",
+    });
+
+    Object.defineProperty(document, "elementsFromPoint", {
+      configurable: true,
+      value: vi.fn(() => [dayCell, timeSlot]),
+    });
+    vi.spyOn(calendar, "getBoundingClientRect").mockReturnValue({
+      bottom: 800,
+      height: 700,
+      left: 50,
+      right: 850,
+      top: 100,
+      width: 800,
+      x: 50,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    Object.defineProperties(calendar, {
+      clientLeft: { configurable: true, value: 1 },
+      clientTop: { configurable: true, value: 1 },
+    });
+    vi.spyOn(dayCell, "getBoundingClientRect").mockReturnValue({
+      bottom: 720,
+      height: 600,
+      left: 150,
+      right: 250,
+      top: 120,
+      width: 100,
+      x: 150,
+      y: 120,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(timeSlot, "getBoundingClientRect").mockReturnValue({
+      bottom: 240,
+      height: 20,
+      left: 50,
+      right: 850,
+      top: 220,
+      width: 800,
+      x: 50,
+      y: 220,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerMove(hoverTarget, { clientX: 175, clientY: 225 });
+
+    expect(highlight).toHaveStyle({
+      height: "20px",
+      left: "99px",
+      opacity: "1",
+      top: "119px",
+      width: "100px",
+    });
+    expect(highlight).toHaveClass(
+      "motion-safe:transition-opacity",
+      "motion-safe:duration-150",
+      "motion-safe:ease-out",
+    );
+    expect(event).toHaveClass(
+      "cursor-pointer",
+      "hover:bg-primary/20",
+      "focus-visible:bg-primary/20",
+      "motion-safe:transition-colors",
+      "motion-safe:duration-150",
+      "motion-safe:ease-out",
+    );
+
+    fireEvent.pointerLeave(calendar);
+    expect(highlight).toHaveStyle({ opacity: "0" });
+
+    fireEvent.pointerMove(event, { clientX: 175, clientY: 225 });
+    expect(highlight).toHaveStyle({ opacity: "1" });
+
+    await user.click(
+      within(calendar).getByRole("button", { name: "empty calendar slot" }),
+    );
+    expect(highlight).toHaveStyle({ opacity: "0" });
+  });
+
+  it("does not render a slot highlight for an unschedulable calendar", () => {
+    renderCalendar({
+      sources: SOURCES.map((source) => ({
+        ...source,
+        isSchedulable: false,
+      })),
+    });
+
+    expect(
+      within(screen.getAllByTestId("calendar-month")[0]).queryByTestId(
+        "calendar-slot-highlight",
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("shows a source filter only on the top-level Calendar and includes Projects in pagination", async () => {
@@ -460,6 +633,96 @@ describe("WorkspaceCalendar editing", () => {
     });
   });
 
+  it("opens create with a schedulable once-time when the clicked hour is already past", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=Europe%2FPrague">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2026-09-08"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "past hour calendar slot" })[0],
+    );
+
+    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
+      schedule: TaskScheduleSelection;
+    };
+    expect(schedule.schedule).toEqual({
+      mode: "once",
+      oneTimeLocalIso: "2026-09-08T18:06",
+      timezone: "Europe/Prague",
+    });
+
+    vi.advanceTimersByTime(2 * 60 * 1000);
+    expect(selectionToApiBody(schedule.schedule)).toEqual({
+      mode: "once",
+      runAt: new Date("2026-09-08T16:06:00.000Z"),
+    });
+  });
+
+  it("opens create with a schedulable once-time when month midnight is already past", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=Europe%2FPrague">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2026-09-08"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "past midnight calendar slot" })[0],
+    );
+
+    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
+      schedule: TaskScheduleSelection;
+    };
+    expect(schedule.schedule.oneTimeLocalIso).toBe("2026-09-08T18:06");
+    expect(selectionToApiBody(schedule.schedule)).toEqual({
+      mode: "once",
+      runAt: new Date("2026-09-08T16:06:00.000Z"),
+    });
+  });
+
+  it("keeps a future clicked hour as the seeded once-time", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=Europe%2FPrague">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2026-09-08"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "future hour calendar slot" })[0],
+    );
+
+    expect(openCreateTaskModalMock).toHaveBeenCalledWith({
+      projectId: undefined,
+      schedule: {
+        mode: "once",
+        oneTimeLocalIso: "2026-09-08T19:00",
+        timezone: "Europe/Prague",
+      },
+    });
+  });
+
   it("opens calendar scheduling for the visible calendar date", async () => {
     const user = userEvent.setup();
     render(
@@ -480,7 +743,7 @@ describe("WorkspaceCalendar editing", () => {
     await user.click(createButton);
 
     expect(openCreateTaskModalMock).toHaveBeenCalledWith({
-      projectId: null,
+      projectId: undefined,
       schedule: {
         mode: "once",
         oneTimeLocalIso: "2030-01-02T12:00",
@@ -489,10 +752,106 @@ describe("WorkspaceCalendar editing", () => {
     });
   });
 
+  it("opens agenda create with a schedulable once-time when noon is already past", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=Europe%2FPrague&view=agenda">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2026-09-08"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "create.title" }));
+
+    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
+      schedule: TaskScheduleSelection;
+    };
+    expect(schedule.schedule.oneTimeLocalIso).toBe("2026-09-08T18:06");
+    expect(selectionToApiBody(schedule.schedule)).toEqual({
+      mode: "once",
+      runAt: new Date("2026-09-08T16:06:00.000Z"),
+    });
+  });
+
+  it("prefills the active Workspace source on the workspace Calendar", async () => {
+    const user = userEvent.setup();
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC&sourceId=workspace%3Aworkspace-1">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2030-01-02"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await user.click(
+      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
+    );
+
+    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: null }),
+    );
+  });
+
+  it("does not prefill an unschedulable Workspace source", async () => {
+    const user = userEvent.setup();
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC&sourceId=workspace%3Aworkspace-1">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2030-01-02"
+          items={[ITEM]}
+          sources={SOURCES.map((source) =>
+            source.sourceType === "WORKSPACE"
+              ? { ...source, isSchedulable: false }
+              : source,
+          )}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await user.click(
+      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
+    );
+
+    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: undefined }),
+    );
+  });
+
   it("prefills the active Project source on the workspace Calendar", async () => {
     const user = userEvent.setup();
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-1">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2030-01-02"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    await user.click(
+      screen.getAllByRole("button", { name: "empty calendar slot" })[0],
+    );
+
+    expect(openCreateTaskModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "project-1" }),
+    );
+  });
+
+  it("prefills a Project source supplied through the source filter", async () => {
+    const user = userEvent.setup();
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC&sourceId=project%3Aproject-1">
         <WorkspaceCalendar
           coworkers={[{ id: "coworker-1", name: "Ada" }]}
           initialDate="2030-01-02"

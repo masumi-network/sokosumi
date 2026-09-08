@@ -24,6 +24,7 @@ export interface EmitChatDirectMessageNotificationsParams {
   roomName: string;
   organizationId: string | null;
   messageId: string;
+  content: string;
   /** Human author to skip. Null when the author is a coworker. */
   authorUserId: string | null;
   authorName: string;

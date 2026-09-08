@@ -2624,6 +2624,7 @@ describe("post_chat chain depth", () => {
       roomName: "Ada",
       organizationId: null,
       messageId: "msg_1",
+      content: "Here is your stand-up.",
       authorUserId: null,
       authorName: "Soko Bot",
       recipientUserIds: [SCOPE.userId],

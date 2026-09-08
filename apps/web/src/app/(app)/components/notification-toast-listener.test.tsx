@@ -1,7 +1,13 @@
+import {
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { render } from "@testing-library/react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { NotificationKind } from "@/lib/clients/generated/core";
+import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/lib/utils/coworker-access-notification";
 
 const onNotificationRef = {
   current: null as ((notification: NotificationEventData) => void) | null,
@@ -27,11 +33,15 @@ const TARGET = {
   kind: "CHAT",
   referenceId: "room-1",
   messageKey: "Notifications.Chat.mentioned",
+  createdAt: "2026-01-01T00:00:00.000Z",
   // Non-null on purpose: a banner that drops metadata cannot route a click to
   // the room it came from.
   metadata: { chatRoomId: "room-1" },
 };
 const getNotificationServiceWorker = vi.fn(() => Promise.resolve({}));
+const closeNotificationGroup = vi.fn((_notification: NotificationEventData) =>
+  Promise.resolve(),
+);
 const clickHandlerRef = {
   current: null as ((target: typeof TARGET) => void) | null,
 };
@@ -50,6 +60,8 @@ vi.mock("@/lib/utils/notification-service-worker", async (importOriginal) => ({
   >()),
   answerShowsNotificationsQuery: (showsNotifications: () => boolean) =>
     answerShowsNotificationsQuery(showsNotifications),
+  closeNotificationGroup: (notification: NotificationEventData) =>
+    closeNotificationGroup(notification),
   getNotificationServiceWorker: () => getNotificationServiceWorker(),
   showNotification: (input: unknown) => showNotification(input),
   subscribeNotificationClicks: (onClick: (target: typeof TARGET) => void) => {
@@ -106,7 +118,11 @@ const NOTIFICATION: NotificationEventData = {
   kind: NotificationKind.CHAT,
   userId: "user-1",
   eventId: "event-1",
-  messageParams: {},
+  messageParams: {
+    authorName: "Ada",
+    roomName: "Design",
+    messagePreview: "your call",
+  },
   isRead: false,
   readAt: null,
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -130,6 +146,7 @@ describe("NotificationToastListener OS banner", () => {
     vi.restoreAllMocks();
     showNotification.mockClear();
     getNotificationServiceWorker.mockClear();
+    closeNotificationGroup.mockClear();
     answerShowsNotificationsQuery.mockClear();
     stopAnswering.mockClear();
     handleNotificationNavigation.mockClear();
@@ -138,19 +155,96 @@ describe("NotificationToastListener OS banner", () => {
   });
 
   /**
-   * A banner interrupts because a message arrived, so it says that message.
-   * The worker renders the same event for a tab that was closed and knows
-   * nothing of counts, so a counted line here would be a second answer to one
-   * arrival for whoever happened to have the tab open.
+   * One banner holds the whole room and each arrival replaces the one before,
+   * so the banner speaks for every message waiting there. Core counts them,
+   * because the worker renders the same banner for a closed app and can query
+   * nothing.
    */
-  it("asks for the arrival rather than the room's count", async () => {
+  it("says how many messages are waiting in the room", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      messageParams: {
+        authorName: "Ada",
+        roomName: "Design",
+        messagePreview: "latest message",
+      },
+      groupCount: 5,
+    });
+
+    await vi.waitFor(() => {
+      expect(formatMessage).toHaveBeenCalledWith(NOTIFICATION.messageKey, {
+        authorName: "Ada",
+        roomName: "Design",
+        messagePreview: "latest message",
+        count: 5,
+      });
+      expect(showNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "browserNotificationTitle",
+          body: "message",
+        }),
+      );
+    });
+  });
+
+  /**
+   * The room's count, not the row's. A room's row carries Core's tally of the
+   * messages counted onto that row alone, which reads four messages and a
+   * mention as four.
+   */
+  it("prefers the room's count over the count stored on the row", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      messageParams: { roomName: "Design", count: 4 },
+      groupCount: 5,
+    });
+
+    await vi.waitFor(() => {
+      expect(formatMessage).toHaveBeenCalledWith(NOTIFICATION.messageKey, {
+        roomName: "Design",
+        count: 5,
+      });
+    });
+  });
+
+  /** A Core that predates the count sends none, and the banner names the
+   * arrival, which is what it did before there was a count. */
+  it("names the arrival when no count arrives", async () => {
     emitOnUnfocusedTab();
 
     await vi.waitFor(() => {
       expect(formatMessage).toHaveBeenCalledWith(
         NOTIFICATION.messageKey,
         NOTIFICATION.messageParams,
-        { counted: false },
+      );
+    });
+  });
+
+  /**
+   * The title is a catalog string of its own, so it has to be rendered with
+   * the notification's own params. Rendering it with nothing would put
+   * "{authorName} in {roomName}" on the banner.
+   */
+  it("renders the title key with the notification's own params", async () => {
+    const messageParams = {
+      authorName: "Ada",
+      roomName: "Design",
+      messagePreview: "can you look at the login flow",
+    };
+
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+      messageParams,
+    });
+
+    await vi.waitFor(() => {
+      expect(formatMessage).toHaveBeenCalledWith(
+        CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY,
+        messageParams,
       );
     });
   });
@@ -164,7 +258,79 @@ describe("NotificationToastListener OS banner", () => {
 
     await vi.waitFor(() => {
       expect(showNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ body: "message", target: TARGET }),
+        expect.objectContaining({
+          title: "message",
+          body: "your call",
+          target: TARGET,
+        }),
+      );
+    });
+  });
+
+  /**
+   * The reader judges an arrival by what it says, so the message itself is
+   * the body. Which key titles it is the test above; this one is the body.
+   */
+  it("puts the message itself under the title", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      messageParams: {
+        authorName: "Ada",
+        roomName: "Design",
+        messagePreview: "can you look at the login flow",
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(showNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "message",
+          body: "can you look at the login flow",
+        }),
+      );
+    });
+  });
+
+  it.each([undefined, "", 12, null])(
+    "passes a title-only banner without preview text (%s)",
+    async (messagePreview) => {
+      render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+      onNotificationRef.current?.({
+        ...NOTIFICATION,
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        messageParams: {
+          authorName: "Ada",
+          roomName: "Design",
+          messagePreview,
+        },
+      });
+      await vi.waitFor(() => {
+        expect(showNotification).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "message", body: "" }),
+        );
+      });
+    },
+  );
+
+  /**
+   * Only a chat message carries text of its own. Every other kind keeps the
+   * app name, because its line is longer than a title is shown.
+   */
+  it("keeps the app name on a notification that is not a chat message", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      kind: NotificationKind.TASK,
+      messageKey: "Notifications.Task.completed",
+    });
+
+    await vi.waitFor(() => {
+      expect(showNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "browserNotificationTitle",
+          body: "message",
+        }),
       );
     });
   });
@@ -174,6 +340,66 @@ describe("NotificationToastListener OS banner", () => {
    * reader's banner choice has to be read here too. Reading it only on the push
    * would leave the banner running for anyone with a tab open.
    */
+  /**
+   * Core republishes a row it has just marked read, which is how a tab learns
+   * the reader read the room somewhere else: in another tab, on another
+   * device, or by opening the room rather than the banner. The banner standing
+   * for that room now describes a state that is gone, so it comes down.
+   */
+  it("closes the room's banner when a row arrives already read", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      isRead: true,
+      readAt: "2026-01-01T00:00:01.000Z",
+      created: false,
+    });
+
+    await vi.waitFor(() => {
+      expect(closeNotificationGroup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: NOTIFICATION.id,
+          referenceId: NOTIFICATION.referenceId,
+          kind: NotificationKind.CHAT,
+          readAt: "2026-01-01T00:00:01.000Z",
+        }),
+      );
+    });
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
+  /** An arrival is the opposite case: it raises a banner, it does not clear one. */
+  it("closes nothing when the row is still unread", async () => {
+    emitOnUnfocusedTab();
+
+    await vi.waitFor(() => {
+      expect(showNotification).toHaveBeenCalled();
+    });
+    expect(closeNotificationGroup).not.toHaveBeenCalled();
+  });
+
+  /** A read job row closes its own banner, which is the group it is in. */
+  it("closes a non-chat banner by its own row", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.({
+      ...NOTIFICATION,
+      kind: NotificationKind.JOB,
+      referenceId: "job-1",
+      messageKey: "Notifications.Job.completed",
+      isRead: true,
+      readAt: "2026-01-01T00:00:01.000Z",
+    });
+
+    await vi.waitFor(() => {
+      expect(closeNotificationGroup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "notification-1",
+          readAt: "2026-01-01T00:00:01.000Z",
+        }),
+      );
+    });
+  });
+
   it("renders no banner when the reader silenced the category's banner", async () => {
     render(<NotificationToastListener userId="user-1" markRead={markRead} />);
     onNotificationRef.current?.({ ...NOTIFICATION, osBanner: false });
@@ -276,6 +502,68 @@ describe("NotificationToastListener OS banner", () => {
       expect(handleNotificationNavigation).toHaveBeenCalled();
     });
     expect(markRead).toHaveBeenCalledWith("notification-1");
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A focused tab shows a toast instead of a banner. Only a request that waits
+ * on the reader interrupts this way, because the tab already shows the rest.
+ */
+describe("NotificationToastListener in-app toast", () => {
+  const PENDING_ACCESS: NotificationEventData = {
+    ...NOTIFICATION,
+    kind: NotificationKind.SYSTEM,
+    messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+    referenceId: "access-1",
+    messageParams: { coworkerName: "Ada", workspaceName: "Design" },
+    metadata: { organizationId: "org-1", organizationSlug: "acme" },
+  };
+
+  beforeEach(() => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.mocked(toast).mockClear();
+    showNotification.mockClear();
+    getNotificationServiceWorker.mockClear();
+    answerShowsNotificationsQuery.mockClear();
+    stopAnswering.mockClear();
+    formatMessage.mockClear();
+    markRead.mockClear();
+  });
+
+  it("toasts a pending access request with its own line", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.(PENDING_ACCESS);
+
+    await vi.waitFor(() => {
+      expect(toast).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({ id: PENDING_ACCESS.id }),
+      );
+    });
+    expect(formatMessage).toHaveBeenCalledWith(
+      COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+      PENDING_ACCESS.messageParams,
+    );
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The banner is for a tab the reader is not looking at. A toast on top of a
+   * banner would say the same thing twice.
+   */
+  it("leaves a chat message to the banner", async () => {
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+    onNotificationRef.current?.(NOTIFICATION);
+
+    await vi.waitFor(() => {
+      expect(getNotificationServiceWorker).toHaveBeenCalled();
+    });
+    expect(toast).not.toHaveBeenCalled();
     expect(showNotification).not.toHaveBeenCalled();
   });
 });

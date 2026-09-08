@@ -47,10 +47,17 @@ export {
   type ChatMembershipRevokeReason,
 } from "./chat-membership-revoked.js";
 export {
+  buildChatMessagePreview,
+  CHAT_MESSAGE_PREVIEW_MAX_LENGTH,
+} from "./chat-message-preview.js";
+export {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_DIRECT_MESSAGES_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY,
   CHAT_ROOM_MESSAGES_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGES_MESSAGE_KEY,
 } from "./chat-notification-message-keys.js";
@@ -216,6 +223,7 @@ export {
   resolveRequestLocale,
   SUPPORTED_LOCALES,
 } from "./locale.js";
+export { MARKDOWN_FENCED_BLOCK_REGEX } from "./markdown-fenced-block.js";
 export {
   escapeMarkdownLinkUrl,
   findMarkdownLinks,

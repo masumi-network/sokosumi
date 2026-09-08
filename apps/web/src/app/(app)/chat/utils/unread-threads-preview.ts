@@ -1,17 +1,12 @@
-import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
-
-/** Persist mention token `@key:slug` (key is uuid, `all`, etc.). */
-const MENTION_TOKEN_REGEX = /@([^\s:]+):([^\s]+)/g;
+import { buildChatMessagePreview } from "@sokosumi/utils";
 
 /**
  * Build a scannable plain-text label for an unread-thread row.
- * Strips markdown and collapses `@id:slug` mention tokens to `@slug`.
+ *
+ * The rule lives in `@sokosumi/utils` because Core builds the same preview for
+ * an OS banner, and a message that reads one way in a thread row and another
+ * way on a lock screen is two answers to one message.
  */
 export function formatUnreadThreadsPreview(content: string): string {
-  const withReadableMentions = content.replace(
-    MENTION_TOKEN_REGEX,
-    (_match, _key: string, slug: string) => `@${slug}`,
-  );
-  const plain = stripMarkdownToText(withReadableMentions) ?? "";
-  return plain.replace(/\s+/g, " ").trim();
+  return buildChatMessagePreview(content);
 }

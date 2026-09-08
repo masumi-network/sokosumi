@@ -22,23 +22,21 @@ import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 const POINTER_SUBMIT_CLICK_GUARD_MS = 400;
 
 /**
- * Shared editor footprint for live composer + Instant room loading shell.
- *
- * Single-line height is explicit (pt-3.5 + pb-2.5 + leading-6) so empty,
- * placeholder, and first keystroke share the same box. Do not use
- * `empty:max-h-*` (jumps when :empty ends). Placeholder is single-line
- * ellipsis on empty:before (see ComposerWysiwygEditor).
+ * Shared footprint for the live editor and Instant loading shell.
+ * The editable font sizes supply 1.5rem / 1.25rem line heights. Symmetric
+ * padding keeps a single line at 3rem without tightening multiline drafts.
  */
 export const ROOM_COMPOSER_TEXTAREA_CLASSNAME = withEditableTextSize(
-  "box-border max-h-40 min-h-[calc(0.875rem+0.625rem+1.5rem)] field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 pt-3.5 pb-2.5 leading-6 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
+  "box-border max-h-40 min-h-12 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 md:py-3.5 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
 );
 
 /**
- * Classic empty:before placeholder on the editor host (live wysiwyg + Instant
- * bone). Single-line ellipsis; host min-h owns empty and first-keystroke height.
+ * Keep ellipsis without a scroll container: overflow-hidden gives the empty
+ * caret the wrong baseline in Gecko (https://bugzilla.mozilla.org/show_bug.cgi?id=904846#c51).
+ * The host owns the height in both the live editor and Instant loading shell.
  */
 export const ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME =
-  "empty:before:pointer-events-none empty:before:block empty:before:max-w-full empty:before:overflow-hidden empty:before:text-ellipsis empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]";
+  "empty:before:pointer-events-none empty:before:block empty:before:max-w-full empty:before:overflow-clip empty:before:text-ellipsis empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]";
 
 export const ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME =
   "size-9 rounded-full sm:size-8";
