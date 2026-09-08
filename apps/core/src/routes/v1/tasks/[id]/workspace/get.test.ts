@@ -14,40 +14,68 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { resolveMemberOrganizationByIdMock, taskFindUniqueMock } = vi.hoisted(
-  () => ({
-    resolveMemberOrganizationByIdMock: vi.fn(),
-    taskFindUniqueMock: vi.fn(),
-  }),
-);
-
-vi.mock("@/helpers/organization", () => ({
-  resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    task: {
-      findUnique: taskFindUniqueMock,
-    },
+const {
+  getWorkspaceGrantMock,
+  requireTaskReadForRouteVarsMock,
+  workspaceRepositoryMock,
+} = vi.hoisted(() => ({
+  getWorkspaceGrantMock: vi.fn(),
+  requireTaskReadForRouteVarsMock: vi.fn(),
+  workspaceRepositoryMock: {
+    resolveWorkspaceForContext: vi.fn(),
   },
 }));
 
-function createTask(
-  overrides: { userId?: string; organizationId?: string | null } = {},
-) {
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/repositories")>();
+  return {
+    ...actual,
+    workspaceRepository: workspaceRepositoryMock,
+  };
+});
+
+vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/vendor-grants")>();
+  return {
+    ...actual,
+    getWorkspaceGrant: getWorkspaceGrantMock,
+  };
+});
+
+vi.mock("@/helpers/access-control", () => ({
+  requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {},
+}));
+
+const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
+
+function createTask(overrides: { organizationId?: string | null } = {}) {
   const organizationId =
     "organizationId" in overrides ? overrides.organizationId : "org_123";
 
   return {
     name: "Research competitor pricing",
-    ownerId: overrides.userId ?? "user_123",
-    workspaceId: "11111111-1111-7111-8111-111111111111",
+    workspaceId: WORKSPACE_ID,
     workspace: {
       organizationId,
     },
   };
 }
+
+const coworkerAuth = {
+  actor: "coworker" as const,
+  coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
+  context: {
+    userId: "user_123",
+    organizationId: "org_123",
+  },
+};
 
 function createApp(
   authContext: AuthenticationContext = {
@@ -63,6 +91,11 @@ function createApp(
     c.set("requestId", "req_workspace_get_test");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
+    c.set("workspaceContext", {
+      workspaceId: WORKSPACE_ID,
+      userId: null,
+      organizationId: "org_123",
+    });
 
     return await next();
   });
@@ -76,13 +109,15 @@ function createApp(
 describe("GET /tasks/{id}/workspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    taskFindUniqueMock.mockResolvedValue(createTask());
-    resolveMemberOrganizationByIdMock.mockResolvedValue({
-      organization: {
-        id: "org_123",
-      },
-      role: "member",
+    workspaceRepositoryMock.resolveWorkspaceForContext.mockResolvedValue({
+      id: "ws_task_workspace",
     });
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "grant_123",
+      status: "GRANTED",
+      permission: "WORKSPACE",
+    });
+    requireTaskReadForRouteVarsMock.mockResolvedValue(createTask());
   });
 
   it("returns the task title and workspace mapping for accessible tasks", async () => {
@@ -92,18 +127,26 @@ describe("GET /tasks/{id}/workspace", () => {
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
       name: "Research competitor pricing",
-      workspaceId: "11111111-1111-7111-8111-111111111111",
+      workspaceId: WORKSPACE_ID,
       organizationId: "org_123",
     });
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
-      id: "org_123",
-      userId: "user_123",
-      tx: expect.any(Object),
-    });
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authContext: expect.objectContaining({
+          actor: "user",
+          userId: "user_123",
+        }),
+      }),
+      "tsk_123",
+      expect.any(Object),
+      {
+        workspace: { select: { organizationId: true } },
+      },
+    );
   });
 
-  it("allows personal tasks owned by the caller", async () => {
-    taskFindUniqueMock.mockResolvedValue(
+  it("returns a personal workspace mapping when the task has no organization", async () => {
+    requireTaskReadForRouteVarsMock.mockResolvedValue(
       createTask({
         organizationId: null,
       }),
@@ -117,28 +160,16 @@ describe("GET /tasks/{id}/workspace", () => {
       name: "Research competitor pricing",
       organizationId: null,
     });
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
   });
 
-  it("allows coworker with context headers as the context user", async () => {
-    const response = await createApp({
-      actor: "coworker",
-      coworkerId: "cow_123",
-      vendorId: TEST_VENDOR_ID,
-      context: {
-        userId: "user_123",
-        organizationId: "org_123",
-      },
-    }).request("/tsk_123/workspace");
+  it("allows coworker with GRANTED context as the context user", async () => {
+    const response =
+      await createApp(coworkerAuth).request("/tsk_123/workspace");
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data.workspaceId).toBe("11111111-1111-7111-8111-111111111111");
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
-      id: "org_123",
-      userId: "user_123",
-      tx: expect.any(Object),
-    });
+    expect(body.data.workspaceId).toBe(WORKSPACE_ID);
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalled();
   });
 
   it("returns 403 for bare coworker without context headers", async () => {
@@ -153,6 +184,40 @@ describe("GET /tasks/{id}/workspace", () => {
     expect(body.message).toBe(
       "Context headers (X-Context-User-Id) are required for this resource",
     );
-    expect(taskFindUniqueMock).not.toHaveBeenCalled();
+    expect(requireTaskReadForRouteVarsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for coworker with a DENIED workspace grant", async () => {
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "grant_123",
+      status: "DENIED",
+      permission: "WORKSPACE",
+    });
+
+    const response =
+      await createApp(coworkerAuth).request("/tsk_123/workspace");
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe("Vendor workspace access was denied");
+    expect(body.kind).toBe("grant_denied");
+    expect(requireTaskReadForRouteVarsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for coworker with a REVOKED workspace grant", async () => {
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "grant_123",
+      status: "REVOKED",
+      permission: "WORKSPACE",
+    });
+
+    const response =
+      await createApp(coworkerAuth).request("/tsk_123/workspace");
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe("Vendor workspace access was revoked");
+    expect(body.kind).toBe("grant_revoked");
+    expect(requireTaskReadForRouteVarsMock).not.toHaveBeenCalled();
   });
 });
