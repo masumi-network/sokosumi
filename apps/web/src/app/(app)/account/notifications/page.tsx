@@ -1,5 +1,6 @@
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 
+import { ChatDisplayPreferences } from "../components/chat-display-preferences";
 import { NotificationPreferences } from "../components/notification-preferences";
 
 /**
@@ -18,7 +19,11 @@ export default async function AccountNotificationsPage() {
       <NotificationPreferences
         notificationsOptIn={session.user.notificationsOptIn ?? true}
         marketingOptIn={session.user.marketingOptIn ?? false}
-      />
+      >
+        <ChatDisplayPreferences
+          showRoomUnreadCount={session.user.showRoomUnreadCount ?? false}
+        />
+      </NotificationPreferences>
     </div>
   );
 }
