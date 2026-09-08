@@ -22,7 +22,7 @@ This directory contains documentation for the Sokosumi monorepo.
 
 ## Wayfinder
 
-- [`wayfinder/`](./wayfinder/) — x402/EVM spec map (`MAP.md`, `PR1-SPEC.md`, `PR2-SPEC.md`)
+- [`wayfinder/`](./wayfinder/) — reached x402/EVM spec map (`MAP.md`, `PR1-SPEC.md`, `PR2-SPEC.md`, `NODE-QUESTIONS.md`)
 
 ## Research
 
