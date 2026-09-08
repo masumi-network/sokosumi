@@ -197,6 +197,10 @@ struct MembershipStatusRow: View {
 /// One chat bubble row: avatar rail plus sender header, or a bare
 /// continuation rail when the burst continues. Plain text body only.
 struct MessageRow: View {
+  /// Avatar edge: web uses 32px, but that reads oversized next to the
+  /// native sidebar (28pt "me" avatar), so the transcript matches in-app.
+  static let avatarDiameter: CGFloat = 28
+
   let message: Components.Schemas.ChatRoomMessage
   let isContinuation: Bool
 
@@ -204,7 +208,7 @@ struct MessageRow: View {
     HStack(alignment: .top, spacing: 14) {
       if isContinuation {
         Color.clear
-          .frame(width: 32, height: 32)
+          .frame(width: Self.avatarDiameter, height: Self.avatarDiameter)
       } else {
         avatarView
       }
@@ -254,7 +258,7 @@ struct MessageRow: View {
       } placeholder: {
         initialsFallback(name: name)
       }
-      .frame(width: 32, height: 32)
+      .frame(width: Self.avatarDiameter, height: Self.avatarDiameter)
       .clipShape(Circle())
     } else {
       initialsFallback(name: name)
@@ -266,7 +270,7 @@ struct MessageRow: View {
       .font(.caption)
       .fontWeight(.semibold)
       .foregroundStyle(.white)
-      .frame(width: 32, height: 32)
+      .frame(width: Self.avatarDiameter, height: Self.avatarDiameter)
       .background(Circle().fill(Color.accentColor))
   }
 
