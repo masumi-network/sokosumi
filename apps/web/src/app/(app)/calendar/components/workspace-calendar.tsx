@@ -813,6 +813,8 @@ export function WorkspaceCalendar({
         .map((coworker) => ({
           value: coworker.id,
           label: coworker.name,
+          avatarLabel: coworker.name,
+          image: coworker.image,
         })),
       onChange: (assigneeId: string | null) =>
         void setState({ assigneeId, assigneeUserId: null }, { shallow: false }),
@@ -828,6 +830,8 @@ export function WorkspaceCalendar({
         .map((coworker) => ({
           value: coworker.id,
           label: coworker.name,
+          avatarLabel: coworker.name,
+          image: coworker.image,
         })),
       onChange: (assigneeUserId: string | null) =>
         void setState({ assigneeUserId, assigneeId: null }, { shallow: false }),

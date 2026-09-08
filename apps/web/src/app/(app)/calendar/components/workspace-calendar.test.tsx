@@ -448,6 +448,64 @@ describe("WorkspaceCalendar", () => {
     expect(new URLSearchParams(updates.at(-1)).get("scope")).toBe("owned");
   });
 
+  it("provides profile pictures for coworker and human filter options", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC">
+        <WorkspaceCalendar
+          coworkers={[
+            {
+              id: "coworker-1",
+              name: "Release Coworker",
+              image: "https://example.com/coworker.png",
+              kind: "coworker",
+            },
+            {
+              id: "user-1",
+              name: "Ada Lovelace",
+              image: "https://example.com/ada.png",
+              kind: "user",
+            },
+          ]}
+          items={ITEMS}
+          initialDate="2026-08-18"
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    const props = filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
+      sections: Array<{
+        id: string;
+        options: Array<{
+          avatarLabel?: string;
+          image?: string;
+          label: string;
+          value: string;
+        }>;
+      }>;
+    };
+
+    expect(
+      props.sections.find((section) => section.id === "coworker")?.options,
+    ).toEqual([
+      {
+        avatarLabel: "Release Coworker",
+        image: "https://example.com/coworker.png",
+        label: "Release Coworker",
+        value: "coworker-1",
+      },
+    ]);
+    expect(
+      props.sections.find((section) => section.id === "human")?.options,
+    ).toEqual([
+      {
+        avatarLabel: "Ada Lovelace",
+        image: "https://example.com/ada.png",
+        label: "Ada Lovelace",
+        value: "user-1",
+      },
+    ]);
+  });
+
   it("preserves the selected scope when filtering by coworker", async () => {
     const onUrlUpdate = vi.fn();
 
