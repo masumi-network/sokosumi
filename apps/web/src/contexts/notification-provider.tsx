@@ -43,6 +43,10 @@ interface NotificationContextValue {
   unreadCount: number;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  /** Delete one notification for good, in Core and in local feed state. */
+  deleteNotification: (id: string) => Promise<void>;
+  /** Delete every notification-center row for good, in Core and locally. */
+  clearNotifications: () => Promise<void>;
   /** Drop a notification from local feed state (e.g. resolved vendor grant). */
   removeNotification: (id: string) => void;
   refetch: () => Promise<void>;
@@ -122,7 +126,9 @@ type NotificationAction =
     }
   | { type: "mark_read_optimistic"; id: string }
   | { type: "mark_all_read" }
-  | { type: "remove"; id: string };
+  | { type: "remove"; id: string }
+  | { type: "unread_deleted" }
+  | { type: "clear_all" };
 
 export function notificationReducer(
   state: NotificationState,
@@ -270,6 +276,17 @@ export function notificationReducer(
           : Math.max(0, state.unreadCount - 1),
       };
     }
+    case "unread_deleted": {
+      // An unread row this list never held is gone. The badge counted it, so
+      // take it off without touching the rows that are here.
+      return {
+        notifications: state.notifications,
+        unreadCount: Math.max(0, state.unreadCount - 1),
+      };
+    }
+    case "clear_all": {
+      return { notifications: [], unreadCount: 0 };
+    }
     case "mark_all_read": {
       const readAt = new Date();
 
@@ -309,6 +326,8 @@ const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
   unreadCount: 0,
   markRead: noopAsync,
   markAllRead: noopAsync,
+  deleteNotification: noopAsync,
+  clearNotifications: noopAsync,
   removeNotification: noopRemove,
   refetch: noopAsync,
   isLoading: true,
@@ -453,6 +472,49 @@ export function NotificationProvider({
     [fetchNotifications],
   );
 
+  const deleteNotification = useCallback(
+    async (id: string) => {
+      // Painted before the round trip, as marking read is. A failed delete
+      // reads the list again, so a row that is still there comes back.
+      const wasHeld = notifications.some(
+        (notification) => notification.id === id,
+      );
+      dispatch({ type: "remove", id });
+      dismissNotificationToast(id);
+
+      try {
+        const response = await notificationsBrowserClient.deleteNotification({
+          id,
+        });
+
+        // The page reads further back than this list holds. A row deleted from
+        // down there still counted towards the badge, so read what went from
+        // the answer and take it off.
+        if (!wasHeld && !response.data.isRead) {
+          dispatch({ type: "unread_deleted" });
+        }
+      } catch (error) {
+        console.error("Failed to delete notification:", error);
+        void fetchNotifications();
+        throw error;
+      }
+    },
+    [fetchNotifications, notifications],
+  );
+
+  const clearNotifications = useCallback(async () => {
+    dispatch({ type: "clear_all" });
+    dismissAllNotificationToasts();
+
+    try {
+      await notificationsBrowserClient.deleteNotifications();
+    } catch (error) {
+      console.error("Failed to clear notifications:", error);
+      void fetchNotifications();
+      throw error;
+    }
+  }, [fetchNotifications]);
+
   const removeNotification = useCallback((id: string) => {
     dispatch({ type: "remove", id });
     dismissNotificationToast(id);
@@ -493,6 +555,8 @@ export function NotificationProvider({
     unreadCount,
     markRead,
     markAllRead,
+    deleteNotification,
+    clearNotifications,
     removeNotification,
     refetch: fetchNotifications,
     isLoading,

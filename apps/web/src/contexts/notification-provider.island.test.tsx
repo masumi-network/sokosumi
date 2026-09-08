@@ -8,6 +8,8 @@ import {
 } from "@/contexts/notification-provider";
 
 const getNotificationsMock = vi.fn();
+const deleteNotificationMock = vi.fn();
+const deleteNotificationsMock = vi.fn();
 const getNotificationsUnreadCountMock = vi.fn();
 const useNotificationRealtimeMock = vi.fn();
 
@@ -22,6 +24,9 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
       getNotificationsUnreadCountMock(...args),
     patchNotificationRead: vi.fn(),
     patchNotificationsReadAll: vi.fn(),
+    deleteNotification: (...args: unknown[]) => deleteNotificationMock(...args),
+    deleteNotifications: (...args: unknown[]) =>
+      deleteNotificationsMock(...args),
   },
 }));
 
@@ -50,13 +55,51 @@ vi.mock("@/app/components/notification-toast-listener", () => ({
 }));
 
 function NotificationConsumer() {
-  const { isLoading, hasFetchError, unreadCount } = useNotifications();
+  const {
+    isLoading,
+    hasFetchError,
+    unreadCount,
+    notifications,
+    deleteNotification,
+    clearNotifications,
+  } = useNotifications();
 
   return (
     <div data-testid="notification-consumer">
       <span data-testid="loading">{String(isLoading)}</span>
       <span data-testid="fetch-error">{String(hasFetchError)}</span>
       <span data-testid="unread-count">{unreadCount}</span>
+      <span data-testid="notification-ids">
+        {notifications.map((notification) => notification.id).join(",")}
+      </span>
+      <button
+        type="button"
+        data-testid="delete-first"
+        onClick={() => {
+          void deleteNotification(notifications[0]?.id ?? "").catch(() => {});
+        }}
+      >
+        delete
+      </button>
+      <button
+        type="button"
+        data-testid="delete-elsewhere"
+        onClick={() => {
+          // A row the page holds and this list does not, as deep paging gives.
+          void deleteNotification("notification-elsewhere").catch(() => {});
+        }}
+      >
+        delete elsewhere
+      </button>
+      <button
+        type="button"
+        data-testid="clear-all"
+        onClick={() => {
+          void clearNotifications().catch(() => {});
+        }}
+      >
+        clear
+      </button>
     </div>
   );
 }
@@ -71,6 +114,8 @@ describe("NotificationProvider island", () => {
       ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
     );
 
+    deleteNotificationMock.mockReset();
+    deleteNotificationsMock.mockReset();
     getNotificationsMock.mockResolvedValue({ data: [] });
     getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
   });
@@ -288,5 +333,159 @@ describe("NotificationProvider island", () => {
     expect(useNotificationRealtimeMock).toHaveBeenCalled();
     expect(getNotificationsMock).toHaveBeenCalledTimes(2);
     expect(screen.getByTestId("unread-count")).toHaveTextContent("1");
+  });
+});
+
+describe("NotificationProvider deleting", () => {
+  const UNREAD_ROW = {
+    id: "notification-unread",
+    userId: "user-1",
+    kind: "JOB" as const,
+    referenceId: "job-1",
+    eventId: "event-1",
+    messageKey: "Notifications.Job.completed",
+    messageParams: {},
+    metadata: null,
+    isRead: false,
+    readAt: null,
+    createdAt: new Date("2026-06-18T09:00:00.000Z"),
+  };
+
+  const READ_ROW = {
+    ...UNREAD_ROW,
+    id: "notification-read",
+    isRead: true,
+    readAt: new Date("2026-06-18T08:30:00.000Z"),
+    createdAt: new Date("2026-06-18T08:00:00.000Z"),
+  };
+
+  beforeEach(() => {
+    getNotificationsMock.mockReset();
+    getNotificationsUnreadCountMock.mockReset();
+    deleteNotificationMock.mockReset();
+    deleteNotificationsMock.mockReset();
+    useNotificationRealtimeMock.mockReset();
+    lazyAblyProviderMock.mockReset();
+    lazyAblyProviderMock.mockImplementation(
+      ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
+    );
+
+    getNotificationsMock.mockResolvedValue({ data: [UNREAD_ROW, READ_ROW] });
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    deleteNotificationMock.mockResolvedValue({ data: UNREAD_ROW });
+    deleteNotificationsMock.mockResolvedValue({ data: { count: 2 } });
+  });
+
+  async function renderLoaded() {
+    render(
+      <NotificationProvider userId="user-1">
+        <NotificationConsumer />
+      </NotificationProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+
+  async function press(testId: string) {
+    await act(async () => {
+      screen.getByTestId(testId).click();
+      await Promise.resolve();
+    });
+  }
+
+  it("takes a deleted row out of the list and off the bell", async () => {
+    await renderLoaded();
+    await press("delete-first");
+
+    expect(deleteNotificationMock).toHaveBeenCalledWith({
+      id: "notification-unread",
+    });
+    expect(screen.getByTestId("notification-ids")).toHaveTextContent(
+      "notification-read",
+    );
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
+  });
+
+  it("leaves the bell alone when the deleted row was already read", async () => {
+    getNotificationsMock.mockResolvedValue({ data: [READ_ROW, UNREAD_ROW] });
+
+    await renderLoaded();
+    await press("delete-first");
+
+    expect(deleteNotificationMock).toHaveBeenCalledWith({
+      id: "notification-read",
+    });
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("1");
+  });
+
+  it("takes the badge off an unread row this list never held", async () => {
+    deleteNotificationMock.mockResolvedValue({
+      data: { ...UNREAD_ROW, id: "notification-elsewhere" },
+    });
+
+    await renderLoaded();
+    await press("delete-elsewhere");
+
+    expect(deleteNotificationMock).toHaveBeenCalledWith({
+      id: "notification-elsewhere",
+    });
+    expect(screen.getByTestId("notification-ids")).toHaveTextContent(
+      "notification-unread,notification-read",
+    );
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
+  });
+
+  it("leaves the badge alone when a row this list never held was read", async () => {
+    deleteNotificationMock.mockResolvedValue({
+      data: { ...READ_ROW, id: "notification-elsewhere" },
+    });
+
+    await renderLoaded();
+    await press("delete-elsewhere");
+
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("1");
+  });
+
+  it("empties the list and the bell when the reader clears the center", async () => {
+    await renderLoaded();
+    await press("clear-all");
+
+    expect(deleteNotificationsMock).toHaveBeenCalled();
+    expect(screen.getByTestId("notification-ids")).toHaveTextContent("");
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
+  });
+
+  it("reads the list again when a delete fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    deleteNotificationMock.mockRejectedValue(new Error("network down"));
+
+    await renderLoaded();
+    // The provider reads on mount and again when the realtime bridge attaches,
+    // so the count that matters is the one the failure adds.
+    const readsBeforeDelete = getNotificationsMock.mock.calls.length;
+
+    await press("delete-first");
+
+    expect(getNotificationsMock).toHaveBeenCalledTimes(readsBeforeDelete + 1);
+    consoleError.mockRestore();
+  });
+
+  it("reads the list again when clearing fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    deleteNotificationsMock.mockRejectedValue(new Error("network down"));
+
+    await renderLoaded();
+    const readsBeforeClear = getNotificationsMock.mock.calls.length;
+
+    await press("clear-all");
+
+    expect(getNotificationsMock).toHaveBeenCalledTimes(readsBeforeClear + 1);
+    consoleError.mockRestore();
   });
 });
