@@ -8,7 +8,12 @@ import {
   exchangeAuthorizationCode,
   parseOAuthCallback,
   refreshAccessToken,
-} from "../../src/auth/oauth.mjs";
+} from "../../src/auth/oauth.js";
+
+interface FetchRequest {
+  url: RequestInfo | URL;
+  options?: RequestInit;
+}
 
 test("creates a PKCE verifier and matching S256 challenge", () => {
   const pair = createPkcePair();
@@ -74,8 +79,8 @@ test("accepts only the expected OAuth callback state", () => {
 });
 
 test("exchanges an authorization code using form encoding", async () => {
-  let request;
-  const fetchImpl = async (url, options) => {
+  let request: FetchRequest | undefined;
+  const fetchImpl: typeof fetch = async (url, options) => {
     request = { url, options };
     return new Response(
       JSON.stringify({
@@ -100,13 +105,16 @@ test("exchanges an authorization code using form encoding", async () => {
     fetchImpl,
   });
 
+  if (!request?.options) throw new Error("fetch request was not captured");
   assert.equal(request.url, "https://api.example.test/auth/oauth2/token");
   assert.equal(request.options.method, "POST");
+  const headers = request.options.headers;
+  assert.ok(headers && !Array.isArray(headers));
   assert.equal(
-    request.options.headers["content-type"],
+    new Headers(headers).get("content-type"),
     "application/x-www-form-urlencoded",
   );
-  const body = new URLSearchParams(request.options.body);
+  const body = new URLSearchParams(String(request.options.body));
   assert.equal(body.get("grant_type"), "authorization_code");
   assert.equal(body.get("client_id"), "cli-client");
   assert.equal(
@@ -118,12 +126,13 @@ test("exchanges an authorization code using form encoding", async () => {
   assert.equal(credentials.authToken, "access-token");
   assert.equal(credentials.refreshToken, "refresh-token");
   assert.equal(credentials.tokenType, "Bearer");
+  assert.ok(credentials.expiresAt);
   assert.ok(Date.parse(credentials.expiresAt) >= Date.now() + 7_000_000);
 });
 
 test("refreshes an access token with the refresh token", async () => {
-  let request;
-  const fetchImpl = async (url, options) => {
+  let request: FetchRequest | undefined;
+  const fetchImpl: typeof fetch = async (url, options) => {
     request = { url, options };
     return new Response(
       JSON.stringify({
@@ -142,8 +151,9 @@ test("refreshes an access token with the refresh token", async () => {
     fetchImpl,
   });
 
+  if (!request?.options) throw new Error("fetch request was not captured");
   assert.equal(request.url, "https://api.example.test/auth/oauth2/token");
-  const body = new URLSearchParams(request.options.body);
+  const body = new URLSearchParams(String(request.options.body));
   assert.equal(body.get("grant_type"), "refresh_token");
   assert.equal(body.get("client_id"), "cli-client");
   assert.equal(body.get("refresh_token"), "refresh-token");

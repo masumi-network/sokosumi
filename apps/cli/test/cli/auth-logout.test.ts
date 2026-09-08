@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runAuthLogout } from "../../src/cli/auth-logout.mjs";
+import { runAuthLogout } from "../../src/cli/auth-logout.js";
 
 test("auth logout clears credentials and does not print tokens", async () => {
-  const output = [];
+  const output: string[] = [];
   let cleared = false;
   const result = await runAuthLogout({
     authManager: {

@@ -1,0 +1,110 @@
+export type CliTarget = "mainnet" | "preprod" | "custom";
+
+export type CliEnvironment = Readonly<Record<string, string | undefined>>;
+
+export interface CliTargetConfig {
+  target: CliTarget;
+  apiUrl: string;
+  authBaseUrl: string;
+  clientId: string;
+  clientSecret: string;
+}
+
+export const MAINNET_API_URL = "https://api.sokosumi.com";
+export const PREPROD_API_URL = "https://api.preprod.sokosumi.com";
+export const DEFAULT_OAUTH_CLIENT_ID = "sokosumi_cli";
+
+export const USER_API_KEY_PREFIX_BY_TARGET: Readonly<
+  Record<Exclude<CliTarget, "custom">, string>
+> = {
+  mainnet: "soko_mainnet_",
+  preprod: "soko_preprod_",
+};
+
+function trimUrl(value: string): string {
+  return value.trim().replace(/\/+$/g, "");
+}
+
+export function resolveTargetFromApiUrl(apiUrl: string): CliTarget {
+  const normalized = trimUrl(apiUrl);
+  if (normalized === MAINNET_API_URL) return "mainnet";
+  if (normalized === PREPROD_API_URL) return "preprod";
+  return "custom";
+}
+
+export function resolveTargetScope(target: CliTarget, apiUrl: string): string {
+  if (target !== "custom") return target;
+  try {
+    const parsed = new URL(apiUrl);
+    return `custom-${parsed.host.replace(/[^a-zA-Z0-9]/g, "_")}`;
+  } catch {
+    return "custom";
+  }
+}
+
+export function targetFromUserApiKey(
+  apiKey: string,
+): Exclude<CliTarget, "custom"> | null {
+  const value = apiKey.trim();
+  for (const [target, prefix] of Object.entries(
+    USER_API_KEY_PREFIX_BY_TARGET,
+  )) {
+    if (value.startsWith(prefix)) {
+      return target as Exclude<CliTarget, "custom">;
+    }
+  }
+  return null;
+}
+
+export function userApiKeyPrefixForTarget(target: CliTarget): string | null {
+  return target === "custom" ? null : USER_API_KEY_PREFIX_BY_TARGET[target];
+}
+
+export function resolveCliConfig({
+  env = process.env,
+  apiUrl,
+  authBaseUrl,
+  clientId,
+  clientSecret,
+  preprod = false,
+}: {
+  env?: CliEnvironment;
+  apiUrl?: string;
+  authBaseUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
+  preprod?: boolean;
+} = {}): CliTargetConfig {
+  const resolvedApiUrl = trimUrl(
+    apiUrl ||
+      (preprod ? PREPROD_API_URL : undefined) ||
+      env.SOKOSUMI_API_URL ||
+      MAINNET_API_URL,
+  );
+  const target = resolveTargetFromApiUrl(resolvedApiUrl);
+  const targetClientIdEnv =
+    target === "preprod"
+      ? env.SOKOSUMI_PREPROD_OAUTH_CLIENT_ID
+      : target === "mainnet"
+        ? env.SOKOSUMI_MAINNET_OAUTH_CLIENT_ID
+        : undefined;
+  const resolvedClientId = String(
+    clientId ||
+      targetClientIdEnv ||
+      env.SOKOSUMI_OAUTH_CLIENT_ID ||
+      DEFAULT_OAUTH_CLIENT_ID,
+  ).trim();
+  const resolvedAuthBaseUrl = trimUrl(
+    authBaseUrl || env.SOKOSUMI_AUTH_URL || `${resolvedApiUrl}/auth`,
+  );
+
+  return {
+    target,
+    apiUrl: resolvedApiUrl,
+    authBaseUrl: resolvedAuthBaseUrl,
+    clientId: resolvedClientId,
+    clientSecret: String(
+      clientSecret || env.SOKOSUMI_OAUTH_CLIENT_SECRET || "",
+    ).trim(),
+  };
+}

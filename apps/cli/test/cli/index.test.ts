@@ -1,11 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runCli } from "../../src/cli/index.mjs";
+import {
+  AuthManager,
+  type OAuthCredentials,
+} from "../../src/auth/auth-manager.js";
+import type { BrowserLoginOptions } from "../../src/auth/oauth.js";
+import { runCli } from "../../src/cli/index.js";
+
+function createTestAuthManager(): AuthManager {
+  return new AuthManager({
+    credentialStore: {
+      read: () => null,
+      write: (_credentials: OAuthCredentials) => {},
+      clear: () => {},
+    },
+    apiKeyStore: {
+      read: () => null,
+      write: (_credentials) => {},
+      clear: () => {},
+    },
+  });
+}
 
 test("dispatches auth login and emits token-free JSON", async () => {
-  const output = [];
-  const loginFn = async (request) => {
+  const output: string[] = [];
+  const loginFn = async (
+    request: BrowserLoginOptions,
+  ): Promise<OAuthCredentials> => {
     assert.deepEqual(request, {
       authBaseUrl: "https://api.example.test/auth",
       clientId: "cli-client",
@@ -16,22 +38,22 @@ test("dispatches auth login and emits token-free JSON", async () => {
       expiresAt: "2030-01-01T00:00:00.000Z",
     };
   };
-  const authManager = {
-    saveCredentials: (credentials) => credentials,
-  };
-
   const result = await runCli(["auth", "login", "--json"], {
     env: {
       SOKOSUMI_API_URL: "https://api.example.test",
       SOKOSUMI_OAUTH_CLIENT_ID: "cli-client",
     },
     loginFn,
-    authManager,
+    authManager: createTestAuthManager(),
     stdout: { write: (value) => output.push(value) },
   });
 
   assert.deepEqual(result, {
     authenticated: true,
+    authMethod: "oauth",
+    apiKeyAvailable: false,
+    target: "custom",
+    apiUrl: "https://api.example.test",
     expiresAt: "2030-01-01T00:00:00.000Z",
   });
   assert.deepEqual(JSON.parse(output.join("")), result);
@@ -39,7 +61,7 @@ test("dispatches auth login and emits token-free JSON", async () => {
 });
 
 test("strips a lone -- so pnpm extra-args work", async () => {
-  const output = [];
+  const output: string[] = [];
   const result = await runCli(["--", "--help"], {
     stdout: { write: (value) => output.push(value) },
   });
@@ -47,9 +69,10 @@ test("strips a lone -- so pnpm extra-args work", async () => {
   assert.match(output.join(""), /sokosumi auth login/);
 });
 
-test("empty argv launches the thin status TUI", async () => {
+test("empty argv launches the auth-first status TUI", async () => {
   let launched = false;
   await runCli([], {
+    authManager: createTestAuthManager(),
     tuiFn: async () => {
       launched = true;
       return { tui: true };
@@ -59,14 +82,32 @@ test("empty argv launches the thin status TUI", async () => {
 });
 
 test("auth logout dispatches without launching the TUI", async () => {
-  const output = [];
+  const output: string[] = [];
   const result = await runCli(["auth", "logout", "--json"], {
     tuiFn: async () => {
       throw new Error("TUI should not launch");
     },
-    authManager: { logout() {} },
+    authManager: createTestAuthManager(),
     stdout: { write: (value) => output.push(value) },
   });
   assert.deepEqual(result, { authenticated: false });
+  assert.deepEqual(JSON.parse(output.join("")), result);
+});
+
+test("auth status returns stable non-secret JSON", async () => {
+  const output: string[] = [];
+  const result = await runCli(["auth", "status", "--json"], {
+    authManager: createTestAuthManager(),
+    stdout: { write: (value) => output.push(value) },
+  });
+
+  assert.deepEqual(result, {
+    authenticated: false,
+    authMethod: null,
+    apiKeyAvailable: false,
+    target: "mainnet",
+    apiUrl: "https://api.sokosumi.com",
+    expiresAt: null,
+  });
   assert.deepEqual(JSON.parse(output.join("")), result);
 });

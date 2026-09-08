@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { loginWithBrowser } from "../../src/auth/oauth.mjs";
+import { loginWithBrowser } from "../../src/auth/oauth.js";
+
+interface FetchRequest {
+  url: RequestInfo | URL;
+  options?: RequestInit;
+}
 
 test("completes browser OAuth through the loopback callback", async () => {
-  let tokenRequest;
-  const fetchImpl = async (url, options) => {
+  let tokenRequest: FetchRequest | undefined;
+  const fetchImpl: typeof fetch = async (url, options) => {
     tokenRequest = { url, options };
     return new Response(
       JSON.stringify({
@@ -16,10 +21,11 @@ test("completes browser OAuth through the loopback callback", async () => {
       { status: 200 },
     );
   };
-  const openUrl = async (authorizationUrl) => {
+  const openUrl = async (authorizationUrl: string) => {
     const authorization = new URL(authorizationUrl);
     const redirectUri = authorization.searchParams.get("redirect_uri");
     const state = authorization.searchParams.get("state");
+    if (!redirectUri || !state) throw new Error("OAuth URL was incomplete");
     setImmediate(() => {
       fetch(
         `${redirectUri}?code=auth-code&state=${encodeURIComponent(state)}`,
@@ -38,8 +44,9 @@ test("completes browser OAuth through the loopback callback", async () => {
 
   assert.equal(credentials.authToken, "access-token");
   assert.equal(credentials.refreshToken, "refresh-token");
-  assert.equal(tokenRequest.url, "https://api.example.test/auth/oauth2/token");
-  const body = new URLSearchParams(tokenRequest.options.body);
+  assert.equal(tokenRequest?.url, "https://api.example.test/auth/oauth2/token");
+  if (!tokenRequest?.options) throw new Error("fetch request was not captured");
+  const body = new URLSearchParams(String(tokenRequest.options.body));
   assert.equal(body.get("grant_type"), "authorization_code");
   assert.equal(body.get("code"), "auth-code");
   assert.ok(body.get("code_verifier"));

@@ -1,8 +1,73 @@
-import { spawn as defaultSpawn } from "node:child_process";
+import { type ChildProcess, spawn as defaultSpawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { createServer } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
 
-export function createPkcePair() {
+export interface OAuthTokenCredentials {
+  authToken: string;
+  refreshToken: string | null;
+  tokenType: string;
+  expiresAt: string | null;
+}
+
+export interface PkcePair {
+  verifier: string;
+  challenge: string;
+}
+
+export interface OAuthAuthorizationUrlOptions {
+  authBaseUrl: string;
+  clientId: string;
+  redirectUri: string;
+  state: string;
+  codeChallenge: string;
+  scope?: string;
+}
+
+export interface OAuthTokenRequestOptions {
+  authBaseUrl: string;
+  clientId: string;
+  clientSecret?: string;
+  fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+}
+
+export interface OAuthCodeExchangeOptions extends OAuthTokenRequestOptions {
+  redirectUri: string;
+  code: string;
+  codeVerifier: string;
+}
+
+export interface OAuthRefreshOptions extends OAuthTokenRequestOptions {
+  refreshToken: string;
+}
+
+export interface BrowserLoginOptions extends OAuthTokenRequestOptions {
+  scope?: string;
+  port?: number;
+  callbackPath?: string;
+  timeoutMs?: number;
+  openUrl?: (url: string) => void | Promise<void>;
+  serverFactory?: () => Server;
+}
+
+export class OAuthTokenError extends Error {
+  readonly status: number;
+  readonly body: unknown;
+
+  constructor(message: string, status: number, body: unknown) {
+    super(message);
+    this.name = "OAuthTokenError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
+export function createPkcePair(): PkcePair {
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   return { verifier, challenge };
@@ -10,7 +75,7 @@ export function createPkcePair() {
 
 export const DEFAULT_OAUTH_SCOPE = "openid sokosumi:api offline_access";
 
-function trimBaseUrl(value, label) {
+function trimBaseUrl(value: string | undefined, label: string): string {
   const base = String(value || "")
     .trim()
     .replace(/\/+$/g, "");
@@ -26,10 +91,16 @@ function trimBaseUrl(value, label) {
   }
 }
 
-function requireText(value, label) {
+function requireText(value: string | undefined, label: string): string {
   const text = String(value || "").trim();
   if (!text) throw new Error(`${label} is required`);
   return text;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 export function buildAuthorizationUrl({
@@ -39,7 +110,7 @@ export function buildAuthorizationUrl({
   state,
   codeChallenge,
   scope = DEFAULT_OAUTH_SCOPE,
-} = {}) {
+}: OAuthAuthorizationUrlOptions): string {
   const url = new URL(
     `${trimBaseUrl(authBaseUrl, "authBaseUrl")}/oauth2/authorize`,
   );
@@ -56,8 +127,11 @@ export function buildAuthorizationUrl({
   return url.toString();
 }
 
-export function parseOAuthCallback(callbackUrl, { expectedState } = {}) {
-  let url;
+export function parseOAuthCallback(
+  callbackUrl: string,
+  { expectedState }: { expectedState: string },
+): { code: string } {
+  let url: URL;
   try {
     url = new URL(callbackUrl);
   } catch {
@@ -78,20 +152,21 @@ export function parseOAuthCallback(callbackUrl, { expectedState } = {}) {
   }
 
   const code = url.searchParams.get("code");
-  if (!code)
+  if (!code) {
     throw new Error("OAuth callback did not include an authorization code");
+  }
   return { code };
 }
 
-function normalizeTokenResponse(payload) {
+function normalizeTokenResponse(payload: unknown): OAuthTokenCredentials {
+  const record = asRecord(payload);
   const accessToken =
-    typeof payload?.access_token === "string"
-      ? payload.access_token.trim()
-      : "";
-  if (!accessToken)
+    typeof record.access_token === "string" ? record.access_token.trim() : "";
+  if (!accessToken) {
     throw new Error("OAuth token response did not include an access token");
+  }
 
-  const expiresIn = Number(payload.expires_in);
+  const expiresIn = Number(record.expires_in);
   const expiresAt =
     Number.isFinite(expiresIn) && expiresIn > 0
       ? new Date(Date.now() + expiresIn * 1000).toISOString()
@@ -100,20 +175,20 @@ function normalizeTokenResponse(payload) {
   return {
     authToken: accessToken,
     refreshToken:
-      typeof payload.refresh_token === "string" && payload.refresh_token.trim()
-        ? payload.refresh_token.trim()
+      typeof record.refresh_token === "string" && record.refresh_token.trim()
+        ? record.refresh_token.trim()
         : null,
     tokenType:
-      typeof payload.token_type === "string" && payload.token_type.trim()
-        ? payload.token_type.trim()
+      typeof record.token_type === "string" && record.token_type.trim()
+        ? record.token_type.trim()
         : "Bearer",
     expiresAt,
   };
 }
 
-async function parseResponse(response) {
+async function parseResponse(response: Response): Promise<unknown> {
   const text = await response.text();
-  let payload = null;
+  let payload: unknown = null;
   try {
     payload = text ? JSON.parse(text) : null;
   } catch {
@@ -121,14 +196,12 @@ async function parseResponse(response) {
   }
 
   if (!response.ok) {
-    const error = new Error(
-      typeof payload === "object" && payload?.error_description
-        ? `OAuth token request failed: ${payload.error_description}`
-        : `OAuth token request failed with status ${response.status}`,
-    );
-    error.status = response.status;
-    error.body = payload;
-    throw error;
+    const record = asRecord(payload);
+    const message =
+      typeof record.error_description === "string"
+        ? `OAuth token request failed: ${record.error_description}`
+        : `OAuth token request failed with status ${response.status}`;
+    throw new OAuthTokenError(message, response.status, payload);
   }
 
   return payload;
@@ -139,7 +212,12 @@ async function postTokenRequest({
   body,
   fetchImpl = globalThis.fetch,
   signal,
-}) {
+}: {
+  authBaseUrl: string;
+  body: Record<string, string>;
+  fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+}): Promise<OAuthTokenCredentials> {
   if (typeof fetchImpl !== "function") {
     throw new Error("fetch is required for OAuth token exchange");
   }
@@ -164,8 +242,8 @@ export async function exchangeAuthorizationCode({
   codeVerifier,
   fetchImpl,
   signal,
-} = {}) {
-  const body = {
+}: OAuthCodeExchangeOptions): Promise<OAuthTokenCredentials> {
+  const body: Record<string, string> = {
     grant_type: "authorization_code",
     client_id: requireText(clientId, "clientId"),
     redirect_uri: requireText(redirectUri, "redirectUri"),
@@ -183,8 +261,8 @@ export async function refreshAccessToken({
   refreshToken,
   fetchImpl,
   signal,
-} = {}) {
-  const body = {
+}: OAuthRefreshOptions): Promise<OAuthTokenCredentials> {
+  const body: Record<string, string> = {
     grant_type: "refresh_token",
     client_id: requireText(clientId, "clientId"),
     refresh_token: requireText(refreshToken, "refreshToken"),
@@ -196,38 +274,52 @@ export async function refreshAccessToken({
 export const DEFAULT_OAUTH_REDIRECT_PORT = 53682;
 export const DEFAULT_OAUTH_REDIRECT_PATH = "/oauth/callback";
 
-function openWithCommand(command, args, { spawnImpl = defaultSpawn } = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawnImpl(command, args, { detached: true, stdio: "ignore" });
-    child.once?.("error", reject);
-    child.unref?.();
+function openWithCommand(
+  command: string,
+  args: string[],
+  { spawnImpl = defaultSpawn }: { spawnImpl?: typeof defaultSpawn } = {},
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const child: ChildProcess = spawnImpl(command, args, {
+      detached: true,
+      stdio: "ignore",
+    });
+    child.once("error", reject);
+    child.unref();
     resolve();
   });
 }
 
 export function openInBrowser(
-  url,
-  { platform = process.platform, spawnImpl = defaultSpawn } = {},
-) {
+  url: string,
+  {
+    platform = process.platform,
+    spawnImpl = defaultSpawn,
+  }: {
+    platform?: NodeJS.Platform;
+    spawnImpl?: typeof defaultSpawn;
+  } = {},
+): Promise<void> {
   const target = requireText(url, "url");
-  if (platform === "darwin")
+  if (platform === "darwin") {
     return openWithCommand("open", [target], { spawnImpl });
+  }
   if (platform === "win32") {
     return openWithCommand("cmd", ["/c", "start", "", target], { spawnImpl });
   }
   return openWithCommand("xdg-open", [target], { spawnImpl });
 }
 
-function listen(server, port) {
-  return new Promise((resolve, reject) => {
-    const onError = (error) => {
-      server.off?.("listening", onListening);
+function listen(server: Server, port: number): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const onError = (error: Error) => {
+      server.off("listening", onListening);
       reject(
         new Error(`Could not start OAuth callback server: ${error.message}`),
       );
     };
     const onListening = () => {
-      server.off?.("error", onError);
+      server.off("error", onError);
       resolve();
     };
     server.once("error", onError);
@@ -236,8 +328,8 @@ function listen(server, port) {
   });
 }
 
-function closeServer(server) {
-  return new Promise((resolve) => {
+function closeServer(server: Server): Promise<void> {
+  return new Promise<void>((resolve) => {
     if (!server || typeof server.close !== "function") {
       resolve();
       return;
@@ -246,48 +338,71 @@ function closeServer(server) {
   });
 }
 
-function waitForCallback({ server, callbackPath, timeoutMs, signal, port }) {
-  return new Promise((resolve, reject) => {
+function waitForCallback({
+  server,
+  callbackPath,
+  timeoutMs,
+  signal,
+  port,
+}: {
+  server: Server;
+  callbackPath: string;
+  timeoutMs: number;
+  signal?: AbortSignal;
+  port: number;
+}): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
     let settled = false;
-    const finish = (callback, value) => {
+    let timeout: NodeJS.Timeout;
+    const finish = (
+      kind: "resolve" | "reject",
+      value: string | Error,
+    ): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
       signal?.removeEventListener("abort", onAbort);
-      callback(value);
+      if (kind === "resolve" && typeof value === "string") {
+        resolve(value);
+        return;
+      }
+      reject(value instanceof Error ? value : new Error(String(value)));
     };
     const onAbort = () =>
-      finish(reject, new Error("OAuth login was cancelled"));
-    const timeout = setTimeout(
+      finish("reject", new Error("OAuth login was cancelled"));
+    timeout = setTimeout(
       () =>
         finish(
-          reject,
+          "reject",
           new Error("OAuth login timed out waiting for the browser callback"),
         ),
       timeoutMs,
     );
 
-    server.on("request", (request, response) => {
-      let url;
-      try {
-        url = new URL(request.url || "/", `http://127.0.0.1:${port}`);
-      } catch {
-        response.statusCode = 400;
-        response.end("Invalid callback");
-        return;
-      }
+    server.on(
+      "request",
+      (request: IncomingMessage, response: ServerResponse) => {
+        let url: URL;
+        try {
+          url = new URL(request.url || "/", `http://127.0.0.1:${port}`);
+        } catch {
+          response.statusCode = 400;
+          response.end("Invalid callback");
+          return;
+        }
 
-      if (url.pathname !== callbackPath) {
-        response.statusCode = 404;
-        response.end("Not found");
-        return;
-      }
+        if (url.pathname !== callbackPath) {
+          response.statusCode = 404;
+          response.end("Not found");
+          return;
+        }
 
-      response.statusCode = 200;
-      response.setHeader("content-type", "text/plain; charset=utf-8");
-      response.end("Sokosumi sign-in completed. You can close this window.");
-      finish(resolve, url.toString());
-    });
+        response.statusCode = 200;
+        response.setHeader("content-type", "text/plain; charset=utf-8");
+        response.end("Sokosumi sign-in completed. You can close this window.");
+        finish("resolve", url.toString());
+      },
+    );
     signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
@@ -304,7 +419,7 @@ export async function loginWithBrowser({
   serverFactory = () => createServer(),
   fetchImpl,
   signal,
-} = {}) {
+}: BrowserLoginOptions): Promise<OAuthTokenCredentials> {
   const resolvedClientId = requireText(clientId, "clientId");
   const resolvedPort = Number(port);
   if (

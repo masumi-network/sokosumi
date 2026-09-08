@@ -6,22 +6,31 @@
   "license": "MIT",
   "private": true,
   "files": [
-    "bin",
-    "src"
+    "dist",
+    "package.json"
   ],
   "bin": {
-    "sokosumi": "bin/sokosumi.mjs"
+    "sokosumi": "dist/bin/sokosumi.js"
   },
   "scripts": {
-    "sokosumi": "node bin/sokosumi.mjs",
-    "test": "node --test test/**/*.test.mjs",
-    "test:ci": "node --test test/**/*.test.mjs"
+    "build": "tsc -p tsconfig.build.json",
+    "sokosumi": "pnpm build && node dist/bin/sokosumi.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test test/**/*.test.ts",
+    "test:ci": "tsx --test test/**/*.test.ts"
   },
   "engines": {
     "node": "24.x"
   },
   "dependencies": {
+    "@napi-rs/keyring": "2.0.0",
     "ink": "4.4.1",
     "react": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
   }
 }
