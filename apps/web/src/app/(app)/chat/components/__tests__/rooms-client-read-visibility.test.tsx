@@ -8,6 +8,7 @@ import {
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  listRoomMessagesAction,
   listThreadMessagesAction,
   markThreadReadAction,
 } from "@/app/chat/actions";
@@ -212,9 +213,18 @@ vi.mock("../room-message-row", () => ({
 }));
 
 vi.mock("../thread-panel", () => ({
-  ThreadPanel: ({ replies }: { replies: ChatRoomMessage[] }) => (
+  ThreadPanel: ({
+    replies,
+    onClose,
+  }: {
+    replies: ChatRoomMessage[];
+    onClose: () => void;
+  }) => (
     <div data-testid="thread-replies">
       {replies.map((reply) => reply.content).join(" ")}
+      <button type="button" onClick={onClose}>
+        Close thread
+      </button>
     </div>
   ),
 }));
@@ -348,6 +358,12 @@ describe("RoomsClient read visibility", () => {
   beforeEach(() => {
     clearRoomReadOverlays();
     vi.clearAllMocks();
+    vi.mocked(listRoomMessagesAction)
+      .mockReset()
+      .mockResolvedValue({
+        ok: true,
+        value: { messages: [], nextCursor: null },
+      });
     mockStreamMessages.mockReturnValue([]);
     vi.mocked(markThreadReadAction).mockResolvedValue({
       ok: true,
@@ -367,6 +383,231 @@ describe("RoomsClient read visibility", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it.each(["none", "room", "thread"])(
+    "uses one polling loop with pending mentions in %s",
+    async (surface) => {
+      vi.useFakeTimers();
+      vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+      const mention = {
+        id: "mention-1",
+        coworkerId: null,
+        sokoBotId: "soko-1",
+        status: "pending" as const,
+        responseMessageId: null,
+      };
+      const parent = {
+        ...sampleMessage(),
+        mentions: surface === "room" ? [mention] : [],
+        threadReplyCount: surface === "thread" ? 1 : 0,
+      };
+      const reply = {
+        ...sampleMessage("pending thread reply"),
+        id: "reply-1",
+        parentMessageId: parent.id,
+        mentions: [mention],
+      };
+      vi.mocked(listRoomMessagesAction).mockResolvedValue({
+        ok: true,
+        value: { messages: [parent], nextCursor: null },
+      });
+      vi.mocked(listThreadMessagesAction).mockResolvedValue({
+        ok: true,
+        value: { messages: [reply], nextCursor: null },
+      });
+      render(<RoomsClient {...baseProps} messages={[parent]} />);
+      await act(async () => {});
+      if (surface === "thread") {
+        fireEvent.click(screen.getByRole("button", { name: "Open thread" }));
+        await act(async () => {});
+      }
+      vi.mocked(listRoomMessagesAction).mockClear();
+      vi.mocked(listThreadMessagesAction).mockClear();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6_000);
+      });
+      expect(listRoomMessagesAction).toHaveBeenCalledTimes(2);
+      expect(listThreadMessagesAction).toHaveBeenCalledTimes(
+        surface === "thread" ? 2 : 0,
+      );
+    },
+  );
+
+  it("bounds a stalled poll and ignores its late snapshot after recovery", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const stalled =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof listRoomMessagesAction>>
+      >();
+    vi.mocked(listRoomMessagesAction)
+      .mockReturnValueOnce(stalled.promise)
+      .mockResolvedValue({
+        ok: true,
+        value: {
+          messages: [sampleMessage("fresh snapshot")],
+          nextCursor: null,
+        },
+      });
+    render(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(33_000);
+    });
+    expect(listRoomMessagesAction).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+    expect(listRoomMessagesAction).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("fresh snapshot")).toBeTruthy();
+    await act(async () =>
+      stalled.resolve({
+        ok: true,
+        value: {
+          messages: [sampleMessage("stale snapshot")],
+          nextCursor: null,
+        },
+      }),
+    );
+    expect(screen.queryByText("stale snapshot")).toBeNull();
+    expect(screen.getByText("fresh snapshot")).toBeTruthy();
+  });
+
+  it("ignores a previous visit's snapshot after returning to the same room", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const previousVisit =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof listRoomMessagesAction>>
+      >();
+    vi.mocked(listRoomMessagesAction)
+      .mockReturnValueOnce(previousVisit.promise)
+      .mockResolvedValue({
+        ok: true,
+        value: { messages: [sampleMessage("fresh visit")], nextCursor: null },
+      });
+    const view = render(
+      <RoomsClient {...baseProps} messages={[sampleMessage()]} />,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+    view.rerender(
+      <RoomsClient
+        {...baseProps}
+        rooms={[{ ...channelRoom(), id: "room-other" }]}
+        selectedRoomId="room-other"
+        messages={[]}
+      />,
+    );
+    view.rerender(<RoomsClient {...baseProps} messages={[sampleMessage()]} />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+    expect(screen.getByText("fresh visit")).toBeTruthy();
+    await act(async () =>
+      previousVisit.resolve({
+        ok: true,
+        value: {
+          messages: [sampleMessage("previous visit")],
+          nextCursor: null,
+        },
+      }),
+    );
+    expect(screen.queryByText("previous visit")).toBeNull();
+    expect(screen.getByText("fresh visit")).toBeTruthy();
+  });
+
+  it("ignores a poll from a previous visit to the same thread", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const parent = { ...sampleMessage(), threadReplyCount: 1 };
+    const reply = {
+      ...sampleMessage("initial reply"),
+      id: "reply-1",
+      parentMessageId: parent.id,
+    };
+    const previousVisit =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof listThreadMessagesAction>>
+      >();
+    vi.mocked(listThreadMessagesAction)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { messages: [reply], nextCursor: null },
+      })
+      .mockReturnValueOnce(previousVisit.promise)
+      .mockResolvedValue({
+        ok: true,
+        value: {
+          messages: [{ ...reply, content: "fresh thread visit" }],
+          nextCursor: null,
+        },
+      });
+    render(<RoomsClient {...baseProps} messages={[parent]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open thread" }));
+    await act(async () => {});
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close thread" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open thread" }));
+    await act(async () => {});
+    expect(screen.getByTestId("thread-replies")).toHaveTextContent(
+      "fresh thread visit",
+    );
+    await act(async () =>
+      previousVisit.resolve({
+        ok: true,
+        value: {
+          messages: [{ ...reply, content: "stale thread visit" }],
+          nextCursor: null,
+        },
+      }),
+    );
+    expect(screen.getByTestId("thread-replies")).toHaveTextContent(
+      "fresh thread visit",
+    );
+    expect(screen.getByTestId("thread-replies")).not.toHaveTextContent(
+      "stale thread visit",
+    );
+  });
+
+  it("applies a successful thread poll when the room poll fails", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const parent = { ...sampleMessage(), threadReplyCount: 1 };
+    const reply = {
+      ...sampleMessage("old thread reply"),
+      id: "reply-1",
+      parentMessageId: parent.id,
+    };
+    vi.mocked(listThreadMessagesAction)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: { messages: [reply], nextCursor: null },
+      })
+      .mockResolvedValue({
+        ok: true,
+        value: {
+          messages: [{ ...reply, content: "updated thread reply" }],
+          nextCursor: null,
+        },
+      });
+    vi.mocked(listRoomMessagesAction).mockResolvedValue({
+      ok: false,
+      error: { message: "offline", code: "INTERNAL_SERVER_ERROR" },
+    });
+    render(<RoomsClient {...baseProps} messages={[parent]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open thread" }));
+    await act(async () => {});
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+    expect(screen.getByTestId("thread-replies")).toHaveTextContent(
+      "updated thread reply",
+    );
   });
 
   async function deliverMessageInVisibility(

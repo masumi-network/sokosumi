@@ -42,6 +42,7 @@ import {
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useEditChannelParam } from "@/app/chat/hooks/use-edit-channel-param";
 import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
+import { useRoomMessagePolling } from "@/app/chat/hooks/use-room-message-polling";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
@@ -125,6 +126,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
+import { raceWithTimeout } from "@/lib/utils/race-with-timeout";
 import { MembershipStatusRow } from "./membership-status-row";
 import {
   canOpenHumanDirectFromSelectedRoom,
@@ -140,7 +142,6 @@ import {
   type ChatParticipantHoverProfile,
   getRoomDisplayName,
   getRoomParticipantPreviews,
-  hasPendingCoworkerMention,
   highlightRoomMessageElement,
   isMessageContinuation,
   isRoomComposerContentOverLimit,
@@ -206,15 +207,7 @@ interface RoomsClientProps {
   rosterPromise?: Promise<RoomShellRosterPage>;
 }
 
-const COWORKER_RESPONSE_POLL_MS = 2500;
-/** ~2.5 minutes of polling before we stop waiting for a coworker reply. */
-const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
-/**
- * Focused-room backstop for human peer traffic. Ably is still primary;
- * without a timer, dropped/lagged events only recover on focus/visibility and
- * then jump into the timeline by createdAt between already-shown own sends.
- */
-const ROOM_LIVE_POLL_MS = 3000;
+const ROOM_MESSAGE_REFRESH_TIMEOUT_MS = 30_000;
 
 function RoomMessageRealtimeBridge({
   roomIds,
@@ -1335,46 +1328,43 @@ export function RoomsClient({
       isThreadLoading,
     });
 
-  const hasPendingRoomCoworkerMention = useMemo(
-    () => hasPendingCoworkerMention(topLevelRoomMessages),
-    [topLevelRoomMessages],
-  );
-  const hasPendingThreadCoworkerMention = useMemo(
-    () => hasPendingCoworkerMention(threadMessages),
-    [threadMessages],
-  );
-
-  useEffect(() => {
-    if (!selectedRoom || !hasPendingRoomCoworkerMention) {
-      return;
-    }
-
-    const roomId = selectedRoom.id;
-    let cancelled = false;
-    let timeoutId: number | undefined;
-
-    let attempts = 0;
-
-    const pollMessages = async () => {
-      // A mention that never reaches a terminal state used to poll forever, in
-      // background tabs too. Skip ticks while hidden and give up after a bound;
-      // `visibilitychange` restarts the loop when the user comes back.
-      if (document.visibilityState !== "visible") {
-        timeoutId = window.setTimeout(pollMessages, COWORKER_RESPONSE_POLL_MS);
+  const refreshFocusedRoomMessages = useCallback(
+    async (isCurrent: () => boolean) => {
+      const roomId = selectedRoomIdRef.current;
+      if (!roomId) {
         return;
       }
-      if (attempts >= COWORKER_RESPONSE_POLL_MAX_ATTEMPTS) {
+      if (
+        skipRealtimeWhileStreamingRef.current &&
+        isCoworkerStreamingRef.current
+      ) {
         return;
       }
-      attempts += 1;
-      const result = await listRoomMessagesAction(roomId);
-      if (cancelled) {
+      const threadParentId = threadParentMessageIdRef.current;
+      const threadGeneration = threadLoadGenerationRef.current;
+      // Bound each read before merging. Late responses after timeout must not
+      // replace newer messages, and a failed room read must not hide thread data.
+      const [result, threadResult] = await Promise.all([
+        raceWithTimeout(
+          listRoomMessagesAction(roomId),
+          ROOM_MESSAGE_REFRESH_TIMEOUT_MS,
+        ).catch(() => null),
+        threadParentId
+          ? raceWithTimeout(
+              listThreadMessagesAction(roomId, threadParentId),
+              ROOM_MESSAGE_REFRESH_TIMEOUT_MS,
+            ).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      if (!isCurrent() || selectedRoomIdRef.current !== roomId) {
         return;
       }
-      if (result.ok && !historicalTimelineRef.current) {
-        setMessagesState((current) =>
-          mergeRoomMessages(current, result.value.messages),
-        );
+      if (result?.ok) {
+        if (!historicalTimelineRef.current) {
+          setMessagesState((current) =>
+            mergeRoomMessages(current, result.value.messages),
+          );
+        }
         setThreadParentMessage((current) =>
           current
             ? (result.value.messages.find(
@@ -1383,195 +1373,24 @@ export function RoomsClient({
             : current,
         );
       }
-      timeoutId = window.setTimeout(pollMessages, COWORKER_RESPONSE_POLL_MS);
-    };
-
-    const restartWhenVisible = () => {
-      if (document.visibilityState === "visible") {
-        attempts = 0;
-      }
-    };
-    document.addEventListener("visibilitychange", restartWhenVisible);
-
-    timeoutId = window.setTimeout(pollMessages, COWORKER_RESPONSE_POLL_MS);
-
-    return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", restartWhenVisible);
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [selectedRoom?.id, hasPendingRoomCoworkerMention]);
-
-  const refreshFocusedRoomMessages = useCallback(async () => {
-    const roomId = selectedRoomIdRef.current;
-    if (!roomId) {
-      return;
-    }
-    if (
-      skipRealtimeWhileStreamingRef.current &&
-      isCoworkerStreamingRef.current
-    ) {
-      return;
-    }
-    const threadParentId = threadParentMessageIdRef.current;
-    const [result, threadResult] = await Promise.all([
-      listRoomMessagesAction(roomId),
-      threadParentId
-        ? listThreadMessagesAction(roomId, threadParentId)
-        : Promise.resolve(null),
-    ]);
-    if (selectedRoomIdRef.current !== roomId || !result.ok) {
-      return;
-    }
-    if (!historicalTimelineRef.current) {
-      setMessagesState((current) =>
-        mergeRoomMessages(current, result.value.messages),
-      );
-    }
-    setThreadParentMessage((current) =>
-      current
-        ? (result.value.messages.find((message) => message.id === current.id) ??
-          current)
-        : current,
-    );
-    if (
-      threadResult?.ok &&
-      threadParentId != null &&
-      threadParentMessageIdRef.current === threadParentId &&
-      !historicalThreadRef.current
-    ) {
-      setThreadMessages((current) =>
-        mergeRoomMessages(current, threadResult.value.messages),
-      );
-    }
-  }, []);
-  refreshLatestRef.current = refreshFocusedRoomMessages;
-
-  // Ably Pub/Sub is primary (RoomMessageRealtimeBridge). Keep a short poll +
-  // focus/visibility refresh so human peer rows still land when Ably drops or
-  // lags while the room stays open.
-  useEffect(() => {
-    if (!selectedRoom) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const refreshLatest = async () => {
-      if (document.visibilityState !== "visible") {
-        return;
-      }
-      if (cancelled) {
-        return;
-      }
-      await refreshFocusedRoomMessages();
-    };
-
-    const intervalId = window.setInterval(refreshLatest, ROOM_LIVE_POLL_MS);
-    window.addEventListener("focus", refreshLatest);
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void refreshLatest();
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshLatest);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [selectedRoom?.id, refreshFocusedRoomMessages]);
-
-  useEffect(() => {
-    if (
-      !selectedRoom ||
-      !threadParentMessage ||
-      !hasPendingThreadCoworkerMention
-    ) {
-      return;
-    }
-
-    const roomId = selectedRoom.id;
-    const parentMessageId = threadParentMessage.id;
-    let cancelled = false;
-    let timeoutId: number | undefined;
-
-    let threadAttempts = 0;
-
-    const pollThreadMessages = async () => {
-      // Same gating as the room poll above.
-      if (document.visibilityState !== "visible") {
-        timeoutId = window.setTimeout(
-          pollThreadMessages,
-          COWORKER_RESPONSE_POLL_MS,
-        );
-        return;
-      }
-      if (threadAttempts >= COWORKER_RESPONSE_POLL_MAX_ATTEMPTS) {
-        return;
-      }
-      threadAttempts += 1;
-      const [threadResult, roomResult] = await Promise.all([
-        listThreadMessagesAction(roomId, parentMessageId),
-        listRoomMessagesAction(roomId),
-      ]);
-      if (cancelled) {
-        return;
-      }
-      if (threadResult.ok && !historicalThreadRef.current) {
+      if (
+        threadResult?.ok &&
+        threadParentId != null &&
+        threadParentMessageIdRef.current === threadParentId &&
+        threadLoadGenerationRef.current === threadGeneration &&
+        !historicalThreadRef.current
+      ) {
         setThreadMessages((current) =>
           mergeRoomMessages(current, threadResult.value.messages),
         );
       }
-      if (roomResult.ok && !historicalTimelineRef.current) {
-        setMessagesState((current) =>
-          mergeRoomMessages(current, roomResult.value.messages),
-        );
-        setThreadParentMessage((current) =>
-          current
-            ? (roomResult.value.messages.find(
-                (message) => message.id === current.id,
-              ) ?? current)
-            : current,
-        );
-      }
-      timeoutId = window.setTimeout(
-        pollThreadMessages,
-        COWORKER_RESPONSE_POLL_MS,
-      );
-    };
-
-    timeoutId = window.setTimeout(
-      pollThreadMessages,
-      COWORKER_RESPONSE_POLL_MS,
-    );
-
-    const restartThreadWhenVisible = () => {
-      if (document.visibilityState === "visible") {
-        threadAttempts = 0;
-      }
-    };
-    document.addEventListener("visibilitychange", restartThreadWhenVisible);
-
-    return () => {
-      cancelled = true;
-      document.removeEventListener(
-        "visibilitychange",
-        restartThreadWhenVisible,
-      );
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [
+    },
+    [],
+  );
+  refreshLatestRef.current = useRoomMessagePolling(
     selectedRoom?.id,
-    threadParentMessage?.id,
-    hasPendingThreadCoworkerMention,
-  ]);
+    refreshFocusedRoomMessages,
+  );
 
   function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
     setMessagesState((current) => {
