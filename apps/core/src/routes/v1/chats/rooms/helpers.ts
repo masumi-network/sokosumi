@@ -748,36 +748,9 @@ export async function getChatRoomUnreadMentionCounts(
   );
 }
 
-/** Latest message time per room — used to order the sidebar by real activity. */
-export async function getChatRoomLastMessageAts(
-  roomIds: readonly string[],
-  tx: Prisma.TransactionClient,
-): Promise<Map<string, Date>> {
-  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
-  if (uniqueRoomIds.length === 0) {
-    return new Map();
-  }
-
-  const groups = await tx.chatRoomMessage.groupBy({
-    by: ["roomId"],
-    where: { roomId: { in: uniqueRoomIds } },
-    _max: { createdAt: true },
-  });
-
-  return new Map(
-    groups.flatMap((group) =>
-      group._max.createdAt
-        ? ([[group.roomId, group._max.createdAt]] as const)
-        : [],
-    ),
-  );
-}
-
 export interface MapChatRoomAttentionOptions {
   unreadCount?: number;
   unreadMentionCount?: number;
-  /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
-  lastActivityAt?: Date | null;
   starredAt?: Date | null;
   pinnedMessageCount?: number;
   mutedAt?: Date | null;
@@ -815,7 +788,6 @@ export function mapChatRoom(
   const {
     unreadCount = 0,
     unreadMentionCount = 0,
-    lastActivityAt,
     starredAt = null,
     pinnedMessageCount = 0,
     mutedAt = null,
@@ -840,7 +812,7 @@ export function mapChatRoom(
     ),
     createdByUserId: room.createdByUserId,
     createdAt: room.createdAt,
-    updatedAt: lastActivityAt ?? room.updatedAt,
+    updatedAt: room.updatedAt,
     unreadCount,
     unreadMentionCount,
     starredAt,
@@ -1067,7 +1039,6 @@ export async function mapChatRoomWithSidebarFlags(
   attention: {
     unreadCount?: number;
     unreadMentionCount?: number;
-    lastActivityAt?: Date | null;
     activeOrganizationId?: string | null;
   } = {},
 ) {
@@ -1087,7 +1058,6 @@ export async function mapChatRoomWithSidebarFlags(
   return mapChatRoom(room, userId, {
     unreadCount: attention.unreadCount ?? 0,
     unreadMentionCount: attention.unreadMentionCount ?? 0,
-    lastActivityAt: attention.lastActivityAt,
     starredAt: flags?.starredAt ?? null,
     pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
     mutedAt: flags?.mutedAt ?? null,
