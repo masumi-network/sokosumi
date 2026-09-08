@@ -84,6 +84,7 @@ export function ConsentActions({ oauthQuery }: ConsentActionsProps) {
         className="w-full"
         onClick={handleAuthorize}
         disabled={isAuthorizing || isDenying}
+        aria-busy={isAuthorizing}
       >
         {isAuthorizing ? t("authorizing") : t("authorize")}
       </Button>
@@ -93,6 +94,7 @@ export function ConsentActions({ oauthQuery }: ConsentActionsProps) {
         className="w-full"
         onClick={handleDeny}
         disabled={isAuthorizing || isDenying}
+        aria-busy={isDenying}
       >
         {isDenying ? t("denying") : t("deny")}
       </Button>

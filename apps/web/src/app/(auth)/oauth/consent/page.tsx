@@ -1,7 +1,16 @@
+import {
+  AppWindow,
+  ArrowRight,
+  KeyRound,
+  type LucideIcon,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
+import { SokosumiIcon } from "@/components/masumi-logos";
 import {
   Card,
   CardContent,
@@ -17,6 +26,35 @@ import {
 
 import { ConsentActions } from "./consent-actions";
 import { getOAuthConsentScopeFlags } from "./oauth-consent-scope-flags";
+
+interface PermissionRowProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  scope: string;
+}
+
+function PermissionRow({
+  icon: Icon,
+  title,
+  description,
+  scope,
+}: PermissionRowProps) {
+  return (
+    <div className="flex items-start gap-3 p-4">
+      <div className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-lg">
+        <Icon aria-hidden className="size-4" />
+      </div>
+      <div className="min-w-0 space-y-1">
+        <p className="font-medium">{title}</p>
+        <p className="text-muted-foreground text-sm leading-5">{description}</p>
+        <code className="bg-muted text-foreground/70 inline-block rounded-md px-1.5 py-0.5 font-mono text-xs">
+          {scope}
+        </code>
+      </div>
+    </div>
+  );
+}
 
 interface ConsentPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -101,30 +139,67 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   }
 
   return (
-    <div className="container mx-auto max-w-md py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>
+    <div className="container mx-auto flex max-w-md justify-center px-4 py-8 sm:py-12">
+      <Card className="w-full shadow-sm">
+        <CardHeader className="border-b bg-muted/30 pb-6">
+          <div className="flex items-center gap-3">
+            <div className="bg-secondary text-secondary-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
+              <AppWindow aria-hidden className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-medium">
+                {client.client_name || client.client_id}
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                {t("clientLabel")}
+              </p>
+            </div>
+            <ArrowRight
+              aria-hidden
+              className="text-muted-foreground ml-auto size-4 shrink-0"
+            />
+            <div className="bg-primary text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
+              <SokosumiIcon animated={false} className="size-5" />
+            </div>
+          </div>
+          <CardTitle className="text-balance text-xl font-light tracking-tight md:text-2xl">
+            {t("title")}
+          </CardTitle>
+          <CardDescription className="text-pretty leading-6">
             {requestsCoreApi ? t("descriptionWithApi") : t("description")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div>
-            <p className="mb-1 font-semibold">
-              {client.client_name || client.client_id}
-            </p>
-            <p className="text-muted-foreground text-sm">{t("wantsAccess")}</p>
-            {requestsCoreApi ? (
-              <p className="text-muted-foreground mt-2 text-sm">
-                {t("apiAccessNotice")}
-              </p>
-            ) : null}
-            {requestsOfflineAccess ? (
-              <p className="text-muted-foreground mt-2 text-sm">
-                {t("offlineAccessNotice")}
-              </p>
-            ) : null}
+          {requestsCoreApi || requestsOfflineAccess ? (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">{t("permissionsLabel")}</p>
+              <div className="divide-y overflow-hidden rounded-lg border">
+                {requestsCoreApi ? (
+                  <PermissionRow
+                    description={t("apiAccessDescription")}
+                    icon={KeyRound}
+                    scope={t("apiAccessScope")}
+                    title={t("apiAccessTitle")}
+                  />
+                ) : null}
+                {requestsOfflineAccess ? (
+                  <PermissionRow
+                    description={t("offlineAccessDescription")}
+                    icon={RefreshCw}
+                    scope={t("offlineAccessScope")}
+                    title={t("offlineAccessTitle")}
+                  />
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="border-primary/15 bg-primary/5 flex items-start gap-3 rounded-lg border p-4">
+            <ShieldCheck
+              aria-hidden
+              className="text-primary mt-0.5 size-4 shrink-0"
+            />
+            <p className="text-sm leading-5">{t("securityNotice")}</p>
           </div>
 
           <ConsentActions oauthQuery={signedOAuthQuery} />
