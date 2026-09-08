@@ -63,13 +63,18 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   },
 }));
 
-vi.mock("@/lib/utils/task-schedule", () => ({
-  metadataToSelection: () => ({
-    mode: "recurring",
-    cron: "0 9 * * *",
-    timezone: "UTC",
-  }),
-}));
+vi.mock("@/lib/utils/task-schedule", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/utils/task-schedule")>();
+  return {
+    ...actual,
+    metadataToSelection: () => ({
+      mode: "recurring",
+      cron: "0 9 * * *",
+      timezone: "UTC",
+    }),
+  };
+});
 
 import { WorkspaceCalendar } from "./workspace-calendar";
 

@@ -93,7 +93,10 @@ import {
 } from "@/lib/schedules/timezones";
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
-import { metadataToSelection } from "@/lib/utils/task-schedule";
+import {
+  metadataToSelection,
+  schedulableOnceLocalIso,
+} from "@/lib/utils/task-schedule";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
@@ -753,7 +756,7 @@ export function WorkspaceCalendar({
       projectId: selectedCreateProjectId,
       schedule: {
         mode: "once",
-        oneTimeLocalIso,
+        oneTimeLocalIso: schedulableOnceLocalIso(oneTimeLocalIso, timeZone),
         timezone: timeZone,
       },
     });

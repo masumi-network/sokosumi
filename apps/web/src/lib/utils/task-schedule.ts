@@ -360,6 +360,28 @@ export function selectionToApiBody(
   return null;
 }
 
+const ONCE_SCHEDULE_LEAD_MS = 60_000;
+
+export function schedulableOnceLocalIso(
+  oneTimeLocalIso: string,
+  timezone: string,
+): string {
+  if (
+    selectionToApiBody({
+      mode: "once",
+      timezone,
+      oneTimeLocalIso,
+    })
+  ) {
+    return oneTimeLocalIso;
+  }
+
+  return utcToDateTimeLocalInTimezone(
+    new Date(Date.now() + ONCE_SCHEDULE_LEAD_MS),
+    timezone,
+  );
+}
+
 export function isValidCronExpression(expr: string, timezone: string): boolean {
   try {
     cronParser.parse(expr, { tz: timezone });
