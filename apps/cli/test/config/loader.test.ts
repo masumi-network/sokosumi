@@ -89,8 +89,15 @@ test("TestV23 hosted OAuth resolves legacy web auth proxy to Core auth", () => {
       environment: {},
     });
 
-    const config = resolveCliConfig({ env: environment });
-    assert.equal(config.authBaseUrl, "https://api.sokosumi.com/auth");
+    const mainnetConfig = resolveCliConfig({ env: environment });
+    assert.equal(mainnetConfig.authBaseUrl, "https://api.sokosumi.com/auth");
+
+    const preprodConfig = resolveCliConfig({ env: environment, preprod: true });
+    assert.equal(preprodConfig.target, "preprod");
+    assert.equal(
+      preprodConfig.authBaseUrl,
+      "https://api.preprod.sokosumi.com/auth",
+    );
   } finally {
     rmSync(fixture.root, { recursive: true, force: true });
   }
