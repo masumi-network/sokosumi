@@ -88,8 +88,8 @@ export function useRoomNotificationDeepLink({
         // Core answers with a 404 when the reader cannot read the message:
         // the room is archived, they are not a member of it, or the id names
         // nothing in it. The service reads that as no message rather than as
-        // a failure. A message deleted in the room is not one of these; it
-        // comes back as a tombstone.
+        // a failure. A soft delete is not one of these; it comes back as a
+        // tombstone.
         return result.value
           ? { status: "found", message: result.value }
           : { status: "notReadable" };

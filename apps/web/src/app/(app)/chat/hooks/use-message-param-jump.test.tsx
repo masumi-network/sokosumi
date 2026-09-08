@@ -41,7 +41,8 @@ describe("useMessageParamJump", () => {
     const { rerender } = render(
       <Harness roomId="room-1" messageId="msg-1" ready jump={jump} />,
     );
-    // A fresh callback each render is what the room client passes.
+    // A fresh callback each render, which is the case the guard has to
+    // survive whether or not the compiler keeps the identity stable.
     rerender(
       <Harness
         roomId="room-1"

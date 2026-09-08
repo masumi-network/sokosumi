@@ -22,10 +22,9 @@ interface NotificationHrefItem {
 }
 
 /**
- * Get the href for a notification based on its kind and metadata.
- * Uses the same routing logic as History for consistency.
- */
-/**
+ * Get the href for a notification based on its kind and metadata. Uses the
+ * same routing logic as History for consistency.
+ *
  * Always a destination. Every kind ends in a path, and a kind with nothing of
  * its own to open resolves to the home page rather than to nothing, so no
  * caller has to decide what an absent href means.

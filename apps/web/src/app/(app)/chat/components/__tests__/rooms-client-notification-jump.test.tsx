@@ -361,8 +361,9 @@ function settledMessages(messages: ChatRoomMessage[] = []) {
 
 /**
  * The wiring between the URL and the jump, which the helper unit tests cannot
- * see. Every defect review found in this feature lived here rather than in the
- * helpers, because the helpers were always driven by mocked dependencies.
+ * see. Several of the defects review found in this feature lived here rather
+ * than in the helpers, because a helper is only ever driven by dependencies a
+ * test wrote.
  */
 describe("RoomsClient notification deep link", () => {
   beforeEach(() => {

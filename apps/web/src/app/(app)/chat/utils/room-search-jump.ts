@@ -53,8 +53,10 @@ export async function waitForSearchJumpPaint(
  * jump that never finished stops following new messages, and the reader cannot
  * re-arm it by scrolling.
  *
- * The rejection case is a transport failure rather than a refusal: these
- * actions report a server-side error by returning one. It matters because a
+ * A rejection from one of the loads is a transport failure rather than a
+ * refusal: those actions report a server-side error by returning one. The
+ * highlight and the paint wait can throw as well, and land in the same
+ * place. It matters because a
  * notification for a thread reply routes through here and does not surface
  * what it catches, so a dropped connection would otherwise leave the reader
  * with a room stuck off the bottom and no message and no word of why.

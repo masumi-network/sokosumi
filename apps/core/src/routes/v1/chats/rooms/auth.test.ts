@@ -52,8 +52,8 @@ const {
         findMany: messageFindManyMock,
         count: messageCountMock,
         // Present so the single-message route reaches its own not-found
-        // rather than crashing on a missing mock. Which of the two 404s a
-        // non-member gets is pinned in that route's own test file, not here.
+        // rather than crashing on a missing mock. Which not-found a non-member
+        // gets is pinned in that route's own test file, not here.
         findFirst: vi.fn().mockResolvedValue(null),
       },
       chatRoomUserMember: {

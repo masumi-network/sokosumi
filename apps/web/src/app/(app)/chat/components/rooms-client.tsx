@@ -2242,9 +2242,11 @@ export function RoomsClient({
         }
         // Deliberately not marked historical. The window is merged, not
         // swapped in, so the head is still on screen and the room still reads
-        // as live. Marking it would make that a lie: every refetch and every
-        // realtime message is dropped while the flag is on, and it is cleared
-        // only by sending a message, switching rooms, or a reload. It would
+        // as live. Marking it would make that a lie: while the flag is on
+        // every refetch is dropped, and so is every realtime message for an
+        // id the timeline does not already hold, which is every new message.
+        // It is cleared only by sending a message, switching rooms, or a
+        // reload. It would
         // also freeze `olderNextCursor` at this window's oldest row, so Load
         // older would walk further into the past and never fill the gap
         // between the window and the head.
