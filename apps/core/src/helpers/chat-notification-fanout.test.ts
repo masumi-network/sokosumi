@@ -1146,11 +1146,91 @@ describe("preview rewrite ordering", () => {
   it("reports a failed lock without writing notification rows", async () => {
     const error = new Error("lock failed");
     queryRawMock.mockRejectedValueOnce(error);
+    notificationFindManyMock.mockResolvedValue([
+      storedRow({ messagePreview: "old" }),
+    ]);
     await rewriteChatNotificationPreviews({
       roomId: ROOM_ID,
       messageId: MESSAGE_ID,
     });
     expect(notificationUpdateManyMock).not.toHaveBeenCalled();
     expect(captureExceptionMock).toHaveBeenCalledWith(error, expect.anything());
+  });
+});
+
+describe("preview rewrite transaction bounds", () => {
+  function recipientRows() {
+    return ["recipient_1", "recipient_2"].map((id) => ({
+      ...storedRow({ messagePreview: "old" }),
+      id,
+    }));
+  }
+  it("uses one transaction and fresh source read per recipient", async () => {
+    notificationFindManyMock.mockResolvedValue(recipientRows());
+    messageFindUniqueMock
+      .mockResolvedValueOnce({ content: "first edit", deletedAt: null })
+      .mockResolvedValueOnce({ content: "second edit", deletedAt: null });
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+    expect(transactionMock).toHaveBeenCalledTimes(2);
+    expect(paramsWrittenTo(0)).toEqual({ messagePreview: "first edit" });
+    expect(paramsWrittenTo(1)).toEqual({ messagePreview: "second edit" });
+  });
+  it.each(["P2028", "P2034"])(
+    "retries a transient %s transaction failure",
+    async (code) => {
+      const error = Object.assign(new Error("transaction failed"), { code });
+      notificationFindManyMock.mockResolvedValue([recipientRows()[0]]);
+      transactionMock.mockRejectedValueOnce(error);
+      messageSays("latest edit");
+      await rewriteChatNotificationPreviews({
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+      });
+      expect(transactionMock).toHaveBeenCalledTimes(2);
+      expect(paramsWrittenTo(0)).toEqual({ messagePreview: "latest edit" });
+      expect(captureExceptionMock).not.toHaveBeenCalled();
+    },
+  );
+  it("continues to the next recipient after a permanent failure", async () => {
+    const error = new Error("write failed");
+    notificationFindManyMock.mockResolvedValue(recipientRows());
+    transactionMock.mockRejectedValueOnce(error);
+    messageSays("");
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+    expect(transactionMock).toHaveBeenCalledTimes(2);
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "recipient_2" }),
+      }),
+    );
+    expect(paramsWrittenTo(0)).toEqual({});
+    expect(captureExceptionMock).toHaveBeenCalledWith(error, {
+      extra: {
+        roomId: ROOM_ID,
+        messageId: MESSAGE_ID,
+        notificationId: "recipient_1",
+        notificationType: "chat_notification_preview_rewrite",
+      },
+    });
+  });
+  it("bounds retries per recipient and reports each exhausted row", async () => {
+    const error = Object.assign(new Error("transaction expired"), {
+      code: "P2028",
+    });
+    notificationFindManyMock.mockResolvedValue(recipientRows());
+    transactionMock.mockRejectedValue(error);
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+    expect(transactionMock).toHaveBeenCalledTimes(6);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
   });
 });

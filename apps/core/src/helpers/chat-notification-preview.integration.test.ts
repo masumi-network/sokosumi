@@ -209,5 +209,32 @@ describe.skipIf(!databaseUrl)(
       expect(rows[0]?.count).toBe(100n);
       expect(captureException).not.toHaveBeenCalled();
     });
+    it("clears every preview when recipient writes are slow", async () => {
+      await control!.$executeRaw`
+        INSERT INTO notification (id, kind, "referenceId", "messageParams", metadata)
+        SELECT 'recipient-' || n, 'CHAT', ${ROOM_ID}, ${JSON.stringify({ messagePreview: "original" })},
+          ${JSON.stringify({ messageId: MESSAGE_ID })} FROM generate_series(1, 99) AS n ON CONFLICT (id) DO NOTHING
+      `;
+      await control!.$executeRawUnsafe(`CREATE FUNCTION slow_preview_write() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN PERFORM pg_sleep(0.06); RETURN NEW; END $$`);
+      await control!.$executeRawUnsafe(`CREATE TRIGGER slow_preview_write BEFORE UPDATE ON notification
+        FOR EACH ROW EXECUTE FUNCTION slow_preview_write()`);
+      try {
+        await writer!
+          .$executeRaw`UPDATE chat_room_message SET content = '', "deletedAt" = NOW()`;
+        const request = { roomId: ROOM_ID, messageId: MESSAGE_ID };
+        await rewriteChatNotificationPreviews(request);
+        const rows = await observer!.$queryRaw<Array<{ count: bigint }>>`
+          SELECT COUNT(*) AS count FROM notification WHERE "messageParams"::jsonb ? 'messagePreview'
+        `;
+        expect(rows[0]?.count).toBe(0n);
+        expect(captureException).not.toHaveBeenCalled();
+      } finally {
+        await control!.$executeRawUnsafe(
+          "DROP TRIGGER slow_preview_write ON notification",
+        );
+        await control!.$executeRawUnsafe("DROP FUNCTION slow_preview_write()");
+      }
+    }, 15_000);
   },
 );
