@@ -12,8 +12,41 @@ env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
 
 jobs:
+  changes:
+    name: Detect JS changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      js: ${{ steps.filter.outputs.js }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Detect JS-relevant changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # 'every' is required: with the default 'some', the '!' exclusion
+          # patterns below would not exclude anything.
+          predicate-quantifier: "every"
+          filters: |
+            js:
+              - "**"
+              - "!apps/apple/**"
+              - "!docs/**"
+              - "!**/*.md"
+
   test:
     name: Test ${{ matrix.target.name }}
+    needs: changes
+    # No job-level `if:` here on purpose: the matrix must expand so each
+    # leg reports under its real name (Test Web / Test Core / Test
+    # Packages), which the branch ruleset requires. Gating is per-step
+    # below, so docs-only PRs report fast successes instead of one
+    # `Test ${{ matrix.target.name }}` skip placeholder that satisfies
+    # none of the required contexts.
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,9 +65,11 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup
+        if: needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch'
         uses: ./.github/actions/setup
         with:
           turbo_team: ${{ vars.TURBO_TEAM }}
 
       - name: Run Tests
+        if: needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch'
         run: ${{ matrix.target.command }}
