@@ -36,7 +36,12 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useRef, useState } from "react";
+import {
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  useRef,
+  useState,
+} from "react";
 import { Temporal } from "temporal-polyfill";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import {
@@ -315,18 +320,71 @@ function CalendarView({
   timeZone: string;
   view: (typeof CALENDAR_VIEWS)[number];
 }) {
+  const slotHighlightRef = useRef<HTMLDivElement>(null);
   const pluginView = {
     month: "dayGridMonth",
     week: "timeGridWeek",
     agenda: "listMonth",
   }[view];
 
+  function hideSlotHighlight() {
+    if (slotHighlightRef.current) {
+      slotHighlightRef.current.style.display = "none";
+    }
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (
+      !canCreate ||
+      view === "agenda" ||
+      event.pointerType === "touch" ||
+      (event.target instanceof Element &&
+        event.target.closest("a, button, [role='button']"))
+    ) {
+      hideSlotHighlight();
+      return;
+    }
+
+    const elements = document
+      .elementsFromPoint(event.clientX, event.clientY)
+      .filter((element) => event.currentTarget.contains(element));
+    const dayCell = elements.find(
+      (element): element is HTMLElement =>
+        element instanceof HTMLElement &&
+        element.matches('[role="gridcell"][data-date]'),
+    );
+    const timeSlot =
+      view === "week"
+        ? elements.find(
+            (element): element is HTMLElement =>
+              element instanceof HTMLElement && element.matches("[data-time]"),
+          )
+        : undefined;
+    const highlight = slotHighlightRef.current;
+    if (!dayCell || (view === "week" && !timeSlot) || !highlight) {
+      hideSlotHighlight();
+      return;
+    }
+
+    const calendarBounds = event.currentTarget.getBoundingClientRect();
+    const dayBounds = dayCell.getBoundingClientRect();
+    const verticalBounds = timeSlot?.getBoundingClientRect() ?? dayBounds;
+    highlight.style.display = "block";
+    highlight.style.height = `${verticalBounds.height}px`;
+    highlight.style.left = `${dayBounds.left - calendarBounds.left + event.currentTarget.scrollLeft}px`;
+    highlight.style.top = `${verticalBounds.top - calendarBounds.top + event.currentTarget.scrollTop}px`;
+    highlight.style.width = `${dayBounds.width}px`;
+  }
+
   return (
     <div
-      className="workspace-calendar-theme overflow-x-auto"
+      className="workspace-calendar-theme relative overflow-x-auto"
       data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
+      onPointerLeave={hideSlotHighlight}
+      onPointerMove={handlePointerMove}
+      onScrollCapture={hideSlotHighlight}
     >
       <FullCalendar
         key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
@@ -366,8 +424,20 @@ function CalendarView({
             eventInfo.event.title
           );
         }}
-        dateClick={(dateInfo) => onDateClick(dateInfo.date)}
+        dateClick={(dateInfo) => {
+          hideSlotHighlight();
+          onDateClick(dateInfo.date);
+        }}
       />
+      {canCreate && view !== "agenda" ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute z-10 bg-primary-quaternary ring-1 ring-primary-tertiary ring-inset"
+          data-testid="calendar-slot-highlight"
+          ref={slotHighlightRef}
+          style={{ display: "none" }}
+        />
+      ) : null}
     </div>
   );
 }

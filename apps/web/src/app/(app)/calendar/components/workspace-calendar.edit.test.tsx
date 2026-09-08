@@ -63,6 +63,14 @@ vi.mock("@fullcalendar/react", () => ({
     fullCalendarMock(props);
     return (
       <div>
+        <div
+          data-date="2030-01-02"
+          data-testid="hover-day-cell"
+          role="gridcell"
+        >
+          <span data-testid="hover-target">hover target</span>
+        </div>
+        <div data-time="09:00:00" data-testid="hover-time-slot" />
         <button
           type="button"
           onClick={() =>
@@ -371,6 +379,99 @@ describe("WorkspaceCalendar editing", () => {
     expect(props.dateClick).toEqual(expect.any(Function));
     expect(props.editable).toBe(false);
     expect(props.plugins).toContain(interactionPluginMock);
+  });
+
+  it("highlights only the hovered week slot and clears it on click", async () => {
+    const user = userEvent.setup();
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC&view=week">
+        <WorkspaceCalendar
+          coworkers={[{ id: "coworker-1", name: "Ada" }]}
+          initialDate="2030-01-02"
+          items={[ITEM]}
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    const calendar = screen.getAllByTestId("calendar-week")[0];
+    const dayCell = within(calendar).getByTestId("hover-day-cell");
+    const timeSlot = within(calendar).getByTestId("hover-time-slot");
+    const hoverTarget = within(calendar).getByTestId("hover-target");
+    const highlight = within(calendar).getByTestId("calendar-slot-highlight");
+
+    Object.defineProperty(document, "elementsFromPoint", {
+      configurable: true,
+      value: vi.fn(() => [dayCell, timeSlot]),
+    });
+    vi.spyOn(calendar, "getBoundingClientRect").mockReturnValue({
+      bottom: 800,
+      height: 700,
+      left: 50,
+      right: 850,
+      top: 100,
+      width: 800,
+      x: 50,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(dayCell, "getBoundingClientRect").mockReturnValue({
+      bottom: 720,
+      height: 600,
+      left: 150,
+      right: 250,
+      top: 120,
+      width: 100,
+      x: 150,
+      y: 120,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(timeSlot, "getBoundingClientRect").mockReturnValue({
+      bottom: 240,
+      height: 20,
+      left: 50,
+      right: 850,
+      top: 220,
+      width: 800,
+      x: 50,
+      y: 220,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerMove(hoverTarget, { clientX: 175, clientY: 225 });
+
+    expect(highlight).toHaveStyle({
+      display: "block",
+      height: "20px",
+      left: "100px",
+      top: "120px",
+      width: "100px",
+    });
+
+    fireEvent.pointerLeave(calendar);
+    expect(highlight).toHaveStyle({ display: "none" });
+
+    fireEvent.pointerMove(hoverTarget, { clientX: 175, clientY: 225 });
+
+    await user.click(
+      within(calendar).getByRole("button", { name: "empty calendar slot" }),
+    );
+    expect(highlight).toHaveStyle({ display: "none" });
+  });
+
+  it("does not render a slot highlight for an unschedulable calendar", () => {
+    renderCalendar({
+      sources: SOURCES.map((source) => ({
+        ...source,
+        isSchedulable: false,
+      })),
+    });
+
+    expect(
+      within(screen.getAllByTestId("calendar-month")[0]).queryByTestId(
+        "calendar-slot-highlight",
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("shows a source filter only on the top-level Calendar and includes Projects in pagination", async () => {

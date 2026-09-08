@@ -319,43 +319,6 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
-  it("marks schedulable calendar cells for hover highlighting", () => {
-    render(
-      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
-        <WorkspaceCalendar
-          items={ITEMS}
-          initialDate="2026-08-18"
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    const calendar = screen.getAllByTestId("calendar-week")[0];
-    expect(calendar).toHaveAttribute("data-can-create", "true");
-    expect(
-      calendar.querySelectorAll('[role="gridcell"][data-date]').length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("does not mark unschedulable calendar cells for hover highlighting", () => {
-    render(
-      <NuqsTestingAdapter>
-        <WorkspaceCalendar
-          items={ITEMS}
-          initialDate="2026-08-18"
-          sources={SOURCES.map((source) => ({
-            ...source,
-            isSchedulable: false,
-          }))}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    expect(screen.getAllByTestId("calendar-month")[0]).not.toHaveAttribute(
-      "data-can-create",
-    );
-  });
-
   it("sets transparent classic events for the week theme", () => {
     const styles = readFileSync(
       new URL("../../../globals.css", import.meta.url).pathname.slice(1),
@@ -364,17 +327,6 @@ describe("WorkspaceCalendar", () => {
 
     expect(styles).toMatch(
       /\.workspace-calendar-theme\[data-view="week"\]\s*\{[^}]*--fc-classic-event:\s*transparent;/,
-    );
-  });
-
-  it("uses semantic tokens for hover-only slot highlighting", () => {
-    const styles = readFileSync(
-      new URL("../../../globals.css", import.meta.url).pathname.slice(1),
-      "utf8",
-    );
-
-    expect(styles).toMatch(
-      /@media\s*\(hover:\s*hover\)\s*\{[\s\S]*?\.workspace-calendar-theme\[data-can-create="true"\][\s\S]*?\[role="gridcell"\]\[data-date\]:hover\s*\{[^}]*background-color:\s*var\(--primary-quaternary\);[^}]*cursor:\s*pointer;/,
     );
   });
 
