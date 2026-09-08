@@ -28,6 +28,7 @@ import {
 } from "@/components/chat/organization-chat-list.actions";
 import { resolveRoomAttention } from "@/components/chat/room-attention";
 import {
+  applyRoomReadOverlays,
   beginRoomAttentionChange,
   settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
@@ -132,20 +133,23 @@ export function ChatRoomSidebarRow({
   ) {
     const attentionToken =
       action === markOrganizationChatRoomUnreadAction && optimisticRoom
-        ? beginRoomAttentionChange(optimisticRoom)
+        ? beginRoomAttentionChange(optimisticRoom, room)
         : null;
     if (optimisticRoom) {
       onRoomUpdated(optimisticRoom);
     }
 
-    function applyResult(updatedRoom: ChatRoom): boolean {
+    function applyResult(updatedRoom: ChatRoom | null): boolean {
       if (
         attentionToken !== null &&
         !settleRoomAttentionChange(room.id, attentionToken, updatedRoom)
       ) {
         return false;
       }
-      onRoomUpdated(updatedRoom);
+      onRoomUpdated(
+        updatedRoom ??
+          (attentionToken === null ? room : applyRoomReadOverlays([room])[0]),
+      );
       return true;
     }
 
@@ -153,12 +157,12 @@ export function ChatRoomSidebarRow({
       try {
         const result = await action(room.id);
         if (!result.ok) {
-          if (applyResult(room)) toast.error(tActions("actionFailed"));
+          if (applyResult(null)) toast.error(tActions("actionFailed"));
           return;
         }
         applyResult(result.value);
       } catch {
-        if (applyResult(room)) toast.error(tActions("actionFailed"));
+        if (applyResult(null)) toast.error(tActions("actionFailed"));
       }
     });
   }

@@ -559,4 +559,41 @@ describe("ChatRoomSidebarRow Mark unread", () => {
       );
     },
   );
+  it("restores settled attention when Mark unread supersedes a read and fails", async () => {
+    const original = makeRoom();
+    const settled = { ...original, unreadCount: 2, unreadMentionCount: 1 };
+    rememberRoomRead(settled);
+    const pendingRead = beginRoomAttentionChange(original, settled);
+    const response =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof markOrganizationChatRoomUnreadAction>>
+      >();
+    vi.mocked(markOrganizationChatRoomUnreadAction).mockReturnValue(
+      response.promise,
+    );
+    const onRoomUpdated = vi.fn(rememberRoomRead);
+    render(
+      <ChatRoomSidebarRow
+        room={original}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={onRoomUpdated}
+      />,
+    );
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Mark as unread" }));
+    await act(async () => {
+      response.resolve({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "failed" },
+      });
+    });
+    expect(settleRoomAttentionChange(original.id, pendingRead, null)).toBe(
+      false,
+    );
+    expect(onRoomUpdated).toHaveBeenLastCalledWith(settled);
+    expect(applyRoomReadOverlays([original])[0]).toEqual(settled);
+  });
 });

@@ -6,6 +6,7 @@ interface RoomReadOverlay {
   markedUnread: boolean;
   revision: number;
   pendingToken: number | null;
+  rollbackAttention: RoomAttentionFields | null;
 }
 
 interface RoomAttentionFields {
@@ -28,6 +29,7 @@ function storeAttention(
   room: RoomAttentionFields,
   nextRevision: number,
   pendingToken: number | null = null,
+  rollbackAttention: RoomAttentionFields | null = null,
 ): void {
   overlaysByRoomId.set(room.id, {
     updatedAtMs: toUpdatedAtMs(room.updatedAt),
@@ -36,6 +38,7 @@ function storeAttention(
     markedUnread: room.markedUnread,
     revision: nextRevision,
     pendingToken,
+    rollbackAttention,
   });
 }
 
@@ -53,16 +56,39 @@ function applyAttention<T extends RoomAttentionFields>(
 
 /** Event listeners may repeat an optimistic snapshot without settling it. */
 export function rememberRoomRead(room: RoomAttentionFields): void {
+  const overlay = overlaysByRoomId.get(room.id);
   storeAttention(
-    room,
+    {
+      ...room,
+      // Event listeners can repeat attention using older room props.
+      updatedAt: new Date(
+        Math.max(toUpdatedAtMs(room.updatedAt), overlay?.updatedAtMs ?? 0),
+      ),
+    },
     ++revision,
-    overlaysByRoomId.get(room.id)?.pendingToken ?? null,
+    overlay?.pendingToken ?? null,
+    overlay?.rollbackAttention ?? null,
   );
 }
 
-export function beginRoomAttentionChange(room: RoomAttentionFields): number {
+export function beginRoomAttentionChange(
+  room: RoomAttentionFields,
+  previousRoom: RoomAttentionFields = room,
+): number {
+  // Overlapping operations share the last settled attention, never an
+  // optimistic snapshot from a superseded operation or a remounted caller.
+  const previousOverlay = overlaysByRoomId.get(room.id);
+  const rollbackAttention = previousOverlay?.rollbackAttention ?? {
+    ...applyRoomReadOverlays([previousRoom])[0],
+    updatedAt: new Date(
+      Math.max(
+        toUpdatedAtMs(previousRoom.updatedAt),
+        previousOverlay?.updatedAtMs ?? 0,
+      ),
+    ),
+  };
   const token = ++revision;
-  storeAttention(room, token, token);
+  storeAttention(room, token, token, rollbackAttention);
   return token;
 }
 
@@ -72,11 +98,14 @@ export function settleRoomAttentionChange(
   token: number,
   room: RoomAttentionFields | null,
 ): boolean {
-  if (overlaysByRoomId.get(roomId)?.pendingToken !== token) {
+  const overlay = overlaysByRoomId.get(roomId);
+  if (overlay?.pendingToken !== token) {
     return false;
   }
   if (room) {
     storeAttention(room, ++revision);
+  } else if (overlay.rollbackAttention) {
+    storeAttention(overlay.rollbackAttention, ++revision);
   } else {
     forgetRoomRead(roomId);
   }
