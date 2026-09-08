@@ -57,6 +57,14 @@ vi.mock("@/helpers/chat-room-pinned-message-realtime", () => ({
   publishChatRoomPinnedMessageRealtime: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { rewriteChatNotificationPreviewsMock } = vi.hoisted(() => ({
+  rewriteChatNotificationPreviewsMock: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/helpers/chat-notification-fanout", () => ({
+  rewriteChatNotificationPreviews: rewriteChatNotificationPreviewsMock,
+}));
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
 const USER_ID = "user_123";
@@ -167,6 +175,82 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     mentionUpdateManyMock.mockResolvedValue({ count: 0 });
     pinDeleteManyMock.mockResolvedValue({ count: 0 });
     pinCountMock.mockResolvedValue(0);
+  });
+
+  /**
+   * The body is wiped from the message row, so the copy of it that rode this
+   * message's notifications has to go the same way. It stays readable through
+   * the notifications API otherwise.
+   */
+  it("takes the message's text off its notifications", async () => {
+    const app = createApp(userAuthContext);
+
+    await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(rewriteChatNotificationPreviewsMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+  });
+
+  /**
+   * A wipe that fails is only reported, so the rows keep the text and the
+   * reader's one way back is to delete again. A repeat delete has to try.
+   */
+  it("tries again when the message was already deleted", async () => {
+    messageUpdateManyMock.mockResolvedValue({ count: 0 });
+    const app = createApp(userAuthContext);
+
+    await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(rewriteChatNotificationPreviewsMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+  });
+
+  /**
+   * A uuid is matched without case by the message's own column and with case
+   * by the notification's, which stores it as text. Taking the ids off the
+   * row rather than off the path keeps the two reads looking at one message.
+   */
+  it("names the message by the ids on its row, not the ones in the path", async () => {
+    const app = createApp(userAuthContext);
+
+    const response = await app.request(
+      `/${ROOM_ID.toUpperCase()}/messages/${MESSAGE_ID.toUpperCase()}`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(rewriteChatNotificationPreviewsMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+  });
+
+  /**
+   * The reader is answered once the text is gone. Answering first would send
+   * them back to a list that still carries it.
+   */
+  it("answers only once the wipe has run", async () => {
+    const order: string[] = [];
+    rewriteChatNotificationPreviewsMock.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      order.push("wipe");
+    });
+    const app = createApp(userAuthContext);
+
+    await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+    order.push("answer");
+
+    expect(order).toEqual(["wipe", "answer"]);
   });
 
   it("soft-deletes the author message and returns a tombstone", async () => {

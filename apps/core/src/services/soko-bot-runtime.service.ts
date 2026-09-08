@@ -57,10 +57,6 @@ import { list, put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
-import {
-  emitChatDirectMessageNotifications,
-  shouldEmitChatDirectMessageNotifications,
-} from "@/helpers/chat-direct-message-notifications";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { createAgentJobForUser } from "@/helpers/job";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
@@ -75,6 +71,7 @@ import {
   ROOM_BOT_MESSAGE_WINDOW_MS,
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
+import { scheduleSokoBotChatNotifications } from "@/lib/soko-bot/chat-notifications";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import {
   resolveMentionedCoworkerIds,
@@ -1269,32 +1266,7 @@ export class SokoBotRuntimeService {
     // Every other message-create site publishes; without this the bot's post
     // only appears after a refresh, which reads as the tool having failed.
     await publishChatRoomMessageRealtimeById(message.id, "create");
-    if (room.kind === "direct") {
-      const memberUserIds = (
-        await prisma.chatRoomUserMember.findMany({
-          where: { roomId: room.id },
-          select: { userId: true },
-        })
-      ).map((member) => member.userId);
-      if (
-        shouldEmitChatDirectMessageNotifications({
-          kind: room.kind,
-          memberUserIds,
-        })
-      ) {
-        waitUntil(
-          emitChatDirectMessageNotifications({
-            roomId: room.id,
-            roomName: room.name,
-            organizationId: room.organizationId,
-            messageId: message.id,
-            authorUserId: null,
-            authorName: room.authorName,
-            recipientUserIds: memberUserIds,
-          }),
-        );
-      }
-    }
+    await scheduleSokoBotChatNotifications(room, message.id, input.content);
     for (const mentionId of mentionIds) {
       const { dispatchChatRoomMention } = await import(
         "@/services/chat-room-coworker-dispatch.service"

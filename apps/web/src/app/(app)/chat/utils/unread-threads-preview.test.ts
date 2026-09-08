@@ -1,3 +1,4 @@
+import { CHAT_MESSAGE_PREVIEW_MAX_LENGTH } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 
@@ -26,5 +27,17 @@ describe("formatUnreadThreadsPreview", () => {
 
   it("returns empty string when content is only markup", () => {
     expect(formatUnreadThreadsPreview("****")).toBe("");
+  });
+
+  /**
+   * A thread row is one line beside a room name. The shared rule already cuts
+   * to a length that fits, and this row must take the cut rather than let a
+   * long message push the room name off the screen.
+   */
+  it("cuts a long message to the length the shared rule allows", () => {
+    const preview = formatUnreadThreadsPreview("a".repeat(400));
+
+    expect([...preview]).toHaveLength(CHAT_MESSAGE_PREVIEW_MAX_LENGTH);
+    expect(preview.endsWith("…")).toBe(true);
   });
 });

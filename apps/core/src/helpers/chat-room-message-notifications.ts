@@ -37,6 +37,7 @@ export interface EmitChatRoomMessageNotificationsParams {
   roomKind: string;
   organizationId: string | null;
   messageId: string;
+  content: string;
   /** Human author to skip. Null when the author is a coworker. */
   authorUserId: string | null;
   authorName: string;
@@ -127,6 +128,7 @@ export async function emitChatRoomMessageNotifications(
     roomName: params.roomName,
     organizationId: params.organizationId,
     messageId: params.messageId,
+    content: params.content,
     authorUserId: params.authorUserId,
     authorName: params.authorName,
     recipientUserIds,
