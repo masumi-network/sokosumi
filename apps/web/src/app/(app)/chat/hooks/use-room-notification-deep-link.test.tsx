@@ -2,12 +2,12 @@ import { act, render, waitFor } from "@testing-library/react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getRoomMessageAction } from "@/app/chat/actions";
+import { getRoomMessageAction } from "@/app/chat/message-actions";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import { useRoomNotificationDeepLink } from "./use-room-notification-deep-link";
 
-vi.mock("@/app/chat/actions", () => ({
+vi.mock("@/app/chat/message-actions", () => ({
   getRoomMessageAction: vi.fn(),
 }));
 
@@ -54,6 +54,7 @@ function params(overrides: Partial<HarnessProps> = {}): HarnessProps {
     replace: vi.fn(),
     highlight: vi.fn(() => false),
     isStillSelectedRoom: vi.fn(() => true),
+    invalidateJump: vi.fn(),
     jumpInRoom: vi.fn(async () => {}),
     jumpInThread: vi.fn(async () => {}),
     ...overrides,

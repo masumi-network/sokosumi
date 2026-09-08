@@ -3,7 +3,7 @@
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { useRef } from "react";
 
-import { getRoomMessageAction } from "@/app/chat/actions";
+import { getRoomMessageAction } from "@/app/chat/message-actions";
 import { pathWithSearch } from "@/app/chat/utils/chat-route-base";
 import {
   performRoomNotificationJump,
@@ -29,6 +29,7 @@ export interface RoomNotificationDeepLinkParams {
   highlight: (messageId: string) => boolean;
   /** Still the room this jump was started for. */
   isStillSelectedRoom: (roomId: string) => boolean;
+  invalidateJump: () => void;
   jumpInRoom: (messageId: string) => Promise<void>;
   jumpInThread: (message: ChatRoomMessage) => Promise<void>;
 }
@@ -52,6 +53,7 @@ export function useRoomNotificationDeepLink({
   replace,
   highlight,
   isStillSelectedRoom,
+  invalidateJump,
   jumpInRoom,
   jumpInThread,
 }: RoomNotificationDeepLinkParams): void {
@@ -75,6 +77,7 @@ export function useRoomNotificationDeepLink({
     // slot for the last room would not do: two jumps for this room and a
     // third for another would leave both of the first two calling themselves
     // newest.
+    invalidateJump();
     latestJumpRef.current.set(roomId, messageId);
     const isNewestJump = () => latestJumpRef.current.get(roomId) === messageId;
 

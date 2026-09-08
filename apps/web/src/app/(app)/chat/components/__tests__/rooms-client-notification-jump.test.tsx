@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getRoomMessageAction } from "@/app/chat/message-actions";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -40,6 +41,10 @@ const { mockSuppressStickToBottom, mockReleaseStickToBottomSuppress } =
     mockSuppressStickToBottom: vi.fn(),
     mockReleaseStickToBottomSuppress: vi.fn(),
   }));
+
+vi.mock("@/app/chat/message-actions", () => ({
+  getRoomMessageAction: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -136,7 +141,6 @@ vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
 }));
 
 vi.mock("@/app/chat/actions", () => ({
-  getRoomMessageAction: vi.fn(),
   getRoomThreadAction: vi.fn(),
   deleteRoomMessageAction: vi.fn(),
   editRoomMessageAction: vi.fn(),
@@ -326,7 +330,6 @@ const baseProps = {
 import { toast } from "sonner";
 
 import {
-  getRoomMessageAction,
   getRoomThreadAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
@@ -999,6 +1002,51 @@ describe("RoomsClient notification deep link", () => {
       expect(toast.error).not.toHaveBeenCalled();
     });
   });
+  it("keeps the latest rendered notification target when an older window finishes", async () => {
+    mockSearch.current = "message=msg-1";
+    const latest = sampleMessage("latest target", "msg-2");
+    const page = settledMessages([latest]);
+    vi.mocked(getRoomMessageAction).mockResolvedValue({
+      ok: true,
+      value: sampleMessage("older target", "msg-1"),
+    });
+    let finishWindow = (): void => {};
+    vi.mocked(listRoomMessagesAction).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishWindow = () =>
+            resolve({
+              ok: true,
+              value: {
+                messages: [sampleMessage("older target", "msg-1")],
+                nextCursor: null,
+              },
+            });
+        }),
+    );
+    const { rerender } = render(
+      <RoomsClient {...baseProps} messages={[latest]} messagesPromise={page} />,
+    );
+    await waitFor(() => {
+      expect(listRoomMessagesAction).toHaveBeenCalledWith("room-channel", {
+        around: "msg-1",
+      });
+    });
+
+    mockSearch.current = "message=msg-2";
+    rerender(
+      <RoomsClient {...baseProps} messages={[latest]} messagesPromise={page} />,
+    );
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledTimes(2));
+    expect(getRoomMessageAction).toHaveBeenCalledTimes(1);
+    await act(async () => finishWindow());
+    await waitFor(() => {
+      expect(mockReleaseStickToBottomSuppress).toHaveBeenCalledOnce();
+    });
+    expect(screen.getByText("latest target")).toBeInTheDocument();
+    expect(screen.queryByText("older target")).toBeNull();
+  });
+
   it("does not scroll back to a notification a later click replaced", async () => {
     // Two bell rows for the same room, clicked in quick succession. Both
     // windows are in flight and the first one clicked comes back last. The
