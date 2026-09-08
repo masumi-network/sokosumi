@@ -138,6 +138,9 @@ const { default: mountGetChatRoomMessages } = await import(
 const { default: mountPostChatRoomMessage } = await import(
   "./[id]/messages/post"
 );
+const { default: mountGetChatRoomMessage } = await import(
+  "./[id]/messages/[messageId]/get"
+);
 const { default: mountDeleteChatRoomMessage } = await import(
   "./[id]/messages/[messageId]/delete"
 );
@@ -190,6 +193,7 @@ function createApp(authContext: AuthVariables["authContext"]) {
   mountPatchChatRoom(typed);
   mountPostChatRoomRead(typed);
   mountGetChatRoomMessages(typed);
+  mountGetChatRoomMessage(typed);
   mountPostChatRoomMessage(typed);
   mountDeleteChatRoomMessage(typed);
   mountPostChatRoomMessageReaction(typed);
@@ -259,6 +263,13 @@ const userOnlyCases: AuthRequestCase[] = [
   {
     label: "GET /{id}/messages",
     request: () => ({ method: "GET", path: `/${ROOM_ID}/messages` }),
+  },
+  {
+    label: "GET /{id}/messages/{messageId}",
+    request: () => ({
+      method: "GET",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}`,
+    }),
   },
   {
     label: "POST /{id}/messages/{messageId}/reactions",
@@ -443,6 +454,13 @@ const membershipScopedCases: AuthRequestCase[] = [
     request: () => ({ method: "GET", path: `/${ROOM_ID}/messages` }),
   },
   {
+    label: "GET /{id}/messages/{messageId}",
+    request: () => ({
+      method: "GET",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}`,
+    }),
+  },
+  {
     label: "POST /{id}/messages",
     request: () => ({
       method: "POST",
@@ -502,6 +520,7 @@ const membershipScopedCases: AuthRequestCase[] = [
 const membershipCasesWithoutInteractiveTx = new Set([
   "GET /{id}",
   "GET /{id}/messages",
+  "GET /{id}/messages/{messageId}",
   "GET /{id}/stream/messages",
   "GET /{id}/stream/active",
 ]);

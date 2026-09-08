@@ -14,6 +14,7 @@ const leaveChatRoomMock = vi.fn();
 const joinChatRoomMock = vi.fn();
 const restoreChatRoomMock = vi.fn();
 const retryChatRoomMentionMock = vi.fn();
+const getChatRoomMessageMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: class CoreApiRequestError extends Error {
@@ -41,6 +42,7 @@ vi.mock("@/lib/clients/core.client", () => ({
     restoreChatRoom: (...args: unknown[]) => restoreChatRoomMock(...args),
     retryChatRoomMention: (...args: unknown[]) =>
       retryChatRoomMentionMock(...args),
+    getChatRoomMessage: (...args: unknown[]) => getChatRoomMessageMock(...args),
   },
 }));
 
@@ -516,5 +518,68 @@ describe("chatRoomService thread attention", () => {
 
     expect(markChatRoomThreadsReadMock).toHaveBeenCalledWith("room-1");
     expect(result).toEqual(payload);
+  });
+});
+
+describe("chatRoomService.getMessage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("returns the message Core answers with", async () => {
+    getChatRoomMessageMock.mockResolvedValue({ data: { id: "msg-1" } });
+
+    const { chatRoomService } = await import("./chat-room.service");
+
+    await expect(
+      chatRoomService.getMessage("room-1", "msg-1"),
+    ).resolves.toEqual({ id: "msg-1" });
+  });
+
+  it("reads a 404 as no message rather than as a failure", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    getChatRoomMessageMock.mockRejectedValue(
+      new CoreApiRequestError("Not found", { status: 404 }),
+    );
+
+    const { chatRoomService } = await import("./chat-room.service");
+
+    // This null is what tells a notification the message cannot be read
+    // rather than that the request failed, so it leaves the reader in the
+    // room instead of asking it to scroll to an id Core has just refused.
+    await expect(
+      chatRoomService.getMessage("room-1", "msg-1"),
+    ).resolves.toBeNull();
+  });
+
+  it("reads a 403 as no message too", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    getChatRoomMessageMock.mockRejectedValue(
+      new CoreApiRequestError("Forbidden", { status: 403 }),
+    );
+
+    const { chatRoomService } = await import("./chat-room.service");
+
+    // The membership gate answers 403, not 404, when a reader's room
+    // membership outlived the organization membership behind it. Treating
+    // that as a failure would send the caller back to the room with the same
+    // id, through the same gate, for the loud second failure it is avoiding.
+    await expect(
+      chatRoomService.getMessage("room-1", "msg-1"),
+    ).resolves.toBeNull();
+  });
+
+  it("lets any other failure through", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    getChatRoomMessageMock.mockRejectedValue(
+      new CoreApiRequestError("Boom", { status: 500 }),
+    );
+
+    const { chatRoomService } = await import("./chat-room.service");
+
+    await expect(chatRoomService.getMessage("room-1", "msg-1")).rejects.toThrow(
+      "Boom",
+    );
   });
 });

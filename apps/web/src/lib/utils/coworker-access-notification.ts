@@ -44,10 +44,17 @@ export function resolveCoworkerAccessNotificationTarget(
   return { accessId, organizationId, organizationSlug };
 }
 
+/**
+ * Where a reader reviews a coworker's request for early access.
+ *
+ * Always a destination, for the same reason as the vendor-grant href it sits
+ * beside: no organization means a personal request, reviewed on the account
+ * page.
+ */
 export function buildCoworkerAccessReviewHref(params: {
   organizationId: string | null;
   organizationSlug?: string | null;
-}): string | null {
+}): string {
   if (params.organizationId === null) {
     return "/account#coworker-early-access";
   }
