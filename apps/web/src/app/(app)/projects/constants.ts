@@ -16,10 +16,6 @@ export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
  */
 export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
 
-/**
- * Project calendar route shell. Wider than detail so `WorkspaceCalendar`'s
- * `max-w-7xl` canvas is not clipped by the overview shell.
- */
 export const PROJECTS_CALENDAR_SHELL_CLASS = "mx-auto w-full max-w-7xl py-6";
 
 /**
