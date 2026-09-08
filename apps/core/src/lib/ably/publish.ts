@@ -106,7 +106,7 @@ interface PublishNotificationEventInput {
 interface NotificationPushData
   extends Pick<
     NotificationEventData,
-    "id" | "kind" | "referenceId" | "messageKey"
+    "id" | "kind" | "referenceId" | "messageKey" | "createdAt"
   > {
   messageParams: string;
   /** Omitted, not null, when the notification carries no metadata. */
@@ -153,6 +153,7 @@ function toNotificationPushData(
     kind: notification.kind,
     referenceId: notification.referenceId,
     messageKey: notification.messageKey,
+    createdAt: notification.createdAt,
     messageParams: JSON.stringify(
       Object.fromEntries(
         Object.entries(notification.messageParams).map(([key, value]) => [

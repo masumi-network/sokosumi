@@ -442,7 +442,10 @@ describe("notificationGroupTag", () => {
 });
 
 describe("closeNotificationGroup", () => {
-  function stubBanners(banners: { close: () => void }[]) {
+  const READ_AT = "2026-09-08T12:00:01.000Z";
+  const CLEARED = { ...TARGET, readAt: READ_AT };
+
+  function stubBanners(banners: { close: () => void; data?: unknown }[]) {
     const getNotifications = vi.fn().mockResolvedValue(banners);
     stubServiceWorker({
       register: vi.fn(),
@@ -452,12 +455,22 @@ describe("closeNotificationGroup", () => {
   }
 
   it("closes every banner the group holds", async () => {
-    const first = { close: vi.fn() };
-    const second = { close: vi.fn() };
+    const first = {
+      data: { ...TARGET, createdAt: "2026-09-08T12:00:00.000Z" },
+      close: vi.fn(),
+    };
+    const second = {
+      data: {
+        ...TARGET,
+        id: "notification-2",
+        createdAt: "2026-09-08T12:00:00.500Z",
+      },
+      close: vi.fn(),
+    };
     const getNotifications = stubBanners([first, second]);
 
     const module = await importFresh();
-    await module.closeNotificationGroup("sokosumi-room:room-1");
+    await module.closeNotificationGroup(CLEARED);
 
     expect(getNotifications).toHaveBeenCalledWith({
       tag: "sokosumi-room:room-1",
@@ -466,6 +479,95 @@ describe("closeNotificationGroup", () => {
     expect(second.close).toHaveBeenCalledTimes(1);
   });
 
+  it("preserves a newer unread banner when an earlier clear lookup finishes late", async () => {
+    stubPermission("granted");
+    let shown: { id: string; createdAt?: string } | null = null;
+    const registration = {
+      active: {},
+      showNotification: async (
+        _title: string,
+        options: { data: typeof TARGET & { createdAt?: string } },
+      ) => {
+        shown = options.data;
+      },
+      getNotifications: async () =>
+        shown === null
+          ? []
+          : [
+              {
+                data: shown,
+                close: () => {
+                  shown = null;
+                },
+              },
+            ],
+    };
+    const lookup = Promise.withResolvers<typeof registration>();
+    stubServiceWorker({
+      register: vi.fn().mockResolvedValue(registration),
+      getRegistration: vi.fn().mockReturnValue(lookup.promise),
+    });
+    const module = await importFresh();
+    await module.getNotificationServiceWorker();
+    const clearing = module.closeNotificationGroup(CLEARED);
+    const newer = {
+      ...TARGET,
+      id: "new-unread-row",
+      createdAt: "2026-09-08T12:00:02.000Z",
+    };
+    await module.showNotification({
+      title: "Sokosumi",
+      body: "New message",
+      target: newer,
+    });
+    expect(shown).toEqual(newer);
+    lookup.resolve(registration);
+    await clearing;
+    expect(shown).toEqual(newer);
+  });
+
+  it.each(["2026-09-08T12:00:02.000Z", READ_AT])(
+    "preserves an unread banner created at %s when an old cleared row arrives late",
+    async (createdAt) => {
+      const banner = {
+        data: { ...TARGET, id: "new-unread-row", createdAt },
+        close: vi.fn(),
+      };
+      stubBanners([banner]);
+      const module = await importFresh();
+      await module.closeNotificationGroup(CLEARED);
+      expect(banner.close).not.toHaveBeenCalled();
+    },
+  );
+
+  it("closes an older untimestamped banner only when its own row was cleared", async () => {
+    const same = { data: TARGET, close: vi.fn() };
+    const other = { data: { ...TARGET, id: "other-row" }, close: vi.fn() };
+    stubBanners([same, other]);
+    const module = await importFresh();
+    await module.closeNotificationGroup(CLEARED);
+    expect(same.close).toHaveBeenCalledTimes(1);
+    expect(other.close).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "invalid"])(
+    "does not infer ordering from readAt %s",
+    async (readAt) => {
+      const banner = {
+        data: {
+          ...TARGET,
+          id: "other-row",
+          createdAt: "2026-09-08T12:00:00.000Z",
+        },
+        close: vi.fn(),
+      };
+      stubBanners([banner]);
+      const module = await importFresh();
+      await module.closeNotificationGroup({ ...CLEARED, readAt });
+      expect(banner.close).not.toHaveBeenCalled();
+    },
+  );
+
   /** The tag is the filter, so a group with nothing standing closes nothing
    * rather than reaching for another room's banner. */
   it("closes nothing when the group holds no banner", async () => {
@@ -473,7 +575,7 @@ describe("closeNotificationGroup", () => {
 
     const module = await importFresh();
     await expect(
-      module.closeNotificationGroup("sokosumi-room:room-2"),
+      module.closeNotificationGroup({ ...CLEARED, referenceId: "room-2" }),
     ).resolves.toBeUndefined();
     expect(getNotifications).toHaveBeenCalledWith({
       tag: "sokosumi-room:room-2",
@@ -490,7 +592,7 @@ describe("closeNotificationGroup", () => {
     });
 
     const module = await importFresh();
-    await module.closeNotificationGroup("sokosumi-room:room-1");
+    await module.closeNotificationGroup(CLEARED);
 
     expect(register).not.toHaveBeenCalled();
   });
@@ -506,7 +608,7 @@ describe("closeNotificationGroup", () => {
 
     const module = await importFresh();
     await expect(
-      module.closeNotificationGroup("sokosumi-room:room-1"),
+      module.closeNotificationGroup(CLEARED),
     ).resolves.toBeUndefined();
   });
 
@@ -515,7 +617,7 @@ describe("closeNotificationGroup", () => {
 
     const module = await importFresh();
     await expect(
-      module.closeNotificationGroup("sokosumi-room:room-1"),
+      module.closeNotificationGroup(CLEARED),
     ).resolves.toBeUndefined();
   });
 });

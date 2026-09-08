@@ -885,10 +885,40 @@ describe("ably-push-sw notificationclick", () => {
     expect(postMessage).not.toHaveBeenCalled();
   });
 
+  it("preserves the source creation time for stale clear checks", async () => {
+    const worker = loadServiceWorker({ isChromium: false });
+    const createdAt = "2026-09-08T10:00:01.000Z";
+
+    await worker.dispatchPush({ ...MENTION_PUSH, createdAt });
+
+    expect(worker.shown[0]?.options.data).toEqual({
+      ...MENTION_TARGET,
+      createdAt,
+    });
+  });
+
+  it.each([undefined, null, 123])(
+    "keeps targets valid when the creation time is %s",
+    async (createdAt) => {
+      const worker = loadServiceWorker({ isChromium: false });
+
+      await worker.dispatchPush({ ...MENTION_PUSH, createdAt });
+
+      expect(worker.shown[0]?.options.data).toEqual(MENTION_TARGET);
+      expect(
+        notificationTargetSchema.safeParse(worker.shown[0]?.options.data)
+          .success,
+      ).toBe(true);
+    },
+  );
+
   it("carries exactly the fields the app's target schema names", async () => {
     const worker = loadServiceWorker({ isChromium: false });
 
-    await worker.dispatchPush(MENTION_PUSH);
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      createdAt: "2026-09-08T10:00:01.000Z",
+    });
 
     // Core encodes this payload, the worker decodes it, and the app validates
     // what a click hands back. Nothing but this holds the three to one list.

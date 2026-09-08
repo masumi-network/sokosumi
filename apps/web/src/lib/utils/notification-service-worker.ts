@@ -65,7 +65,10 @@ export const notificationTargetSchema = notificationEventDataSchema
     referenceId: true,
     messageKey: true,
     metadata: true,
+    createdAt: true,
   })
+  // Previously displayed banners do not carry an arrival timestamp.
+  .partial({ createdAt: true })
   // A banner with no id can neither be marked read nor deduped by tag.
   .extend({ id: z.string().min(1) });
 
@@ -80,8 +83,9 @@ export type NotificationTarget = z.infer<typeof notificationTargetSchema>;
 export function toNotificationTarget(
   notification: NotificationEventData,
 ): NotificationTarget {
-  const { id, kind, referenceId, messageKey, metadata } = notification;
-  return { id, kind, referenceId, messageKey, metadata };
+  const { id, kind, referenceId, messageKey, metadata, createdAt } =
+    notification;
+  return { id, kind, referenceId, messageKey, metadata, createdAt };
 }
 
 /**
@@ -234,7 +238,7 @@ export async function hasWebPushSubscription(): Promise<boolean> {
 }
 
 /**
- * Take down every banner in one group.
+ * Take down banners covered by a room read.
  *
  * Called when the reader has read what the group was about, so the banners
  * stop describing a state that no longer exists. The tag is the filter, so a
@@ -247,7 +251,14 @@ export async function hasWebPushSubscription(): Promise<boolean> {
  * Never throws. A browser that will not list its banners leaves them standing,
  * which is where they already were.
  */
-export async function closeNotificationGroup(tag: string): Promise<void> {
+export async function closeNotificationGroup(
+  notification: Pick<
+    NotificationEventData,
+    "id" | "kind" | "referenceId" | "readAt"
+  >,
+): Promise<void> {
+  const tag = notificationGroupTag(notification);
+  const readAt = Date.parse(notification.readAt ?? "");
   const registration = await getExistingNotificationServiceWorker();
   if (!registration) {
     return;
@@ -255,7 +266,17 @@ export async function closeNotificationGroup(tag: string): Promise<void> {
 
   try {
     for (const banner of await registration.getNotifications({ tag })) {
-      banner.close();
+      const target = notificationTargetSchema.safeParse(banner.data);
+      if (!target.success) {
+        continue;
+      }
+      const createdAt = Date.parse(target.data.createdAt ?? "");
+      // A newer arrival can appear while this lookup waits, or before an old
+      // read event arrives. Equal timestamps cannot order different rows;
+      // missing timestamps can only identify the cleared row itself.
+      if (target.data.id === notification.id || createdAt < readAt) {
+        banner.close();
+      }
     }
   } catch (error) {
     console.error("Failed to close the notification group", error);

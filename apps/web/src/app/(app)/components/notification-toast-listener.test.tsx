@@ -27,12 +27,15 @@ const TARGET = {
   kind: "CHAT",
   referenceId: "room-1",
   messageKey: "Notifications.Chat.mentioned",
+  createdAt: "2026-01-01T00:00:00.000Z",
   // Non-null on purpose: a banner that drops metadata cannot route a click to
   // the room it came from.
   metadata: { chatRoomId: "room-1" },
 };
 const getNotificationServiceWorker = vi.fn(() => Promise.resolve({}));
-const closeNotificationGroup = vi.fn((_tag: string) => Promise.resolve());
+const closeNotificationGroup = vi.fn((_notification: NotificationEventData) =>
+  Promise.resolve(),
+);
 const clickHandlerRef = {
   current: null as ((target: typeof TARGET) => void) | null,
 };
@@ -51,7 +54,8 @@ vi.mock("@/lib/utils/notification-service-worker", async (importOriginal) => ({
   >()),
   answerShowsNotificationsQuery: (showsNotifications: () => boolean) =>
     answerShowsNotificationsQuery(showsNotifications),
-  closeNotificationGroup: (tag: string) => closeNotificationGroup(tag),
+  closeNotificationGroup: (notification: NotificationEventData) =>
+    closeNotificationGroup(notification),
   getNotificationServiceWorker: () => getNotificationServiceWorker(),
   showNotification: (input: unknown) => showNotification(input),
   subscribeNotificationClicks: (onClick: (target: typeof TARGET) => void) => {
@@ -232,7 +236,12 @@ describe("NotificationToastListener OS banner", () => {
 
     await vi.waitFor(() => {
       expect(closeNotificationGroup).toHaveBeenCalledWith(
-        "sokosumi-room:room-1",
+        expect.objectContaining({
+          id: NOTIFICATION.id,
+          referenceId: NOTIFICATION.referenceId,
+          kind: NotificationKind.CHAT,
+          readAt: "2026-01-01T00:00:01.000Z",
+        }),
       );
     });
     expect(showNotification).not.toHaveBeenCalled();
@@ -261,7 +270,12 @@ describe("NotificationToastListener OS banner", () => {
     });
 
     await vi.waitFor(() => {
-      expect(closeNotificationGroup).toHaveBeenCalledWith("notification-1");
+      expect(closeNotificationGroup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "notification-1",
+          readAt: "2026-01-01T00:00:01.000Z",
+        }),
+      );
     });
   });
 

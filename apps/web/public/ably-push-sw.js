@@ -377,6 +377,9 @@ function buildTarget(pushData) {
     kind: pushData.kind,
     referenceId: pushData.referenceId,
     messageKey: pushData.messageKey,
+    ...(typeof pushData.createdAt === "string"
+      ? { createdAt: pushData.createdAt }
+      : {}),
     // Core omits metadata when it is null, and the app's schema wants that
     // null back rather than an empty object.
     metadata:

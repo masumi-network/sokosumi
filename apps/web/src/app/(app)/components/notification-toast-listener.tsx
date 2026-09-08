@@ -26,7 +26,6 @@ import {
   answerShowsNotificationsQuery,
   closeNotificationGroup,
   getNotificationServiceWorker,
-  notificationGroupTag,
   showNotification,
   subscribeNotificationClicks,
   toNotificationTarget,
@@ -164,9 +163,7 @@ export function NotificationToastListener({
       // read row away, which is right for raising a banner and is what left
       // the stale ones on screen.
       if (notification.isRead) {
-        void closeNotificationGroup(
-          notificationGroupTag(toNotificationTarget(notification)),
-        );
+        void closeNotificationGroup(notification);
         return;
       }
 
