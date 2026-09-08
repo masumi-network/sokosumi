@@ -23,14 +23,16 @@ function setGlobalAblyRealtimeClient(client: Ably.Realtime): void {
   globalThis.__sokosumiAblyRealtimeClient = client;
 }
 
-function clearSharedAblyRealtimeClient(): void {
-  const existing = getGlobalAblyRealtimeClient();
-  globalThis.__sokosumiAblyRealtimeClient = undefined;
-  existing?.close();
+function clearSharedAblyRealtimeClient(client: Ably.Realtime): void {
+  if (getGlobalAblyRealtimeClient() === client) {
+    globalThis.__sokosumiAblyRealtimeClient = undefined;
+  }
+  client.close();
 }
 
 function createAblyAuthCallback(
   clientInstanceId: string,
+  onSessionLost: () => void,
 ): NonNullable<Ably.AuthOptions["authCallback"]> {
   return (_tokenParams, callback) => {
     void fetchAblyBrowserAuthTokenRequest(clientInstanceId).then(
@@ -39,7 +41,7 @@ function createAblyAuthCallback(
       },
       (error: unknown) => {
         if (error instanceof AblyBrowserAuthError && error.status === 401) {
-          clearSharedAblyRealtimeClient();
+          onSessionLost();
         } else {
           console.error("Ably auth request failed", error);
         }
@@ -58,7 +60,9 @@ export function getAblyRealtimeClient(): Ably.Realtime {
 
   const clientInstanceId = getOrCreateAblyClientInstanceId();
   const realtimeClient = new Ably.Realtime({
-    authCallback: createAblyAuthCallback(clientInstanceId),
+    authCallback: createAblyAuthCallback(clientInstanceId, () => {
+      clearSharedAblyRealtimeClient(realtimeClient);
+    }),
     echoMessages: false,
     // Plugins are constructor-only in ably-js, so push rides the shared client
     // rather than a second one. Every route reaches this module through a
