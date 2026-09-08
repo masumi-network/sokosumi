@@ -11,11 +11,10 @@ import {
 } from "@sokosumi/database";
 import {
   hasReachedTaskScheduleReleaseTarget,
-  isNmkrEmail,
   parseTaskScheduleMetadata,
   type TaskScheduleMetadata,
 } from "@sokosumi/utils";
-
+import { hasCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import {
   computeScheduleNextRun,
@@ -384,7 +383,6 @@ async function processDueTask(
           description: true,
           metadata: true,
           nextRunAt: true,
-          owner: { select: { email: true } },
         },
       });
 
@@ -393,11 +391,15 @@ async function processDueTask(
       }
 
       const claimedNextRunAt = candidate.nextRunAt;
-      const calendarBetaEnabled = isNmkrEmail(candidate.owner?.email);
+      const calendarBetaEnabled = await hasCalendarBetaAccess(
+        candidate.ownerId,
+        tx,
+      );
+      const candidateMetadata = parseTaskScheduleMetadata(candidate.metadata);
       let template = candidate;
       let scheduleMetadata: TaskScheduleMetadata;
 
-      if (calendarBetaEnabled) {
+      if (candidateMetadata?.version === 2 || calendarBetaEnabled) {
         const scopeLocked = await lockCalendarScope(tx, candidate.workspaceId, [
           candidate.projectId,
         ]);
@@ -423,7 +425,6 @@ async function processDueTask(
             description: true,
             metadata: true,
             nextRunAt: true,
-            owner: { select: { email: true } },
           },
         });
         if (!currentTemplate?.nextRunAt) {
@@ -452,10 +453,7 @@ async function processDueTask(
         template = currentTemplate;
         scheduleMetadata = validation.metadata;
       } else {
-        const legacyScheduleMetadata = parseTaskScheduleMetadata(
-          template.metadata,
-        );
-        if (!legacyScheduleMetadata) {
+        if (!candidateMetadata) {
           const cleared = await clearTemplateSchedule(
             tx,
             template.id,
@@ -468,7 +466,7 @@ async function processDueTask(
               : [],
           };
         }
-        scheduleMetadata = legacyScheduleMetadata;
+        scheduleMetadata = candidateMetadata;
       }
 
       if (scheduleMetadata.mode === "once") {
@@ -517,7 +515,7 @@ async function processDueTask(
           template,
           metadata,
           nextRunAt,
-          calendarBetaEnabled,
+          metadata.version === 2 || calendarBetaEnabled,
         );
         clonedTaskIds.push(cloneId);
         clonesCreated += 1;

@@ -1,10 +1,24 @@
-import { isNmkrEmail } from "@sokosumi/utils";
+import { CALENDAR_BETA_ORGANIZATION_SLUG, isNmkrEmail } from "@sokosumi/utils";
+
+interface CalendarBetaMembership {
+  organization: { slug: string };
+}
 
 /**
- * Email domains allowed to use beta features.
+ * Email domains allowed to use the Soko Bot beta.
  */
-export function isBetaAccessEmail(email: string | null | undefined): boolean {
+export function isSokoBotBetaAccessEmail(
+  email: string | null | undefined,
+): boolean {
   return isNmkrEmail(email);
+}
+
+export function hasCalendarBetaAccess(
+  memberships: readonly CalendarBetaMembership[],
+): boolean {
+  return memberships.some(
+    ({ organization }) => organization.slug === CALENDAR_BETA_ORGANIZATION_SLUG,
+  );
 }
 
 /**
@@ -17,5 +31,5 @@ export function hasSokoBotBetaAccess(
   user: { email?: string | null; emailVerified?: boolean | null } | null,
 ): boolean {
   if (!user?.emailVerified) return false;
-  return isBetaAccessEmail(user.email);
+  return isSokoBotBetaAccessEmail(user.email);
 }

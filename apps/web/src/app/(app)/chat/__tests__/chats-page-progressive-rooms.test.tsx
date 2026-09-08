@@ -22,7 +22,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 }));
 
 vi.mock("@/lib/beta-access", () => ({
-  isBetaAccessEmail: () => false,
+  isSokoBotBetaAccessEmail: () => false,
 }));
 
 vi.mock("@/app/components/private-sidebar-cache", () => ({

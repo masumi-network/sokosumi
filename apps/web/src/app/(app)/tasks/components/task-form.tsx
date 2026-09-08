@@ -52,6 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCalendarBetaAccess } from "@/contexts/calendar-beta-access-context";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -159,12 +160,28 @@ interface TaskFormInitialValues {
   status?: TaskStatus;
   metadata?: string | null;
   nextRunAt?: string | null;
+  schedule?: TaskScheduleSelection;
 }
 
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
 
 /** Sentinel for the edit assignee select's Unassigned item (Radix needs non-empty values). */
 const UNASSIGNED_SELECT_VALUE = "__unassigned__";
+
+export interface TaskFormCreateInput {
+  description: string;
+  assigneeId: string | null;
+  assigneeSokoBotId: string | null;
+  assigneeUserId: string | null;
+  projectId?: string | null;
+  context: TaskContextSelectionInput;
+  status: Extract<TaskStatus, "DRAFT" | "READY">;
+  schedule?: TaskScheduleSelection;
+}
+
+export type TaskFormCreateHandler = (
+  input: TaskFormCreateInput,
+) => Promise<CreateTaskResult>;
 
 interface TaskFormProps {
   mode: "create" | "edit";
@@ -175,6 +192,7 @@ interface TaskFormProps {
   initialValues?: TaskFormInitialValues;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   projectOptions?: ProjectFilterOption[];
+  lockProjectSelection?: boolean;
   defaultProjectId?: string | null;
   variant?: "page" | "modal";
   onCancel?: () => void;
@@ -182,16 +200,7 @@ interface TaskFormProps {
   /** Runs right after a modal create succeeds (before the celebration step). */
   onCreated?: (taskId: string) => void;
   onCreateAnother?: () => void;
-  onCreateTask?: (input: {
-    description: string;
-    assigneeId: string | null;
-    assigneeSokoBotId: string | null;
-    assigneeUserId: string | null;
-    projectId?: string | null;
-    context: TaskContextSelectionInput;
-    status: Extract<TaskStatus, "DRAFT" | "READY">;
-    schedule?: TaskScheduleSelection;
-  }) => Promise<CreateTaskResult>;
+  onCreateTask?: TaskFormCreateHandler;
   showCancel?: boolean;
   onSubmittingChange?: (isSubmitting: boolean) => void;
   onCreatedChange?: (created: boolean) => void;
@@ -206,6 +215,7 @@ export function TaskForm({
   initialValues,
   initialDesignMdAttachment,
   projectOptions,
+  lockProjectSelection = false,
   defaultProjectId = null,
   variant = "page",
   onCancel,
@@ -218,11 +228,13 @@ export function TaskForm({
   onCreatedChange,
 }: TaskFormProps) {
   const router = useRouter();
+  const calendarBetaEnabled = useCalendarBetaAccess();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
   const isModal = variant === "modal";
-  const shouldShowProjectSelect = isModal && projectOptions !== undefined;
+  const hasProjectSelection = isModal && projectOptions !== undefined;
+  const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
   const initialDescription = initialValues?.description ?? "";
@@ -302,8 +314,10 @@ export function TaskForm({
 
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [scheduleSelection, setScheduleSelection] =
-    useState<TaskScheduleSelection>(() =>
-      metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
+    useState<TaskScheduleSelection>(
+      () =>
+        initialValues?.schedule ??
+        metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
     );
   const originalScheduleSelection = useRef(scheduleSelection);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -346,15 +360,17 @@ export function TaskForm({
     (id: string) => {
       coworkerTouchedRef.current = true;
       setAssigneeId(id);
-      // Schedules stay agent-only: drop a staged schedule when the new
-      // assignee is a human or Unassigned so the save cannot submit both.
       const fields = resolveTaskAssigneeFields(
         id,
         coworkerOptions,
         knownSokoBotId,
         initialValues?.assigneeUserId,
       );
-      if (fields.assigneeId === null && fields.assigneeSokoBotId === null) {
+      if (
+        fields.assigneeId === null &&
+        fields.assigneeSokoBotId === null &&
+        fields.assigneeUserId === null
+      ) {
         setScheduleSelection((current) =>
           current.mode === "none"
             ? current
@@ -540,7 +556,7 @@ export function TaskForm({
               briefingEnabled: contextSelection.briefingEnabled,
               contextMdEnabled: contextSelection.contextMdEnabled,
             },
-            ...(shouldShowProjectSelect ? { projectId } : {}),
+            ...(hasProjectSelection ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
             schedule: scheduleSelection,
           });
@@ -552,9 +568,16 @@ export function TaskForm({
           // In the modal, confirm success in place and let the user choose when
           // to navigate — the redirect target is prefetched so it lands fast.
           if (isModal) {
+            const assigneeFields = resolveTaskAssigneeFields(
+              assigneeId,
+              coworkerOptions,
+              knownSokoBotId,
+              initialValues?.assigneeUserId,
+            );
             const createdStatus =
               scheduleSelection.mode !== "none" &&
-              desiredStatus !== TaskStatus.DRAFT
+              desiredStatus !== TaskStatus.DRAFT &&
+              assigneeFields.assigneeUserId === null
                 ? "QUEUED"
                 : desiredStatus === TaskStatus.DRAFT
                   ? "DRAFT"
@@ -571,7 +594,8 @@ export function TaskForm({
                     ? labels.statusDraft
                     : labels.statusReady,
               scheduleLabel:
-                createdStatus === "QUEUED"
+                scheduleSelection.mode !== "none" &&
+                desiredStatus !== TaskStatus.DRAFT
                   ? (scheduleLabel ?? undefined)
                   : undefined,
             });
@@ -601,7 +625,7 @@ export function TaskForm({
             knownSokoBotId,
             initialValues?.assigneeUserId,
           ),
-          ...(shouldShowProjectSelect ? { projectId } : {}),
+          ...(hasProjectSelection ? { projectId } : {}),
           currentStatus: originalStatus,
           desiredStatus,
           schedule: scheduleSelection,
@@ -638,7 +662,7 @@ export function TaskForm({
       knownSokoBotId,
       initialValues?.assigneeUserId,
       projectId,
-      shouldShowProjectSelect,
+      hasProjectSelection,
       originalStatus,
       router,
       status,
@@ -728,9 +752,6 @@ export function TaskForm({
     () => coworkerOptions.find((option) => option.id === assigneeId),
     [coworkerOptions, assigneeId],
   );
-  // Schedules stay agent-only (SOK-868): human-assigned and unset tasks
-  // cannot be scheduled. Core rejects QUEUED without a coworker or
-  // sokoBot assignee; the picker disables the schedule control first.
   const selectedAssigneeFields = useMemo(
     () =>
       resolveTaskAssigneeFields(
@@ -749,6 +770,8 @@ export function TaskForm({
   const isAgentAssignee =
     selectedAssigneeFields.assigneeId !== null ||
     selectedAssigneeFields.assigneeSokoBotId !== null;
+  const isSchedulableAssignee =
+    isAgentAssignee || selectedAssigneeFields.assigneeUserId !== null;
   // Queued work must stay agent-assigned: Core rejects reassignment away
   // from an agent while QUEUED, so the edit picker locks non-agent options.
   const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
@@ -1229,7 +1252,7 @@ export function TaskForm({
           ) : null}
         </div>
 
-        {showTaskStep ? (
+        {showTaskStep && calendarBetaEnabled ? (
           <TaskScheduleModal
             open={isScheduleModalOpen}
             onOpenChange={setIsScheduleModalOpen}
@@ -1265,17 +1288,19 @@ export function TaskForm({
             <div className="flex items-center gap-3 sm:ml-auto">
               {mode === "create" ? (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={createdTask !== null || !isAgentAssignee}
-                    aria-label={labels.openSchedule}
-                    aria-pressed={hasSchedule}
-                    onClick={() => setIsScheduleModalOpen(true)}
-                  >
-                    <CalendarClock className="size-4" aria-hidden />
-                  </Button>
+                  {calendarBetaEnabled ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      disabled={createdTask !== null || !isSchedulableAssignee}
+                      aria-label={labels.openSchedule}
+                      aria-pressed={hasSchedule}
+                      onClick={() => setIsScheduleModalOpen(true)}
+                    >
+                      <CalendarClock className="size-4" aria-hidden />
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="outline"
@@ -1322,17 +1347,19 @@ export function TaskForm({
                 </>
               ) : (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={createdTask !== null || !isAgentAssignee}
-                    aria-label={labels.openSchedule}
-                    aria-pressed={hasSchedule}
-                    onClick={() => setIsScheduleModalOpen(true)}
-                  >
-                    <CalendarClock className="size-4" aria-hidden />
-                  </Button>
+                  {calendarBetaEnabled ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      disabled={createdTask !== null || !isSchedulableAssignee}
+                      aria-label={labels.openSchedule}
+                      aria-pressed={hasSchedule}
+                      onClick={() => setIsScheduleModalOpen(true)}
+                    >
+                      <CalendarClock className="size-4" aria-hidden />
+                    </Button>
+                  ) : null}
                   {shouldShowEditToggle ? (
                     <Button
                       type="button"
