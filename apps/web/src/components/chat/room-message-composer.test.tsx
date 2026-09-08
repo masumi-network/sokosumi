@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { ROOM_COMPOSER_TEXTAREA_CLASSNAME } from "./room-message-composer";
 
-/** True for `py-*`, `pt-*`, `pb-*` under any variant, bracketed ones included. */
+/**
+ * True for `p-*`, `py-*`, `pt-*`, `pb-*` under any variant, bracketed ones
+ * included. `p-*` counts: a variant that raises specificity, such as
+ * `focus:p-4`, beats `py-3` and changes the box height.
+ */
 function isVerticalPadding(token: string): boolean {
-  return /(?:^|:)!?p[ytb]-/.test(token);
+  return /(?:^|:)!?p[ytb]?-/.test(token);
 }
 
 function verticalPadding(className: string): string[] {
