@@ -1,4 +1,8 @@
 import { NotificationKind } from "@sokosumi/database";
+import {
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notificationFeedWhere } from "@/helpers/notification-feed";
@@ -19,21 +23,39 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  publishClearedNotificationsMock,
+  waitUntilPromises,
   notificationCountMock,
   notificationFindManyMock,
   notificationFindUniqueMock,
   notificationUpdateManyMock,
+  notificationUpdateManyAndReturnMock,
   notificationUpdateMock,
   vendorGrantFindManyMock,
   coworkerWorkspaceAccessFindManyMock,
 } = vi.hoisted(() => ({
+  publishClearedNotificationsMock: vi.fn(),
+  waitUntilPromises: [] as Promise<unknown>[],
   notificationCountMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   notificationFindUniqueMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
+  notificationUpdateManyAndReturnMock: vi.fn(),
   notificationUpdateMock: vi.fn(),
   vendorGrantFindManyMock: vi.fn(),
   coworkerWorkspaceAccessFindManyMock: vi.fn(),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    waitUntilPromises.push(promise);
+  },
+}));
+
+vi.mock("@/helpers/notifications", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/notifications")>()),
+  publishClearedNotifications: (...args: unknown[]) =>
+    publishClearedNotificationsMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -44,6 +66,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: notificationFindUniqueMock,
       update: notificationUpdateMock,
       updateMany: notificationUpdateManyMock,
+      updateManyAndReturn: notificationUpdateManyAndReturnMock,
     },
     vendorGrant: {
       findMany: vendorGrantFindManyMock,
@@ -103,6 +126,126 @@ function createApp(
 describe("PATCH /notifications/{id}/read", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    waitUntilPromises.length = 0;
+  });
+
+  /**
+   * Reading a row in the Notification Center leaves its OS banner standing,
+   * and the two then disagree about the same room. A tab learns a row went
+   * read from the republished row, which is what the room-read route already
+   * sends, so this route sends it too.
+   */
+  it("tells the reader's tabs the row went read", async () => {
+    const existing = createNotificationRow({
+      kind: NotificationKind.CHAT,
+      referenceId: "room_123",
+      messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+    });
+    notificationFindUniqueMock.mockResolvedValue(existing);
+    notificationUpdateMock.mockResolvedValue({
+      ...existing,
+      isRead: true,
+      readAt: new Date("2026-06-16T15:00:00.000Z"),
+    });
+
+    const app = createApp(mountMarkNotificationRead);
+    const response = await app.request("http://localhost/notif_123/read", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith(["notif_123"]);
+  });
+
+  /**
+   * A banner can outlive the row it stands for: a second device raised it, or
+   * an earlier publish never arrived. The reader marking the row read again is
+   * them saying so again, so this route says it again rather than treating the
+   * stored read flag as proof that every banner is already down.
+   */
+  it("tells them again for a row that was already read", async () => {
+    notificationFindUniqueMock.mockResolvedValue(
+      createNotificationRow({
+        kind: NotificationKind.CHAT,
+        referenceId: "room_123",
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        isRead: true,
+        readAt: new Date("2026-06-16T15:00:00.000Z"),
+      }),
+    );
+
+    const app = createApp(mountMarkNotificationRead);
+    await app.request("http://localhost/notif_123/read", { method: "PATCH" });
+    await Promise.all(waitUntilPromises);
+
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith(["notif_123"]);
+  });
+
+  /**
+   * A mention shares the room's banner without standing for it: the counted
+   * row can still be unread when the mention is read. Publishing here would
+   * take the whole room's banner down while messages are still waiting.
+   */
+  it("publishes nothing for a mention in a room", async () => {
+    const existing = createNotificationRow({
+      kind: NotificationKind.CHAT,
+      referenceId: "room_123",
+      messageKey: CHAT_MENTION_MESSAGE_KEY,
+    });
+    notificationFindUniqueMock.mockResolvedValue(existing);
+    notificationUpdateMock.mockResolvedValue({
+      ...existing,
+      isRead: true,
+      readAt: new Date("2026-06-16T15:00:00.000Z"),
+    });
+
+    const app = createApp(mountMarkNotificationRead);
+    await app.request("http://localhost/notif_123/read", { method: "PATCH" });
+    await Promise.all(waitUntilPromises);
+
+    expect(publishClearedNotificationsMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Only a chat banner stands for more than the row that raised it, so only a
+   * chat row needs its tabs told. A job banner keeps behaving as it did.
+   */
+  it("publishes nothing for a row outside chat", async () => {
+    const existing = createNotificationRow();
+    notificationFindUniqueMock.mockResolvedValue(existing);
+    notificationUpdateMock.mockResolvedValue({
+      ...existing,
+      isRead: true,
+      readAt: new Date("2026-06-16T15:00:00.000Z"),
+    });
+
+    const app = createApp(mountMarkNotificationRead);
+    await app.request("http://localhost/notif_123/read", { method: "PATCH" });
+    await Promise.all(waitUntilPromises);
+
+    expect(publishClearedNotificationsMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A room row, so ownership is what stops the publish rather than the kind
+   * gate: someone else's room must not have its banner taken down.
+   */
+  it("publishes nothing when the row belongs to someone else", async () => {
+    notificationFindUniqueMock.mockResolvedValue(
+      createNotificationRow({
+        userId: "user_other",
+        kind: NotificationKind.CHAT,
+        referenceId: "room_123",
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+      }),
+    );
+
+    const app = createApp(mountMarkNotificationRead);
+    await app.request("http://localhost/notif_123/read", { method: "PATCH" });
+    await Promise.all(waitUntilPromises);
+
+    expect(publishClearedNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("marks an owned unread notification as read", async () => {
@@ -182,7 +325,14 @@ describe("PATCH /notifications/{id}/read", () => {
 describe("PATCH /notifications/read-all", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    waitUntilPromises.length = 0;
+    notificationFindManyMock.mockResolvedValue([]);
     notificationUpdateManyMock.mockResolvedValue({ count: 3 });
+    notificationUpdateManyAndReturnMock.mockResolvedValue(
+      ["notif_1", "notif_2", "notif_3"].map((id) =>
+        createNotificationRow({ id }),
+      ),
+    );
   });
 
   it("marks all unread notifications for the authenticated user", async () => {
@@ -192,7 +342,7 @@ describe("PATCH /notifications/read-all", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+    expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith({
       where: {
         userId: "user_123",
         isRead: false,
@@ -202,10 +352,98 @@ describe("PATCH /notifications/read-all", () => {
         isRead: true,
         readAt: expect.any(Date),
       },
+      select: { id: true, kind: true, messageKey: true },
     });
 
     const body = (await response.json()) as { data: { count: number } };
     expect(body.data.count).toBe(3);
+  });
+
+  it("publishes every room row changed when a notification arrives before the update", async () => {
+    const rows = [
+      {
+        id: "notif_existing",
+        kind: NotificationKind.CHAT,
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        isRead: false,
+      },
+    ];
+    notificationFindManyMock.mockImplementation(async () =>
+      rows.filter((row) => !row.isRead).map((row) => ({ ...row })),
+    );
+
+    function markRowsRead() {
+      rows.push({
+        id: "notif_arriving",
+        kind: NotificationKind.CHAT,
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        isRead: false,
+      });
+      const updatedRows = rows.filter((row) => !row.isRead);
+      for (const row of updatedRows) {
+        row.isRead = true;
+      }
+      return updatedRows;
+    }
+
+    notificationUpdateManyMock.mockImplementation(async () => ({
+      count: markRowsRead().length,
+    }));
+    notificationUpdateManyAndReturnMock.mockImplementation(async () =>
+      markRowsRead(),
+    );
+
+    const app = createApp(mountMarkAllRead);
+    const response = await app.request("http://localhost/read-all", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: { count: number } };
+    expect(body.data.count).toBe(2);
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith(
+      rows.filter((row) => row.isRead).map((row) => row.id),
+    );
+  });
+
+  it("publishes only room rows among the notifications it cleared", async () => {
+    notificationUpdateManyAndReturnMock.mockResolvedValue([
+      createNotificationRow({
+        id: "notif_room",
+        kind: NotificationKind.CHAT,
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+      }),
+      createNotificationRow({ id: "notif_job" }),
+    ]);
+
+    const app = createApp(mountMarkAllRead);
+    const response = await app.request("http://localhost/read-all", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith([
+      "notif_room",
+    ]);
+    const body = (await response.json()) as { data: { count: number } };
+    expect(body.data.count).toBe(2);
+  });
+
+  it("returns zero when no notifications changed", async () => {
+    notificationUpdateManyAndReturnMock.mockResolvedValue([]);
+
+    const app = createApp(mountMarkAllRead);
+    const response = await app.request("http://localhost/read-all", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: { count: number } };
+    expect(body.data.count).toBe(0);
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith([]);
   });
 });
 

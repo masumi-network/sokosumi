@@ -162,6 +162,7 @@ describe("publishNotificationEvent", () => {
             kind: notification.kind,
             referenceId: notification.referenceId,
             messageKey: notification.messageKey,
+            createdAt: notification.createdAt,
             messageParams: JSON.stringify(notification.messageParams),
             metadata: JSON.stringify(notification.metadata),
           },
@@ -198,7 +199,7 @@ describe("publishNotificationEvent", () => {
       | undefined;
 
     expect(pushData).toBeDefined();
-    expect(Object.keys(pushData ?? {})).toHaveLength(6);
+    expect(Object.keys(pushData ?? {})).toHaveLength(7);
     for (const value of Object.values(pushData ?? {})) {
       expect(typeof value).toBe("string");
     }

@@ -77,6 +77,7 @@ function chatTitle(
  * Every other kind keeps the app name and its line, because a title is cut
  * shorter than a body on most platforms and a task name is long. Chat
  * messages without preview text keep their chat title and have no body.
+ * Grouped arrivals use the app title and the room's count instead of a preview.
  *
  * The push service worker renders a closed tab's banner and cannot import this
  * (it ships as a plain script), so it carries the same rule. The two are held
@@ -88,6 +89,18 @@ export function buildNotificationBannerContent({
   appTitle,
   translate,
 }: NotificationBannerInput): NotificationBannerContent {
+  const count = messageParams.count;
+  if (
+    typeof count === "number" &&
+    Number.isInteger(count) &&
+    count > 1 &&
+    (messageKey === CHAT_DIRECT_MESSAGE_MESSAGE_KEY ||
+      messageKey === CHAT_MENTION_MESSAGE_KEY ||
+      messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY)
+  ) {
+    // A grouped banner speaks for the room; a preview describes one arrival.
+    return { title: appTitle, body: translate(messageKey) };
+  }
   const preview = messageParams.messagePreview;
 
   const title = chatTitle(messageKey, messageParams, translate);
