@@ -208,6 +208,24 @@ beforeEach(() => {
 });
 
 describe("GET /chats/rooms", () => {
+  it("returns the stored room timestamp when the latest message is older", async () => {
+    const room = guestRoomRow();
+    roomFindManyMock.mockResolvedValue([room]);
+    roomCountMock.mockResolvedValue(1);
+    messageGroupByMock.mockResolvedValue([
+      { roomId: room.id, _max: { createdAt: room.createdAt } },
+    ]);
+    queryRawUnsafeMock.mockResolvedValue([{ roomId: room.id, unreadCount: 1 }]);
+
+    const response = await createApp(ORG_ID).request("/");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      updatedAt: room.updatedAt.toISOString(),
+      unreadCount: 1,
+    });
+  });
+
   it("lists rooms without opening an interactive transaction", async () => {
     const response = await createApp(ORG_ID).request("/");
 

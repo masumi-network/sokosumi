@@ -159,6 +159,11 @@ export const userPreferencesResponseSchema = z.object({
       "Whether the user wants OS banners while Sokosumi is closed (push)",
     example: false,
   }),
+  showRoomUnreadCount: z.boolean().openapi({
+    description:
+      "Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery",
+    example: false,
+  }),
   notificationPreferences: z.array(notificationPreferenceSchema).openapi({
     description:
       "Every cell of the notification preference matrix, with defaults already applied",

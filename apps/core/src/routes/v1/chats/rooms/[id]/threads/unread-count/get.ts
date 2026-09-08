@@ -10,10 +10,8 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomThreadsUnreadCountSchema } from "@/schemas/chat-room.schema";
 
-import {
-  countChatRoomUnreadThreads,
-  requireChatRoomUserAccess,
-} from "../../../helpers";
+import { requireChatRoomUserAccess } from "../../../helpers";
+import { countChatRoomUnreadThreads } from "../../../room-unread";
 
 const paramsSchema = z.object({
   id: z

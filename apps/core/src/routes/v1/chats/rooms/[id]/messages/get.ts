@@ -19,10 +19,8 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import {
-  dispatchChatRoomMention,
-  listStaleSentChatRoomMentionIds,
-} from "@/services/chat-room-coworker-dispatch.service";
+import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
+import { listStaleSentChatRoomMentionIds } from "@/services/chat-room-mention-state";
 
 import {
   chatRoomMessageInclude,

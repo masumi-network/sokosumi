@@ -138,11 +138,6 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
   })),
 }));
 
-vi.mock("@/components/chat/room-read-overlay", () => ({
-  rememberRoomRead: vi.fn(),
-  forgetRoomRead: vi.fn(),
-}));
-
 vi.mock("../room-file-drop-zone", () => ({
   RoomFileDropZone: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>

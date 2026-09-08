@@ -1552,6 +1552,7 @@
         "scopeOwned": "Meine Tasks",
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
+        "humanLabel": "Mensch",
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Entwurf",
@@ -4043,6 +4044,15 @@
         "deliveryAriaLabel": "Zustellung für {kind}",
         "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails"
       },
+      "ChatDisplay": {
+        "title": "Chat-Anzeige",
+        "roomUnreadCountTitle": "Anzahl ungelesener Nachrichten anzeigen",
+        "roomUnreadCountDescription": "Stummgeschaltete Chats und der geöffnete Chat bleiben ruhig. An deinen Benachrichtigungen ändert sich nichts.",
+        "loading": "Einstellung wird gespeichert...",
+        "error": "Die Änderung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
+        "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
+        "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert"
+      },
       "BillingDetails": {
         "title": "Rechnungsinformationen",
         "description": "Rechnungsadresse, Steuer-ID, Rechnungs-E-Mail und Zahlungsmethoden werden in Stripe verwaltet.",
@@ -5390,6 +5400,10 @@
         "startedBy": "Gestartet von {name}",
         "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
       },
+      "RoomUnread": {
+        "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
+        "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten"
+      },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
         "left": "{name} hat den Channel verlassen"
@@ -6052,6 +6066,26 @@
         "WORKSPACE": "Workspace",
         "PROJECT": "Projekt",
         "LEGACY_UNKNOWN": "Legacy-Quelle"
+      },
+      "event": {
+        "accessibleName": "{task}, {source}",
+        "editSchedule": "Zeitplan bearbeiten",
+        "openTask": "Task öffnen"
+      },
+      "create": {
+        "title": "Task planen"
+      },
+      "edit": {
+        "title": "Zeitplan bearbeiten",
+        "description": "Aendere den Zeitplan fuer {name}.",
+        "loadError": "Dieser Task konnte nicht geladen werden. Bitte versuche es erneut.",
+        "saveError": "Dieser Zeitplan konnte nicht gespeichert werden. Bitte versuche es erneut.",
+        "clearError": "Dieser Zeitplan konnte nicht entfernt werden. Bitte versuche es erneut.",
+        "clearPending": "Zeitplan wird entfernt…",
+        "clearTitle": "Zeitplan entfernen?",
+        "clearDescription": "Dieser Task wird nicht mehr nach einem Zeitplan ausgeführt.",
+        "clearCancel": "Abbrechen",
+        "clearConfirm": "Zeitplan entfernen"
       },
       "accuracy": {
         "inferred": "Abgeleitete Quelle",

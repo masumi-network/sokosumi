@@ -1552,6 +1552,7 @@
         "scopeOwned": "Mis tareas",
         "scopeWorkspace": "Espacio de trabajo",
         "coworkerLabel": "Coworker",
+        "humanLabel": "Humano",
         "statusLabel": "Estado",
         "statusOptions": {
           "DRAFT": "Borrador",
@@ -4043,6 +4044,15 @@
         "deliveryAriaLabel": "Entrega para {kind}",
         "newsDeliveryAriaLabel": "Entrega para los emails de marketing"
       },
+      "ChatDisplay": {
+        "title": "Visualización del chat",
+        "roomUnreadCountTitle": "Mostrar el número de mensajes no leídos",
+        "roomUnreadCountDescription": "Los chats silenciados y el chat que tienes abierto siguen en silencio. Tus notificaciones no cambian.",
+        "loading": "Guardando configuración...",
+        "error": "No se pudo guardar el cambio. Comprueba tu conexión e inténtalo de nuevo.",
+        "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
+        "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado"
+      },
       "BillingDetails": {
         "title": "Información de facturación",
         "description": "La dirección de facturación, identificación fiscal, email de facturación y métodos de pago se gestionan en Stripe.",
@@ -5390,6 +5400,10 @@
         "startedBy": "Iniciado por {name}",
         "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}"
       },
+      "RoomUnread": {
+        "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
+        "unreadMessagesCapped": "Más de {max} mensajes no leídos"
+      },
       "MembershipStatus": {
         "joined": "{name} se unió",
         "left": "{name} salió"
@@ -6052,6 +6066,26 @@
         "WORKSPACE": "Espacio de trabajo",
         "PROJECT": "Proyecto",
         "LEGACY_UNKNOWN": "Origen heredado"
+      },
+      "event": {
+        "accessibleName": "{task}, {source}",
+        "editSchedule": "Editar programación",
+        "openTask": "Abrir tarea"
+      },
+      "create": {
+        "title": "Programar una tarea"
+      },
+      "edit": {
+        "title": "Editar programación",
+        "description": "Cambia la programación de {name}.",
+        "loadError": "No se pudo cargar esta tarea. Inténtalo de nuevo.",
+        "saveError": "No se pudo guardar esta programación. Inténtalo de nuevo.",
+        "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo.",
+        "clearPending": "Eliminando programación…",
+        "clearTitle": "¿Eliminar programación?",
+        "clearDescription": "Esta tarea dejará de ejecutarse según una programación.",
+        "clearCancel": "Cancelar",
+        "clearConfirm": "Eliminar programación"
       },
       "accuracy": {
         "inferred": "Origen inferido",

@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { Channel, TaskScheduleEventKind, TaskStatus } from "@sokosumi/database";
+import { isDesignMdBlobUrl } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
@@ -15,6 +16,24 @@ import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 import { workspaceSummarySchema } from "@/schemas/workspace.schema";
+
+const customBrandSchema = z.object({
+  url: z
+    .string()
+    .url()
+    .refine(isDesignMdBlobUrl, "Brand URL must reference a DESIGN.md blob"),
+});
+
+export const createTaskContextSchema = z
+  .object({
+    brand: z.union([z.boolean(), customBrandSchema]).optional(),
+    brandSource: z.enum(["project", "workspace"]).optional(),
+    briefing: z.boolean().optional(),
+    memory: z.boolean().optional(),
+  })
+  .openapi("CreateTaskContext");
+
+export type CreateTaskContext = z.infer<typeof createTaskContextSchema>;
 
 const deprecatedOriginField = channelSchema.openapi({
   deprecated: true,

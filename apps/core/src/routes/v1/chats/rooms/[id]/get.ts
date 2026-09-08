@@ -13,12 +13,14 @@ import { chatRoomSchema } from "@/schemas/chat-room.schema";
 import {
   getChatRoomPinnedMessageCounts,
   getChatRoomSidebarFlags,
-  getChatRoomUnreadCounts,
-  getChatRoomUnreadMentionCounts,
   mapChatRoom,
   requireChatRoomUserAccess,
   resolvePeerInActiveOrganization,
 } from "../helpers";
+import {
+  getChatRoomUnreadCounts,
+  getChatRoomUnreadMentionCounts,
+} from "../room-unread";
 
 const paramsSchema = z.object({
   id: z

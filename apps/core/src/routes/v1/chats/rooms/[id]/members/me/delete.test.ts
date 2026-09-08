@@ -95,6 +95,7 @@ const tx = {
   chatRoom: {
     findFirst: roomFindFirstMock,
     updateMany: roomUpdateManyMock,
+    update: vi.fn(),
   },
   chatRoomUserMember: {
     count: userMemberCountMock,

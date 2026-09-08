@@ -1,7 +1,12 @@
+import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionOrRedirectMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
+const hasAssignedOrganizationSeatMock = vi.fn();
+const hasCurrentUserCalendarBetaAccessMock = vi.fn();
+const calendarBetaAccessProviderMock = vi.fn();
+const privateCachedAppSidebarMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
 });
@@ -17,6 +22,16 @@ vi.mock("@/lib/auth/auth.server", () => ({
 
 vi.mock("@/lib/auth/has-admin-role", () => ({
   hasAdminRole: () => false,
+}));
+
+vi.mock("@/lib/calendar-beta-access.server", () => ({
+  hasCurrentUserCalendarBetaAccess: () =>
+    hasCurrentUserCalendarBetaAccessMock(),
+}));
+
+vi.mock("@/lib/services/organization-assigned-seat.service", () => ({
+  hasAssignedOrganizationSeat: (...args: unknown[]) =>
+    hasAssignedOrganizationSeatMock(...args),
 }));
 
 vi.mock("@/lib/services", () => ({
@@ -46,6 +61,23 @@ vi.mock("@/contexts/coworkers-context", () => ({
     <>{children}</>
   ),
 }));
+vi.mock("@/contexts/calendar-beta-access-context", () => ({
+  CalendarBetaAccessProvider: ({
+    children,
+    enabled,
+  }: {
+    children: React.ReactNode;
+    enabled: boolean;
+  }) => {
+    calendarBetaAccessProviderMock(enabled);
+    return <>{children}</>;
+  },
+}));
+vi.mock("@/contexts/organization-seat-context", () => ({
+  OrganizationSeatProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+}));
 vi.mock("@/contexts/breadcrumb-override-context", () => ({
   BreadcrumbOverrideProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
@@ -59,7 +91,10 @@ vi.mock("@/app/components/history-search-dialog-provider", () => ({
   }) => <>{children}</>,
 }));
 vi.mock("../private-cached-app-sidebar", () => ({
-  default: () => null,
+  default: (props: unknown) => {
+    privateCachedAppSidebarMock(props);
+    return null;
+  },
 }));
 vi.mock("../header", () => ({
   default: () => null,
@@ -97,6 +132,8 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       user: { id: "user-1", role: "user" },
       session: { id: "session-1", activeOrganizationId: null },
     });
+    hasAssignedOrganizationSeatMock.mockResolvedValue(true);
+    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
   });
 
   it("redirects not-ready users to the workspace gate before chrome", async () => {
@@ -130,6 +167,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
   });
 
   it("allows ready users through to the app chrome", async () => {
+    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "ready",
       hasPersonalWorkspace: true,
@@ -142,7 +180,12 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     );
 
     const ui = await AuthenticatedAppFrame({ children: <div>app</div> });
+    render(ui);
     expect(redirectMock).not.toHaveBeenCalled();
     expect(ui).toBeTruthy();
+    expect(calendarBetaAccessProviderMock).toHaveBeenCalledWith(true);
+    expect(privateCachedAppSidebarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ calendarMenuEnabled: true }),
+    );
   });
 });

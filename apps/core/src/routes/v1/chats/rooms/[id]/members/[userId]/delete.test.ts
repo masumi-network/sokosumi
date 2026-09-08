@@ -76,7 +76,7 @@ const MEMBERSHIP_MESSAGE = {
 };
 
 const tx = {
-  chatRoom: { findFirst: roomFindFirstMock },
+  chatRoom: { findFirst: roomFindFirstMock, update: vi.fn() },
   chatRoomUserMember: {
     findUnique: userMemberFindUniqueMock,
     deleteMany: userMemberDeleteManyMock,

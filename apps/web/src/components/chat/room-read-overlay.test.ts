@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   applyRoomReadOverlays,
+  beginRoomAttentionChange,
+  beginRoomAttentionRefresh,
   clearRoomReadOverlays,
   forgetRoomRead,
+  reconcileRoomAttention,
   rememberRoomRead,
+  settleRoomAttentionChange,
 } from "./room-read-overlay";
 
 function room(overrides: {
@@ -245,5 +249,112 @@ describe("room-read-overlay", () => {
       unreadCount: 4,
       unreadMentionCount: 1,
     });
+  });
+});
+
+describe("authoritative room attention", () => {
+  it("accepts Mark unread and Thread Look without new room activity", () => {
+    rememberRoomRead(room({ unreadCount: 2 }));
+    const request = beginRoomAttentionRefresh();
+    const fresh = room({ unreadCount: 0, markedUnread: true });
+
+    expect(reconcileRoomAttention([fresh], request)).toEqual([fresh]);
+    expect(applyRoomReadOverlays([room({ unreadCount: 5 })])[0]).toMatchObject({
+      unreadCount: 0,
+      markedUnread: true,
+    });
+  });
+
+  it("keeps a pending read when a fetch starts after the optimistic clear", () => {
+    const token = beginRoomAttentionChange(room({ unreadCount: 0 }));
+    const request = beginRoomAttentionRefresh();
+    // A second listener sees the same optimistic event.
+    rememberRoomRead(room({ unreadCount: 0 }));
+
+    expect(
+      reconcileRoomAttention([room({ unreadCount: 5 })], request)[0],
+    ).toMatchObject({ unreadCount: 0 });
+    expect(
+      settleRoomAttentionChange("room-1", token, room({ unreadCount: 2 })),
+    ).toBe(true);
+    expect(applyRoomReadOverlays([room({ unreadCount: 5 })])[0]).toMatchObject({
+      unreadCount: 2,
+    });
+  });
+
+  it("protects a read that starts and settles during an older fetch", () => {
+    const request = beginRoomAttentionRefresh();
+    const token = beginRoomAttentionChange(room({}));
+    settleRoomAttentionChange("room-1", token, room({ unreadCount: 2 }));
+
+    expect(
+      reconcileRoomAttention([room({ unreadCount: 5 })], request)[0],
+    ).toMatchObject({ unreadCount: 2 });
+    const laterRequest = beginRoomAttentionRefresh();
+    expect(
+      reconcileRoomAttention([room({ unreadCount: 1 })], laterRequest)[0],
+    ).toMatchObject({ unreadCount: 1 });
+  });
+
+  it("rejects a superseded read result and permits another room's fetch", () => {
+    const oldToken = beginRoomAttentionChange(room({}));
+    const token = beginRoomAttentionChange(room({ unreadCount: 2 }));
+    expect(settleRoomAttentionChange("room-1", oldToken, room({}))).toBe(false);
+    const otherRoom = room({ id: "room-2", unreadCount: 3 });
+    expect(
+      reconcileRoomAttention([otherRoom], beginRoomAttentionRefresh()),
+    ).toEqual([otherRoom]);
+    expect(
+      settleRoomAttentionChange("room-1", token, room({ unreadCount: 2 })),
+    ).toBe(true);
+  });
+
+  it("releases failed reads so the next server response can restore unread", () => {
+    const token = beginRoomAttentionChange(room({}));
+    expect(settleRoomAttentionChange("room-1", token, null)).toBe(true);
+    const unread = room({ unreadCount: 5 });
+    expect(
+      reconcileRoomAttention([unread], beginRoomAttentionRefresh()),
+    ).toEqual([unread]);
+  });
+
+  it("keeps the latest attention when another consumer finishes an older fetch", () => {
+    const olderRequest = beginRoomAttentionRefresh();
+    const newerRequest = beginRoomAttentionRefresh();
+    reconcileRoomAttention([room({ unreadCount: 1 })], newerRequest);
+
+    expect(reconcileRoomAttention([room({})], olderRequest)[0]).toMatchObject({
+      unreadCount: 1,
+    });
+    expect(applyRoomReadOverlays([room({})])[0]).toMatchObject({
+      unreadCount: 1,
+    });
+  });
+  it("restores settled attention after a superseding operation fails", () => {
+    const settled = room({ unreadCount: 2, unreadMentionCount: 1 });
+    rememberRoomRead(settled);
+    const first = beginRoomAttentionChange(room({}), room({ unreadCount: 4 }));
+    rememberRoomRead(room({}));
+    const second = beginRoomAttentionChange(
+      room({ markedUnread: true }),
+      room({}),
+    );
+    rememberRoomRead(room({ markedUnread: true }));
+
+    expect(settleRoomAttentionChange("room-1", first, null)).toBe(false);
+    expect(settleRoomAttentionChange("room-1", second, null)).toBe(true);
+    expect(applyRoomReadOverlays([room({})])).toEqual([settled]);
+  });
+  it("keeps the settled activity timestamp when rollback starts from stale props", () => {
+    rememberRoomRead(
+      room({ updatedAt: "2026-08-01T12:05:00.000Z", unreadCount: 2 }),
+    );
+    const token = beginRoomAttentionChange(room({}), room({ unreadCount: 4 }));
+    settleRoomAttentionChange("room-1", token, null);
+    expect(
+      applyRoomReadOverlays([
+        room({ updatedAt: "2026-08-01T12:03:00.000Z", unreadCount: 4 }),
+      ])[0].unreadCount,
+    ).toBe(2);
   });
 });
