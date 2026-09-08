@@ -7,6 +7,7 @@ import { CalendarCreateTaskModal } from "@/app/calendar/components/calendar-crea
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { getSession } from "@/lib/auth/auth.server";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { TaskStatus } from "@/lib/clients/generated/core";
@@ -57,22 +58,30 @@ export default async function CalendarPage({
   const latestCalendarDate = getLatestCalendarDate(now);
   const initialDate = resolveCalendarDate(date, now);
   const range = getCalendarRange(initialDate);
-  const [{ items, pagination }, sources, coworkers, allProjectOptions] =
-    await Promise.all([
-      taskService.getWorkspaceCalendar({
-        ...range,
-        assigneeId,
-        limit: 100,
-        projectId,
-        sourceId,
-        scope: scope === "owned" ? "owned" : "workspace",
-        status: calendarStatus,
-      }),
-      taskService.getWorkspaceCalendarSources().catch(() => []),
-      coworkerService.listCoworkers().catch(() => []),
-      getProjectFilterOptions(projectId),
-    ]);
-  const coworkerOptions = getCoworkerOptions(coworkers);
+  const [
+    { items, pagination },
+    sources,
+    coworkers,
+    memberOptions,
+    allProjectOptions,
+  ] = await Promise.all([
+    taskService.getWorkspaceCalendar({
+      ...range,
+      assigneeId,
+      limit: 100,
+      projectId,
+      sourceId,
+      scope: scope === "owned" ? "owned" : "workspace",
+      status: calendarStatus,
+    }),
+    taskService.getWorkspaceCalendarSources().catch(() => []),
+    coworkerService.listCoworkers().catch(() => []),
+    listTaskAssigneeMemberOptions(
+      session?.session?.activeOrganizationId ?? null,
+    ),
+    getProjectFilterOptions(projectId),
+  ]);
+  const coworkerOptions = [...memberOptions, ...getCoworkerOptions(coworkers)];
   const schedulableProjectIds = new Set(
     sources
       .filter(

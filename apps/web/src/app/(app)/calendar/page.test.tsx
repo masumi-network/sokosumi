@@ -7,6 +7,7 @@ const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
 const listCoworkersMock = vi.fn();
+const listTaskAssigneeMemberOptionsMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const calendarCreateTaskModalMock = vi.fn();
 const workspaceCalendarMock = vi.fn();
@@ -54,6 +55,11 @@ vi.mock("@/lib/services/coworker.service", () => ({
   },
 }));
 
+vi.mock("@/app/tasks/utils/task-assignee-members", () => ({
+  listTaskAssigneeMemberOptions: (organizationId: string | null) =>
+    listTaskAssigneeMemberOptionsMock(organizationId),
+}));
+
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
     getWorkspaceCalendar: (query: unknown) => getWorkspaceCalendarMock(query),
@@ -84,6 +90,7 @@ describe("CalendarPage", () => {
     });
     getWorkspaceCalendarSourcesMock.mockResolvedValue([]);
     listCoworkersMock.mockResolvedValue([]);
+    listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
     getProjectFilterOptionsMock.mockResolvedValue([]);
   });
 
@@ -99,7 +106,7 @@ describe("CalendarPage", () => {
   });
 
   it("loads Calendar data for Calendar beta users", async () => {
-    await CalendarPage({ searchParams: Promise.resolve({}) });
+    render(await CalendarPage({ searchParams: Promise.resolve({}) }));
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledOnce();
     expect(getWorkspaceCalendarSourcesMock).toHaveBeenCalledOnce();
@@ -181,6 +188,38 @@ describe("CalendarPage", () => {
 
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({ sourceId: "legacy-unknown:workspace-1" }),
+    );
+  });
+
+  it("includes workspace members in the create-task modal assignee options", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+    });
+    listTaskAssigneeMemberOptionsMock.mockResolvedValue([
+      {
+        id: "user-1",
+        kind: "user",
+        name: "Alice",
+        slug: "alice@example.com",
+        image: "",
+        vendor: {
+          id: "workspace-members",
+          name: "Members",
+          slug: "workspace-members",
+          logos: { light: null, dark: null },
+        },
+      },
+    ]);
+
+    render(await CalendarPage({ searchParams: Promise.resolve({}) }));
+
+    expect(listTaskAssigneeMemberOptionsMock).toHaveBeenCalledWith("org-1");
+    expect(calendarCreateTaskModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkerOptions: expect.arrayContaining([
+          expect.objectContaining({ id: "user-1", kind: "user" }),
+        ]),
+      }),
     );
   });
 });
