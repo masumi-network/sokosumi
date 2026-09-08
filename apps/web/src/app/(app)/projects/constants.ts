@@ -7,28 +7,21 @@ export const PROJECTS_PAGE_LIMIT = 20;
 
 /**
  * Projects index + Instant shell. Keep app-main `p-4` with no extra page
- * horizontal pad (do not `-mx-4` here). Detail cancels the shell separately
- * for edge-to-edge chrome.
+ * horizontal pad (do not `-mx-4` here).
  */
 export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 
 /**
- * Project detail outer shell. Cancel main `p-4` on mobile so the top block can
- * go edge-to-edge; same calc width as the index shell. Desktop keeps a wider gutter.
+ * Project detail outer shell: centered max-w-6xl container inside main `p-4`.
  */
-export const PROJECTS_DETAIL_SHELL_CLASS =
-  "min-h-full w-[calc(100%+2rem)] -mx-4 py-6 md:mx-0 md:w-full md:px-6";
+export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
+
+export const PROJECTS_CALENDAR_SHELL_CLASS = "mx-auto w-full max-w-7xl py-6";
 
 /**
- * Detail header + briefing/brand/tasks/jobs/memory: full bleed under the
- * canceled shell (no extra horizontal pad on mobile).
+ * Workspace modules (`modules.title`): stacks heading + tiles in the main column.
  */
-export const PROJECTS_DETAIL_TOP_CLASS = "w-full";
-
-/**
- * Workspace modules (`modules.title`): mobile px-4 horizontal pad.
- */
-export const PROJECTS_DETAIL_WORKSPACE_CLASS = "mt-6 space-y-3 px-4 md:px-0";
+export const PROJECTS_DETAIL_WORKSPACE_CLASS = "space-y-3";
 
 /**
  * Shared list card min-height for Instant skeleton, loaded list, and empty state
@@ -40,7 +33,7 @@ export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 /**
  * Primary browse outer chrome: divided list at all breakpoints (Tasks/Drive rhythm).
  * Square corners on mobile; `md:rounded-xl` + border on desktop.
- * Shared by live `ProjectsView` and Instant skeleton.
+ * Shared by live `ProjectsView`, Instant skeleton, and project needs-attention list.
  */
 export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";

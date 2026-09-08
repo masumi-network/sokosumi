@@ -31,6 +31,7 @@ const DESIGN_MD_MAX_SIZE_BYTES = 1024 * 1024;
 interface DesignMdUploadTriggerProps {
   disabled?: boolean;
   onSaved?: (designMd: PersistedDesignMd) => void;
+  onUploadingChange?: (isUploading: boolean) => void;
   owner: ManageableDesignMdOwner;
   variant?: "compact" | "default";
 }
@@ -38,12 +39,21 @@ interface DesignMdUploadTriggerProps {
 export function DesignMdUploadTrigger({
   disabled = false,
   onSaved,
+  onUploadingChange,
   owner,
   variant = "default",
 }: DesignMdUploadTriggerProps) {
   const t = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+
+  const setUploading = useCallback(
+    (next: boolean) => {
+      setIsUploading(next);
+      onUploadingChange?.(next);
+    },
+    [onUploadingChange],
+  );
 
   const handleUpload = useCallback(
     async (
@@ -56,7 +66,7 @@ export function DesignMdUploadTrigger({
       const file = acceptedFiles[0];
       if (!file) return;
 
-      setIsUploading(true);
+      setUploading(true);
       try {
         const content = await file.text();
         const result = await saveDesignMdUpload({ owner, content });
@@ -75,10 +85,10 @@ export function DesignMdUploadTrigger({
         options.onError(file, new Error(message));
         toast.error(message);
       } finally {
-        setIsUploading(false);
+        setUploading(false);
       }
     },
-    [onSaved, owner, t],
+    [onSaved, owner, setUploading, t],
   );
 
   const handleReject = useCallback(

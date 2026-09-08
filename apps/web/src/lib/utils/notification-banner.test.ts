@@ -29,6 +29,24 @@ function content(
 }
 
 describe("buildNotificationBannerContent", () => {
+  it.each([
+    CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+    CHAT_MENTION_MESSAGE_KEY,
+    CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  ])(
+    "uses the count instead of the latest preview for grouped %s banners",
+    (messageKey) => {
+      expect(
+        content(messageKey, {
+          authorName: "Ada",
+          roomName: "Design",
+          count: 3,
+          messagePreview: "latest message",
+        }),
+      ).toEqual({ title: APP_TITLE, body: `rendered:${messageKey}` });
+    },
+  );
+
   it.each([undefined, "", "   ", 12, null])(
     "uses the author when the room name is unavailable (%s)",
     (roomName) => {

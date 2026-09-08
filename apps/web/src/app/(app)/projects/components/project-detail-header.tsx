@@ -33,7 +33,7 @@ export function ProjectDetailHeader({
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
 
   return (
-    <div className="space-y-4 px-4 md:px-0">
+    <div className="space-y-4">
       <Link
         href={backHref}
         className={`text-muted-foreground hover:text-foreground items-center gap-1.5 text-sm transition-colors ${

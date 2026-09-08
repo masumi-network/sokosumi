@@ -1,4 +1,7 @@
 import {
+  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+  CHAT_DIRECT_MESSAGES_MESSAGE_KEY,
+  CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   CHAT_ROOM_MESSAGES_GROUP_MESSAGE_KEY,
@@ -60,22 +63,6 @@ describe("getNotificationMessageTranslationKey", () => {
   });
 
   /**
-   * A banner interrupts because a message just arrived, so it says that
-   * message. The push service worker renders the stored key and knows nothing
-   * of counts, so a counted banner here would be a second answer for a reader
-   * whose tab happened to be open.
-   */
-  it("leaves the count out when the caller asks for the arrival", () => {
-    expect(
-      getNotificationMessageTranslationKey(
-        CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-        { roomName: "Design", count: 23 },
-        { counted: false },
-      ),
-    ).toBe(`Library.${CHAT_ROOM_MESSAGE_MESSAGE_KEY}`);
-  });
-
-  /**
    * A room of three or more people has no name but the list of who is in it,
    * so "Ada, Ben, Cara" alone reads as three people rather than as somewhere
    * a message was written.
@@ -112,24 +99,62 @@ describe("getNotificationMessageTranslationKey", () => {
   });
 
   /**
-   * The group wording is the feed's, like the count. The banner and the push
-   * both render the stored key, so both say the same thing.
+   * One banner holds a whole room, so a mention that arrives on top of other
+   * messages stands for all of them. What they have in common is the room, so
+   * the count reads as the room's however the newest arrival was stored.
    */
-  it("leaves the group out when the caller asks for the arrival", () => {
+  it("counts a stacked mention as the room's messages", () => {
     expect(
-      getNotificationMessageTranslationKey(
-        CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-        { roomName: "Ada, Ben, Cara", isGroup: true },
-        { counted: false },
-      ),
-    ).toBe(`Library.${CHAT_ROOM_MESSAGE_MESSAGE_KEY}`);
+      getNotificationMessageTranslationKey(CHAT_MENTION_MESSAGE_KEY, {
+        roomName: "Design",
+        count: 3,
+      }),
+    ).toBe(`Library.${CHAT_ROOM_MESSAGES_MESSAGE_KEY}`);
   });
 
-  it("counts nothing but a room message", () => {
+  /**
+   * A direct room's name is the other person, so "3 messages in Ada" reads as
+   * a place rather than a person. The sender is the one thing the reader
+   * needs, and there is only ever one of them.
+   */
+  it("counts a stacked direct message as the sender's", () => {
     expect(
-      getNotificationMessageTranslationKey("Notifications.Chat.mentioned", {
+      getNotificationMessageTranslationKey(CHAT_DIRECT_MESSAGE_MESSAGE_KEY, {
+        authorName: "Ada",
+        count: 3,
+      }),
+    ).toBe(`Library.${CHAT_DIRECT_MESSAGES_MESSAGE_KEY}`);
+  });
+
+  it("keeps the single-message line for one direct message", () => {
+    expect(
+      getNotificationMessageTranslationKey(CHAT_DIRECT_MESSAGE_MESSAGE_KEY, {
+        authorName: "Ada",
+        count: 1,
+      }),
+    ).toBe(`Library.${CHAT_DIRECT_MESSAGE_MESSAGE_KEY}`);
+  });
+
+  it("counts a stacked mention in a room of people as a group's", () => {
+    expect(
+      getNotificationMessageTranslationKey(CHAT_MENTION_MESSAGE_KEY, {
+        roomName: "Ada, Ben, Cara",
+        isGroup: true,
+        count: 3,
+      }),
+    ).toBe(`Library.${CHAT_ROOM_MESSAGES_GROUP_MESSAGE_KEY}`);
+  });
+
+  /**
+   * Only chat groups into one banner and only a room's messages are counted
+   * onto one row. A job or a task each happened once, so a count on one is a
+   * payload this reader was not written for.
+   */
+  it("counts nothing outside chat", () => {
+    expect(
+      getNotificationMessageTranslationKey("Notifications.Job.completed", {
         count: 23,
       }),
-    ).toBe("Library.Notifications.Chat.mentioned");
+    ).toBe("Library.Notifications.Job.completed");
   });
 });
