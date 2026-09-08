@@ -16,11 +16,11 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomThreadSchema } from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
+import { requireChatRoomUserAccess } from "../../helpers";
 import {
   listChatRoomThreadListPage,
   listChatRoomThreads,
-  requireChatRoomUserAccess,
-} from "../../helpers";
+} from "../../room-unread";
 
 const paramsSchema = z.object({
   id: z

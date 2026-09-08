@@ -11,7 +11,8 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomThreadSchema } from "@/schemas/chat-room.schema";
 
-import { getChatRoomThread, requireChatRoomUserAccess } from "../../../helpers";
+import { requireChatRoomUserAccess } from "../../../helpers";
+import { getChatRoomThread } from "../../../room-unread";
 
 const paramsSchema = z.object({
   id: z

@@ -28,12 +28,14 @@ import {
   chatRoomInclude,
   getChatRoomPinnedMessageCounts,
   getChatRoomSidebarFlags,
-  getChatRoomUnreadCounts,
-  getChatRoomUnreadMentionCounts,
   getPeerInActiveOrganizationFlags,
   isOrganizationOwnerOrAdmin,
   mapChatRoom,
 } from "./helpers";
+import {
+  getChatRoomUnreadCounts,
+  getChatRoomUnreadMentionCounts,
+} from "./room-unread";
 
 /**
  * Higher than the shared default because the sidebar renders the full list in
