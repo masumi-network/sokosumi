@@ -6,8 +6,9 @@ import { useEffect, useRef } from "react";
 import {
   CHAT_EDIT_CHANNEL_PARAM,
   chatRoomHref,
-  pathWithoutOneShotRoomParams,
+  pathWithSearch,
 } from "@/app/chat/utils/chat-route-base";
+import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
 export interface EditChannelParamParams {
   /** The room on screen, or null before one is selected. */
@@ -70,10 +71,23 @@ export function useEditChannelParam({
       return;
     }
 
+    // A message the room has not jumped to yet waits its turn. Its reader
+    // rebuilds the URL from this same snapshot when it goes, so two writes in
+    // one commit would each carry the other's parameter forward and the later
+    // write would undo the earlier one. Neither reader asks for its own a
+    // second time, so what is undone stays undone. The message goes first
+    // because it is already on the URL; this then runs on what it leaves.
+    //
+    // Trimmed the way that reader trims it. A blank message names nothing, so
+    // it is never spent, and waiting for it to go would wait for good.
+    if (searchParams.get(CHAT_MESSAGE_PARAM)?.trim()) {
+      return;
+    }
+
     openedRoomRef.current = roomId;
-    replace(pathWithoutOneShotRoomParams(pathname, searchParams), {
-      scroll: false,
-    });
+    const remaining = new URLSearchParams(searchParams.toString());
+    remaining.delete(CHAT_EDIT_CHANNEL_PARAM);
+    replace(pathWithSearch(pathname, remaining), { scroll: false });
     open();
   }, [asked, roomId, ready, searchParams, pathname, replace, open]);
 }

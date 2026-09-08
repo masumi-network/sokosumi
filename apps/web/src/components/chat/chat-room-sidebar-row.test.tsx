@@ -23,6 +23,7 @@ const {
   refreshMock,
   notifyMock,
   showRoomUnreadCountMock,
+  roomSearchParams,
 } = vi.hoisted(() => ({
   leaveRoomActionMock: vi.fn(),
   replaceMock: vi.fn(),
@@ -30,6 +31,7 @@ const {
   refreshMock: vi.fn(),
   notifyMock: vi.fn(),
   showRoomUnreadCountMock: vi.fn(() => false),
+  roomSearchParams: { current: new URLSearchParams() },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -38,6 +40,7 @@ vi.mock("next/navigation", () => ({
     push: pushMock,
     refresh: refreshMock,
   }),
+  useSearchParams: () => roomSearchParams.current,
 }));
 
 vi.mock("next/link", () => ({
@@ -374,6 +377,13 @@ describe("ChatRoomSidebarRow leading slot", () => {
 describe("ChatRoomSidebarRow edit menu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    roomSearchParams.current = new URLSearchParams();
+  });
+
+  // Both survive a failed assertion, which a restore inside a test does not.
+  afterEach(() => {
+    roomSearchParams.current = new URLSearchParams();
+    window.history.replaceState({}, "", "/");
   });
 
   it("sends the reader to the channel with its edit dialog asked for", async () => {
@@ -411,8 +421,85 @@ describe("ChatRoomSidebarRow edit menu", () => {
     const user = await openRoomMenu();
     await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
 
-    expect(replaceMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"));
+    expect(replaceMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"), {
+      scroll: false,
+    });
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  // The ask is added to what the active room's URL carries rather than
+  // written over it.
+  it("keeps what the active room's URL already carries", async () => {
+    roomSearchParams.current = new URLSearchParams("notice=welcome");
+
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
+
+    expect(replaceMock).toHaveBeenCalledWith(
+      "/chat/rooms/room-1?notice=welcome&edit=1",
+      { scroll: false },
+    );
+  });
+
+  // The router's query still names a message the room has spent until that
+  // strip commits. Written back, it would leave the room waiting on a message
+  // nobody spends again, with this ask stuck behind it.
+  it("drops a message the room has not jumped to", async () => {
+    roomSearchParams.current = new URLSearchParams("message=msg-1");
+
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
+
+    expect(replaceMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"), {
+      scroll: false,
+    });
+  });
+
+  // The App Router writes history in an effect after the commit, so the
+  // document lags the router's own query.
+  it("reads the router's query rather than the document's", async () => {
+    window.history.replaceState({}, "", "/chat/rooms/room-1?notice=welcome");
+    roomSearchParams.current = new URLSearchParams();
+
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
+
+    expect(replaceMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"), {
+      scroll: false,
+    });
   });
 
   // The dialog is for channels. A direct room's header shows a plain title.

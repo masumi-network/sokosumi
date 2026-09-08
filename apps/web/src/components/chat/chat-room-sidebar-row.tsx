@@ -12,7 +12,7 @@ import {
   PinOff,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -62,6 +62,7 @@ import { SheetClose } from "@/components/ui/sheet";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
 /**
  * Trailing controls. Touch: pin/mute then overflow side by side.
@@ -158,6 +159,10 @@ export function ChatRoomSidebarRow({
   const tActions = useTranslations("App.Channels.Actions");
   const tChannels = useTranslations("App.Channels");
   const router = useRouter();
+  // The room's own query, not `window.location`, which the App Router writes
+  // in an effect after the commit and so can still name a message the room
+  // has already spent. Re-adding that would send the reader back to it.
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -254,15 +259,22 @@ export function ChatRoomSidebarRow({
       onSelect={() => {
         // Asking the room on screen for its own dialog is not a journey. The
         // room takes the parameter straight back off the URL, so a pushed
-        // entry would leave Back doing nothing the reader can see. That room's
-        // URL may also carry a message it has not jumped to yet, so the ask is
-        // added to what is there rather than written over it. Read off the
-        // document, because subscribing every row to the query would re-render
-        // the whole sidebar whenever one lands.
+        // entry would leave Back doing nothing the reader can see. The rest of
+        // that room's query rides along rather than being written over.
+        //
+        // Except the message a notification named, which the room reads once
+        // the same way. The router's query still carries one the room has
+        // spent until that strip commits, and writing it back would leave the
+        // room waiting on a message nobody will spend again, with this ask
+        // stuck behind it. The reader asked for the dialog just now, so a
+        // jump the room has not made yet gives way to it.
         if (isActive) {
-          const params = new URLSearchParams(window.location.search);
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete(CHAT_MESSAGE_PARAM);
           params.set(CHAT_EDIT_CHANNEL_PARAM, "1");
-          router.replace(pathWithSearch(chatRoomHref(room.id), params));
+          router.replace(pathWithSearch(chatRoomHref(room.id), params), {
+            scroll: false,
+          });
           return;
         }
         router.push(chatRoomEditHref(room.id));

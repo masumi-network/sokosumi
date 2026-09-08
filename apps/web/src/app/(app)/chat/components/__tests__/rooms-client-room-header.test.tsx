@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -12,20 +12,27 @@ import type {
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
 
-const { mockIsMobileMedia, mockHeaderRoomSlotHost, mockSearchParams } =
-  vi.hoisted(() => ({
-    mockIsMobileMedia: vi.fn((): boolean | undefined => false),
-    mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
-    mockSearchParams: vi.fn(() => new URLSearchParams()),
-  }));
+const {
+  mockIsMobileMedia,
+  mockHeaderRoomSlotHost,
+  mockSearchParams,
+  mockPathname,
+  mockReplace,
+} = vi.hoisted(() => ({
+  mockIsMobileMedia: vi.fn((): boolean | undefined => false),
+  mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
+  mockSearchParams: vi.fn(() => new URLSearchParams()),
+  mockPathname: vi.fn(() => "/chat/rooms/room-channel"),
+  mockReplace: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
-    replace: vi.fn(),
+    replace: mockReplace,
     refresh: vi.fn(),
   }),
-  usePathname: () => "/chat/rooms/room-channel",
+  usePathname: () => mockPathname(),
   useSearchParams: () => mockSearchParams(),
 }));
 
@@ -314,6 +321,15 @@ function renderRoom(room: ChatRoom) {
 }
 
 describe("RoomsClient edit channel deep link", () => {
+  // Put the implementations back, not one fixed return: a stable
+  // `searchParams` identity would quietly stop effects keyed on it from
+  // re-running in the describes below.
+  afterEach(() => {
+    mockSearchParams.mockImplementation(() => new URLSearchParams());
+    mockPathname.mockImplementation(() => "/chat/rooms/room-channel");
+    mockReplace.mockClear();
+  });
+
   // The channel row's overflow menu asks for the dialog on the URL, because
   // the sidebar it lives in has neither the roster nor the reader's role.
   it("opens the edit dialog the URL asks for", () => {
@@ -334,6 +350,18 @@ describe("RoomsClient edit channel deep link", () => {
       "data-open",
       "false",
     );
+  });
+
+  // A direct room has no dialog to open, so it has no ask to read. Reachable
+  // by hand, since the row that asks is on channels only.
+  it("ignores the ask on a direct room", () => {
+    mockSearchParams.mockReturnValue(new URLSearchParams("edit=1"));
+    mockPathname.mockReturnValue("/chat/rooms/room-direct");
+
+    renderRoom(humanDirectRoom());
+
+    expect(screen.queryByTestId("edit-channel-dialog-probe")).toBeNull();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });
 

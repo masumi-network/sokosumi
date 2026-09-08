@@ -1,5 +1,3 @@
-import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
-
 /** App Router shell for full-page chat (`/chat/...`). */
 export const CHAT_APP_ROUTE_PREFIX = "/chat" as const;
 
@@ -22,33 +20,6 @@ export const CHAT_EDIT_CHANNEL_PARAM = "edit";
 /** In-app href for a channel, with its edit dialog asked to open. */
 export function chatRoomEditHref(roomId: string): string {
   return `${chatRoomHref(roomId)}?${CHAT_EDIT_CHANNEL_PARAM}=1`;
-}
-
-/**
- * What a room reads once and then takes back off its URL: the message a
- * notification named, and a request to open the edit dialog.
- *
- * One list, because the two are read by two hooks in the same commit off the
- * same snapshot of the URL. A strip that kept the other parameter would write
- * it straight back, and neither owner asks for its own twice, so it would then
- * sit on the URL for good. The error boundary reads the same list, so a room
- * is never remounted for a parameter it is about to consume.
- */
-const CHAT_ONE_SHOT_ROOM_PARAMS = [
-  CHAT_MESSAGE_PARAM,
-  CHAT_EDIT_CHANNEL_PARAM,
-] as const;
-
-/** The room's URL with every one-shot parameter taken off it. */
-export function pathWithoutOneShotRoomParams(
-  pathname: string,
-  searchParams: { toString(): string } | null | undefined,
-): string {
-  const remaining = new URLSearchParams(searchParams?.toString() ?? "");
-  for (const param of CHAT_ONE_SHOT_ROOM_PARAMS) {
-    remaining.delete(param);
-  }
-  return pathWithSearch(pathname, remaining);
 }
 
 /**

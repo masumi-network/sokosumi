@@ -266,27 +266,4 @@ describe("useRoomNotificationDeepLink", () => {
       { scroll: false },
     );
   });
-
-  // The room's edit request is read in the same commit off the same snapshot
-  // of the URL. Spending only the message here would write that request back,
-  // and its reader does not ask twice, so it would sit on the URL for good.
-  it("spends the room's edit request with it", async () => {
-    const props = params();
-
-    render(
-      <Harness
-        {...props}
-        searchParams={
-          new URLSearchParams(
-            "message=msg-1&edit=1&notice=welcome",
-          ) as unknown as ReadonlyURLSearchParams
-        }
-      />,
-    );
-
-    expect(props.replace).toHaveBeenCalledExactlyOnceWith(
-      "/chat/rooms/room-1?notice=welcome",
-      { scroll: false },
-    );
-  });
 });

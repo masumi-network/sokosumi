@@ -38,17 +38,52 @@ describe("useEditChannelParam", () => {
     expect(props.open).toHaveBeenCalledTimes(1);
   });
 
-  // Both one-shot parameters go at once. The room's other reader holds the
-  // same snapshot of the URL, so a strip that kept its parameter would have it
-  // written straight back, and neither reader asks for its own twice.
-  it("takes every one-shot parameter back off the URL", () => {
+  it("takes its own parameter back off the URL", () => {
     const props = makeProps({
-      searchParams: searchParams("edit=1&message=msg-1&notice=welcome"),
+      searchParams: searchParams("edit=1&notice=welcome"),
     });
     render(<Harness {...props} />);
 
     expect(props.replace).toHaveBeenCalledExactlyOnceWith(
       "/chat/rooms/room-1?notice=welcome",
+      { scroll: false },
+    );
+  });
+
+  // Both readers rebuild the URL from the same snapshot, so two writes in one
+  // commit would each put the other parameter back, for good.
+  it("waits for a message the room has not jumped to yet", () => {
+    const props = makeProps({
+      searchParams: searchParams("edit=1&message=msg-1"),
+    });
+    const { rerender } = render(<Harness {...props} />);
+
+    expect(props.open).not.toHaveBeenCalled();
+    expect(props.replace).not.toHaveBeenCalled();
+
+    // The message reader has spent it and written the shorter URL.
+    rerender(<Harness {...props} searchParams={searchParams("edit=1")} />);
+
+    expect(props.open).toHaveBeenCalledTimes(1);
+    expect(props.replace).toHaveBeenCalledExactlyOnceWith(
+      "/chat/rooms/room-1",
+      {
+        scroll: false,
+      },
+    );
+  });
+
+  // A blank message names nothing, so the message reader never spends it.
+  // Waiting for it to go would wait for good.
+  it("does not wait for a message that names nothing", () => {
+    const props = makeProps({
+      searchParams: searchParams("edit=1&message=%20"),
+    });
+    render(<Harness {...props} />);
+
+    expect(props.open).toHaveBeenCalledTimes(1);
+    expect(props.replace).toHaveBeenCalledExactlyOnceWith(
+      "/chat/rooms/room-1?message=+",
       { scroll: false },
     );
   });
