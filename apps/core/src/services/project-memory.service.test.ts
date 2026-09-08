@@ -72,6 +72,8 @@ const project = {
   contextMdModel: MODEL_ID,
   contextMdUpdatingSince: new Date("2026-08-16T09:00:00.000Z"),
   contextMdVersion: 3,
+  latestUpdateMd: null,
+  latestUpdateMdUpdatedAt: null,
   createdAt: new Date("2026-08-15T09:00:00.000Z"),
   updatedAt: new Date("2026-08-16T09:00:00.000Z"),
 };
@@ -94,6 +96,12 @@ const completedTask = {
   files: [{ name: "launch-report.pdf" }],
 };
 
+function isFollowUpTaskIdLookup(args: {
+  select?: Record<string, boolean>;
+}): boolean {
+  return args.select?.id === true && args.select.name !== true;
+}
+
 describe("projectMemoryService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -107,9 +115,7 @@ describe("projectMemoryService", () => {
     projectFindUniqueMock.mockResolvedValue(project);
     taskFindFirstMock.mockImplementation(
       (args: { select?: Record<string, boolean> }) =>
-        args.select && Object.keys(args.select).length === 1
-          ? null
-          : completedTask,
+        isFollowUpTaskIdLookup(args) ? null : completedTask,
     );
     taskFindManyMock.mockResolvedValue([]);
     generateTextMock.mockResolvedValue({ text: "# Updated\nNew decision" });
@@ -120,6 +126,7 @@ describe("projectMemoryService", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -292,9 +299,7 @@ describe("projectMemoryService", () => {
     };
     taskFindFirstMock.mockImplementation(
       (args: { select?: Record<string, boolean> }) =>
-        args.select && Object.keys(args.select).length === 1
-          ? null
-          : oversizedTask,
+        isFollowUpTaskIdLookup(args) ? null : oversizedTask,
     );
 
     await projectMemoryService.refreshAfterTaskCompleted({
@@ -328,6 +333,8 @@ describe("projectMemoryService", () => {
       ...project,
       contextMd: "# Updated once",
       contextMdVersion: 4,
+      latestUpdateMd: null,
+      latestUpdateMdUpdatedAt: null,
     });
 
     await expect(
@@ -337,8 +344,8 @@ describe("projectMemoryService", () => {
       }),
     ).resolves.toMatchObject({ status: "updated", version: 5 });
 
-    expect(generateTextMock).toHaveBeenCalledTimes(2);
-    expect(generateTextMock.mock.calls[1]?.[0].prompt).toContain(
+    expect(generateTextMock).toHaveBeenCalledTimes(4);
+    expect(generateTextMock.mock.calls[2]?.[0].prompt).toContain(
       "Follow-up completion",
     );
     expect(taskFindFirstMock.mock.calls[1]?.[0]).toEqual(
@@ -386,5 +393,125 @@ describe("projectMemoryService", () => {
         data: { contextMdUpdatingSince: null },
       }),
     );
+  });
+
+  it("writes latest update markdown after memory when the report has a leading TL;DR", async () => {
+    const report = `# Weekly Activity Report
+
+Date window: 2026-09-01 to 2026-09-07
+
+## TL;DR
+
+Shipped the launch report.
+
+## Audience
+
+Reached technical founders.`;
+    generateTextMock
+      .mockResolvedValueOnce({ text: "# Updated\nNew decision" })
+      .mockResolvedValueOnce({ text: report });
+
+    await expect(
+      projectMemoryService.refreshAfterTaskCompleted({
+        projectId: PROJECT_ID,
+        taskId: TASK_ID,
+      }),
+    ).resolves.toEqual({ status: "updated", version: 4, lineCount: 2 });
+
+    expect(generateTextMock).toHaveBeenCalledTimes(2);
+    expect(generateTextMock.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        model: MODEL_ID,
+        maxOutputTokens: 2_000,
+        prompt: expect.stringContaining("Date window:"),
+      }),
+    );
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: PROJECT_ID,
+        contextMdUpdatingSince: expect.any(Date),
+      },
+      data: {
+        latestUpdateMd: report,
+        latestUpdateMdUpdatedAt: expect.any(Date),
+      },
+    });
+  });
+
+  it("keeps older completions in memory but excludes them from the seven-day report", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-07T18:20:00.000Z"));
+
+    const inWindowTask = {
+      ...completedTask,
+      name: "In-window launch report",
+      updatedAt: new Date("2026-09-07T17:00:00.000Z"),
+      events: [
+        {
+          ...completedTask.events[0],
+          createdAt: new Date("2026-09-07T17:00:00.000Z"),
+        },
+      ],
+    };
+    const staleTask = {
+      ...completedTask,
+      id: "task_stale",
+      name: "Old completed task",
+      updatedAt: new Date("2026-08-20T10:00:00.000Z"),
+      events: [
+        {
+          ...completedTask.events[0],
+          id: "event_stale",
+          createdAt: new Date("2026-08-20T10:00:00.000Z"),
+        },
+      ],
+    };
+    taskFindFirstMock.mockImplementation(
+      (args: { select?: Record<string, boolean> }) =>
+        isFollowUpTaskIdLookup(args) ? null : inWindowTask,
+    );
+    taskFindManyMock.mockResolvedValue([staleTask]);
+    generateTextMock
+      .mockResolvedValueOnce({ text: "# Updated\nNew decision" })
+      .mockResolvedValueOnce({
+        text: `# Weekly Activity Report
+
+Date window: 2026-09-01 to 2026-09-07
+
+## TL;DR
+
+Shipped the launch report.`,
+      });
+
+    await projectMemoryService.refreshAfterTaskCompleted({
+      projectId: PROJECT_ID,
+      taskId: TASK_ID,
+    });
+
+    const memoryPrompt = generateTextMock.mock.calls[0]?.[0].prompt as string;
+    const reportPrompt = generateTextMock.mock.calls[1]?.[0].prompt as string;
+    expect(memoryPrompt).toContain("Old completed task");
+    expect(memoryPrompt).toContain("In-window launch report");
+    expect(reportPrompt).toContain("In-window launch report");
+    expect(reportPrompt).not.toContain("Old completed task");
+  });
+
+  it("keeps memory and leaves the previous report when TL;DR is missing", async () => {
+    generateTextMock
+      .mockResolvedValueOnce({ text: "# Updated\nNew decision" })
+      .mockResolvedValueOnce({ text: "# Weekly Activity Report\n\nNo tldr" });
+
+    await expect(
+      projectMemoryService.refreshAfterTaskCompleted({
+        projectId: PROJECT_ID,
+        taskId: TASK_ID,
+      }),
+    ).resolves.toEqual({ status: "updated", version: 4, lineCount: 2 });
+
+    expect(
+      projectUpdateManyMock.mock.calls.some(
+        ([args]) => args.data?.latestUpdateMd !== undefined,
+      ),
+    ).toBe(false);
   });
 });

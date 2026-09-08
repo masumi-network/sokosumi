@@ -158,12 +158,12 @@ export function getHistoryItemHref(item: HistoryItem): string {
   });
 }
 
-function HistoryTypeColumn({
+export function HistoryTypeColumn({
   item,
   labels,
 }: {
   item: HistoryItem;
-  labels: HistoryListItemLabels;
+  labels: Pick<HistoryListItemLabels, "kind">;
 }) {
   return (
     <div className="flex w-9 shrink-0 items-center gap-1.5 sm:w-30">

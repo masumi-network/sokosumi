@@ -5,14 +5,13 @@ import { describe, expect, it } from "vitest";
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 
 describe("ProjectBriefing", () => {
-  it("renders empty copy and an edit link", () => {
+  it("renders empty copy without a section-header edit control", () => {
     render(
       <ProjectBriefing
         title="Briefing"
         briefing={null}
         emptyLabel="No briefing yet."
         editHref="/projects/project-1/edit"
-        editLabel="Edit"
         emptyActionLabel="Write briefing"
         showMoreLabel="Show more"
         showLessLabel="Show less"
@@ -20,10 +19,9 @@ describe("ProjectBriefing", () => {
     );
 
     expect(screen.getByText("No briefing yet.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Edit" })).toHaveAttribute(
-      "href",
-      "/projects/project-1/edit",
-    );
+    expect(
+      screen.queryByRole("link", { name: "Edit" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Write briefing" }),
     ).toHaveAttribute("href", "/projects/project-1/edit");

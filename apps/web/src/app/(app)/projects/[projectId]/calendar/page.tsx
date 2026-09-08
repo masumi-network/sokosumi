@@ -5,6 +5,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { CalendarCreateTaskModal } from "@/app/calendar/components/calendar-create-task-modal";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
+import { PROJECTS_CALENDAR_SHELL_CLASS } from "@/app/projects/constants";
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
@@ -91,7 +92,7 @@ export default async function ProjectCalendarPage({
 
   return (
     <CreateTaskModalProvider initialProjectId={project.id}>
-      <div className="min-h-full w-full px-4 py-6 md:px-6">
+      <div className={PROJECTS_CALENDAR_SHELL_CLASS}>
         <ProjectDetailHeader
           backHref={`/projects/${project.id}`}
           backLabel={t("backToProject")}

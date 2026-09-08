@@ -1,9 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
 
-import { publishNotificationRow } from "@/helpers/notifications";
+import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -50,40 +49,6 @@ const route = withGlobalHeaderParameters(
     },
   }),
 );
-
-/**
- * Tell the reader's open tabs that these rows are read.
- *
- * The row is published rather than a bare id, because a tab holding it
- * replaces what it holds and a tab that never loaded it can tell a row it
- * already counted from a new one. Rows the app never shows are published too
- * and dropped by the reader, which is cheaper than asking here which surface
- * each one belongs to.
- */
-async function publishClearedNotifications(ids: string[]): Promise<void> {
-  // Guarded here rather than at the call, because the reader has already been
-  // answered: this runs after the response, and a read that fails must not
-  // leave a rejected promise behind it. The rows come back on the next fetch,
-  // so the cost of losing this is a bell that lags until then.
-  try {
-    const cleared = await prisma.notification.findMany({
-      where: { id: { in: ids } },
-    });
-
-    for (const notification of cleared) {
-      // No banner: nothing arrived. This says one stopped waiting.
-      await publishNotificationRow(
-        notification,
-        { inApp: notification.inApp, osBanner: false },
-        false,
-      );
-    }
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: { notificationIds: ids, errorType: "publish-cleared-chat-rows" },
-    });
-  }
-}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -159,9 +124,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     );
 
-    if (clearedIds.length > 0) {
-      waitUntil(publishClearedNotifications(clearedIds));
-    }
+    waitUntil(publishClearedNotifications(clearedIds));
 
     // Top-level unreads are cleared by lastReadAt; thread replies still use
     // look baseline. Return the real dual-baseline count so the sidebar does

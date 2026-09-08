@@ -81,6 +81,7 @@ const MESSAGES = {
       "The schedule for {taskName} was removed after review",
     "Notifications.Chat.mentioned": "{authorName} mentioned you in {roomName}",
     "Notifications.Chat.directMessage": "{authorName} sent you a message",
+    "Notifications.Chat.directMessages": "{count} messages from {authorName}",
     "Notifications.Chat.roomMessage":
       "{authorName} wrote in channel {roomName}",
     "Notifications.Chat.roomMessages": "{count} messages in channel {roomName}",
@@ -127,6 +128,7 @@ const MESSAGES = {
       "{authorName} hat dich in {roomName} erwähnt",
     "Notifications.Chat.directMessage":
       "{authorName} hat dir eine Nachricht gesendet",
+    "Notifications.Chat.directMessages": "{count} Nachrichten von {authorName}",
     "Notifications.Chat.roomMessage":
       "{authorName} hat im Kanal {roomName} geschrieben",
     "Notifications.Chat.roomMessages":
@@ -169,6 +171,7 @@ const MESSAGES = {
       "Se eliminó la programación de {taskName} después de revisarla",
     "Notifications.Chat.mentioned": "{authorName} te mencionó en {roomName}",
     "Notifications.Chat.directMessage": "{authorName} te envió un mensaje",
+    "Notifications.Chat.directMessages": "{count} mensajes de {authorName}",
     "Notifications.Chat.roomMessage":
       "{authorName} escribió en el canal {roomName}",
     "Notifications.Chat.roomMessages":
@@ -189,14 +192,10 @@ const MESSAGES = {
 };
 
 /**
- * Title of every banner but a chat one, matching `Components.
- * NotificationCenter.browserNotificationTitle`, which reads "Sokosumi" in each
- * locale. A chat banner is titled with who wrote and where instead, because
- * the operating system prints the app name beside the banner already. Either
- * way this worker and the open tab build the same title from the same locale,
- * so the one that arrives second replaces the first by tag rather than reading
- * differently. They can still resolve different locales, which the note on
- * `resolveLocale` covers.
+ * Matches Components.NotificationCenter.browserNotificationTitle. Grouped
+ * chat arrivals and other kinds use the app name. Single chat arrivals name
+ * who wrote and where. The app and worker follow the same rule, but can
+ * resolve different locales (see resolveLocale).
  */
 const APP_TITLE = "Sokosumi";
 
@@ -208,6 +207,59 @@ const ICON_PATH = "/images/app-icons/apple-icon-180.png";
  * one tag for all of them keeps a replay replacing rather than stacking.
  */
 const GENERIC_TAG = "sokosumi-notification";
+
+/** Mirrors CHAT_GROUP_TAG_PREFIX in the app. */
+const CHAT_GROUP_TAG_PREFIX = "sokosumi-room:";
+
+/** Mirrors notificationGroupTag: chat replaces by room, other kinds by row. */
+function groupTag(target) {
+  if (target.kind !== "CHAT" || !target.referenceId) {
+    return target.id;
+  }
+
+  return `${CHAT_GROUP_TAG_PREFIX}${target.referenceId}`;
+}
+
+/** Mirrors the chat message keys in @sokosumi/utils. */
+const CHAT_MENTION_KEY = "Notifications.Chat.mentioned";
+const CHAT_DIRECT_MESSAGE_KEY = "Notifications.Chat.directMessage";
+const CHAT_DIRECT_MESSAGES_KEY = "Notifications.Chat.directMessages";
+const CHAT_ROOM_MESSAGE_KEY = "Notifications.Chat.roomMessage";
+const CHAT_ROOM_MESSAGES_KEY = "Notifications.Chat.roomMessages";
+const CHAT_ROOM_MESSAGE_GROUP_KEY = "Notifications.Chat.roomMessageGroup";
+const CHAT_ROOM_MESSAGES_GROUP_KEY = "Notifications.Chat.roomMessagesGroup";
+
+/** Mirrors countedMessageKey in lib/utils/notification-message. */
+function countedMessageKey(messageKey, params, count) {
+  const group = params.isGroup === true;
+
+  if (!(Number.isInteger(count) && count > 1)) {
+    return messageKey === CHAT_ROOM_MESSAGE_KEY && group
+      ? CHAT_ROOM_MESSAGE_GROUP_KEY
+      : messageKey;
+  }
+
+  if (messageKey === CHAT_DIRECT_MESSAGE_KEY) {
+    return CHAT_DIRECT_MESSAGES_KEY;
+  }
+
+  if (messageKey === CHAT_MENTION_KEY || messageKey === CHAT_ROOM_MESSAGE_KEY) {
+    return group ? CHAT_ROOM_MESSAGES_GROUP_KEY : CHAT_ROOM_MESSAGES_KEY;
+  }
+
+  return messageKey;
+}
+
+/** Parse Core's room count from the push string map, if available. */
+function groupCountOn(raw) {
+  if (typeof raw !== "string" || raw === "") {
+    return undefined;
+  }
+
+  const parsed = Number(raw);
+
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : undefined;
+}
 
 /**
  * The locale the reader chose in the app, when this browser exposes cookies to
@@ -315,6 +367,9 @@ function buildTarget(pushData) {
     kind: pushData.kind,
     referenceId: pushData.referenceId,
     messageKey: pushData.messageKey,
+    ...(typeof pushData.createdAt === "string"
+      ? { createdAt: pushData.createdAt }
+      : {}),
     // Core omits metadata when it is null, and the app's schema wants that
     // null back rather than an empty object.
     metadata:
@@ -324,10 +379,6 @@ function buildTarget(pushData) {
   };
 }
 
-/** Mirrors the chat message keys in @sokosumi/utils. */
-const CHAT_MENTION_MESSAGE_KEY = "Notifications.Chat.mentioned";
-const CHAT_DIRECT_MESSAGE_MESSAGE_KEY = "Notifications.Chat.directMessage";
-const CHAT_ROOM_MESSAGE_MESSAGE_KEY = "Notifications.Chat.roomMessage";
 const CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY =
   "Notifications.Chat.roomMessageTitle";
 const CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY =
@@ -356,23 +407,22 @@ function chatTitle(messages, messageKey, params) {
     return undefined;
   }
 
-  if (messageKey === CHAT_DIRECT_MESSAGE_MESSAGE_KEY) {
+  if (messageKey === CHAT_DIRECT_MESSAGE_KEY) {
     return params.authorName;
   }
 
   if (
-    (messageKey === CHAT_MENTION_MESSAGE_KEY ||
-      messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) &&
+    (messageKey === CHAT_MENTION_KEY || messageKey === CHAT_ROOM_MESSAGE_KEY) &&
     (typeof params.roomName !== "string" || !params.roomName.trim())
   ) {
     return params.authorName;
   }
 
-  if (messageKey === CHAT_MENTION_MESSAGE_KEY) {
+  if (messageKey === CHAT_MENTION_KEY) {
     return render(messages, messageKey, params);
   }
 
-  if (messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) {
+  if (messageKey === CHAT_ROOM_MESSAGE_KEY) {
     return render(
       messages,
       params.isGroup === true
@@ -390,13 +440,27 @@ function chatTitle(messages, messageKey, params) {
  *
  * Mirrors `buildNotificationBannerContent` in the app: a chat message is
  * titled with who wrote and where, and the message itself goes underneath.
- * Every other kind keeps the app name and its line. Chat messages without
+ * Multiple chat arrivals show the room count under the app title. Other
+ * kinds keep the app name and their line. Single chat arrivals without
  * preview text keep their chat title and have no body.
  */
 async function buildBanner(pushData) {
   const messages = MESSAGES[await resolveLocale()];
   const params = parseParams(pushData.messageParams);
   const preview = params.messagePreview;
+  const count = groupCountOn(pushData.groupCount) ?? params.count;
+  const messageKey = countedMessageKey(pushData.messageKey, params, count);
+
+  if (
+    Number.isInteger(count) &&
+    count > 1 &&
+    messageKey !== pushData.messageKey
+  ) {
+    return {
+      title: APP_TITLE,
+      body: render(messages, messageKey, { ...params, count }),
+    };
+  }
 
   const title = chatTitle(messages, pushData.messageKey, params);
   if (title !== undefined) {
@@ -405,7 +469,7 @@ async function buildBanner(pushData) {
 
   return {
     title: APP_TITLE,
-    body: render(messages, pushData.messageKey, params),
+    body: render(messages, messageKey, { ...params, count }),
   };
 }
 
@@ -513,7 +577,7 @@ async function showPushNotification(data) {
 
   await self.registration.showNotification(banner.title, {
     body: banner.body,
-    tag: target ? target.id : GENERIC_TAG,
+    tag: target ? groupTag(target) : GENERIC_TAG,
     icon: ICON_PATH,
     data: target,
   });

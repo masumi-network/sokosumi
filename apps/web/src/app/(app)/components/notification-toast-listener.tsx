@@ -25,6 +25,7 @@ import { handleNotificationNavigation } from "@/lib/utils/notification-navigatio
 import type { NotificationTarget } from "@/lib/utils/notification-service-worker";
 import {
   answerShowsNotificationsQuery,
+  closeNotificationGroup,
   getNotificationServiceWorker,
   showNotification,
   subscribeNotificationClicks,
@@ -153,6 +154,20 @@ export function NotificationToastListener({
   const { isReceivingNotifications } = useNotificationRealtime({
     userId,
     onNotification: (notification) => {
+      // A row that arrives already read is the reader having read it
+      // elsewhere: another tab, another device, or the room itself rather
+      // than the banner. Core republishes each row it clears when a room is
+      // read, so this is the only word a tab gets that the banner still
+      // standing for that room now describes something that is over.
+      //
+      // Before the gates below rather than after: every one of them turns a
+      // read row away, which is right for raising a banner and is what left
+      // the stale ones on screen.
+      if (notification.isRead) {
+        void closeNotificationGroup(notification);
+        return;
+      }
+
       const isDocumentFocused =
         typeof document !== "undefined" ? document.hasFocus() : true;
       const permission = getBrowserNotificationPermission();
@@ -177,22 +192,22 @@ export function NotificationToastListener({
         return;
       }
 
-      // Not the count. This interrupts because a message just arrived, and
-      // the push service worker says the same thing for a tab that was
-      // closed; a banner that read "12 messages in Design" here and named the
-      // sender there would be two answers to one arrival.
+      // The combined room count overrides the count on its individual row.
+      const messageParams = {
+        ...(notification.messageParams ?? {}),
+        ...(notification.groupCount !== undefined && {
+          count: notification.groupCount,
+        }),
+      };
       if (showBrowser) {
         // The worker is the only thing that renders an OS banner (ADR-0023),
         // so a push carrying this same notification replaces this banner by
         // tag rather than stacking a second one beside it.
         const banner = buildNotificationBannerContent({
           messageKey: notification.messageKey,
-          messageParams: notification.messageParams ?? {},
+          messageParams,
           appTitle: t("browserNotificationTitle"),
-          translate: (messageKey) =>
-            formatMessage(messageKey, notification.messageParams ?? {}, {
-              counted: false,
-            }),
+          translate: (messageKey) => formatMessage(messageKey, messageParams),
         });
 
         void showNotification({
@@ -213,7 +228,6 @@ export function NotificationToastListener({
       const message = formatMessage(
         notification.messageKey,
         notification.messageParams ?? {},
-        { counted: false },
       );
 
       toast(
