@@ -81,12 +81,16 @@ const MESSAGES = {
       "The schedule for {taskName} was removed after review",
     "Notifications.Chat.mentioned": "{authorName} mentioned you in {roomName}",
     "Notifications.Chat.directMessage": "{authorName} sent you a message",
-    "Notifications.Chat.roomMessage": "{authorName} wrote in {roomName}",
-    "Notifications.Chat.roomMessages": "{count} messages in {roomName}",
+    "Notifications.Chat.roomMessage":
+      "{authorName} wrote in channel {roomName}",
+    "Notifications.Chat.roomMessages": "{count} messages in channel {roomName}",
     "Notifications.Chat.roomMessageGroup":
       "{authorName} wrote in group {roomName}",
     "Notifications.Chat.roomMessagesGroup":
       "{count} messages in group {roomName}",
+    "Notifications.Chat.roomMessageTitle": "{authorName} in channel {roomName}",
+    "Notifications.Chat.roomMessageGroupTitle":
+      "{authorName} in group {roomName}",
     "notifications.vendorGrant.pending":
       "{vendorName} requested vendor access to your workspace",
     "notifications.coworkerAccess.pending":
@@ -124,12 +128,16 @@ const MESSAGES = {
     "Notifications.Chat.directMessage":
       "{authorName} hat dir eine Nachricht gesendet",
     "Notifications.Chat.roomMessage":
-      "{authorName} hat in {roomName} geschrieben",
-    "Notifications.Chat.roomMessages": "{count} Nachrichten in {roomName}",
+      "{authorName} hat im Kanal {roomName} geschrieben",
+    "Notifications.Chat.roomMessages":
+      "{count} Nachrichten im Kanal {roomName}",
     "Notifications.Chat.roomMessageGroup":
       "{authorName} hat in der Gruppe {roomName} geschrieben",
     "Notifications.Chat.roomMessagesGroup":
       "{count} Nachrichten in der Gruppe {roomName}",
+    "Notifications.Chat.roomMessageTitle": "{authorName} im Kanal {roomName}",
+    "Notifications.Chat.roomMessageGroupTitle":
+      "{authorName} in der Gruppe {roomName}",
     "notifications.vendorGrant.pending":
       "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert",
     "notifications.coworkerAccess.pending":
@@ -161,12 +169,18 @@ const MESSAGES = {
       "Se eliminó la programación de {taskName} después de revisarla",
     "Notifications.Chat.mentioned": "{authorName} te mencionó en {roomName}",
     "Notifications.Chat.directMessage": "{authorName} te envió un mensaje",
-    "Notifications.Chat.roomMessage": "{authorName} escribió en {roomName}",
-    "Notifications.Chat.roomMessages": "{count} mensajes en {roomName}",
+    "Notifications.Chat.roomMessage":
+      "{authorName} escribió en el canal {roomName}",
+    "Notifications.Chat.roomMessages":
+      "{count} mensajes en el canal {roomName}",
     "Notifications.Chat.roomMessageGroup":
       "{authorName} escribió en el grupo {roomName}",
     "Notifications.Chat.roomMessagesGroup":
       "{count} mensajes en el grupo {roomName}",
+    "Notifications.Chat.roomMessageTitle":
+      "{authorName} en el canal {roomName}",
+    "Notifications.Chat.roomMessageGroupTitle":
+      "{authorName} en el grupo {roomName}",
     "notifications.vendorGrant.pending":
       "{vendorName} solicitó acceso de proveedor al workspace de la organización",
     "notifications.coworkerAccess.pending":
@@ -175,10 +189,14 @@ const MESSAGES = {
 };
 
 /**
- * Title of every banner, matching `Components.NotificationCenter.
- * browserNotificationTitle`, which reads "Sokosumi" in each locale. The
- * message goes in the body, so a push banner and a page banner for the same
- * notification look the same when one replaces the other by tag.
+ * Title of every banner but a chat one, matching `Components.
+ * NotificationCenter.browserNotificationTitle`, which reads "Sokosumi" in each
+ * locale. A chat banner is titled with who wrote and where instead, because
+ * the operating system prints the app name beside the banner already. Either
+ * way this worker and the open tab build the same title from the same locale,
+ * so the one that arrives second replaces the first by tag rather than reading
+ * differently. They can still resolve different locales, which the note on
+ * `resolveLocale` covers.
  */
 const APP_TITLE = "Sokosumi";
 
@@ -306,19 +324,89 @@ function buildTarget(pushData) {
   };
 }
 
-/** The rendered message, or undefined when the payload names no known key. */
-async function buildBody(pushData) {
-  const messages = MESSAGES[await resolveLocale()];
+/** Mirrors the chat message keys in @sokosumi/utils. */
+const CHAT_MENTION_MESSAGE_KEY = "Notifications.Chat.mentioned";
+const CHAT_DIRECT_MESSAGE_MESSAGE_KEY = "Notifications.Chat.directMessage";
+const CHAT_ROOM_MESSAGE_MESSAGE_KEY = "Notifications.Chat.roomMessage";
+const CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY =
+  "Notifications.Chat.roomMessageTitle";
+const CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY =
+  "Notifications.Chat.roomMessageGroupTitle";
+
+/** The rendered string for a key, or undefined when the catalog lacks it. */
+function render(messages, messageKey, params) {
   // `hasOwn`, so a payload naming "constructor" cannot reach a prototype
   // member and throw. A push that throws shows no banner at all.
-  if (!Object.hasOwn(messages, pushData.messageKey)) {
+  if (!Object.hasOwn(messages, messageKey)) {
     return undefined;
   }
 
-  return interpolate(
-    messages[pushData.messageKey],
-    parseParams(pushData.messageParams),
-  );
+  return interpolate(messages[messageKey], params);
+}
+
+/**
+ * The banner title for a chat message, or undefined when the key is not one.
+ *
+ * Mirrors `chatTitle` in `lib/utils/notification-banner.ts`, which titles the
+ * banner an open tab renders. Every chat title names the author, so a message
+ * with no author to name has no title to give.
+ */
+function chatTitle(messages, messageKey, params) {
+  if (typeof params.authorName !== "string" || !params.authorName) {
+    return undefined;
+  }
+
+  if (messageKey === CHAT_DIRECT_MESSAGE_MESSAGE_KEY) {
+    return params.authorName;
+  }
+
+  if (
+    (messageKey === CHAT_MENTION_MESSAGE_KEY ||
+      messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) &&
+    (typeof params.roomName !== "string" || !params.roomName.trim())
+  ) {
+    return params.authorName;
+  }
+
+  if (messageKey === CHAT_MENTION_MESSAGE_KEY) {
+    return render(messages, messageKey, params);
+  }
+
+  if (messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) {
+    return render(
+      messages,
+      params.isGroup === true
+        ? CHAT_ROOM_MESSAGE_GROUP_TITLE_MESSAGE_KEY
+        : CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY,
+      params,
+    );
+  }
+
+  return undefined;
+}
+
+/**
+ * The title and body this push puts on the banner.
+ *
+ * Mirrors `buildNotificationBannerContent` in the app: a chat message is
+ * titled with who wrote and where, and the message itself goes underneath.
+ * Every other kind keeps the app name and its line. Chat messages without
+ * preview text keep their chat title and have no body.
+ */
+async function buildBanner(pushData) {
+  const messages = MESSAGES[await resolveLocale()];
+  const params = parseParams(pushData.messageParams);
+  const preview = params.messagePreview;
+
+  const title = chatTitle(messages, pushData.messageKey, params);
+  if (title !== undefined) {
+    return { title, body: typeof preview === "string" ? preview : "" };
+  }
+
+  return {
+    title: APP_TITLE,
+    body: render(messages, pushData.messageKey, params),
+  };
 }
 
 /** Mirrors SHOWS_NOTIFICATIONS_QUERY in the app. */
@@ -421,8 +509,10 @@ async function showPushNotification(data) {
     console.error("Could not read the push payload", Object.keys(pushData));
   }
 
-  await self.registration.showNotification(APP_TITLE, {
-    body: await buildBody(pushData),
+  const banner = await buildBanner(pushData);
+
+  await self.registration.showNotification(banner.title, {
+    body: banner.body,
     tag: target ? target.id : GENERIC_TAG,
     icon: ICON_PATH,
     data: target,
