@@ -316,6 +316,8 @@ describe("WorkspaceCalendar", () => {
 
     expect(screen.getAllByTestId("calendar-month")[0]).toHaveClass(
       "workspace-calendar-theme",
+      "overflow-x-auto",
+      "rounded-xl",
     );
   });
 

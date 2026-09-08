@@ -372,7 +372,7 @@ function CalendarView({
 
   return (
     <div
-      className="workspace-calendar-theme relative overflow-x-auto"
+      className="workspace-calendar-theme relative overflow-x-auto rounded-xl"
       data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
