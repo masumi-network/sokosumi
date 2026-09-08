@@ -9,7 +9,9 @@ import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { NotificationsListSkeleton } from "@/app/notifications/components/notifications-loading-view";
+import { ClearNotificationsDialog } from "@/components/notifications/clear-notifications-dialog";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
+import { DeleteNotificationButton } from "@/components/notifications/delete-notification-button";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
@@ -63,6 +65,18 @@ function markAllNotificationsReadLocally(
   return changed ? next : notifications;
 }
 
+/** The list without one row, or the list itself when it holds no such row. */
+export function removeNotificationLocally(
+  notifications: NotificationItem[],
+  notificationId: string,
+): NotificationItem[] {
+  const next = notifications.filter(
+    (notification) => notification.id !== notificationId,
+  );
+
+  return next.length === notifications.length ? notifications : next;
+}
+
 export function mergeProviderNotifications(
   current: NotificationItem[],
   provider: NotificationItem[],
@@ -105,6 +119,7 @@ export function NotificationsPageContent({
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasFetchError, setHasFetchError] = useState(false);
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const fetchInFlightRef = useRef(false);
   const fetchGenerationRef = useRef(0);
 
@@ -216,21 +231,44 @@ export function NotificationsPageContent({
     void fetchNotifications(cursor);
   };
 
+  const handleNotificationDeleting = (notificationId: string) => {
+    setNotifications((prev) => removeNotificationLocally(prev, notificationId));
+  };
+
+  const handleClearing = () => {
+    setNotifications([]);
+    setCursor(null);
+    setHasMore(false);
+  };
+
   return (
     <div className="flex flex-col gap-5 pb-4">
       {notice !== null ? <AccountNoticeRow /> : null}
       <NotificationBrowserPermissionPrimer variant="page" />
-      {unreadCount > 0 ? (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            size="sm"
-            className="self-start"
-            onClick={handleMarkAllRead}
-            disabled={isMarkingAllRead}
-          >
-            {isMarkingAllRead ? tCenter("loading") : tCenter("markAllRead")}
-          </Button>
+      {unreadCount > 0 || notifications.length > 0 ? (
+        <div className="flex justify-end gap-2">
+          {notifications.length > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={() => setIsClearDialogOpen(true)}
+            >
+              {tCenter("clearAll")}
+            </Button>
+          ) : null}
+          {unreadCount > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              className="self-start"
+              onClick={handleMarkAllRead}
+              disabled={isMarkingAllRead}
+            >
+              {isMarkingAllRead ? tCenter("loading") : tCenter("markAllRead")}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
@@ -273,8 +311,12 @@ export function NotificationsPageContent({
                   onClick={handleNotificationClick}
                   onAccessRequestAccepted={(notificationId) => {
                     setNotifications((prev) =>
-                      prev.filter((item) => item.id !== notificationId),
+                      removeNotificationLocally(prev, notificationId),
                     );
+                  }}
+                  onDeleting={handleNotificationDeleting}
+                  onDeleteFailed={() => {
+                    void fetchNotifications();
                   }}
                 />
               ))}
@@ -293,6 +335,14 @@ export function NotificationsPageContent({
           ) : null}
         </>
       ) : null}
+      <ClearNotificationsDialog
+        open={isClearDialogOpen}
+        onOpenChange={setIsClearDialogOpen}
+        onClearing={handleClearing}
+        onClearFailed={() => {
+          void fetchNotifications();
+        }}
+      />
     </div>
   );
 }
@@ -304,6 +354,8 @@ interface NotificationRowProps {
   timeLabel: string;
   onClick: (notification: NotificationItem) => void;
   onAccessRequestAccepted: (notificationId: string) => void;
+  onDeleting: (notificationId: string) => void;
+  onDeleteFailed: () => void;
 }
 
 function NotificationRow({
@@ -313,6 +365,8 @@ function NotificationRow({
   timeLabel,
   onClick,
   onAccessRequestAccepted,
+  onDeleting,
+  onDeleteFailed,
 }: NotificationRowProps) {
   const showVendorGrantActions = isPendingVendorGrantNotification(notification);
   const showCoworkerAccessActions =
@@ -320,7 +374,7 @@ function NotificationRow({
   const showPendingAccessActions =
     showVendorGrantActions || showCoworkerAccessActions;
   const rowClassName = cn(
-    "hover:bg-accent flex w-full p-4 text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
+    "hover:bg-accent flex w-full items-start text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     !notification.isRead && "bg-accent/50",
     isPending && "bg-accent opacity-80",
     showPendingAccessActions ? "cursor-default" : "cursor-pointer",
@@ -376,17 +430,37 @@ function NotificationRow({
     </div>
   );
 
+  // The delete control sits beside the row rather than inside it, because the
+  // row itself is the button that opens the notification.
+  const deleteControl = (
+    <DeleteNotificationButton
+      notificationId={notification.id}
+      notificationMessage={message}
+      onDeleting={onDeleting}
+      onDeleteFailed={onDeleteFailed}
+    />
+  );
+
   if (showPendingAccessActions) {
-    return <div className={rowClassName}>{body}</div>;
+    return (
+      <div className={rowClassName}>
+        <div className="flex min-w-0 flex-1 p-4">{body}</div>
+        <div className="p-3">{deleteControl}</div>
+      </div>
+    );
   }
 
+  // The padding lives on the button, so the whole row stays one click target.
   return (
-    <button
-      type="button"
-      className={rowClassName}
-      onClick={() => onClick(notification)}
-    >
-      {body}
-    </button>
+    <div className={rowClassName}>
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 cursor-pointer p-4 text-left"
+        onClick={() => onClick(notification)}
+      >
+        {body}
+      </button>
+      <div className="p-3">{deleteControl}</div>
+    </div>
   );
 }

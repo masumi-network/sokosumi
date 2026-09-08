@@ -2,8 +2,12 @@
 
 import { Bell } from "lucide-react";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
+import { DeleteNotificationMenuItem } from "@/components/notifications/delete-notification-menu-item";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenuGroup,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import type { NotificationItem as NotificationItemType } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
@@ -32,9 +36,13 @@ export function NotificationItem({
   const showPendingAccessActions =
     showVendorGrantActions || showCoworkerAccessActions;
 
-  const itemClassName = cn(
-    "flex cursor-pointer flex-col items-start gap-1 px-4 py-3",
+  const rowClassName = cn(
+    "flex w-full items-start",
     !notification.isRead && "bg-accent/50",
+  );
+
+  const itemClassName = cn(
+    "flex min-w-0 flex-1 cursor-pointer flex-col items-start gap-1 py-3 pr-1 pl-4",
     showPendingAccessActions && "cursor-default",
   );
 
@@ -86,20 +94,37 @@ export function NotificationItem({
     </div>
   );
 
+  // The delete control is a menu item beside the row rather than inside it,
+  // so arrow keys reach it and the row item keeps one role.
+  const deleteControl = (
+    <DeleteNotificationMenuItem
+      notificationId={notification.id}
+      notificationMessage={message}
+    />
+  );
+
+  // A group rather than a plain div: a menu owns items and groups of items,
+  // and the row pairs its body with its delete control.
   if (showPendingAccessActions) {
     return (
-      <DropdownMenuItem
-        className={itemClassName}
-        onSelect={(event) => event.preventDefault()}
-      >
-        {body}
-      </DropdownMenuItem>
+      <DropdownMenuGroup className={rowClassName}>
+        <DropdownMenuItem
+          className={itemClassName}
+          onSelect={(event) => event.preventDefault()}
+        >
+          {body}
+        </DropdownMenuItem>
+        {deleteControl}
+      </DropdownMenuGroup>
     );
   }
 
   return (
-    <DropdownMenuItem className={itemClassName} onClick={onClick}>
-      {body}
-    </DropdownMenuItem>
+    <DropdownMenuGroup className={rowClassName}>
+      <DropdownMenuItem className={itemClassName} onClick={onClick}>
+        {body}
+      </DropdownMenuItem>
+      {deleteControl}
+    </DropdownMenuGroup>
   );
 }

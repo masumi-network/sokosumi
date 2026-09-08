@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { NotificationItem } from "@/lib/clients/generated/core";
 
-import { mergeProviderNotifications } from "./page-content";
+import {
+  mergeProviderNotifications,
+  removeNotificationLocally,
+} from "./page-content";
 
 function notification(
   id: string,
@@ -38,6 +41,16 @@ describe("mergeProviderNotifications", () => {
     expect(merged).toEqual([changedRoom, job]);
   });
 
+  it("leaves a row the page deleted from beyond the provider window out", () => {
+    // The page pages further back than shared state holds, so it deletes a row
+    // the provider never had. The merge must not bring the row back.
+    const held = notification("held");
+    const deleted = notification("deleted");
+    const pageList = removeNotificationLocally([held, deleted], "deleted");
+
+    expect(mergeProviderNotifications(pageList, [held])).toEqual([held]);
+  });
+
   it("keeps loaded rows outside the provider window", () => {
     const first = notification("first");
     const older = notification("older");
@@ -46,5 +59,29 @@ describe("mergeProviderNotifications", () => {
       first,
       older,
     ]);
+  });
+});
+
+describe("removeNotificationLocally", () => {
+  it("drops the deleted row and keeps the order of the rest", () => {
+    const first = notification("first");
+    const second = notification("second");
+    const third = notification("third");
+
+    expect(removeNotificationLocally([first, second, third], "second")).toEqual(
+      [first, third],
+    );
+  });
+
+  it("returns the same list when it holds no such row", () => {
+    const rows = [notification("first")];
+
+    expect(removeNotificationLocally(rows, "missing")).toBe(rows);
+  });
+
+  it("empties a list whose only row was deleted", () => {
+    expect(removeNotificationLocally([notification("only")], "only")).toEqual(
+      [],
+    );
   });
 });
