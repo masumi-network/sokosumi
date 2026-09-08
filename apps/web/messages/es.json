@@ -1552,6 +1552,7 @@
         "scopeOwned": "Mis tareas",
         "scopeWorkspace": "Espacio de trabajo",
         "coworkerLabel": "Coworker",
+        "humanLabel": "Humano",
         "statusLabel": "Estado",
         "statusOptions": {
           "DRAFT": "Borrador",

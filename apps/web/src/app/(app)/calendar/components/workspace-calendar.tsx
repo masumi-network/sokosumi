@@ -106,6 +106,7 @@ interface CalendarCoworker {
   id: string;
   image?: string;
   name: string;
+  kind?: "coworker" | "user" | "sokoBot";
 }
 
 interface WorkspaceCalendarProps {
@@ -128,6 +129,7 @@ interface WorkspaceCalendarProps {
 
 const calendarParsers = {
   assigneeId: parseAsString,
+  assigneeUserId: parseAsString,
   date: parseAsString,
   projectId: parseAsString,
   sourceId: parseAsString,
@@ -628,6 +630,8 @@ export function WorkspaceCalendar({
       (item) =>
         (state.assigneeId === null ||
           item.taskAssigneeId === state.assigneeId) &&
+        (state.assigneeUserId === null ||
+          item.taskAssigneeUserId === state.assigneeUserId) &&
         (state.status === null || item.taskStatus === state.status) &&
         (selectedSourceId === null || item.sourceId === selectedSourceId),
     )
@@ -737,6 +741,7 @@ export function WorkspaceCalendar({
         limit: pagination?.limit ?? 100,
         scope: state.scope,
         assigneeId: state.assigneeId ?? undefined,
+        assigneeUserId: state.assigneeUserId ?? undefined,
         status: state.status ?? undefined,
         ...(selectedProjectId
           ? { projectId: selectedProjectId }
@@ -803,12 +808,29 @@ export function WorkspaceCalendar({
       icon: Sparkles,
       value: state.assigneeId,
       allLabel: tFilters("all"),
-      options: coworkers.map((coworker) => ({
-        value: coworker.id,
-        label: coworker.name,
-      })),
+      options: coworkers
+        .filter((coworker) => coworker.kind !== "user")
+        .map((coworker) => ({
+          value: coworker.id,
+          label: coworker.name,
+        })),
       onChange: (assigneeId: string | null) =>
-        void setState({ assigneeId }, { shallow: false }),
+        void setState({ assigneeId, assigneeUserId: null }, { shallow: false }),
+    },
+    {
+      id: "human",
+      label: tFilters("humanLabel"),
+      icon: Sparkles,
+      value: state.assigneeUserId,
+      allLabel: tFilters("all"),
+      options: coworkers
+        .filter((coworker) => coworker.kind === "user")
+        .map((coworker) => ({
+          value: coworker.id,
+          label: coworker.name,
+        })),
+      onChange: (assigneeUserId: string | null) =>
+        void setState({ assigneeUserId, assigneeId: null }, { shallow: false }),
     },
     {
       id: "status",
@@ -911,6 +933,7 @@ export function WorkspaceCalendar({
           showActiveIndicator={
             state.scope === "owned" ||
             state.assigneeId !== null ||
+            state.assigneeUserId !== null ||
             state.status !== null ||
             selectedSourceId !== null
           }

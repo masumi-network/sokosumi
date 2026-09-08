@@ -25,6 +25,7 @@ interface ProjectCalendarPageProps {
   params: Promise<{ projectId: string }>;
   searchParams: Promise<{
     assigneeId?: string;
+    assigneeUserId?: string;
     date?: string;
     scope?: string;
     status?: string;
@@ -47,7 +48,8 @@ export default async function ProjectCalendarPage({
     notFound();
   }
 
-  const { assigneeId, date, scope, status } = await searchParams;
+  const { assigneeId, assigneeUserId, date, scope, status } =
+    await searchParams;
   const calendarStatus = Object.values(TaskStatus).find(
     (taskStatus) => taskStatus === status,
   );
@@ -60,6 +62,7 @@ export default async function ProjectCalendarPage({
       projectService.getProjectCalendar(project.id, {
         ...range,
         assigneeId,
+        assigneeUserId,
         limit: 100,
         scope: scope === "owned" ? "owned" : "workspace",
         status: calendarStatus,

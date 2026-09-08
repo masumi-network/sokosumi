@@ -100,6 +100,7 @@ interface CalendarCursor {
 
 export interface WorkspaceCalendarReadQuery {
   assigneeId?: string;
+  assigneeUserId?: string;
   from: Date;
   to: Date;
   cursor: CalendarCursor | null;
@@ -206,6 +207,7 @@ export function parseWorkspaceCalendarQuery(
   const { from, to } = validateRange(query.from, query.to);
   return {
     assigneeId: query.assigneeId,
+    assigneeUserId: query.assigneeUserId,
     from,
     to,
     cursor: query.cursor ? decodeCursor(query.cursor) : null,
@@ -257,11 +259,17 @@ export async function readWorkspaceCalendar(
   const taskFilters: Prisma.TaskWhereInput[] = [
     { archivedAt: null },
     ...(options.taskWhere ? [options.taskWhere] : []),
-    ...(query.scope === "owned" || query.assigneeId || query.status
+    ...(query.scope === "owned" ||
+    query.assigneeId ||
+    query.assigneeUserId ||
+    query.status
       ? [
           {
             ...(query.scope === "owned" ? { ownerId: userId } : {}),
             ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
+            ...(query.assigneeUserId
+              ? { assigneeUserId: query.assigneeUserId }
+              : {}),
             ...(query.status ? { status: query.status } : {}),
           },
         ]
@@ -350,6 +358,7 @@ export async function readWorkspaceCalendar(
             ownerId: true,
             status: true,
             assigneeId: true,
+            assigneeUserId: true,
           },
         },
         releasedTask: {
@@ -359,6 +368,7 @@ export async function readWorkspaceCalendar(
             ownerId: true,
             status: true,
             assigneeId: true,
+            assigneeUserId: true,
           },
         },
       },
@@ -386,6 +396,7 @@ export async function readWorkspaceCalendar(
         taskName: task.name,
         taskStatus: task.status,
         taskAssigneeId: task.assigneeId,
+        taskAssigneeUserId: task.assigneeUserId,
         scheduledAt: occurrence.effectiveScheduledAt.toISOString(),
         originalScheduledAt:
           occurrence.originalScheduledAt?.toISOString() ?? null,

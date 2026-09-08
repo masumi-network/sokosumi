@@ -1552,6 +1552,7 @@
         "scopeOwned": "Meine Tasks",
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
+        "humanLabel": "Mensch",
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Entwurf",

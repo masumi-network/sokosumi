@@ -31,6 +31,9 @@ const workspaceCalendarQueryObjectSchema = z.object({
       "Only occurrences whose planned-series or released-snapshot task has this coworker",
     example: "22222222-2222-7222-8222-222222222222",
   }),
+  assigneeUserId: z.string().optional().openapi({
+    description: "Only occurrences assigned to this workspace member",
+  }),
   projectId: z.uuid().optional().openapi({
     description:
       "Only occurrences captured with this Project as their Calendar source",
@@ -95,6 +98,11 @@ export const workspaceCalendarItemSchema = z
     taskName: z.string().openapi({ example: "Prepare release notes" }),
     taskStatus: z.enum(TaskStatus).openapi({ example: "QUEUED" }),
     taskAssigneeId: z.string().nullable().openapi({ example: "coworker_123" }),
+    taskAssigneeUserId: z
+      .string()
+      .nullable()
+      .optional()
+      .openapi({ example: "user_123" }),
     scheduledAt: dateTimeSchema.openapi({
       description: "Effective time at which the item appears in the Calendar",
     }),

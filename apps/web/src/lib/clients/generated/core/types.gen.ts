@@ -4472,6 +4472,7 @@ export type WorkspaceCalendarItem = {
     taskName: string;
     taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
     taskAssigneeId: string | null;
+    taskAssigneeUserId?: string | null;
     /**
      * Effective time at which the item appears in the Calendar
      */
@@ -29459,6 +29460,10 @@ export type GetProjectsByIdCalendarData = {
          */
         assigneeId?: string;
         /**
+         * Only occurrences assigned to this workspace member
+         */
+        assigneeUserId?: string;
+        /**
          * Only occurrences whose planned-series or released-snapshot task has this status
          */
         status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
@@ -41198,6 +41203,10 @@ export type GetWorkspacesCalendarData = {
          */
         assigneeId?: string;
         /**
+         * Only occurrences assigned to this workspace member
+         */
+        assigneeUserId?: string;
+        /**
          * Only occurrences captured with this Project as their Calendar source
          */
         projectId?: string;
@@ -41418,6 +41427,10 @@ export type GetWorkspacesByIdCalendarData = {
          * Only occurrences whose planned-series or released-snapshot task has this coworker
          */
         assigneeId?: string;
+        /**
+         * Only occurrences assigned to this workspace member
+         */
+        assigneeUserId?: string;
         /**
          * Only occurrences captured with this Project as their Calendar source
          */

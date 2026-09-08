@@ -14930,6 +14930,13 @@ export const WorkspaceCalendarItemSchema = {
             ],
             example: 'coworker_123'
         },
+        taskAssigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'user_123'
+        },
         scheduledAt: {
             type: 'string',
             format: 'date-time',

@@ -23,6 +23,7 @@ import { taskService } from "@/lib/services/task.service";
 interface CalendarPageProps {
   searchParams: Promise<{
     assigneeId?: string;
+    assigneeUserId?: string;
     date?: string;
     projectId?: string;
     sourceId?: string;
@@ -49,8 +50,15 @@ export default async function CalendarPage({
     notFound();
   }
 
-  const { assigneeId, date, projectId, sourceId, scope, status } =
-    await searchParams;
+  const {
+    assigneeId,
+    assigneeUserId,
+    date,
+    projectId,
+    sourceId,
+    scope,
+    status,
+  } = await searchParams;
   const calendarStatus = Object.values(TaskStatus).find(
     (taskStatus) => taskStatus === status,
   );
@@ -68,6 +76,7 @@ export default async function CalendarPage({
     taskService.getWorkspaceCalendar({
       ...range,
       assigneeId,
+      assigneeUserId,
       limit: 100,
       projectId,
       sourceId,

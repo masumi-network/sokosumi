@@ -427,6 +427,7 @@ describe("WorkspaceCalendar", () => {
       "scope",
       "source",
       "coworker",
+      "human",
       "status",
       "timezone",
     ]);
