@@ -14,7 +14,6 @@ import { ProjectModuleTiles } from "@/app/projects/components/project-module-til
 import { ProjectNeedsAttentionSection } from "@/app/projects/components/project-needs-attention-section";
 import {
   PROJECTS_DETAIL_SHELL_CLASS,
-  PROJECTS_DETAIL_TOP_CLASS,
   PROJECTS_DETAIL_WORKSPACE_CLASS,
 } from "@/app/projects/constants";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
@@ -51,115 +50,91 @@ export default async function ProjectDetailPage({
 
   return (
     <div className={PROJECTS_DETAIL_SHELL_CLASS}>
-      <div className={PROJECTS_DETAIL_TOP_CLASS}>
-        <ProjectDetailHeader
-          projectName={project.name}
-          projectLogo={project.logo}
-          websiteUrl={project.websiteUrl}
-          backLabel={t("back")}
-          metadata={[
-            {
-              label: t("header.updated"),
-              value: formatShortDateTime(project.updatedAt, locale),
-            },
-            {
-              label: t("header.created"),
-              value: formatShortDateTime(project.createdAt, locale),
-            },
-          ]}
-          actions={
-            <ProjectDetailActions
-              projectId={project.id}
-              labels={{
-                moreActions: t("actions.moreActions"),
-                edit: t("actions.edit"),
-                delete: t("actions.delete"),
-                deleteDialog: {
-                  title: t("deleteDialog.title"),
-                  description: t("deleteDialog.description"),
-                  confirm: t("deleteDialog.confirm"),
-                  cancel: t("deleteDialog.cancel"),
-                  error: t("errors.delete"),
+      <ProjectBrandProvider
+        key={project.designMd?.url ?? "project-brand-empty"}
+        projectId={project.id}
+        initialDesignMd={project.designMd}
+        websiteUrl={project.websiteUrl}
+      >
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]">
+          <div className="min-w-0 space-y-8">
+            <ProjectDetailHeader
+              projectName={project.name}
+              projectLogo={project.logo}
+              websiteUrl={project.websiteUrl}
+              backLabel={t("back")}
+              metadata={[
+                {
+                  label: t("header.updated"),
+                  value: formatShortDateTime(project.updatedAt, locale),
                 },
-              }}
-            />
-          }
-        />
-
-        <ProjectBrandProvider
-          key={project.designMd?.url ?? "project-brand-empty"}
-          projectId={project.id}
-          initialDesignMd={project.designMd}
-          websiteUrl={project.websiteUrl}
-        >
-          <div className="mt-6 grid grid-cols-1 gap-8 px-4 md:px-0 xl:grid-cols-3">
-            <div className="order-1 space-y-8 xl:order-1 xl:col-span-2">
-              {project.latestUpdate ? (
-                <ProjectLatestUpdate
-                  title={t("latestUpdate")}
-                  content={project.latestUpdate.content}
-                  showMoreLabel={t("showMore")}
-                  showLessLabel={t("showLess")}
+                {
+                  label: t("header.created"),
+                  value: formatShortDateTime(project.createdAt, locale),
+                },
+              ]}
+              actions={
+                <ProjectDetailActions
+                  projectId={project.id}
+                  labels={{
+                    moreActions: t("actions.moreActions"),
+                    edit: t("actions.edit"),
+                    delete: t("actions.delete"),
+                    deleteDialog: {
+                      title: t("deleteDialog.title"),
+                      description: t("deleteDialog.description"),
+                      confirm: t("deleteDialog.confirm"),
+                      cancel: t("deleteDialog.cancel"),
+                      error: t("errors.delete"),
+                    },
+                  }}
                 />
-              ) : null}
-              <ProjectBriefing
-                title={t("briefing")}
-                briefing={project.briefing}
-                emptyLabel={t("emptyBriefing")}
-                emptyActionLabel={t("writeBriefing")}
-                editHref={`/projects/${project.id}/edit`}
+              }
+            />
+
+            {project.latestUpdate ? (
+              <ProjectLatestUpdate
+                title={t("latestUpdate")}
+                content={project.latestUpdate.content}
                 showMoreLabel={t("showMore")}
                 showLessLabel={t("showLess")}
               />
-            </div>
+            ) : null}
 
-            <div className="order-2 xl:order-2">
-              <ProjectBrandCard
-                projectId={project.id}
-                projectName={project.name}
-                logo={project.logo}
-                websiteUrl={project.websiteUrl}
-              />
-            </div>
+            <ProjectBriefing
+              title={t("briefing")}
+              briefing={project.briefing}
+              emptyLabel={t("emptyBriefing")}
+              emptyActionLabel={t("writeBriefing")}
+              editHref={`/projects/${project.id}/edit`}
+              showMoreLabel={t("showMore")}
+              showLessLabel={t("showLess")}
+            />
 
-            <div className="order-4 xl:order-3 xl:col-span-2">
-              <ProjectNeedsAttentionSection
-                projectId={project.id}
-                taskCount={attention.taskCount}
-                jobCount={attention.jobCount}
-                items={attention.items}
-                labels={{
-                  needsAttention: t("needsAttention.title"),
-                  empty: t("needsAttention.empty"),
-                  viewAllTasks: t("tasks.viewAll"),
-                  viewAllJobs: t("jobs.viewAll"),
-                  counts: {
-                    tasks: tListStats("tasks"),
-                    jobs: tListStats("jobs"),
-                  },
-                  kind: {
-                    task: tHistory("kind.task"),
-                    job: tHistory("kind.job"),
-                  },
-                  taskStatus: taskStatusLabels,
-                  locale,
-                }}
-              />
-            </div>
+            <ProjectNeedsAttentionSection
+              projectId={project.id}
+              taskCount={attention.taskCount}
+              jobCount={attention.jobCount}
+              items={attention.items}
+              labels={{
+                needsAttention: t("needsAttention.title"),
+                empty: t("needsAttention.empty"),
+                viewAllTasks: t("tasks.viewAll"),
+                viewAllJobs: t("jobs.viewAll"),
+                counts: {
+                  tasks: tListStats("tasks"),
+                  jobs: tListStats("jobs"),
+                },
+                kind: {
+                  task: tHistory("kind.task"),
+                  job: tHistory("kind.job"),
+                },
+                taskStatus: taskStatusLabels,
+                locale,
+              }}
+            />
 
-            <div className="order-3 xl:order-4">
-              <ProjectMemoryRow
-                projectId={project.id}
-                contextMd={project.contextMd}
-                contextMdUpdating={project.contextMdUpdating}
-                memoryEnabled={project.memoryEnabled}
-                memoryModel={project.memoryModel}
-              />
-            </div>
-
-            <section
-              className={`order-5 xl:order-5 xl:col-span-2 ${PROJECTS_DETAIL_WORKSPACE_CLASS}`}
-            >
+            <section className={PROJECTS_DETAIL_WORKSPACE_CLASS}>
               <h2 className="text-muted-foreground text-xs font-medium">
                 {t("modules.title")}
               </h2>
@@ -208,8 +183,24 @@ export default async function ProjectDetailPage({
               />
             </section>
           </div>
-        </ProjectBrandProvider>
-      </div>
+
+          <aside className="min-w-0 space-y-8">
+            <ProjectBrandCard
+              projectId={project.id}
+              projectName={project.name}
+              logo={project.logo}
+              websiteUrl={project.websiteUrl}
+            />
+            <ProjectMemoryRow
+              projectId={project.id}
+              contextMd={project.contextMd}
+              contextMdUpdating={project.contextMdUpdating}
+              memoryEnabled={project.memoryEnabled}
+              memoryModel={project.memoryModel}
+            />
+          </aside>
+        </div>
+      </ProjectBrandProvider>
     </div>
   );
 }

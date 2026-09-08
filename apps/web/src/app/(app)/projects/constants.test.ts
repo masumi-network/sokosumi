@@ -34,12 +34,12 @@ describe("projects list CLS layout constants", () => {
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:rounded-xl");
   });
 
-  it("exports detail list layout with mobile bleed out of overview px-4", () => {
+  it("exports detail list layout with muted surface and md border/radius", () => {
     expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("bg-muted/30");
     expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("md:rounded-xl");
     expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("md:border");
-    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("-mx-4");
-    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).toContain("md:mx-0");
+    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).not.toContain("-mx-4");
+    expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).not.toContain("md:mx-0");
     expect(PROJECTS_DETAIL_LIST_LAYOUT_CLASS).not.toContain("-mx-6");
   });
 });
@@ -54,17 +54,17 @@ describe("projects mobile padding shells", () => {
     expect(PROJECTS_PAGE_SHELL_CLASS).not.toContain("calc(100%");
   });
 
-  it("detail shell cancels main p-4 on both edges; workspace shares overview grid rhythm", () => {
+  it("detail shell is a centered max-w-6xl container; workspace stacks heading + tiles", () => {
     const shell = PROJECTS_DETAIL_SHELL_CLASS.split(/\s+/);
     const workspace = PROJECTS_DETAIL_WORKSPACE_CLASS.split(/\s+/);
 
-    expect(shell).toContain("-mx-4");
-    expect(shell).toContain("w-[calc(100%+2rem)]");
-    expect(shell).toContain("md:mx-0");
-    expect(shell).toContain("md:w-full");
-    expect(shell).toContain("md:px-6");
-    expect(shell).not.toContain("px-4");
-    expect(shell).not.toContain("px-2");
+    expect(shell).toContain("mx-auto");
+    expect(shell).toContain("w-full");
+    expect(shell).toContain("max-w-6xl");
+    expect(shell).toContain("py-6");
+    expect(shell).not.toContain("-mx-4");
+    expect(shell).not.toContain("w-[calc(100%+2rem)]");
+    expect(shell).not.toContain("md:px-6");
 
     expect(PROJECTS_DETAIL_TOP_CLASS).toBe("w-full");
     expect(workspace).toEqual(["space-y-3"]);

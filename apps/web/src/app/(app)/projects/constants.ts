@@ -13,11 +13,9 @@ export const PROJECTS_PAGE_LIMIT = 20;
 export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 
 /**
- * Project detail outer shell. Cancel main `p-4` on mobile so the top block can
- * go edge-to-edge; same calc width as the index shell. Desktop keeps a wider gutter.
+ * Project detail outer shell: centered max-w-6xl container inside main `p-4`.
  */
-export const PROJECTS_DETAIL_SHELL_CLASS =
-  "min-h-full w-[calc(100%+2rem)] -mx-4 py-6 md:mx-0 md:w-full md:px-6";
+export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
 
 /**
  * Detail header + briefing/brand/tasks/jobs/memory: full bleed under the
@@ -46,7 +44,7 @@ export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
 export const PROJECTS_DETAIL_LIST_LAYOUT_CLASS =
-  "bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
+  "bg-muted/30 border-border/50 overflow-hidden rounded-none border-0 md:rounded-xl md:border";
 
 /**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
