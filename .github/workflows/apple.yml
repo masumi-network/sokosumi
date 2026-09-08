@@ -5,6 +5,9 @@ permissions:
 on:
   workflow_dispatch:
   pull_request:
+    # `ready_for_review` is not in the default pull_request types: without it,
+    # marking a draft ready would not trigger this workflow at all.
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   changes:
@@ -35,7 +38,9 @@ jobs:
   build:
     name: Xcode build
     needs: changes
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    # Draft PRs skip Apple CI: runners only spin up once the PR is marked
+    # ready (or on manual dispatch, which carries no pull_request payload).
+    if: (needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch') && (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)
     # Packages declare `swift-tools-version: 6.2`, which needs Xcode 26 (macOS 26).
     runs-on: macos-26
     steps:
@@ -57,7 +62,7 @@ jobs:
     # Same gate as `build` above (and as build.yml/test.yml for the JS
     # apps): build and test run in parallel, neither waits for the other.
     needs: changes
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    if: (needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch') && (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)
     runs-on: macos-26
     steps:
       - name: Checkout repository
