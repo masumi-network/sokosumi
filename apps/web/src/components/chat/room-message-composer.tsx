@@ -22,34 +22,21 @@ import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 const POINTER_SUBMIT_CLICK_GUARD_MS = 400;
 
 /**
- * Shared editor footprint for live composer + Instant room loading shell.
- *
- * Line height is pinned after the font size on purpose. withEditableTextSize
- * appends EDITABLE_TEXT_SIZE_CLASSNAME last, and tailwind-merge drops any
- * `leading-*` that sits before a font size, so the size seam would otherwise
- * own the line box: 1.5rem below `md`, 1.25rem from `md` up. That leaves the
- * caret, which fills the whole line box, hanging below the descender of the
- * text beside it. A tighter line box keeps the caret close to the glyphs.
- *
- * Vertical padding is symmetric at each breakpoint and adds up with the line to
- * the same 3rem box, so empty, placeholder, and first keystroke share it:
- * 0.875rem * 2 + 1.25rem = 0.9375rem * 2 + 1.125rem = 3rem. Do not use
- * `empty:max-h-*` (jumps when :empty ends). Placeholder is single-line ellipsis
- * on empty:before (see ComposerWysiwygEditor).
+ * Shared footprint for the live editor and Instant loading shell.
+ * The editable font sizes supply 1.5rem / 1.25rem line heights. Symmetric
+ * padding keeps a single line at 3rem without tightening multiline drafts.
  */
-export const ROOM_COMPOSER_TEXTAREA_CLASSNAME = cn(
-  withEditableTextSize(
-    "box-border max-h-40 min-h-12 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3.5 md:py-[0.9375rem] ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
-  ),
-  "leading-5 md:leading-[1.125rem]",
+export const ROOM_COMPOSER_TEXTAREA_CLASSNAME = withEditableTextSize(
+  "box-border max-h-40 min-h-12 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 md:py-3.5 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
 );
 
 /**
- * Classic empty:before placeholder on the editor host (live wysiwyg + Instant
- * bone). Single-line ellipsis; host min-h owns empty and first-keystroke height.
+ * Keep ellipsis without a scroll container: overflow-hidden gives the empty
+ * caret the wrong baseline in Gecko (https://bugzilla.mozilla.org/show_bug.cgi?id=904846#c51).
+ * The host owns the height in both the live editor and Instant loading shell.
  */
 export const ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME =
-  "empty:before:pointer-events-none empty:before:block empty:before:max-w-full empty:before:overflow-hidden empty:before:text-ellipsis empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]";
+  "empty:before:pointer-events-none empty:before:block empty:before:max-w-full empty:before:overflow-clip empty:before:text-ellipsis empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]";
 
 export const ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME =
   "size-9 rounded-full sm:size-8";
