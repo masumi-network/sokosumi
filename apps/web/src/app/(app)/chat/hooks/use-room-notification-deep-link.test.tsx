@@ -195,6 +195,66 @@ describe("useRoomNotificationDeepLink", () => {
     expect(props.jumpInRoom).toHaveBeenCalledExactlyOnceWith("msg-1");
   });
 
+  it("keeps a superseded jump superseded after a detour to another room", async () => {
+    // Two jumps for this room and a third for another. One slot holding only
+    // the last room would answer for room-2 here, and both of the room-1
+    // jumps would read that as "not my room, so I am still newest". The
+    // first would then land on top of the second.
+    const resolvers = new Map<string, () => void>();
+    vi.mocked(getRoomMessageAction).mockImplementation(
+      (_roomId, messageId) =>
+        new Promise((resolve) => {
+          resolvers.set(messageId, () => {
+            resolve({ ok: true as const, value: message({ id: messageId }) });
+          });
+        }),
+    );
+
+    const props = params();
+    const { rerender } = render(<Harness {...props} />);
+    rerender(
+      <Harness
+        {...props}
+        searchParams={
+          new URLSearchParams(
+            "message=msg-2",
+          ) as unknown as ReadonlyURLSearchParams
+        }
+      />,
+    );
+    await waitFor(() => {
+      expect(resolvers.has("msg-2")).toBe(true);
+    });
+
+    rerender(
+      <Harness
+        {...props}
+        roomId="room-2"
+        pathname="/chat/rooms/room-2"
+        searchParams={
+          new URLSearchParams(
+            "message=msg-3",
+          ) as unknown as ReadonlyURLSearchParams
+        }
+      />,
+    );
+    await waitFor(() => {
+      expect(resolvers.has("msg-3")).toBe(true);
+    });
+
+    await act(async () => {
+      resolvers.get("msg-1")?.();
+    });
+
+    expect(props.jumpInRoom).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolvers.get("msg-2")?.();
+    });
+
+    expect(props.jumpInRoom).toHaveBeenCalledExactlyOnceWith("msg-2");
+  });
+
   it("spends the message from the URL so Back does not jump again", async () => {
     const props = params();
 

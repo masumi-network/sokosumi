@@ -55,9 +55,7 @@ export function useRoomNotificationDeepLink({
   jumpInRoom,
   jumpInThread,
 }: RoomNotificationDeepLinkParams): void {
-  const latestJumpRef = useRef<{ roomId: string; messageId: string } | null>(
-    null,
-  );
+  const latestJumpRef = useRef(new Map<string, string>());
 
   async function jumpToNotificationMessage(messageId: string): Promise<void> {
     if (!roomId) {
@@ -73,11 +71,12 @@ export function useRoomNotificationDeepLink({
     //
     // Held per room rather than as one counter. A jump started for another
     // room says nothing about this one, and a reader who goes on to a second
-    // room and comes back is still owed the message they first asked for.
-    latestJumpRef.current = { roomId, messageId };
-    const isNewestJump = () =>
-      latestJumpRef.current?.roomId !== roomId ||
-      latestJumpRef.current.messageId === messageId;
+    // room and comes back is still owed the message they first asked for. One
+    // slot for the last room would not do: two jumps for this room and a
+    // third for another would leave both of the first two calling themselves
+    // newest.
+    latestJumpRef.current.set(roomId, messageId);
+    const isNewestJump = () => latestJumpRef.current.get(roomId) === messageId;
 
     await performRoomNotificationJump(messageId, {
       highlight,
@@ -93,10 +92,11 @@ export function useRoomNotificationDeepLink({
           return { status: "unavailable" };
         }
         // Core refuses a message the reader cannot read: 404 when the room
-        // is archived or the id names nothing in it, 403 when they are no
-        // longer a member of the organization behind it. The service reads
-        // both as no message rather than as a failure. A soft delete is not
-        // one of them; it comes back as a tombstone.
+        // is archived, when they are not a member of it, or when the id names
+        // nothing in it, and 403 when they are no longer a member of the
+        // organization behind it. The service reads both as no message rather
+        // than as a failure. A soft delete is not one of them; it comes back
+        // as a tombstone.
         return result.value
           ? { status: "found", message: result.value }
           : { status: "notReadable" };
