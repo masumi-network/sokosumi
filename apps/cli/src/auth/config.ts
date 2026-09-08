@@ -25,6 +25,15 @@ function trimUrl(value: string): string {
   return value.trim().replace(/\/+$/g, "");
 }
 
+function canonicalApiUrl(apiUrl: string): string {
+  const normalized = trimUrl(apiUrl);
+  try {
+    return new URL(normalized).toString();
+  } catch {
+    return normalized;
+  }
+}
+
 export function resolveTargetFromApiUrl(apiUrl: string): CliTarget {
   const normalized = trimUrl(apiUrl);
   if (normalized === MAINNET_API_URL) return "mainnet";
@@ -34,12 +43,7 @@ export function resolveTargetFromApiUrl(apiUrl: string): CliTarget {
 
 export function resolveTargetScope(target: CliTarget, apiUrl: string): string {
   if (target !== "custom") return target;
-  try {
-    const parsed = new URL(apiUrl);
-    return `custom-${parsed.host.replace(/[^a-zA-Z0-9]/g, "_")}`;
-  } catch {
-    return "custom";
-  }
+  return `custom-${encodeURIComponent(canonicalApiUrl(apiUrl))}`;
 }
 
 export function targetFromUserApiKey(

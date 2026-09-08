@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { resolveTargetScope } from "../../src/auth/config.js";
 import {
   type CredentialStore,
+  createAuthCredentialStores,
   createCredentialStore,
 } from "../../src/auth/secure-store.js";
 
@@ -10,6 +12,58 @@ interface StoredCredentials {
   authToken: string;
   refreshToken: string;
 }
+
+test("TestV28 custom target vault entries stay isolated across similar host names", () => {
+  const entries = new Map<string, string>();
+  const entryFactory = (serviceName: string, accountName: string) => {
+    const key = `${serviceName}\0${accountName}`;
+    return {
+      getPassword: () => entries.get(key) || null,
+      setPassword: (value: string) => {
+        entries.set(key, value);
+      },
+      deletePassword: () => entries.delete(key),
+    };
+  };
+  const hyphenHostScope = resolveTargetScope("custom", "https://a-b.example");
+  const dottedHostScope = resolveTargetScope("custom", "https://a.b.example");
+  const hyphenHostStores = createAuthCredentialStores({
+    targetScope: hyphenHostScope,
+    clientId: "cli-client",
+    platform: "darwin",
+    entryFactory,
+  });
+  const dottedHostStores = createAuthCredentialStores({
+    targetScope: dottedHostScope,
+    clientId: "cli-client",
+    platform: "darwin",
+    entryFactory,
+  });
+
+  assert.notEqual(hyphenHostScope, dottedHostScope);
+  hyphenHostStores.apiKey.write({
+    apiKey: "hyphen-host-key",
+    target: "custom",
+  });
+  assert.deepEqual(hyphenHostStores.apiKey.read(), {
+    apiKey: "hyphen-host-key",
+    target: "custom",
+  });
+  assert.equal(dottedHostStores.apiKey.read(), null);
+
+  dottedHostStores.apiKey.write({
+    apiKey: "dotted-host-key",
+    target: "custom",
+  });
+  assert.deepEqual(hyphenHostStores.apiKey.read(), {
+    apiKey: "hyphen-host-key",
+    target: "custom",
+  });
+  assert.deepEqual(dottedHostStores.apiKey.read(), {
+    apiKey: "dotted-host-key",
+    target: "custom",
+  });
+});
 
 test("uses the native macOS credential entry without process arguments", () => {
   let storedPassword: string | null = null;
