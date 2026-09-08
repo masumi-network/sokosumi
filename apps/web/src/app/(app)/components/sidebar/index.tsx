@@ -82,12 +82,14 @@ export function mapAccountCreditsChrome(
 interface SidebarProps {
   accountFooter: ReactNode;
   chatList: ReactNode;
+  calendarMenuEnabled: boolean;
   sokoBotMenuEnabled: boolean;
 }
 
 export default function Sidebar({
   accountFooter,
   chatList,
+  calendarMenuEnabled,
   sokoBotMenuEnabled,
 }: SidebarProps) {
   return (
@@ -107,7 +109,7 @@ export default function Sidebar({
         <div className="flex w-full flex-col gap-0">
           <PersonalAssistantNav enabled={sokoBotMenuEnabled} />
           {sokoBotMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
-          <MenuItems calendarMenuEnabled={sokoBotMenuEnabled} />
+          <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
           <SidebarSeparator />
           {chatList}
         </div>

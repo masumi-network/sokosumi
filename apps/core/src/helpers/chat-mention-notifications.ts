@@ -7,6 +7,7 @@ export interface EmitChatMentionNotificationsParams {
   roomName: string;
   organizationId: string | null;
   messageId: string;
+  content: string;
   authorUserId: string;
   authorName: string;
   mentionedUserIds: readonly string[];
@@ -21,6 +22,7 @@ export async function emitChatMentionNotifications(
     roomName: params.roomName,
     organizationId: params.organizationId,
     messageId: params.messageId,
+    content: params.content,
     authorUserId: params.authorUserId,
     authorName: params.authorName,
     recipientUserIds: params.mentionedUserIds,

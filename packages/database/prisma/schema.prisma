@@ -60,6 +60,10 @@ model User {
 
   notificationPreferences NotificationPreference[]
 
+  // Chat display preferences. Not delivery: these change what the reader sees,
+  // never which notifications are created or sent.
+  showRoomUnreadCount Boolean @default(false) // Whether chat sidebar rows show a room's unread message count
+
   // UTM Attribution
   utmAttribution UTMAttribution?
 
@@ -265,6 +269,7 @@ model Workspace {
   tasks                   Task[]
   projects                Project[]
   scheduleOccurrences     TaskScheduleOccurrence[]
+  scheduleCreateOperations TaskScheduleCreateOperation[]
   calendarInvalidations   CalendarInvalidationOutbox[]
   vendorGrants            VendorGrant[]
   coworkerWorkspaceAccess CoworkerWorkspaceAccess[]
@@ -457,6 +462,11 @@ model Notification {
   @@index([userId, isRead])
   @@index([eventId])
   @@index([kind, eventId])
+  /// Reads every notification of one chat room. Chat is the only kind whose
+  /// rows are looked up by what they point at rather than by who they are
+  /// for: editing or deleting a message has to find the copy of it that its
+  /// notifications carry, across every recipient at once.
+  @@index([kind, referenceId])
   @@map("notification")
 }
 
@@ -2476,6 +2486,7 @@ model Task {
   scheduleOccurrences        TaskScheduleOccurrence[] @relation("ScheduleOccurrenceSeries")
   releasedScheduleOccurrence TaskScheduleOccurrence?  @relation("ScheduleOccurrenceReleasedTask")
   scheduleQuarantine         TaskScheduleQuarantine?
+  scheduleCreateOperation    TaskScheduleCreateOperation?
 
   @@index([organizationId])
   @@index([workspaceId])
@@ -2492,6 +2503,30 @@ model Task {
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
   @@map("task")
+}
+
+/// Idempotency ledger for atomic v2 scheduled Task creation. A key is scoped to
+/// the active workspace, so retries return the original Task without duplicating
+/// its occurrence ledger rows.
+model TaskScheduleCreateOperation {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  operationId String @db.Uuid
+
+  /// SHA-256 of the creation-affecting request payload. Reusing an operation
+  /// ID for a different Task request is a conflict rather than a replay.
+  requestFingerprint String
+
+  taskId String @unique
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, operationId])
+  @@index([workspaceId, createdAt])
+  @@map("task_schedule_create_operation")
 }
 
 /// File uploaded to a task by the owner or assigned coworker. Stored in public

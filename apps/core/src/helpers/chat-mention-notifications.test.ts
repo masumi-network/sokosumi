@@ -25,6 +25,13 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomUserMember: {
       findMany: membershipFindManyMock,
     },
+    // The fan-out reads the message before it builds a preview, so a body
+    // deleted while it ran is not written back onto the notifications.
+    chatRoomMessage: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue({ deletedAt: null, content: "ship it" }),
+    },
   },
 }));
 
@@ -54,6 +61,7 @@ describe("emitChatMentionNotifications", () => {
       roomName: "general",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       mentionedUserIds: [MENTIONED_ID, OTHER_ID],
@@ -81,6 +89,7 @@ describe("emitChatMentionNotifications", () => {
       messageParams: {
         authorName: "Patrick",
         roomName: "general",
+        messagePreview: "ship it",
       },
       metadata: {
         messageId: MESSAGE_ID,
@@ -100,6 +109,7 @@ describe("emitChatMentionNotifications", () => {
       roomName: "general",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       mentionedUserIds: [MENTIONED_ID, OTHER_ID],
@@ -122,6 +132,7 @@ describe("emitChatMentionNotifications", () => {
       roomName: "general",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       mentionedUserIds: [MENTIONED_ID],
@@ -137,6 +148,7 @@ describe("emitChatMentionNotifications", () => {
       roomName: "general",
       organizationId: "org_1",
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       mentionedUserIds: [AUTHOR_ID],
@@ -153,6 +165,7 @@ describe("emitChatMentionNotifications", () => {
       roomName: "dm",
       organizationId: null,
       messageId: MESSAGE_ID,
+      content: "ship it",
       authorUserId: AUTHOR_ID,
       authorName: "Patrick",
       mentionedUserIds: [MENTIONED_ID],
@@ -179,6 +192,7 @@ describe("emitChatMentionNotifications", () => {
         roomName: "general",
         organizationId: "org_1",
         messageId: MESSAGE_ID,
+        content: "ship it",
         authorUserId: AUTHOR_ID,
         authorName: "Patrick",
         mentionedUserIds: [MENTIONED_ID, OTHER_ID],

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   cloneElement,
@@ -10,22 +10,37 @@ import {
   useState,
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHAT_CHATS_LIST_PATH } from "@/app/chat/utils/chat-route-base";
+import {
+  CHAT_CHATS_LIST_PATH,
+  chatRoomEditHref,
+} from "@/app/chat/utils/chat-route-base";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
-const { leaveRoomActionMock, replaceMock, refreshMock, notifyMock } =
-  vi.hoisted(() => ({
-    leaveRoomActionMock: vi.fn(),
-    replaceMock: vi.fn(),
-    refreshMock: vi.fn(),
-    notifyMock: vi.fn(),
-  }));
+const {
+  leaveRoomActionMock,
+  replaceMock,
+  pushMock,
+  refreshMock,
+  notifyMock,
+  showRoomUnreadCountMock,
+  roomSearchParams,
+} = vi.hoisted(() => ({
+  leaveRoomActionMock: vi.fn(),
+  replaceMock: vi.fn(),
+  pushMock: vi.fn(),
+  refreshMock: vi.fn(),
+  notifyMock: vi.fn(),
+  showRoomUnreadCountMock: vi.fn(() => false),
+  roomSearchParams: { current: new URLSearchParams() },
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: replaceMock,
+    push: pushMock,
     refresh: refreshMock,
   }),
+  useSearchParams: () => roomSearchParams.current,
 }));
 
 vi.mock("next/link", () => ({
@@ -36,8 +51,11 @@ vi.mock("next/link", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations:
-    (_namespace?: string) => (key: string, values?: Record<string, string>) => {
+    (_namespace?: string) =>
+    (key: string, values?: Record<string, string | number>) => {
       const translations: Record<string, string> = {
+        unreadMessages: `${values?.count ?? ""} unread messages`,
+        unreadMessagesCapped: `More than ${values?.max ?? ""} unread messages`,
         leave: "Leave channel",
         leaveConfirmTitle: `Leave ${values?.name ?? ""}?`,
         leaveConfirmDescription: `Leave description for ${values?.name ?? ""}`,
@@ -45,6 +63,7 @@ vi.mock("next-intl", () => ({
         leaveSuccess: `You left ${values?.name ?? ""}.`,
         cancel: "Cancel",
         markUnread: "Mark as unread",
+        editChannel: "Edit channel",
         pin: "Pin",
         unpin: "Unpin",
         mute: "Mute",
@@ -65,6 +84,10 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/app/chat/actions", () => ({
   leaveRoomAction: (...args: unknown[]) => leaveRoomActionMock(...args),
+}));
+
+vi.mock("@/components/chat/use-show-room-unread-count", () => ({
+  useShowRoomUnreadCount: () => showRoomUnreadCountMock(),
 }));
 
 vi.mock("@/components/chat/organization-chat-events", () => ({
@@ -264,6 +287,16 @@ vi.mock("@/components/ui/alert-dialog", () => {
 
 import { toast } from "sonner";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
+import { markOrganizationChatRoomUnreadAction } from "./organization-chat-list.actions";
+import {
+  applyRoomReadOverlays,
+  beginRoomAttentionChange,
+  beginRoomAttentionRefresh,
+  clearRoomReadOverlays,
+  reconcileRoomAttention,
+  rememberRoomRead,
+  settleRoomAttentionChange,
+} from "./room-read-overlay";
 
 function makeUser(id: string, access: "member" | "guest" = "member") {
   return {
@@ -338,6 +371,175 @@ describe("ChatRoomSidebarRow leading slot", () => {
     // Slot is a direct child of the room link so every room type shares the same column.
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
     expect(link?.firstElementChild).toBe(slot);
+  });
+});
+
+describe("ChatRoomSidebarRow edit menu", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    roomSearchParams.current = new URLSearchParams();
+  });
+
+  // Both survive a failed assertion, which a restore inside a test does not.
+  afterEach(() => {
+    roomSearchParams.current = new URLSearchParams();
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("sends the reader to the channel with its edit dialog asked for", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
+
+    expect(pushMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"));
+  });
+
+  // The room already on screen takes the parameter straight back off its URL,
+  // so a pushed entry would leave Back doing nothing the reader can see.
+  it("replaces rather than pushes for the channel already on screen", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
+
+    expect(replaceMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"), {
+      scroll: false,
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  // The ask is added to what the active room's URL carries rather than
+  // written over it.
+  it("keeps what the active room's URL already carries", async () => {
+    roomSearchParams.current = new URLSearchParams("notice=welcome");
+
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
+
+    expect(replaceMock).toHaveBeenCalledWith(
+      "/chat/rooms/room-1?notice=welcome&edit=1",
+      { scroll: false },
+    );
+  });
+
+  // The router's query still names a message the room has spent until that
+  // strip commits. Written back, it would leave the room waiting on a message
+  // nobody spends again, with this ask stuck behind it.
+  it("drops a message the room has not jumped to", async () => {
+    roomSearchParams.current = new URLSearchParams("message=msg-1");
+
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
+
+    expect(replaceMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"), {
+      scroll: false,
+    });
+  });
+
+  // The App Router writes history in an effect after the commit, so the
+  // document lags the router's own query.
+  it("reads the router's query rather than the document's", async () => {
+    window.history.replaceState({}, "", "/chat/rooms/room-1?notice=welcome");
+    roomSearchParams.current = new URLSearchParams();
+
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
+
+    expect(replaceMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"), {
+      scroll: false,
+    });
+  });
+
+  // The dialog is for channels. A direct room's header shows a plain title.
+  it("hides Edit channel for direct rooms", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ kind: "direct" })}
+        href="/chat/rooms/room-1"
+        label="Alice"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    await openRoomMenu("Alice");
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Edit channel" }),
+    ).not.toBeInTheDocument();
+  });
+
+  // A channel nobody may leave still opens its dialog from the same menu.
+  it("offers Edit channel when Leave is hidden", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ userMembers: [makeUser("user-1")] })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    await openRoomMenu();
+
+    expect(
+      screen.getByRole("menuitem", { name: "Edit channel" }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -446,5 +648,321 @@ describe("ChatRoomSidebarRow leave menu", () => {
     expect(notifyMock).toHaveBeenCalledWith({ removedRoomId: "room-1" });
     expect(replaceMock).toHaveBeenCalledWith(CHAT_CHATS_LIST_PATH);
     expect(refreshMock).toHaveBeenCalled();
+  });
+});
+
+describe("ChatRoomSidebarRow unread message count", () => {
+  beforeEach(() => {
+    showRoomUnreadCountMock.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    showRoomUnreadCountMock.mockReturnValue(false);
+  });
+
+  function renderRow(room: ChatRoom, isActive = false) {
+    return render(
+      <ChatRoomSidebarRow
+        room={room}
+        href={`/chat/rooms/${room.id}`}
+        label={room.name ?? room.id}
+        isActive={isActive}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+  }
+
+  it("shows nothing extra when the reader has not opted in", () => {
+    showRoomUnreadCountMock.mockReturnValue(false);
+    renderRow(makeRoom({ unreadCount: 4 }));
+
+    expect(screen.queryByText("4 unread messages")).toBeNull();
+    expect(screen.queryByText("4")).toBeNull();
+  });
+
+  it("shows the unread message count when the reader opted in", () => {
+    renderRow(makeRoom({ unreadCount: 4 }));
+
+    expect(screen.getByText("4")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("4 unread messages").className).toContain(
+      "sr-only",
+    );
+  });
+
+  // The count has no unbolded variant, so it has to match the name it sits
+  // beside rather than merely being bold on its own.
+  it("draws the count at the same unread weight as the room name", () => {
+    renderRow(makeRoom({ unreadCount: 4 }));
+
+    const count = screen.getByText("4 unread messages").parentElement;
+    const name = screen.getByText("general");
+
+    for (const className of [count?.className, name.className]) {
+      expect(className).toContain("font-semibold");
+      expect(className).toContain("text-foreground");
+    }
+  });
+
+  it("shows no count on a room with nothing unread", () => {
+    renderRow(makeRoom({ unreadCount: 0 }));
+
+    expect(screen.queryByText(/unread messages/)).toBeNull();
+  });
+
+  it("shows no count on a muted room", () => {
+    renderRow(makeRoom({ unreadCount: 4, mutedAt: new Date() }));
+
+    expect(screen.queryByText(/unread messages/)).toBeNull();
+  });
+
+  it("shows no count on the room the reader has open", () => {
+    renderRow(makeRoom({ unreadCount: 4 }), true);
+
+    expect(screen.queryByText(/unread messages/)).toBeNull();
+  });
+
+  it("caps a very loud room so the row cannot reflow", () => {
+    renderRow(makeRoom({ unreadCount: 1234 }));
+
+    expect(screen.getByText("99+")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("More than 99 unread messages")).toBeVisible();
+  });
+
+  it("hides the count with the mention badge when the sidebar collapses", () => {
+    renderRow(makeRoom({ unreadCount: 4 }));
+
+    expect(
+      screen.getByText("4 unread messages").parentElement?.className,
+    ).toContain("group-data-[collapsible=icon]:hidden");
+  });
+
+  // The regression guard: a mention and unread messages on one row, each
+  // number saying its own thing. The badge must keep counting mentions.
+  it("shows a mention badge and a message count without either changing", () => {
+    renderRow(makeRoom({ unreadCount: 9, unreadMentionCount: 2 }));
+
+    expect(screen.getByLabelText("2 mentions")).toHaveTextContent("2");
+    expect(screen.getByText("9 unread messages")).toBeInTheDocument();
+    expect(screen.getByText("9")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  // The pure-function seam never receives the room kind, so it cannot prove
+  // these. They fail if anyone ever puts a kind gate on the count path.
+  it("shows the count on a Direct", () => {
+    renderRow(
+      makeRoom({
+        id: "direct-1",
+        name: "Ada",
+        kind: "direct",
+        slug: null,
+        directKey: "user-1:user-2",
+        discoverability: null,
+        unreadCount: 3,
+      }),
+    );
+
+    expect(screen.getByText("3 unread messages")).toBeInTheDocument();
+  });
+
+  it("shows the count on a multi-human group Direct", () => {
+    renderRow(
+      makeRoom({
+        id: "direct-2",
+        name: "Ada, Grace, Alan",
+        kind: "direct",
+        slug: null,
+        directKey: "user-1:user-2:user-3",
+        discoverability: null,
+        unreadCount: 6,
+        userMembers: [
+          makeUser("user-1"),
+          makeUser("user-2"),
+          makeUser("user-3"),
+        ],
+      }),
+    );
+
+    expect(screen.getByText("6 unread messages")).toBeInTheDocument();
+  });
+
+  it("shows the count on a coworker 1:1", () => {
+    renderRow(
+      makeRoom({
+        id: "direct-3",
+        name: "Scout",
+        kind: "direct",
+        slug: null,
+        directKey: "user-1:coworker-1",
+        discoverability: null,
+        unreadCount: 2,
+        userMembers: [makeUser("user-1")],
+        coworkerMembers: [
+          {
+            id: "coworker-1",
+            name: "Scout",
+            slug: "scout",
+            caption: null,
+            image: null,
+            presence: "offline",
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByText("2 unread messages")).toBeInTheDocument();
+  });
+
+  it("shows the count on an External channel", () => {
+    renderRow(
+      makeRoom({
+        id: "external-1",
+        name: "partner-room",
+        organizationName: "Partner Inc",
+        myAccess: "guest",
+        unreadCount: 5,
+      }),
+    );
+
+    expect(screen.getByText("5 unread messages")).toBeInTheDocument();
+  });
+});
+
+describe("ChatRoomSidebarRow Mark unread", () => {
+  beforeEach(() => {
+    clearRoomReadOverlays();
+    vi.clearAllMocks();
+  });
+
+  it("supersedes a pending read and protects Mark unread while its action runs", async () => {
+    const original = makeRoom();
+    const oldRead = beginRoomAttentionChange(original);
+    const response =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof markOrganizationChatRoomUnreadAction>>
+      >();
+    vi.mocked(markOrganizationChatRoomUnreadAction).mockReturnValue(
+      response.promise,
+    );
+    const onRoomUpdated = vi.fn(rememberRoomRead);
+    render(
+      <ChatRoomSidebarRow
+        room={original}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={onRoomUpdated}
+      />,
+    );
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Mark as unread" }));
+
+    expect(settleRoomAttentionChange(original.id, oldRead, original)).toBe(
+      false,
+    );
+    expect(
+      reconcileRoomAttention([original], beginRoomAttentionRefresh())[0]
+        ?.markedUnread,
+    ).toBe(true);
+    await act(async () =>
+      response.resolve({
+        ok: true,
+        value: { ...original, markedUnread: true },
+      }),
+    );
+    expect(applyRoomReadOverlays([original])[0]?.markedUnread).toBe(true);
+  });
+
+  it.each(["failed result", "rejected request"])(
+    "restores attention after a %s",
+    async (failure) => {
+      const original = makeRoom();
+      const response =
+        Promise.withResolvers<
+          Awaited<ReturnType<typeof markOrganizationChatRoomUnreadAction>>
+        >();
+      vi.mocked(markOrganizationChatRoomUnreadAction).mockReturnValue(
+        response.promise,
+      );
+      const onRoomUpdated = vi.fn(rememberRoomRead);
+      render(
+        <ChatRoomSidebarRow
+          room={original}
+          href="/chat/rooms/room-1"
+          label="general"
+          isActive={false}
+          leading={<span>#</span>}
+          onRoomUpdated={onRoomUpdated}
+        />,
+      );
+      const user = await openRoomMenu();
+      await user.click(
+        screen.getByRole("menuitem", { name: "Mark as unread" }),
+      );
+      const staleRequest = beginRoomAttentionRefresh();
+      await act(async () => {
+        if (failure === "failed result") {
+          response.resolve({
+            ok: false,
+            error: { code: "INTERNAL_SERVER_ERROR", message: "fail" },
+          });
+        } else {
+          response.reject(new Error("network unavailable"));
+        }
+      });
+
+      expect(onRoomUpdated).toHaveBeenLastCalledWith(original);
+      expect(
+        applyRoomReadOverlays([{ ...original, markedUnread: true }])[0]
+          ?.markedUnread,
+      ).toBe(false);
+      expect(
+        reconcileRoomAttention(
+          [{ ...original, markedUnread: true }],
+          staleRequest,
+        )[0]?.markedUnread,
+      ).toBe(false);
+      expect(toast.error).toHaveBeenCalledWith(
+        "Could not update this chat. Try again.",
+      );
+    },
+  );
+  it("restores settled attention when Mark unread supersedes a read and fails", async () => {
+    const original = makeRoom();
+    const settled = { ...original, unreadCount: 2, unreadMentionCount: 1 };
+    rememberRoomRead(settled);
+    const pendingRead = beginRoomAttentionChange(original, settled);
+    const response =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof markOrganizationChatRoomUnreadAction>>
+      >();
+    vi.mocked(markOrganizationChatRoomUnreadAction).mockReturnValue(
+      response.promise,
+    );
+    const onRoomUpdated = vi.fn(rememberRoomRead);
+    render(
+      <ChatRoomSidebarRow
+        room={original}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={onRoomUpdated}
+      />,
+    );
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Mark as unread" }));
+    await act(async () => {
+      response.resolve({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "failed" },
+      });
+    });
+    expect(settleRoomAttentionChange(original.id, pendingRead, null)).toBe(
+      false,
+    );
+    expect(onRoomUpdated).toHaveBeenLastCalledWith(settled);
+    expect(applyRoomReadOverlays([original])[0]).toEqual(settled);
   });
 });

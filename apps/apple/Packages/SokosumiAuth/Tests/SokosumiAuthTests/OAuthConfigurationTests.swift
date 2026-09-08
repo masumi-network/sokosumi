@@ -4,8 +4,8 @@ import Testing
 
 struct OAuthConfigurationTests {
   @Test func authorizeURLCarriesPublicPKCEParameters() throws {
-    let configuration = OAuthConfiguration(
-      issuerBaseURL: URL(string: "https://core.example/auth")!,
+    let configuration = try OAuthConfiguration(
+      issuerBaseURL: #require(URL(string: "https://core.example/auth")),
       clientID: "mac-public-client"
     )
     let url = try configuration.authorizeURL(
@@ -29,15 +29,15 @@ struct OAuthConfigurationTests {
     #expect(fields["state"] == "state-123")
   }
 
-  @Test func issuerBaseDerivesFromCoreAPIBaseURL() {
+  @Test func issuerBaseDerivesFromCoreAPIBaseURL() throws {
     #expect(
-      OAuthConfiguration.issuerBaseURL(
-        coreAPIBaseURL: URL(string: "https://api.sokosumi.com/v1")!
+      try OAuthConfiguration.issuerBaseURL(
+        coreAPIBaseURL: #require(URL(string: "https://api.sokosumi.com/v1"))
       ).absoluteString == "https://api.sokosumi.com/auth"
     )
     #expect(
-      OAuthConfiguration.issuerBaseURL(
-        coreAPIBaseURL: URL(string: "https://xyz.core.sokosumi.localhost/v1")!
+      try OAuthConfiguration.issuerBaseURL(
+        coreAPIBaseURL: #require(URL(string: "https://xyz.core.sokosumi.localhost/v1"))
       ).absoluteString == "https://xyz.core.sokosumi.localhost/auth"
     )
   }

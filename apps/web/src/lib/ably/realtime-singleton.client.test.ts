@@ -25,7 +25,7 @@ vi.mock("./ably-client-instance-id", () => ({
   getOrCreateAblyClientInstanceId: () => "inst_test01",
 }));
 
-import { NOTIFICATION_SERVICE_WORKER_URL } from "@/lib/utils/notification-service-worker";
+import { getNotificationServiceWorkerUrl } from "@/lib/utils/notification-service-worker";
 
 import { getAblyRealtimeClient } from "./realtime-singleton.client";
 
@@ -122,7 +122,7 @@ describe("getAblyRealtimeClient", () => {
     expect(RealtimeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         plugins: { Push: PushMock },
-        pushServiceWorkerUrl: NOTIFICATION_SERVICE_WORKER_URL,
+        pushServiceWorkerUrl: getNotificationServiceWorkerUrl(),
       }),
     );
   });
@@ -176,6 +176,30 @@ describe("getAblyRealtimeClient", () => {
     expect(globalThis.__sokosumiAblyRealtimeClient).toBe(client);
     expect(getConstructedRealtimeClient().close).not.toHaveBeenCalled();
     expect(consoleErrorMock).toHaveBeenCalled();
+  });
+
+  it("does not let a retired client's late 401 close its replacement", async () => {
+    let rejectOldAuth: ((value: Response) => void) | undefined;
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          rejectOldAuth = resolve;
+        }),
+    );
+    getAblyRealtimeClient();
+    const oldAuth = invokeAuthCallback();
+
+    fetchMock.mockResolvedValueOnce(
+      new Response("Unauthorized", { status: 401 }),
+    );
+    await invokeAuthCallback();
+    const replacement = getAblyRealtimeClient();
+    const replacementClose = RealtimeMock.mock.instances[1]?.close;
+    rejectOldAuth?.(new Response("Unauthorized", { status: 401 }));
+    await oldAuth;
+
+    expect(globalThis.__sokosumiAblyRealtimeClient).toBe(replacement);
+    expect(replacementClose).not.toHaveBeenCalled();
   });
 
   it("recreates a client after a 401 so a later remount can reconnect", async () => {

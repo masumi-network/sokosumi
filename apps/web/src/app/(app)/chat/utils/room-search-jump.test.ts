@@ -139,4 +139,60 @@ describe("performRoomSearchJump", () => {
     expect(jump.highlight).toHaveBeenLastCalledWith(hit.id);
     expect(jump.releaseHoldOffBottom).not.toHaveBeenCalled();
   });
+  it("drops the hold when the parent cannot be loaded", async () => {
+    const hit = message({ id: "reply-1", parentMessageId: "parent-1" });
+    const jump = deps({
+      findLoadedParent: vi.fn(() => undefined),
+      loadParent: vi.fn(async () => null),
+    });
+
+    await performRoomSearchJump(hit, jump);
+
+    // A notification for a reply whose parent has since been deleted lands
+    // here. Nothing opened, so a held room would stop following new messages
+    // and the reader could not re-arm it by scrolling.
+    expect(jump.openThread).not.toHaveBeenCalled();
+    expect(jump.releaseHoldOffBottom).toHaveBeenCalledOnce();
+  });
+
+  it("drops the hold when the thread window cannot be loaded", async () => {
+    const parent = message({ id: "parent-1" });
+    const hit = message({ id: "reply-1", parentMessageId: parent.id });
+    const jump = deps({
+      findLoadedParent: vi.fn(() => parent),
+      loadAroundInThread: vi.fn(async () => false),
+    });
+
+    await performRoomSearchJump(hit, jump);
+
+    expect(jump.releaseHoldOffBottom).toHaveBeenCalledOnce();
+  });
+
+  it("drops the hold when the room window cannot be loaded", async () => {
+    const hit = message();
+    const jump = deps({
+      highlight: vi.fn(() => false),
+      loadAroundInRoom: vi.fn(async () => false),
+    });
+
+    await performRoomSearchJump(hit, jump);
+
+    expect(jump.releaseHoldOffBottom).toHaveBeenCalledOnce();
+  });
+  it("drops the hold when a lookup rejects instead of failing", async () => {
+    const hit = message();
+    const jump = deps({
+      loadAroundInRoom: vi.fn(async () => {
+        throw new Error("offline");
+      }),
+    });
+
+    // A rejection is a dropped connection, not a refusal: these actions
+    // report a server-side error by returning one. The caller on the
+    // notification path does not surface what it catches, so a hold left on
+    // here would strand the room off the bottom with nothing said.
+    await expect(performRoomSearchJump(hit, jump)).rejects.toThrow("offline");
+
+    expect(jump.releaseHoldOffBottom).toHaveBeenCalledOnce();
+  });
 });

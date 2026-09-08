@@ -386,6 +386,35 @@ export const chatRoomService = (() => {
     };
   });
 
+  const getMessage = cache(async function getMessage(
+    roomId: string,
+    messageId: string,
+  ): Promise<ChatRoomMessage | null> {
+    try {
+      const response = await coreClient.getChatRoomMessage(roomId, messageId);
+      return response.data;
+    } catch (error) {
+      // The reader cannot read this message. Core answers 404 when the room
+      // is archived, when they are not a member of it, or when the id names
+      // nothing in it, and 403 when their room membership outlived the
+      // organization membership behind it. Both are settled answers, so both
+      // return null and leave the caller to open the room, which the reader
+      // may not be able to see either. Retrying the id against the room would
+      // hit the same gate and fail a second time, which is the failure the
+      // caller is avoiding.
+      //
+      // A soft delete is neither: it comes back as its tombstone with a 200.
+      // A hard delete does arrive here, because the id then names nothing.
+      if (
+        error instanceof CoreApiRequestError &&
+        (error.status === 404 || error.status === 403)
+      ) {
+        return null;
+      }
+      throw error;
+    }
+  });
+
   const getThread = cache(async function getThread(
     roomId: string,
     parentMessageId: string,
@@ -534,6 +563,7 @@ export const chatRoomService = (() => {
     listThreads,
     countUnreadThreads,
     listThreadMessages,
+    getMessage,
     getThread,
     leaveRoom,
     removeMember,

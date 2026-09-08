@@ -26,15 +26,16 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 import {
   chatRoomInclude,
-  getChatRoomLastMessageAts,
   getChatRoomPinnedMessageCounts,
   getChatRoomSidebarFlags,
-  getChatRoomUnreadCounts,
-  getChatRoomUnreadMentionCounts,
   getPeerInActiveOrganizationFlags,
   isOrganizationOwnerOrAdmin,
   mapChatRoom,
 } from "./helpers";
+import {
+  getChatRoomUnreadCounts,
+  getChatRoomUnreadMentionCounts,
+} from "./room-unread";
 
 /**
  * Higher than the shared default because the sidebar renders the full list in
@@ -211,7 +212,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const [
       unreadCounts,
       unreadMentionCounts,
-      lastMessageAts,
       sidebarFlags,
       pinnedMessageCounts,
       peerInActiveOrganizationFlags,
@@ -219,7 +219,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ] = await Promise.all([
       getChatRoomUnreadCounts(roomIds, userId, prisma),
       getChatRoomUnreadMentionCounts(roomIds, userId, prisma),
-      getChatRoomLastMessageAts(roomIds, prisma),
       getChatRoomSidebarFlags(roomIds, userId, prisma),
       getChatRoomPinnedMessageCounts(roomIds, prisma),
       getPeerInActiveOrganizationFlags(rooms, userId, organizationId, prisma),
@@ -234,9 +233,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizations.map((org) => [org.id, org.name]),
     );
 
-    // Keep DB cursor order (`updatedAt` desc). Stream/message writes bump
-    // room.updatedAt; do not re-sort by lastMessageAts after `take` — that
-    // breaks cursor paging when membership exceeds one page.
+    // Message writes advance the stored timestamp used by both pagination
+    // and room read responses.
     const paginationMeta = createPaginationMeta(
       rooms,
       count,
@@ -253,7 +251,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           return mapChatRoom(room, userId, {
             unreadCount: unreadCounts.get(room.id) ?? 0,
             unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-            lastActivityAt: lastMessageAts.get(room.id) ?? room.updatedAt,
             starredAt: flags?.starredAt ?? null,
             pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
             mutedAt: flags?.mutedAt ?? null,

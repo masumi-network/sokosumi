@@ -2,9 +2,9 @@ import Foundation
 import OpenAPIRuntime
 import OpenAPIURLSession
 
-extension Client {
+public extension Client {
   /// Core JSON dates include fractional seconds.
-  public static func connecting(
+  static func connecting(
     to serverURL: URL,
     transport: any ClientTransport
   ) -> Client {
@@ -15,7 +15,22 @@ extension Client {
     )
   }
 
-  public static func connecting(
+  /// Fake-transport variant that also runs middlewares, so tests cover the
+  /// app's real middleware stack (e.g. explicit-null rewrite).
+  static func connecting(
+    to serverURL: URL,
+    transport: any ClientTransport,
+    middlewares: [any ClientMiddleware]
+  ) -> Client {
+    Client(
+      serverURL: serverURL,
+      configuration: .init(dateTranscoder: .iso8601WithFractionalSeconds),
+      transport: transport,
+      middlewares: middlewares
+    )
+  }
+
+  static func connecting(
     to serverURL: URL,
     middlewares: [any ClientMiddleware] = [],
     session: URLSession = .shared

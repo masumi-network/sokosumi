@@ -1552,6 +1552,7 @@
         "scopeOwned": "Mis tareas",
         "scopeWorkspace": "Espacio de trabajo",
         "coworkerLabel": "Coworker",
+        "humanLabel": "Humano",
         "statusLabel": "Estado",
         "statusOptions": {
           "DRAFT": "Borrador",
@@ -3972,6 +3973,7 @@
         "deviceDisabledSuccess": "Notificaciones push desactivadas en este navegador",
         "pushEnabledSuccess": "Notificaciones push activadas",
         "pushEnabledOtherDevicesSuccess": "Notificaciones push activadas en tus otros dispositivos",
+        "previewPushConfirmation": "Esta es una vista previa de la rama {branch}. Las notificaciones push activadas aquí abren {origin}. ¿Continuar?",
         "pushError": "No se pudieron desactivar las notificaciones push en este navegador. Inténtalo de nuevo.",
         "pushEnableError": "No se pudieron activar las notificaciones push en este navegador. Permite las notificaciones para este sitio en la configuración del navegador e inténtalo de nuevo.",
         "loading": "Guardando configuración...",
@@ -4046,6 +4048,15 @@
         "channelEmailSoonHint": "Sokosumi todavía no envía email para esta notificación.",
         "deliveryAriaLabel": "Entrega para {kind}",
         "newsDeliveryAriaLabel": "Entrega para los emails de marketing"
+      },
+      "ChatDisplay": {
+        "title": "Visualización del chat",
+        "roomUnreadCountTitle": "Mostrar el número de mensajes no leídos",
+        "roomUnreadCountDescription": "Los chats silenciados y el chat que tienes abierto siguen en silencio. Tus notificaciones no cambian.",
+        "loading": "Guardando configuración...",
+        "error": "No se pudo guardar el cambio. Comprueba tu conexión e inténtalo de nuevo.",
+        "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
+        "roomUnreadCountDisabledSuccess": "Número de mensajes no leídos desactivado"
       },
       "BillingDetails": {
         "title": "Información de facturación",
@@ -5394,6 +5405,10 @@
         "startedBy": "Iniciado por {name}",
         "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}"
       },
+      "RoomUnread": {
+        "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
+        "unreadMessagesCapped": "Más de {max} mensajes no leídos"
+      },
       "MembershipStatus": {
         "joined": "{name} se unió",
         "left": "{name} salió"
@@ -6057,6 +6072,26 @@
         "PROJECT": "Proyecto",
         "LEGACY_UNKNOWN": "Origen heredado"
       },
+      "event": {
+        "accessibleName": "{task}, {source}",
+        "editSchedule": "Editar programación",
+        "openTask": "Abrir tarea"
+      },
+      "create": {
+        "title": "Programar una tarea"
+      },
+      "edit": {
+        "title": "Editar programación",
+        "description": "Cambia la programación de {name}.",
+        "loadError": "No se pudo cargar esta tarea. Inténtalo de nuevo.",
+        "saveError": "No se pudo guardar esta programación. Inténtalo de nuevo.",
+        "clearError": "No se pudo eliminar esta programación. Inténtalo de nuevo.",
+        "clearPending": "Eliminando programación…",
+        "clearTitle": "¿Eliminar programación?",
+        "clearDescription": "Esta tarea dejará de ejecutarse según una programación.",
+        "clearCancel": "Cancelar",
+        "clearConfirm": "Eliminar programación"
+      },
       "accuracy": {
         "inferred": "Origen inferido",
         "unknown": "Origen desconocido",
@@ -6330,10 +6365,12 @@
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",
         "directMessage": "{authorName} te envió un mensaje",
-        "roomMessage": "{authorName} escribió en {roomName}",
-        "roomMessages": "{count} mensajes en {roomName}",
+        "roomMessage": "{authorName} escribió en el canal {roomName}",
+        "roomMessages": "{count} mensajes en el canal {roomName}",
         "roomMessageGroup": "{authorName} escribió en el grupo {roomName}",
-        "roomMessagesGroup": "{count} mensajes en el grupo {roomName}"
+        "roomMessagesGroup": "{count} mensajes en el grupo {roomName}",
+        "roomMessageTitle": "{authorName} en el canal {roomName}",
+        "roomMessageGroupTitle": "{authorName} en el grupo {roomName}"
       }
     }
   },

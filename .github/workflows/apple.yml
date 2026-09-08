@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Detect Apple-relevant changes
         id: filter
@@ -26,18 +28,100 @@ jobs:
           filters: |
             apple:
               - "apps/apple/**"
+              - ".github/workflows/apple.yml"
 
-  xcodebuild:
+  # Shared CI signing note: the project carries a developer team for local
+  # runs, but CI holds no Apple certificates — so every xcodebuild invocation
+  # below overrides it with ad-hoc signing (`DEVELOPMENT_TEAM=`
+  # `CODE_SIGN_IDENTITY=-`, see SOK-973). `-skipPackagePluginValidation`: no
+  # interactive user to trust the OpenAPIGenerator plugin in CI.
+  build:
     name: Xcode build
     needs: changes
     if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: macos-15
+    # Packages declare `swift-tools-version: 6.2`, which needs Xcode 26 (macOS 26).
+    runs-on: macos-26
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26 toolchain
+        # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
 
       - name: Show Xcode version
-        run: xcodebuild -version
+        run: xcodebuild -version && swift --version
 
       - name: Build Sokosumi for macOS
-        run: xcodebuild -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' build
+        run: xcodebuild -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build
+
+  test:
+    name: Xcode test
+    # Same path/dispatch gate as `build` above (and as build.yml/test.yml
+    # for the JS apps): build and test run in parallel, neither waits.
+    needs: changes
+    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26 toolchain
+        # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+
+      - name: Show Xcode version
+        run: xcodebuild -version && swift --version
+
+      - name: Test Sokosumi app target
+        run: xcodebuild test -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -only-testing:SokosumiTests
+
+      - name: Test Swift packages
+        run: |
+          for package in apps/apple/Packages/SokosumiChat apps/apple/Packages/SokosumiAuth; do
+            swift test --package-path "$package"
+          done
+
+  lint:
+    name: Swift lint and format
+    needs: changes
+    # Same path/dispatch gate as `build`/`test` above.
+    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26 toolchain
+        # Newest installed Xcode 26.x; stays on major 26 (Swift >= 6.2) across image updates.
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer"
+
+      - name: Show Xcode version
+        run: xcodebuild -version && swift --version
+
+      - name: Install Mint
+        run: brew install mint
+
+      - name: Cache Mint packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.mint
+          key: ${{ runner.os }}-mint-${{ hashFiles('apps/apple/Mintfile') }}
+
+      - name: Bootstrap pinned Swift tools
+        working-directory: apps/apple
+        run: mint bootstrap
+
+      - name: Check Swift formatting
+        working-directory: apps/apple
+        run: mint run swiftformat --lint .
+
+      - name: Lint Swift
+        working-directory: apps/apple
+        run: mint run swiftlint lint --strict

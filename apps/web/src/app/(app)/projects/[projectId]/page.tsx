@@ -17,8 +17,7 @@ import {
   PROJECTS_DETAIL_WORKSPACE_CLASS,
 } from "@/app/projects/constants";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
-import { getSession } from "@/lib/auth/auth.server";
-import { isBetaAccessEmail } from "@/lib/beta-access";
+import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { projectService } from "@/lib/services/project.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
@@ -27,7 +26,10 @@ export default async function ProjectDetailPage({
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const [session, { projectId }] = await Promise.all([getSession(), params]);
+  const [calendarBetaEnabled, { projectId }] = await Promise.all([
+    hasCurrentUserCalendarBetaAccess(),
+    params,
+  ]);
   const project = await projectService.getProjectById(projectId);
 
   if (!project) {
@@ -158,7 +160,7 @@ export default async function ProjectDetailPage({
               </h2>
               <ProjectModuleTiles
                 calendarHref={
-                  isBetaAccessEmail(session?.user.email)
+                  calendarBetaEnabled
                     ? `/projects/${project.id}/calendar`
                     : undefined
                 }

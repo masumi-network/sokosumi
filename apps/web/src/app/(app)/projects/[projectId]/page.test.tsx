@@ -1,8 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSessionMock, projectServiceMock, notFoundMock } = vi.hoisted(() => ({
-  getSessionMock: vi.fn(),
+const {
+  hasCurrentUserCalendarBetaAccessMock,
+  projectServiceMock,
+  notFoundMock,
+} = vi.hoisted(() => ({
+  hasCurrentUserCalendarBetaAccessMock: vi.fn(),
   projectServiceMock: {
     getProjectById: vi.fn(),
     getProjectsStats: vi.fn(),
@@ -23,8 +27,9 @@ vi.mock("next-intl/server", () => ({
     `${namespace}.${key}`,
 }));
 
-vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: () => getSessionMock(),
+vi.mock("@/lib/calendar-beta-access.server", () => ({
+  hasCurrentUserCalendarBetaAccess: () =>
+    hasCurrentUserCalendarBetaAccessMock(),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -79,7 +84,7 @@ function buildProject() {
 describe("ProjectDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSessionMock.mockResolvedValue({ user: { email: "ada@nmkr.io" } });
+    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
   });
 
   it("calls notFound without loading needs-attention when the project is missing", async () => {
@@ -240,7 +245,7 @@ describe("ProjectDetailPage", () => {
 
   it("hides the Calendar card for non-beta sessions", async () => {
     const project = buildProject();
-    getSessionMock.mockResolvedValue({ user: { email: "member@example.com" } });
+    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
     projectServiceMock.getProjectById.mockResolvedValue(project);
     projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
       taskCount: 0,

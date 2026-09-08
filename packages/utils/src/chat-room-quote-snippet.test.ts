@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildQuoteSnippet,
   buildRoomQuoteSnippetParts,
+  cleanChatMessageText,
 } from "./chat-room-quote-snippet";
 
 describe("buildQuoteSnippet", () => {
@@ -111,5 +112,18 @@ describe("buildRoomQuoteSnippetParts", () => {
         mediaKind: "image",
       },
     });
+  });
+});
+
+describe("cleanChatMessageText", () => {
+  /**
+   * A label stops at a bracket, so an unclosed `[` in front of a link is not
+   * read as the start of that link's label. Reading it that way would put the
+   * words of the broken bracket inside the label and drop the real one.
+   */
+  it("reads a link whose label is preceded by an unclosed bracket", () => {
+    expect(cleanChatMessageText("see [a [b](https://e.test/x)")).toBe(
+      "see [a b",
+    );
   });
 });

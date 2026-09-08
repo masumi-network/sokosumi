@@ -15,7 +15,31 @@ export function makeUserTasksChannelName(userId: string): string {
   return `tasks:all:user_${userId}`;
 }
 
-export function makeUserNotificationsChannelName(userId: string): string {
+export interface NotificationChannelEnvironment {
+  network: "Mainnet" | "Preprod";
+  vercelEnv?: "production" | "preview" | "development";
+  vercelGitCommitRef?: string;
+}
+
+/**
+ * Keeps the established channel for non-preview deployments. A preview uses
+ * its exact Git ref, URL-encoded so distinct refs cannot collapse onto one
+ * sanitized name. Missing preview identity fails closed instead of joining
+ * the production notification stream.
+ */
+export function makeUserNotificationsChannelName(
+  userId: string,
+  environment: NotificationChannelEnvironment,
+): string {
+  if (environment.vercelEnv === "preview") {
+    const branchRef = environment.vercelGitCommitRef?.trim();
+    if (!branchRef) {
+      throw new Error("Preview notification channels require a Git branch ref");
+    }
+
+    return `notifications:preview:${environment.network.toLowerCase()}:branch_${encodeURIComponent(branchRef)}:user_${userId}`;
+  }
+
   return `notifications:all:user_${userId}`;
 }
 

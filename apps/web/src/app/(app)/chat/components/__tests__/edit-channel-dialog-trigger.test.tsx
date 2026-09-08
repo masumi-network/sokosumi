@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatRoom } from "@/lib/clients/generated/core";
-import { EditChannelDialog } from "../edit-channel-dialog";
+import { ShellOwnedEditChannelDialog } from "./edit-channel-dialog-harness";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -49,7 +49,7 @@ describe("EditChannelDialog trigger", () => {
   it("opens from the provided trigger and has no settings gear", async () => {
     const user = userEvent.setup();
     render(
-      <EditChannelDialog
+      <ShellOwnedEditChannelDialog
         channel={channel()}
         members={[]}
         coworkers={[]}
@@ -62,7 +62,7 @@ describe("EditChannelDialog trigger", () => {
         <button type="button" aria-label="editChannel" title="editChannel">
           general
         </button>
-      </EditChannelDialog>,
+      </ShellOwnedEditChannelDialog>,
     );
 
     const trigger = screen.getByRole("button", { name: "editChannel" });
@@ -78,7 +78,7 @@ describe("EditChannelDialog trigger", () => {
   it("uses leave-only copy when the member can leave but not edit", async () => {
     const user = userEvent.setup();
     render(
-      <EditChannelDialog
+      <ShellOwnedEditChannelDialog
         channel={channel()}
         members={[]}
         coworkers={[]}
@@ -91,7 +91,7 @@ describe("EditChannelDialog trigger", () => {
         <button type="button" aria-label="editChannel" title="editChannel">
           general
         </button>
-      </EditChannelDialog>,
+      </ShellOwnedEditChannelDialog>,
     );
 
     await user.click(screen.getByRole("button", { name: "editChannel" }));

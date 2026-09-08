@@ -108,6 +108,18 @@ vi.mock("../organization-chat-list.actions", () => ({
   })),
 }));
 
+vi.mock("../fetch-sidebar-room-collection", () => ({
+  fetchSidebarRoomCollection: async (collection: string) => {
+    const result =
+      collection === "active"
+        ? await listRoomsMock()
+        : collection === "invitations"
+          ? await listPendingMock()
+          : { ok: true, value: { rooms: [], nextCursor: null } };
+    return result.ok ? result.value : null;
+  },
+}));
+
 vi.mock("@/components/ui/sheet", () => ({
   SheetClose: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));

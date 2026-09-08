@@ -150,7 +150,7 @@ describe("MenuItems search action", () => {
     expect(screen.getByRole("link", { name: /projects/i })).toBeInTheDocument();
   });
 
-  it("shows Calendar only to NMKR users", () => {
+  it("shows Calendar only to Calendar beta users", () => {
     const { rerender } = renderMenu();
 
     expect(screen.queryByRole("link", { name: /calendar/i })).toBeNull();

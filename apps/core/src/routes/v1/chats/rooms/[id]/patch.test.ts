@@ -20,6 +20,7 @@ const {
   roomFindFirstMock,
   roomFindManyMock,
   roomUpdateMock,
+  roomFindUniqueOrThrowMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
   memberFindManyMock,
@@ -54,6 +55,7 @@ const {
   roomFindFirstMock: vi.fn(),
   roomFindManyMock: vi.fn(),
   roomUpdateMock: vi.fn(),
+  roomFindUniqueOrThrowMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
@@ -125,6 +127,7 @@ const tx = {
     findFirst: roomFindFirstMock,
     findMany: roomFindManyMock,
     update: roomUpdateMock,
+    findUniqueOrThrow: roomFindUniqueOrThrowMock,
   },
   organization: {
     findUnique: organizationFindUniqueMock,
@@ -293,6 +296,7 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   roomFindManyMock.mockResolvedValue([]);
+  roomFindUniqueOrThrowMock.mockResolvedValue(channelRoom());
   memberFindManyMock.mockImplementation(
     async ({ where }: { where: { userId: { in: string[] } } }) =>
       where.userId.in.map((userId) => ({ userId })),
@@ -345,12 +349,43 @@ beforeEach(() => {
 });
 
 describe("PATCH /chats/rooms/{id}", () => {
+  it("returns the room timestamp after membership messages are committed", async () => {
+    const existing = channelRoom();
+    const updated = channelRoom({
+      updatedAt: new Date("2026-09-07T10:00:00Z"),
+    });
+    const finalRoom = {
+      ...updated,
+      updatedAt: new Date("2026-09-07T10:00:01Z"),
+    };
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    roomUpdateMock
+      .mockResolvedValueOnce(updated)
+      .mockResolvedValueOnce(finalRoom);
+    roomFindUniqueOrThrowMock.mockResolvedValue(finalRoom);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 0 });
+    userMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 1 });
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ memberUserIds: [USER_ID, OTHER_USER_ID] }),
+    });
+    expect(response.status).toBe(200);
+    expect(messageCreateMock).toHaveBeenCalledTimes(1);
+    const body = await response.json();
+    expect(body.data.updatedAt).toBe(finalRoom.updatedAt.toISOString());
+  });
+
   it("allows a non-creator member to PATCH roster-only", async () => {
     const existing = channelRoom({ createdByUserId: OTHER_USER_ID });
     const updated = channelRoom({ createdByUserId: OTHER_USER_ID });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     userMemberCreateManyMock.mockResolvedValue({ count: 2 });
     readStateDeleteManyMock.mockResolvedValue({ count: 0 });
@@ -429,6 +464,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     roomFindFirstMock.mockResolvedValueOnce(existing);
     memberFindUniqueMock.mockResolvedValue({ role: "admin" });
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {
@@ -469,6 +505,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     roomFindFirstMock.mockResolvedValueOnce(existing);
     memberFindUniqueMock.mockResolvedValue({ role: "admin" });
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {
@@ -601,6 +638,7 @@ describe("PATCH /chats/rooms/{id}", () => {
       },
     ]);
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     userMemberCreateManyMock.mockResolvedValue({ count: 2 });
     readStateDeleteManyMock.mockResolvedValue({ count: 0 });
@@ -659,6 +697,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     const updated = channelRoom();
     roomFindFirstMock.mockResolvedValueOnce(existing);
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 2 });
     userMemberCreateManyMock.mockResolvedValue({ count: 1 });
     readStateDeleteManyMock.mockResolvedValue({ count: 1 });
@@ -691,6 +730,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     const updated = channelRoom();
     roomFindFirstMock.mockResolvedValueOnce(existing);
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     userMemberCreateManyMock.mockResolvedValue({ count: 2 });
     readStateDeleteManyMock.mockResolvedValue({ count: 0 });
@@ -756,6 +796,7 @@ describe("PATCH /chats/rooms/{id}", () => {
       { id: keptCoworkerId, baseURL: "https://chat.example.com" },
     ]);
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     failOpenMentionsMock.mockResolvedValue(["message_1"]);
     coworkerMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
@@ -970,6 +1011,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     guestInvitationCountMock.mockResolvedValue(0);
     guestInviteLinkCountMock.mockResolvedValue(0);
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {
@@ -1015,6 +1057,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     roomFindFirstMock.mockResolvedValueOnce(existing);
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     userMemberFindManyMock.mockResolvedValue([{ userId: GUEST_ID }]);
     userMemberCreateManyMock.mockResolvedValue({ count: 2 });
@@ -1105,6 +1148,7 @@ describe("PATCH /chats/rooms/{id}", () => {
       },
     ]);
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     userMemberFindManyMock.mockResolvedValue([{ userId: GUEST_ID }]);
     userMemberCreateManyMock.mockResolvedValue({ count: 1 });
@@ -1210,6 +1254,7 @@ describe("PATCH /chats/rooms/{id}", () => {
       },
     ]);
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     userMemberFindManyMock.mockResolvedValue([{ userId: GUEST_ID }]);
     userMemberCreateManyMock.mockResolvedValue({ count: 1 });
@@ -1250,6 +1295,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     userMemberUpdateManyMock.mockResolvedValue({ count: 1 });
     userMemberFindManyMock.mockResolvedValue([{ userId: GUEST_ID }]);
@@ -1304,6 +1350,7 @@ describe("PATCH /chats/rooms/{id}", () => {
       },
     ]);
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     sokoBotMemberDeleteManyMock.mockResolvedValue({ count: 0 });
     sokoBotMemberCreateManyMock.mockResolvedValue({ count: 1 });
 
@@ -1375,6 +1422,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     const updated = channelRoom({ sokoBotMembers: [] });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     roomUpdateMock.mockResolvedValueOnce(updated);
+    roomFindUniqueOrThrowMock.mockResolvedValue(updated);
     failOpenMentionsMock.mockResolvedValue(["message_1"]);
     sokoBotMemberDeleteManyMock.mockResolvedValue({ count: 1 });
 

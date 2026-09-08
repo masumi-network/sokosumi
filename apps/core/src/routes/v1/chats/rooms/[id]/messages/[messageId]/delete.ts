@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import { rewriteChatNotificationPreviews } from "@/helpers/chat-notification-fanout";
 import {
   publishChatRoomMessageRealtime,
   publishChatRoomMessageRealtimeById,
@@ -172,6 +172,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
     await Promise.all(publishes);
+
+    // The body is wiped from the message row, so the copy of it that rides
+    // this message's notifications goes with it. Run on a repeat delete too:
+    // a wipe that failed is only reported, and deleting again is the one way
+    // back. The ids come off the row, because a uuid the caller wrote in
+    // capitals still matches the message and would match no notification.
+    await rewriteChatNotificationPreviews({
+      roomId: message.roomId,
+      messageId: message.id,
+    });
 
     if (unpinned) {
       await publishChatRoomPinnedMessageRealtime({

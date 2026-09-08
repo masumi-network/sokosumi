@@ -7,16 +7,23 @@ import {
   Loader2,
   LogOut,
   MessageSquare,
+  Pencil,
   Pin,
   PinOff,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
-import { CHAT_CHATS_LIST_PATH } from "@/app/chat/utils/chat-route-base";
+import {
+  CHAT_CHATS_LIST_PATH,
+  CHAT_EDIT_CHANNEL_PARAM,
+  chatRoomEditHref,
+  chatRoomHref,
+  pathWithSearch,
+} from "@/app/chat/utils/chat-route-base";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   markOrganizationChatRoomUnreadAction,
@@ -27,6 +34,12 @@ import {
   unpinOrganizationChatRoomAction,
 } from "@/components/chat/organization-chat-list.actions";
 import { resolveRoomAttention } from "@/components/chat/room-attention";
+import {
+  applyRoomReadOverlays,
+  beginRoomAttentionChange,
+  settleRoomAttentionChange,
+} from "@/components/chat/room-read-overlay";
+import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +62,7 @@ import { SheetClose } from "@/components/ui/sheet";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
 /**
  * Trailing controls. Touch: pin/mute then overflow side by side.
@@ -68,6 +82,51 @@ interface ChatRoomSidebarRowProps {
   onRoomUpdated: (room: ChatRoom) => void;
   /** When false, render plain Link (page-mounted list outside Sheet). */
   dismissSheetOnNavigate?: boolean;
+}
+
+/**
+ * The cap the row's numeric chrome shares. `MentionBadge` hardcodes the same
+ * value; this ticket leaves the badge untouched, so the two are stated apart.
+ */
+const ROOM_UNREAD_COUNT_CAP = 99;
+
+/**
+ * The reader's opt-in Room unread count.
+ *
+ * Text rather than a pill, because it is not the mention badge and a reader has
+ * to tell the two apart at a glance. It caps like the badge so a very loud room
+ * cannot reflow the row, and it hides with the badge when the sidebar collapses
+ * to icons.
+ *
+ * It carries the name's unread weight and colour, because it is part of the
+ * same statement: this room has something for you. `resolveRoomAttention` only
+ * ever reports a count above zero together with `bold`, so there is no unbolded
+ * state to render and no prop to thread. `room-attention.test.ts` pins that.
+ */
+function RoomUnreadCount({ count }: { count: number }) {
+  const t = useTranslations("App.Channels.RoomUnread");
+
+  if (count <= 0) {
+    return null;
+  }
+
+  const capped = count > ROOM_UNREAD_COUNT_CAP;
+
+  // A bare `span` is role `generic`, which prohibits an accessible name, so an
+  // `aria-label` here can be dropped and the row announces a bare number beside
+  // the badge's bare number. Real text carries it instead.
+  return (
+    <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 leading-4 font-semibold tabular-nums">
+      <span aria-hidden="true">
+        {capped ? `${ROOM_UNREAD_COUNT_CAP}+` : count}
+      </span>
+      <span className="sr-only">
+        {capped
+          ? t("unreadMessagesCapped", { max: ROOM_UNREAD_COUNT_CAP })
+          : t("unreadMessages", { count })}
+      </span>
+    </span>
+  );
 }
 
 function MentionBadge({ count }: { count: number }) {
@@ -98,26 +157,34 @@ export function ChatRoomSidebarRow({
   dismissSheetOnNavigate = true,
 }: ChatRoomSidebarRowProps) {
   const tActions = useTranslations("App.Channels.Actions");
+  const tChannels = useTranslations("App.Channels");
   const router = useRouter();
+  // The room's own query, not `window.location`, which the App Router writes
+  // in an effect after the commit and so can still name a message the room
+  // has already spent. Re-adding that would send the reader back to it.
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const isPinned = room.starredAt != null;
   const isMuted = room.mutedAt != null;
+  const isChannel = room.kind === "channel";
   // Match rooms-client: guests and matched may always leave; host-org last
   // host keeps Leave hidden when they are the sole `member` access row.
   const canLeave =
-    room.kind === "channel" &&
+    isChannel &&
     (room.myAccess === "guest" ||
       room.discoverability === "matched" ||
       room.userMembers.filter((member) => member.access === "member").length >
         1);
-  const { bold, badgeCount } = resolveRoomAttention({
+  const showUnreadCount = useShowRoomUnreadCount();
+  const { bold, badgeCount, unreadTextCount } = resolveRoomAttention({
     unreadCount: room.unreadCount,
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
     isMuted,
     isActive,
+    showUnreadCount,
   });
 
   function runRoomAction(
@@ -126,17 +193,39 @@ export function ChatRoomSidebarRow({
     ) => Promise<OrganizationChatListActionResult<ChatRoom>>,
     optimisticRoom?: ChatRoom,
   ) {
+    const attentionToken =
+      action === markOrganizationChatRoomUnreadAction && optimisticRoom
+        ? beginRoomAttentionChange(optimisticRoom, room)
+        : null;
     if (optimisticRoom) {
       onRoomUpdated(optimisticRoom);
     }
-    startTransition(async () => {
-      const result = await action(room.id);
-      if (!result.ok) {
-        onRoomUpdated(room);
-        toast.error(tActions("actionFailed"));
-        return;
+
+    function applyResult(updatedRoom: ChatRoom | null): boolean {
+      if (
+        attentionToken !== null &&
+        !settleRoomAttentionChange(room.id, attentionToken, updatedRoom)
+      ) {
+        return false;
       }
-      onRoomUpdated(result.value);
+      onRoomUpdated(
+        updatedRoom ??
+          (attentionToken === null ? room : applyRoomReadOverlays([room])[0]),
+      );
+      return true;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await action(room.id);
+        if (!result.ok) {
+          if (applyResult(null)) toast.error(tActions("actionFailed"));
+          return;
+        }
+        applyResult(result.value);
+      } catch {
+        if (applyResult(null)) toast.error(tActions("actionFailed"));
+      }
     });
   }
 
@@ -162,6 +251,40 @@ export function ChatRoomSidebarRow({
     }
   }
 
+  // The dialog needs the org roster and the reader's role, which this row does
+  // not have and the room already loads. So the row asks the room to open it.
+  const editChannelItem = (
+    <DropdownMenuItem
+      disabled={isPending}
+      onSelect={() => {
+        // Asking the room on screen for its own dialog is not a journey. The
+        // room takes the parameter straight back off the URL, so a pushed
+        // entry would leave Back doing nothing the reader can see. The rest of
+        // that room's query rides along rather than being written over.
+        //
+        // Except the message a notification named, which the room reads once
+        // the same way. The router's query still carries one the room has
+        // spent until that strip commits, and writing it back would leave the
+        // room waiting on a message nobody will spend again, with this ask
+        // stuck behind it. The reader asked for the dialog just now, so a
+        // jump the room has not made yet gives way to it.
+        if (isActive) {
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete(CHAT_MESSAGE_PARAM);
+          params.set(CHAT_EDIT_CHANNEL_PARAM, "1");
+          router.replace(pathWithSearch(chatRoomHref(room.id), params), {
+            scroll: false,
+          });
+          return;
+        }
+        router.push(chatRoomEditHref(room.id));
+      }}
+    >
+      <Pencil className="size-4" aria-hidden />
+      {tChannels("editChannel")}
+    </DropdownMenuItem>
+  );
+
   const roomLink = (
     <Link
       aria-current={isActive ? "page" : undefined}
@@ -178,14 +301,20 @@ export function ChatRoomSidebarRow({
         {leading}
       </span>
       <span className="min-w-0 flex-1">
-        <span
-          className={cn(
-            "block truncate",
-            bold && "font-semibold text-foreground",
-            isMuted && !isActive && "text-muted-foreground",
-          )}
-        >
-          {label}
+        {/* The count rides the end of the name, not the row's right rail, so it
+            reads as belonging to this room rather than to the row's controls.
+            The name keeps `min-w-0` so it truncates first and the count stays. */}
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span
+            className={cn(
+              "min-w-0 truncate",
+              bold && "font-semibold text-foreground",
+              isMuted && !isActive && "text-muted-foreground",
+            )}
+          >
+            {label}
+          </span>
+          <RoomUnreadCount count={unreadTextCount} />
         </span>
         {subtitle ? (
           <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-xs leading-tight">
@@ -304,19 +433,26 @@ export function ChatRoomSidebarRow({
               )}
               {isMuted ? tActions("unmute") : tActions("mute")}
             </DropdownMenuItem>
-            {canLeave ? (
+            {isChannel ? (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={isPending || isLeaving}
-                  onSelect={() => {
-                    setLeaveConfirmOpen(true);
-                  }}
-                >
-                  <LogOut className="size-4" aria-hidden />
-                  {tActions("leave")}
-                </DropdownMenuItem>
+                {dismissSheetOnNavigate ? (
+                  <SheetClose asChild>{editChannelItem}</SheetClose>
+                ) : (
+                  editChannelItem
+                )}
               </>
+            ) : null}
+            {canLeave ? (
+              <DropdownMenuItem
+                disabled={isPending || isLeaving}
+                onSelect={() => {
+                  setLeaveConfirmOpen(true);
+                }}
+              >
+                <LogOut className="size-4" aria-hidden />
+                {tActions("leave")}
+              </DropdownMenuItem>
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>

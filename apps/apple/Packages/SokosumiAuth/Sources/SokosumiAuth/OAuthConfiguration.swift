@@ -61,7 +61,7 @@ public struct OAuthConfiguration: Sendable {
       URLQueryItem(name: "scope", value: scopes.joined(separator: " ")),
       URLQueryItem(name: "code_challenge", value: codeChallenge),
       URLQueryItem(name: "code_challenge_method", value: "S256"),
-      URLQueryItem(name: "state", value: state),
+      URLQueryItem(name: "state", value: state)
     ]
     guard let url = components.url else {
       throw OAuthError.invalidAuthorizeURL
@@ -82,7 +82,7 @@ public enum OAuthError: Error, Equatable {
   /// the stored session; other error codes, transport failures, and 5xx
   /// never do — a `400 invalid_client` must not wipe a good session.
   var isInvalidGrant: Bool {
-    if case .tokenExchangeFailed(_, _, let code) = self {
+    if case let .tokenExchangeFailed(_, _, code) = self {
       return code == "invalid_grant"
     }
     return false

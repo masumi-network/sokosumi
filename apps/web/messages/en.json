@@ -1552,6 +1552,7 @@
         "scopeOwned": "My tasks",
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
+        "humanLabel": "Human",
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Draft",
@@ -4003,6 +4004,7 @@
         "deviceDisabledSuccess": "Push notifications off in this browser",
         "pushEnabledSuccess": "Push notifications enabled",
         "pushEnabledOtherDevicesSuccess": "Push notifications enabled on your other devices",
+        "previewPushConfirmation": "This is a preview for branch {branch}. Push notifications enabled here open {origin}. Continue?",
         "pushError": "Could not turn off push notifications in this browser. Try again.",
         "pushEnableError": "Could not turn on push notifications in this browser. Allow notifications for this site in your browser settings, then try again.",
         "loading": "Saving preference...",
@@ -4077,6 +4079,15 @@
         "channelEmailSoonHint": "Sokosumi does not send an email for this notification yet.",
         "deliveryAriaLabel": "Delivery for {kind}",
         "newsDeliveryAriaLabel": "Delivery for marketing emails"
+      },
+      "ChatDisplay": {
+        "title": "Chat display",
+        "roomUnreadCountTitle": "Show unread message counts",
+        "roomUnreadCountDescription": "Muted chats and the chat you have open stay quiet. Your notifications do not change.",
+        "loading": "Saving preference...",
+        "error": "Could not save that change. Check your connection and try again.",
+        "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
+        "roomUnreadCountDisabledSuccess": "Unread message counts disabled"
       },
       "BillingDetails": {
         "title": "Billing information",
@@ -5394,6 +5405,10 @@
         "startedBy": "Started by {name}",
         "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}"
       },
+      "RoomUnread": {
+        "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
+        "unreadMessagesCapped": "More than {max} unread messages"
+      },
       "MembershipStatus": {
         "joined": "{name} joined",
         "left": "{name} left"
@@ -6057,6 +6072,26 @@
         "PROJECT": "Project",
         "LEGACY_UNKNOWN": "Legacy source"
       },
+      "event": {
+        "accessibleName": "{task}, {source}",
+        "editSchedule": "Edit schedule",
+        "openTask": "Open task"
+      },
+      "create": {
+        "title": "Schedule a task"
+      },
+      "edit": {
+        "title": "Edit schedule",
+        "description": "Change the schedule for {name}.",
+        "loadError": "Unable to load this task. Please try again.",
+        "saveError": "Unable to save this schedule. Please try again.",
+        "clearError": "Unable to remove this schedule. Please try again.",
+        "clearPending": "Removing schedule…",
+        "clearTitle": "Remove schedule?",
+        "clearDescription": "This task will no longer run on a schedule.",
+        "clearCancel": "Cancel",
+        "clearConfirm": "Remove schedule"
+      },
       "accuracy": {
         "inferred": "Inferred source",
         "unknown": "Unknown source",
@@ -6330,10 +6365,12 @@
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",
         "directMessage": "{authorName} sent you a message",
-        "roomMessage": "{authorName} wrote in {roomName}",
-        "roomMessages": "{count} messages in {roomName}",
+        "roomMessage": "{authorName} wrote in channel {roomName}",
+        "roomMessages": "{count} messages in channel {roomName}",
         "roomMessageGroup": "{authorName} wrote in group {roomName}",
-        "roomMessagesGroup": "{count} messages in group {roomName}"
+        "roomMessagesGroup": "{count} messages in group {roomName}",
+        "roomMessageTitle": "{authorName} in channel {roomName}",
+        "roomMessageGroupTitle": "{authorName} in group {roomName}"
       }
     }
   },

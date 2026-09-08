@@ -29,7 +29,7 @@ export function buildRoomQuoteSnippetParts(
     : content;
 
   return {
-    snippet: cleanQuoteSnippet(contentForSnippet),
+    snippet: cleanChatMessageText(contentForSnippet),
     attachment: attachmentMatch?.attachment ?? null,
   };
 }
@@ -76,11 +76,15 @@ function findQuoteAttachmentMatch(content: string): {
   };
 }
 
-function cleanQuoteSnippet(content: string): string {
+/**
+ * A chat message body as plain text: markdown markers gone, a link reduced to
+ * its label, horizontal whitespace collapsed, newlines kept.
+ */
+export function cleanChatMessageText(content: string): string {
   return content
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/`([^`]+)`/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\][]+)\]\([^)]+\)/g, "$1")
     .replace(/[*_~>#]+/g, "")
     .replace(/[^\S\n]+/g, " ")
     .trim();

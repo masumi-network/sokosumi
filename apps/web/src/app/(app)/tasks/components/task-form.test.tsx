@@ -14,6 +14,7 @@ const {
   toastDismissMock,
   toastErrorMock,
   showCalendarClientUpgradeModalMock,
+  calendarBetaAccessMock,
 } = vi.hoisted(() => ({
   markdownEditorPropsSpy: vi.fn(),
   uploadUserFileDirectMock: vi.fn(),
@@ -21,6 +22,11 @@ const {
   toastDismissMock: vi.fn(),
   toastErrorMock: vi.fn(),
   showCalendarClientUpgradeModalMock: vi.fn(),
+  calendarBetaAccessMock: { enabled: true },
+}));
+
+vi.mock("@/contexts/calendar-beta-access-context", () => ({
+  useCalendarBetaAccess: () => calendarBetaAccessMock.enabled,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -351,12 +357,36 @@ function updateTaskSuccess(taskId: string) {
 describe("TaskForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    calendarBetaAccessMock.enabled = true;
     markdownEditorPropsSpy.mockClear();
     try {
       window.localStorage.clear();
     } catch {
       // Ignore environments without localStorage.
     }
+  });
+
+  it("opens task scheduling outside the Calendar beta", async () => {
+    const user = userEvent.setup();
+    calendarBetaAccessMock.enabled = false;
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: baseLabels.openSchedule }),
+    );
+
+    expect(screen.getByText("timezone")).toBeInTheDocument();
   });
 
   function getHiddenFileInput(container: HTMLElement): HTMLInputElement {
@@ -570,6 +600,32 @@ describe("TaskForm", () => {
     );
   });
 
+  it("starts with a Calendar-provided schedule", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{
+          assigneeId: "coworker-2",
+          schedule: {
+            mode: "once",
+            oneTimeLocalIso: "2030-01-02T09:00",
+            timezone: "UTC",
+          },
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Schedule Task/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
+  });
+
   it("opens the required-upgrade modal instead of showing a generic error", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
@@ -671,7 +727,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("clears a staged schedule when switching to a human assignee (SOK-868)", async () => {
+  it("keeps a staged schedule when switching to a human assignee (SOK-868)", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
@@ -702,16 +758,16 @@ describe("TaskForm", () => {
 
     await user.click(screen.getByRole("button", { name: /Bob/ }));
     expect(
-      screen.getByRole("button", { name: "Create Task" }),
+      screen.getByRole("button", { name: /Schedule Task/ }),
     ).toBeInTheDocument();
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
-    await user.click(screen.getByRole("button", { name: "Create Task" }));
+    await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
 
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         assigneeUserId: "user-1",
-        schedule: expect.objectContaining({ mode: "none" }),
+        schedule: expect.objectContaining({ mode: "once" }),
       }),
     );
   });
@@ -1435,6 +1491,39 @@ describe("TaskForm", () => {
           contextMdEnabled: true,
         },
       }),
+    );
+  });
+
+  it("submits a locked project without showing the project picker", async () => {
+    const user = userEvent.setup();
+    const onCreateTask = vi
+      .fn()
+      .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        lockProjectSelection
+        initialValues={{ projectId: "project-1", assigneeId: "coworker-2" }}
+        onCreateTask={onCreateTask}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("combobox", { name: "Project" }),
+    ).not.toBeInTheDocument();
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(onCreateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "project-1" }),
     );
   });
 

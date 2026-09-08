@@ -31,7 +31,6 @@ import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unf
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
-  markChatRoomThreadRead,
   mergeChatRoomMessageMetadata,
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
@@ -43,6 +42,7 @@ import {
   resolveThreadParentMessageId,
   sokoBotDisplayName,
 } from "../../helpers";
+import { markChatRoomThreadRead } from "../../room-unread";
 
 const paramsSchema = z.object({
   id: z
@@ -172,6 +172,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             roomName: room.name,
             organizationId: room.organizationId,
             messageId: message.id,
+            content: message.content,
             authorUserId: null,
             authorName,
             recipientUserIds: memberUserIds,
@@ -186,6 +187,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           roomKind: room.kind,
           organizationId: room.organizationId,
           messageId: message.id,
+          content: message.content,
           authorUserId: null,
           authorName,
           // Already read for the direct-message decision, so the emitter is
@@ -475,6 +477,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             roomName: room.name,
             organizationId: room.organizationId,
             messageId: message.id,
+            content: message.content,
             authorUserId: userContext.userId,
             authorName: message.senderUser?.name ?? "Someone",
             mentionedUserIds,
@@ -500,6 +503,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               roomName: room.name,
               organizationId: room.organizationId,
               messageId: message.id,
+              content: message.content,
               authorUserId: userContext.userId,
               authorName: message.senderUser?.name ?? "Someone",
               recipientUserIds,
@@ -515,6 +519,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           roomKind: room.kind,
           organizationId: room.organizationId,
           messageId: message.id,
+          content: message.content,
           authorUserId: userContext.userId,
           authorName: message.senderUser?.name ?? "Someone",
           // Read inside the write transaction, so the roster is the one the

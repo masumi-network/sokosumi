@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ChatRoom,
@@ -15,7 +15,13 @@ import {
 } from "./__tests__/organization-chat-list-harness";
 import { clearMembershipVisibleRoomsSnapshot } from "./membership-visible-rooms-store";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
-import { clearRoomReadOverlays, rememberRoomRead } from "./room-read-overlay";
+import {
+  beginRoomAttentionChange,
+  beginRoomAttentionRefresh,
+  clearRoomReadOverlays,
+  rememberRoomRead,
+  settleRoomAttentionChange,
+} from "./room-read-overlay";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
 const NO_ROOMS: ChatRoom[] = [];
@@ -31,6 +37,13 @@ interface MountOptions {
   paintOnly?: boolean;
 }
 
+interface RoomListProps {
+  rooms: ChatRoom[];
+  archivedRooms: ChatRoom[];
+  organizationId?: string;
+  currentUserId?: string;
+}
+
 /**
  * The collections must keep the same identity across renders. The hook replaces
  * its rows whenever a collection is a new reference, so a fresh `[]` literal per
@@ -42,17 +55,18 @@ function mount({
   archivedRooms = NO_ROOMS,
   paintOnly = false,
 }: MountOptions = {}) {
+  const initialProps: RoomListProps = { rooms, archivedRooms };
   return renderHook(
-    (props: { rooms: ChatRoom[]; archivedRooms: ChatRoom[] }) =>
+    (props: RoomListProps) =>
       useOrganizationChatRooms({
         rooms: props.rooms,
         archivedRooms: props.archivedRooms,
         pendingInvitations: NO_INVITATIONS,
-        currentUserId: "user-1",
-        organizationId: "org-1",
+        currentUserId: props.currentUserId ?? "user-1",
+        organizationId: props.organizationId ?? "org-1",
         paintOnly,
       }),
-    { initialProps: { rooms, archivedRooms } },
+    { initialProps },
   );
 }
 
@@ -231,7 +245,10 @@ describe("useOrganizationChatRooms", () => {
     });
 
     act(() => {
-      result.current.replaceAllRooms([channel("fresh")]);
+      result.current.replaceAllRooms(
+        [channel("fresh")],
+        beginRoomAttentionRefresh(),
+      );
     });
 
     expect(result.current.roomRows.map((row) => row.id)).toEqual(["fresh"]);
@@ -253,17 +270,275 @@ describe("useOrganizationChatRooms", () => {
     expect(result.current.roomRows[0]?.unreadCount).toBe(0);
   });
 
-  it("reapplies the read overlay when it replaces the whole list", () => {
+  it("reapplies a read that completed after a list fetch started", () => {
     const room = channel("overlaid", { unreadCount: 5 });
     const { result } = mount({ rooms: [room], paintOnly: true });
 
+    const request = beginRoomAttentionRefresh();
     rememberRoomRead({ ...room, unreadCount: 0 });
 
     act(() => {
-      result.current.replaceAllRooms([room]);
+      result.current.replaceAllRooms([room], request);
     });
 
     // A stale fetch must not paint the room unread again.
     expect(result.current.roomRows[0]?.unreadCount).toBe(0);
+  });
+});
+
+describe("authoritative sidebar refresh", () => {
+  beforeEach(() => {
+    resetOrganizationChatListMocks();
+    clearRoomReadOverlays();
+  });
+
+  it("updates unread while an invitation request stays pending", async () => {
+    const original = channel("room");
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([{ ...original, unreadCount: 3 }]),
+    );
+    listPendingMock.mockReturnValue(new Promise(() => {}));
+    const { result } = mount({ rooms: [original] });
+
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.unreadCount).toBe(3),
+    );
+  });
+
+  it("keeps the last rows after a rejected request and retries on focus", async () => {
+    const original = channel("room");
+    listRoomsMock.mockRejectedValueOnce(new Error("network offline"));
+    const { result } = mount({ rooms: [original] });
+    await act(async () => undefined);
+    expect(result.current.roomRows).toEqual([original]);
+
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([{ ...original, unreadCount: 2 }]),
+    );
+    await act(async () => window.dispatchEvent(new Event("focus")));
+    expect(result.current.roomRows[0]?.unreadCount).toBe(2);
+  });
+
+  it("accepts an older active response when a newer refresh only loads invitations", async () => {
+    const original = channel("room");
+    const older = Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+    listRoomsMock
+      .mockReturnValueOnce(older.promise)
+      .mockResolvedValueOnce({ ok: false });
+    const { result } = mount({ rooms: [original] });
+    await act(async () => window.dispatchEvent(new Event("focus")));
+    await act(async () =>
+      older.resolve(emptyListResult([{ ...original, unreadCount: 4 }])),
+    );
+    expect(result.current.roomRows[0]?.unreadCount).toBe(4);
+  });
+
+  it("applies successful polls that take longer than the polling interval", async () => {
+    vi.useFakeTimers();
+    const original = channel("slow-room");
+    const responseDelayMs = 16_000;
+    listRoomsMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(
+            () => resolve(emptyListResult([{ ...original, unreadCount: 4 }])),
+            responseDelayMs,
+          );
+        }),
+    );
+    const { result, unmount } = mount({ rooms: [original] });
+    try {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+      expect(listRoomsMock).toHaveBeenCalledTimes(5);
+      expect(result.current.roomRows[0]?.unreadCount).toBe(4);
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it("accepts remote Mark unread at the same timestamp and retains it on remount", async () => {
+    const original = channel("room");
+    rememberRoomRead(original);
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([{ ...original, markedUnread: true }]),
+    );
+    const { result, rerender } = mount({ rooms: [original] });
+
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.markedUnread).toBe(true),
+    );
+    rerender({ rooms: [{ ...original }], archivedRooms: NO_ROOMS });
+    expect(result.current.roomRows[0]?.markedUnread).toBe(true);
+  });
+
+  it("accepts a remote Thread Look count decrease without new activity", async () => {
+    const original = channel("room", { unreadCount: 2 });
+    rememberRoomRead(original);
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([{ ...original, unreadCount: 0 }]),
+    );
+    const { result } = mount({ rooms: [original] });
+
+    await waitFor(() =>
+      expect(result.current.roomRows[0]?.unreadCount).toBe(0),
+    );
+  });
+
+  it("keeps a newer refresh when an earlier request finishes last", async () => {
+    const original = channel("room");
+    const older = Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+    const newer = Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+    listRoomsMock
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
+    const { result } = mount({ rooms: [original] });
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    expect(listRoomsMock).toHaveBeenCalledTimes(2);
+
+    await act(async () =>
+      newer.resolve(emptyListResult([{ ...original, unreadCount: 1 }])),
+    );
+    expect(result.current.roomRows[0]?.unreadCount).toBe(1);
+    await act(async () => older.resolve(emptyListResult([original])));
+    expect(result.current.roomRows[0]?.unreadCount).toBe(1);
+  });
+
+  it("does not restore a removed room from an older poll", async () => {
+    const original = channel("removed");
+    const pending = Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+    listRoomsMock.mockReturnValueOnce(pending.promise);
+    const { result } = mount({ rooms: [original] });
+    act(() =>
+      window.dispatchEvent(
+        new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+          detail: { removedRoomId: original.id },
+        }),
+      ),
+    );
+    expect(result.current.roomRows).toEqual([]);
+    await act(async () => pending.resolve(emptyListResult([original])));
+    expect(result.current.roomRows).toEqual([]);
+  });
+
+  it.each([
+    { trigger: "focus", organizationId: "org-2", currentUserId: "user-1" },
+    { trigger: "focus", organizationId: "org-1", currentUserId: "user-2" },
+    {
+      trigger: ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+      organizationId: "org-2",
+      currentUserId: "user-1",
+    },
+    {
+      trigger: ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+      organizationId: "org-1",
+      currentUserId: "user-2",
+    },
+  ])(
+    "cancels $trigger requests after switching to $organizationId/$currentUserId",
+    async ({ trigger, organizationId, currentUserId }) => {
+      const original = channel("previous-room");
+      const replacement = channel("current-room");
+      const pending =
+        Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+      listRoomsMock
+        .mockResolvedValueOnce(emptyListResult([original]))
+        .mockReturnValueOnce(pending.promise)
+        .mockResolvedValue({ ok: false });
+      const { result, rerender } = mount({ rooms: [original] });
+      await act(async () => undefined);
+      await act(async () => window.dispatchEvent(new Event(trigger)));
+      rerender({
+        rooms: [replacement],
+        archivedRooms: NO_ROOMS,
+        organizationId,
+        currentUserId,
+      });
+      await act(async () => pending.resolve(emptyListResult([original])));
+      expect(result.current.roomRows).toEqual([replacement]);
+    },
+  );
+
+  it("keeps the joined room when an invitation refresh overtakes a pending poll", async () => {
+    const pendingPoll =
+      Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+    listRoomsMock.mockReturnValue(pendingPoll.promise);
+    const { result } = mount();
+    const joined = channel("joined");
+    act(() => {
+      result.current.replaceAllRooms([joined], beginRoomAttentionRefresh());
+    });
+
+    await act(async () => pendingPoll.resolve(emptyListResult()));
+    expect(result.current.roomRows.map((room) => room.id)).toEqual(["joined"]);
+  });
+
+  it.each(["joined", "updated"])(
+    "keeps a %s room payload when an older poll finishes last",
+    async (change) => {
+      const original = channel("room");
+      const staleRooms = change === "joined" ? [] : [original];
+      const pendingPoll =
+        Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+      listRoomsMock.mockReturnValueOnce(pendingPoll.promise);
+      const { result } = mount({ rooms: staleRooms });
+      const updated = { ...original, name: "New room name" };
+
+      act(() => {
+        window.dispatchEvent(
+          new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+            detail: { room: updated },
+          }),
+        );
+      });
+      expect(result.current.roomRows).toEqual([updated]);
+
+      await act(async () => pendingPoll.resolve(emptyListResult(staleRooms)));
+      expect(result.current.roomRows).toEqual([updated]);
+
+      const refreshed = { ...updated, name: "Later room name" };
+      listRoomsMock.mockResolvedValue(emptyListResult([refreshed]));
+      await act(async () => {
+        window.dispatchEvent(new Event("focus"));
+      });
+      expect(result.current.roomRows).toEqual([refreshed]);
+    },
+  );
+
+  it("protects a read completed while the mount fetch was in flight", async () => {
+    const original = channel("room", { unreadCount: 5 });
+    const response =
+      Promise.withResolvers<ReturnType<typeof emptyListResult>>();
+    listRoomsMock.mockReturnValue(response.promise);
+    const { result } = mount({ rooms: [original] });
+    const readRoom = { ...original, unreadCount: 2 };
+    const token = beginRoomAttentionChange(readRoom);
+    settleRoomAttentionChange(original.id, token, readRoom);
+
+    await act(async () => response.resolve(emptyListResult([original])));
+    expect(result.current.roomRows[0]?.unreadCount).toBe(2);
+  });
+
+  it("keeps pending reads across polling and accepts the next fetch after completion", async () => {
+    const original = channel("room", { unreadCount: 5 });
+    const readRoom = { ...original, unreadCount: 0 };
+    const token = beginRoomAttentionChange(readRoom);
+    listRoomsMock.mockResolvedValue(emptyListResult([original]));
+    const { result } = mount({ rooms: [original] });
+    await act(async () => undefined);
+    expect(result.current.roomRows[0]?.unreadCount).toBe(0);
+
+    settleRoomAttentionChange(original.id, token, readRoom);
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([{ ...original, unreadCount: 1 }]),
+    );
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    expect(result.current.roomRows[0]?.unreadCount).toBe(1);
   });
 });

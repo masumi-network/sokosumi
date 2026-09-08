@@ -7,6 +7,7 @@ import {
   TaskScheduleOccurrenceState,
 } from "@sokosumi/database";
 
+import { CALENDAR_BETA_USER_WHERE } from "@/helpers/calendar-beta-access";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import prisma from "@/lib/db/prisma";
 
@@ -28,7 +29,6 @@ const RECONCILIATION_LINK_SELECT = {
     select: {
       workspaceId: true,
       projectId: true,
-      owner: { select: { email: true } },
     },
   },
   toTask: {
@@ -357,11 +357,7 @@ async function processBoundedBatch(
         AND: [
           cursorRangeWhere(cursor, highWater),
           {
-            fromTask: {
-              owner: {
-                email: { endsWith: "@nmkr.io", mode: "insensitive" },
-              },
-            },
+            fromTask: { owner: CALENDAR_BETA_USER_WHERE },
           },
         ],
       },
@@ -416,11 +412,7 @@ async function processFinalBatch(): Promise<BatchResult> {
       where: {
         type: TaskLinkType.SCHEDULE,
         toTask: { releasedScheduleOccurrence: { is: null } },
-        fromTask: {
-          owner: {
-            email: { endsWith: "@nmkr.io", mode: "insensitive" },
-          },
-        },
+        fromTask: { owner: CALENDAR_BETA_USER_WHERE },
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       take: RECONCILIATION_BATCH_SIZE,

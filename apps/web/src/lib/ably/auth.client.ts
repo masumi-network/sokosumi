@@ -1,6 +1,8 @@
 import type { TokenRequest } from "ably";
 
 const ABLY_BROWSER_AUTH_PATH = "/api/ably/auth";
+// Allow the Core token request its five-second deadline plus proxy overhead.
+const ABLY_BROWSER_AUTH_TIMEOUT_MS = 10_000;
 
 export class AblyBrowserAuthError extends Error {
   readonly status: number;
@@ -27,6 +29,7 @@ export async function fetchAblyBrowserAuthTokenRequest(
       Accept: "application/json",
     },
     cache: "no-store",
+    signal: AbortSignal.timeout(ABLY_BROWSER_AUTH_TIMEOUT_MS),
   });
 
   if (response.status === 401) {

@@ -1552,6 +1552,7 @@
         "scopeOwned": "Meine Tasks",
         "scopeWorkspace": "Workspace",
         "coworkerLabel": "Coworker",
+        "humanLabel": "Mensch",
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Entwurf",
@@ -3972,6 +3973,7 @@
         "deviceDisabledSuccess": "Push-Benachrichtigungen in diesem Browser aus",
         "pushEnabledSuccess": "Push-Benachrichtigungen aktiviert",
         "pushEnabledOtherDevicesSuccess": "Push-Benachrichtigungen auf deinen anderen Geräten aktiviert",
+        "previewPushConfirmation": "Dies ist eine Vorschau für den Branch {branch}. Hier aktivierte Push-Benachrichtigungen öffnen {origin}. Fortfahren?",
         "pushError": "Push-Benachrichtigungen konnten in diesem Browser nicht deaktiviert werden. Versuche es erneut.",
         "pushEnableError": "Push-Benachrichtigungen konnten in diesem Browser nicht aktiviert werden. Erlaube Benachrichtigungen für diese Seite in den Browser-Einstellungen und versuche es erneut.",
         "loading": "Einstellung wird gespeichert...",
@@ -4046,6 +4048,15 @@
         "channelEmailSoonHint": "Sokosumi sendet für diese Benachrichtigung noch keine E-Mail.",
         "deliveryAriaLabel": "Zustellung für {kind}",
         "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails"
+      },
+      "ChatDisplay": {
+        "title": "Chat-Anzeige",
+        "roomUnreadCountTitle": "Anzahl ungelesener Nachrichten anzeigen",
+        "roomUnreadCountDescription": "Stummgeschaltete Chats und der geöffnete Chat bleiben ruhig. An deinen Benachrichtigungen ändert sich nichts.",
+        "loading": "Einstellung wird gespeichert...",
+        "error": "Die Änderung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
+        "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
+        "roomUnreadCountDisabledSuccess": "Anzahl ungelesener Nachrichten deaktiviert"
       },
       "BillingDetails": {
         "title": "Rechnungsinformationen",
@@ -5394,6 +5405,10 @@
         "startedBy": "Gestartet von {name}",
         "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
       },
+      "RoomUnread": {
+        "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
+        "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten"
+      },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
         "left": "{name} hat den Channel verlassen"
@@ -6057,6 +6072,26 @@
         "PROJECT": "Projekt",
         "LEGACY_UNKNOWN": "Legacy-Quelle"
       },
+      "event": {
+        "accessibleName": "{task}, {source}",
+        "editSchedule": "Zeitplan bearbeiten",
+        "openTask": "Task öffnen"
+      },
+      "create": {
+        "title": "Task planen"
+      },
+      "edit": {
+        "title": "Zeitplan bearbeiten",
+        "description": "Aendere den Zeitplan fuer {name}.",
+        "loadError": "Dieser Task konnte nicht geladen werden. Bitte versuche es erneut.",
+        "saveError": "Dieser Zeitplan konnte nicht gespeichert werden. Bitte versuche es erneut.",
+        "clearError": "Dieser Zeitplan konnte nicht entfernt werden. Bitte versuche es erneut.",
+        "clearPending": "Zeitplan wird entfernt…",
+        "clearTitle": "Zeitplan entfernen?",
+        "clearDescription": "Dieser Task wird nicht mehr nach einem Zeitplan ausgeführt.",
+        "clearCancel": "Abbrechen",
+        "clearConfirm": "Zeitplan entfernen"
+      },
       "accuracy": {
         "inferred": "Abgeleitete Quelle",
         "unknown": "Unbekannte Quelle",
@@ -6330,10 +6365,12 @@
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
         "directMessage": "{authorName} hat dir eine Nachricht gesendet",
-        "roomMessage": "{authorName} hat in {roomName} geschrieben",
-        "roomMessages": "{count} Nachrichten in {roomName}",
+        "roomMessage": "{authorName} hat im Kanal {roomName} geschrieben",
+        "roomMessages": "{count} Nachrichten im Kanal {roomName}",
         "roomMessageGroup": "{authorName} hat in der Gruppe {roomName} geschrieben",
-        "roomMessagesGroup": "{count} Nachrichten in der Gruppe {roomName}"
+        "roomMessagesGroup": "{count} Nachrichten in der Gruppe {roomName}",
+        "roomMessageTitle": "{authorName} im Kanal {roomName}",
+        "roomMessageGroupTitle": "{authorName} in der Gruppe {roomName}"
       }
     }
   },

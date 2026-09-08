@@ -11,7 +11,7 @@ import { OrganizationChatList } from "@/components/chat/organization-chat-list.c
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
-import { isBetaAccessEmail } from "@/lib/beta-access";
+import { isSokoBotBetaAccessEmail } from "@/lib/beta-access";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { ChatRoomsPage } from "@/lib/services";
 
@@ -106,7 +106,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const chatRoomsPage = await getPrivateCachedMembershipVisibleRooms(cacheArgs);
 
-  const sokoBotMenuEnabled = isBetaAccessEmail(session?.user.email);
+  const sokoBotMenuEnabled = isSokoBotBetaAccessEmail(session?.user.email);
   const listKey = activeOrganizationId ?? "personal";
 
   return (
