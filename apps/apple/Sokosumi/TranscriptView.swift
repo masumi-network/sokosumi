@@ -237,12 +237,10 @@ struct MessageRow: View {
             .foregroundStyle(.secondary)
         } else if isContinuation, message.editedAt != nil {
           // foregroundColor (not Style): only Color keeps this Text for `+`.
-          // Body runs slightly dimmer than the name, like web's name/body read.
-          (Text(message.content).foregroundColor(.primary.opacity(0.85)) + Text(" Edited").font(.caption).foregroundColor(.secondary))
+          (Text(message.content) + Text(" Edited").font(.caption).foregroundColor(.secondary))
             .textSelection(.enabled)
         } else {
           Text(message.content)
-            .foregroundStyle(.primary.opacity(0.85))
             .textSelection(.enabled)
         }
       }
