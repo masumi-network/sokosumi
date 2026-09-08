@@ -24,21 +24,24 @@ const POINTER_SUBMIT_CLICK_GUARD_MS = 400;
 /**
  * Shared editor footprint for live composer + Instant room loading shell.
  *
- * The font-size utility owns line-height here: withEditableTextSize appends
- * `text-base md:text-sm` last, and tailwind-merge drops a bare or `md:`-scoped
- * `leading-*` that sits before it, so the line is 1.5rem below `md` and
- * 1.25rem from `md` up. A `leading-*` behind any other variant (`sm:`, `lg:`,
- * `max-md:`) survives that merge and would resize the box, so do not add one.
+ * Line height is pinned after the font size on purpose. withEditableTextSize
+ * appends `text-base md:text-sm` last, and tailwind-merge drops any
+ * `leading-*` that sits before it, so the font size would otherwise own the
+ * line box: 1.5rem below `md`, 1.25rem from `md` up. That leaves the caret,
+ * which fills the whole line box, hanging below the descender of the text it
+ * sits next to. Pinning a tighter line box keeps the caret close to the glyphs.
  *
- * Vertical padding therefore differs per breakpoint, and stays symmetric at
- * both, so one line exactly fills the 3rem box and the caret and the
- * placeholder sit in its middle: 0.75rem * 2 + 1.5rem = 0.875rem * 2 +
- * 1.25rem = 3rem. Empty, placeholder, and first keystroke share that box. Do
- * not use `empty:max-h-*` (jumps when :empty ends). Placeholder is single-line
- * ellipsis on empty:before (see ComposerWysiwygEditor).
+ * Vertical padding is symmetric at each breakpoint and adds up with the line to
+ * the same 3rem box, so empty, placeholder, and first keystroke share it:
+ * 0.875rem * 2 + 1.25rem = 0.9375rem * 2 + 1.125rem = 3rem. Do not use
+ * `empty:max-h-*` (jumps when :empty ends). Placeholder is single-line ellipsis
+ * on empty:before (see ComposerWysiwygEditor).
  */
-export const ROOM_COMPOSER_TEXTAREA_CLASSNAME = withEditableTextSize(
-  "box-border max-h-40 min-h-12 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 md:py-3.5 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
+export const ROOM_COMPOSER_TEXTAREA_CLASSNAME = cn(
+  withEditableTextSize(
+    "box-border max-h-40 min-h-12 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3.5 md:py-[0.9375rem] ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
+  ),
+  "leading-5 md:leading-[1.125rem]",
 );
 
 /**
