@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -99,6 +99,47 @@ describe("useRoomNotificationDeepLink", () => {
 
     expect(props.jumpInRoom).not.toHaveBeenCalled();
     expect(props.jumpInThread).not.toHaveBeenCalled();
+  });
+
+  it("lands the message the reader asked for last when two jumps overlap", async () => {
+    // Two bell rows for the same room, clicked in quick succession. Both
+    // reads are in flight at once, and the one clicked first comes back last.
+    // The room guards cannot separate them: both jumps carry the same room.
+    const resolvers = new Map<string, () => void>();
+    vi.mocked(getRoomMessageAction).mockImplementation(
+      (_roomId, messageId) =>
+        new Promise((resolve) => {
+          resolvers.set(messageId, () => {
+            resolve({ ok: true as const, value: message({ id: messageId }) });
+          });
+        }),
+    );
+
+    const props = params();
+    const { rerender } = render(<Harness {...props} />);
+    rerender(
+      <Harness
+        {...props}
+        searchParams={
+          new URLSearchParams(
+            "message=msg-2",
+          ) as unknown as ReadonlyURLSearchParams
+        }
+      />,
+    );
+
+    await waitFor(() => {
+      expect(resolvers.size).toBe(2);
+    });
+
+    await act(async () => {
+      resolvers.get("msg-2")?.();
+    });
+    await act(async () => {
+      resolvers.get("msg-1")?.();
+    });
+
+    expect(props.jumpInRoom).toHaveBeenCalledExactlyOnceWith("msg-2");
   });
 
   it("spends the message from the URL so Back does not jump again", async () => {

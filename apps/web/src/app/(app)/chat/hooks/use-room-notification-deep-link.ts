@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReadonlyURLSearchParams } from "next/navigation";
+import { useRef } from "react";
 
 import { getRoomMessageAction } from "@/app/chat/actions";
 import { pathWithSearch } from "@/app/chat/utils/chat-route-base";
@@ -54,10 +55,22 @@ export function useRoomNotificationDeepLink({
   jumpInRoom,
   jumpInThread,
 }: RoomNotificationDeepLinkParams): void {
+  const jumpGenerationRef = useRef(0);
+
   async function jumpToNotificationMessage(messageId: string): Promise<void> {
     if (!roomId) {
       return;
     }
+
+    // A reader clearing a list of notifications can click a second one for
+    // this same room while the first is still being read. Both reads are then
+    // in flight, and the order they come back in is the server's to decide,
+    // so without this the message that lands is whichever request was slower
+    // rather than the one the reader asked for last. The room guards below
+    // cannot see it: both jumps carry the same room.
+    jumpGenerationRef.current += 1;
+    const generation = jumpGenerationRef.current;
+    const isNewestJump = () => generation === jumpGenerationRef.current;
 
     await performRoomNotificationJump(messageId, {
       highlight,
@@ -81,8 +94,21 @@ export function useRoomNotificationDeepLink({
           ? { status: "found", message: result.value }
           : { status: "notReadable" };
       },
-      jumpInRoom,
-      jumpInThread,
+      // Guarded rather than the lookup, which answers honestly either way.
+      // Only the jump itself has to be held back, and holding it here covers
+      // the jump a failed lookup falls back to as well.
+      jumpInRoom: async (id) => {
+        if (!isNewestJump()) {
+          return;
+        }
+        await jumpInRoom(id);
+      },
+      jumpInThread: async (message) => {
+        if (!isNewestJump()) {
+          return;
+        }
+        await jumpInThread(message);
+      },
     });
   }
 
