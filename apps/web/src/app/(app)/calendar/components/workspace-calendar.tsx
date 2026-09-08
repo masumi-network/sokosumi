@@ -295,6 +295,7 @@ function CalendarEvent({
 }
 
 function CalendarView({
+  canCreate,
   date,
   items,
   onDateClick,
@@ -304,6 +305,7 @@ function CalendarView({
   timeZone,
   view,
 }: {
+  canCreate: boolean;
   date: Date;
   items: WorkspaceCalendarItem[];
   onDateClick: (date: Date) => void;
@@ -322,6 +324,7 @@ function CalendarView({
   return (
     <div
       className="workspace-calendar-theme overflow-x-auto"
+      data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
     >
@@ -965,6 +968,7 @@ export function WorkspaceCalendar({
       <div className="hidden md:block">
         <CalendarView
           key={`desktop-${calendarRenderEpoch}`}
+          canCreate={canCreate}
           date={date}
           items={visibleItems}
           onDateClick={handleDateClick}
@@ -978,6 +982,7 @@ export function WorkspaceCalendar({
       <div className="md:hidden">
         <CalendarView
           key={`mobile-${calendarRenderEpoch}`}
+          canCreate={canCreate}
           date={date}
           items={visibleItems}
           onDateClick={handleDateClick}
