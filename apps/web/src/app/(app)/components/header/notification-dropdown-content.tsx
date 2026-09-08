@@ -9,6 +9,7 @@ import { NotificationBrowserPermissionPrimer } from "@/app/components/notificati
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -177,21 +178,15 @@ export function NotificationDropdownContent({
             </Button>
           ) : null}
           {notifications.length > 0 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground h-auto px-2 py-1 text-xs font-normal"
-              onPointerDown={(event) => {
-                event.preventDefault();
-              }}
-              onClick={() => {
+            <DropdownMenuItem
+              className="text-muted-foreground hover:text-foreground h-auto cursor-pointer rounded-md px-2 py-1 text-xs font-normal"
+              onSelect={() => {
                 onClose();
                 onClearAll();
               }}
             >
               {t("clearAll")}
-            </Button>
+            </DropdownMenuItem>
           ) : null}
         </div>
       </div>

@@ -23,9 +23,7 @@ export function DeleteNotificationMenuItem({
   notificationMessage,
 }: DeleteNotificationMenuItemProps) {
   const t = useTranslations("Components.NotificationCenter");
-  const { requestDelete } = useDeleteNotification({
-    notificationId,
-  });
+  const { requestDelete } = useDeleteNotification(notificationId);
 
   return (
     <DropdownMenuItem

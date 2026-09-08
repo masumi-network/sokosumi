@@ -3,7 +3,7 @@
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { useSession } from "@/lib/auth/auth.client";
-import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
@@ -25,6 +24,11 @@ import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
 import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
+
+import {
+  removeNotificationLocally,
+  useNotificationsPage,
+} from "./use-notifications-page";
 
 interface NotificationsPageContentProps {
   userId: string;
@@ -65,33 +69,6 @@ function markAllNotificationsReadLocally(
   return changed ? next : notifications;
 }
 
-/** The list without one row, or the list itself when it holds no such row. */
-export function removeNotificationLocally(
-  notifications: NotificationItem[],
-  notificationId: string,
-): NotificationItem[] {
-  const next = notifications.filter(
-    (notification) => notification.id !== notificationId,
-  );
-
-  return next.length === notifications.length ? notifications : next;
-}
-
-export function mergeProviderNotifications(
-  current: NotificationItem[],
-  provider: NotificationItem[],
-): NotificationItem[] {
-  if (provider.length === 0) {
-    return current;
-  }
-
-  const providerIds = new Set(provider.map((notification) => notification.id));
-  return [
-    ...provider,
-    ...current.filter((notification) => !providerIds.has(notification.id)),
-  ];
-}
-
 export function NotificationsPageContent({
   userId: _userId,
 }: NotificationsPageContentProps) {
@@ -103,86 +80,23 @@ export function NotificationsPageContent({
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const { notice } = useAccountNotice();
-  const {
-    markRead,
-    markAllRead,
-    notifications: providerNotifications,
-    unreadCount,
-  } = useNotifications();
+  const { markRead, markAllRead, unreadCount } = useNotifications();
   const router = useRouter();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    notifications,
+    setNotifications,
+    isLoading,
+    hasMore,
+    cursor,
+    hasFetchError,
+    isMutating,
+    fetchNotifications,
+  } = useNotificationsPage();
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const [pendingNotificationId, setPendingNotificationId] = useState<
     string | null
   >(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasFetchError, setHasFetchError] = useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
-  const fetchInFlightRef = useRef(false);
-  const fetchGenerationRef = useRef(0);
-
-  const fetchNotifications = useCallback(async (nextCursor?: string | null) => {
-    if (fetchInFlightRef.current) {
-      return;
-    }
-
-    fetchInFlightRef.current = true;
-    const generation = ++fetchGenerationRef.current;
-    const isInitialLoad = nextCursor == null;
-
-    try {
-      setIsLoading(true);
-      const response = await notificationsBrowserClient.getNotifications({
-        limit: 20,
-        cursor: nextCursor ?? undefined,
-      });
-
-      if (generation !== fetchGenerationRef.current) {
-        return;
-      }
-
-      setNotifications((prev) => {
-        if (!nextCursor) {
-          return response.data;
-        }
-
-        const existingIds = new Set(
-          prev.map((notification) => notification.id),
-        );
-        const newItems = response.data.filter(
-          (notification) => !existingIds.has(notification.id),
-        );
-
-        return [...prev, ...newItems];
-      });
-      const paginationMeta = response.meta.pagination;
-      setHasMore(paginationMeta.nextCursor !== null);
-      setCursor(paginationMeta.nextCursor);
-      setHasFetchError(false);
-    } catch (error) {
-      console.error("Failed to fetch notifications:", error);
-      if (generation === fetchGenerationRef.current && isInitialLoad) {
-        setHasFetchError(true);
-      }
-    } finally {
-      if (generation === fetchGenerationRef.current) {
-        setIsLoading(false);
-        fetchInFlightRef.current = false;
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchNotifications();
-  }, [fetchNotifications]);
-
-  useEffect(() => {
-    setNotifications((current) =>
-      mergeProviderNotifications(current, providerNotifications),
-    );
-  }, [providerNotifications]);
 
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network/navigation
@@ -229,16 +143,6 @@ export function NotificationsPageContent({
 
   const handleLoadMore = () => {
     void fetchNotifications(cursor);
-  };
-
-  const handleNotificationDeleting = (notificationId: string) => {
-    setNotifications((prev) => removeNotificationLocally(prev, notificationId));
-  };
-
-  const handleClearing = () => {
-    setNotifications([]);
-    setCursor(null);
-    setHasMore(false);
   };
 
   return (
@@ -314,10 +218,6 @@ export function NotificationsPageContent({
                       removeNotificationLocally(prev, notificationId),
                     );
                   }}
-                  onDeleting={handleNotificationDeleting}
-                  onDeleteFailed={() => {
-                    void fetchNotifications();
-                  }}
                 />
               ))}
             </div>
@@ -327,7 +227,7 @@ export function NotificationsPageContent({
               <Button
                 variant="outline"
                 onClick={handleLoadMore}
-                disabled={isLoading}
+                disabled={isLoading || isMutating}
               >
                 {isLoading ? tCenter("loading") : tCenter("loadMore")}
               </Button>
@@ -338,10 +238,6 @@ export function NotificationsPageContent({
       <ClearNotificationsDialog
         open={isClearDialogOpen}
         onOpenChange={setIsClearDialogOpen}
-        onClearing={handleClearing}
-        onClearFailed={() => {
-          void fetchNotifications();
-        }}
       />
     </div>
   );
@@ -354,8 +250,6 @@ interface NotificationRowProps {
   timeLabel: string;
   onClick: (notification: NotificationItem) => void;
   onAccessRequestAccepted: (notificationId: string) => void;
-  onDeleting: (notificationId: string) => void;
-  onDeleteFailed: () => void;
 }
 
 function NotificationRow({
@@ -365,8 +259,6 @@ function NotificationRow({
   timeLabel,
   onClick,
   onAccessRequestAccepted,
-  onDeleting,
-  onDeleteFailed,
 }: NotificationRowProps) {
   const showVendorGrantActions = isPendingVendorGrantNotification(notification);
   const showCoworkerAccessActions =
@@ -436,8 +328,6 @@ function NotificationRow({
     <DeleteNotificationButton
       notificationId={notification.id}
       notificationMessage={message}
-      onDeleting={onDeleting}
-      onDeleteFailed={onDeleteFailed}
     />
   );
 

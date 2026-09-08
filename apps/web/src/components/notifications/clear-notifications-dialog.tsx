@@ -19,10 +19,6 @@ import { useNotifications } from "@/contexts/notification-provider";
 interface ClearNotificationsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called as the request starts, so a parent list can empty itself. */
-  onClearing?: () => void;
-  /** Called when clearing fails, so a parent list can read itself again. */
-  onClearFailed?: () => void;
 }
 
 /**
@@ -34,8 +30,6 @@ interface ClearNotificationsDialogProps {
 export function ClearNotificationsDialog({
   open,
   onOpenChange,
-  onClearing,
-  onClearFailed,
 }: ClearNotificationsDialogProps) {
   const t = useTranslations("Components.NotificationCenter");
   const tApp = useTranslations("App");
@@ -48,13 +42,11 @@ export function ClearNotificationsDialog({
     }
 
     setIsClearing(true);
-    onClearing?.();
 
     try {
       await clearNotifications();
     } catch {
       toast.error(t("clearAllError"));
-      onClearFailed?.();
     } finally {
       setIsClearing(false);
       onOpenChange(false);

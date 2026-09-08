@@ -6,14 +6,6 @@ import { toast } from "sonner";
 
 import { useNotifications } from "@/contexts/notification-provider";
 
-interface UseDeleteNotificationOptions {
-  notificationId: string;
-  /** Called as the request starts, so a parent list can drop the row at once. */
-  onDeleting?: (notificationId: string) => void;
-  /** Called when the delete fails, so a parent list can read itself again. */
-  onDeleteFailed?: () => void;
-}
-
 /**
  * The delete action both notification surfaces share.
  *
@@ -24,24 +16,17 @@ interface UseDeleteNotificationOptions {
  * There is no pending state: both surfaces drop the row before the request
  * goes out, so the control is gone by the time an answer arrives.
  */
-export function useDeleteNotification({
-  notificationId,
-  onDeleting,
-  onDeleteFailed,
-}: UseDeleteNotificationOptions) {
+export function useDeleteNotification(notificationId: string) {
   const t = useTranslations("Components.NotificationCenter");
   const { deleteNotification } = useNotifications();
 
   const requestDelete = useCallback(async (): Promise<void> => {
-    onDeleting?.(notificationId);
-
     try {
       await deleteNotification(notificationId);
     } catch {
       toast.error(t("deleteError"));
-      onDeleteFailed?.();
     }
-  }, [deleteNotification, notificationId, onDeleteFailed, onDeleting, t]);
+  }, [deleteNotification, notificationId, t]);
 
   return { requestDelete };
 }

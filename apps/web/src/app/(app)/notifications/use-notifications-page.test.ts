@@ -5,7 +5,7 @@ import type { NotificationItem } from "@/lib/clients/generated/core";
 import {
   mergeProviderNotifications,
   removeNotificationLocally,
-} from "./page-content";
+} from "./use-notifications-page";
 
 function notification(
   id: string,

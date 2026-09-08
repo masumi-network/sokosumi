@@ -27,15 +27,11 @@ vi.mock("@/contexts/notification-provider", () => ({
   }),
 }));
 
-function renderButton(overrides: {
-  onDeleting?: (notificationId: string) => void;
-  onDeleteFailed?: () => void;
-}) {
+function renderButton() {
   return render(
     <DeleteNotificationButton
       notificationId="notification-1"
       notificationMessage="Research Agent completed Market Analysis"
-      {...overrides}
     />,
   );
 }
@@ -47,11 +43,10 @@ describe("DeleteNotificationButton", () => {
     vi.mocked(toast.error).mockReset();
   });
 
-  it("drops the row before the request and deletes it", async () => {
+  it("deletes the notification named by the control", async () => {
     const user = userEvent.setup();
-    const onDeleting = vi.fn();
 
-    renderButton({ onDeleting });
+    renderButton();
 
     await user.click(
       screen.getByRole("button", {
@@ -59,25 +54,22 @@ describe("DeleteNotificationButton", () => {
       }),
     );
 
-    expect(onDeleting).toHaveBeenCalledWith("notification-1");
     await waitFor(() => {
       expect(deleteNotificationMock).toHaveBeenCalledWith("notification-1");
     });
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it("tells the reader and asks for a reread when the delete fails", async () => {
+  it("tells the reader when the delete fails", async () => {
     const user = userEvent.setup();
-    const onDeleteFailed = vi.fn();
     deleteNotificationMock.mockRejectedValue(new Error("network down"));
 
-    renderButton({ onDeleteFailed });
+    renderButton();
 
     await user.click(screen.getByRole("button", { name: /^delete/ }));
 
     await waitFor(() => {
-      expect(onDeleteFailed).toHaveBeenCalledTimes(1);
+      expect(toast.error).toHaveBeenCalledWith("deleteError");
     });
-    expect(toast.error).toHaveBeenCalledWith("deleteError");
   });
 });
