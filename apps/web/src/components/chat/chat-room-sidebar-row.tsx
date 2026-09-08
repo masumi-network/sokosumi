@@ -103,7 +103,7 @@ function RoomUnreadCount({ count }: { count: number }) {
   // `aria-label` here can be dropped and the row announces a bare number beside
   // the badge's bare number. Real text carries it instead.
   return (
-    <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 text-xs leading-4 font-semibold tabular-nums">
+    <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 leading-4 font-semibold tabular-nums">
       <span aria-hidden="true">
         {capped ? `${ROOM_UNREAD_COUNT_CAP}+` : count}
       </span>
