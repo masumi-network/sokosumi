@@ -12,10 +12,12 @@ import type {
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
 
-const { mockIsMobileMedia, mockHeaderRoomSlotHost } = vi.hoisted(() => ({
-  mockIsMobileMedia: vi.fn((): boolean | undefined => false),
-  mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
-}));
+const { mockIsMobileMedia, mockHeaderRoomSlotHost, mockSearchParams } =
+  vi.hoisted(() => ({
+    mockIsMobileMedia: vi.fn((): boolean | undefined => false),
+    mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
+    mockSearchParams: vi.fn(() => new URLSearchParams()),
+  }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -24,7 +26,7 @@ vi.mock("next/navigation", () => ({
     refresh: vi.fn(),
   }),
   usePathname: () => "/chat/rooms/room-channel",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams(),
 }));
 
 vi.mock("next-intl", () => ({
@@ -180,10 +182,16 @@ vi.mock("../thread-list-panel", () => ({
 }));
 
 vi.mock("../edit-channel-dialog", () => ({
-  EditChannelDialog: ({ children }: { children?: ReactNode }) => (
+  EditChannelDialog: ({
+    children,
+    open,
+  }: {
+    children?: ReactNode;
+    open?: boolean;
+  }) => (
     <>
       {children}
-      <div data-testid="edit-channel-dialog-probe" />
+      <div data-testid="edit-channel-dialog-probe" data-open={String(open)} />
     </>
   ),
 }));
@@ -304,6 +312,30 @@ function renderRoom(room: ChatRoom) {
     </QueryClientProvider>,
   );
 }
+
+describe("RoomsClient edit channel deep link", () => {
+  // The channel row's overflow menu asks for the dialog on the URL, because
+  // the sidebar it lives in has neither the roster nor the reader's role.
+  it("opens the edit dialog the URL asks for", () => {
+    mockSearchParams.mockReturnValueOnce(new URLSearchParams("edit=1"));
+
+    renderRoom(channelRoom());
+
+    expect(screen.getByTestId("edit-channel-dialog-probe")).toHaveAttribute(
+      "data-open",
+      "true",
+    );
+  });
+
+  it("leaves the dialog shut when the URL asks for nothing", () => {
+    renderRoom(channelRoom());
+
+    expect(screen.getByTestId("edit-channel-dialog-probe")).toHaveAttribute(
+      "data-open",
+      "false",
+    );
+  });
+});
 
 describe("RoomsClient room header chrome", () => {
   it("makes the channel title the settings trigger and keeps search with the right actions", () => {

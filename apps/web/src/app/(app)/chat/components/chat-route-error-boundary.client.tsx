@@ -2,26 +2,26 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
+import { pathWithoutOneShotRoomParams } from "@/app/chat/utils/chat-route-base";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
 import { ChatErrorFallback } from "./chat-error-fallback";
 
 type SearchParamsLike = { toString(): string } | null | undefined;
 
 /**
- * Keep message jumps within the mounted room. Consuming the message parameter
- * must not discard its thread state or the lookup still in flight.
+ * Keep one-shot room requests within the mounted room. Consuming the message
+ * parameter must not discard its thread state or the lookup still in flight,
+ * and the edit parameter has less than that to survive on: the room holds the
+ * dialog it asks for in state, which a remount would throw away before the
+ * reader ever saw it.
  * Other query changes, such as Welcome notices, still reset the boundary.
  */
 export function chatRouteErrorBoundaryKey(
   pathname: string,
   searchParams?: SearchParamsLike,
 ): string {
-  const params = new URLSearchParams(searchParams?.toString() ?? "");
-  params.delete(CHAT_MESSAGE_PARAM);
-  const search = params.toString();
-  return search.length > 0 ? `${pathname}?${search}` : pathname;
+  return pathWithoutOneShotRoomParams(pathname, searchParams);
 }
 
 /**

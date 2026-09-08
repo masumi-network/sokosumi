@@ -10,18 +10,23 @@ import {
   useState,
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHAT_CHATS_LIST_PATH } from "@/app/chat/utils/chat-route-base";
+import {
+  CHAT_CHATS_LIST_PATH,
+  chatRoomEditHref,
+} from "@/app/chat/utils/chat-route-base";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
 const {
   leaveRoomActionMock,
   replaceMock,
+  pushMock,
   refreshMock,
   notifyMock,
   showRoomUnreadCountMock,
 } = vi.hoisted(() => ({
   leaveRoomActionMock: vi.fn(),
   replaceMock: vi.fn(),
+  pushMock: vi.fn(),
   refreshMock: vi.fn(),
   notifyMock: vi.fn(),
   showRoomUnreadCountMock: vi.fn(() => false),
@@ -30,6 +35,7 @@ const {
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: replaceMock,
+    push: pushMock,
     refresh: refreshMock,
   }),
 }));
@@ -54,6 +60,7 @@ vi.mock("next-intl", () => ({
         leaveSuccess: `You left ${values?.name ?? ""}.`,
         cancel: "Cancel",
         markUnread: "Mark as unread",
+        editChannel: "Edit channel",
         pin: "Pin",
         unpin: "Unpin",
         mute: "Mute",
@@ -361,6 +368,91 @@ describe("ChatRoomSidebarRow leading slot", () => {
     // Slot is a direct child of the room link so every room type shares the same column.
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
     expect(link?.firstElementChild).toBe(slot);
+  });
+});
+
+describe("ChatRoomSidebarRow edit menu", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sends the reader to the channel with its edit dialog asked for", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
+
+    expect(pushMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"));
+  });
+
+  // The room already on screen takes the parameter straight back off its URL,
+  // so a pushed entry would leave Back doing nothing the reader can see.
+  it("replaces rather than pushes for the channel already on screen", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Edit channel" }));
+
+    expect(replaceMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"));
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  // The dialog is for channels. A direct room's header shows a plain title.
+  it("hides Edit channel for direct rooms", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ kind: "direct" })}
+        href="/chat/rooms/room-1"
+        label="Alice"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    await openRoomMenu("Alice");
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Edit channel" }),
+    ).not.toBeInTheDocument();
+  });
+
+  // A channel nobody may leave still opens its dialog from the same menu.
+  it("offers Edit channel when Leave is hidden", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ userMembers: [makeUser("user-1")] })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    await openRoomMenu();
+
+    expect(
+      screen.getByRole("menuitem", { name: "Edit channel" }),
+    ).toBeInTheDocument();
   });
 });
 

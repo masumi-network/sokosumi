@@ -4,7 +4,7 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import { useRef } from "react";
 
 import { getRoomMessageAction } from "@/app/chat/message-actions";
-import { pathWithSearch } from "@/app/chat/utils/chat-route-base";
+import { pathWithoutOneShotRoomParams } from "@/app/chat/utils/chat-route-base";
 import {
   performRoomNotificationJump,
   type RoomNotificationLookup,
@@ -132,9 +132,12 @@ export function useRoomNotificationDeepLink({
       // Spend the message from the URL as soon as it is acted on. Left there,
       // every Back into this history entry would jump again and drag a reader
       // who had scrolled away back to a message they have already read.
-      const remaining = new URLSearchParams(searchParams);
-      remaining.delete(CHAT_MESSAGE_PARAM);
-      replace(pathWithSearch(pathname, remaining), { scroll: false });
+      // Every one-shot parameter goes at once, this room's edit request
+      // included. Both readers hold the same snapshot of the URL, so a strip
+      // that kept the other one would write it back for good.
+      replace(pathWithoutOneShotRoomParams(pathname, searchParams), {
+        scroll: false,
+      });
       // Nothing awaits this, so a transport failure would otherwise surface as
       // an unhandled rejection on room open rather than on a click.
       jumpToNotificationMessage(messageId).catch((error) => {

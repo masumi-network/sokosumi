@@ -7,6 +7,7 @@ import {
   Loader2,
   LogOut,
   MessageSquare,
+  Pencil,
   Pin,
   PinOff,
 } from "lucide-react";
@@ -16,7 +17,13 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
-import { CHAT_CHATS_LIST_PATH } from "@/app/chat/utils/chat-route-base";
+import {
+  CHAT_CHATS_LIST_PATH,
+  CHAT_EDIT_CHANNEL_PARAM,
+  chatRoomEditHref,
+  chatRoomHref,
+  pathWithSearch,
+} from "@/app/chat/utils/chat-route-base";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   markOrganizationChatRoomUnreadAction,
@@ -149,16 +156,18 @@ export function ChatRoomSidebarRow({
   dismissSheetOnNavigate = true,
 }: ChatRoomSidebarRowProps) {
   const tActions = useTranslations("App.Channels.Actions");
+  const tChannels = useTranslations("App.Channels");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const isPinned = room.starredAt != null;
   const isMuted = room.mutedAt != null;
+  const isChannel = room.kind === "channel";
   // Match rooms-client: guests and matched may always leave; host-org last
   // host keeps Leave hidden when they are the sole `member` access row.
   const canLeave =
-    room.kind === "channel" &&
+    isChannel &&
     (room.myAccess === "guest" ||
       room.discoverability === "matched" ||
       room.userMembers.filter((member) => member.access === "member").length >
@@ -236,6 +245,33 @@ export function ChatRoomSidebarRow({
       router.refresh();
     }
   }
+
+  // The dialog needs the org roster and the reader's role, which this row does
+  // not have and the room already loads. So the row asks the room to open it.
+  const editChannelItem = (
+    <DropdownMenuItem
+      disabled={isPending}
+      onSelect={() => {
+        // Asking the room on screen for its own dialog is not a journey. The
+        // room takes the parameter straight back off the URL, so a pushed
+        // entry would leave Back doing nothing the reader can see. That room's
+        // URL may also carry a message it has not jumped to yet, so the ask is
+        // added to what is there rather than written over it. Read off the
+        // document, because subscribing every row to the query would re-render
+        // the whole sidebar whenever one lands.
+        if (isActive) {
+          const params = new URLSearchParams(window.location.search);
+          params.set(CHAT_EDIT_CHANNEL_PARAM, "1");
+          router.replace(pathWithSearch(chatRoomHref(room.id), params));
+          return;
+        }
+        router.push(chatRoomEditHref(room.id));
+      }}
+    >
+      <Pencil className="size-4" aria-hidden />
+      {tChannels("editChannel")}
+    </DropdownMenuItem>
+  );
 
   const roomLink = (
     <Link
@@ -385,19 +421,26 @@ export function ChatRoomSidebarRow({
               )}
               {isMuted ? tActions("unmute") : tActions("mute")}
             </DropdownMenuItem>
-            {canLeave ? (
+            {isChannel ? (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={isPending || isLeaving}
-                  onSelect={() => {
-                    setLeaveConfirmOpen(true);
-                  }}
-                >
-                  <LogOut className="size-4" aria-hidden />
-                  {tActions("leave")}
-                </DropdownMenuItem>
+                {dismissSheetOnNavigate ? (
+                  <SheetClose asChild>{editChannelItem}</SheetClose>
+                ) : (
+                  editChannelItem
+                )}
               </>
+            ) : null}
+            {canLeave ? (
+              <DropdownMenuItem
+                disabled={isPending || isLeaving}
+                onSelect={() => {
+                  setLeaveConfirmOpen(true);
+                }}
+              >
+                <LogOut className="size-4" aria-hidden />
+                {tActions("leave")}
+              </DropdownMenuItem>
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
