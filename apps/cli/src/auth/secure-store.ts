@@ -29,7 +29,6 @@ type CredentialStoreOptions = {
   accountName?: string;
 };
 
-const KEYCHAIN_COMMAND = "/usr/bin/security";
 const SECRET_TOOL_COMMAND = "secret-tool";
 const DEFAULT_SERVICE_NAME = "sokosumi-cli";
 const DEFAULT_ACCOUNT_NAME = "oauth";
@@ -49,27 +48,6 @@ function createNativeEntry(
 function vaultError(action: string): Error {
   return new Error(
     `OS credential vault is required to ${action} interactive Sokosumi credentials`,
-  );
-}
-
-function errorDetails(error: unknown): string {
-  if (!(error instanceof Error)) return String(error);
-  const details = error as Error & {
-    stderr?: string | Buffer;
-    code?: string | number;
-    status?: number;
-  };
-  return [details.stderr, details.message, details.code, details.status]
-    .filter((value) => value !== undefined && value !== null)
-    .join(" ");
-}
-
-function isMissingMacItem(error: unknown): boolean {
-  const details = errorDetails(error);
-  const candidate = error as { status?: number };
-  return (
-    candidate?.status === 44 ||
-    /could not be found|errSecItemNotFound|-25300/i.test(details)
   );
 }
 
@@ -111,51 +89,35 @@ function createUnsupportedStore<T extends object>(): CredentialStore<T> {
   };
 }
 
-function createMacCredentialStore<T extends object>({
-  execFileSync,
+function createNativeCredentialStore<T extends object>({
+  entryFactory,
   serviceName,
   accountName,
 }: Required<
-  Pick<CredentialStoreOptions, "execFileSync" | "serviceName" | "accountName">
+  Pick<CredentialStoreOptions, "entryFactory" | "serviceName" | "accountName">
 >): CredentialStore<T> {
-  const commonArgs = ["-a", accountName, "-s", serviceName];
+  const entry = entryFactory(serviceName, accountName);
   return {
     isSupported: true,
     read() {
       try {
-        const output = execFileSync(
-          KEYCHAIN_COMMAND,
-          ["find-generic-password", ...commonArgs, "-w"],
-          { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-        );
-        return parseStoredValue<T>(String(output || "").trim());
-      } catch (error) {
-        if (isMissingMacItem(error)) return null;
+        return parseStoredValue<T>(entry.getPassword());
+      } catch {
         throw vaultError("read");
       }
     },
     write(value) {
-      execFileSync(
-        KEYCHAIN_COMMAND,
-        [
-          "add-generic-password",
-          ...commonArgs,
-          "-w",
-          JSON.stringify(value),
-          "-U",
-        ],
-        { stdio: ["ignore", "ignore", "pipe"] },
-      );
+      try {
+        entry.setPassword(JSON.stringify(value));
+      } catch {
+        throw vaultError("store");
+      }
     },
     clear() {
       try {
-        execFileSync(
-          KEYCHAIN_COMMAND,
-          ["delete-generic-password", ...commonArgs],
-          { stdio: ["ignore", "ignore", "pipe"] },
-        );
-      } catch (error) {
-        if (!isMissingMacItem(error)) throw vaultError("clear");
+        entry.deletePassword();
+      } catch {
+        throw vaultError("clear");
       }
     },
   };
@@ -192,14 +154,18 @@ function createLinuxCredentialStore<T extends object>({
       }
     },
     write(value) {
-      execFileSync(
-        SECRET_TOOL_COMMAND,
-        ["store", "--label", "Sokosumi CLI", ...attributes],
-        {
-          input: JSON.stringify(value),
-          stdio: ["pipe", "ignore", "pipe"],
-        },
-      );
+      try {
+        execFileSync(
+          SECRET_TOOL_COMMAND,
+          ["store", "--label", "Sokosumi CLI", ...attributes],
+          {
+            input: JSON.stringify(value),
+            stdio: ["pipe", "ignore", "pipe"],
+          },
+        );
+      } catch {
+        throw vaultError("store");
+      }
     },
     clear() {
       try {
@@ -214,28 +180,6 @@ function createLinuxCredentialStore<T extends object>({
   };
 }
 
-function createWindowsCredentialStore<T extends object>({
-  entryFactory,
-  serviceName,
-  accountName,
-}: Required<
-  Pick<CredentialStoreOptions, "entryFactory" | "serviceName" | "accountName">
->): CredentialStore<T> {
-  const entry = entryFactory(serviceName, accountName);
-  return {
-    isSupported: true,
-    read() {
-      return parseStoredValue<T>(entry.getPassword());
-    },
-    write(value) {
-      entry.setPassword(JSON.stringify(value));
-    },
-    clear() {
-      entry.deletePassword();
-    },
-  };
-}
-
 export function createCredentialStore<
   T extends object = Record<string, unknown>,
 >({
@@ -245,19 +189,16 @@ export function createCredentialStore<
   serviceName = DEFAULT_SERVICE_NAME,
   accountName = DEFAULT_ACCOUNT_NAME,
 }: CredentialStoreOptions = {}): CredentialStore<T> {
-  if (platform === "darwin") {
-    return createMacCredentialStore({ execFileSync, serviceName, accountName });
-  }
-  if (platform === "linux") {
-    return createLinuxCredentialStore({
-      execFileSync,
+  if (platform === "darwin" || platform === "win32") {
+    return createNativeCredentialStore({
+      entryFactory,
       serviceName,
       accountName,
     });
   }
-  if (platform === "win32") {
-    return createWindowsCredentialStore({
-      entryFactory,
+  if (platform === "linux") {
+    return createLinuxCredentialStore({
+      execFileSync,
       serviceName,
       accountName,
     });

@@ -44,6 +44,7 @@ V11: OAuth credentials save before user-key mint. Mint failure preserves OAuth s
 V12: user-key mint/rotate/revoke → Core feature with trusted CLI OAuth guard. CLI never mints locally.
 V13: signed-in identity copy = auth method + target + signed-in state. ⊥ email/name on status screen.
 V14: Register menu presets ∈ {pi-sokosumi, Eve, Hermes, OpenClaw}. Those are Coworker runtimes. ⊥ Hire Agent. Workspace connect later.
+V15: vault writes use native secret setters or stdin; credential values ∉ child-process argv and error output.
 
 ## §T TASKS
 
@@ -65,3 +66,4 @@ T13|.|Core: add trusted CLI OAuth route for user-key mint/rotate/revoke; server 
 ## §B BUGS
 
 id|date|cause|fix
+B1|2026-09-08|macOS vault writes passed serialized credentials through `security` argv and raw write errors reached CLI stderr|V15

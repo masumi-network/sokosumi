@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import type { ExecFileSyncOptions } from "node:child_process";
 import test from "node:test";
 
 import {
@@ -7,77 +6,89 @@ import {
   createCredentialStore,
 } from "../../src/auth/secure-store.js";
 
-interface Call {
-  command: string;
-  args: readonly string[];
-  options: ExecFileSyncOptions;
-}
-
 interface StoredCredentials {
   authToken: string;
   refreshToken: string;
 }
 
-test("stores OAuth credentials in macOS Keychain arguments", () => {
-  const calls: Call[] = [];
-  const execFileSync = (
-    command: string,
-    args: readonly string[],
-    options: ExecFileSyncOptions,
-  ): string => {
-    calls.push({ command, args, options });
-    if (args[0] === "find-generic-password") {
-      return JSON.stringify({
-        authToken: "access-token",
-        refreshToken: "refresh-token",
-      });
-    }
+test("uses the native macOS credential entry without process arguments", () => {
+  let storedPassword: string | null = null;
+  let entryDetails: readonly string[] = [];
+  let execCalls = 0;
+  const execFileSync = (): string => {
+    execCalls += 1;
     return "";
   };
   const store: CredentialStore<StoredCredentials> = createCredentialStore({
     platform: "darwin",
     execFileSync,
+    entryFactory: (serviceName, accountName) => {
+      entryDetails = [serviceName, accountName];
+      return {
+        getPassword: () => storedPassword,
+        setPassword: (value) => {
+          storedPassword = value;
+        },
+        deletePassword: () => {
+          storedPassword = null;
+          return true;
+        },
+      };
+    },
     serviceName: "test-service",
     accountName: "test-account",
   });
 
-  assert.deepEqual(store.read(), {
-    authToken: "access-token",
-    refreshToken: "refresh-token",
-  });
-  store.write({ authToken: "access-token", refreshToken: "refresh-token" });
-  store.clear();
+  store.write({ authToken: "soko_mainnet_secret", refreshToken: "refresh" });
 
-  assert.equal(calls[0]?.command, "/usr/bin/security");
-  assert.deepEqual(calls[0]?.args.slice(0, 5), [
-    "find-generic-password",
-    "-a",
-    "test-account",
-    "-s",
-    "test-service",
-  ]);
-  assert.deepEqual(calls[1]?.args.slice(0, 5), [
-    "add-generic-password",
-    "-a",
-    "test-account",
-    "-s",
-    "test-service",
-  ]);
-  assert.equal(calls[1]?.args[5], "-w");
+  assert.equal(execCalls, 0);
+  assert.deepEqual(entryDetails, ["test-service", "test-account"]);
   assert.equal(
-    calls[1]?.args[6],
+    storedPassword,
     JSON.stringify({
-      authToken: "access-token",
-      refreshToken: "refresh-token",
+      authToken: "soko_mainnet_secret",
+      refreshToken: "refresh",
     }),
   );
-  assert.deepEqual(calls[2]?.args.slice(0, 5), [
-    "delete-generic-password",
-    "-a",
-    "test-account",
-    "-s",
-    "test-service",
-  ]);
+  assert.deepEqual(store.read(), {
+    authToken: "soko_mainnet_secret",
+    refreshToken: "refresh",
+  });
+  store.clear();
+  assert.equal(storedPassword, null);
+});
+
+test("sanitizes native credential write errors", () => {
+  const secret = "soko_mainnet_secret";
+  const store = createCredentialStore<StoredCredentials>({
+    platform: "darwin",
+    entryFactory: () => ({
+      getPassword: () => null,
+      setPassword: () => {
+        throw new Error(`native keyring failed for ${secret}`);
+      },
+      deletePassword: () => true,
+    }),
+  });
+
+  assert.throws(
+    () =>
+      store.write({
+        authToken: secret,
+        refreshToken: "refresh",
+      }),
+    (error: unknown) => {
+      assert.match(
+        error instanceof Error ? error.message : String(error),
+        /credential vault/,
+      );
+      assert.doesNotMatch(
+        error instanceof Error ? error.message : String(error),
+        new RegExp(secret),
+      );
+      return true;
+    },
+  );
 });
 
 test("fails closed when Linux Secret Service is unavailable", () => {
