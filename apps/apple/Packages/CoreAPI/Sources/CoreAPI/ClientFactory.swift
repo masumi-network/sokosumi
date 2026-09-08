@@ -17,11 +17,14 @@ extension Client {
 
   public static func connecting(
     to serverURL: URL,
+    middlewares: [any ClientMiddleware] = [],
     session: URLSession = .shared
   ) -> Client {
-    connecting(
-      to: serverURL,
-      transport: URLSessionTransport(configuration: .init(session: session))
+    Client(
+      serverURL: serverURL,
+      configuration: .init(dateTranscoder: .iso8601WithFractionalSeconds),
+      transport: URLSessionTransport(configuration: .init(session: session)),
+      middlewares: middlewares
     )
   }
 }
