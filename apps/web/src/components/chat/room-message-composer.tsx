@@ -24,13 +24,21 @@ const POINTER_SUBMIT_CLICK_GUARD_MS = 400;
 /**
  * Shared editor footprint for live composer + Instant room loading shell.
  *
- * Single-line height is explicit (pt-3.5 + pb-2.5 + leading-6) so empty,
- * placeholder, and first keystroke share the same box. Do not use
- * `empty:max-h-*` (jumps when :empty ends). Placeholder is single-line
+ * The font-size utility owns line-height here: withEditableTextSize appends
+ * `text-base md:text-sm` last, and tailwind-merge drops a bare or `md:`-scoped
+ * `leading-*` that sits before it, so the line is 1.5rem below `md` and
+ * 1.25rem from `md` up. A `leading-*` behind any other variant (`sm:`, `lg:`,
+ * `max-md:`) survives that merge and would resize the box, so do not add one.
+ *
+ * Vertical padding therefore differs per breakpoint, and stays symmetric at
+ * both, so one line exactly fills the 3rem box and the caret and the
+ * placeholder sit in its middle: 0.75rem * 2 + 1.5rem = 0.875rem * 2 +
+ * 1.25rem = 3rem. Empty, placeholder, and first keystroke share that box. Do
+ * not use `empty:max-h-*` (jumps when :empty ends). Placeholder is single-line
  * ellipsis on empty:before (see ComposerWysiwygEditor).
  */
 export const ROOM_COMPOSER_TEXTAREA_CLASSNAME = withEditableTextSize(
-  "box-border max-h-40 min-h-[calc(0.875rem+0.625rem+1.5rem)] field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 pt-3.5 pb-2.5 leading-6 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
+  "box-border max-h-40 min-h-12 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 md:py-3.5 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
 );
 
 /**
