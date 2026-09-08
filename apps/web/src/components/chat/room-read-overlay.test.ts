@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   applyRoomReadOverlays,
@@ -29,6 +29,68 @@ function room(overrides: {
 
 afterEach(() => {
   clearRoomReadOverlays();
+  vi.useRealTimers();
+});
+
+describe("stalled attention changes", () => {
+  it.each([false, true])(
+    "lets fresh polls replace an expired pending change (markedUnread=%s)",
+    (markedUnread) => {
+      vi.useFakeTimers();
+      const previous = room({ unreadCount: 2 });
+      beginRoomAttentionChange(room({ markedUnread }), previous);
+      vi.advanceTimersByTime(30_000);
+
+      const fresh = room({ unreadCount: 3 });
+      expect(
+        reconcileRoomAttention([fresh], beginRoomAttentionRefresh()),
+      ).toEqual([fresh]);
+    },
+  );
+
+  it("restores the last settled attention on remount after a pending read expires", () => {
+    vi.useFakeTimers();
+    beginRoomAttentionChange(room({}), room({ unreadCount: 2 }));
+    vi.advanceTimersByTime(30_000);
+
+    expect(applyRoomReadOverlays([room({})])[0].unreadCount).toBe(2);
+  });
+
+  it("rejects a late response after expiry, before any poll has observed it", () => {
+    vi.useFakeTimers();
+    const token = beginRoomAttentionChange(room({}), room({ unreadCount: 2 }));
+    vi.advanceTimersByTime(30_000);
+
+    expect(settleRoomAttentionChange("room-1", token, room({}))).toBe(false);
+    expect(applyRoomReadOverlays([room({})])[0].unreadCount).toBe(2);
+  });
+
+  it("does not extend pending lifetime when read events repeat", () => {
+    vi.useFakeTimers();
+    beginRoomAttentionChange(room({}), room({ unreadCount: 2 }));
+    vi.advanceTimersByTime(20_000);
+    rememberRoomRead(room({}));
+    vi.advanceTimersByTime(10_000);
+
+    const fresh = room({ unreadCount: 3 });
+    expect(
+      reconcileRoomAttention([fresh], beginRoomAttentionRefresh()),
+    ).toEqual([fresh]);
+  });
+
+  it("preserves rollback when a new operation replaces an expired read", () => {
+    vi.useFakeTimers();
+    const oldToken = beginRoomAttentionChange(
+      room({}),
+      room({ unreadCount: 2 }),
+    );
+    vi.advanceTimersByTime(30_000);
+    const newToken = beginRoomAttentionChange(room({ markedUnread: true }));
+
+    expect(settleRoomAttentionChange("room-1", oldToken, room({}))).toBe(false);
+    expect(settleRoomAttentionChange("room-1", newToken, null)).toBe(true);
+    expect(applyRoomReadOverlays([room({})])[0].unreadCount).toBe(2);
+  });
 });
 
 describe("room-read-overlay", () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   AblyBrowserAuthError,
@@ -11,6 +11,38 @@ describe("fetchAblyBrowserAuthTokenRequest", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("aborts stalled browser auth requests so retries do not leave fetches running", async () => {
+    const controller = new AbortController();
+    const timeoutMock = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(controller.signal);
+    fetchMock.mockImplementation((_url: string, options: RequestInit) => {
+      if (!options.signal) {
+        return Promise.reject(new Error("Missing abort signal"));
+      }
+      return new Promise((_resolve, reject) => {
+        options.signal?.addEventListener("abort", () =>
+          reject(options.signal?.reason),
+        );
+      });
+    });
+    const request = fetchAblyBrowserAuthTokenRequest("inst_test01");
+    const outcome = expect(request).rejects.toMatchObject({
+      name: "TimeoutError",
+    });
+    controller.abort(
+      new DOMException("Auth deadline exceeded", "TimeoutError"),
+    );
+
+    await outcome;
+    expect(timeoutMock).toHaveBeenCalledWith(10_000);
   });
 
   it("POSTs to /api/ably/auth with cookies and clientInstanceId", async () => {

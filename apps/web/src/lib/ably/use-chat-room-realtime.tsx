@@ -26,6 +26,7 @@ import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message
 import { safeDetachChannel, safeSubscribeChannel } from "./safe-detach-channel";
 
 const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
+const CHAT_ROOM_AUTH_RETRY_MS = 15_000;
 
 interface UseChatRoomRealtimeOptions {
   /** Membership room ids to attach (all rooms for sidebar/live parity). */
@@ -48,7 +49,8 @@ interface UseChatRoomRealtimeOptions {
  * Remote membership revoke (SOK-742): Core publishes
  * `chat_membership_revoked` on `chat_control:user_{id}`; client detaches the
  * room immediately then re-authorizes so token caps drop. Thin backstop
- * (SOK-747): focus and visibility→visible only — no periodic re-auth interval.
+ * (SOK-747): focus and visibility→visible. Failed syncs retry after recovery
+ * or a short delay; healthy subscriptions never re-authorize on a timer.
  */
 export function useChatRoomRealtime({
   roomIds,
@@ -130,6 +132,8 @@ export function useChatRoomRealtime({
     /** Coalesce focus+visibility+revoke so two applies never interleave. */
     let syncInFlight = false;
     let syncQueued = false;
+    let syncNeedsRetry = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | undefined;
     const locallyRevokedRoomIds = locallyRevokedRoomIdsRef.current;
 
     function detachRoomLocally(roomId: string) {
@@ -148,6 +152,8 @@ export function useChatRoomRealtime({
     }
 
     async function runSyncOnce() {
+      clearTimeout(retryTimeout);
+      syncNeedsRetry = false;
       const generation = ++syncGenerationRef.current;
       const propIds = new Set(
         [...new Set(roomIdsRef.current)].filter((id) => id.length > 0),
@@ -167,6 +173,18 @@ export function useChatRoomRealtime({
       } catch (error) {
         if (generation !== syncGenerationRef.current) {
           return;
+        }
+        syncNeedsRetry = true;
+        // A transient token failure can leave the socket connected, so there
+        // may be no later connection event to retry the missing room channels.
+        if (
+          ably.connection.state !== "closing" &&
+          ably.connection.state !== "closed" &&
+          ably.connection.state !== "failed"
+        ) {
+          retryTimeout = setTimeout(() => {
+            onRecovered();
+          }, CHAT_ROOM_AUTH_RETRY_MS);
         }
         const err =
           error instanceof Error
@@ -288,15 +306,30 @@ export function useChatRoomRealtime({
         void syncMembershipChannels();
       }
     };
+    const onRecovered = () => {
+      if (
+        syncNeedsRetry &&
+        ably.connection.state !== "closing" &&
+        ably.connection.state !== "closed" &&
+        ably.connection.state !== "failed"
+      ) {
+        void syncMembershipChannels();
+      }
+    };
 
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("online", onRecovered);
+    ably.connection.on("connected", onRecovered);
 
     return () => {
       syncGenerationRef.current += 1;
       syncQueued = false;
+      clearTimeout(retryTimeout);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("online", onRecovered);
+      ably.connection.off("connected", onRecovered);
       controlChannel.unsubscribe(
         CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
         handleMembershipRevoked,
