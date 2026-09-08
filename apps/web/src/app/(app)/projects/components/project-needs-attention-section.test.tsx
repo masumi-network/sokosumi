@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -161,4 +164,51 @@ describe("ProjectNeedsAttentionSection", () => {
     expect(listBox).toHaveClass(...PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/));
     expect(listBox).toHaveClass("-mx-4", "md:mx-0");
   });
+
+  it("does not call getHistoryItemHref from a client module", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const source = readFileSync(
+      join(here, "project-needs-attention-section.tsx"),
+      "utf8",
+    );
+    const specifier = importedModuleSpecifier(source, "getHistoryItemHref");
+    const resolved = resolveAppAlias(specifier, here);
+    const importedSource = readFileSync(resolved, "utf8").trimStart();
+
+    expect(importedSource.startsWith('"use client"')).toBe(false);
+    expect(importedSource.startsWith("'use client'")).toBe(false);
+  });
 });
+
+function importedModuleSpecifier(source: string, exportName: string): string {
+  for (const match of source.matchAll(
+    /import\s+\{([^}]+)\}\s+from\s+["']([^"']+)["']/g,
+  )) {
+    const names = match[1].split(",").map((part) => {
+      const [imported] = part.trim().split(/\s+as\s+/);
+      return imported?.trim();
+    });
+    if (names.includes(exportName)) {
+      return match[2];
+    }
+  }
+
+  throw new Error(`import for ${exportName} not found`);
+}
+
+function resolveAppAlias(specifier: string, fromDir: string): string {
+  if (!specifier.startsWith("@/app/")) {
+    throw new Error(`expected @/app/ import, got ${specifier}`);
+  }
+
+  const appRoot = join(fromDir, "../..");
+  const base = join(appRoot, specifier.slice("@/app/".length));
+  for (const ext of [".ts", ".tsx"]) {
+    const candidate = `${base}${ext}`;
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`could not resolve ${specifier}`);
+}
