@@ -17,6 +17,7 @@ import type {
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 
 interface FullCalendarProps {
+  borderless?: boolean;
   dateClick?: (info: { date: Date }) => void;
   editable?: boolean;
   eventContent?: (info: { event: { id: string; title: string } }) => ReactNode;
@@ -376,6 +377,7 @@ describe("WorkspaceCalendar editing", () => {
     renderCalendar();
 
     const props = fullCalendarMock.mock.calls[0]?.[0] as FullCalendarProps;
+    expect(props.borderless).toBe(true);
     expect(props.dateClick).toEqual(expect.any(Function));
     expect(props.editable).toBe(false);
     expect(props.plugins).toContain(interactionPluginMock);

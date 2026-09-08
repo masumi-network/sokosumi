@@ -372,7 +372,7 @@ function CalendarView({
 
   return (
     <div
-      className="workspace-calendar-theme relative overflow-x-auto rounded-xl ring-1 ring-border ring-inset"
+      className="workspace-calendar-theme relative overflow-x-auto rounded-xl border border-border bg-background"
       data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
@@ -381,6 +381,7 @@ function CalendarView({
       onScrollCapture={hideSlotHighlight}
     >
       <FullCalendar
+        borderless
         key={`${getCalendarDayKey(date)}-${timeZone}-${view}`}
         plugins={[
           classicTheme,

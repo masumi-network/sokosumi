@@ -316,11 +316,11 @@ describe("WorkspaceCalendar", () => {
 
     expect(screen.getAllByTestId("calendar-month")[0]).toHaveClass(
       "workspace-calendar-theme",
+      "bg-background",
       "overflow-x-auto",
       "rounded-xl",
-      "ring-1",
-      "ring-border",
-      "ring-inset",
+      "border",
+      "border-border",
     );
   });
 
