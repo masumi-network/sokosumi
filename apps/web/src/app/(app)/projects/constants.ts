@@ -7,8 +7,7 @@ export const PROJECTS_PAGE_LIMIT = 20;
 
 /**
  * Projects index + Instant shell. Keep app-main `p-4` with no extra page
- * horizontal pad (do not `-mx-4` here). Detail cancels the shell separately
- * for edge-to-edge chrome.
+ * horizontal pad (do not `-mx-4` here).
  */
 export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 
@@ -18,13 +17,7 @@ export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
 
 /**
- * Detail header + briefing/brand/tasks/jobs/memory: full bleed under the
- * canceled shell (no extra horizontal pad on mobile).
- */
-export const PROJECTS_DETAIL_TOP_CLASS = "w-full";
-
-/**
- * Workspace modules (`modules.title`): stacks heading + tiles in the overview grid.
+ * Workspace modules (`modules.title`): stacks heading + tiles in the main column.
  */
 export const PROJECTS_DETAIL_WORKSPACE_CLASS = "space-y-3";
 

@@ -5,7 +5,6 @@ import {
   PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_DETAIL_LIST_LAYOUT_CLASS,
   PROJECTS_DETAIL_SHELL_CLASS,
-  PROJECTS_DETAIL_TOP_CLASS,
   PROJECTS_DETAIL_WORKSPACE_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
@@ -66,7 +65,6 @@ describe("projects mobile padding shells", () => {
     expect(shell).not.toContain("w-[calc(100%+2rem)]");
     expect(shell).not.toContain("md:px-6");
 
-    expect(PROJECTS_DETAIL_TOP_CLASS).toBe("w-full");
     expect(workspace).toEqual(["space-y-3"]);
   });
 });
