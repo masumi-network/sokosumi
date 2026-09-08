@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  compareDriveFileTypeFamily,
-  driveFileTypeFamily,
-} from "@/helpers/drive-file-type-family";
+import { driveFileTypeFamily } from "@/helpers/drive-file-type-family";
 
 describe("driveFileTypeFamily", () => {
   it("maps common extensions to stable families", () => {
@@ -35,13 +32,5 @@ describe("driveFileTypeFamily", () => {
     expect(driveFileTypeFamily("report.pdf", "application/octet-stream")).toBe(
       "pdf",
     );
-  });
-});
-
-describe("compareDriveFileTypeFamily", () => {
-  it("orders families by documented rank then treats same family as equal", () => {
-    // image before pdf in DRIVE_FILE_TYPE_FAMILIES
-    expect(compareDriveFileTypeFamily("a.pdf", "b.png")).toBeGreaterThan(0);
-    expect(compareDriveFileTypeFamily("a.png", "b.jpg")).toBe(0);
   });
 });

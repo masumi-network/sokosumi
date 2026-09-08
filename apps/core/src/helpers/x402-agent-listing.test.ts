@@ -11,16 +11,21 @@ vi.mock("@sentry/node", () => ({
 }));
 
 import { internalServerError, unprocessableEntity } from "./error";
-import {
-  buildX402AgentPaymentSources,
-  buildX402AgentPricingListing,
-  buildX402DynamicAgentPaymentSources,
-  reportX402PricingMisconfiguration,
-  resetX402PricingMisconfigurationReports,
-  type X402AgentPaymentSourceRow,
-  type X402ListingGateContext,
+import type {
+  X402AgentPaymentSourceRow,
+  X402ListingGateContext,
 } from "./x402-agent-listing";
+import * as x402AgentListing from "./x402-agent-listing";
 import type { X402ReadySource } from "./x402-readiness";
+
+let buildX402AgentPaymentSources =
+  x402AgentListing.buildX402AgentPaymentSources;
+let buildX402AgentPricingListing =
+  x402AgentListing.buildX402AgentPricingListing;
+let buildX402DynamicAgentPaymentSources =
+  x402AgentListing.buildX402DynamicAgentPaymentSources;
+let reportX402PricingMisconfiguration =
+  x402AgentListing.reportX402PricingMisconfiguration;
 
 const BASE_SEPOLIA = "eip155:84532";
 const BASE_MAINNET = "eip155:8453";
@@ -92,9 +97,15 @@ const CONTEXT = {
   network: "Preprod",
 } as const;
 
-beforeEach(() => {
+beforeEach(async () => {
   captureExceptionMock.mockClear();
-  resetX402PricingMisconfigurationReports();
+  vi.resetModules();
+  const listing = await import("./x402-agent-listing");
+  buildX402AgentPaymentSources = listing.buildX402AgentPaymentSources;
+  buildX402AgentPricingListing = listing.buildX402AgentPricingListing;
+  buildX402DynamicAgentPaymentSources =
+    listing.buildX402DynamicAgentPaymentSources;
+  reportX402PricingMisconfiguration = listing.reportX402PricingMisconfiguration;
 });
 
 describe("buildX402AgentPaymentSources", () => {
