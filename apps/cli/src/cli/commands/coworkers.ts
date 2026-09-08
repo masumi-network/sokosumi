@@ -43,6 +43,14 @@ async function buildPayload(
   );
   const channels = parseChannels(option(options, "channel"));
   const payload: Record<string, unknown> = {};
+  const vendorId = optionString(options, "vendor-id")?.trim();
+  if (update && vendorId !== undefined)
+    throw new Error("--vendor-id is only supported for `coworkers register`");
+  if (!update) {
+    if (!vendorId)
+      throw new Error("vendor id is required for `coworkers register`");
+    payload.vendorId = vendorId;
+  }
   const values: [string, string][] = [
     ["name", "name"],
     ["caption", "caption"],

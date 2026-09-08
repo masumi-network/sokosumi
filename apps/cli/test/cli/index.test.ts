@@ -6,7 +6,7 @@ import {
   type OAuthCredentials,
 } from "../../src/auth/auth-manager.js";
 import type { BrowserLoginOptions } from "../../src/auth/oauth.js";
-import { runCli } from "../../src/cli/index.js";
+import { parseArgv, runCli } from "../../src/cli/index.js";
 
 function createTestAuthManager(): AuthManager {
   return new AuthManager({
@@ -67,6 +67,16 @@ test("strips a lone -- so pnpm extra-args work", async () => {
   });
   assert.equal(result.help, true);
   assert.match(output.join(""), /sokosumi auth login/);
+});
+
+test("parses coworker registration vendor ID", () => {
+  const parsed = parseArgv([
+    "coworkers",
+    "register",
+    "--vendor-id",
+    "vendor-1",
+  ]);
+  assert.deepEqual(parsed.options["vendor-id"], "vendor-1");
 });
 
 test("empty argv launches the auth-first status TUI", async () => {

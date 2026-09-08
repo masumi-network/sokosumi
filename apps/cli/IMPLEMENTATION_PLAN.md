@@ -189,6 +189,7 @@ export function createHttpClient(options: HttpClientOptions): {
 - [x] Keep command handlers independent from the Ink TUI so headless use never opens a browser or terminal menu.
 - [x] Test one success and one validation or Core error path per command family. Assert output fields, not implementation details.
 - [x] Add the complete command catalog to help and discovery output.
+- [x] Match Core coworker create schema by requiring `--vendor-id` and emitting `vendorId`.
 
 **Verification:** `pnpm --filter sokosumi-cli test -- test/cli/commands`.
 

@@ -54,6 +54,7 @@ V17: home config parser accepts only listed non-secret preference keys. ⊥ API 
 V18: resource command data path → Core HTTP client → typed service. ⊥ direct database access.
 V19: `--json` command → one parseable JSON document on stdout. ⊥ progress/text mixing.
 V20: TUI selection → arrows + Enter. Esc back. q quit. ⊥ letter/numeric aliases.
+V21: `coworkers register` request → Core create schema required `vendorId`; CLI accepts `--vendor-id`, emits `vendorId`, and rejects missing value before POST.
 
 ## §T TASKS
 
@@ -81,3 +82,4 @@ T17|x|selector TUI plus signed-in resource views|V20,V18,I
 id|date|cause|fix
 B1|2026-09-08|macOS vault writes passed serialized credentials through `security` argv and raw write errors reached CLI stderr|V15
 B2|2026-09-08|hosted OAuth used silent `sokosumi_cli` fallback; Core flow ended `invalid_client`|V16
+B3|2026-09-08|`coworkers register` omitted Core-required `vendorId`; Core create schema rejected the request|V21

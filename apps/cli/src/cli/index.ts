@@ -89,7 +89,8 @@ type ValueOptionName =
   | "agent"
   | "input-json"
   | "input-file"
-  | "max-credits";
+  | "max-credits"
+  | "vendor-id";
 
 type CliOptionValue = string | string[];
 
@@ -133,6 +134,7 @@ interface CliOptions {
   "input-json"?: string;
   "input-file"?: string;
   "max-credits"?: string;
+  "vendor-id"?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   "with-api-key"?: boolean;
@@ -172,7 +174,7 @@ Usage:
   sokosumi agents list [--search TEXT] [--limit N] [--json]
   sokosumi agents hire AGENT_ID --input-json JSON [--max-credits N]
   sokosumi coworkers list [--scope SCOPE] [--capability CAPABILITY]
-  sokosumi coworkers register [options]
+  sokosumi coworkers register [--vendor-id ID] [options]
   sokosumi coworkers update COWORKER_ID [options]
   sokosumi coworkers api-key COWORKER_ID [options]
   sokosumi coworkers me
@@ -233,6 +235,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "input-json",
   "input-file",
   "max-credits",
+  "vendor-id",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([

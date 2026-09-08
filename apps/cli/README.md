@@ -33,9 +33,11 @@ SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter sokosumi-cli sokosumi -- auth st
 pnpm --filter sokosumi-cli sokosumi -- auth logout
 ```
 
-`coworkers register`, `tasks create`, and `tasks comment` accept command options
-for JSON fields. Use `--metadata-json` or `--metadata-file` for coworker metadata.
-Use `--channel provider=value` to add coworker channel metadata. The
+`coworkers register` requires `--vendor-id` because Core requires the owning
+vendor on create. It accepts command options for JSON fields. `tasks create`
+and `tasks comment` also accept command options for JSON fields. Use
+`--metadata-json` or `--metadata-file` for coworker metadata. Use
+`--channel provider=value` to add coworker channel metadata. The
 `coworkers api-key` command prints a masked token in text mode and returns the
 one-time token only in JSON mode.
 
