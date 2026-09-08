@@ -32,6 +32,15 @@ const { mockSearchHit } = vi.hoisted(() => ({
   mockSearchHit: { current: null as ChatRoomMessage | null },
 }));
 
+// Stable across renders on purpose. A fresh `vi.fn()` per render cannot show
+// which room a hold was taken or released for, which is the one thing the
+// guards on those two calls exist to get right.
+const { mockSuppressStickToBottom, mockReleaseStickToBottomSuppress } =
+  vi.hoisted(() => ({
+    mockSuppressStickToBottom: vi.fn(),
+    mockReleaseStickToBottomSuppress: vi.fn(),
+  }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -110,8 +119,8 @@ vi.mock("@/app/chat/hooks/use-stick-to-bottom", () => ({
     scrollToBottom: vi.fn(),
     pinToBottomAfterOwnSend: vi.fn(),
     scrollToBottomIfPinned: vi.fn(),
-    suppressStickToBottom: vi.fn(),
-    releaseStickToBottomSuppress: vi.fn(),
+    suppressStickToBottom: mockSuppressStickToBottom,
+    releaseStickToBottomSuppress: mockReleaseStickToBottomSuppress,
   }),
 }));
 
@@ -360,6 +369,8 @@ describe("RoomsClient notification deep link", () => {
     mockSearch.current = "";
     mockReplace.mockReset();
     mockSearchHit.current = null;
+    mockSuppressStickToBottom.mockReset();
+    mockReleaseStickToBottomSuppress.mockReset();
     vi.mocked(getRoomMessageAction).mockReset();
     vi.mocked(getRoomThreadAction).mockReset();
     vi.mocked(listRoomMessagesAction).mockReset();
@@ -702,6 +713,8 @@ describe("RoomsClient notification deep link", () => {
         messagesPromise={settledMessages()}
       />,
     );
+    const releasesBeforeTheMove =
+      mockReleaseStickToBottomSuppress.mock.calls.length;
 
     await act(async () => {
       failParent();
@@ -712,6 +725,12 @@ describe("RoomsClient notification deep link", () => {
     // not theirs to see. An error toast here reads as a complaint about the
     // room they are looking at now.
     expect(toast.error).not.toHaveBeenCalled();
+    // The thread jump gives up here, which is where it would release the hold
+    // it took. That hold was for the room the reader left, so releasing now
+    // would drop whatever hold the room they moved to is relying on.
+    expect(mockReleaseStickToBottomSuppress.mock.calls.length).toBe(
+      releasesBeforeTheMove,
+    );
   });
   /**
    * Every load a jump makes checks the room before it reports a failure, so
@@ -772,6 +791,53 @@ describe("RoomsClient notification deep link", () => {
       });
 
       expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it("leaves the hold alone for the room the reader moved to", async () => {
+      mockSearch.current = "message=msg-1";
+      vi.mocked(getRoomMessageAction).mockResolvedValue({
+        ok: true as const,
+        value: sampleMessage("target", "msg-1"),
+      });
+
+      let finishWindow = (): void => {};
+      vi.mocked(listRoomMessagesAction).mockReturnValue(
+        new Promise((resolve) => {
+          finishWindow = () =>
+            resolve({
+              ok: true as const,
+              value: {
+                messages: [sampleMessage("target", "msg-1")],
+                nextCursor: null,
+              },
+            });
+        }),
+      );
+
+      const { rerender } = render(
+        <RoomsClient {...baseProps} messagesPromise={settledMessages()} />,
+      );
+
+      // The hold is taken for room-channel before the window is asked for.
+      await waitFor(() => {
+        expect(mockSuppressStickToBottom).toHaveBeenCalled();
+      });
+
+      leaveRoom(rerender);
+      const releasesBeforeTheMove =
+        mockReleaseStickToBottomSuppress.mock.calls.length;
+
+      await act(async () => {
+        finishWindow();
+        await Promise.resolve();
+      });
+
+      // The jump finishes for a room nobody is looking at. Releasing now
+      // would drop whatever hold room-other is relying on, and a room that
+      // has lost its hold cannot be given it back by scrolling.
+      expect(mockReleaseStickToBottomSuppress.mock.calls.length).toBe(
+        releasesBeforeTheMove,
+      );
     });
 
     it("says nothing when the thread's replies fail to load", async () => {
