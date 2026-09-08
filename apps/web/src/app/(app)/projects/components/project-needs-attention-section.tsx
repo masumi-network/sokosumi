@@ -7,7 +7,7 @@ import {
 import { ProjectResourceCountPills } from "@/app/projects/components/project-resource-count-pills";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
-  PROJECTS_DETAIL_LIST_LAYOUT_CLASS,
+  PROJECTS_BROWSE_LAYOUT_CLASS,
 } from "@/app/projects/constants";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -76,7 +76,7 @@ export function ProjectNeedsAttentionSection({
         </div>
       </div>
 
-      <div className={PROJECTS_DETAIL_LIST_LAYOUT_CLASS}>
+      <div className={PROJECTS_BROWSE_LAYOUT_CLASS}>
         {items.length === 0 ? (
           <div className="text-muted-foreground/50 flex items-center justify-center py-16 text-sm">
             {labels.empty}
