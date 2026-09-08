@@ -41,10 +41,14 @@ export async function waitForSearchJumpPaint(
  * The hold is kept on the two paths that load a window, so the view stays
  * where the jump put it rather than snapping back to the newest message.
  *
- * It is dropped everywhere else: on a target that was already on screen,
- * which needed no hold to reach, on every path that arrives nowhere, and on a
+ * It is dropped on a target that was already on screen, which needed no hold
+ * to reach, on every path that gives up before loading one, and on a
  * dependency that rejects. A room holding off the bottom for a jump that never
  * happened stops following new messages and cannot be re-armed by scrolling.
+ *
+ * A window that loads but never paints inside `afterRender` keeps the hold, in
+ * common with the two paths above: the highlight is attempted either way, and
+ * whether it found the element is not read.
  *
  * The rejection case is a transport failure rather than a refusal: these
  * actions report a server-side error by returning one. It matters because a
