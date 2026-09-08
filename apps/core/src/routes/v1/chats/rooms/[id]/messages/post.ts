@@ -488,10 +488,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           memberUserIds: room.memberUserIds,
         })
       ) {
-        const mentionedUserIdSet = new Set(mentionedUserIds);
         const recipientUserIds = room.memberUserIds.filter(
-          (userId) =>
-            userId !== userContext.userId && !mentionedUserIdSet.has(userId),
+          (userId) => userId !== userContext.userId,
         );
         if (recipientUserIds.length > 0) {
           waitUntil(
@@ -503,6 +501,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               authorUserId: userContext.userId,
               authorName: message.senderUser?.name ?? "Someone",
               recipientUserIds,
+              mentionedUserIds,
             }),
           );
         }

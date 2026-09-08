@@ -1003,10 +1003,11 @@ describe("POST /chats/rooms/{id}/messages", () => {
         authorUserId: USER_ID,
         authorName: "Patrick",
         recipientUserIds: [ALICE_ID],
+        mentionedUserIds: [],
       });
     });
 
-    it("skips direct-message emit for humans already covered by mention notifications", async () => {
+    it("still emits direct-message for mentioned humans so the emitter can decide", async () => {
       roomFindFirstMock.mockResolvedValue(
         roomWithMembers({
           kind: "direct",
@@ -1045,7 +1046,16 @@ describe("POST /chats/rooms/{id}/messages", () => {
           mentionedUserIds: [ALICE_ID],
         }),
       );
-      expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
+      expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        roomName: "Alice",
+        organizationId: "org_1",
+        messageId: MESSAGE_ID,
+        authorUserId: USER_ID,
+        authorName: "Patrick",
+        recipientUserIds: [ALICE_ID],
+        mentionedUserIds: [ALICE_ID],
+      });
     });
 
     it("does not emit direct-message notifications for group directs", async () => {
