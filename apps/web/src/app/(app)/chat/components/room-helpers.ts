@@ -323,16 +323,6 @@ export function createRoomComposerOverflowMarkdownFile(content: string): File {
   });
 }
 
-export function hasPendingCoworkerMention(
-  messages: ChatRoomMessage[],
-): boolean {
-  return messages.some((message) =>
-    message.mentions.some(
-      (mention) => mention.status === "pending" || mention.status === "sent",
-    ),
-  );
-}
-
 interface PendingCoworkerStreamInput {
   isCoworkerStreamRoom: boolean;
   hasPendingMessage: boolean;
