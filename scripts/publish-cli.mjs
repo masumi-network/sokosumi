@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
-import { execFile as defaultExecFile } from "node:child_process";
+import {
+  execFile as defaultExecFile,
+  spawn as defaultSpawn,
+} from "node:child_process";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -30,6 +33,27 @@ async function run(command, args, options = {}) {
     if (error.stderr) process.stderr.write(error.stderr);
     throw error;
   }
+}
+
+function runInteractive(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = defaultSpawn(command, args, {
+      stdio: "inherit",
+      ...options,
+    });
+    child.once("error", reject);
+    child.once("close", (code, signal) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(
+        new Error(
+          `${command} exited with ${signal ? `signal ${signal}` : `code ${code}`}`,
+        ),
+      );
+    });
+  });
 }
 
 const stageRoot = await mkdtemp(join(tmpdir(), "sokosumi-cli-release-"));
@@ -84,9 +108,11 @@ try {
   if (!shouldPublish) {
     process.stdout.write("Dry run only. Re-run with --publish to publish.\n");
   } else {
-    await run("npm", ["publish", "--access", "public", "--ignore-scripts"], {
-      cwd: stageRoot,
-    });
+    await runInteractive(
+      "npm",
+      ["publish", "--access", "public", "--ignore-scripts"],
+      { cwd: stageRoot },
+    );
   }
 } finally {
   await rm(stageRoot, { recursive: true, force: true });
