@@ -532,6 +532,13 @@
   --fc-classic-event-contrast: transparent;
 }
 
+@media (hover: hover) {
+  .workspace-calendar-theme[data-can-create="true"]
+    [role="gridcell"][data-date]:hover {
+    cursor: pointer;
+  }
+}
+
 /*
  * Agents full-bleed layout
  *

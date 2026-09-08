@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { type NotificationKind, type Prisma } from "@sokosumi/database";
+import { type Prisma } from "@sokosumi/database";
 
 import { badRequest } from "@/helpers/error";
 import {
@@ -10,6 +10,7 @@ import {
   mergeAccessNotificationExclusions,
   notificationFeedWhere,
 } from "@/helpers/notification-feed";
+import { mapNotificationToItem } from "@/helpers/notification-item";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -119,39 +120,6 @@ const route = withOrganizationSlugHeaderParameter(
     },
   }),
 );
-
-function mapNotificationToItem(notification: {
-  id: string;
-  userId: string;
-  kind: NotificationKind;
-  referenceId: string;
-  eventId: string;
-  messageKey: string;
-  messageParams: string;
-  metadata: string | null;
-  isRead: boolean;
-  readAt: Date | null;
-  createdAt: Date;
-}) {
-  return {
-    id: notification.id,
-    userId: notification.userId,
-    kind: notification.kind,
-    referenceId: notification.referenceId,
-    eventId: notification.eventId,
-    messageKey: notification.messageKey,
-    messageParams: JSON.parse(notification.messageParams) as Record<
-      string,
-      unknown
-    >,
-    metadata: notification.metadata
-      ? (JSON.parse(notification.metadata) as Record<string, unknown>)
-      : null,
-    isRead: notification.isRead,
-    readAt: notification.readAt,
-    createdAt: notification.createdAt,
-  };
-}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
