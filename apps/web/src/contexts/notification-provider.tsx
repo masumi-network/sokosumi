@@ -349,11 +349,13 @@ export function NotificationProvider({
           { id },
         );
 
-        if (
-          deletedIds.current.has(id) ||
-          generation !== clearGeneration.current
-        )
+        if (deletedIds.current.has(id)) return;
+        if (generation !== clearGeneration.current) {
+          // The row may have survived clear. Reconcile its read state without
+          // charging a deleted row's response against the new unread count.
+          await fetchNotifications();
           return;
+        }
         dispatch({
           type: "mark_read_success",
           id,

@@ -852,6 +852,10 @@ describe("NotificationProvider deleting", () => {
       await currentNotifications.clearNotifications();
     });
     await deliverRealtime("new-after-clear");
+    getNotificationsMock.mockResolvedValue({
+      data: [{ ...UNREAD_ROW, id: "new-after-clear" }],
+    });
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
     await act(async () => {
       finishRead({ data: { ...READ_ROW, id: "older-unheld" } });
       await pendingRead;
@@ -1031,5 +1035,51 @@ describe("NotificationProvider deleting", () => {
       await pendingDelete;
     });
     expect(currentNotifications.unreadCount).toBe(1);
+  });
+  it("applies a read of a surviving new row when its response follows clear reconciliation", async () => {
+    await renderLoaded();
+    let finishClear!: (value: { data: { count: number } }) => void;
+    deleteNotificationsMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishClear = resolve;
+      }),
+    );
+    let pendingClear!: Promise<void>;
+    await act(async () => {
+      pendingClear = currentNotifications.clearNotifications();
+    });
+    await deliverRealtime("survives-clear");
+    let finishRead!: (value: { data: typeof READ_ROW }) => void;
+    patchNotificationReadMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishRead = resolve;
+      }),
+    );
+    let pendingRead!: Promise<void>;
+    await act(async () => {
+      pendingRead = currentNotifications.markRead("survives-clear");
+    });
+    getNotificationsMock.mockResolvedValue({
+      data: [{ ...UNREAD_ROW, id: "survives-clear" }],
+    });
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    await act(async () => {
+      finishClear({ data: { count: 2 } });
+      await pendingClear;
+    });
+    getNotificationsMock.mockResolvedValue({
+      data: [{ ...READ_ROW, id: "survives-clear" }],
+    });
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+    await act(async () => {
+      finishRead({ data: { ...READ_ROW, id: "survives-clear" } });
+      await pendingRead;
+    });
+    expect(
+      currentNotifications.notifications.find(
+        (row) => row.id === "survives-clear",
+      )?.isRead,
+    ).toBe(true);
+    expect(currentNotifications.unreadCount).toBe(0);
   });
 });
