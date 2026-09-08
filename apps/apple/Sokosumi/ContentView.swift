@@ -384,11 +384,13 @@ private struct CircleAvatar: View {
       .compositingGroup()
       .clipShape(Circle())
       .task(id: "\(imageURL ?? "")-\(size)-\(displayScale)") {
-        cgImage = await loadAvatarCGImage(
+        let loaded = await loadAvatarCGImage(
           urlString: imageURL,
           pointSize: size,
           scale: displayScale
         )
+        guard !Task.isCancelled else { return }
+        cgImage = loaded
       }
   }
 
@@ -422,16 +424,20 @@ private func loadAvatarCGImage(
   scale: CGFloat
 ) async -> CGImage? {
   guard let urlString, let url = URL(string: urlString) else { return nil }
-  guard let (data, response) = try? await URLSession.shared.data(from: url) else {
+  let data: Data
+  let response: URLResponse
+  do {
+    (data, response) = try await URLSession.shared.data(from: url)
+  } catch is CancellationError {
+    return nil
+  } catch {
     return nil
   }
+  guard !Task.isCancelled else { return nil }
   if let http = response as? HTTPURLResponse, !(200 ..< 300).contains(http.statusCode) {
     return nil
   }
-  let maxPixel = max(pointSize * scale, 1)
-  return await Task.detached(priority: .utility) {
-    avatarThumbnail(data: data, maxPixel: maxPixel)
-  }.value
+  return avatarThumbnail(data: data, maxPixel: max(pointSize * scale, 1))
 }
 
 private func avatarThumbnail(data: Data, maxPixel: CGFloat) -> CGImage? {
