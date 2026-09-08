@@ -282,20 +282,12 @@ struct ContentView: View {
   }
 
   private var initialsFallback: some View {
-    Text(initials)
+    Text(initials(for: workspaces.currentUserName))
       .font(.caption)
       .fontWeight(.semibold)
       .foregroundStyle(.white)
       .frame(width: 28, height: 28)
       .background(Circle().fill(Color.accentColor))
-  }
-
-  private var initials: String {
-    let words = workspaces.currentUserName.split(separator: " ")
-    let first = words.first?.first.map(String.init) ?? ""
-    let second = words.dropFirst().first?.first.map(String.init) ?? ""
-    let result = first + second
-    return result.isEmpty ? "?" : result
   }
 
   private func blockedMessage(for gate: Components.Schemas.WorkspaceGateStatus) -> String {
