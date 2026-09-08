@@ -17,6 +17,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   prismaTransactionMock,
+  memberFindFirstMock,
   requireTaskOwnershipMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
@@ -25,6 +26,7 @@ const {
   taskUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
@@ -35,10 +37,6 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: requireTaskOwnershipMock,
-}));
-
-vi.mock("@/helpers/calendar-beta-access", () => ({
-  requireCalendarBetaAccess: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -54,6 +52,7 @@ vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    member: { findFirst: memberFindFirstMock },
   },
 }));
 
@@ -142,6 +141,7 @@ function createApp(
 describe("DELETE /tasks/{id}/schedule", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    memberFindFirstMock.mockResolvedValue({ id: "member_123" });
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.READY,
@@ -158,6 +158,20 @@ describe("DELETE /tasks/{id}/schedule", () => {
         task: { update: taskUpdateMock },
       }),
     );
+  });
+
+  it("allows task schedule removal outside the Calendar beta", async () => {
+    memberFindFirstMock.mockResolvedValue(null);
+
+    const response = await createApp().request(
+      "http://localhost/tsk_123/schedule",
+      {
+        method: "DELETE",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(requireTaskOwnershipMock).toHaveBeenCalled();
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
