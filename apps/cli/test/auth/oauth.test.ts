@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
+import { type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
+import { EventEmitter } from "node:events";
 import test from "node:test";
 
 import {
   buildAuthorizationUrl,
   createPkcePair,
   exchangeAuthorizationCode,
+  openInBrowser,
   parseOAuthCallback,
   refreshAccessToken,
 } from "../../src/auth/oauth.js";
@@ -159,4 +162,51 @@ test("refreshes an access token with the refresh token", async () => {
   assert.equal(body.get("refresh_token"), "refresh-token");
   assert.equal(credentials.authToken, "fresh-access-token");
   assert.equal(credentials.refreshToken, "new-refresh-token");
+});
+
+function createFakeBrowserProcess(): {
+  child: ChildProcess;
+  spawnImpl: (
+    command: string,
+    args: readonly string[],
+    options: { detached: boolean; stdio: "ignore" },
+  ) => ChildProcess;
+} {
+  const child = new EventEmitter() as ChildProcess;
+  child.unref = () => child;
+  const spawnImpl = (
+    _command: string,
+    _args: readonly string[],
+    _options: { detached: boolean; stdio: "ignore" },
+  ) => child;
+  return { child, spawnImpl };
+}
+
+test("waits for the browser process to spawn before resolving", async () => {
+  const { child, spawnImpl } = createFakeBrowserProcess();
+  const openPromise = openInBrowser("https://example.test", {
+    platform: "linux",
+    spawnImpl,
+  });
+  const state = await Promise.race([
+    openPromise.then(() => "resolved"),
+    new Promise<"pending">((resolve) => setImmediate(() => resolve("pending"))),
+  ]);
+
+  assert.equal(state, "pending");
+  child.emit("spawn");
+  await openPromise;
+});
+
+test("rejects when the browser process fails to spawn", async () => {
+  const { child, spawnImpl } = createFakeBrowserProcess();
+  const launchError = new Error("spawn xdg-open ENOENT");
+  const openPromise = openInBrowser("https://example.test", {
+    platform: "linux",
+    spawnImpl,
+  });
+
+  child.emit("error", launchError);
+
+  await assert.rejects(openPromise, launchError);
 });

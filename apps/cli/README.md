@@ -1,6 +1,6 @@
 # Sokosumi Developer CLI
 
-Package `sokosumi-cli`, binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+Published package `sokosumi`; workspace package `sokosumi-cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
 
 ## Run
 
@@ -61,7 +61,14 @@ Do not put API keys, OAuth tokens, refresh tokens, or client secrets in this fil
 
 Configuration precedence is flags, process environment, home preferences, local `.env`, then built-in defaults. The CLI reads `.env` from the current directory and `apps/cli/.env` when present. Hosted OAuth needs a target client ID. Set `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID` or `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, or place the matching public ID in the home config file.
 
-Put `sokosumi` on your PATH for this machine (npm global bin, not Homebrew yet):
+Install the published package:
+
+```bash
+npm install --global sokosumi
+sokosumi auth status --json
+```
+
+Put a local build on your PATH:
 
 ```bash
 cd apps/cli && npm link
@@ -70,7 +77,14 @@ sokosumi
 
 `pnpm link --global` needs `pnpm setup` first (`PNPM_HOME` on PATH).
 
-npm publish of `sokosumi-cli` (then `npx sokosumi`) and a Homebrew formula wait until this package is public. Do not publish the sibling `masumi-network/sokosumi-cli` repo as this product.
+The npm package is `sokosumi`. Do not publish the sibling `masumi-network/sokosumi-cli` repository as a second product.
+
+Release from the repository root:
+
+```bash
+pnpm cli:publish
+pnpm cli:publish -- --publish
+```
 
 Local Core (after the first-party `sokosumi_cli` client is seeded):
 

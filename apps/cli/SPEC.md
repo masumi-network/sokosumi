@@ -6,7 +6,7 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 ## §C CONSTRAINTS
 - live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md:43]
 - talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md:44]
-- package identity ∈ {name: `sokosumi-cli`, bin: `sokosumi`}.
+- package identity ∈ {npm name: `sokosumi`, workspace name: `sokosumi-cli`, bin: `sokosumi`}.
 - CLI source/tests ∈ TypeScript. Typecheck required.
 - OAuth tokens & user API keys ∈ OS vault. Linux persistent auth → Secret Service. ⊥ plaintext credential file.
 - non-secret preferences ∈ optional `~/.sokosumi/config.json`. Accepted keys: `apiUrl`, `authUrl`, `webUrl`, `mainnetOAuthClientId`, `preprodOAuthClientId`. ⊥ token/key/client-secret fields.
@@ -32,6 +32,7 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 - env: `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, `SOKOSUMI_AUTH_URL`, `SOKOSUMI_API_URL`, `SOKOSUMI_API_KEY`
 - file: `~/.sokosumi/config.json` → non-secret preferences only
 - headless JSON fields: `authenticated`, `authMethod`, `apiKeyAvailable`, `target`, `apiUrl`, `expiresAt`
+- pkg: npm `sokosumi` → workspace filter `sokosumi-cli` → bin `sokosumi`; install → CLI commands
 
 ## §V INVARIANTS
 V1: CLI auth ∈ {OAuth access token, OAuth refresh token, user API key}. ⊥ session cookie. ⊥ `coworker_*` key.
@@ -59,11 +60,13 @@ V22: CLI `test` and `test:ci` scripts pass the quoted recursive test glob to `ts
 V23: hosted OAuth authorization and token URLs use the Core API auth base; legacy web `/api/auth` proxy preferences resolve to `<api>/auth`.
 V24: hosted target OAuth auth base = selected API URL + `/auth`; auth URL overrides apply only to custom targets.
 V25: successful loopback OAuth callbacks return no-store HTML that removes code and state from the browser address bar.
+V26: npm `sokosumi` package → bin `sokosumi`; tarball excludes local config & credential values.
+V27: browser launch failure → OAuth login rejects immediately & clears callback timer.
 
 ## §T TASKS
 
 id|status|task|cites
-T1|x|package spec; binary `sokosumi`, package `sokosumi-cli`|V7,I
+T1|x|package spec; npm package `sokosumi`, workspace `sokosumi-cli`, binary `sokosumi`|V7,I
 T2|x|scaffold `apps/cli` package (ESM, Ink, pinned deps)|V7,I
 T3|x|OAuth PKCE + loopback + keychain|V1,V4,V8
 T4|x|`auth login` / `auth logout` + `--json`|I,V1
@@ -80,6 +83,8 @@ T14|x|load non-secret local/home config; preserve explicit env precedence|V17,I
 T15|x|typed Core transport, tolerant models, and route services|V5,V18
 T16|x|headless discovery, Agent, Coworker, Task, and Job commands|V18,V19,I
 T17|x|selector TUI plus signed-in resource views|V20,V18,I
+T18|~|publish npm package `sokosumi`; verify tarball + bin|V26,I
+T19|x|fail browser launch without callback timeout|V27
 
 ## §B BUGS
 
@@ -92,3 +97,4 @@ B5|2026-09-08|stale home `authUrl` pointed hosted CLI OAuth at the web `/api/aut
 B6|2026-09-08|hosted preprod selected the mainnet `authUrl` from home config instead of deriving auth from the selected API target|V24
 B7|2026-09-08|successful OAuth callback left one-time code and state in the browser address bar|V25
 B8|2026-09-08|auth login passed raw `--auth-url` over resolved hosted target config, so `--preprod` could launch mainnet auth|V24
+B9|2026-09-08|browser spawn failure resolved before spawn error; callback timer stayed pending until timeout|V27

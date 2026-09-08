@@ -45,7 +45,7 @@ The same binary will cover listing, Hire, and Job for Agent developers. That wor
 - Complements `/developer`. API keys, OAuth clients, docs, Coworkers, and vendor Tasks remain on the web.
 - The human at the keyboard authenticates with Better Auth API keys and/or OAuth access tokens, not web session cookies.
 - `coworker_*` keys belong to the Coworker process. The developer CLI session does not use them unless that process *is* the Coworker.
-- Package identity is `sokosumi-cli` / bin `sokosumi` in this package. See [`SPEC.md`](./SPEC.md). `pnpm-workspace.yaml` already matches `apps/*`.
+- Package identity is `sokosumi` / bin `sokosumi` in this package. See [`SPEC.md`](./SPEC.md). `pnpm-workspace.yaml` already matches `apps/*`.
 
 ## Out of this vision
 

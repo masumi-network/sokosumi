@@ -86,7 +86,7 @@ export function loadCliEnvironment(options?: CliConfigLoadOptions): Record<strin
 - [x] Call the loader once before global flags are applied. Do not mutate `process.env`.
 - [x] Test that explicit environment wins, home preferences win over `.env`, and secrets in config never reach the returned environment.
 
-**Verification:** `pnpm --filter sokosumi-cli test -- test/config/loader.test.ts`.
+- **Verification:** `pnpm --filter sokosumi-cli test -- test/config/loader.test.ts`.
 
 ## Task 2: Fix hosted OAuth resolution
 
@@ -104,7 +104,7 @@ export function loadCliEnvironment(options?: CliConfigLoadOptions): Record<strin
 - [x] Add a test that missing hosted configuration rejects and does not call the injected login function.
 - [x] Keep API-key login independent of OAuth client ID availability.
 
-**Verification:** `pnpm --filter sokosumi-cli test -- test/cli/auth-login.test.ts test/cli/index.test.ts`.
+- **Verification:** `pnpm --filter sokosumi-cli test -- test/cli/auth-login.test.ts test/cli/index.test.ts`.
 
 ## Task 3: Replace confusing TUI aliases
 
@@ -137,7 +137,7 @@ export function SelectInput<T>(props: {
 - [x] Keep raw API-key input on stdin and preserve hidden input behavior.
 - [x] Test selection state transitions with a pure helper or Ink test harness. The test must prove an old letter alias does not select a menu option.
 
-**Verification:** `pnpm --filter sokosumi-cli test -- test/tui/select-input.test.ts` plus a built TUI smoke run.
+- **Verification:** `pnpm --filter sokosumi-cli test -- test/tui/select-input.test.ts` plus a built TUI smoke run.
 
 ## Task 4: Port Core transport and models
 
@@ -172,7 +172,7 @@ export function createHttpClient(options: HttpClientOptions): {
 - [x] Port service paths after checking the matching Core route mounts in `apps/core/src/routes/v1/index.ts`.
 - [x] Add transport tests for auth precedence, JSON parsing, status errors, and secret redaction.
 
-**Verification:** `pnpm --filter sokosumi-cli test -- test/api`.
+- **Verification:** `pnpm --filter sokosumi-cli test -- test/api`.
 
 ## Task 5: Port headless command slices
 
@@ -191,7 +191,7 @@ export function createHttpClient(options: HttpClientOptions): {
 - [x] Add the complete command catalog to help and discovery output.
 - [x] Match Core coworker create schema by requiring `--vendor-id` and emitting `vendorId`.
 
-**Verification:** `pnpm --filter sokosumi-cli test -- test/cli/commands`.
+- **Verification:** `pnpm --filter sokosumi-cli test -- test/cli/commands`.
 
 ## Task 6: Port useful views and finish canonical ownership
 
@@ -204,7 +204,7 @@ export function createHttpClient(options: HttpClientOptions): {
 - [x] Keep resource views read-only; job input-request submission remains a headless command/API follow-up.
 - [x] Document that `apps/cli` is canonical and the sibling repository is not a second source.
 - [x] Document the exact non-secret config JSON keys and target-scoped vault behavior.
-- [x] Keep package identity `sokosumi-cli` and binary `sokosumi`.
+- [x] Keep published package identity `sokosumi`, workspace package identity `sokosumi-cli`, and binary `sokosumi`.
 - [x] Update `apps/cli/SPEC.md` task status through the spec workflow after the corresponding behavior was verified.
 
 **Verification:** `pnpm --filter sokosumi-cli test && pnpm --filter sokosumi-cli typecheck && pnpm --filter sokosumi-cli build`.

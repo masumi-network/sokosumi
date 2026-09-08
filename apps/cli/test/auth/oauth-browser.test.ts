@@ -92,3 +92,20 @@ test("completes browser OAuth through the loopback callback", async () => {
   assert.equal(body.get("code"), "auth-code");
   assert.ok(body.get("code_verifier"));
 });
+
+test("stops waiting when browser launch fails", async () => {
+  const launchError = new Error("spawn xdg-open ENOENT");
+
+  await assert.rejects(
+    loginWithBrowser({
+      authBaseUrl: "https://api.example.test/auth",
+      clientId: "cli-client",
+      port: 53684,
+      openUrl: async () => {
+        throw launchError;
+      },
+      timeoutMs: 30_000,
+    }),
+    launchError,
+  );
+});

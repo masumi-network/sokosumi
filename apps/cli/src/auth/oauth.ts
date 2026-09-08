@@ -274,19 +274,40 @@ export async function refreshAccessToken({
 export const DEFAULT_OAUTH_REDIRECT_PORT = 53682;
 export const DEFAULT_OAUTH_REDIRECT_PATH = "/oauth/callback";
 
+type BrowserSpawn = (
+  command: string,
+  args: readonly string[],
+  options: {
+    detached: boolean;
+    stdio: "ignore";
+  },
+) => ChildProcess;
+
 function openWithCommand(
   command: string,
   args: string[],
-  { spawnImpl = defaultSpawn }: { spawnImpl?: typeof defaultSpawn } = {},
+  { spawnImpl = defaultSpawn }: { spawnImpl?: BrowserSpawn } = {},
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const child: ChildProcess = spawnImpl(command, args, {
       detached: true,
       stdio: "ignore",
     });
-    child.once("error", reject);
+    const cleanup = () => {
+      child.off("spawn", onSpawn);
+      child.off("error", onError);
+    };
+    const onSpawn = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+    child.once("spawn", onSpawn);
+    child.once("error", onError);
     child.unref();
-    resolve();
   });
 }
 
@@ -297,7 +318,7 @@ export function openInBrowser(
     spawnImpl = defaultSpawn,
   }: {
     platform?: NodeJS.Platform;
-    spawnImpl?: typeof defaultSpawn;
+    spawnImpl?: BrowserSpawn;
   } = {},
 ): Promise<void> {
   const target = requireText(url, "url");
@@ -414,7 +435,11 @@ function waitForCallback({
         finish("resolve", url.toString());
       },
     );
-    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) {
+      onAbort();
+    } else {
+      signal?.addEventListener("abort", onAbort, { once: true });
+    }
   });
 }
 
@@ -449,6 +474,15 @@ export async function loginWithBrowser({
   const state = randomBytes(32).toString("base64url");
   const redirectUri = `http://127.0.0.1:${resolvedPort}${resolvedPath}`;
   const server = serverFactory();
+  let callbackPromise: Promise<string> | undefined;
+
+  const callbackAbortController = new AbortController();
+  const abortCallback = () => callbackAbortController.abort();
+  if (signal?.aborted) {
+    callbackAbortController.abort();
+  } else {
+    signal?.addEventListener("abort", abortCallback, { once: true });
+  }
 
   try {
     await listen(server, resolvedPort);
@@ -460,11 +494,11 @@ export async function loginWithBrowser({
       codeChallenge: pkce.challenge,
       scope,
     });
-    const callbackPromise = waitForCallback({
+    callbackPromise = waitForCallback({
       server,
       callbackPath: resolvedPath,
       timeoutMs,
-      signal,
+      signal: callbackAbortController.signal,
       port: resolvedPort,
     });
     await openUrl(authorizationUrl);
@@ -481,6 +515,9 @@ export async function loginWithBrowser({
       signal,
     });
   } finally {
+    callbackAbortController.abort();
+    signal?.removeEventListener("abort", abortCallback);
+    await callbackPromise?.catch(() => {});
     await closeServer(server);
   }
 }
