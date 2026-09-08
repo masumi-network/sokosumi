@@ -13,6 +13,12 @@ export interface CliTargetConfig {
 export const MAINNET_API_URL = "https://api.sokosumi.com";
 export const PREPROD_API_URL = "https://api.preprod.sokosumi.com";
 export const DEFAULT_OAUTH_CLIENT_ID = "sokosumi_cli";
+const LEGACY_WEB_AUTH_PROXY_BY_TARGET: Partial<
+  Record<Exclude<CliTarget, "custom">, string>
+> = {
+  mainnet: "https://app.sokosumi.com/api/auth",
+  preprod: "https://preprod.sokosumi.com/api/auth",
+};
 
 export const USER_API_KEY_PREFIX_BY_TARGET: Readonly<
   Record<Exclude<CliTarget, "custom">, string>
@@ -60,6 +66,21 @@ export function userApiKeyPrefixForTarget(target: CliTarget): string | null {
   return target === "custom" ? null : USER_API_KEY_PREFIX_BY_TARGET[target];
 }
 
+function resolveAuthBaseUrl(
+  target: CliTarget,
+  apiUrl: string,
+  configuredAuthBaseUrl?: string,
+): string {
+  const defaultAuthBaseUrl = `${apiUrl}/auth`;
+  const normalizedAuthBaseUrl = trimUrl(configuredAuthBaseUrl || "");
+  const legacyWebAuthProxy =
+    target === "custom" ? undefined : LEGACY_WEB_AUTH_PROXY_BY_TARGET[target];
+
+  return normalizedAuthBaseUrl === legacyWebAuthProxy
+    ? defaultAuthBaseUrl
+    : normalizedAuthBaseUrl || defaultAuthBaseUrl;
+}
+
 export function resolveCliConfig({
   env = process.env,
   apiUrl,
@@ -94,8 +115,10 @@ export function resolveCliConfig({
       env.SOKOSUMI_OAUTH_CLIENT_ID ||
       (target === "custom" ? DEFAULT_OAUTH_CLIENT_ID : ""),
   ).trim();
-  const resolvedAuthBaseUrl = trimUrl(
-    authBaseUrl || env.SOKOSUMI_AUTH_URL || `${resolvedApiUrl}/auth`,
+  const resolvedAuthBaseUrl = resolveAuthBaseUrl(
+    target,
+    resolvedApiUrl,
+    authBaseUrl || env.SOKOSUMI_AUTH_URL,
   );
 
   return {

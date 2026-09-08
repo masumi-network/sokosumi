@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { resolveCliConfig } from "../../src/auth/config.js";
 import { loadCliEnvironment } from "../../src/config/loader.js";
 
 function createFixture() {
@@ -65,6 +66,31 @@ test("merges local env, home preferences, and explicit environment in order", ()
       environment.SOKOSUMI_PREPROD_OAUTH_CLIENT_ID,
       "home-preprod-client",
     );
+  } finally {
+    rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("TestV23 hosted OAuth resolves legacy web auth proxy to Core auth", () => {
+  const fixture = createFixture();
+  try {
+    writeFileSync(
+      join(fixture.homeDir, ".sokosumi", "config.json"),
+      JSON.stringify({
+        apiUrl: "https://api.sokosumi.com",
+        authUrl: "https://app.sokosumi.com/api/auth",
+      }),
+    );
+
+    const environment = loadCliEnvironment({
+      cwd: fixture.cwd,
+      homeDir: fixture.homeDir,
+      packageRoot: fixture.packageRoot,
+      environment: {},
+    });
+
+    const config = resolveCliConfig({ env: environment });
+    assert.equal(config.authBaseUrl, "https://api.sokosumi.com/auth");
   } finally {
     rmSync(fixture.root, { recursive: true, force: true });
   }
