@@ -224,6 +224,7 @@ struct ContentView: View {
     )
     return Label {
       Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
+        .lineLimit(1)
         .fontWeight(attention.bold ? .bold : .regular)
     } icon: {
       RoomLeadingIcon(
@@ -233,6 +234,7 @@ struct ContentView: View {
         showsDirectAvatars: showsDirectAvatars
       )
     }
+    .labelStyle(RoomRowLabelStyle())
     .tag(room.id)
     .badge(attention.badgeCount)
   }
@@ -286,6 +288,19 @@ struct ContentView: View {
   }
 }
 
+/// Sidebar `Label` otherwise pins the icon to a square column, which
+/// squashes a group Direct stack into overlapping blobs.
+private struct RoomRowLabelStyle: LabelStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    HStack(spacing: 8) {
+      configuration.icon
+        .fixedSize()
+      configuration.title
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+  }
+}
+
 /// Sidebar leading slot. Direct messages get the participant stack; channels
 /// and External keep an SF Symbol. Guest Directs in External stay a symbol.
 private struct RoomLeadingIcon: View {
@@ -312,11 +327,16 @@ private struct RoomLeadingIcon: View {
     } else {
       Image(systemName: icon)
         .foregroundStyle(.secondary)
+        .frame(width: DirectRoomAvatarStack.faceSize, height: DirectRoomAvatarStack.faceSize)
     }
   }
 }
 
 private struct DirectRoomAvatarStack: View {
+  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-2` overlap.
+  static let faceSize: CGFloat = 20
+  private static let overlap: CGFloat = 8
+
   let participants: [DirectRoomAvatarParticipant]
 
   var body: some View {
@@ -329,13 +349,14 @@ private struct DirectRoomAvatarStack: View {
     if participants.isEmpty {
       Image(systemName: "message")
         .foregroundStyle(.secondary)
+        .frame(width: Self.faceSize, height: Self.faceSize)
     } else {
-      HStack(spacing: -6) {
+      HStack(spacing: -Self.overlap) {
         ForEach(participants.enumerated(), id: \.element.id) { index, participant in
           CircleAvatar(
             imageURL: participant.imageURL,
             name: participant.name,
-            size: 16
+            size: Self.faceSize
           )
           .overlay {
             Circle()
@@ -351,7 +372,7 @@ private struct DirectRoomAvatarStack: View {
 private struct CircleAvatar: View {
   let imageURL: String?
   let name: String
-  var size: CGFloat = 16
+  var size: CGFloat = DirectRoomAvatarStack.faceSize
 
   var body: some View {
     fill
