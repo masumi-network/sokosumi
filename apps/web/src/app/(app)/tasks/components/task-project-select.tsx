@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type Ref, useMemo, useState } from "react";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -32,9 +32,13 @@ interface TaskProjectSelectLabels {
 
 interface TaskProjectSelectProps extends TaskProjectSelectLabels {
   projectOptions: ProjectFilterOption[];
-  value: string | null;
+  /** `undefined` means nothing was selected yet, `null` means no project. */
+  value: string | null | undefined;
   onChange: (value: string | null) => void;
   onCreateProject?: (searchQuery: string) => void;
+  ref?: Ref<HTMLButtonElement>;
+  invalid?: boolean;
+  describedBy?: string;
 }
 
 const NO_PROJECT_VALUE = "__no_project__";
@@ -51,6 +55,9 @@ export function TaskProjectSelect({
   projectCreate,
   projectCreateNamed,
   onCreateProject,
+  ref,
+  invalid,
+  describedBy,
 }: TaskProjectSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -66,7 +73,9 @@ export function TaskProjectSelect({
     return [{ id: value, name: value }, ...projectOptions];
   }, [projectOptions, selectedProject, value]);
   const selectedLabel =
-    selectedProject?.name ?? (value ? value : (placeholder ?? noneLabel));
+    selectedProject?.name ??
+    value ??
+    (value === null ? noneLabel : (placeholder ?? noneLabel));
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -95,11 +104,14 @@ export function TaskProjectSelect({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
+          ref={ref}
           type="button"
           variant="outline"
           role="combobox"
           aria-expanded={open}
           aria-label={projectLabel}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
           className="w-full justify-between gap-2"
         >
           <span className="flex min-w-0 flex-1 items-center gap-2">

@@ -1,4 +1,9 @@
-import { type Prisma, TaskStatus, VendorGrantStatus } from "@sokosumi/database";
+import {
+  type Prisma,
+  TaskScheduleEventKind,
+  TaskStatus,
+  VendorGrantStatus,
+} from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CreateScheduledTaskInput } from "./task-schedule-create.service";
@@ -137,6 +142,18 @@ describe("createScheduledTaskInTransaction", () => {
             sourceRunAt: "2099-09-24T09:00:00.000Z",
             effectiveRunAt: "2099-09-24T09:00:00.000Z",
           }),
+          event: {
+            scheduleKind: TaskScheduleEventKind.CREATED,
+            scheduleOperationId: OPERATION_ID,
+            schedulePayload: {
+              action: "create_schedule",
+              source: { type: "project", projectId: PROJECT_ID },
+              schedule: {
+                mode: "once",
+                runAt: "2099-09-24T09:00:00.000Z",
+              },
+            },
+          },
         }),
       }),
       tx,
@@ -280,6 +297,8 @@ describe("createScheduledTaskInTransaction", () => {
 
     expect(createTaskForActorMock).toHaveBeenCalledTimes(1);
     expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledTimes(1);
+    expect(taskScheduleCreateOperationCreateMock).toHaveBeenCalledTimes(1);
+    expect(lockCalendarScopeMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns the original Task without another write when an operation is replayed with the same payload", async () => {
@@ -327,6 +346,8 @@ describe("createScheduledTaskInTransaction", () => {
 
     expect(createTaskForActorMock).toHaveBeenCalledTimes(1);
     expect(replaceTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledTimes(1);
+    expect(taskScheduleCreateOperationCreateMock).toHaveBeenCalledTimes(1);
+    expect(lockCalendarScopeMock).toHaveBeenCalledTimes(1);
   });
 
   it("replays the same request when automatic naming resolves differently", async () => {

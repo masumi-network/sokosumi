@@ -1818,6 +1818,8 @@
         "descriptionPlaceholder": "Task-Details eingeben...",
         "projectLabel": "Projekt",
         "projectNone": "Kein Projekt",
+        "projectPlaceholder": "Workspace oder Projekt wählen",
+        "projectRequired": "Wähle den Workspace oder ein Projekt, um fortzufahren.",
         "projectSearchPlaceholder": "Projekte suchen...",
         "projectEmptyResults": "Keine Projekte gefunden.",
         "projectCreate": "Projekt erstellen...",

@@ -3,6 +3,7 @@ import {
   type GrantResumeStatus,
   type Prisma,
   type Task,
+  type TaskScheduleEventKind,
   TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
@@ -61,6 +62,11 @@ export interface CreateTaskDomainInput {
   schedule?: {
     metadata: TaskScheduleMetadata;
     nextRunAt: Date;
+    event: {
+      scheduleKind: TaskScheduleEventKind;
+      scheduleOperationId: string;
+      schedulePayload: Prisma.InputJsonObject;
+    };
   };
 }
 
@@ -322,6 +328,7 @@ export async function createTaskForActor(
           status,
           comment: null,
           channel: input.channel ?? Channel.SOKOSUMI,
+          ...input.schedule?.event,
           ...eventActorFields(input.actor),
         },
       },

@@ -30,7 +30,8 @@ import { TaskFormModal } from "./task-form-modal";
 interface CreateTaskModalContextType {
   open: boolean;
   assigneeOverrideId: string | null;
-  projectOverrideId: string | null;
+  /** `undefined` means no Calendar source was chosen yet, `null` the Workspace. */
+  projectOverrideId: string | null | undefined;
   promptOverride: string | null;
   scheduleOverride: TaskScheduleSelection | null;
   formInstanceKey: number;
@@ -86,11 +87,12 @@ export function CreateTaskModalProvider({
         ? initialAssigneeId
         : null,
   );
-  const [projectOverrideId, setProjectOverrideId] = useState<string | null>(
-    () =>
-      initialOpen && initialProjectId != null && initialProjectId !== ""
-        ? initialProjectId
-        : null,
+  const [projectOverrideId, setProjectOverrideId] = useState<
+    string | null | undefined
+  >(() =>
+    initialOpen && initialProjectId != null && initialProjectId !== ""
+      ? initialProjectId
+      : null,
   );
   const [promptOverride, setPromptOverride] = useState<string | null>(() =>
     initialOpen && initialPrompt ? initialPrompt : null,
@@ -121,16 +123,16 @@ export function CreateTaskModalProvider({
   );
 
   const handleOpenWithDefaults = useCallback(
-    ({
-      projectId,
-      schedule,
-    }: {
+    (defaults: {
       projectId?: string | null;
       schedule?: TaskScheduleSelection;
     }) => {
+      const { schedule } = defaults;
       setAssigneeOverrideId(null);
+      // A caller that omits `projectId` keeps the old default; the Calendar
+      // passes it explicitly, including `undefined` for "nothing chosen yet".
       setProjectOverrideId(
-        projectId === undefined ? initialProjectId || null : projectId,
+        "projectId" in defaults ? defaults.projectId : initialProjectId || null,
       );
       setPromptOverride(null);
       setScheduleOverride(schedule ?? null);
@@ -187,7 +189,7 @@ export function CreateTaskModal({
   coworkerOptions,
   projectOptions,
   lockProjectSelection = false,
-  defaultProjectId = null,
+  defaultProjectId,
   agentNameById: initialAgentNameById,
   initialDesignMdAttachment: initialDesignMdAttachmentProp = null,
   initialCreateTaskOpen = false,
@@ -225,7 +227,8 @@ export function CreateTaskModal({
         initialDesignMdAttachmentProp,
     ),
   );
-  const selectedProjectId = projectOverrideId ?? defaultProjectId ?? null;
+  const selectedProjectId =
+    projectOverrideId !== undefined ? projectOverrideId : defaultProjectId;
 
   useEffect(() => {
     if (!open && !initialCreateTaskOpen) return;
@@ -300,6 +303,8 @@ export function CreateTaskModal({
           descriptionPlaceholder: t("descriptionPlaceholder"),
           projectLabel: t("projectLabel"),
           projectNone: t("projectNone"),
+          projectPlaceholder: t("projectPlaceholder"),
+          projectRequired: t("projectRequired"),
           projectSearchPlaceholder: t("projectSearchPlaceholder"),
           projectEmptyResults: t("projectEmptyResults"),
           projectCreate: t("projectCreate"),

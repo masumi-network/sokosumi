@@ -1,6 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { type Prisma, TaskStatus, VendorGrantStatus } from "@sokosumi/database";
+import {
+  type Prisma,
+  TaskScheduleEventKind,
+  TaskStatus,
+  VendorGrantStatus,
+} from "@sokosumi/database";
 
 import {
   requireCoworkerCapability,
@@ -249,7 +254,19 @@ export async function createScheduledTaskInTransaction(
       // Human tasks are calendar reminders, not agent work. Keep them READY
       // so they do not enter the execution queue.
       status: input.assigneeUserId ? TaskStatus.READY : TaskStatus.QUEUED,
-      schedule: { metadata, nextRunAt },
+      schedule: {
+        metadata,
+        nextRunAt,
+        event: {
+          scheduleKind: TaskScheduleEventKind.CREATED,
+          scheduleOperationId: input.operationId,
+          schedulePayload: {
+            action: "create_schedule",
+            source: input.source,
+            schedule: input.schedule,
+          },
+        },
+      },
     },
     tx,
   );
