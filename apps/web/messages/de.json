@@ -3967,6 +3967,7 @@
         "deviceDisabledSuccess": "Push-Benachrichtigungen in diesem Browser aus",
         "pushEnabledSuccess": "Push-Benachrichtigungen aktiviert",
         "pushEnabledOtherDevicesSuccess": "Push-Benachrichtigungen auf deinen anderen Geräten aktiviert",
+        "previewPushConfirmation": "Dies ist eine Vorschau für den Branch {branch}. Hier aktivierte Push-Benachrichtigungen öffnen {origin}. Fortfahren?",
         "pushError": "Push-Benachrichtigungen konnten in diesem Browser nicht deaktiviert werden. Versuche es erneut.",
         "pushEnableError": "Push-Benachrichtigungen konnten in diesem Browser nicht aktiviert werden. Erlaube Benachrichtigungen für diese Seite in den Browser-Einstellungen und versuche es erneut.",
         "loading": "Einstellung wird gespeichert...",

@@ -6,7 +6,7 @@ Files lets a signed-in user open `/drive` (nav label **Files**) and see Recents 
 
 - `files-open` loads `/drive` while authenticated.
 - `files-recents-or-empty` shows Recents rows or “No recent files” (placeholder Blob tokens may toast **Failed to load recent files** — environment gap, not a routing failure).
-- `files-my-files-or-empty` shows My Files browse chrome (Upload / Create folder / list-grid) and rows or “No files yet”.
+- `files-my-files-or-empty` shows browse chrome (Upload / Create folder / list-grid). The browse tab label is **My Files** on a personal workspace; an org-scoped drive uses the org name (or **Organization**). Root browse usually includes a **Tasks** folder row even with no user files — heading **No files yet** only appears when that list is fully empty (for example a search miss).
 - `files-gated` is covered by the shared app auth gate (anonymous users bounce to sign-in).
 
 ## How to get to it (user POV)
@@ -24,13 +24,13 @@ Preconditions:
 - Prefer a desktop viewport so **Files** is in the sidebar.
 
 - **Open Files.** Run `agent-browser open $WEB_URL/drive` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. URL stays `/drive` (not `/signin`).
-- **Recents.** Snapshot shows Recents / My Files tabs and either recent-file rows or heading **No recent files**. A toast **Failed to load recent files** with dummy Vercel Blob tokens is an environment gap (same class as Ably placeholders) — landing still counts if the Files shell and tabs are present.
-- **My Files.** Select the **My Files** tab (or open `$WEB_URL/drive?view=browse`). Snapshot shows browse chrome (**Upload**, **Create folder**, list/grid). Empty is valid (**No files yet** or an empty list). Do not require existing files.
+- **Recents.** Snapshot shows Recents plus the browse tab (**My Files** on personal, org name when org-scoped) and either recent-file rows or heading **No recent files**. A toast **Failed to load recent files** with dummy Vercel Blob tokens is an environment gap (same class as Ably placeholders) — landing still counts if the Files shell and tabs are present.
+- **My Files.** Select the browse tab (personal: **My Files**) or open `$WEB_URL/drive?view=browse`. Snapshot shows browse chrome (**Upload**, **Create folder**, list/grid). Empty user files are valid: a **Tasks** folder row at root, heading **No files yet**, or an empty list. Do not require uploaded files.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/files` then screenshot + snapshot of Recents and My Files.
 
 ## Gotchas
 
 - Nav label is **Files**; the route is `/drive`.
 - Desktop main nav includes Files after Tasks (and after Schedules when that beta item is on). Mobile does **not** show Files in the sidebar — use the You page.
-- Recents calls `GET /v1/drive/recents`, which needs a real Blob token. Placeholder local tokens 500 with **Failed to load recent files**; that is not proof the route is missing.
+- Recents calls `GET /v1/drive/recents`, which needs a real Blob token. Missing token is Core **503**; placeholder tokens may toast **Failed to load recent files**. That is an environment gap, not proof the route is missing.
 - Upload, rename, delete, and project File Browser (`/drive?view=tasks&projectId=…`) are out of scope for this landing entry.

@@ -1,6 +1,6 @@
 # Browse agents
 
-Browse agents lets a signed-in user open `/agents`, use the **Coworker gallery**, and browse the **Agent catalog** tier below it (Cardano / x402, search, category, kind filters). App Hire stays off — catalog cards and Agent detail are read-only (no Hire, no price).
+Browse agents lets a signed-in user open `/agents`, use the **Coworker gallery**, and browse the **Agent catalog** tier below it (Cardano / x402, search, `categories`, kind filters). App Hire stays off — catalog cards and Agent detail are read-only (no Hire, no price).
 
 ## Sub-features
 
@@ -19,13 +19,13 @@ Preconditions:
 
 - Signed in (see [Sign in](./sign-in.md)); session healthy.
 - `verify-sokosumi doctor` ok.
-- Prefer a Neon fork with coworkers and catalog Agents; empty coworker list may render nothing under the gallery section (`return null`).
+- Prefer a Neon fork with coworkers and catalog Agents; empty coworker list returns `null` for the **whole gallery tier** (hero search included). Catalog still renders below.
 
 - **Open gallery.** Run `agent-browser open $WEB_URL/agents` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. Page is `/agents` and not `/signin`.
 - **Cookie banner.** If **Accept all** is in the snapshot, click its `@eN` ref before catalog cards or lower-page clicks. The banner panel covers those targets; a click reports covered/no-op while URL stays `/agents`.
 - **Healthy gallery.** Snapshot shows coworker hero / **Your AI coworkers**, and catalog copy such as **Browse all agents** (or locale equivalent) when Core catalog data is present.
-- **Catalog card.** Prefer a Cardano catalog row / **Show Details** control that navigates to `/agents/<id>`. If the click stays on `/agents`, deep-link `/agents/<cardanoId>` (`agent-browser get attr @eN href`). x402 cards open an external resource URL when present (or show Details unavailable). Do not expect Hire / Create Job / credits price on catalog cards.
-- **Search miss (optional).** Type nonsense in the coworker search field (`?query=`); use the snapshot textbox ref if fill-by-name misses. Expect **Your AI coworkers** to clear under the hero. Catalog search uses `?agentQuery=` plus category / kind filters and does not share coworker search state.
+- **Catalog card.** Prefer a Cardano catalog row / **Show Details** control that navigates to `/agents/<id>`. Dismiss **Accept all** first, then `scrollintoview` the card. If the click stays on `/agents` (common when the card is below the fold), deep-link `/agents/<cardanoId>` (`agent-browser get attr @eN href`). x402 cards open an external resource URL when present (or show Details unavailable). Do not expect Hire / Create Job / credits price on catalog cards.
+- **Search miss (optional).** Type nonsense in the coworker search field (`?query=`); use the snapshot textbox ref if fill-by-name misses. Expect **Your AI coworkers** to clear under the hero. Catalog search uses `?agentQuery=` plus `categories` / `kind` filters and does not share coworker search state.
 - **Detail.** From a Cardano catalog card or Cardano deep-link `/agents/<id>` only: page loads read-only detail with no Hire and no price/credits chrome. Do not treat x402 catalog ids as in-app detail targets.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/browse-agents` then screenshot + `snapshot -i`.
 
@@ -33,6 +33,7 @@ Preconditions:
 
 - `/agents` stacks Coworker gallery above an Agent catalog Suspense tier (`getAllCoreAgents` / categories). Failures in the catalog tier must not blank the coworker gallery.
 - App Hire remains banned (ADR-0024); Core Hire APIs stay for Soko Bot / Coworker.
-- Soft-empty for coworkers is a blank gallery section; catalog uses **No agents available** / **No Agents found** (or locale equivalents). Keep kind/search chrome mounted when catalog filters match nothing.
+- Soft-empty for coworkers omits the entire gallery tier (`CoworkerGallerySection` returns `null`), including the hero search band. Catalog uses **No agents available** / **No Agents found** (or locale equivalents). Keep kind/search chrome mounted when catalog filters match nothing.
+- Catalog URL params are `agentQuery`, `categories` (array), and `kind` — not `category`.
 - Core Agent detail is Cardano-only; x402 catalog entries are external links, not `/agents/[id]`.
 - Cookie **Accept all** sits above catalog cards. Dismiss it (snapshot `@eN`) before clicking **Show Details**; fill-by-accessible-name for the coworker search can miss — use the textbox ref.

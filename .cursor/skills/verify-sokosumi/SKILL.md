@@ -190,7 +190,7 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 - Copying `.env.example` without replacing `<…>` placeholders → Core/Web fail Zod at boot (“missing env”)
 - Optional URL env vars (`AGENT_HIRED_WEBHOOK`, Sentry DSN) set to non-URL dummies → Web crashes after Ready (`z.url()`); omit or use a real URL
 - `COMPOSIO_API_KEY` set without an `ak_` prefix → Core refuses to start (optional key; omit or use `ak_…`)
-- `/agents` stacks the Coworker gallery above an Agent catalog (`Browse all agents` when catalog data is present). Empty coworker data blanks the gallery section; the catalog stays independent. App Hire stays off. Cookie **Accept all** covers lower catalog cards until dismissed.
+- `/agents` stacks the Coworker gallery above an Agent catalog (`Browse all agents` when catalog data is present). Empty coworker data omits the whole gallery tier (hero included); the catalog stays independent. App Hire stays off. Cookie **Accept all** covers lower catalog cards until dismissed.
 - Authenticated default landing is Welcome `/` (`DEFAULT_AUTHENTICATED_LANDING_PATH`), not `/chat`. Desktop (`md+`) `/chat` redirects to `/`; mobile may keep `/chat`.
 - Desktop main nav includes **Files** (`/drive`) after Tasks (and Schedules when that beta item is on). Mobile keeps Files on the You page, not the sidebar.
 - Ably placeholders break realtime chat UI
