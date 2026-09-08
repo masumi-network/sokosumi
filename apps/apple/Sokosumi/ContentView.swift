@@ -7,7 +7,6 @@ struct ContentView: View {
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openSettings) private var openSettings
-  @State private var selectedRoomId: String?
 
   var body: some View {
     Group {
@@ -23,7 +22,6 @@ struct ContentView: View {
         workspaces.startIfNeeded(auth: auth)
       } else {
         workspaces.reset()
-        selectedRoomId = nil
       }
     }
   }
@@ -104,7 +102,10 @@ struct ContentView: View {
       let partitioned = partitionRoomsForSidebar(workspaces.rooms)
       NavigationSplitView {
         VStack(spacing: 0) {
-          List(selection: $selectedRoomId) {
+          List(selection: Binding(
+            get: { workspaces.selectedRoomId },
+            set: { workspaces.selectRoom($0, auth: auth) }
+          )) {
             workspaceMenu
             if workspaces.roomsLoading, workspaces.rooms.isEmpty {
               ProgressView("Loading rooms…")
@@ -156,24 +157,13 @@ struct ContentView: View {
         }
         .navigationSplitViewColumnWidth(min: 220, ideal: 260)
       } detail: {
-        if let selectedRoomId, workspaces.rooms.contains(where: { $0.id == selectedRoomId }) {
+        if let selectedRoomId = workspaces.selectedRoomId,
+           workspaces.rooms.contains(where: { $0.id == selectedRoomId }) {
           TranscriptView(roomId: selectedRoomId)
         } else {
           Text("Pick a room to read it.")
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-      }
-      .onChange(of: selectedRoomId) { _, newID in
-        if let newID, let room = workspaces.rooms.first(where: { $0.id == newID }) {
-          workspaces.openRoom(room, auth: auth)
-        } else {
-          workspaces.clearTranscript()
-        }
-      }
-      .onChange(of: workspaces.rooms.map(\.id)) { _, ids in
-        if let selectedRoomId, !ids.contains(selectedRoomId) {
-          self.selectedRoomId = nil
         }
       }
     }

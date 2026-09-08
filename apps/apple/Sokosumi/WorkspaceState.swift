@@ -34,6 +34,9 @@ final class WorkspaceState: ObservableObject {
   @Published private(set) var selectionId: String?
   @Published private(set) var rooms: [Components.Schemas.ChatRoom] = []
   @Published private(set) var roomsLoading = false
+  /// Selected room. Never left empty while rooms exist: launch and workspace
+  /// switches restore the saved room, else the first room.
+  @Published private(set) var selectedRoomId: String?
   /// Switch/list failure while already `.ready`. Nil means the sidebar is fine.
   @Published private(set) var switchError: String?
   @Published private(set) var currentUserId = ""
@@ -57,10 +60,15 @@ final class WorkspaceState: ObservableObject {
 
   private let service = ChatService()
   private let savedSelection: SavedWorkspaceSelection
+  private let savedRoom: SavedRoomSelection
   private var hasLoaded = false
 
-  init(savedSelection: SavedWorkspaceSelection = SavedWorkspaceSelection()) {
+  init(
+    savedSelection: SavedWorkspaceSelection = SavedWorkspaceSelection(),
+    savedRoom: SavedRoomSelection = SavedRoomSelection()
+  ) {
     self.savedSelection = savedSelection
+    self.savedRoom = savedRoom
   }
 
   /// Test seam: when set, replaces `auth.coreClient()` as the client source.
@@ -97,8 +105,37 @@ final class WorkspaceState: ObservableObject {
     currentUserName = ""
     currentUserEmail = ""
     currentUserImageURL = nil
+    selectedRoomId = nil
     clearTranscript()
     savedSelection.clear()
+    savedRoom.clear()
+  }
+
+  /// User picked a room in the sidebar: persist it and open its transcript.
+  /// A nil id only clears the pane; the saved pick survives for relaunch.
+  func selectRoom(_ id: String?, auth: AuthState) {
+    guard id != selectedRoomId else { return }
+    applyRoomSelection(id, auth: auth)
+  }
+
+  private func applyRoomSelection(_ id: String?, auth: AuthState) {
+    selectedRoomId = id
+    if let id {
+      savedRoom.save(id)
+    }
+    if let room = rooms.first(where: { $0.id == id }) {
+      openRoom(room, auth: auth)
+    } else {
+      clearTranscript()
+    }
+  }
+
+  /// Keep a room selected whenever rooms exist: the saved room when it is
+  /// still listed, else the first room. Runs after every rooms load.
+  private func ensureRoomSelection(auth: AuthState) {
+    let current = selectedRoomId.flatMap { id in rooms.contains(where: { $0.id == id }) ? id : nil }
+    let saved = savedRoom.load().flatMap { id in rooms.contains(where: { $0.id == id }) ? id : nil }
+    applyRoomSelection(current ?? saved ?? rooms.first?.id, auth: auth)
   }
 
   /// Forget the transcript without touching rooms or selection.
@@ -272,6 +309,7 @@ final class WorkspaceState: ObservableObject {
       roomsLoading = true
       defer { roomsLoading = false }
       rooms = try await service.listRooms(client: client, organizationSlug: selection.organizationSlug)
+      ensureRoomSelection(auth: auth)
     } catch let error as ChatServiceError {
       handleServiceError(error, auth: auth, signedOutMessage: "Signed out.")
     } catch {
@@ -297,6 +335,7 @@ final class WorkspaceState: ObservableObject {
       selectionId = option.id
       savedSelection.save(option.id)
       switchError = nil
+      ensureRoomSelection(auth: auth)
     } catch let error as ChatServiceError {
       handleServiceError(error, auth: auth, signedOutMessage: nil, keepReady: true)
     } catch {

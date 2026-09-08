@@ -92,7 +92,10 @@ private func ephemeralState(
   let suite = "sokosumi-workspace-state-tests.\(UUID().uuidString)"
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
-  let state = WorkspaceState(savedSelection: SavedWorkspaceSelection(defaults: defaults))
+  let state = WorkspaceState(
+    savedSelection: SavedWorkspaceSelection(defaults: defaults),
+    savedRoom: SavedRoomSelection(defaults: defaults)
+  )
   state.clientResolver = { client }
   return (state, AuthState(store: MemoryTokenStore()), transport, defaults)
 }
@@ -106,11 +109,13 @@ struct WorkspaceStateTests {
   }
 
   @Test func reloadReadySelectsPersonalDefaultAndLoadsRooms() async throws {
-    let (state, auth, transport, _) = try ephemeralState([
+    let (state, auth, transport, defaults) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
-      (200, roomsBody(names: ["general"]))
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0))
     ])
     await state.reload(auth: auth)
     #expect(state.phase == .ready)
@@ -118,6 +123,9 @@ struct WorkspaceStateTests {
     #expect(state.currentUserName == "Me")
     #expect(state.rooms.map(\.name) == ["general"])
     #expect(!transport.operationIDs.contains(where: { $0.hasPrefix("put/") }))
+    // First room is selected and persisted when nothing was saved.
+    #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
+    #expect(SavedRoomSelection(defaults: defaults).load() == "550e8400-e29b-41d4-a716-446655440000")
   }
 
   @Test func reloadBlockedGateLoadsNoRooms() async throws {
@@ -134,17 +142,34 @@ struct WorkspaceStateTests {
       (200, orgsBody),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
       (200, """
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """),
-      (200, roomsBody(names: ["launch"]))
+      (200, roomsBody(names: ["launch"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0, name: "launch"))
     ])
     await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(auth: auth, option: org)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
     #expect(state.selectionId == "org_1")
     #expect(state.rooms.map(\.name) == ["launch"])
-    #expect(transport.operationIDs.suffix(2) == ["put/users/{id}/preferred-organization", "get/chats/rooms"])
+    #expect(transport.operationIDs.suffix(4) == [
+      "put/users/{id}/preferred-organization",
+      "get/chats/rooms",
+      "get/chats/rooms/{id}/messages",
+      "post/chats/rooms/{id}/read"
+    ])
+    // The new workspace selects its first room.
+    #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
   }
 
   @Test func switchFailureKeepsOldSelectionAndRooms() async throws {
@@ -153,17 +178,23 @@ struct WorkspaceStateTests {
       (200, orgsBody),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
       (500, """
       {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
       """)
     ])
     await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(auth: auth, option: org)
     #expect(state.selectionId == "personal")
     #expect(state.rooms.map(\.name) == ["general"])
     #expect(state.phase == .ready)
     #expect(state.switchError != nil)
+    #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
   }
 
   @Test func selectWhileLoadingIgnoresSecondSwitch() async throws {
@@ -172,17 +203,27 @@ struct WorkspaceStateTests {
       (200, orgsBody),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
       (200, """
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """),
-      (200, roomsBody(names: ["launch"]))
+      (200, roomsBody(names: ["launch"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0, name: "launch"))
     ])
     await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
     let org = try #require(state.options.first { $0.id == "org_1" })
     let personal = try #require(state.options.first { $0.id == "personal" })
     state.select(org, auth: auth)
     state.select(personal, auth: auth)
     for _ in 0 ..< 1000 where state.roomsLoading {
+      await Task.yield()
+    }
+    for _ in 0 ..< 1000 where state.transcriptLoading {
       await Task.yield()
     }
     #expect(state.selectionId == "org_1")
@@ -196,23 +237,33 @@ struct WorkspaceStateTests {
       (200, orgsBody),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
       (200, """
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """),
-      (200, roomsBody(names: ["launch"]))
+      (200, roomsBody(names: ["launch"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0))
     ])
     await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(auth: auth, option: org)
     #expect(SavedWorkspaceSelection(defaults: defaults).load() == "org_1")
     #expect(state.phase == .ready)
+    #expect(state.selectedRoomId != nil)
     state.reset()
     #expect(state.phase == .idle)
     #expect(state.selectionId == nil)
+    #expect(state.selectedRoomId == nil)
     #expect(state.rooms.isEmpty)
     #expect(state.currentUserName.isEmpty)
     #expect(state.switchError == nil)
     #expect(SavedWorkspaceSelection(defaults: defaults).load() == nil)
+    #expect(SavedRoomSelection(defaults: defaults).load() == nil)
   }
 
   @Test func switchRoomsListFailureRestoresPreviousPreference() async throws {
@@ -221,6 +272,8 @@ struct WorkspaceStateTests {
       (200, orgsBody),
       (200, userBody),
       (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
       (200, """
       {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
       """),
@@ -232,11 +285,15 @@ struct WorkspaceStateTests {
       """)
     ])
     await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
     let org = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(auth: auth, option: org)
     #expect(state.selectionId == "personal")
     #expect(state.rooms.map(\.name) == ["general"])
     #expect(state.phase == .ready)
+    #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
     #expect(transport.operationIDs.suffix(3) == [
       "put/users/{id}/preferred-organization",
       "get/chats/rooms",
@@ -251,6 +308,8 @@ struct WorkspaceStateTests {
       (200, orgsBody),
       (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 3)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 3)),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440031",
         content: "hello"
@@ -258,8 +317,13 @@ struct WorkspaceStateTests {
       (200, roomReadBody(id: roomID, unread: 0))
     ])
     await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
+    // Launch auto-opens the first room, preserving its unread from the DTO.
+    #expect(state.selectedRoomId == roomID)
+    #expect(state.rooms.first?.unreadCount == 3)
     let room = try #require(state.rooms.first)
-    #expect(room.unreadCount == 3)
     state.openRoom(room, auth: auth)
     for _ in 0 ..< 1000 where state.transcriptLoading {
       await Task.yield()
@@ -277,16 +341,24 @@ struct WorkspaceStateTests {
 
   @Test func failedTranscriptKeepsListUnread() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440032"
+    let historyFailure = (500, """
+    {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/messages","method":"GET"}}
+    """)
     let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")),
       (200, orgsBody),
       (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 3)),
-      (500, """
-      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/messages","method":"GET"}}
-      """)
+      historyFailure,
+      historyFailure
     ])
     await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
+    // Launch auto-open fails the same way: error shown, unread kept.
+    #expect(state.selectedRoomId == roomID)
+    #expect(state.rooms.first?.unreadCount == 3)
     let room = try #require(state.rooms.first)
     state.openRoom(room, auth: auth)
     for _ in 0 ..< 1000 where state.transcriptLoading {
@@ -296,6 +368,67 @@ struct WorkspaceStateTests {
     #expect(state.transcriptError != nil)
     #expect(state.rooms.first?.unreadCount == 3)
     #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/read"))
+  }
+
+  @Test func savedRoomRestoredOnReload() async throws {
+    let savedID = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, _, defaults) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general", "random"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: savedID, unread: 0))
+    ])
+    SavedRoomSelection(defaults: defaults).save(savedID)
+    await state.reload(auth: auth)
+    #expect(state.selectedRoomId == savedID)
+    #expect(state.transcriptRoomId == savedID)
+  }
+
+  @Test func staleSavedRoomFallsBackToFirst() async throws {
+    let firstID = "550e8400-e29b-41d4-a716-446655440000"
+    let (state, auth, _, defaults) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: firstID, unread: 0))
+    ])
+    SavedRoomSelection(defaults: defaults).save("550e8400-e29b-41d4-a716-446655440099")
+    await state.reload(auth: auth)
+    #expect(state.selectedRoomId == firstID)
+    #expect(SavedRoomSelection(defaults: defaults).load() == firstID)
+  }
+
+  @Test func selectRoomPersistsAndOpensTranscript() async throws {
+    let secondID = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, _, defaults) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, roomsBody(names: ["general", "random"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
+      (200, transcriptPageBody(messages: [transcriptMessage(
+        id: "550e8400-e29b-41d4-a716-446655440040",
+        content: "hi"
+      )], nextCursor: nil)),
+      (200, roomReadBody(id: secondID, unread: 0))
+    ])
+    await state.reload(auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
+    state.selectRoom(secondID, auth: auth)
+    for _ in 0 ..< 1000 where state.transcriptLoading {
+      await Task.yield()
+    }
+    #expect(state.selectedRoomId == secondID)
+    #expect(SavedRoomSelection(defaults: defaults).load() == secondID)
+    #expect(state.transcriptRoomId == secondID)
+    #expect(state.transcriptMessages.map(\.content) == ["hi"])
   }
 }
 
@@ -318,9 +451,9 @@ private func transcriptPageBody(messages: [String], nextCursor: String?) -> Stri
   """
 }
 
-private func roomReadBody(id: String, unread: Int) -> String {
+private func roomReadBody(id: String, unread: Int, name: String = "general") -> String {
   let room = """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
   return """
   {"data":\(room),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
