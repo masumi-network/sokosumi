@@ -29,6 +29,27 @@ function content(
 }
 
 describe("buildNotificationBannerContent", () => {
+  it.each([undefined, "", "   ", 12, null])(
+    "uses the author when the room name is unavailable (%s)",
+    (roomName) => {
+      for (const messageKey of [
+        CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        CHAT_MENTION_MESSAGE_KEY,
+      ]) {
+        for (const isGroup of [false, true]) {
+          expect(
+            content(messageKey, {
+              authorName: "Ada",
+              roomName,
+              isGroup,
+              messagePreview: "hello",
+            }),
+          ).toEqual({ title: "Ada", body: "hello" });
+        }
+      }
+    },
+  );
+
   it("titles a room message with who wrote and where", () => {
     expect(
       content(CHAT_ROOM_MESSAGE_MESSAGE_KEY, {

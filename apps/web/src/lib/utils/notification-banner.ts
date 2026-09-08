@@ -42,6 +42,15 @@ function chatTitle(
     return authorName;
   }
 
+  if (
+    (messageKey === CHAT_MENTION_MESSAGE_KEY ||
+      messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) &&
+    (typeof messageParams.roomName !== "string" ||
+      !messageParams.roomName.trim())
+  ) {
+    return authorName;
+  }
+
   if (messageKey === CHAT_MENTION_MESSAGE_KEY) {
     return translate(messageKey);
   }

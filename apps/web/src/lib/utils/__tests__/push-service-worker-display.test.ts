@@ -463,6 +463,32 @@ describe("ably-push-sw display", () => {
     expect(worker.shown[0]?.title).toBe("Sokosumi");
   });
 
+  it.each([undefined, "", "   ", 12, null])(
+    "uses the author when the room name is unavailable (%s)",
+    async (roomName) => {
+      const worker = loadServiceWorker({ isChromium: true });
+      for (const messageKey of [
+        "Notifications.Chat.roomMessage",
+        "Notifications.Chat.mentioned",
+      ]) {
+        for (const isGroup of [false, true]) {
+          await worker.dispatchPush({
+            ...MENTION_PUSH,
+            messageKey,
+            messageParams: JSON.stringify({
+              authorName: "Ada",
+              roomName,
+              isGroup,
+              messagePreview: "hello",
+            }),
+          });
+          expect(worker.shown.at(-1)?.title).toBe("Ada");
+          expect(worker.shown.at(-1)?.options.body).toBe("hello");
+        }
+      }
+    },
+  );
+
   it.each([undefined, "", 12, null])(
     "keeps chat titles without preview text (%s)",
     async (messagePreview) => {

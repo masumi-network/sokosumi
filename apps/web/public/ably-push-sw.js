@@ -360,6 +360,14 @@ function chatTitle(messages, messageKey, params) {
     return params.authorName;
   }
 
+  if (
+    (messageKey === CHAT_MENTION_MESSAGE_KEY ||
+      messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) &&
+    (typeof params.roomName !== "string" || !params.roomName.trim())
+  ) {
+    return params.authorName;
+  }
+
   if (messageKey === CHAT_MENTION_MESSAGE_KEY) {
     return render(messages, messageKey, params);
   }
