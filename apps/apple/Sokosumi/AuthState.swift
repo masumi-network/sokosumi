@@ -82,7 +82,10 @@ final class AuthState: ObservableObject {
       }
     }
     authSession.presentationContextProvider = presentationContext
-    authSession.prefersEphemeralWebBrowserSession = false
+    // Sterile cookie jar per attempt: no shared browser session can silently
+    // re-authorize a previous user, so every sign-in is a fresh login.
+    // Cost: no SSO convenience, and the system consent alert on each sign-in.
+    authSession.prefersEphemeralWebBrowserSession = true
     activeBrowserSession = authSession
     if !authSession.start() {
       activeBrowserSession = nil
