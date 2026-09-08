@@ -93,18 +93,15 @@ export default async function ProjectDetailPage({
           websiteUrl={project.websiteUrl}
         >
           <div className="mt-6 grid grid-cols-1 gap-8 px-4 md:px-0 xl:grid-cols-3">
-            {project.latestUpdate ? (
-              <div className="xl:col-span-3">
+            <div className="order-1 space-y-8 xl:order-1 xl:col-span-2">
+              {project.latestUpdate ? (
                 <ProjectLatestUpdate
                   title={t("latestUpdate")}
                   content={project.latestUpdate.content}
                   showMoreLabel={t("showMore")}
                   showLessLabel={t("showLess")}
                 />
-              </div>
-            ) : null}
-
-            <div className="order-1 xl:order-1 xl:col-span-2">
+              ) : null}
               <ProjectBriefing
                 title={t("briefing")}
                 briefing={project.briefing}

@@ -259,7 +259,11 @@ describe("ProjectDetailPage", () => {
     expect(latestHeading.compareDocumentPosition(briefingHeading)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
-    expect(screen.getByTestId("project-latest-update")).toBeInTheDocument();
+    const latestUpdate = screen.getByTestId("project-latest-update");
+    const briefing = screen.getByTestId("project-briefing");
+    expect(latestUpdate.parentElement).toBe(briefing.parentElement);
+    expect(briefing.parentElement?.className).toContain("xl:col-span-2");
+    expect(briefing.parentElement?.className).not.toContain("xl:col-span-3");
     expect(screen.getByText(/Shipped/)).toBeInTheDocument();
   });
 });
