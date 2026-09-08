@@ -105,6 +105,18 @@ describe("getNotificationHref", () => {
     ).toBe("/chat/rooms/room-1?message=msg%2F1%202");
   });
 
+  it("trims a padded messageId rather than encoding the padding", () => {
+    // Padding survives to the room otherwise, as %20 either side of the id,
+    // and the room looks for a message that cannot exist.
+    expect(
+      getNotificationHref({
+        kind: "CHAT",
+        referenceId: "room-1",
+        metadata: { messageId: "  msg-1  " },
+      }),
+    ).toBe("/chat/rooms/room-1?message=msg-1");
+  });
+
   it("deep-links pending vendor grant SYSTEM to personal review", () => {
     expect(
       getNotificationHref({

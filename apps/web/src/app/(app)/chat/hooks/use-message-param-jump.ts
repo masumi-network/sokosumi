@@ -47,6 +47,8 @@ export function useMessageParamJump({
     // behind them, so the next arrival at it counts as new. Deliberately not
     // keyed on `ready`, which drops on any reload of the room the reader is
     // still sitting in.
+    // The second half looks redundant against the first and is not: it is
+    // what narrows `messageId` to a string for the call below.
     if (!target || !messageId) {
       jumpedRef.current = null;
       return;
