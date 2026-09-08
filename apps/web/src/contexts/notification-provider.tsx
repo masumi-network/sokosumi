@@ -1,13 +1,11 @@
 "use client";
 
-import { isBrowserOnlyNotification } from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
 import {
   createContext,
   use,
   useCallback,
   useEffect,
-  useReducer,
   useRef,
   useState,
 } from "react";
@@ -21,6 +19,28 @@ import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
+import {
+  NOTIFICATION_LIST_LIMIT,
+  type NotificationAction,
+  type NotificationState,
+  notificationReducer,
+} from "./notification-state";
+
+export type NotificationDeletionEvent = {
+  operationId: number;
+  phase: "start" | "success" | "failure";
+} & ({ kind: "delete"; id: string } | { kind: "clear" });
+
+type NotificationDeletionListener = (event: NotificationDeletionEvent) => void;
+
+interface PendingDeletion {
+  event: NotificationDeletionEvent;
+  coveredByClear?: boolean;
+  isRead?: boolean;
+  initialIds?: Set<string>;
+  createdIds?: Set<string>;
+  newerState?: NotificationState;
+}
 
 function dismissNotificationToast(notificationId: string) {
   toast.dismiss(notificationId);
@@ -43,6 +63,14 @@ interface NotificationContextValue {
   unreadCount: number;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  /** Delete one notification for good, in Core and in local feed state. */
+  deleteNotification: (
+    id: string,
+    options?: { isRead: boolean },
+  ) => Promise<void>;
+  /** Delete every notification-center row for good, in Core and locally. */
+  clearNotifications: () => Promise<void>;
+  subscribeToDeletion: (listener: NotificationDeletionListener) => () => void;
   /** Drop a notification from local feed state (e.g. resolved vendor grant). */
   removeNotification: (id: string) => void;
   refetch: () => Promise<void>;
@@ -53,242 +81,6 @@ interface NotificationContextValue {
 const NotificationContext = createContext<NotificationContextValue | null>(
   null,
 );
-
-const NOTIFICATION_LIST_LIMIT = 10;
-
-/** The order the feed reads in: newest first, and by id when they tie. */
-function byNewestFirst(a: NotificationItem, b: NotificationItem): number {
-  const byTime = b.createdAt.getTime() - a.createdAt.getTime();
-
-  return byTime !== 0 ? byTime : b.id.localeCompare(a.id);
-}
-
-/**
- * Whether this row belongs to a surface other than the notification center.
- *
- * The kind alone stopped answering it once a chat room message started
- * reaching the feed, so the message key is asked as well, in the one place
- * both apps read it from.
- */
-function isFeedExcluded(notification: NotificationItem): boolean {
-  return isBrowserOnlyNotification(notification.kind, notification.messageKey);
-}
-
-function mergeNotificationList(
-  current: NotificationItem[],
-  fetched: NotificationItem[],
-): NotificationItem[] {
-  const fetchedIds = new Set(fetched.map((notification) => notification.id));
-  const pendingRealtime = current.filter(
-    (notification) => !fetchedIds.has(notification.id),
-  );
-
-  return [...pendingRealtime, ...fetched].slice(0, NOTIFICATION_LIST_LIMIT);
-}
-
-function mergeUnreadCount(
-  current: NotificationItem[],
-  fetched: NotificationItem[],
-  serverCount: number,
-): number {
-  const fetchedIds = new Set(fetched.map((notification) => notification.id));
-  const pendingUnread = current.filter(
-    (notification) => !fetchedIds.has(notification.id) && !notification.isRead,
-  ).length;
-  const fetchedUnread = fetched.filter(
-    (notification) => !notification.isRead,
-  ).length;
-  const localKnownUnread = fetchedUnread + pendingUnread;
-
-  return Math.max(serverCount, localKnownUnread);
-}
-
-interface NotificationState {
-  notifications: NotificationItem[];
-  unreadCount: number;
-}
-
-type NotificationAction =
-  | {
-      type: "fetch_success";
-      fetched: NotificationItem[];
-      serverUnreadCount: number;
-    }
-  | { type: "realtime"; notification: NotificationItem; created: boolean }
-  | {
-      type: "mark_read_success";
-      id: string;
-      updated: NotificationItem;
-    }
-  | { type: "mark_read_optimistic"; id: string }
-  | { type: "mark_all_read" }
-  | { type: "remove"; id: string };
-
-export function notificationReducer(
-  state: NotificationState,
-  action: NotificationAction,
-): NotificationState {
-  switch (action.type) {
-    case "fetch_success": {
-      // Browser-only rows never belong in local feed state; drop leaks so
-      // mergeNotificationList cannot keep them as "pending realtime".
-      const current = state.notifications.filter(
-        (notification) => !isFeedExcluded(notification),
-      );
-      const fetched = action.fetched.filter(
-        (notification) => !isFeedExcluded(notification),
-      );
-
-      return {
-        notifications: mergeNotificationList(current, fetched),
-        unreadCount: mergeUnreadCount(
-          current,
-          fetched,
-          action.serverUnreadCount,
-        ),
-      };
-    }
-    case "realtime": {
-      const convertedNotification = action.notification;
-
-      // Browser-OS only; room attention uses a separate path.
-      if (isFeedExcluded(convertedNotification)) {
-        return state;
-      }
-
-      const existing = state.notifications.find(
-        (notification) => notification.id === convertedNotification.id,
-      );
-
-      if (existing) {
-        const wasUnread = !existing.isRead;
-        const isUnread = !convertedNotification.isRead;
-        let unreadCount = state.unreadCount;
-
-        if (wasUnread && !isUnread) {
-          unreadCount = Math.max(0, unreadCount - 1);
-        } else if (!wasUnread && isUnread) {
-          unreadCount = unreadCount + 1;
-        }
-
-        // Sorted rather than replaced in place. A room's row moves to the
-        // top of the feed when a message counts onto it, and a list that kept
-        // it where it was would disagree with the order the next read
-        // returns: the same rows, in a different order, for no reason the
-        // reader can see.
-        return {
-          notifications: state.notifications
-            .map((notification) =>
-              notification.id === convertedNotification.id
-                ? convertedNotification
-                : notification,
-            )
-            .sort(byNewestFirst),
-          unreadCount,
-        };
-      }
-
-      // An unseen read update only confirms server state. Adding its old row
-      // would put it at the front and displace a newer notification.
-      if (!action.created && convertedNotification.isRead) {
-        return state;
-      }
-
-      // A row this list does not hold is either new, or one the list never
-      // reached: the reader has more unread rows than the window keeps, and a
-      // room's later messages arrive as changes to a row written earlier.
-      // Counting the second kind would put the badge one ahead of the server
-      // for the rest of the session.
-      return {
-        notifications: [convertedNotification, ...state.notifications].slice(
-          0,
-          NOTIFICATION_LIST_LIMIT,
-        ),
-        unreadCount:
-          convertedNotification.isRead || !action.created
-            ? state.unreadCount
-            : state.unreadCount + 1,
-      };
-    }
-    case "mark_read_optimistic": {
-      const existing = state.notifications.find(
-        (notification) => notification.id === action.id,
-      );
-
-      if (!existing || existing.isRead) {
-        return state;
-      }
-
-      const readAt = new Date();
-
-      return {
-        notifications: state.notifications.map((notification) =>
-          notification.id === action.id
-            ? { ...notification, isRead: true, readAt }
-            : notification,
-        ),
-        unreadCount: Math.max(0, state.unreadCount - 1),
-      };
-    }
-    case "mark_read_success": {
-      // Browser-only rows are never counted in the in-app badge. Toast click
-      // still calls markRead for room attention; ignore feed state.
-      if (isFeedExcluded(action.updated)) {
-        return state;
-      }
-
-      const existing = state.notifications.find(
-        (notification) => notification.id === action.id,
-      );
-      const shouldDecrementUnread = existing ? !existing.isRead : true;
-
-      return {
-        notifications: state.notifications.map((notification) =>
-          notification.id === action.id ? action.updated : notification,
-        ),
-        unreadCount:
-          shouldDecrementUnread && action.updated.isRead
-            ? Math.max(0, state.unreadCount - 1)
-            : state.unreadCount,
-      };
-    }
-    case "remove": {
-      const existing = state.notifications.find(
-        (notification) => notification.id === action.id,
-      );
-
-      if (!existing) {
-        return state;
-      }
-
-      return {
-        notifications: state.notifications.filter(
-          (notification) => notification.id !== action.id,
-        ),
-        unreadCount: existing.isRead
-          ? state.unreadCount
-          : Math.max(0, state.unreadCount - 1),
-      };
-    }
-    case "mark_all_read": {
-      const readAt = new Date();
-
-      return {
-        notifications: state.notifications.map((notification) =>
-          notification.isRead
-            ? notification
-            : { ...notification, isRead: true, readAt },
-        ),
-        unreadCount: 0,
-      };
-    }
-    default: {
-      const _exhaustive: never = action;
-      void _exhaustive;
-      return state;
-    }
-  }
-}
 
 export function useNotifications() {
   const context = use(NotificationContext);
@@ -309,6 +101,9 @@ const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
   unreadCount: 0,
   markRead: noopAsync,
   markAllRead: noopAsync,
+  deleteNotification: noopAsync,
+  clearNotifications: noopAsync,
+  subscribeToDeletion: () => () => {},
   removeNotification: noopRemove,
   refetch: noopAsync,
   isLoading: true,
@@ -371,15 +166,119 @@ export function NotificationProvider({
   userId,
   children,
 }: NotificationProviderProps) {
-  const [{ notifications, unreadCount }, dispatch] = useReducer(
-    notificationReducer,
-    { notifications: [], unreadCount: 0 },
-  );
+  const [state, setState] = useState<NotificationState>({
+    notifications: [],
+    unreadCount: 0,
+  });
+  const confirmedState = useRef(state);
+  const pendingDeletions = useRef(new Map<number, PendingDeletion>());
+  const deletionListeners = useRef(new Set<NotificationDeletionListener>());
+  const nextDeletionId = useRef(0);
+  const deletedIds = useRef(new Set<string>());
+  const clearGeneration = useRef(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
   const fetchGenerationRef = useRef(0);
+  const realtimeDuringFetch = useRef(new Set<string>());
+  const refreshAfterDeletion = useRef(false);
 
-  const fetchNotifications = useCallback(async () => {
+  const publishState = useCallback(() => {
+    const pendingClear = [...pendingDeletions.current.values()].find(
+      (pending) => pending.event.kind === "clear",
+    );
+    let visible = pendingClear?.newerState ?? confirmedState.current;
+    for (const pending of pendingDeletions.current.values()) {
+      const { event } = pending;
+      if (event.kind !== "delete" || pending.coveredByClear) continue;
+      if (pendingClear && !pendingClear.createdIds?.has(event.id)) continue;
+      const held = visible.notifications.some((row) => row.id === event.id);
+      visible = notificationReducer(visible, {
+        type: !held && pending.isRead === false ? "unread_deleted" : "remove",
+        id: event.id,
+      });
+    }
+    setState(visible);
+  }, []);
+
+  const dispatch = useCallback(
+    (action: NotificationAction) => {
+      for (const pending of pendingDeletions.current.values()) {
+        if (pending.event.kind !== "delete") continue;
+        const id = pending.event.id;
+        if (action.type === "mark_all_read") pending.isRead = true;
+        if (action.type === "mark_read_success" && action.id === id)
+          pending.isRead = action.updated.isRead;
+        if (
+          action.type === "mark_read_optimistic" &&
+          action.id === id &&
+          confirmedState.current.notifications.some((row) => row.id === id)
+        )
+          pending.isRead = true;
+        if (
+          action.type === "realtime" &&
+          action.notification.id === id &&
+          confirmedState.current.notifications.some((row) => row.id === id)
+        )
+          pending.isRead = action.notification.isRead;
+      }
+      confirmedState.current = notificationReducer(
+        confirmedState.current,
+        action,
+      );
+      for (const pending of pendingDeletions.current.values()) {
+        if (!pending.newerState || !pending.createdIds) continue;
+        if (action.type === "realtime") {
+          if (
+            action.created &&
+            !pending.initialIds?.has(action.notification.id)
+          )
+            pending.createdIds.add(action.notification.id);
+          if (!pending.createdIds.has(action.notification.id)) continue;
+        }
+        if (
+          (action.type === "mark_read_success" ||
+            action.type === "unread_deleted") &&
+          !pending.createdIds.has(action.id)
+        )
+          continue;
+        if (action.type === "fetch_success" || action.type === "clear_all")
+          continue;
+        pending.newerState = notificationReducer(pending.newerState, action);
+      }
+      publishState();
+    },
+    [publishState],
+  );
+
+  const subscribeToDeletion = useCallback(
+    (listener: NotificationDeletionListener) => {
+      deletionListeners.current.add(listener);
+      for (const pending of pendingDeletions.current.values())
+        listener(pending.event);
+      return () => {
+        deletionListeners.current.delete(listener);
+      };
+    },
+    [],
+  );
+
+  const emitDeletion = useCallback(
+    (event: NotificationDeletionEvent) => {
+      ++fetchGenerationRef.current;
+      setIsLoading(false);
+      publishState();
+      for (const listener of deletionListeners.current) listener(event);
+    },
+    [publishState],
+  );
+
+  const fetchNotifications = useCallback(async (): Promise<void> => {
+    if (pendingDeletions.current.size) {
+      refreshAfterDeletion.current = true;
+      return;
+    }
+    const realtimeIds = new Set<string>();
+    realtimeDuringFetch.current = realtimeIds;
     const generation = ++fetchGenerationRef.current;
     setIsLoading(true);
 
@@ -395,12 +294,22 @@ export function NotificationProvider({
         return;
       }
 
+      const readStateChanged = confirmedState.current.notifications.some(
+        (notification) =>
+          realtimeIds.has(notification.id) &&
+          listResponse.data.some(
+            (row) =>
+              row.id === notification.id && row.isRead !== notification.isRead,
+          ),
+      );
       dispatch({
         type: "fetch_success",
         fetched: listResponse.data,
         serverUnreadCount: countResponse.data.count,
+        realtimeIds,
       });
       setHasFetchError(false);
+      if (readStateChanged) void fetchNotifications();
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
       if (generation === fetchGenerationRef.current) {
@@ -411,7 +320,7 @@ export function NotificationProvider({
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [dispatch]);
 
   const markAllRead = useCallback(async () => {
     // Paint read state immediately so mark-all-read clicks stay within good INP.
@@ -425,10 +334,11 @@ export function NotificationProvider({
       void fetchNotifications();
       throw error;
     }
-  }, [fetchNotifications]);
+  }, [dispatch, fetchNotifications]);
 
   const markRead = useCallback(
     async (id: string) => {
+      const generation = clearGeneration.current;
       // Optimistic update paints before the network round-trip, which keeps
       // notification clicks from blocking Interaction to Next Paint.
       dispatch({ type: "mark_read_optimistic", id });
@@ -439,6 +349,13 @@ export function NotificationProvider({
           { id },
         );
 
+        if (deletedIds.current.has(id)) return;
+        if (generation !== clearGeneration.current) {
+          // The row may have survived clear. Reconcile its read state without
+          // charging a deleted row's response against the new unread count.
+          await fetchNotifications();
+          return;
+        }
         dispatch({
           type: "mark_read_success",
           id,
@@ -450,22 +367,139 @@ export function NotificationProvider({
         throw error;
       }
     },
-    [fetchNotifications],
+    [dispatch, fetchNotifications],
   );
 
-  const removeNotification = useCallback((id: string) => {
-    dispatch({ type: "remove", id });
-    dismissNotificationToast(id);
-  }, []);
+  const deleteNotification = useCallback(
+    async (id: string, options?: { isRead: boolean }) => {
+      if (
+        [...pendingDeletions.current.values()].some(
+          ({ event }) => event.kind === "delete" && event.id === id,
+        )
+      )
+        return;
+      const event: NotificationDeletionEvent = {
+        operationId: ++nextDeletionId.current,
+        phase: "start",
+        kind: "delete",
+        id,
+      };
+      const pending: PendingDeletion = {
+        event,
+        isRead:
+          confirmedState.current.notifications.find((row) => row.id === id)
+            ?.isRead ?? options?.isRead,
+      };
+      pendingDeletions.current.set(event.operationId, pending);
+      emitDeletion(event);
+      dismissNotificationToast(id);
+
+      try {
+        const response = await notificationsBrowserClient.deleteNotification({
+          id,
+        });
+        deletedIds.current.add(id);
+        pendingDeletions.current.delete(event.operationId);
+        if (!pending.coveredByClear) {
+          const held = confirmedState.current.notifications.some(
+            (notification) => notification.id === id,
+          );
+          dispatch({ type: "remove", id });
+          if (!held && !(pending.isRead ?? response.data.isRead))
+            dispatch({ type: "unread_deleted", id });
+        }
+        emitDeletion({ ...event, phase: "success" });
+      } catch (error) {
+        pendingDeletions.current.delete(event.operationId);
+        emitDeletion({ ...event, phase: "failure" });
+        console.error("Failed to delete notification:", error);
+        refreshAfterDeletion.current = true;
+        throw error;
+      } finally {
+        if (!pendingDeletions.current.size && refreshAfterDeletion.current) {
+          refreshAfterDeletion.current = false;
+          void fetchNotifications();
+        }
+      }
+    },
+    [dispatch, emitDeletion, fetchNotifications],
+  );
+
+  const clearNotifications = useCallback(async () => {
+    if (
+      [...pendingDeletions.current.values()].some(
+        ({ event }) => event.kind === "clear",
+      )
+    )
+      return;
+    const event: NotificationDeletionEvent = {
+      operationId: ++nextDeletionId.current,
+      phase: "start",
+      kind: "clear",
+    };
+    const pendingClear: PendingDeletion = {
+      event,
+      initialIds: new Set(
+        confirmedState.current.notifications.map(
+          (notification) => notification.id,
+        ),
+      ),
+      createdIds: new Set(),
+      newerState: { notifications: [], unreadCount: 0 },
+    };
+    pendingDeletions.current.set(event.operationId, pendingClear);
+    emitDeletion(event);
+    dismissAllNotificationToasts();
+
+    try {
+      await notificationsBrowserClient.deleteNotifications();
+      ++clearGeneration.current;
+      for (const id of pendingClear.initialIds ?? [])
+        deletedIds.current.add(id);
+      for (const pending of pendingDeletions.current.values()) {
+        if (
+          pending.event.kind === "delete" &&
+          !pendingClear.createdIds?.has(pending.event.id)
+        )
+          pending.coveredByClear = true;
+      }
+      confirmedState.current = pendingClear.newerState ?? {
+        notifications: [],
+        unreadCount: 0,
+      };
+      pendingDeletions.current.delete(event.operationId);
+      emitDeletion({ ...event, phase: "success" });
+    } catch (error) {
+      pendingDeletions.current.delete(event.operationId);
+      emitDeletion({ ...event, phase: "failure" });
+      console.error("Failed to clear notifications:", error);
+      throw error;
+    } finally {
+      refreshAfterDeletion.current = true;
+      if (!pendingDeletions.current.size) {
+        refreshAfterDeletion.current = false;
+        void fetchNotifications();
+      }
+    }
+  }, [dispatch, emitDeletion, fetchNotifications]);
+
+  const removeNotification = useCallback(
+    (id: string) => {
+      dispatch({ type: "remove", id });
+      dismissNotificationToast(id);
+    },
+    [dispatch],
+  );
 
   const handleNotificationEvent = useCallback(
     (notification: NotificationEventData) => {
       // Silenced in the app by the reader's preference matrix. It still arrives,
       // because an OS banner rides the same event.
-      if (!notification.inApp) {
+      if (!notification.inApp || deletedIds.current.has(notification.id)) {
         return;
       }
 
+      realtimeDuringFetch.current.add(notification.id);
       dispatch({
         type: "realtime",
         created: notification.created,
@@ -477,7 +511,7 @@ export function NotificationProvider({
         },
       });
     },
-    [],
+    [dispatch],
   );
 
   const handleRealtimeSubscribed = useCallback(() => {
@@ -489,10 +523,13 @@ export function NotificationProvider({
   }, [fetchNotifications]);
 
   const value: NotificationContextValue = {
-    notifications,
-    unreadCount,
+    notifications: state.notifications,
+    unreadCount: state.unreadCount,
     markRead,
     markAllRead,
+    deleteNotification,
+    clearNotifications,
+    subscribeToDeletion,
     removeNotification,
     refetch: fetchNotifications,
     isLoading,
