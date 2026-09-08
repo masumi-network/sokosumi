@@ -13,6 +13,6 @@
 
 **Known limitation:** leftover thread unread is not on the room DTO until POST returns, so in-flight back can paint fully-read then leftover. Zeroing unreadCount immediately is required so the common fully-clear remount does not flash stale unread. Do not keep the pre-read total until POST — that is the jump this ADR removes.
 
-**Rejected:** advance last-read on route enter before history exists; on leave; after scroll-to-latest; Look every Thread on room open; Instant Nav list-skeleton rewrite; transcript unread divider; numeric unread on the row.
+**Rejected:** advance last-read on route enter before history exists; on leave; after scroll-to-latest; Look every Thread on room open; Instant Nav list-skeleton rewrite; transcript unread divider; numeric unread on the row (narrowed to a reader opt-in by [ADR-0027](./0027-room-unread-count-is-a-reader-opt-in.md); the rejection of a number shown to everyone by default stands).
 
 **Out of scope:** making `/chat` skip Instant Nav skeleton.

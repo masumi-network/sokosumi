@@ -32,6 +32,7 @@ import {
   beginRoomAttentionChange,
   settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
+import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,6 +74,51 @@ interface ChatRoomSidebarRowProps {
   onRoomUpdated: (room: ChatRoom) => void;
   /** When false, render plain Link (page-mounted list outside Sheet). */
   dismissSheetOnNavigate?: boolean;
+}
+
+/**
+ * The cap the row's numeric chrome shares. `MentionBadge` hardcodes the same
+ * value; this ticket leaves the badge untouched, so the two are stated apart.
+ */
+const ROOM_UNREAD_COUNT_CAP = 99;
+
+/**
+ * The reader's opt-in Room unread count.
+ *
+ * Text rather than a pill, because it is not the mention badge and a reader has
+ * to tell the two apart at a glance. It caps like the badge so a very loud room
+ * cannot reflow the row, and it hides with the badge when the sidebar collapses
+ * to icons.
+ *
+ * It carries the name's unread weight and colour, because it is part of the
+ * same statement: this room has something for you. `resolveRoomAttention` only
+ * ever reports a count above zero together with `bold`, so there is no unbolded
+ * state to render and no prop to thread. `room-attention.test.ts` pins that.
+ */
+function RoomUnreadCount({ count }: { count: number }) {
+  const t = useTranslations("App.Channels.RoomUnread");
+
+  if (count <= 0) {
+    return null;
+  }
+
+  const capped = count > ROOM_UNREAD_COUNT_CAP;
+
+  // A bare `span` is role `generic`, which prohibits an accessible name, so an
+  // `aria-label` here can be dropped and the row announces a bare number beside
+  // the badge's bare number. Real text carries it instead.
+  return (
+    <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 leading-4 font-semibold tabular-nums">
+      <span aria-hidden="true">
+        {capped ? `${ROOM_UNREAD_COUNT_CAP}+` : count}
+      </span>
+      <span className="sr-only">
+        {capped
+          ? t("unreadMessagesCapped", { max: ROOM_UNREAD_COUNT_CAP })
+          : t("unreadMessages", { count })}
+      </span>
+    </span>
+  );
 }
 
 function MentionBadge({ count }: { count: number }) {
@@ -117,12 +163,14 @@ export function ChatRoomSidebarRow({
       room.discoverability === "matched" ||
       room.userMembers.filter((member) => member.access === "member").length >
         1);
-  const { bold, badgeCount } = resolveRoomAttention({
+  const showUnreadCount = useShowRoomUnreadCount();
+  const { bold, badgeCount, unreadTextCount } = resolveRoomAttention({
     unreadCount: room.unreadCount,
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
     isMuted,
     isActive,
+    showUnreadCount,
   });
 
   function runRoomAction(
@@ -205,14 +253,20 @@ export function ChatRoomSidebarRow({
         {leading}
       </span>
       <span className="min-w-0 flex-1">
-        <span
-          className={cn(
-            "block truncate",
-            bold && "font-semibold text-foreground",
-            isMuted && !isActive && "text-muted-foreground",
-          )}
-        >
-          {label}
+        {/* The count rides the end of the name, not the row's right rail, so it
+            reads as belonging to this room rather than to the row's controls.
+            The name keeps `min-w-0` so it truncates first and the count stays. */}
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span
+            className={cn(
+              "min-w-0 truncate",
+              bold && "font-semibold text-foreground",
+              isMuted && !isActive && "text-muted-foreground",
+            )}
+          >
+            {label}
+          </span>
+          <RoomUnreadCount count={unreadTextCount} />
         </span>
         {subtitle ? (
           <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-xs leading-tight">

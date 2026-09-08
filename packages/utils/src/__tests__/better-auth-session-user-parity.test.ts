@@ -27,6 +27,7 @@ function buildSessionUserWithSchemaFields(
     termsAccepted: true,
     marketingOptIn: true,
     notificationsOptIn: true,
+    showRoomUnreadCount: false,
     logo: null,
     metadata: null,
     stripeCustomerId: null,
