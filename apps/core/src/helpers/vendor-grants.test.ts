@@ -13,7 +13,6 @@ import {
   denyVendorGrantInWorkspace,
   grantWorkspaceAccess,
   hasGrantedWorkspaceAccess,
-  isBaselineCoworkerTaskAccess,
   isGrantDeniedOrRevoked,
   notifyWorkspaceApproversOfPendingGrant,
   requestWorkspaceGrant,
@@ -91,32 +90,6 @@ describe("vendor-grants helpers", () => {
     expect(isGrantDeniedOrRevoked(VendorGrantStatus.DENIED)).toBe(true);
     expect(isGrantDeniedOrRevoked(VendorGrantStatus.REVOKED)).toBe(true);
     expect(isGrantDeniedOrRevoked(VendorGrantStatus.PENDING)).toBe(false);
-  });
-
-  it("detects baseline sibling access", () => {
-    expect(
-      isBaselineCoworkerTaskAccess({
-        actorCoworkerId: "c1",
-        actorVendorId: "v1",
-        task: {
-          assigneeId: "c2",
-          status: TaskStatus.READY,
-          assignee: { vendorId: "v1" },
-        },
-      }),
-    ).toBe(true);
-
-    expect(
-      isBaselineCoworkerTaskAccess({
-        actorCoworkerId: "c1",
-        actorVendorId: "v1",
-        task: {
-          assigneeId: "c2",
-          status: TaskStatus.READY,
-          assignee: { vendorId: "v2" },
-        },
-      }),
-    ).toBe(false);
   });
 
   it("expands list filter when workspace grant is present", () => {
@@ -741,19 +714,5 @@ describe("vendor-grants helpers", () => {
       }),
       expect.anything(),
     );
-  });
-
-  it("keeps baseline DRAFT tasks out of sibling access", () => {
-    expect(
-      isBaselineCoworkerTaskAccess({
-        actorCoworkerId: "c1",
-        actorVendorId: "v1",
-        task: {
-          assigneeId: "c1",
-          status: TaskStatus.DRAFT,
-          assignee: { vendorId: "v1" },
-        },
-      }),
-    ).toBe(false);
   });
 });

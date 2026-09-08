@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { ablyAuthSessionIgnoreErrors } from "@/lib/sentry/ably-auth-session-errors";
 import { ablyChannelLifecycleIgnoreErrors } from "@/lib/sentry/ably-channel-lifecycle-errors";
 import { expectedClientNoiseIgnoreErrors } from "@/lib/sentry/expected-request-errors";
 import {
@@ -36,6 +37,7 @@ Sentry.init({
     ...transientStreamIgnoreErrors,
     ...bareNetworkErrorIgnoreErrors,
     ...ablyChannelLifecycleIgnoreErrors,
+    ...ablyAuthSessionIgnoreErrors,
     ...expectedClientNoiseIgnoreErrors,
   ],
   beforeSend: beforeSendClientEvent,
