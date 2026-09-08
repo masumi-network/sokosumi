@@ -212,11 +212,14 @@ struct MessageRow: View {
       } else {
         avatarView
       }
-      VStack(alignment: .leading, spacing: 2) {
+      // Header-to-body rhythm mirrors web: space-y-1.5 (6pt) under the
+      // header, and gap-x-2.5 (10pt) between name and time.
+      VStack(alignment: .leading, spacing: 6) {
         if !isContinuation {
-          HStack(alignment: .firstTextBaseline, spacing: 8) {
+          HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(messageSenderName(message.sender))
               .fontWeight(.semibold)
+              .foregroundStyle(.primary)
               .lineLimit(1)
             Text(messageTimeFormatter.string(from: message.createdAt))
               .font(.caption)
@@ -234,10 +237,12 @@ struct MessageRow: View {
             .foregroundStyle(.secondary)
         } else if isContinuation, message.editedAt != nil {
           // foregroundColor (not Style): only Color keeps this Text for `+`.
-          (Text(message.content) + Text(" Edited").font(.caption).foregroundColor(.secondary))
+          // Body runs slightly dimmer than the name, like web's name/body read.
+          (Text(message.content).foregroundColor(.primary.opacity(0.85)) + Text(" Edited").font(.caption).foregroundColor(.secondary))
             .textSelection(.enabled)
         } else {
           Text(message.content)
+            .foregroundStyle(.primary.opacity(0.85))
             .textSelection(.enabled)
         }
       }
