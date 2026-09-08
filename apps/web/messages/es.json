@@ -2092,8 +2092,8 @@
           "created": "Creado"
         },
         "briefing": "Briefing",
+        "latestUpdate": "Última actualización",
         "emptyBriefing": "Aún no hay briefing.",
-        "editBriefing": "Editar",
         "writeBriefing": "Escribir briefing",
         "showMore": "Mostrar más",
         "showLess": "Mostrar menos",
@@ -2111,7 +2111,9 @@
           "removeDialog": {
             "title": "¿Quitar el contexto de marca?",
             "description": "Esto elimina el archivo DESIGN.md del proyecto."
-          }
+          },
+          "upload": "Subir",
+          "moreActions": "Acciones de marca"
         },
         "backToProject": "Volver al proyecto",
         "memory": {
@@ -2133,6 +2135,7 @@
           "empty": "Aún no hay jobs vinculados a este proyecto.",
           "add": "Añadir job",
           "remove": "Quitar job",
+          "viewAll": "Ver todos los jobs",
           "pickerTitle": "Añadir job",
           "pickerDescription": "Elige un job sin asignar para vincularlo a este proyecto.",
           "pickerSearchPlaceholder": "Buscar jobs...",
@@ -2145,13 +2148,17 @@
           "title": "Tareas",
           "empty": "Aún no hay tareas vinculadas a este proyecto.",
           "add": "Añadir tarea",
-          "remove": "Quitar tarea",
           "pickerTitle": "Añadir tarea",
           "pickerDescription": "Elige una tarea sin asignar para vincularla a este proyecto.",
           "pickerSearchPlaceholder": "Buscar tareas...",
           "pickerEmpty": "No se encontraron tareas sin asignar.",
           "pickerLoading": "Cargando tareas...",
-          "pickerError": "No se pudieron cargar las tareas."
+          "pickerError": "No se pudieron cargar las tareas.",
+          "viewAll": "Ver todo"
+        },
+        "needsAttention": {
+          "title": "Requiere atención",
+          "empty": "Nada requiere tu atención ahora mismo."
         },
         "modules": {
           "title": "Espacio de trabajo",
@@ -2195,8 +2202,7 @@
           "edit": "Editar",
           "delete": "Eliminar",
           "remove": "Quitar",
-          "confirmRemoveJob": "¿Quitar este job del proyecto?",
-          "confirmRemoveTask": "¿Quitar esta tarea del proyecto?"
+          "confirmRemoveJob": "¿Quitar este job del proyecto?"
         },
         "deleteDialog": {
           "title": "Eliminar proyecto",
@@ -2211,7 +2217,6 @@
           "addJob": "No se pudo añadir el job",
           "removeJob": "No se pudo quitar el job",
           "addTask": "No se pudo añadir la tarea",
-          "removeTask": "No se pudo quitar la tarea",
           "loadMore": "No se pudieron cargar más proyectos",
           "contextMd": "No se pudo cargar la memoria del proyecto",
           "brand": "No se pudo actualizar el contexto de marca del proyecto"

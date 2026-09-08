@@ -113,6 +113,8 @@ const sampleProject = {
   contextMdModel: null,
   contextMdUpdatingSince: null,
   contextMdVersion: 0,
+  latestUpdateMd: null,
+  latestUpdateMdUpdatedAt: null,
   projectRevision: 0,
   calendarRevision: 0,
   closingAt: null,
@@ -191,6 +193,8 @@ describe("GET /projects/{id}/context-md", () => {
       contextMdUpdatedAt: new Date("2026-04-03T09:00:00.000Z"),
       contextMdModel: "mistral/mistral-medium-latest",
       contextMdVersion: 2,
+      latestUpdateMd: null,
+      latestUpdateMdUpdatedAt: null,
     });
     const app = createApp();
     mountGetProjectContextMd(app);

@@ -87,6 +87,8 @@ function buildProject(
     contextMdModel: null,
     contextMdUpdatingSince: null,
     contextMdVersion: 0,
+    latestUpdateMd: null,
+    latestUpdateMdUpdatedAt: null,
     createdAt: new Date("2026-08-16T12:00:00.000Z"),
     updatedAt: new Date("2026-08-16T12:00:00.000Z"),
   };

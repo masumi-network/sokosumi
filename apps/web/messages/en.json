@@ -2092,8 +2092,8 @@
           "created": "Created"
         },
         "briefing": "Briefing",
+        "latestUpdate": "Latest update",
         "emptyBriefing": "No briefing yet.",
-        "editBriefing": "Edit",
         "writeBriefing": "Write briefing",
         "showMore": "Show more",
         "showLess": "Show less",
@@ -2111,7 +2111,9 @@
           "removeDialog": {
             "title": "Remove brand context?",
             "description": "This removes the project's DESIGN.md file."
-          }
+          },
+          "upload": "Upload",
+          "moreActions": "Brand actions"
         },
         "backToProject": "Back to project",
         "memory": {
@@ -2133,6 +2135,7 @@
           "empty": "No jobs linked to this project yet.",
           "add": "Add job",
           "remove": "Remove job",
+          "viewAll": "View all jobs",
           "pickerTitle": "Add job",
           "pickerDescription": "Choose an unassigned job to link to this project.",
           "pickerSearchPlaceholder": "Search jobs...",
@@ -2145,13 +2148,17 @@
           "title": "Tasks",
           "empty": "No tasks linked to this project yet.",
           "add": "Add task",
-          "remove": "Remove task",
           "pickerTitle": "Add task",
           "pickerDescription": "Choose an unassigned task to link to this project.",
           "pickerSearchPlaceholder": "Search tasks...",
           "pickerEmpty": "No unassigned tasks found.",
           "pickerLoading": "Loading tasks...",
-          "pickerError": "Failed to load tasks."
+          "pickerError": "Failed to load tasks.",
+          "viewAll": "View all"
+        },
+        "needsAttention": {
+          "title": "Needs attention",
+          "empty": "Nothing needs your attention right now."
         },
         "modules": {
           "title": "Workspace",
@@ -2195,8 +2202,7 @@
           "edit": "Edit",
           "delete": "Delete",
           "remove": "Remove",
-          "confirmRemoveJob": "Remove this job from the project?",
-          "confirmRemoveTask": "Remove this task from the project?"
+          "confirmRemoveJob": "Remove this job from the project?"
         },
         "deleteDialog": {
           "title": "Delete project",
@@ -2211,7 +2217,6 @@
           "addJob": "Failed to add job",
           "removeJob": "Failed to remove job",
           "addTask": "Failed to add task",
-          "removeTask": "Failed to remove task",
           "loadMore": "Failed to load more projects",
           "contextMd": "Couldn't load project memory",
           "brand": "Couldn't update project brand context"
