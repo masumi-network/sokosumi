@@ -33,6 +33,8 @@ xcodebuild -project Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug \
   -destination 'platform=macOS,arch=arm64' \
   -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build
 swift test --package-path Packages/SokosumiChat   # per-package tests
+swift test --package-path Packages/SokosumiAuth
+swift test --package-path Packages/CoreAPI
 ```
 
 No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides with `DEVELOPMENT_TEAM=` / `CODE_SIGN_IDENTITY=-` (ad-hoc). Keep those flags when adding CI steps.
