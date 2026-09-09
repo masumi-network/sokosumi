@@ -710,10 +710,9 @@ final class WorkspaceState: ObservableObject {
 
   func switchRooms(auth: AuthState, option: WorkspaceOption) async {
     roomsLoading = true
-    // Bump the generation without wiping the pane: a failed switch keeps
-    // showing the retained room's transcript instead of loading forever.
-    // Success replaces it via ensureRoomSelection -> openRoom.
-    transcriptGeneration += 1
+    // Do not bump transcriptGeneration here. A failed switch keeps the
+    // current room; in-flight envelope refetch must still clear
+    // `transcriptRefreshing`. Success invalidates via openRoom.
     defer { roomsLoading = false }
     guard let client = resolveClient(auth: auth) else {
       switchError = "Sign-in is not configured."

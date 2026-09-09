@@ -296,6 +296,27 @@ struct ChatRealtimeTests {
     #expect(merged[1].content == "absent-from-page")
   }
 
+  @Test func refetchPageLastWinsDuplicateExistingIds() async throws {
+    let dupId = "550e8400-e29b-41d4-a716-446655440616"
+    let otherId = "550e8400-e29b-41d4-a716-446655440617"
+    let first = try await history([
+      testMessageJSON(id: dupId, content: "first", sender: testUserSender(name: ada, email: adaEmail))
+    ])
+    let second = try await history([
+      testMessageJSON(id: dupId, content: "second", sender: testUserSender(name: ada, email: adaEmail))
+    ])
+    let other = try await history([
+      testMessageJSON(id: otherId, content: "other", sender: testUserSender(name: ada, email: adaEmail))
+    ])
+    let page = try await history([
+      testMessageJSON(id: dupId, content: "from-page", sender: testUserSender(name: ada, email: adaEmail))
+    ])
+    let merged = mergeRealtimePage(messages: first + second + other, page: page)
+    #expect(merged.map(\.id) == [dupId, otherId])
+    #expect(merged[0].content == "from-page")
+    #expect(merged[1].content == "other")
+  }
+
   @Test func envelopeIgnoresOtherRooms() {
     let envelope = ChatRoomMessageIdEnvelope(eventType: .create, messageId: "m1", roomId: "room-other")
     #expect(resolveRealtimeEnvelope(envelope, focusedRoomId: testRoomId) == .ignore)

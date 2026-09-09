@@ -436,6 +436,56 @@ struct WorkspaceRealtimeTests {
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
   }
 
+  @Test func failedSwitchDuringEnvelopeRefreshStillRefetches() async throws {
+    let oldId = "550e8400-e29b-41d4-a716-446655440744"
+    let newId = "550e8400-e29b-41d4-a716-446655440745"
+    let laterId = "550e8400-e29b-41d4-a716-446655440746"
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()),
+      (200, realtimeOrgsBody),
+      (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimePageBody(messages: [
+        realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
+        realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize")
+      ])),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      """),
+      (200, realtimePageBody(messages: [
+        realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
+        realtimeMessageJSON(id: newId, roomId: roomA, content: "oversize"),
+        realtimeMessageJSON(id: laterId, roomId: roomA, content: "later", createdAt: "2026-01-01T00:00:02.000Z")
+      ]))
+    ])
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    transport.pauseNextMessagesGET = true
+    state.applyRealtimeEnvelope(
+      .init(eventType: .create, messageId: newId, roomId: roomA),
+      auth: auth
+    )
+    for _ in 0 ..< 1000 where !state.transcriptRefreshing {
+      await Task.yield()
+    }
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    await state.switchRooms(auth: auth, option: org)
+    #expect(state.selectionId == "personal")
+    #expect(state.switchError != nil)
+    transport.releaseMessagesGET()
+    await waitForRealtimeIdle(state)
+    #expect(!state.transcriptRefreshing)
+    state.applyRealtimeEnvelope(
+      .init(eventType: .create, messageId: laterId, roomId: roomA),
+      auth: auth
+    )
+    await waitForRealtimeIdle(state)
+    #expect(state.transcriptMessages.map(\.content) == ["old", "oversize", "later"])
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
+  }
+
   @Test func envelopeDeleteTombstonesOnScreenRow() async throws {
     let targetId = "550e8400-e29b-41d4-a716-446655440719"
     let (state, auth, _) = try realtimeState([

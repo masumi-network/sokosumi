@@ -103,7 +103,11 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
         callback(nil, error as NSError)
       }
     }
-    realtime.auth.authorize(nil, options: options) { _, _ in }
+    realtime.auth.authorize(nil, options: options) { _, error in
+      if let error {
+        NSLog("Sokosumi Ably reauthorize failed: %@", String(describing: error))
+      }
+    }
   }
 
   public func disconnect() {

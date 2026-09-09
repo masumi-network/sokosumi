@@ -163,7 +163,7 @@ public func mergeRealtimePage(
   messages: [Components.Schemas.ChatRoomMessage],
   page: [Components.Schemas.ChatRoomMessage]
 ) -> [Components.Schemas.ChatRoomMessage] {
-  var byId = Dictionary(uniqueKeysWithValues: messages.map { ($0.id, $0) })
+  var byId = Dictionary(messages.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
   for row in page where !isOutboundLocalMessage(row) {
     byId[row.id] = row
   }
