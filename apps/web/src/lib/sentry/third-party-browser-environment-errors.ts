@@ -28,8 +28,24 @@ export const browserHistoryRateLimitIgnoreErrors: RegExp[] = [
   /Attempt to use history\.replaceState\(\) more than 100 times per 10 seconds/i,
 ];
 
+/**
+ * Brave iOS (WebKit) reader probes evaluate Firefox's `window.__firefox__.reader`
+ * bridge. The object is absent, so the probe throws into the page global
+ * handler (SOKOSUMI-S0, SOKOSUMI-RX, SOKOSUMI-RY, SOKOSUMI-RZ).
+ */
+export const firefoxReaderBridgeIgnoreErrors: RegExp[] = [
+  /window\.__firefox__/,
+  /Can't find variable: __firefox__/,
+];
+
 export function isInAppBrowserEnvironmentError(message: string): boolean {
   return inAppBrowserIgnoreErrors.some((pattern) => pattern.test(message));
+}
+
+export function isFirefoxReaderBridgeError(message: string): boolean {
+  return firefoxReaderBridgeIgnoreErrors.some((pattern) =>
+    pattern.test(message),
+  );
 }
 
 export function isTransientStreamClosureError(message: string): boolean {

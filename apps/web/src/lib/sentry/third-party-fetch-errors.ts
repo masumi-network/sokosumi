@@ -7,6 +7,7 @@ import { getSentryErrorEventMessage } from "@/lib/sentry/error-event-message";
 import { isExpectedClientNoiseErrorMessage } from "@/lib/sentry/expected-request-errors";
 import {
   isBrowserHistoryRateLimitError,
+  isFirefoxReaderBridgeError,
   isInAppBrowserEnvironmentError,
   isTransientStreamClosureError,
 } from "@/lib/sentry/third-party-browser-environment-errors";
@@ -158,6 +159,7 @@ export function beforeSendClientEvent(
     isAblyAuthSessionErrorMessage(message) ||
     isThirdPartyDomMutationError(message) ||
     isInAppBrowserEnvironmentError(message) ||
+    isFirefoxReaderBridgeError(message) ||
     isBrowserHistoryRateLimitError(message) ||
     isTransientStreamClosureError(message) ||
     isExpectedChatStreamSurfaceError(event) ||
