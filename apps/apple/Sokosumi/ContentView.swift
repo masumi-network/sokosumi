@@ -420,10 +420,10 @@ private struct DirectRoomAvatarStack: View {
   }
 }
 
-private struct CircleAvatar: View {
+struct CircleAvatar: View {
   let imageURL: String?
   let name: String
-  var size: CGFloat = DirectRoomAvatarStack.faceSize
+  var size: CGFloat = 20
 
   @Environment(\.displayScale) private var displayScale
   @State private var cgImage: CGImage?

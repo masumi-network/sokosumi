@@ -72,19 +72,48 @@ final class WorkspaceState: ObservableObject {
     workspaceSession.currentUser?.image
   }
 
+  let timeline = RoomTimeline()
+  private(set) var transcriptLoadTask: Task<Void, Never>?
+  private(set) var olderPageTask: Task<Void, Never>?
+  private(set) var transcriptRefreshTask: Task<Void, Never>?
+  private var timelineObservation: AnyCancellable?
+
   /// Room the transcript pane shows. Nil clears the pane.
-  @Published private(set) var transcriptRoomId: String?
-  @Published private(set) var transcriptMessages: [Components.Schemas.ChatRoomMessage] = []
-  @Published private(set) var transcriptHasMore = false
-  @Published private(set) var transcriptLoading = false
-  @Published private(set) var transcriptLoadingOlder = false
+  var transcriptRoomId: String? {
+    timeline.roomId
+  }
+
+  var transcriptMessages: [Components.Schemas.ChatRoomMessage] {
+    get { timeline.messages }
+    set { timeline.messages = newValue }
+  }
+
+  var transcriptHasMore: Bool {
+    timeline.hasMore
+  }
+
+  var transcriptLoading: Bool {
+    timeline.isLoading
+  }
+
+  var transcriptLoadingOlder: Bool {
+    timeline.isLoadingOlder
+  }
+
   /// Latest-page refetch in flight (ADR 0014 envelope). Not the older-page
   /// spinner: live refetch must not flash `transcriptLoadingOlder`.
-  private(set) var transcriptRefreshing = false
+  var transcriptRefreshing: Bool {
+    timeline.isRefreshing
+  }
+
   /// Failure text. Shown full-pane when there is no history, as a banner
   /// above loaded history otherwise — a failed older page never wipes
   /// what already resolved.
-  @Published private(set) var transcriptError: String?
+  var transcriptError: String? {
+    get { timeline.errorMessage }
+    set { timeline.errorMessage = newValue }
+  }
+
   /// Unconfirmed classic sends for the open room. Remount / room change
   /// drops them (no durable outbox).
   @Published private(set) var outboundShells: [OutboundShell] = []
@@ -108,9 +137,15 @@ final class WorkspaceState: ObservableObject {
     SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells)
   }
 
-  private var transcriptCursor: String?
+  var transcriptCursor: String? {
+    timeline.cursor
+  }
+
   /// Bumps on every open/clear so a slow room cannot paint over a newer one.
-  private var transcriptGeneration = 0
+  private var transcriptGeneration: Int {
+    timeline.generation
+  }
+
   /// Envelope arrived while history, older-page, or a refetch was in flight.
   private var pendingTranscriptRefresh = false
   private var outboundFlight = ClassicOutboundFlight()
@@ -130,6 +165,9 @@ final class WorkspaceState: ObservableObject {
   ) {
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
+    timelineObservation = timeline.objectWillChange.sink { [weak self] in
+      self?.objectWillChange.send()
+    }
     sidebarObservation = sidebar.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
@@ -207,15 +245,11 @@ final class WorkspaceState: ObservableObject {
 
   /// Forget the transcript without touching rooms or selection.
   func clearTranscript() {
-    transcriptGeneration += 1
+    timeline.reset()
+    transcriptLoadTask = nil
+    olderPageTask = nil
+    transcriptRefreshTask = nil
     realtime?.watchRoom(nil)
-    transcriptRoomId = nil
-    transcriptMessages = []
-    transcriptCursor = nil
-    transcriptHasMore = false
-    transcriptLoading = false
-    transcriptLoadingOlder = false
-    transcriptRefreshing = false
     pendingTranscriptRefresh = false
     transcriptError = nil
     clearOutbound()
@@ -226,19 +260,14 @@ final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
-    transcriptGeneration += 1
+    timeline.reset(roomId: room.id)
+    olderPageTask = nil
+    transcriptRefreshTask = nil
     let generation = transcriptGeneration
-    transcriptRoomId = room.id
-    transcriptMessages = []
-    transcriptCursor = nil
-    transcriptHasMore = false
-    transcriptError = nil
-    transcriptLoading = true
-    transcriptRefreshing = false
     pendingTranscriptRefresh = false
     clearOutbound()
     realtime?.watchRoom(room.id)
-    Task { await loadTranscript(auth: auth, room: room, generation: generation) }
+    transcriptLoadTask = Task { await loadTranscript(auth: auth, room: room, generation: generation) }
   }
 
   /// Paint a pending shell immediately, then POST. No-op while a send is
@@ -421,14 +450,13 @@ final class WorkspaceState: ObservableObject {
   /// 0014): the same HTTP refresh as the live poll. No mark-read, never
   /// wipes resolved history on failure.
   func refreshTranscript(auth: AuthState) {
-    guard let roomId = transcriptRoomId else { return }
-    if transcriptLoading || transcriptLoadingOlder || transcriptRefreshing {
+    guard transcriptRoomId != nil else { return }
+    if transcriptLoading || transcriptLoadingOlder || transcriptRefreshing || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
       pendingTranscriptRefresh = true
       return
     }
-    transcriptRefreshing = true
     let generation = transcriptGeneration
-    Task { await refresh(auth: auth, roomId: roomId, generation: generation) }
+    transcriptRefreshTask = Task { await refresh(auth: auth, generation: generation) }
   }
 
   private func drainPendingTranscriptRefresh(auth: AuthState) {
@@ -437,10 +465,10 @@ final class WorkspaceState: ObservableObject {
     refreshTranscript(auth: auth)
   }
 
-  func refresh(auth: AuthState, roomId: String, generation: Int) async {
+  func refresh(auth: AuthState, generation: Int) async {
     defer {
       if generation == transcriptGeneration {
-        transcriptRefreshing = false
+        transcriptRefreshTask = nil
         drainPendingTranscriptRefresh(auth: auth)
       }
     }
@@ -451,14 +479,7 @@ final class WorkspaceState: ObservableObject {
       return
     }
     do {
-      let page = try await service.listMessages(
-        client: client,
-        roomId: roomId,
-        organizationSlug: selection?.workspace.organizationSlug
-      )
-      guard generation == transcriptGeneration, roomId == transcriptRoomId else { return }
-      transcriptMessages = mergeRealtimePage(messages: transcriptMessages, page: page.messages)
-      transcriptError = nil
+      _ = try await timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
     } catch let error as ChatServiceError {
       guard generation == transcriptGeneration else { return }
       transcriptError = transcriptFailureMessage(error, auth: auth)
@@ -571,31 +592,18 @@ final class WorkspaceState: ObservableObject {
   ) async {
     defer {
       if generation == transcriptGeneration {
-        transcriptLoading = false
+        transcriptLoadTask = nil
         drainPendingTranscriptRefresh(auth: auth)
       }
     }
     guard let client = resolveClient(auth: auth) else {
       if generation == transcriptGeneration {
-        transcriptError = "Sign-in is not configured."
+        timeline.failInitialLoad(message: "Sign-in is not configured.", generation: generation)
       }
       return
     }
     do {
-      let page = try await service.listMessages(
-        client: client,
-        roomId: room.id,
-        organizationSlug: selection?.workspace.organizationSlug
-      )
-      guard generation == transcriptGeneration else { return }
-      // History resolved: paint it before the read so a failed read keeps
-      // the transcript on screen instead of discarding it. Merge, not
-      // assign: a live row that arrived while history was in flight survives
-      // (the page wins by id). The pane was cleared on open, so only
-      // in-flight live rows can be missing from the page.
-      transcriptMessages = mergeRealtimePage(messages: transcriptMessages, page: page.messages)
-      transcriptCursor = page.nextCursor
-      transcriptHasMore = page.nextCursor != nil
+      guard try await timeline.loadPage(.initial, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation) else { return }
       // The read is only for the room still selected now: a stale open must
       // not mark the previous room read after the user moved on.
       let updated = try await service.markRoomRead(
@@ -617,24 +625,24 @@ final class WorkspaceState: ObservableObject {
     }
   }
 
-  /// Older history page for scroll-up. Prepends; never marks read and never
+  /// Older history page for scroll-up. Merges by message ID; never marks read and never
   /// clears resolved history on failure.
   func loadOlderMessages(auth: AuthState) {
-    guard let roomId = transcriptRoomId, transcriptHasMore,
-          !transcriptLoading, !transcriptLoadingOlder,
-          let cursor = transcriptCursor
+    guard transcriptRoomId != nil, transcriptHasMore,
+          !transcriptLoading, !transcriptLoadingOlder, !transcriptRefreshing,
+          olderPageTask == nil, transcriptRefreshTask == nil,
+          transcriptCursor != nil
     else { return }
-    transcriptLoadingOlder = true
     let generation = transcriptGeneration
-    Task {
-      await loadOlder(auth: auth, roomId: roomId, cursor: cursor, generation: generation)
+    olderPageTask = Task {
+      await loadOlder(auth: auth, generation: generation)
     }
   }
 
-  func loadOlder(auth: AuthState, roomId: String, cursor: String, generation: Int) async {
+  func loadOlder(auth: AuthState, generation: Int) async {
     defer {
       if generation == transcriptGeneration {
-        transcriptLoadingOlder = false
+        olderPageTask = nil
         drainPendingTranscriptRefresh(auth: auth)
       }
     }
@@ -645,17 +653,7 @@ final class WorkspaceState: ObservableObject {
       return
     }
     do {
-      let page = try await service.listMessages(
-        client: client,
-        roomId: roomId,
-        cursor: cursor,
-        organizationSlug: selection?.workspace.organizationSlug
-      )
-      guard generation == transcriptGeneration else { return }
-      transcriptMessages = page.messages + transcriptMessages
-      transcriptCursor = page.nextCursor
-      transcriptHasMore = page.nextCursor != nil
-      transcriptError = nil
+      _ = try await timeline.loadPage(.older, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
     } catch let error as ChatServiceError {
       guard generation == transcriptGeneration else { return }
       transcriptError = transcriptFailureMessage(error, auth: auth)

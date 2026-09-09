@@ -126,8 +126,10 @@ private func ephemeralState(
 /// spawn, so stubbed responses are consumed in order. Every load in these
 /// tests must be followed by one before the next load or op assertion.
 private func waitForTranscriptIdle(_ state: WorkspaceState) async {
-  for _ in 0 ..< 1000 where state.transcriptLoading || state.transcriptLoadingOlder {
-    await Task.yield()
+  while state.transcriptLoadTask != nil || state.olderPageTask != nil || state.transcriptRefreshTask != nil {
+    await state.transcriptLoadTask?.value
+    await state.olderPageTask?.value
+    await state.transcriptRefreshTask?.value
   }
 }
 

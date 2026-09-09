@@ -32,6 +32,7 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
   var pausePOST = false
   var pauseNextMessagesGET = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
+  private var messagesGETObserver: CheckedContinuation<Void, Never>?
   private var messagesGETWaiter: CheckedContinuation<Void, Never>?
   private var postReleased = false
   private var messagesGETReleased = false
@@ -62,12 +63,22 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
     if pauseNextMessagesGET, operationID == "get/chats/rooms/{id}/messages" {
       pauseNextMessagesGET = false
       if !messagesGETReleased {
-        await withCheckedContinuation { messagesGETWaiter = $0 }
+        await withCheckedContinuation { messagesGETWaiter = $0
+          messagesGETObserver?.resume()
+          messagesGETObserver = nil
+        }
       }
       messagesGETReleased = false
     }
     let next = responses.removeFirst()
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
+  }
+
+  func waitForMessagesGET() async {
+    if messagesGETWaiter != nil {
+      return
+    }
+    await withCheckedContinuation { messagesGETObserver = $0 }
   }
 
   func releasePOST() {
@@ -124,9 +135,9 @@ private func realtimeMessageJSON(
   """
 }
 
-private func realtimePageBody(messages: [String]) -> String {
+private func realtimePageBody(messages: [String], nextCursor: String? = nil) -> String {
   """
-  {"data":[\(messages.joined(separator: ","))],"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(messages.count),"nextCursor":null}}}
+  {"data":[\(messages.joined(separator: ","))],"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(messages.count),"nextCursor":\(nextCursor.map { "\"\($0)\"" } ?? "null")}}}
   """
 }
 
@@ -181,7 +192,12 @@ private func realtimeState(
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
-  for _ in 0 ..< 1000 where state.transcriptLoading || state.transcriptLoadingOlder || state.transcriptRefreshing || state.outboundInFlight {
+  while state.transcriptLoadTask != nil || state.olderPageTask != nil || state.transcriptRefreshTask != nil {
+    await state.transcriptLoadTask?.value
+    await state.olderPageTask?.value
+    await state.transcriptRefreshTask?.value
+  }
+  for _ in 0 ..< 1000 where state.outboundInFlight {
     await Task.yield()
   }
 }
@@ -381,6 +397,30 @@ struct WorkspaceRealtimeTests {
     await waitForRealtimeIdle(state)
     #expect(state.displayedTranscript.map(\.content) == ["hello"])
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/messages" }.count == 1)
+  }
+
+  @Test func queuedEnvelopeAfterOlderPageIsRefetched() async throws {
+    let messageId = "550e8400-e29b-41d4-a716-446655440717"
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [], nextCursor: "older")),
+      (200, realtimeReadBody(id: roomA)),
+      (200, realtimePageBody(messages: [])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: messageId, roomId: roomA, content: "arrived")]))
+    ])
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    transport.pauseNextMessagesGET = true
+    // Both actions queue before either page request starts.
+    state.loadOlderMessages(auth: auth)
+    state.applyRealtimeEnvelope(.init(eventType: .create, messageId: messageId, roomId: roomA), auth: auth)
+    await transport.waitForMessagesGET()
+    transport.releaseMessagesGET()
+    await waitForRealtimeIdle(state)
+    #expect(state.transcriptMessages.map(\.content) == ["arrived"])
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
   }
 
   @Test func envelopeCreateRefetchesAndMergesWithoutFakeRow() async throws {
