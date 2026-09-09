@@ -34,9 +34,14 @@ final class WorkspaceState: ObservableObject {
   }
 
   let sidebar: ConversationSidebar
+  var readAttention: RoomReadAttention {
+    sidebar.readAttention
+  }
+
+  private var attentionObservation: AnyCancellable?
   private var sidebarObservation: AnyCancellable?
   var rooms: [Components.Schemas.ChatRoom] {
-    get { sidebar.rooms }
+    get { readAttention.applying(to: sidebar.rooms) }
     set { sidebar.rooms = newValue }
   }
 
@@ -171,6 +176,9 @@ final class WorkspaceState: ObservableObject {
     sidebarObservation = sidebar.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
+    attentionObservation = readAttention.objectWillChange.sink { [weak self] in
+      self?.objectWillChange.send()
+    }
     workspaceObservation = workspaceSession.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
@@ -245,6 +253,7 @@ final class WorkspaceState: ObservableObject {
 
   /// Forget the transcript without touching rooms or selection.
   func clearTranscript() {
+    readAttention.roomChanged()
     timeline.reset()
     transcriptLoadTask = nil
     olderPageTask = nil
@@ -260,6 +269,7 @@ final class WorkspaceState: ObservableObject {
   /// unread chrome matches Core. A failed read keeps the resolved history
   /// on screen and leaves unread chrome unchanged.
   func openRoom(_ room: Components.Schemas.ChatRoom, auth: AuthState) {
+    readAttention.roomChanged()
     timeline.reset(roomId: room.id)
     olderPageTask = nil
     transcriptRefreshTask = nil
@@ -479,7 +489,8 @@ final class WorkspaceState: ObservableObject {
       return
     }
     do {
-      _ = try await timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation)
+      guard try await timeline.loadPage(.latest, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation) else { return }
+      await syncReadAttention(auth: auth)
     } catch let error as ChatServiceError {
       guard generation == transcriptGeneration else { return }
       transcriptError = transcriptFailureMessage(error, auth: auth)
@@ -587,7 +598,7 @@ final class WorkspaceState: ObservableObject {
 
   func loadTranscript(
     auth: AuthState,
-    room: Components.Schemas.ChatRoom,
+    room _: Components.Schemas.ChatRoom,
     generation: Int
   ) async {
     defer {
@@ -604,17 +615,7 @@ final class WorkspaceState: ObservableObject {
     }
     do {
       guard try await timeline.loadPage(.initial, client: client, organizationSlug: selection?.workspace.organizationSlug, generation: generation) else { return }
-      // The read is only for the room still selected now: a stale open must
-      // not mark the previous room read after the user moved on.
-      let updated = try await service.markRoomRead(
-        client: client,
-        roomId: room.id,
-        organizationSlug: selection?.workspace.organizationSlug
-      )
-      guard generation == transcriptGeneration else { return }
-      if let index = rooms.firstIndex(where: { $0.id == updated.id }) {
-        rooms[index] = updated
-      }
+      await syncReadAttention(auth: auth)
     } catch let error as ChatServiceError {
       guard generation == transcriptGeneration else { return }
       transcriptError = transcriptFailureMessage(error, auth: auth)
@@ -622,6 +623,34 @@ final class WorkspaceState: ObservableObject {
       guard generation == transcriptGeneration else { return }
       NSLog("Sokosumi transcript load failed: %@", String(describing: error))
       transcriptError = friendlyMessage(for: error)
+    }
+  }
+
+  func syncReadAttention(auth: AuthState) async {
+    guard let room = rooms.first(where: { $0.id == transcriptRoomId }), let client = resolveClient(auth: auth) else { return }
+    do {
+      try await readAttention.readIfNeeded(
+        room: room,
+        messages: transcriptMessages.map { .init(id: $0.id, content: $0.content) },
+        historyReadable: timeline.hasLoadedHistory && timeline.failedPage != .initial && timeline.failedPage != .latest,
+        client: client,
+        organizationSlug: selection?.workspace.organizationSlug
+      )
+    } catch {
+      if let error = error as? ChatServiceError {
+        _ = transcriptFailureMessage(error, auth: auth)
+      }
+    }
+  }
+
+  func markRoomUnread(_ room: Components.Schemas.ChatRoom, auth: AuthState) async {
+    guard let client = resolveClient(auth: auth) else { return }
+    do {
+      try await readAttention.markUnread(room: room, activeRoomId: selectedRoomId, client: client, organizationSlug: selection?.workspace.organizationSlug)
+    } catch {
+      if let error = error as? ChatServiceError {
+        _ = transcriptFailureMessage(error, auth: auth)
+      }
     }
   }
 
@@ -717,6 +746,7 @@ final class WorkspaceState: ObservableObject {
     guard let client = resolveClient(auth: auth) else { return }
     do {
       guard let loaded = try await workspaceSession.select(option, client: client), generation == workspaceGeneration else { return }
+      readAttention.reset()
       clearTranscript()
       selectedRoomId = nil
       rooms = loaded

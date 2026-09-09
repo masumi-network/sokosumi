@@ -10,6 +10,7 @@ public final class RoomTimeline: ObservableObject {
 
   @Published public private(set) var roomId: String?
   @Published public var messages: [Components.Schemas.ChatRoomMessage] = []
+  @Published public private(set) var hasLoadedHistory = false
   @Published public private(set) var hasMore = false
   @Published public private(set) var isLoading = false
   @Published public private(set) var isLoadingOlder = false
@@ -28,6 +29,7 @@ public final class RoomTimeline: ObservableObject {
     activePage = nil
     self.roomId = roomId
     messages = []
+    hasLoadedHistory = false
     cursor = nil
     hasMore = false
     isLoading = roomId != nil
@@ -88,6 +90,9 @@ public final class RoomTimeline: ObservableObject {
       throw error
     }
     guard generation == expectedGeneration, !Task.isCancelled else { return false }
+    if kind == .initial {
+      hasLoadedHistory = true
+    }
     messages = mergeRealtimePage(messages: messages, page: page.messages)
     if kind != .latest {
       cursor = page.nextCursor == requestedCursor ? nil : page.nextCursor

@@ -108,7 +108,8 @@ private func roomsBody(names: [String]) -> String {
 
 /// One fixture bundle per test; a struct would churn every call site.
 private func ephemeralState(
-  _ responses: [(Int, String)]
+  _ responses: [(Int, String)],
+  visible: Bool = true
 ) throws -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) { // swiftlint:disable:this large_tuple
   let transport = ScriptedTransport(responses)
   let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
@@ -118,6 +119,7 @@ private func ephemeralState(
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults)
   )
+  state.readAttention.setVisible(visible, window: UUID())
   state.clientResolver = { client }
   return (state, AuthState(store: MemoryTokenStore()), transport, defaults)
 }
@@ -573,12 +575,61 @@ struct WorkspaceStateTests {
     // History resolved before the read failed: it stays on screen with a
     // banner, and unread chrome is untouched (no DTO to apply).
     #expect(state.transcriptMessages.map(\.content) == ["visible"])
-    #expect(state.transcriptError != nil)
+    #expect(state.readAttention.errorMessage != nil)
     #expect(state.rooms.first?.unreadCount == 2)
     #expect(transport.operationIDs.suffix(2) == [
       "get/chats/rooms/{id}/messages",
       "post/chats/rooms/{id}/read"
     ])
+  }
+
+  @Test func hiddenHistoryDefersReadUntilWindowBecomesVisible() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440033"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, unreadRoomsBody(id: roomID, unread: 2)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 1))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(!transport.operationIDs.contains("post/chats/rooms/{id}/read"))
+    #expect(state.rooms.first?.unreadCount == 2)
+    state.readAttention.setVisible(true, window: UUID())
+    await state.syncReadAttention(auth: auth)
+    #expect(state.rooms.first?.unreadCount == 1)
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 1)
+  }
+
+  @Test func successfulRefreshRetryMarksUnchangedVisibleContentRead() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440033"
+    let messageID = "550e8400-e29b-41d4-a716-446655440034"
+    let page = transcriptPageBody(messages: [transcriptMessage(id: messageID, content: "first")], nextCursor: nil)
+    let updatedPage = transcriptPageBody(messages: [transcriptMessage(id: messageID, content: "updated")], nextCursor: nil)
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, unreadRoomsBody(id: roomID, unread: 2)),
+      (200, page), (200, roomReadBody(id: roomID, unread: 0)),
+      (500, #"{"error":"Internal Server Error","message":"boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/messages","method":"GET"}}"#),
+      (200, updatedPage), (200, roomReadBody(id: roomID, unread: 1))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    state.refreshTranscript(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.timeline.failedPage == .latest)
+    // A realtime update arrives while the failed refresh blocks reads.
+    state.timeline.messages[0].content = "updated"
+    await state.syncReadAttention(auth: auth)
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 1)
+    state.refreshTranscript(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.timeline.failedPage == nil)
+    #expect(state.transcriptMessages.map(\.content) == ["updated"])
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 2)
+    #expect(state.rooms.first?.unreadCount == 1)
   }
 
   @Test func failedOlderPageKeepsResolvedHistory() async throws {

@@ -121,9 +121,10 @@ public func resolveRoomAttention(
   unreadCount: Int,
   unreadMentionCount: Int,
   markedUnread: Bool = false,
-  isMuted: Bool = false
+  isMuted: Bool = false,
+  isActive: Bool = false
 ) -> RoomAttention {
-  if isMuted {
+  if isMuted || isActive {
     return .init(bold: false, badgeCount: 0)
   }
   return .init(bold: unreadCount > 0 || markedUnread, badgeCount: unreadMentionCount)

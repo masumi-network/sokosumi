@@ -6,6 +6,8 @@ import SwiftUI
 struct ContentView: View {
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
+  @State private var windowID = UUID()
+  @Environment(\.scenePhase) private var scenePhase
   @Environment(\.openSettings) private var openSettings
 
   var body: some View {
@@ -16,6 +18,31 @@ struct ContentView: View {
       default:
         authCard
       }
+    }
+    .task(id: scenePhase) {
+      workspaces.readAttention.setVisible(scenePhase == .active, window: windowID)
+      await workspaces.syncReadAttention(auth: auth)
+    }
+    .onDisappear {
+      Task { @MainActor in workspaces.readAttention.setVisible(false, window: windowID) }
+    }
+    .onChange(of: workspaces.transcriptMessages.map { RoomReadAttention.Message(id: $0.id, content: $0.content) }) { _, _ in
+      Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
+    }
+    .onChange(of: workspaces.timeline.hasLoadedHistory) { _, _ in
+      Task { @MainActor in await workspaces.syncReadAttention(auth: auth) }
+    }
+    .alert("Couldn’t update unread status", isPresented: Binding(
+      get: { workspaces.readAttention.errorMessage != nil },
+      set: {
+        if !$0 {
+          workspaces.readAttention.clearError()
+        }
+      }
+    )) {
+      Button("OK") { workspaces.readAttention.clearError() }
+    } message: {
+      Text(workspaces.readAttention.errorMessage ?? "")
     }
     .onChange(of: auth.isSignedIn) { _, signedIn in
       // Hop off this view update: startIfNeeded/reset publish WorkspaceState.
@@ -263,7 +290,8 @@ struct ContentView: View {
       unreadCount: room.unreadCount,
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
-      isMuted: room.mutedAt != nil
+      isMuted: room.mutedAt != nil,
+      isActive: room.id == workspaces.selectedRoomId
     )
     return Label {
       VStack(alignment: .leading, spacing: 2) {
@@ -288,6 +316,12 @@ struct ContentView: View {
     .labelStyle(RoomRowLabelStyle())
     .tag(room.id)
     .badge(attention.badgeCount)
+    .contextMenu {
+      Button("Mark unread", systemImage: "envelope.badge") {
+        Task { @MainActor in await workspaces.markRoomUnread(room, auth: auth) }
+      }
+      .disabled(room.id == workspaces.selectedRoomId || room.mutedAt != nil)
+    }
   }
 
   /// "Me" section pinned to the bottom of the sidebar: account menu with
