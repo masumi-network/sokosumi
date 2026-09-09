@@ -4,6 +4,14 @@ import "server-only";
 import * as z from "zod";
 
 /**
+ * Official `@sparticuz/chromium-min` 152 x64 pack for Vercel PDF export.
+ * Matches puppeteer / puppeteer-core 25.10.0 Chrome 152.0.7977.75
+ * (pack binary is Chromium 152.0.7977.42).
+ */
+export const DEFAULT_CHROMIUM_EXECUTABLE_URL =
+  "https://github.com/Sparticuz/chromium/releases/download/v152.0.0/chromium-v152.0.0-pack.x64.tar";
+
+/**
  * Specify your environment variables schema here.
  * This way you can ensure the app isn't built with invalid env vars.
  */
@@ -17,11 +25,7 @@ const envSecretsSchema = z.object({
 
   CORE_APP_BASE_URL: z.url().default("http://localhost:8787"),
 
-  CHROMIUM_EXECUTABLE_URL: z
-    .url()
-    .default(
-      "https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar",
-    ),
+  CHROMIUM_EXECUTABLE_URL: z.url().default(DEFAULT_CHROMIUM_EXECUTABLE_URL),
 
   MAINTENANCE_MODE: z
     .string()
