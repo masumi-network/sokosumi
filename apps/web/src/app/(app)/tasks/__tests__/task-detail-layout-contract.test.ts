@@ -69,6 +69,21 @@ describe("task detail layout contract", () => {
     expect(filesIdx).toBeGreaterThan(metadataIdx);
   });
 
+  it("share single-column source order keeps metadata after description and before files", () => {
+    const share = readFileSync(shareViewPath, "utf8");
+    const descriptionBlockIdx = share.indexOf(
+      'className={cn("space-y-4 md:pt-4", APP_MAIN_MOBILE_PT_CLASS)}',
+    );
+    const sidebarIdx = share.indexOf(
+      "<aside className={TASK_DETAIL_SIDEBAR_CLASS}>",
+    );
+    const filesIdx = share.indexOf("<TaskFiles");
+
+    expect(descriptionBlockIdx).toBeGreaterThan(-1);
+    expect(sidebarIdx).toBeGreaterThan(descriptionBlockIdx);
+    expect(filesIdx).toBeGreaterThan(sidebarIdx);
+  });
+
   it("share view no longer uses the fixed right aside rail pattern", () => {
     const share = readFileSync(shareViewPath, "utf8");
 
