@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -20,12 +21,17 @@ import {
   runPreviewDeployComment,
   runPreviewDeployOpened,
   runPreviewFromGithubEvent,
-  runProductionDeploy,
   summarizeCliDeployResult,
   usageMessage,
   VERCEL_PROJECTS,
   VERCEL_TEAM_ID,
 } from "./vercel-deploy.mjs";
+
+const GIT_DEPLOYMENT_ENABLED = {
+  "*": false,
+  "**": false,
+  main: true,
+};
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
 
@@ -207,32 +213,6 @@ describe("createGitDeployment", () => {
     assert.equal(body.gitSource.ref, "feat/preview");
     assert.equal(body.gitSource.sha, "abc123");
     assert.equal(body.target, undefined);
-  });
-
-  it("sets target production when requested", async () => {
-    const calls = [];
-    const fetchImpl = async (url, init) => {
-      calls.push({ url: String(url), init });
-      return {
-        ok: true,
-        json: async () => ({ id: "dpl_prod", readyState: "QUEUED" }),
-      };
-    };
-
-    await createGitDeployment({
-      token: "tok",
-      teamId: VERCEL_TEAM_ID,
-      target: deployTargets(["mainnet"])[0],
-      repoId: 123,
-      ref: "main",
-      sha: "abc123",
-      deploymentTarget: "production",
-      fetchImpl,
-    });
-
-    const body = JSON.parse(calls[0].init.body);
-    assert.equal(body.target, "production");
-    assert.equal(body.gitSource.ref, "main");
   });
 });
 
@@ -785,59 +765,6 @@ describe("runPreviewFromGithubEvent", () => {
   });
 });
 
-describe("runProductionDeploy", () => {
-  it("deploys web and core on both networks as production", async () => {
-    const created = [];
-    const result = await runProductionDeploy({
-      repoId: 99,
-      ref: "main",
-      sha: "cafed00d",
-      createDeployment: async (input) => {
-        created.push(input);
-        return {
-          id: `dpl_${input.target.name}`,
-          url: `${input.target.name}.vercel.app`,
-          readyState: "READY",
-        };
-      },
-      pollDeployment: async (deployment) => deployment,
-    });
-
-    assert.equal(result.kind, "production");
-    assert.equal(created.length, 4);
-    assert.deepEqual(
-      created.map((item) => item.target.name),
-      [
-        "sokosumi-app-mainnet",
-        "sokosumi-core-mainnet",
-        "sokosumi-app-preprod",
-        "sokosumi-core-preprod",
-      ],
-    );
-    assert.ok(created.every((item) => item.deploymentTarget === "production"));
-    assert.ok(created.every((item) => item.ref === "main"));
-    assert.ok(created.every((item) => item.sha === "cafed00d"));
-  });
-
-  it("fails the run when a production deployment is not READY", async () => {
-    await assert.rejects(
-      () =>
-        runProductionDeploy({
-          repoId: 99,
-          ref: "main",
-          sha: "bad",
-          createDeployment: async (input) => ({
-            id: `dpl_${input.target.name}`,
-            name: input.target.name,
-            readyState: input.target.app === "core" ? "ERROR" : "READY",
-          }),
-          pollDeployment: async (deployment) => deployment,
-        }),
-      /sokosumi-core-mainnet \(ERROR\)/,
-    );
-  });
-});
-
 describe("summarizeCliDeployResult", () => {
   it("keeps only id, name, and readyState from deployment payloads", () => {
     assert.deepEqual(
@@ -1222,12 +1149,12 @@ describe("preview skip on /deploy", () => {
 });
 
 describe("git preview policy", () => {
-  it("disables all automatic git deployments", async () => {
+  it("enables automatic git deployments for main only", async () => {
     for (const app of ["web", "core"]) {
       const config = JSON.parse(
         await readFile(path.join(repoRoot, "apps", app, "vercel.json"), "utf8"),
       );
-      assert.equal(config.git.deploymentEnabled, false);
+      assert.deepEqual(config.git.deploymentEnabled, GIT_DEPLOYMENT_ENABLED);
     }
   });
 
@@ -1280,18 +1207,12 @@ describe("git preview policy", () => {
     assert.match(workflow, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
   });
 
-  it("deploys production from GitHub Actions on push to main", async () => {
-    const workflow = await readFile(
-      path.join(repoRoot, ".github/workflows/production-deploy.yml"),
-      "utf8",
+  it("does not deploy production from GitHub Actions", () => {
+    assert.equal(
+      existsSync(
+        path.join(repoRoot, ".github/workflows/production-deploy.yml"),
+      ),
+      false,
     );
-    assert.match(workflow, /push:/);
-    assert.match(workflow, /branches:\s*\[main\]/);
-    assert.doesNotMatch(workflow, /pull_request:/);
-    assert.match(workflow, /node scripts\/ci\/vercel-deploy\.mjs production/);
-    assert.match(workflow, /persist-credentials:\s*false/);
-    assert.match(workflow, /secrets\.VERCEL_TOKEN/);
-    assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
-    assert.match(workflow, /cancel-in-progress:\s*false/);
   });
 });
