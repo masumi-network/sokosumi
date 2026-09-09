@@ -161,6 +161,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: {
             metadata: JSON.stringify(metadata),
             nextRunAt,
+            // Legacy contract keeps its bare body, but every rule write still
+            // advances the concurrency token Calendar clients observe.
+            scheduleRevision: { increment: 1 },
             ...(currentTask.status !==
             (currentTask.assigneeUserId ? TaskStatus.READY : TaskStatus.QUEUED)
               ? {

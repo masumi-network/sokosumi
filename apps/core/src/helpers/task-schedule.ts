@@ -1,5 +1,7 @@
 import { TaskStatus } from "@sokosumi/database";
 import {
+  CORE_API_ERROR_KINDS,
+  hasActiveTaskSchedule,
   hasReachedTaskScheduleReleaseTarget,
   isValidTimezone,
   type TaskScheduleMetadata,
@@ -8,7 +10,7 @@ import {
 } from "@sokosumi/utils";
 
 import { computeNextRun } from "@/helpers/cron";
-import { badRequest, unprocessableEntity } from "@/helpers/error";
+import { badRequest, conflict, unprocessableEntity } from "@/helpers/error";
 
 import type { TaskScheduleInput } from "@/schemas/task-schedule.schema";
 
@@ -24,6 +26,22 @@ const SCHEDULABLE_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
 
 export function isSchedulableTaskStatus(status: TaskStatus): boolean {
   return SCHEDULABLE_TASK_STATUSES.has(status);
+}
+
+/**
+ * Guard for generic Task mutations that must not run while a Calendar schedule
+ * series is active: status/cancel/archive and every workspace or project move
+ * path. Series lifecycle belongs to the revision-safe schedule endpoints.
+ */
+export function assertTaskScheduleInactive(
+  task: { metadata: string | null; nextRunAt: Date | null },
+  message: string,
+): void {
+  if (hasActiveTaskSchedule(task.metadata, task.nextRunAt)) {
+    throw conflict(message, {
+      kind: CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE,
+    });
+  }
 }
 
 export function inferLegacyIntervalDaysFromCron(expr: string): number | null {

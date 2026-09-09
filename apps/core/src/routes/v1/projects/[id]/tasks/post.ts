@@ -4,6 +4,7 @@ import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
@@ -94,6 +95,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (task.projectId !== projectId) {
+      // Moving a Calendar source between project and workspace scope belongs
+      // to SOK-887; an active series is managed through the schedule endpoints.
+      assertTaskScheduleInactive(
+        task,
+        "Remove the schedule before moving this Task into a project",
+      );
+
       await prisma.$transaction(async (tx) => {
         if (!(await lockCalendarScope(tx, workspaceId, [projectId]))) {
           throw notFound("Project not found");

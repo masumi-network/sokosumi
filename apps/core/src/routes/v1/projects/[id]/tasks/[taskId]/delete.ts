@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
@@ -43,6 +44,7 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
     },
   }),
 );
@@ -77,6 +79,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     requireTaskNotParked(task);
+
+    // Unlinking moves the Calendar source back to workspace scope (SOK-887).
+    assertTaskScheduleInactive(
+      task,
+      "Remove the schedule before removing this Task from its project",
+    );
 
     await prisma.$transaction(async (tx) => {
       const unlinkResult = await tx.task.updateMany({
