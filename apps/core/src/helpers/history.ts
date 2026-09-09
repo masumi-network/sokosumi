@@ -9,12 +9,10 @@ import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { convertCentsToCredits, SokosumiJobStatus } from "@sokosumi/utils";
 
 import { getAgentIcon, getAgentName } from "@/helpers/agent";
-import { createPaginationMeta } from "@/helpers/pagination";
 import type prisma from "@/lib/db/prisma";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import type { HistoryItem } from "@/schemas/history.schema";
-import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 
 export interface HistoryRowForApi {
   id: string;
@@ -520,14 +518,4 @@ export function mapHistoryRow(
       throw new Error(`Unsupported history kind: ${String(row.kind)}`);
     }
   }
-}
-
-export function createHistoryPaginationMeta(
-  items: HistoryItem[],
-  count: number,
-  take: number,
-  hasMore: boolean,
-  cursor: string | undefined,
-): CursorPaginationMeta {
-  return createPaginationMeta(items, count, take, hasMore, cursor);
 }

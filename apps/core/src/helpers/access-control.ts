@@ -698,19 +698,6 @@ export async function requireTaskCollaboration(
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
 }
 
-/**
- * Upload access for task files: task owner or the
- * assigned coworker (including coworker-with-context when they are the assignee).
- * Same rules as {@link requireTaskCollaboration}.
- */
-export async function requireTaskFileUploadAccess(
-  authContext: AuthenticationContext,
-  taskId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
-  return await requireTaskCollaboration(authContext, taskId, tx);
-}
-
 export async function requireTaskCommentAccess(
   vars: EnvVariables["Variables"],
   taskId: string,
@@ -779,10 +766,6 @@ export async function requireTaskCancelAccess(
     }
 
     throw notFound("Task not found");
-  }
-
-  if (isSokoBotAuthContext(authContext)) {
-    return await requireTaskCollaboration(authContext, taskId, tx);
   }
 
   return await requireTaskCollaboration(authContext, taskId, tx);

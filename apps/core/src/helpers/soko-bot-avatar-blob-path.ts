@@ -1,7 +1,5 @@
 export const SOKO_BOT_AVATAR_BLOB_DIR = "soko-bots/avatars";
 export const SOKO_BOT_AVATAR_LEGACY_BLOB_DIR = "soko-bot-avatars";
-export const SOKO_BOT_AVATAR_BLOB_SQL_FROM = `/${SOKO_BOT_AVATAR_LEGACY_BLOB_DIR}/`;
-export const SOKO_BOT_AVATAR_BLOB_SQL_TO = `/${SOKO_BOT_AVATAR_BLOB_DIR}/`;
 
 export function buildSokoBotAvatarBlobPathname(
   key: string,
